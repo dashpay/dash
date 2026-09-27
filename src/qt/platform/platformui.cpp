@@ -4,6 +4,7 @@
 
 #include <qt/platform/platformui.h>
 
+#include <platform/helpers.h>
 #include <qt/masternodewidgets.h>
 #include <qt/sharedmnwidgets.h>
 #include <util/system.h>
@@ -12,6 +13,7 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
@@ -239,6 +241,28 @@ QString ConsensusText(uint32_t code, Context context, const QString& subject)
     }
     return {};
 }
+
+//! One disc of the given fill, with an optional centred glyph.
+QPixmap PaintDisc(const QColor& fill, const QString& glyph, const QColor& glyph_color, int size, qreal dpr)
+{
+    QPixmap pixmap{qRound(size * dpr), qRound(size * dpr)};
+    pixmap.setDevicePixelRatio(dpr);
+    pixmap.fill(Qt::transparent);
+    QPainter painter{&pixmap};
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setBrush(fill);
+    painter.setPen(Qt::NoPen);
+    painter.drawEllipse(0, 0, size, size);
+    if (!glyph.isEmpty()) {
+        painter.setPen(glyph_color);
+        QFont font;
+        font.setBold(true);
+        font.setPixelSize(size / 2);
+        painter.setFont(font);
+        painter.drawText(QRect{0, 0, size, size}, Qt::AlignCenter, glyph);
+    }
+    return pixmap;
+}
 } // namespace
 
 void makeSecondary(QPushButton* button, bool secondary)
@@ -381,6 +405,117 @@ QString Details(const platform::Status* status, const QString& operation, int64_
     return lines.join(QLatin1Char('\n'));
 }
 
+std::array<QColor, 6> avatarPalette()
+{
+    const QColor blue{GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BLUE)};
+    const QColor green{GUIUtil::getThemedQColor(GUIUtil::ThemedColor::GREEN)};
+    const QColor orange{GUIUtil::getThemedQColor(GUIUtil::ThemedColor::ORANGE)};
+    return {blue, blue.darker(130), blue.lighter(125), green, green.darker(125), orange.darker(110)};
+}
+
+QPixmap avatarPixmap(const QString& username, const QString& display_name, int size, qreal dpr)
+{
+    if (username.isEmpty()) {
+        return PaintDisc(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BORDER_WIDGET), {}, {}, size, dpr);
+    }
+    // A stable hash (Qt's qHash is seeded per process) of the normalized
+    // label, so look-alike spellings of one username share a colour.
+    uint hash{0};
+    for (const QChar ch : QString::fromStdString(platform::helpers::NormalizeLabel(username.toStdString()))) {
+        hash = hash * 31 + ch.unicode();
+    }
+    const auto palette{avatarPalette()};
+    const QColor fill{palette[hash % palette.size()]};
+    const QColor glyph_color{fill.lightnessF() > 0.6 ? GUIUtil::getThemedQColor(GUIUtil::ThemedColor::DEFAULT)
+                                                     : QColor{Qt::white}};
+    const QString source{display_name.isEmpty() ? username : display_name};
+    return PaintDisc(fill, source.left(1).toUpper(), glyph_color, size, dpr);
+}
+
+QPixmap stepBadgePixmap(int number, int size, qreal dpr)
+{
+    return PaintDisc(GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BLUE), QString::number(number), Qt::white, size, dpr);
+}
+
+QStringList registrationSteps(const platform::IdentityRecord& record)
+{
+    QStringList steps;
+    if (record.funding_amount > 0) {
+        steps << QObject::tr("Confirming your funding payment") << QObject::tr("Creating your identity");
+    }
+    steps << QObject::tr("Reserving your username") << QObject::tr("Registering your username");
+    return steps;
+}
+
+int registrationStep(const platform::IdentityRecord& record)
+{
+    using State = platform::IdentityRecord::State;
+    const int offset{record.funding_amount > 0 ? 2 : 0};
+    const State state{record.state == State::NEEDS_UNLOCK || record.state == State::FAILED ? record.resume_state
+                                                                                           : record.state};
+    switch (state) {
+    case State::FUNDING_SENT:
+        return 0;
+    case State::FUNDING_LOCKED:
+    case State::IDENTITY_BROADCAST:
+        return 1;
+    case State::IDENTITY_CONFIRMED:
+    case State::PREORDER_BROADCAST:
+        return offset;
+    case State::PREORDER_WAIT:
+    case State::DOMAIN_BROADCAST:
+        return offset + 1;
+    case State::REGISTERED:
+    case State::CONTESTED_PENDING:
+        return offset + 2;
+    case State::NONE:
+    case State::NEEDS_UNLOCK:
+    case State::FAILED:
+        break;
+    }
+    return -1;
+}
+
+QString registrationStepLine(const platform::IdentityRecord& record)
+{
+    const QStringList steps{registrationSteps(record)};
+    const int step{registrationStep(record)};
+    if (step < 0 || step >= steps.size()) return {};
+    return QObject::tr("Step %1 of %2: %3").arg(step + 1).arg(steps.size()).arg(steps.at(step));
+}
+
+QString formatPlatformBalance(BitcoinUnit unit, uint64_t credits)
+{
+    return BitcoinUnits::formatWithUnit(unit, static_cast<CAmount>(credits / platform::helpers::CreditsPerDuff()));
+}
+
+QString failureReassurance(const platform::IdentityRecord& record)
+{
+    using State = platform::IdentityRecord::State;
+    switch (record.resume_state) {
+    case State::IDENTITY_CONFIRMED:
+    case State::PREORDER_BROADCAST:
+    case State::PREORDER_WAIT:
+    case State::DOMAIN_BROADCAST:
+    case State::CONTESTED_PENDING:
+    case State::REGISTERED:
+        return QObject::tr("Your identity was created and keeps its balance on Dash Platform. Try again to register "
+                           "a username; no new payment is needed.");
+    case State::FUNDING_LOCKED:
+    case State::IDENTITY_BROADCAST:
+        return QObject::tr("Your funding payment is safe. Trying again reuses it; no new payment is made.");
+    case State::FUNDING_SENT:
+        // The payment never confirmed: its coins stayed in this wallet or
+        // went where the payment that spent them sent them.
+        return QObject::tr("Nothing was paid to Dash Platform. Try again to start a new registration.");
+    case State::NONE:
+    case State::NEEDS_UNLOCK:
+    case State::FAILED:
+        break;
+    }
+    return QObject::tr("No funds were spent.");
+}
+
 MessageLine::MessageLine(QWidget* parent) :
     QWidget(parent)
 {
@@ -468,6 +603,12 @@ void MessageLine::setAction(const QString& label)
     m_action->setVisible(!label.isEmpty());
 }
 
+void MessageLine::setIconShown(bool shown)
+{
+    m_icon_shown = shown;
+    applySeverity();
+}
+
 void MessageLine::clear()
 {
     m_text->clear();
@@ -510,8 +651,9 @@ void MessageLine::applySeverity()
         setTextStyle(m_text, GUIUtil::ThemedStyle::TS_ERROR);
         break;
     }
-    m_icon->setVisible(!icon.isEmpty());
-    if (!icon.isEmpty()) {
+    const bool show_icon{m_icon_shown && !icon.isEmpty()};
+    m_icon->setVisible(show_icon);
+    if (show_icon) {
         m_icon->setPixmap(GUIUtil::getIcon(icon, color).pixmap(MESSAGE_ICON_SIZE, MESSAGE_ICON_SIZE));
     }
 }

@@ -11,19 +11,29 @@
 #include <interfaces/wallet.h>
 #include <logging.h>
 #include <netbase.h>
+#include <platform/helpers.h>
 #include <platform/walletrecords.h>
 #include <qt/clientmodel.h>
+#include <qt/platform/identityflow.h>
 #include <qt/platform/platformui.h>
+#include <util/strencodings.h>
 #include <util/system.h>
 #include <util/threadnames.h>
 
 #include <QMetaObject>
+#include <QPointer>
 
+#include <algorithm>
 #include <utility>
 
 namespace {
+//! Flow advance / retry cadence.
+constexpr int TICK_INTERVAL_MS{5'000};
 //! Endpoint + quorum key refresh cadence.
 constexpr int CONTEXT_INTERVAL_MS{60'000};
+//! Base duffs an identity registration locks, before any vote reserve.
+//! Matches the mobile wallets' default for an uncontested registration.
+constexpr CAmount IDENTITY_FUNDING_DUFFS{1000000};
 
 //! Keeps the wallet unlocked for the life of a SigningOperation.
 class UnlockScope final : public platform::UnlockScope
@@ -38,6 +48,138 @@ private:
     WalletModel::UnlockContext m_context;
 };
 
+//! The client the flows use: every result is observed by the service
+//! before the flow sees it, so a protocol-version or chain-id signal on any
+//! read freezes writes no matter which flow issued it.
+class ObservingClient final : public platform::PlatformClient
+{
+public:
+    ObservingClient(PlatformService& service, std::unique_ptr<platform::PlatformClient> inner) :
+        m_service(service),
+        m_inner(std::move(inner))
+    {
+    }
+
+    void resolveName(const std::string& normalized_label, Callback<platform::DpnsName> cb) override
+    {
+        m_inner->resolveName(normalized_label, observe(std::move(cb)));
+    }
+    void searchNames(const std::string& prefix, uint32_t limit, const platform::Identifier& start_after,
+                     Callback<platform::Paged<platform::DpnsName>> cb) override
+    {
+        m_inner->searchNames(prefix, limit, start_after, observe(std::move(cb)));
+    }
+    void namesOfIdentity(const platform::Identifier& identity, const platform::Identifier& start_after,
+                         Callback<platform::Paged<platform::DpnsName>> cb) override
+    {
+        m_inner->namesOfIdentity(identity, start_after, observe(std::move(cb)));
+    }
+    void getIdentity(const platform::Identifier& id, Callback<platform::Identity> cb) override
+    {
+        m_inner->getIdentity(id, observe(std::move(cb)));
+    }
+    void getIdentityByPublicKeyHash(const std::array<uint8_t, 20>& pubkey_hash, Callback<platform::Identity> cb) override
+    {
+        m_inner->getIdentityByPublicKeyHash(pubkey_hash, observe(std::move(cb)));
+    }
+    void getIdentityContractNonce(const platform::Identifier& id, const platform::Identifier& contract_id,
+                                  Callback<uint64_t> cb) override
+    {
+        m_inner->getIdentityContractNonce(id, contract_id, observe(std::move(cb)));
+    }
+    void getProfile(const platform::Identifier& owner_id, Callback<platform::Profile> cb) override
+    {
+        m_inner->getProfile(owner_id, observe(std::move(cb)));
+    }
+    void getContactRequests(const platform::Identifier& identity, bool to_me, uint64_t since_ms,
+                            const platform::Identifier& start_after,
+                            Callback<platform::Paged<platform::ContactRequest>> cb) override
+    {
+        m_inner->getContactRequests(identity, to_me, since_ms, start_after, observe(std::move(cb)));
+    }
+    void getContestedNameState(const std::string& normalized_label, Callback<platform::ContestedNameState> cb) override
+    {
+        m_inner->getContestedNameState(normalized_label, observe(std::move(cb)));
+    }
+    void broadcastStateTransition(const std::vector<uint8_t>& state_transition, BroadcastCallback cb) override
+    {
+        QPointer<PlatformService> service{&m_service};
+        m_inner->broadcastStateTransition(state_transition, [service, cb = std::move(cb)](platform::Status status) {
+            if (service)
+                service->post([service, status] {
+                    if (service) service->observeStatus(status, /*verified_read=*/false, /*protocol_version=*/0);
+                });
+            cb(std::move(status));
+        });
+    }
+
+    util::Result<platform::Built> buildIdentityCreate(const platform::SigningOperation& op,
+                                                      const platform::AssetLockProof& proof,
+                                                      const std::vector<platform::NewIdentityKey>& keys) override
+    {
+        return m_inner->buildIdentityCreate(op, proof, keys);
+    }
+    util::Result<platform::Built> buildDpnsPreorder(const platform::SigningOperation& op,
+                                                    const platform::Identifier& owner, uint64_t nonce,
+                                                    const std::string& label, const std::array<uint8_t, 32>& salt) override
+    {
+        return m_inner->buildDpnsPreorder(op, owner, nonce, label, salt);
+    }
+    util::Result<platform::Built> buildDpnsDomain(const platform::SigningOperation& op,
+                                                  const platform::Identifier& owner, uint64_t nonce,
+                                                  const std::string& label, const std::array<uint8_t, 32>& salt) override
+    {
+        return m_inner->buildDpnsDomain(op, owner, nonce, label, salt);
+    }
+    util::Result<platform::Built> buildProfile(const platform::SigningOperation& op, const platform::Identifier& owner,
+                                               uint64_t nonce, const platform::Profile& existing,
+                                               const platform::ProfileInput& input) override
+    {
+        return m_inner->buildProfile(op, owner, nonce, existing, input);
+    }
+    util::Result<platform::Built> buildContactRequest(const platform::SigningOperation& op,
+                                                      const platform::Identity& sender,
+                                                      const platform::Identity& recipient, uint64_t nonce,
+                                                      const platform::ContactRequestInput& input) override
+    {
+        return m_inner->buildContactRequest(op, sender, recipient, nonce, input);
+    }
+    util::Result<uint64_t> contestedVoteFundCredits() override { return m_inner->contestedVoteFundCredits(); }
+
+    void updateEndpoints(std::vector<platform::Endpoint> endpoints) override
+    {
+        m_inner->updateEndpoints(std::move(endpoints));
+    }
+    void updateQuorumKeys(uint8_t llmq_type, std::vector<platform::QuorumKey> keys) override
+    {
+        m_inner->updateQuorumKeys(llmq_type, std::move(keys));
+    }
+    void updateCoreChainLockedHeight(int32_t height) override { m_inner->updateCoreChainLockedHeight(height); }
+    void shutdown() override { m_inner->shutdown(); }
+
+private:
+    //! The status reaches the service on the GUI thread before the caller's
+    //! own posted continuation, which is queued behind it.
+    template <typename T>
+    Callback<T> observe(Callback<T> cb)
+    {
+        QPointer<PlatformService> service{&m_service};
+        return [service, cb = std::move(cb)](platform::Result<T> res) {
+            if (service) {
+                const platform::Status status{res.status};
+                const uint32_t protocol_version{res.metadata.protocol_version};
+                service->post([service, status, protocol_version] {
+                    if (service) service->observeStatus(status, /*verified_read=*/true, protocol_version);
+                });
+            }
+            cb(std::move(res));
+        };
+    }
+
+    PlatformService& m_service;
+    std::unique_ptr<platform::PlatformClient> m_inner;
+};
+
 std::optional<PlatformNetworkSettings> g_network_settings_for_testing;
 
 std::optional<platform::ProxyConfig> ReadProxy(interfaces::Node& node, Network net)
@@ -50,6 +192,15 @@ std::optional<platform::ProxyConfig> ReadProxy(interfaces::Node& node, Network n
     }
     return platform::ProxyConfig{proxy.proxy, proxy.m_randomize_credentials};
 }
+
+//! Why writes are refused while the service is frozen or on another chain.
+QString RefusalText(platform::StatusKind kind)
+{
+    platform::Status status;
+    status.kind = kind;
+    return PlatformUi::Describe(status, PlatformUi::Context::READ, {}).text;
+}
+
 } // namespace
 
 PlatformNetworkSettings PlatformNetworkSettings::Read(interfaces::Node& node)
@@ -112,15 +263,30 @@ bool PlatformService::Enable(interfaces::Wallet& wallet)
            wallet.writePlatformData(platform::records::ENABLED, {1});
 }
 
-bool PlatformService::WipeRecords(interfaces::Wallet& wallet)
+bool PlatformService::WipeRecords(interfaces::Wallet& wallet, const std::string& keep)
 {
     bool ok{true};
     for (const char* prefix : {"platform/", "identity/", "contact/"}) {
         for (const auto& [key, value] : wallet.getPlatformData(prefix)) {
-            ok &= wallet.writePlatformData(key, {});
+            if (key != keep) ok &= wallet.writePlatformData(key, {});
         }
     }
     return ok;
+}
+
+bool PlatformService::HoldsUnconsumedFunding(interfaces::Wallet& wallet)
+{
+    const auto records{wallet.getPlatformData(platform::records::IDENTITY)};
+    const auto it{records.find(platform::records::IDENTITY)};
+    platform::IdentityRecord record;
+    return it != records.end() && platform::DeserializeIdentityRecord(it->second, record) &&
+           IdentityFlow::HoldsUnconsumedFunding(record);
+}
+
+bool PlatformService::DiscardRecords(interfaces::Wallet& wallet)
+{
+    const std::string keep{HoldsUnconsumedFunding(wallet) ? platform::records::IDENTITY : ""};
+    return WipeRecords(wallet, keep) && Enable(wallet);
 }
 
 PlatformAvailability PlatformService::Availability(WalletModel& wallet_model, ClientModel& client_model,
@@ -177,7 +343,7 @@ PlatformService::PlatformService(WalletModel& wallet_model, ClientModel& client_
     QObject(parent),
     m_wallet_model(wallet_model),
     m_client_model(client_model),
-    m_client(std::move(client)),
+    m_client(std::make_unique<ObservingClient>(*this, std::move(client))),
     m_route(std::move(route)),
     m_chain_id(EffectiveChainId())
 {
@@ -190,7 +356,28 @@ PlatformService::PlatformService(WalletModel& wallet_model, ClientModel& client_
         LogPrintf("Platform GUI: wallet records were written for chain %s, this node verifies %s\n", recorded_chain_id,
                   m_chain_id);
         m_network_changed = true;
+    } else {
+        // Records of another layout are never migrated: wipe them and let
+        // recovery rebuild the state from chain.
+        const bool have_records{!m_wallet_model.wallet().getPlatformData("identity/").empty() ||
+                                !m_wallet_model.wallet().getPlatformData("contact/").empty()};
+        if (!platform::IsRecordSetCurrent(readRecord(platform::records::VERSION), have_records)) {
+            LogPrintf("Platform GUI: wallet records use another layout version; discarding them for recovery\n");
+            DiscardRecords(m_wallet_model.wallet());
+            m_chain_id_stamped = false;
+        }
     }
+
+    m_identity_flow = std::make_unique<IdentityFlow>(*this);
+    connect(m_identity_flow.get(), &IdentityFlow::stateChanged, this, &PlatformService::identityStateChanged);
+    connect(m_identity_flow.get(), &IdentityFlow::failed, this, &PlatformService::flowFailed);
+
+    m_tick_timer = new QTimer(this);
+    m_tick_timer->setInterval(TICK_INTERVAL_MS);
+    connect(m_tick_timer, &QTimer::timeout, this, [this] {
+        if (!m_network_changed) m_identity_flow->advance();
+    });
+    m_tick_timer->start();
 
     m_context_thread = new QThread(this);
     m_context_worker = new QObject();
@@ -212,13 +399,19 @@ PlatformService::PlatformService(WalletModel& wallet_model, ClientModel& client_
         updateNodeContext();
         Q_EMIT networkActiveChanged(active);
     });
+    // A wallet unlock is the user action a parked flow waits for.
+    connect(&m_wallet_model, &WalletModel::encryptionStatusChanged, this, [this] {
+        if (m_wallet_model.getEncryptionStatus() == WalletModel::Unlocked) m_identity_flow->retryAfterUnlock();
+    });
 
     updateNodeContext();
+    if (!m_network_changed) m_identity_flow->advance();
 }
 
 PlatformService::~PlatformService()
 {
     m_chainlock_handler.reset();
+    // The flows hold callbacks into the client; stop it before they go.
     // A collection still running on the worker finishes before the object
     // it reports to goes away; its queued report is dropped with the object.
     m_context_thread->quit();
@@ -231,21 +424,186 @@ void PlatformService::discardStateAfterNetworkChange()
 {
     // The chain id is stamped again by the next verified response, so a
     // chain id no response has verified never ends up in the records.
-    if (!WipeRecords(m_wallet_model.wallet()) || !Enable(m_wallet_model.wallet())) return;
+    if (!DiscardRecords(m_wallet_model.wallet())) return;
     m_network_changed = false;
     m_chain_id_stamped = false;
+    m_identity_flow->reload();
     Q_EMIT platformNetworkChanged();
 }
 
-std::optional<platform::SigningOperation> PlatformService::beginSigningOperation(
+PlatformService::SigningAttempt PlatformService::beginSigningOperation(
     platform::OperationKind kind, std::vector<uint32_t> key_ids,
     std::optional<platform::IdentityPublicKey> document_key, std::optional<wallet::RegistrationFundingKey> funding_key)
 {
-    if (m_unsupported_version || m_network_changed || m_network_mismatch) return std::nullopt;
+    SigningAttempt attempt;
+    if (!writesAllowed(attempt.refusal)) return attempt;
     WalletModel::UnlockContext unlock{m_wallet_model.requestUnlock()};
-    if (!unlock.isValid()) return std::nullopt;
-    return platform::SigningOperation(m_wallet_model.wallet(), kind, std::move(key_ids), std::move(document_key),
-                                      funding_key, std::make_unique<UnlockScope>(std::move(unlock)));
+    if (!unlock.isValid()) {
+        attempt.unlock_declined = true;
+        return attempt;
+    }
+    attempt.op.emplace(platform::SigningOperation(m_wallet_model.wallet(), kind, std::move(key_ids), std::move(document_key),
+                                                  funding_key, std::make_unique<UnlockScope>(std::move(unlock))));
+    return attempt;
+}
+
+bool PlatformService::writesAllowed(QString& error) const
+{
+    if (m_unsupported_version) {
+        error = RefusalText(platform::StatusKind::UNSUPPORTED_PROTOCOL_VERSION);
+        return false;
+    }
+    if (m_network_changed) {
+        // The records say so, not an answer from Platform.
+        error = tr("This wallet's DashPay data is for another Dash Platform network. Rebuild it on the DashPay tab "
+                   "first.");
+        return false;
+    }
+    if (m_network_mismatch) {
+        error = RefusalText(platform::StatusKind::CHAIN_ID_MISMATCH);
+        return false;
+    }
+    return true;
+}
+
+std::optional<platform::IdentityPublicKey> PlatformService::documentSigningKey(const platform::Identity& identity) const
+{
+    using Purpose = platform::IdentityPublicKey::Purpose;
+    using Type = platform::IdentityPublicKey::Type;
+    const uint32_t id{m_identity_flow->record().auth_key_id};
+    const auto ours{m_wallet_model.wallet().getPlatformPubKey(wallet::IdentityAuthKey{0, id})};
+    for (const auto& key : identity.public_keys) {
+        if (key.id != id || key.purpose != Purpose::AUTHENTICATION || key.type != Type::ECDSA_SECP256K1 ||
+            key.disabled_at || key.security_level == platform::IdentityPublicKey::SecurityLevel::MASTER) {
+            continue;
+        }
+        // A locked wallet cannot check the key; the signing step's own
+        // unlock follows and the wallet refuses a key it does not hold.
+        if (ours && !std::equal(key.data.begin(), key.data.end(), ours.value.begin(), ours.value.end())) continue;
+        return key;
+    }
+    return std::nullopt;
+}
+
+QString PlatformService::myUsername() const
+{
+    const auto& rec{m_identity_flow->record()};
+    return rec.state == IdentityFlow::State::REGISTERED ? QString::fromStdString(rec.label) : QString{};
+}
+
+std::optional<platform::Identifier> PlatformService::myIdentityId() const { return m_identity_flow->identityId(); }
+
+std::optional<CAmount> PlatformService::identityFundingAmount(bool contested) const
+{
+    if (!contested) return IDENTITY_FUNDING_DUFFS;
+    const auto credits{contestedNameCredits()};
+    if (!credits) return std::nullopt;
+    return IDENTITY_FUNDING_DUFFS + static_cast<CAmount>(*credits / platform::helpers::CreditsPerDuff());
+}
+
+std::optional<uint64_t> PlatformService::contestedNameCredits() const
+{
+    const auto credits{m_client->contestedVoteFundCredits()};
+    if (!credits) return std::nullopt;
+    return *credits;
+}
+
+std::optional<uint64_t> PlatformService::contestedNameRequiredCredits() const
+{
+    const auto reserve{contestedNameCredits()};
+    if (!reserve) return std::nullopt;
+    return *reserve + 2 * DOCUMENT_FEE_RESERVE_CREDITS;
+}
+
+void PlatformService::refreshIdentityBalance()
+{
+    const auto id{myIdentityId()};
+    if (!id) return;
+    QPointer<PlatformService> self{this};
+    m_client->getIdentity(*id, [self](platform::Result<platform::Identity> res) {
+        if (!self) return;
+        self->post([self, res = std::move(res)] {
+            if (!self) return;
+            if (res.ok()) {
+                Q_EMIT self->identityBalanceLoaded(res.value->balance);
+            } else {
+                const auto error{PlatformUi::Describe(res.status, PlatformUi::Context::READ, tr("Load balance"))};
+                Q_EMIT self->identityBalanceFailed(error.text, error.details);
+            }
+        });
+    });
+}
+
+void PlatformService::checkNameAvailability(const QString& name)
+{
+    const std::string label{name.toStdString()};
+    const std::string normalized{platform::helpers::NormalizeLabel(label)};
+    const bool contested{platform::helpers::IsContestedUsername(label)};
+    QPointer<PlatformService> self{this};
+    m_client->resolveName(normalized, [self, normalized, contested](platform::Result<platform::DpnsName> res) {
+        if (!self) return;
+        self->post([self, normalized, contested, res = std::move(res)] {
+            if (!self) return;
+            const QString label{QString::fromStdString(normalized)};
+            if (res.ok()) {
+                if (res.value->identity == self->myIdentityId()) {
+                    Q_EMIT self->nameIsOurs(label);
+                } else {
+                    Q_EMIT self->nameAvailability(label, /*available=*/false, contested);
+                }
+                return;
+            }
+            if (!res.provenAbsent()) {
+                const auto error{PlatformUi::Describe(res.status, PlatformUi::Context::NAME_CHECK, tr("Check username"))};
+                Q_EMIT self->nameAvailabilityFailed(label, error.text, error.details);
+                return;
+            }
+            if (!contested) {
+                Q_EMIT self->nameAvailability(label, /*available=*/true, /*contested=*/false);
+                return;
+            }
+            // A contested label absent from the domain tree may still have an
+            // active (or locked) vote; only a proven-absent contest makes it
+            // truly available.
+            self->m_client->getContestedNameState(normalized, [self, label](
+                                                                  platform::Result<platform::ContestedNameState> vote_res) {
+                if (!self) return;
+                self->post([self, label, vote_res = std::move(vote_res)] {
+                    if (!self) return;
+                    if (vote_res.provenAbsent()) {
+                        Q_EMIT self->nameAvailability(label, /*available=*/true, /*contested=*/true);
+                    } else if (vote_res.ok()) {
+                        Q_EMIT self->nameAvailability(label, /*available=*/false, /*contested=*/true);
+                    } else {
+                        const auto error{PlatformUi::Describe(vote_res.status, PlatformUi::Context::NAME_CHECK,
+                                                              tr("Check username vote"))};
+                        Q_EMIT self->nameAvailabilityFailed(label, error.text, error.details);
+                    }
+                });
+            });
+        });
+    });
+}
+
+void PlatformService::checkContestedNameState(const QString& normalized_label)
+{
+    const std::string normalized{normalized_label.toStdString()};
+    QPointer<PlatformService> self{this};
+    m_client->getContestedNameState(normalized, [self, normalized](platform::Result<platform::ContestedNameState> res) {
+        if (!self) return;
+        self->post([self, normalized, res = std::move(res)] {
+            if (!self) return;
+            const QString label{QString::fromStdString(normalized)};
+            if (res.ok()) {
+                Q_EMIT self->contestedNameState(label, *res.value, QString{});
+            } else {
+                Q_EMIT self->contestedNameState(label, platform::ContestedNameState{},
+                                                res.provenAbsent()
+                                                    ? tr("No vote is open for this username.")
+                                                    : PlatformUi::Describe(res.status, PlatformUi::Context::READ, {}).text);
+            }
+        });
+    });
 }
 
 bool PlatformService::writeRecord(const std::string& key, const std::vector<unsigned char>& value)
@@ -268,9 +626,7 @@ void PlatformService::post(std::function<void()> fn)
 QString PlatformService::networkMismatch() const
 {
     if (!m_network_mismatch) return {};
-    platform::Status status;
-    status.kind = platform::StatusKind::CHAIN_ID_MISMATCH;
-    return PlatformUi::Describe(status, PlatformUi::Context::READ, {}).text;
+    return RefusalText(platform::StatusKind::CHAIN_ID_MISMATCH);
 }
 
 QString PlatformService::networkMismatchDetails() const
@@ -282,7 +638,7 @@ QString PlatformService::networkMismatchDetails() const
 
 bool PlatformService::networkActive() const { return m_client_model.node().getNetworkActive(); }
 
-void PlatformService::observeStatus(const platform::Status& status, bool verified_read)
+void PlatformService::observeStatus(const platform::Status& status, bool verified_read, uint32_t protocol_version)
 {
     // The client only verifies a response signed for m_chain_id, so a
     // verified read is what proves the chain id the records belong to.
@@ -292,6 +648,10 @@ void PlatformService::observeStatus(const platform::Status& status, bool verifie
     if (verified) {
         if (!m_chain_id_stamped && !m_network_changed) {
             m_chain_id_stamped = writeRecord(platform::records::CHAIN_ID, {m_chain_id.begin(), m_chain_id.end()});
+        }
+        // What a verified read showed, as the SDK ratchets it: never down.
+        if (status.kind != platform::StatusKind::UNSUPPORTED_PROTOCOL_VERSION) {
+            m_protocol_version = std::max(m_protocol_version, protocol_version);
         }
         if (m_network_mismatch) {
             m_network_mismatch = false;

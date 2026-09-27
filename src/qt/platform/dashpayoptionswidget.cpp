@@ -59,10 +59,23 @@ void DashPayOptionsWidget::updateState()
     m_reason->hide();
     m_button->setEnabled(true);
     if (availability.enabled) {
-        m_state->setText(tr("DashPay is on for wallet “%1”.").arg(wallet));
+        const QString username{m_page->registeredUsername()};
+        m_state->setText(username.isEmpty()
+                             ? tr("DashPay is on for wallet “%1”.").arg(wallet)
+                             : tr("DashPay is on for wallet “%1” (username %2).").arg(wallet, username));
         m_button->setText(tr("Disable DashPay…"));
         m_button->setToolTip(tr("Stop contacting Dash Platform for this wallet and forget its local DashPay data"));
         m_button->show();
+        // Shown as text: the tooltip of a disabled button is hard to find.
+        const bool funding{m_page->holdsUnconsumedFunding()};
+        m_button->setEnabled(!funding);
+        if (funding) {
+            m_reason->setText(m_page->disableBlockedReason());
+        } else {
+            // On, but waiting: why, as the DashPay tab says it.
+            m_reason->setText(availability.reason);
+        }
+        m_reason->setVisible(funding || availability.gate != Gate::NONE);
     } else if (unusable) {
         m_state->setText(tr("Wallet “%1” can't use DashPay. %2").arg(wallet, availability.reason));
         m_button->hide();
