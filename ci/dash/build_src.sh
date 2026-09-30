@@ -47,6 +47,10 @@ bash -c "${MAYBE_BEAR} ${MAYBE_TOKEN} make ${MAKEJOBS} ${GOAL}" || ( echo "Build
 
 ccache --version | head -n 1 && ccache --show-stats
 
+if [ "${RUN_CHECK_NO_RUST}" = "true" ]; then
+  "${BASE_ROOT_DIR}/contrib/devtools/check-no-rust.py" src/dashd src/dash-cli src/dash-tx src/dash-wallet src/test/fuzz/fuzz
+fi
+
 if [ -n "$USE_VALGRIND" ]; then
     echo "valgrind in USE!"
     "${BASE_ROOT_DIR}/ci/test/wrap-valgrind.sh"

@@ -94,6 +94,7 @@ BITCOIN_TESTS =\
   test/bloom_tests.cpp \
   test/bls_tests.cpp \
   test/bswap_tests.cpp \
+  test/chainparams_platform_tests.cpp \
   test/checkdatasig_tests.cpp \
   test/checkqueue_tests.cpp \
   test/cachemap_tests.cpp \
@@ -226,6 +227,11 @@ BITCOIN_TESTS =\
   test/versionbits_tests.cpp \
   test/xoroshiro128plusplus_tests.cpp
 
+if ENABLE_PLATFORM_GUI
+BITCOIN_TESTS += \
+  test/platform_client_tests.cpp
+endif
+
 if ENABLE_WALLET
 BITCOIN_TESTS += \
   wallet/test/bip39_tests.cpp \
@@ -275,6 +281,10 @@ test_test_dash_LDADD = $(LIBTEST_UTIL)
 if ENABLE_WALLET
 test_test_dash_LDADD += $(LIBBITCOIN_WALLET)
 test_test_dash_CPPFLAGS += $(BDB_CPPFLAGS)
+endif
+if ENABLE_PLATFORM_GUI
+test_test_dash_LDADD += $(LIBDASH_PLATFORM) $(PLATFORM_CXX_LIBS)
+test_test_dash_CPPFLAGS += $(PLATFORM_CXX_CFLAGS)
 endif
 test_test_dash_LDADD += $(LIBBITCOIN_NODE) $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) \
   $(LIBDASHBLS) $(LIBLEVELDB) $(LIBMEMENV) $(BACKTRACE_LIBS) $(LIBSECP256K1) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS)
@@ -404,6 +414,11 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/validation_load_mempool.cpp \
  test/fuzz/vecdeque.cpp \
  test/fuzz/versionbits.cpp
+# Pure C++ (no bridge header), so the default fuzz build covers it: the
+# fuzz binary never links the Platform SDK archive.
+test_fuzz_fuzz_SOURCES += \
+ platform/walletrecords.cpp \
+ test/fuzz/platform_walletrecords.cpp
 endif # ENABLE_FUZZ_BINARY
 
 nodist_test_test_dash_SOURCES = $(GENERATED_TEST_FILES)

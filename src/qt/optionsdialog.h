@@ -56,6 +56,9 @@ public:
     void setModel(OptionsModel *model);
     void setMapper();
     void setCurrentTab(OptionsDialog::Tab tab);
+    //! Add a section to the end of the Wallet page (the current wallet's
+    //! DashPay setting).
+    void addWalletSection(QWidget* section);
 
 private Q_SLOTS:
     /** custom tab buttons clicked */
