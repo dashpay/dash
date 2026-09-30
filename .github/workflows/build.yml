@@ -170,6 +170,17 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
+  depends-linux64_platform_gui:
+    name: x86_64-pc-linux-gnu_platform_gui
+    uses: ./.github/workflows/build-depends.yml
+    needs: [check-skip, container, cache-sources]
+    if: ${{ vars.SKIP_LINUX64_PLATFORM_GUI == '' }}
+    with:
+      build-target: linux64_platform_gui
+      container-path: ${{ needs.container.outputs.path }}
+      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
   depends-mac:
     name: x86_64-apple-darwin
     uses: ./.github/workflows/build-depends.yml
@@ -280,6 +291,20 @@ jobs:
       depends-host: ${{ needs.depends-linux64_nowallet.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_nowallet.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-linux64_nowallet.outputs.built-artifact }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
+  src-linux64_platform_gui:
+    name: linux64_platform_gui-build
+    uses: ./.github/workflows/build-src.yml
+    needs: [check-skip, container, depends-linux64_platform_gui]
+    if: ${{ vars.SKIP_LINUX64_PLATFORM_GUI == '' }}
+    with:
+      build-target: linux64_platform_gui
+      container-path: ${{ needs.container.outputs.path }}
+      depends-key: ${{ needs.depends-linux64_platform_gui.outputs.key }}
+      depends-host: ${{ needs.depends-linux64_platform_gui.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64_platform_gui.outputs.dep-opts }}
+      depends-artifact: ${{ needs.depends-linux64_platform_gui.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_sqlite:

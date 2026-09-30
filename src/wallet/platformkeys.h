@@ -60,11 +60,15 @@ inline constexpr uint32_t AUTH_KEY_TYPE_ECDSA{0};
 inline constexpr uint32_t AUTH_KEY_TYPE_BLS{1};
 
 //! An extended key produced by walking a (possibly 256-bit) derivation path.
-//! Unlike CExtKey this does not carry BIP32 serialization metadata; DIP-14
-//! extended-key serialization tracks the path separately.
+//! Unlike CExtKey this does not carry BIP32 serialization metadata beyond the
+//! parent fingerprint; DIP-14 extended-key serialization tracks the path
+//! separately.
 struct ExtKey256 {
     CKey key;
     ChainCode chaincode;
+    //! BIP32 fingerprint of the key the last path step was derived from
+    //! (Hash160 prefix of its public key); the DIP-15 compact xpub carries it.
+    std::array<uint8_t, 4> parent_fingerprint{};
 
     ExtKey256() = default;
 };
@@ -99,6 +103,13 @@ Path FriendshipPath(uint32_t coin_type, uint32_t account, Span<const uint8_t> us
 //! KeyCrypterECDH / Secp256k1ECDHAgreement, used for DashPay contact request
 //! encryption. Returns a 32-byte secret.
 [[nodiscard]] bool ComputeECDHSecret(const CKey& key, const CPubKey& counterparty, SecureVector& secret_out);
+
+//! DIP-15 accountReference MAC: HMAC-SHA256 keyed by the sender's ENCRYPTION
+//! private key over the compact xpub sent in the contact request. Matches
+//! rs-platform-encryption's calculate_account_reference, which then masks
+//! the account index with the low bits of this digest; the masking itself
+//! is not done here.
+[[nodiscard]] bool ComputeAccountReferenceMac(const CKey& key, const CompactXpub& compact_xpub, uint256& mac_out);
 
 } // namespace wallet::platformkeys
 

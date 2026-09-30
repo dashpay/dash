@@ -14,6 +14,9 @@
 #include <qt/mnemonicverificationdialog.h>
 #include <qt/optionsmodel.h>
 #include <qt/overviewpage.h>
+#ifdef ENABLE_PLATFORM_GUI
+#include <qt/platform/platformpage.h>
+#endif
 #include <qt/receivecoinsdialog.h>
 #include <qt/sendcoinsdialog.h>
 #include <qt/signverifymessagedialog.h>
@@ -106,6 +109,13 @@ WalletView::WalletView(WalletModel* wallet_model, QWidget* parent)
     proposalListPage->setWalletModel(walletModel);
     addWidget(proposalListPage);
 
+#ifdef ENABLE_PLATFORM_GUI
+    platformPage = new PlatformPage();
+    connect(platformPage, &PlatformPage::dashPaySettingsRequested, this, &WalletView::dashPaySettingsRequested);
+    platformPage->setWalletModel(walletModel);
+    addWidget(platformPage);
+#endif
+
     connect(proposalListPage, &ProposalList::showProposalInfo, this, &WalletView::showProposalInfo);
 
     connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::transactionClicked);
@@ -173,6 +183,11 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     if (proposalListPage != nullptr) {
         proposalListPage->setClientModel(_clientModel);
     }
+#ifdef ENABLE_PLATFORM_GUI
+    if (platformPage != nullptr) {
+        platformPage->setClientModel(_clientModel);
+    }
+#endif
     walletModel->setClientModel(_clientModel);
 }
 
@@ -225,6 +240,13 @@ void WalletView::gotoMasternodePage()
 {
     setCurrentWidget(masternodeListPage);
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void WalletView::gotoPlatformPage()
+{
+    setCurrentWidget(platformPage);
+}
+#endif
 
 void WalletView::gotoReceiveCoinsPage()
 {

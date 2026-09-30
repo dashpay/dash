@@ -498,6 +498,9 @@ static void SetupUIArgs(ArgsManager& argsman)
     argsman.AddArg("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", GUIUtil::defaultUIPlatform()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-debug-ui", "Updates the UI's stylesheets in realtime with changes made to the css files in -custom-css-dir and forces some widgets to show up which are usually only visible under certain circumstances. (default: 0)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::GUI);
     argsman.AddArg("-windowtitle=<name>", _("Sets a window title which is appended to \"Dash Core - \"").translated, ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+#ifdef ENABLE_PLATFORM_GUI
+    argsman.AddArg("-platformchainid=<id>", "Tenderdash chain id DashPay verifies Platform responses against on testnet and devnets (GUI only; the chain id of mainnet cannot be overridden)", ArgsManager::ALLOW_ANY, OptionsCategory::GUI);
+#endif
 }
 
 int GuiMain(int argc, char* argv[])
@@ -638,6 +641,14 @@ int GuiMain(int argc, char* argv[])
 
     QScopedPointer<const NetworkStyle> networkStyle(NetworkStyle::instantiate(Params().NetworkIDString()));
     assert(!networkStyle.isNull());
+#ifdef ENABLE_PLATFORM_GUI
+    if (gArgs.IsArgSet("-platformchainid") && Params().NetworkIDString() == CBaseChainParams::MAIN) {
+        const bilingual_str error{_("-platformchainid cannot override the Platform chain id of mainnet.")};
+        InitError(error);
+        QMessageBox::critical(nullptr, PACKAGE_NAME, QString::fromStdString(error.translated));
+        return EXIT_FAILURE;
+    }
+#endif
     // Allow for separate UI settings for testnets
     // QApplication::setApplicationName(networkStyle->getAppName()); // moved to NetworkStyle::NetworkStyle
     // Re-initialize translations after changing application name (language in network-specific settings can be different)

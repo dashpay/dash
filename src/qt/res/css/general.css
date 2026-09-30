@@ -1451,7 +1451,8 @@ QDialog#OptionsDialog QLabel#overriddenByCommandLineInfoLabel {
  OverviewPage
  ******************************************************/
 
-QWidget#OverviewPage QLabel#labelAlerts {
+QWidget#OverviewPage QLabel#labelAlerts,
+QWidget#PlatformPage QLabel#labelAlerts {
      background-color: #c79304;
      color: #222222;
      border-radius: 5px;

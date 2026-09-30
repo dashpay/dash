@@ -58,6 +58,7 @@ The Dash Core repo's [root README](/README.md) contains relevant information on 
 - [BIPS](bips.md)
 - [Dnsseed Policy](dnsseed-policy.md)
 - [Benchmarking](benchmarking.md)
+- [Dash Platform in dash-qt](platform-gui.md)
 - [Internal Design Docs](design/)
 
 ### Resources
