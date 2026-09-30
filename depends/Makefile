@@ -44,6 +44,7 @@ NO_UPNP ?=
 NO_USDT ?=
 NO_NATPMP ?=
 MULTIPROCESS ?=
+PLATFORM_GUI ?=
 LTO ?=
 NO_HARDEN ?=
 FALLBACK_DOWNLOAD_PATH ?= http://dash-depends-sources.s3-website-us-west-2.amazonaws.com
@@ -175,6 +176,7 @@ natpmp_packages_$(NO_NATPMP) = $(natpmp_packages)
 
 zmq_packages_$(NO_ZMQ) = $(zmq_packages)
 multiprocess_packages_$(MULTIPROCESS) = $(multiprocess_packages)
+platform_packages_$(PLATFORM_GUI) = $(platform_packages)
 usdt_packages_$(NO_USDT) = $(usdt_$(host_os)_packages)
 
 packages += $($(host_arch)_$(host_os)_packages) $($(host_os)_packages) $(boost_packages_) $(libevent_packages_) $(qt_packages_) $(wallet_packages_) $(upnp_packages_) $(natpmp_packages_) $(usdt_packages_)
@@ -187,6 +189,14 @@ endif
 ifeq ($(multiprocess_packages_),)
 packages += $(multiprocess_packages)
 native_packages += $(multiprocess_native_packages)
+endif
+
+ifeq ($(platform_packages_),)
+ifneq ($(NO_QT)$(NO_WALLET),)
+$(error PLATFORM_GUI needs the GUI and the wallet; unset NO_QT and NO_WALLET)
+endif
+packages += $(platform_packages)
+native_packages += $(platform_native_packages)
 endif
 
 all_packages = $(packages) $(native_packages)
@@ -257,6 +267,7 @@ $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_
             -e 's|@no_usdt@|$(NO_USDT)|' \
             -e 's|@no_natpmp@|$(NO_NATPMP)|' \
             -e 's|@multiprocess@|$(MULTIPROCESS)|' \
+            -e 's|@platform_gui@|$(PLATFORM_GUI)|' \
             -e 's|@lto@|$(LTO)|' \
             -e 's|@no_harden@|$(NO_HARDEN)|' \
             -e 's|@debug@|$(DEBUG)|' \
