@@ -64,6 +64,7 @@ public:
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
         TransactionCreationFailed, // Error returned when wallet is still locked
+        TransactionCommitFailed,
         AbsurdFee
     };
 
@@ -101,8 +102,9 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const wallet::CCoinControl& coinControl);
 
-    // Send coins to a list of recipients
-    void sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin);
+    // Send coins to a list of recipients; TransactionCommitFailed when the
+    // mempool refused the committed transaction.
+    SendCoinsReturn sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin);
 
     // Wallet encryption
     bool setWalletEncrypted(const SecureString& passphrase);
@@ -123,17 +125,17 @@ public:
 
         bool isValid() const { return valid; }
 
-        // Disable unused copy/move constructors/assignments explicitly.
+        // The moved-from context no longer relocks: exactly one owner does.
+        UnlockContext(UnlockContext&& other) noexcept;
         UnlockContext(const UnlockContext&) = delete;
-        UnlockContext(UnlockContext&&) = delete;
         UnlockContext& operator=(const UnlockContext&) = delete;
         UnlockContext& operator=(UnlockContext&&) = delete;
 
     private:
         WalletModel *wallet;
-        const bool valid;
-        const bool was_locked;
-        const bool was_mixing;
+        bool valid;
+        bool was_locked;
+        bool was_mixing;
     };
 
     UnlockContext requestUnlock(bool fForMixingOnly = false);

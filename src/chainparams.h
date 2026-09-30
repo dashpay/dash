@@ -102,6 +102,8 @@ public:
     }
     uint16_t GetDefaultPlatformP2PPort() const { return nDefaultPlatformP2PPort; }
     uint16_t GetDefaultPlatformHTTPPort() const { return nDefaultPlatformHTTPPort; }
+    /** Tenderdash chain id of the network's Dash Platform; empty on chains without a canonical Platform (devnet, regtest) */
+    const std::string& PlatformChainId() const { return platform_chain_id; }
 
     const CBlock& GenesisBlock() const { return genesis; }
     const CBlock& DevNetGenesisBlock() const { return devnetGenesis; }
@@ -191,6 +193,7 @@ protected:
     std::string strSporkAddress;
     uint16_t nDefaultPlatformP2PPort;
     uint16_t nDefaultPlatformHTTPPort;
+    std::string platform_chain_id;
     /// The number of blocks the credit pool tracks; 576 (one day) on mainnet, reduced on regtest
     int nCreditPoolPeriodBlocks;
 
