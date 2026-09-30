@@ -233,6 +233,7 @@ public:
         nDefaultPort = 9999;
         nDefaultPlatformP2PPort = 26656;
         nDefaultPlatformHTTPPort = 443;
+        platform_chain_id = "evo1";
         nPruneAfterHeight = 100000;
         m_assumed_blockchain_size = 57;
         m_assumed_chain_state_size = 1;
@@ -428,6 +429,8 @@ public:
         nDefaultPort = 19999;
         nDefaultPlatformP2PPort = 22000;
         nDefaultPlatformHTTPPort = 22001;
+        // Changes whenever testnet Platform is reset
+        platform_chain_id = "dash-testnet-51";
         nPruneAfterHeight = 1000;
         m_assumed_blockchain_size = 10;
         m_assumed_chain_state_size = 1;
@@ -601,6 +604,7 @@ public:
         nDefaultPort = 19799;
         nDefaultPlatformP2PPort = 22100;
         nDefaultPlatformHTTPPort = 22101;
+        platform_chain_id = "";
         nPruneAfterHeight = 1000;
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
@@ -836,6 +840,7 @@ public:
         nDefaultPort = 19899;
         nDefaultPlatformP2PPort = 22200;
         nDefaultPlatformHTTPPort = 22201;
+        platform_chain_id = "";
         nPruneAfterHeight = args.GetBoolArg("-fastprune", false) ? 100 : 1000;
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
