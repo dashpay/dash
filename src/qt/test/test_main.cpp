@@ -23,6 +23,9 @@
 #include <qt/test/masternodemaintenancetests.h>
 #include <qt/test/masternodewidgettests.h>
 #include <qt/test/mnsharesessiontests.h>
+#ifdef ENABLE_PLATFORM_GUI
+#include <qt/test/platformtests.h>
+#endif
 #include <qt/test/sharedmnwidgettests.h>
 #include <qt/test/sharedmnwizardtests.h>
 #include <qt/test/providertransactiontests.h>
@@ -140,6 +143,11 @@ int main(int argc, char* argv[])
 
     SharedMnWalkthroughTests shared_mn_walkthrough_tests(app.node());
     num_test_failures += QTest::qExec(&shared_mn_walkthrough_tests);
+
+#ifdef ENABLE_PLATFORM_GUI
+    PlatformTests platform_tests(app.node());
+    num_test_failures += QTest::qExec(&platform_tests);
+#endif
 #endif
     TrafficGraphDataTests test7;
     num_test_failures += QTest::qExec(&test7);

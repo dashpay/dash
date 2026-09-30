@@ -18,9 +18,12 @@
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
 #include <key_io.h>
+#include <node/context.h>
 #include <test/util/setup_common.h>
+#include <txmempool.h>
 #include <util/system.h>
 #include <validation.h>
+#include <wallet/coincontrol.h>
 #include <wallet/wallet.h>
 #include <qt/overviewpage.h>
 #include <qt/receivecoinsdialog.h>
@@ -28,7 +31,9 @@
 #include <qt/receiverequestdialog.h>
 
 #include <chrono>
+#include <functional>
 #include <memory>
+#include <optional>
 
 #include <QAbstractButton>
 #include <QAction>
@@ -37,6 +42,7 @@
 #include <QDialogButtonBox>
 #include <QListView>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QTableView>
 #include <QTextEdit>
 #include <QTimer>
@@ -54,13 +60,14 @@ using wallet::WalletRescanReserver;
 namespace
 {
 //! Press "Yes" or "Cancel" buttons in modal send confirmation dialog.
-void ConfirmSend(QString* text = nullptr, bool cancel = false)
+void ConfirmSend(QString* text = nullptr, bool cancel = false, std::function<void()> before_answer = {})
 {
-    QTimer::singleShot(0, [text, cancel]() {
+    QTimer::singleShot(0, [text, cancel, before_answer]() {
         for (QWidget* widget : QApplication::topLevelWidgets()) {
             if (widget->inherits("SendConfirmationDialog")) {
                 SendConfirmationDialog* dialog = qobject_cast<SendConfirmationDialog*>(widget);
                 if (text) *text = dialog->text();
+                if (before_answer) before_answer();
                 QAbstractButton* button = dialog->button(cancel ? QMessageBox::Cancel : QMessageBox::Yes);
                 button->setEnabled(true);
                 button->click();
@@ -70,7 +77,8 @@ void ConfirmSend(QString* text = nullptr, bool cancel = false)
 }
 
 //! Send coins to address and return txid.
-uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDestination& address, CAmount amount)
+uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDestination& address, CAmount amount,
+                  std::function<void()> before_confirm = {})
 {
     QVBoxLayout* entries = sendCoinsDialog.findChild<QVBoxLayout*>("entries");
     SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
@@ -80,7 +88,7 @@ uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDe
     boost::signals2::scoped_connection c(wallet.NotifyTransactionChanged.connect([&txid](const uint256& hash, ChangeType status) {
         if (status == CT_NEW) txid = hash;
     }));
-    ConfirmSend();
+    ConfirmSend(/*text=*/nullptr, /*cancel=*/false, std::move(before_confirm));
     bool invoked = QMetaObject::invokeMethod(&sendCoinsDialog, "sendButtonClicked", Q_ARG(bool, false));
     assert(invoked);
     return txid;
@@ -186,6 +194,54 @@ void TestGUI(interfaces::Node& node)
     QCOMPARE(transactionTableModel->rowCount({}), 107);
     QVERIFY(FindTx(*transactionTableModel, txid1).isValid());
     QVERIFY(FindTx(*transactionTableModel, txid2).isValid());
+
+    // A transaction whose broadcast is refused on commit is reported instead of
+    // being announced as sent, and abandoned so it is never rebroadcast: the
+    // fee ceiling is lowered once the transaction is prepared (so preparation
+    // passes), just before the send is confirmed and committed (so the
+    // broadcast fails).
+    {
+        QSignalSpy sent(&sendCoinsDialog, &SendCoinsDialog::coinsSent);
+        QSignalSpy messages(&sendCoinsDialog, &SendCoinsDialog::message);
+        const CAmount max_fee{wallet->m_default_max_tx_fee};
+        const uint256 txid3 = SendCoins(*wallet.get(), sendCoinsDialog, PKHash(), 2 * COIN,
+                                        [&wallet] { wallet->m_default_max_tx_fee = 1; });
+        wallet->m_default_max_tx_fee = max_fee;
+        QVERIFY(!txid3.IsNull());
+        QCOMPARE(sent.count(), 0);
+        QCOMPARE(messages.count(), 1);
+        QVERIFY(messages.first().at(1).toString().contains("could not be broadcast"));
+        QVERIFY(!node.context()->mempool->exists(txid3));
+        LOCK(wallet->cs_wallet);
+        const wallet::CWalletTx* wtx3{wallet->GetWalletTx(txid3)};
+        QVERIFY(wtx3 && wtx3->isAbandoned());
+    }
+
+    // A mempool validation rejection carries its reason untranslated only, and
+    // that reason must still reach the caller: two sends prepared over the same
+    // coin, the second is refused as a conflict of the first.
+    {
+        std::optional<COutPoint> coin;
+        for (const auto& [dest, coins] : walletModel.wallet().listCoins()) {
+            for (const auto& [outpoint, out] : coins) {
+                if (!coin && !out.is_spent && out.depth_in_main_chain > 0) coin = outpoint;
+            }
+        }
+        QVERIFY(coin);
+        wallet::CCoinControl same_coin;
+        same_coin.Select(*coin);
+        same_coin.m_allow_other_inputs = false;
+        const QList<SendCoinsRecipient> recipients{
+            SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", COIN, ""}};
+        WalletModelTransaction first{recipients};
+        WalletModelTransaction conflict{recipients};
+        QCOMPARE(walletModel.prepareTransaction(first, same_coin).status, WalletModel::OK);
+        QCOMPARE(walletModel.prepareTransaction(conflict, same_coin).status, WalletModel::OK);
+        QCOMPARE(walletModel.sendCoins(first, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+        const auto refused{walletModel.sendCoins(conflict, /*fIsCoinJoin=*/false)};
+        QCOMPARE(refused.status, WalletModel::TransactionCommitFailed);
+        QVERIFY2(refused.reasonCommitFailed.contains("txn-mempool-conflict"), qPrintable(refused.reasonCommitFailed));
+    }
 
     // Check current balance on OverviewPage
     OverviewPage overviewPage;
