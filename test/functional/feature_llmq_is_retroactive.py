@@ -38,6 +38,27 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         time.sleep(sleep)
         self.assert_no_instantlock(txid, node)
 
+    def wait_for_log_line(self, nodes, fragment):
+        def logged(node):
+            with open(node.debug_log_path, "rb") as f:
+                return fragment.encode() in f.read()
+        for node in nodes:
+            self.wait_until(lambda: logged(node))
+
+    def wait_for_sigshares(self, nodes, txid):
+        # Members sign asynchronously and the sig share log line is the only signal that they are done
+        self.wait_for_log_line(nodes, f"msgHash={txid}, llmqType=")
+
+    def assert_not_relayed_to_node3(self, txid):
+        # Node 4 rejects a new TX on fee, so its IS lock needs node 3's share: once it forms, node 3 is
+        # reconnected and signing, and it would have signed txid too if the TX had reached it
+        # (skip_sync: a mocktime bump would time out the members' signing session for txid)
+        rawtx = self.nodes[0].createrawtransaction([], {self.nodes[0].getnewaddress(): 1})
+        rawtx = self.nodes[0].fundrawtransaction(rawtx, {"minconf": 1})['hex']
+        self.wait_for_instantlock(self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransactionwithwallet(rawtx)['hex']), nodes=[self.nodes[0]], skip_sync=True)
+        assert txid not in self.nodes[3].getrawmempool()
+        self.assert_no_instantlock(txid, self.nodes[0])
+
     def create_fund_sign_tx(self):
         rawtx = self.nodes[0].createrawtransaction([], {self.nodes[0].getnewaddress(): 1})
         rawtx = self.nodes[0].fundrawtransaction(rawtx)['hex']
@@ -97,7 +118,7 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.bump_mocktime(30)
         self.wait_for_mnauth(self.nodes[3], 2)
         # node 3 fully reconnected but the TX wasn't relayed to it, so there should be no IS lock
-        self.sleep_and_assert_no_instantlock(txid, self.nodes[0])
+        self.assert_not_relayed_to_node3(txid)
         # push the tx directly via rpc
         self.nodes[3].sendrawtransaction(self.nodes[0].getrawtransaction(txid))
         # node 3 should vote on a tx now since it became aware of it via sendrawtransaction
@@ -126,7 +147,7 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.bump_mocktime(30)
         self.wait_for_mnauth(self.nodes[3], 2)
         # node 3 fully reconnected but the TX wasn't relayed to it, so there should be no IS lock
-        self.sleep_and_assert_no_instantlock(txid, self.nodes[0])
+        self.assert_not_relayed_to_node3(txid)
         # Make node0 consider the TX as safe
         self.bump_mocktime(10 * 60 + 1)
         block = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]

@@ -35,6 +35,18 @@ class LLMQ_IS_RetroactiveSigningSessionTimeout(DashTestFramework):
         self.log.info(f"Expecting no InstantLock for {txid}")
         assert not node.getrawtransaction(txid, True)["instantlock"]
 
+    def wait_for_log_line(self, nodes, fragment):
+        def logged(node):
+            with open(node.debug_log_path, "rb") as f:
+                return fragment.encode() in f.read()
+        for node in nodes:
+            self.wait_until(lambda: logged(node))
+
+    def wait_for_sigshares(self, nodes, txid):
+        # Members sign asynchronously and the sig share log line is the only signal that they are done
+        self.wait_for_log_line(nodes, f"created sigShare. signHash=")
+        self.wait_for_log_line(nodes, f"msgHash={txid}, llmqType=")
+
     def create_fund_sign_tx(self):
         rawtx = self.nodes[0].createrawtransaction([], {self.nodes[0].getnewaddress(): 1})
         rawtx = self.nodes[0].fundrawtransaction(rawtx)['hex']
@@ -71,7 +83,8 @@ class LLMQ_IS_RetroactiveSigningSessionTimeout(DashTestFramework):
         self.bump_mocktime(30)
         self.sync_mempools(self.nodes[:3])
         # Make sure signing is done on nodes 1 and 2 (it's async)
-        time.sleep(5)
+        self.wait_for_sigshares(self.nodes[1:3], txid_all_nodes)
+        self.wait_for_sigshares([self.nodes[3]], txid_single_node)
         # Make the signing session for the IS lock timeout on nodes 1-3
         self.bump_mocktime(61)
         time.sleep(2) # make sure Cleanup() is called
@@ -87,7 +100,7 @@ class LLMQ_IS_RetroactiveSigningSessionTimeout(DashTestFramework):
         self.bump_mocktime(30)
 
         # Make sure signing is done on nodes 1 and 2 (it's async)
-        time.sleep(5)
+        self.wait_for_sigshares(self.nodes[1:3], txid_single_node)
 
         # node 3 fully reconnected but the signing session is already timed out, so no IS lock
         self.assert_no_instantlock(txid_all_nodes, self.nodes[0])
