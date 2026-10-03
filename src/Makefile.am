@@ -31,6 +31,14 @@ check_PROGRAMS =
 TESTS =
 BENCHMARKS =
 
+# The first make in dashbls after configure reruns its config.status, which
+# replaces relic_conf.h. Let that finish before compiling anything that
+# includes it.
+BUILT_SOURCES = dashbls/depends/relic/include/relic_conf.h
+
+dashbls/depends/relic/include/relic_conf.h: FORCE
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C dashbls depends/relic/include/relic_conf.h
+
 if ENABLE_STACKTRACES
 if ENABLE_CRASH_HOOKS
 if CRASH_HOOKS_WRAPPED_CXX_ABI
