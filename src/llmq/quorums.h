@@ -235,10 +235,10 @@ struct SaltedHasherImpl<llmq::CQuorumDataRequestKey>
     static std::size_t CalcHash(const llmq::CQuorumDataRequestKey& v, uint64_t k0, uint64_t k1)
     {
         CSipHasher c(k0, k1);
-        c.Write(reinterpret_cast<const unsigned char*>(&v.proRegTx), sizeof(v.proRegTx));
-        c.Write(reinterpret_cast<const unsigned char*>(&v.m_we_requested), sizeof(v.m_we_requested));
-        c.Write(reinterpret_cast<const unsigned char*>(&v.quorumHash), sizeof(v.quorumHash));
-        c.Write(reinterpret_cast<const unsigned char*>(&v.llmqType), sizeof(v.llmqType));
+        c.Write(Span{reinterpret_cast<const unsigned char*>(&v.proRegTx), sizeof(v.proRegTx)});
+        c.Write(Span{reinterpret_cast<const unsigned char*>(&v.m_we_requested), sizeof(v.m_we_requested)});
+        c.Write(Span{reinterpret_cast<const unsigned char*>(&v.quorumHash), sizeof(v.quorumHash)});
+        c.Write(Span{reinterpret_cast<const unsigned char*>(&v.llmqType), sizeof(v.llmqType)});
         return c.Finalize();
     }
 };

@@ -213,6 +213,28 @@ def create_tx_with_script(prevtx, n, script_sig=b"", *, amount, script_pub_key=C
     tx.calc_sha256()
     return tx
 
+def create_transaction(node, txid, to_address, amount):
+    """ Return signed transaction spending the first output of the
+        input txid. Note that the node must be able to sign for the
+        output that is being spent, and the node must not be running
+        multiple wallets.
+    """
+    raw_tx = create_raw_transaction(node, txid, to_address, amount)
+    return tx_from_hex(raw_tx)
+
+def create_raw_transaction(node, txid, to_address, amount):
+    """ Return raw signed transaction spending the first output of the
+        input txid. Note that the node must be able to sign for the
+        output that is being spent, and the node must not be running
+        multiple wallets.
+    """
+    inputs = [{"txid": txid, "vout": 0}]
+    outputs = {to_address: amount}
+    rawtx = node.createrawtransaction(inputs, outputs)
+    signresult = node.signrawtransactionwithwallet(rawtx)
+    assert_equal(signresult["complete"], True)
+    return signresult['hex']
+
 def get_legacy_sigopcount_block(block, accurate=True):
     count = 0
     for tx in block.vtx:
