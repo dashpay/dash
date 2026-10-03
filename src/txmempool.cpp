@@ -1095,6 +1095,84 @@ void CTxMemPool::removeProTxKeyChangedConflicts(const CTransaction &tx, const ui
     }
 }
 
+// The masternode whose operator key a registrar update or revocation may change
+static std::optional<uint256> GetOperatorKeyChangeTarget(const CTransaction& tx)
+{
+    if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        if (const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx)) return opt_proTx->proTxHash;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        if (const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx)) return opt_proTx->proTxHash;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        if (const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx)) return opt_proTx->proTxHash;
+    }
+    return std::nullopt;
+}
+
+void CTxMemPool::CalculateServiceUpdates(const uint256& proTxHash, const setEntries& exclude, setEntries& entries) const
+{
+    AssertLockHeld(cs);
+    for (auto its = mapProTxRefs.equal_range(proTxHash); its.first != its.second; ++its.first) {
+        auto txit = mapTx.find(its.first->second);
+        if (txit == mapTx.end() || txit->GetTx().nType != TRANSACTION_PROVIDER_UPDATE_SERVICE || exclude.count(txit)) {
+            continue;
+        }
+        CalculateDescendants(txit, entries);
+        // While a reorg returns transactions to the pool, links to in-pool children are only
+        // rebuilt afterwards (UpdateTransactionsFromBlock), so also follow the spenders directly
+        const uint256& hash{txit->GetTx().GetHash()};
+        for (auto next = mapNextTx.lower_bound(COutPoint(hash, 0)); next != mapNextTx.end() && next->first->hash == hash; ++next) {
+            CalculateDescendants(mapTx.find(next->second->GetHash()), entries);
+        }
+    }
+}
+
+void CTxMemPool::removeProTxStaleServiceUpdates(const CTransaction& tx, const setEntries& ancestors)
+{
+    AssertLockHeld(cs);
+    const auto it = mapTx.find(tx.GetHash());
+    const auto proTxHash = GetOperatorKeyChangeTarget(tx);
+    if (it == mapTx.end() || !it->isKeyChangeProTx || !proTxHash) {
+        return;
+    }
+    // An ancestor of the key change is always mined before it, so it cannot undo the change
+    setEntries stale;
+    CalculateServiceUpdates(*proTxHash, ancestors, stale);
+    RemoveStaged(stale, /*updateDescendants=*/false, MemPoolRemovalReason::CONFLICT);
+}
+
+bool CTxMemPool::PackageHasStaleServiceUpdate(const std::vector<CTransactionRef>& txns) const
+{
+    AssertLockHeld(cs);
+    std::set<uint256> targets;
+    for (const auto& tx : txns) {
+        if (const auto proTxHash = GetOperatorKeyChangeTarget(*tx)) targets.insert(*proTxHash);
+    }
+    if (targets.empty()) {
+        return false;
+    }
+    setEntries stale;
+    for (const auto& proTxHash : targets) {
+        CalculateServiceUpdates(proTxHash, /*exclude=*/{}, stale);
+    }
+    std::set<uint256> stale_txids;
+    for (const auto& entry : stale) {
+        stale_txids.insert(entry->GetTx().GetHash());
+    }
+    for (const auto& tx : txns) {
+        if (tx->nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+            if (const auto opt_proTx = GetTxPayload<CProUpServTx>(*tx); opt_proTx && targets.count(opt_proTx->proTxHash)) {
+                return true;
+            }
+        }
+        if (stale_txids.count(tx->GetHash()) || std::any_of(tx->vin.begin(), tx->vin.end(), [&](const CTxIn& input) {
+                return stale_txids.count(input.prevout.hash);
+            })) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void CTxMemPool::removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType)
 {
     const CTxDestination voting_dest{PKHash(keyIDVoting)};
@@ -1652,6 +1730,12 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             if (it != mapProTxPlatformNodeIDs.end() && it->second != opt_proTx->proTxHash) {
                 return true;
             }
+        }
+        // This update is signed with the operator key a pending key change replaces. Mined after
+        // the change, it would restore the previous operator's service fields and revive the
+        // masternode the change bans.
+        if (hasKeyChangeInMempool(opt_proTx->proTxHash)) {
+            return true;
         }
         // Conflict with a replacement ProRegTx that reuses this MN's external collateral.
         if (auto dmn = m_dmnman.GetListAtChainTip().GetMN(opt_proTx->proTxHash)) {
