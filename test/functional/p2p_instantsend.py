@@ -3,7 +3,10 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-from test_framework.messages import msg_qsendrecsigs
+import random
+from io import BytesIO
+
+from test_framework.messages import COutPoint, msg_isdlock, msg_qsendrecsigs
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
@@ -57,6 +60,7 @@ class InstantSendTest(DashTestFramework):
         self.test_mempool_doublespend()
         self.test_block_doublespend()
         self.test_isdlock_relayed_to_recsigs_observer()
+        self.test_genesis_cycle_islock_isolated()
         self.test_instantsend_after_restart()
 
     def test_block_doublespend(self):
@@ -170,6 +174,44 @@ class InstantSendTest(DashTestFramework):
 
         for node, _ in observers:
             node.disconnect_p2ps()
+
+    def test_genesis_cycle_islock_isolated(self):
+        self.log.info("A missing-quorum ISDLOCK must not drop the genuine locks batched with it")
+        # A genesis-block cycle hash resolves to height 0, a valid rotation boundary, but selects a
+        # signing height from before any quorum, so the lock has no quorum. Before the fix that
+        # dropped the whole verification batch, taking any genuine lock that shared it. We isolate a
+        # node so its only lock source is our peer, then deliver a genuine lock between two such
+        # quorum-less locks.
+        controller = self.nodes[0]
+        target = self.nodes[self.isolated_idx]
+        connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
+        self.isolate_node(self.isolated_idx)
+        target.setnetworkactive(True)
+        peer = target.add_p2p_connection(P2PInterface())
+        genesis_hash = int(target.getblockhash(0), 16)
+
+        def genesis_lock(sig):
+            # No quorum signs at height 0; reusing a real signature keeps sig.IsValid() true so the
+            # lock still reaches (and fails) quorum selection instead of being rejected as malformed.
+            return msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256), genesis_hash, sig)
+
+        for _ in range(5):
+            txid = controller.sendtoaddress(controller.getnewaddress(), 1)
+            self.wait_for_instantlock(txid, nodes=connected)
+            genuine = msg_isdlock()
+            genuine.deserialize(BytesIO(bytes.fromhex(controller.getislocks([txid])[0]["hex"])))
+            target.sendrawtransaction(controller.getrawtransaction(txid))
+            # The worker polls the pending queue every 100ms but we enqueue these three in
+            # microseconds, so at most one poll can split them and every split still batches the
+            # genuine lock with a quorum-less neighbour. The genuine lock therefore cannot reach a
+            # batch of its own, which is what let it survive before the fix.
+            for lock in (genesis_lock(genuine.sig), genuine, genesis_lock(genuine.sig)):
+                peer.send_message(lock)
+            peer.sync_with_ping()
+            self.wait_until(lambda txid=txid: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+
+        target.disconnect_p2ps()
+        self.reconnect_isolated_node(self.isolated_idx, 0)
 
     def test_instantsend_after_restart(self):
         self.log.info("Testing InstantSend works after full restart without new blocks")
