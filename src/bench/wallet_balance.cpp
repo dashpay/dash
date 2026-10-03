@@ -4,6 +4,7 @@
 
 #include <bench/bench.h>
 #include <interfaces/chain.h>
+#include <node/chainstate.h>
 #include <node/context.h>
 #include <test/util/mining.h>
 #include <test/util/setup_common.h>
@@ -26,6 +27,9 @@ static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const b
     const auto test_setup = MakeNoLogFileContext<const TestingSetup>();
     const auto& ADDRESS_WATCHONLY = ADDRESS_B58T_UNSPENDABLE;
 
+    // Set clock to genesis block, so the descriptors/keys creation time don't interfere with the blocks scanning process.
+    // The reason is 'generatetoaddress', which creates a chain with deterministic timestamps in the past.
+    SetMockTime(test_setup->m_node.chainman->GetParams().GenesisBlock().nTime);
     CWallet wallet{test_setup->m_node.chain.get(), test_setup->m_node.coinjoin_loader.get(), "", gArgs, CreateMockWalletDatabase()};
     {
         LOCK(wallet.cs_wallet);
