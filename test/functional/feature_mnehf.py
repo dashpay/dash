@@ -30,8 +30,10 @@ class MnehfTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        extra_args = [["-vbparams=testdummy:0:999999999999:0:4:4:4:5:1", "-persistmempool=0"]] * 4
-        self.set_dash_test_params(4, 3, extra_args=extra_args)
+        extra_args = [["-vbparams=testdummy:0:999999999999:0:4:4:4:5:1", "-persistmempool=0"]] * 2
+        # One masternode is enough: the EHF signal only needs a recovered signature of any quorum
+        self.set_dash_test_params(2, 1, extra_args=extra_args)
+        self.set_dash_llmq_test_params(1, 1)
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
@@ -52,12 +54,13 @@ class MnehfTest(DashTestFramework):
             self.connect_nodes(i, 0)
 
 
-    def create_mnehf(self, versionBit, pubkey=None):
+    def create_mnehf(self, versionBit, pubkey=None, quorumHash=None):
         # request ID = sha256("mnhf", versionBit)
         request_id_buf = ser_string(b"mnhf") + struct.pack("<Q", versionBit)
         request_id = hash256(request_id_buf)[::-1].hex()
 
-        quorumHash = self.mninfo[0].get_node(self).quorum("selectquorum", 100, request_id)["quorumHash"]
+        if quorumHash is None:
+            quorumHash = self.mninfo[0].get_node(self).quorum("selectquorum", 100, request_id)["quorumHash"]
         mnehf_payload = CMnEhf(
             version = 1,
             versionBit = versionBit,
@@ -127,7 +130,7 @@ class MnehfTest(DashTestFramework):
 
         self.set_sporks()
         self.log.info("Mine a quorum...")
-        self.mine_quorum()
+        self.mine_quorum_single_member()
         self.check_fork('defined')
 
         key = ECKey()
@@ -198,8 +201,10 @@ class MnehfTest(DashTestFramework):
         self.log.info(f"Check MnEhfTx again {tx_sent_2} was mined in {ehf_blockhash_2}")
         assert tx_sent_2 in node.getblock(ehf_blockhash_2)['tx']
 
-        self.log.info(f"Generate some more block to jump to `started` status")
-        self.generate(node, 5)
+        self.log.info(f"Generate blocks up to the next window boundary to jump to `started` status")
+        while (node.getblockcount() + 1) % 4 != 0:
+            self.generate(node, 1)
+        self.generate(node, 1)
         self.check_fork('started')
         self.restart_node(0)
         self.check_fork('started')
@@ -215,7 +220,9 @@ class MnehfTest(DashTestFramework):
         self.check_fork('active')
 
         self.log.info("Testing duplicate EHF signal with same bit")
-        ehf_tx_duplicate = self.send_tx(self.create_mnehf(28, pubkey))
+        # Same quorum as the original signal: a quorum member never signs the same request id twice,
+        # so only an identical payload gets its (already existing) recovered signature
+        ehf_tx_duplicate = self.send_tx(self.create_mnehf(28, pubkey, quorumHash=format(mnehf_payload.quorumHash, '064x')))
         tip_blockhash = self.generate(node, 1, sync_fun=lambda: self.sync_blocks())[0]
         block = node.getblock(tip_blockhash)
         assert ehf_tx_duplicate in node.getrawmempool() and ehf_tx_duplicate not in block['tx']
@@ -227,7 +234,7 @@ class MnehfTest(DashTestFramework):
         self.check_fork('defined')
 
         self.log.info("Wait MNs to sign EHF message")
-        self.mine_quorum()
+        self.mine_quorum_single_member()
         self.check_fork('defined')
 
         def check_ehf_activated(self):

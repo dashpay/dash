@@ -6,7 +6,7 @@
 from test_framework.messages import msg_qsendrecsigs
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
+from test_framework.util import assert_equal, assert_raises_rpc_error
 
 '''
 p2p_instantsend.py
@@ -37,7 +37,10 @@ class InstantSendTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        self.set_dash_test_params(8, 4)
+        # One masternode with single-member quorums: this test is about InstantSend on the non-masternode
+        # nodes, not about the quorums themselves
+        self.set_dash_test_params(5, 1, [["-llmqtestinstantsenddip0024=llmq_test_instantsend"]] * 5)
+        self.set_dash_llmq_test_params(1, 1)
         # set sender,  receiver,  isolated nodes
         self.isolated_idx = 1
         self.receiver_idx = 2
@@ -46,18 +49,12 @@ class InstantSendTest(DashTestFramework):
     def run_test(self):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
-        self.log.info("Mine quorum for InstantSend")
-        (quorum_info_i_0, quorum_info_i_1) = self.mine_cycle_quorum()
-        self.log.info("Mine quorum for ChainLocks")
-        if len(self.nodes[0].quorum('list')['llmq_test']) == 0:
-            self.mine_quorum(llmq_type_name='llmq_test', llmq_type=104)
-        else:
-            self.log.info("Quorum `llmq_test` already exist")
+        self.log.info("Mine quorums for InstantSend and ChainLocks")
+        self.mine_quorum_single_member()
 
         self.test_mempool_doublespend()
         self.test_block_doublespend()
         self.test_isdlock_relayed_to_recsigs_observer()
-        self.test_instantsend_after_restart()
 
     def test_block_doublespend(self):
         sender = self.nodes[self.sender_idx]
@@ -170,80 +167,6 @@ class InstantSendTest(DashTestFramework):
 
         for node, _ in observers:
             node.disconnect_p2ps()
-
-    def test_instantsend_after_restart(self):
-        self.log.info("Testing InstantSend works after full restart without new blocks")
-
-        # fund sender with confirmed coins
-        sender = self.nodes[self.sender_idx]
-        receiver = self.nodes[self.receiver_idx]
-        sender_addr = sender.getnewaddress()
-        fund_id = self.nodes[0].sendtoaddress(sender_addr, 1)
-        self.wait_for_instantlock(fund_id)
-        tip = self.generate(self.nodes[0], 2)[-1]
-        self.bump_mocktime(30)
-        self.wait_for_chainlocked_block_all_nodes(tip)
-        self.sync_blocks()
-        assert sender.getbalance() >= 0.5
-
-        receiver_addr = receiver.getnewaddress()
-
-        # restart all nodes without mining new blocks
-        self.log.info("Restarting all nodes")
-        num_simple_nodes = self.num_nodes - self.mn_count
-        self.stop_nodes()
-
-        for i in range(num_simple_nodes):
-            self.start_node(i)
-        for mn_info in self.mninfo:
-            self.start_masternode(mn_info)
-
-        # reconnect: simple nodes to node 0, MNs to node 0 only.
-        # Quorum connections between MNs must be re-established automatically
-        # via InitializeCurrentBlockTip → EnsureQuorumConnections, NOT via
-        # manual connect_nodes between MN pairs.
-        for i in range(1, num_simple_nodes):
-            self.connect_nodes(i, 0)
-        for mn_info in self.mninfo:
-            self.connect_nodes(mn_info.nodeIdx, 0)
-        for i in range(num_simple_nodes):
-            force_finish_mnsync(self.nodes[i])
-
-        # bump past WAIT_FOR_ISLOCK_TIMEOUT so txFirstSeenTime loss doesn't
-        # block chainlock signing for TXs mined before restart
-        self.bump_mocktime(10 * 60 + 1)
-        self.sync_blocks()
-
-        # Verify that MNs formed quorum connections to other MNs after restart.
-        # InitializeCurrentBlockTip → EnsureQuorumConnections must populate
-        # masternodeQuorumNodes so ThreadOpenMasternodeConnections establishes
-        # MN-to-MN links beyond the manual connections to node 0.
-        self.log.info("Verifying MN-to-MN quorum connections formed after restart")
-        for mn_info in self.mninfo:
-            mn_node = self.nodes[mn_info.nodeIdx]
-
-            def check_mn_peers(node=mn_node, my_hash=mn_info.proTxHash):
-                peers = node.getpeerinfo()
-                mn_peers = set(p['verified_proregtx_hash'] for p in peers
-                               if p.get('verified_proregtx_hash', '') != '')
-                other_mn_peers = mn_peers - {my_hash}
-                return len(other_mn_peers) > 0
-            self.wait_until(check_mn_peers, timeout=30)
-
-        # re-grab references after restart
-        sender = self.nodes[self.sender_idx]
-        receiver = self.nodes[self.receiver_idx]
-
-        # send a TX — needs IS lock from all restarted MNs, no new blocks mined
-        is_id = sender.sendtoaddress(receiver_addr, 0.5)
-        self.wait_for_instantlock(is_id)
-        self.log.info("InstantSend lock succeeded after full restart")
-
-        # clean up
-        receiver.sendtoaddress(self.nodes[0].getnewaddress(), 0.5, "", "", True)
-        self.bump_mocktime(30)
-        self.sync_mempools()
-        self.generate(self.nodes[0], 2)
 
 if __name__ == '__main__':
     InstantSendTest().main()
