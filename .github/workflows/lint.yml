@@ -17,7 +17,7 @@ jobs:
     name: Run linters
     runs-on: ${{ inputs.runs-on }}
     container:
-      image: ${{ inputs.container-path }}
+      image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
       options: --user root
     steps:
       - name: Checkout code
@@ -50,10 +50,10 @@ jobs:
           export CHECK_DOC=1
 
           # Determine if this is a PR and set commit range accordingly
-          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]; then
             export COMMIT_RANGE="$(git merge-base origin/develop HEAD)..HEAD"
             export PULL_REQUEST="true"
-          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" != "refs/heads/develop" ] && [ "${{ github.ref }}" != "refs/heads/master" ]; then
+          elif [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" != "refs/heads/develop" ] && [ "${GITHUB_REF}" != "refs/heads/master" ]; then
             # For push events on feature branches, check against develop
             export COMMIT_RANGE="$(git merge-base origin/develop HEAD)..HEAD"
             export PULL_REQUEST="true"
@@ -63,8 +63,8 @@ jobs:
             export PULL_REQUEST="false"
           fi
 
-          echo "Event name: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
+          echo "Event name: ${GITHUB_EVENT_NAME}"
+          echo "Ref: ${GITHUB_REF}"
           echo "COMMIT_RANGE=${COMMIT_RANGE}"
           echo "PULL_REQUEST=${PULL_REQUEST}"
           echo "Running git log for commit range:"

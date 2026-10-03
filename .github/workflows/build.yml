@@ -2,12 +2,12 @@ name: CI
 
 on:
   push:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] CI for fork PRs; PR code runs with a read-only token except the container image builds
 
 permissions:
   actions: read
   contents: read
-  packages: write
+  packages: read
 
 concurrency:
   group: |
@@ -37,11 +37,14 @@ jobs:
     steps:
       - name: Check skip environment variables
         id: skip-check
+        env:
+          SKIP_ON_PUSH: ${{ vars.SKIP_ON_PUSH }}
+          SKIP_ON_PR: ${{ vars.SKIP_ON_PR }}
         run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ vars.SKIP_ON_PUSH }}" != "" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${SKIP_ON_PUSH}" != "" ]]; then
             echo "Skipping build on push due to SKIP_ON_PUSH environment variable"
             echo "skip=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "pull_request_target" && "${{ vars.SKIP_ON_PR }}" != "" ]]; then
+          elif [[ "${GITHUB_EVENT_NAME}" == "pull_request_target" && "${SKIP_ON_PR}" != "" ]]; then
             echo "Skipping build on pull request due to SKIP_ON_PR environment variable"
             echo "skip=true" >> $GITHUB_OUTPUT
           else
@@ -51,6 +54,8 @@ jobs:
       - name: Checkout code
         if: ${{ steps.skip-check.outputs.skip == 'false' }}
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Select runners
         id: select-runner
@@ -100,6 +105,9 @@ jobs:
     name: Build container
     needs: [check-skip]
     if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci
@@ -112,6 +120,9 @@ jobs:
     name: Build slim container
     needs: [check-skip]
     if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci

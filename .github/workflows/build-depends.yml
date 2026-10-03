@@ -64,8 +64,11 @@ jobs:
 
       - name: Compute cache key
         id: setup
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          BASE_IMAGE_DIGEST: ${{ inputs.base-image-digest }}
+          RUNS_ON: ${{ inputs.runs-on }}
         run: |
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           echo "DEP_OPTS=${DEP_OPTS}" >> "${GITHUB_OUTPUT}"
           echo "HOST=${HOST}" >> "${GITHUB_OUTPUT}"
@@ -74,7 +77,7 @@ jobs:
           echo "DEP_HASH=${DEP_HASH}" >> "${GITHUB_OUTPUT}"
           DOCKERFILE_HASH="${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}"
           DEPENDS_INPUTS_HASH="${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/gen_id', 'depends/config.guess', 'depends/config.sub', 'depends/config.site.in', 'depends/builders/**', 'depends/hosts/**', 'depends/packages/**', 'depends/patches/**') }}"
-          CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${{ inputs.base-image-digest }}-${{ inputs.runs-on }}-${{ inputs.build-target }}"
+          CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${BASE_IMAGE_DIGEST}-${RUNS_ON}-${BUILD_TARGET}"
           CACHE_KEY="${CACHE_KEY_PREFIX}-${DEP_HASH}-${DEPENDS_INPUTS_HASH}"
           echo "cache-key-prefix=${CACHE_KEY_PREFIX}" >> "${GITHUB_OUTPUT}"
           echo "cache-key=${CACHE_KEY}" >> "${GITHUB_OUTPUT}"
@@ -127,7 +130,7 @@ jobs:
     outputs:
       built-artifact: depends-built-${{ inputs.build-target }}
     container:
-      image: ${{ inputs.container-path }}
+      image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
       options: --user root
     steps:
       - name: Checkout code
@@ -176,9 +179,14 @@ jobs:
             ${{ needs.check-cache.outputs.cache-key-prefix }}-
 
       - name: Build depends
+        env:
+          HOST: ${{ needs.check-cache.outputs.host }}
+          DEP_OPTS: ${{ needs.check-cache.outputs.dep-opts }}
         run: |
-          export HOST="${{ needs.check-cache.outputs.host }}"
-          env ${{ needs.check-cache.outputs.dep-opts }} make -j$(nproc) -C depends
+          # DEP_OPTS may contain shell-quoted values, e.g. CXX='clang++-19 -stdlib=libc++'
+          eval "DEP_OPTS_ARGS=(${DEP_OPTS})"
+          env "${DEP_OPTS_ARGS[@]}" make -j$(nproc) -C depends
+        shell: bash
 
       - name: Save depends cache
         # Cache tokens on untrusted triggers are read-only (GitHub change,

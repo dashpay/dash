@@ -1,12 +1,9 @@
 name: Guix Build
 
-permissions:
-  packages: write
-  id-token: write
-  attestations: write
+permissions: {}
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] runs only when a maintainer applies the 'guix-build' label
     types: [labeled]
   push:
   schedule:
@@ -16,6 +13,8 @@ on:
 jobs:
   build-image:
     runs-on: ubuntu-24.04-arm
+    permissions:
+      packages: write
     if: |
       (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || vars.RUN_GUIX_ON_ALL_PUSH == 'true')) ||
       contains(github.event.pull_request.labels.*.name, 'guix-build') ||
@@ -75,6 +74,9 @@ jobs:
     needs: build-image
     # runs-on: [ "self-hosted", "linux", "x64", "ubuntu-core" ]
     runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write
+      attestations: write
     strategy:
       matrix:
         build_target: [x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, powerpc64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, arm64-apple-darwin]
@@ -122,14 +124,18 @@ jobs:
 
       - name: Run Guix build
         timeout-minutes: 480
+        env:
+          REPO_NAME: ${{ needs.build-image.outputs.repo-name }}
+          IMAGE_TAG: ${{ needs.build-image.outputs.image-tag }}
+          BUILD_TARGET: ${{ matrix.build_target }}
         run: |
           docker run --privileged -d --rm -t \
             --name guix-daemon \
-            -v ${{ github.workspace }}/dash:/src/dash \
-            -v ${{ github.workspace }}/.cache:/home/ubuntu/.cache \
+            -v "${GITHUB_WORKSPACE}/dash:/src/dash" \
+            -v "${GITHUB_WORKSPACE}/.cache:/home/ubuntu/.cache" \
             -w /src/dash \
-            ghcr.io/${{ needs.build-image.outputs.repo-name }}/dashcore-guix-builder:${{ needs.build-image.outputs.image-tag }} && \
-          docker exec guix-daemon bash -c 'HOSTS=${{ matrix.build_target }} /usr/local/bin/guix-start /src/dash'
+            "ghcr.io/${REPO_NAME}/dashcore-guix-builder:${IMAGE_TAG}" && \
+          docker exec -e HOSTS="${BUILD_TARGET}" guix-daemon bash -c '/usr/local/bin/guix-start /src/dash'
 
       - name: Ensure build passes
         run: |
@@ -140,8 +146,10 @@ jobs:
 
       - name: Compute SHA256 checksums
         continue-on-error: true # It will complain on depending on only some hosts
+        env:
+          HOSTS: ${{ matrix.build_target }}
         run: |
-          HOSTS=${{ matrix.build_target }} ./dash/contrib/containers/guix/scripts/guix-check ${{ github.workspace }}/dash
+          ./dash/contrib/containers/guix/scripts/guix-check "${GITHUB_WORKSPACE}/dash"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
