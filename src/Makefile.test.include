@@ -94,6 +94,7 @@ BITCOIN_TESTS =\
   test/bloom_tests.cpp \
   test/bls_tests.cpp \
   test/bswap_tests.cpp \
+  test/chainparams_platform_tests.cpp \
   test/checkdatasig_tests.cpp \
   test/checkqueue_tests.cpp \
   test/cachemap_tests.cpp \
