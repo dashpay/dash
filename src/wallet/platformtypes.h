@@ -10,6 +10,8 @@
 #include <support/allocators/secure.h>
 #include <uint256.h>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <variant>
 
@@ -63,7 +65,21 @@ struct FriendshipKeychainRequest {
 struct FriendshipXpub {
     CPubKey pubkey;
     ChainCode chaincode;
+    //! BIP32 fingerprint (Hash160 prefix) of the key one level up, i.e. of
+    //! m/9'/coin'/15'/account'/<user_a> for the receiving chain.
+    std::array<uint8_t, 4> parent_fingerprint{};
 };
+
+//! DIP-15 compact extended public key: parentFingerprint(4) || chainCode(32)
+//! || pubKey(33). This is the contactRequest encryptedPublicKey plaintext and
+//! the accountReference MAC input; unlike a BIP32/DIP-14 serialization it
+//! carries no version, depth or child number.
+inline constexpr size_t COMPACT_XPUB_SIZE{4 + 32 + 33};
+using CompactXpub = std::array<uint8_t, COMPACT_XPUB_SIZE>;
+
+//! Serialize a friendship xpub in the compact form. Fails for a xpub whose
+//! key is not compressed, as externally supplied contact xpubs may be.
+[[nodiscard]] bool CompactXpubBytes(const FriendshipXpub& xpub, CompactXpub& compact_out);
 
 //! Derive one contact payment destination from a DIP-15 friendship xpub.
 //! This is public-only key math and does not require a wallet instance.

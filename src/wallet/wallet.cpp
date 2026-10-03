@@ -2455,8 +2455,10 @@ bool CWallet::SignGovernanceVote(const CKeyID& keyID, CGovernanceVote& vote) con
     return true;
 }
 
-void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm)
+void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm,
+                                bilingual_str* broadcast_error)
 {
+    if (broadcast_error) broadcast_error->clear();
     LOCK(cs_wallet);
     WalletLogPrintf("CommitTransaction:\n%s", tx->ToString()); /* Continued */
 
@@ -2498,6 +2500,9 @@ void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
     if (!SubmitTxMemoryPoolAndRelay(*wtx, err_string, true)) {
         WalletLogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", err_string.original);
         // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
+        // Not every refusal carries a reason (e.g. the -maxtxfee check in
+        // BroadcastTransaction), but the caller must still learn of it.
+        if (broadcast_error) *broadcast_error = err_string.empty() ? _("Transaction could not be broadcast") : err_string;
     }
 }
 
@@ -4003,7 +4008,8 @@ PlatformKeyResult<SecureVector> CWallet::PlatformECDHSecret(const IdentityAuthKe
 {
     LOCK(cs_wallet);
     PlatformKeyResult<SecureVector> result;
-    if (!counterparty.IsFullyValid()) {
+    // Key 0 is the identity MASTER key; DIP-15 never uses it for ECDH.
+    if (request.key_index == 0 || !counterparty.IsFullyValid()) {
         result.status = PlatformKeyStatus::INVALID_ARGUMENT;
         return result;
     }
@@ -4013,6 +4019,25 @@ PlatformKeyResult<SecureVector> CWallet::PlatformECDHSecret(const IdentityAuthKe
         !platformkeys::ComputeECDHSecret(key.key, counterparty, result.value)) {
         result.status = PlatformKeyStatus::DERIVATION_ERROR;
         result.value.clear();
+    }
+    return result;
+}
+
+PlatformKeyResult<uint256> CWallet::PlatformAccountReferenceMac(const IdentityAuthKey& request, const CompactXpub& compact_xpub) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<uint256> result;
+    // The MAC is keyed by the same ENCRYPTION key as the ECDH secret; never MASTER.
+    if (request.key_index == 0) {
+        result.status = PlatformKeyStatus::INVALID_ARGUMENT;
+        return result;
+    }
+    platformkeys::ExtKey256 key;
+    result.status = DerivePlatformKey(PlatformKeyRequest{request}, key);
+    if (result.status == PlatformKeyStatus::SUCCESS &&
+        !platformkeys::ComputeAccountReferenceMac(key.key, compact_xpub, result.value)) {
+        result.status = PlatformKeyStatus::DERIVATION_ERROR;
+        result.value.SetNull();
     }
     return result;
 }
@@ -4057,7 +4082,7 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         return result;
     }
 
-    result.value = {key.key.GetPubKey(), key.chaincode};
+    result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     return result;
 }
 
