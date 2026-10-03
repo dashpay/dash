@@ -342,6 +342,40 @@ class MasternodeSharesTest(DashTestFramework):
             assert_equal(confirmed_address, voting)
             assert pending_txid not in node.getrawmempool()
 
+    def test_dissolution_evicts_pending_updates(self, node):
+        self.log.info("A confirmed dissolution evicts pending updates of the dissolved masternode")
+        shares = [
+            {"amount": 600 * COIN, "refundAddress": node.getnewaddress(), "ownerAddress": node.getnewaddress()},
+            {"amount": 400 * COIN, "refundAddress": node.getnewaddress(), "ownerAddress": node.getnewaddress()},
+        ]
+        protx_hash, _ = self.register_shared(node, shares, port_offset=8)
+        registrar_fee, share_fee = node.getnewaddress(), node.getnewaddress()
+        funding_txid = node.sendmany("", {registrar_fee: 1, share_fee: 1})
+        node.syncwithvalidationinterfacequeue()
+        self.bump_mocktime(10 * 60 + 1)
+        funding_block = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert funding_txid in node.getblock(funding_block)["tx"]
+
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash, "", node.getnewaddress(), registrar_fee)
+        registrar_sigs = node.protx("shared_sign", prepared["tx"])["signatures"]
+        registrar = node.protx("shared_combine", prepared["tx"], registrar_sigs)
+        share_update = node.protx("shared_update_share", protx_hash, 0, node.getnewaddress(), share_fee, False)
+        dissolve = node.protx("shared_dissolve", protx_hash, 0, DISSOLVE_FEE, False)
+        self.sync_all()
+        self.disconnect_nodes(0, 1)
+        pending_txids = {node.sendrawtransaction(registrar), node.sendrawtransaction(share_update)}
+        assert pending_txids.issubset(node.getrawmempool())
+        # Simulate another miner that never saw the pending updates confirming the dissolution.
+        other = self.nodes[1]
+        dissolve_txid = other.sendrawtransaction(dissolve)
+        self.bump_mocktime(10 * 60 + 1)
+        dissolve_block = self.generate(other, 1, sync_fun=self.no_op)[0]
+        assert dissolve_txid in other.getblock(dissolve_block)["tx"]
+        self.connect_nodes(0, 1)
+        self.sync_blocks()
+        assert_raises_rpc_error(None, None, node.protx, "info", protx_hash)
+        assert pending_txids.isdisjoint(node.getrawmempool())
+
     def test_separate_participant_wallets(self):
         self.log.info("Eight separate wallets fund and authorize a shared masternode")
         node = self.nodes[0]
@@ -1164,6 +1198,7 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.test_pending_registrar_update(node, protx_hash4)
         self.test_voting_payee_conflict_eviction(node, protx_hash4)
+        self.test_dissolution_evicts_pending_updates(node)
 
         self.log.info("Shared state survives a node restart")
         state_before_restart = node.protx("info", protx_hash4)["state"]

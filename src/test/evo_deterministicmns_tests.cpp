@@ -1540,6 +1540,179 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
     }
 }
 
+// A pending ProRegTx that references an external collateral can never be mined once a block
+// spends that collateral. It must leave the mempool then: nothing else evicts it, and an
+// InstantSend-locked transaction does not expire, which would leave its inputs frozen.
+void FuncTestMempoolProRegSpentCollateral(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
+    auto tip_height = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
+
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+
+    CKey ownerKey;
+    CKey payoutKey;
+    CKey collateralKey;
+    CBLSSecretKey operatorKey;
+    ownerKey.MakeNewKey(true);
+    payoutKey.MakeNewKey(true);
+    collateralKey.MakeNewKey(true);
+    operatorKey.MakeNewKey();
+
+    auto scriptPayout = GetScriptForDestination(PKHash(payoutKey.GetPubKey()));
+    auto scriptCollateral = GetScriptForDestination(PKHash(collateralKey.GetPubKey()));
+
+    auto tx_collateral = CreateSpendTx(chainman, utxos, scriptCollateral, dmn_types::Regular.collat_amount,
+                                       setup.coinbaseKey);
+    auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_collateral}, coinbase_pk, chainman.ActiveChainstate()));
+    BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
+    setup.m_node.dmnman->UpdatedBlockTip(tip_index());
+
+    const auto collateralOutpoint = GetCollateralOutpoint(tx_collateral);
+    auto tx_reg = CreateProRegTxExternalCollateral(chainman, utxos, /*port=*/1, collateralOutpoint, scriptPayout,
+                                                   ownerKey, operatorKey, collateralKey, setup.coinbaseKey);
+
+    CMutableTransaction tx_unrelated;
+    tx_unrelated.vin.emplace_back(COutPoint(tx_collateral.GetHash(), collateralOutpoint.n + 1));
+    tx_unrelated.vout.emplace_back(0, CScript() << OP_RETURN);
+
+    CMutableTransaction tx_spend;
+    tx_spend.vin.emplace_back(collateralOutpoint);
+    tx_spend.vout.emplace_back(0, CScript() << OP_RETURN);
+
+    CTxMemPool testPool{MemPoolOptionsForTest(setup.m_node)};
+    TestMemPoolEntryHelper entry;
+    LOCK2(cs_main, testPool.cs);
+
+    testPool.addUnchecked(entry.FromTx(tx_reg));
+    BOOST_CHECK_EQUAL(testPool.size(), 1U);
+
+    testPool.removeForBlock({MakeTransactionRef(tx_unrelated)}, tip_height() + 1);
+    BOOST_CHECK(testPool.exists(tx_reg.GetHash()));
+
+    testPool.removeForBlock({MakeTransactionRef(tx_spend)}, tip_height() + 1);
+    BOOST_CHECK(!testPool.exists(tx_reg.GetHash()));
+}
+
+// Pending updates of a registered masternode can never be mined once a block spends its
+// collateral, since the masternode is gone. They must leave the mempool then.
+void FuncTestMempoolProUpdatesSpentCollateral(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
+    auto tip_height = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
+
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+
+    CKey ownerKey;
+    CKey payoutKey;
+    CKey collateralKey;
+    CBLSSecretKey operatorKey;
+    ownerKey.MakeNewKey(true);
+    payoutKey.MakeNewKey(true);
+    collateralKey.MakeNewKey(true);
+    operatorKey.MakeNewKey();
+
+    auto scriptPayout = GetScriptForDestination(PKHash(payoutKey.GetPubKey()));
+    auto scriptCollateral = GetScriptForDestination(PKHash(collateralKey.GetPubKey()));
+
+    auto tx_collateral = CreateSpendTx(chainman, utxos, scriptCollateral, dmn_types::Regular.collat_amount,
+                                       setup.coinbaseKey);
+    auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_collateral}, coinbase_pk, chainman.ActiveChainstate()));
+    BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
+    dmnman.UpdatedBlockTip(tip_index());
+
+    const auto collateralOutpoint = GetCollateralOutpoint(tx_collateral);
+    auto tx_reg = CreateProRegTxExternalCollateral(chainman, utxos, /*port=*/1, collateralOutpoint, scriptPayout,
+                                                   ownerKey, operatorKey, collateralKey, setup.coinbaseKey);
+    const uint256 proTxHash = tx_reg.GetHash();
+    block = std::make_shared<CBlock>(setup.CreateBlock({tx_reg}, coinbase_pk, chainman.ActiveChainstate()));
+    BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
+    dmnman.UpdatedBlockTip(tip_index());
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(proTxHash));
+
+    auto tx_up_serv = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/2, CScript(), setup.coinbaseKey);
+    auto tx_up_reg = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey.GetPublicKey(),
+                                      ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
+    auto tx_up_rev = CreateProUpRevTx(chainman, utxos, proTxHash, operatorKey, setup.coinbaseKey);
+
+    CMutableTransaction tx_unrelated;
+    tx_unrelated.vin.emplace_back(COutPoint(tx_collateral.GetHash(), collateralOutpoint.n + 1));
+    tx_unrelated.vout.emplace_back(0, CScript() << OP_RETURN);
+
+    CMutableTransaction tx_spend;
+    tx_spend.vin.emplace_back(collateralOutpoint);
+    tx_spend.vout.emplace_back(0, CScript() << OP_RETURN);
+
+    CTxMemPool testPool{MemPoolOptionsForTest(setup.m_node)};
+    TestMemPoolEntryHelper entry;
+    LOCK2(cs_main, testPool.cs);
+
+    testPool.addUnchecked(entry.FromTx(tx_up_serv));
+    testPool.addUnchecked(entry.FromTx(tx_up_reg));
+    testPool.addUnchecked(entry.FromTx(tx_up_rev));
+    BOOST_CHECK_EQUAL(testPool.size(), 3U);
+
+    testPool.removeForBlock({MakeTransactionRef(tx_unrelated)}, tip_height() + 1);
+    BOOST_CHECK(testPool.exists(tx_up_serv.GetHash()));
+    BOOST_CHECK(testPool.exists(tx_up_reg.GetHash()));
+    BOOST_CHECK(testPool.exists(tx_up_rev.GetHash()));
+
+    testPool.removeForBlock({MakeTransactionRef(tx_spend)}, tip_height() + 1);
+    BOOST_CHECK(!testPool.exists(tx_up_serv.GetHash()));
+    BOOST_CHECK(!testPool.exists(tx_up_reg.GetHash()));
+    BOOST_CHECK(!testPool.exists(tx_up_rev.GetHash()));
+}
+
+// A pending ProUpServTx is signed by the operator key and stays valid across a registrar update
+// that keeps that key, so only a registrar update that changes the key may evict it.
+void FuncTestMempoolProUpServOperatorKeyChange(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
+    auto tip_height = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
+
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    const CScript scriptPayout = GenerateRandomAddress();
+
+    CKey ownerKey;
+    CBLSSecretKey operatorKey;
+    auto tx_reg = CreateProRegTx(chainman, utxos, /*port=*/1, scriptPayout, setup.coinbaseKey, ownerKey, operatorKey);
+    const uint256 proTxHash = tx_reg.GetHash();
+    auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_reg}, coinbase_pk, chainman.ActiveChainstate()));
+    BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
+    dmnman.UpdatedBlockTip(tip_index());
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(proTxHash));
+
+    CBLSSecretKey newOperatorKey;
+    newOperatorKey.MakeNewKey();
+
+    auto tx_up_serv = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/2, CScript(), setup.coinbaseKey);
+    auto tx_same_key = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey.GetPublicKey(),
+                                        ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
+    auto tx_new_key = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, newOperatorKey.GetPublicKey(),
+                                       ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
+
+    CTxMemPool testPool{MemPoolOptionsForTest(setup.m_node)};
+    TestMemPoolEntryHelper entry;
+    LOCK2(cs_main, testPool.cs);
+
+    testPool.addUnchecked(entry.FromTx(tx_up_serv));
+    BOOST_CHECK_EQUAL(testPool.size(), 1U);
+
+    testPool.removeForBlock({MakeTransactionRef(tx_same_key)}, tip_height() + 1);
+    BOOST_CHECK(testPool.exists(tx_up_serv.GetHash()));
+
+    testPool.removeForBlock({MakeTransactionRef(tx_new_key)}, tip_height() + 1);
+    BOOST_CHECK(!testPool.exists(tx_up_serv.GetHash()));
+}
+
 void FuncVerifyDB(TestChainSetup& setup)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
@@ -3487,6 +3660,24 @@ BOOST_AUTO_TEST_CASE(test_mempool_proreg_replacement_update_conflict)
 {
     TestChainV19Setup setup;
     FuncTestMempoolProRegReplacementUpdateConflict(setup);
+}
+
+BOOST_AUTO_TEST_CASE(test_mempool_proreg_spent_collateral)
+{
+    TestChainV19Setup setup;
+    FuncTestMempoolProRegSpentCollateral(setup);
+}
+
+BOOST_AUTO_TEST_CASE(test_mempool_proupdates_spent_collateral)
+{
+    TestChainV19Setup setup;
+    FuncTestMempoolProUpdatesSpentCollateral(setup);
+}
+
+BOOST_AUTO_TEST_CASE(test_mempool_proupserv_operator_key_change)
+{
+    TestChainV19Setup setup;
+    FuncTestMempoolProUpServOperatorKeyChange(setup);
 }
 
 //This one can be started only with legacy scheme, since inside undo block will switch it back to legacy resulting into an inconsistency
