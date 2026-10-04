@@ -175,9 +175,9 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
     }
 }
 
-// Test-only subclass exposing the minimal seams needed to observe how
-// ProcessDSSIGNFINALTX treats messages from participants vs. non-participants
-// without standing up a full DKG-backed signing session.
+// Test-only subclass exposing the minimal seams needed to exercise server lifecycle behavior
+// without standing up a full DKG-backed signing session. The helpers only establish preconditions
+// and invoke the production paths; the behavior under test is not reproduced here.
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
@@ -457,11 +457,11 @@ BOOST_AUTO_TEST_CASE(server_finalization_rechecks_live_side_coverage)
     server.EnterAcceptingEntriesState();
 
     // A timeout snapshot could have observed only the three demotions as covered (0/3), then
-    // this first promotion could commit while ChargeFees() ran. Finalization must use the live
-    // 1/3 side counts and refuse to build the uncovered transaction, staying out of
+    // this first promotion could commit before finalization took the lock. Finalization must use
+    // the live 1/3 side counts and refuse to build the uncovered transaction, staying out of
     // POOL_STATE_SIGNING; the still-timed-out session is then reset by the scheduler's
     // regular CheckTimeout() pass instead of leaking a lone promoter on-chain.
-    server.CreateFinalTransaction(/*session_id=*/1);
+    server.CreateFinalTransaction(/*session_id=*/1, /*charge_fees=*/true);
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 4);
 }
