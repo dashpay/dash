@@ -29,7 +29,9 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <latch>
 #include <memory>
+#include <thread>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(coinjoin_inouts_tests, TestingSetup)
@@ -175,9 +177,9 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
     }
 }
 
-// Test-only subclass exposing the minimal seams needed to observe how
-// ProcessDSSIGNFINALTX treats messages from participants vs. non-participants
-// without standing up a full DKG-backed signing session.
+// Test-only subclass exposing the minimal seams needed to exercise server lifecycle behavior
+// without standing up a full DKG-backed signing session. The helpers only establish preconditions
+// and invoke the production paths; the behavior under test is not reproduced here.
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
@@ -210,6 +212,21 @@ public:
     {
         LOCK(cs_coinjoin);
         vecEntries.push_back(std::move(entry));
+    }
+
+    void SeedTimedOutSession() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        nSessionID = 1;
+        nState = POOL_STATE_ACCEPTING_ENTRIES;
+        nTimeLastSuccessfulStep = GetTime() - COINJOIN_QUEUE_TIMEOUT;
+    }
+
+    void HoldPoolCheck(std::latch& locked, std::latch& release) EXCLUSIVE_LOCKS_REQUIRED(!cs_check_pool)
+    {
+        LOCK(cs_check_pool);
+        locked.count_down();
+        release.wait();
     }
 };
 
@@ -457,13 +474,37 @@ BOOST_AUTO_TEST_CASE(server_finalization_rechecks_live_side_coverage)
     server.EnterAcceptingEntriesState();
 
     // A timeout snapshot could have observed only the three demotions as covered (0/3), then
-    // this first promotion could commit while ChargeFees() ran. Finalization must use the live
-    // 1/3 side counts and refuse to build the uncovered transaction, staying out of
+    // this first promotion could commit before finalization took the lock. Finalization must use
+    // the live 1/3 side counts and refuse to build the uncovered transaction, staying out of
     // POOL_STATE_SIGNING; the still-timed-out session is then reset by the scheduler's
     // regular CheckTimeout() pass instead of leaking a lone promoter on-chain.
-    server.CreateFinalTransaction(/*session_id=*/1);
+    server.CreateFinalTransaction(/*session_id=*/1, /*charge_fees=*/true);
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 4);
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+    server.SeedTimedOutSession();
+
+    std::latch locked{1};
+    std::latch release{1};
+    std::thread pool_check{[&] { server.HoldPoolCheck(locked, release); }};
+    locked.wait();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+
+    release.count_down();
+    pool_check.join();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
