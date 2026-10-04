@@ -181,10 +181,10 @@ void PSBTOutput::Merge(const PSBTOutput& output)
     if (redeem_script.empty() && !output.redeem_script.empty()) redeem_script = output.redeem_script;
 }
 
-bool PSBTInputSignedAndVerified(const PartiallySignedTransaction psbt, unsigned int input_index, const PrecomputedTransactionData* txdata)
+bool PSBTInputSignedAndVerified(const PartiallySignedTransaction& psbt, unsigned int input_index, const PrecomputedTransactionData* txdata)
 {
     CTxOut utxo;
-    assert(psbt.inputs.size() >= input_index);
+    assert(input_index < psbt.inputs.size());
     const PSBTInput& input = psbt.inputs[input_index];
 
     if (input.non_witness_utxo) {
