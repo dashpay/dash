@@ -124,6 +124,13 @@ protected:
 
     void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
+    /// Tell the given participants of session_id how it ended. Side-effect free: the participant
+    /// list is captured by the caller, so a reset or replacement session cannot be notified.
+    void RelayCompletedTransaction(int session_id, const std::vector<CService>& participants, PoolMessage nMessageID)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    /// Reset the pool, but only while session_id is still the signing session being completed
+    void ResetSigningSessionIfCurrent(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+
 private:
     bool fUnitTest;
 
@@ -133,7 +140,7 @@ private:
     /// Choose one bad actor whose collateral should be consumed, if any.
     CTransactionRef SelectCollateralToCharge() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Rarely charge fees to pay miners
-    void ChargeRandomFees() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     /// Consume collateral in cases when peer misbehaved. Takes cs_main, which this class never
     /// takes under cs_coinjoin.
     void ConsumeCollateral(const CTransactionRef& txref) const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
@@ -186,7 +193,8 @@ private:
     void RelayFinalTransaction(const CTransaction& txFinal) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     void PushStatus(CNode& peer, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID) const;
     void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
-    void RelayCompletedTransaction(PoolMessage nMessageID) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    /// Addresses of the participants that submitted an entry to the current session
+    std::vector<CService> GetParticipantAddrs() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     void ProcessDSACCEPT(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
     void ProcessDSQUEUE(NodeId from, CDataStream& vRecv);
