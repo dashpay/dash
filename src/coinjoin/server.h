@@ -135,7 +135,7 @@ private:
     bool fUnitTest;
 
     /// Add signature to a txin
-    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     /// Choose one bad actor whose collateral should be consumed, if any.
     CTransactionRef SelectCollateralToCharge() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
