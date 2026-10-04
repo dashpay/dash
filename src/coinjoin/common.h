@@ -120,15 +120,23 @@ constexpr CAmount GetMaxCollateralAmount() { return GetCollateralAmount() * 4; }
 // Promotion/demotion constants (post-V24 feature)
 constexpr int PROMOTION_RATIO = 10;   // 10 smaller denomination coins = 1 larger denomination coin
 constexpr int GAP_DIVISOR = 5;        // Deficit gap required to trigger promotion/demotion, as 1/N of the goal
+/**
+ * Smallest gap that stops a conversion from making the opposite conversion worthwhile. A
+ * conversion needs the receiving deficit to exceed the other by more than the gap, and it moves
+ * the two deficits by at most PROMOTION_RATIO and 1, so reversing it right away would need
+ * 2 * gap + 1 <= PROMOTION_RATIO. Any gap with 2 * gap + 1 > PROMOTION_RATIO rules that out.
+ */
+constexpr int MIN_GAP_THRESHOLD = (PROMOTION_RATIO + 1) / 2;
 
 /**
  * How far behind the other denomination a denomination has to be before converting is worth it;
  * the gap is what keeps promotion and demotion from oscillating. It is a fraction of the goal
  * rather than a constant because the largest gap two denominations can show is the goal itself:
  * a constant of 10 was unsatisfiable at MIN_COINJOIN_DENOMS_GOAL (also 10) and silently
- * disabled the feature there. At the default goal of 50 this still yields 10.
+ * disabled the feature there. At the default goal of 50 this still yields 10; below a goal of 25
+ * it is floored at MIN_GAP_THRESHOLD.
  */
-constexpr int GetGapThreshold(int nGoal) { return std::max(nGoal / GAP_DIVISOR, 1); }
+constexpr int GetGapThreshold(int nGoal) { return std::max(nGoal / GAP_DIVISOR, MIN_GAP_THRESHOLD); }
 
 /**
  * Which side(s) of the session denomination a participant occupies. A standard entry mixes at
