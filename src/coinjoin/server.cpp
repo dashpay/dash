@@ -42,7 +42,6 @@ CCoinJoinServer::CCoinJoinServer(PeerManagerInternal* peer_manager, ChainstateMa
     m_mn_activeman{mn_activeman},
     m_mn_sync{mn_sync},
     m_isman{isman},
-    vecSessionCollaterals{},
     fUnitTest{false}
 {
 }
@@ -87,7 +86,7 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
         return;
     }
 
-    if (WITH_LOCK(cs_coinjoin, return vecSessionCollaterals.empty())) {
+    if (WITH_LOCK(cs_coinjoin, return m_session_collaterals.empty())) {
         {
             const auto hasQueue = m_queueman.TryHasQueueFromMasternode(m_mn_activeman.GetOutPoint());
             if (!hasQueue.has_value()) return;
@@ -286,8 +285,7 @@ void CCoinJoinServer::SetNull()
 {
     AssertLockHeld(cs_coinjoin);
     // MN side
-    vecSessionCollaterals.clear();
-    setSessionCollateralPrevouts.clear();
+    m_session_collaterals.Clear();
     m_fRebalanceSession = false;
     m_fHasLegacyParticipant = false;
     m_mapDeclaredShapes.clear();
@@ -314,7 +312,7 @@ void CCoinJoinServer::CheckPool()
     // between two reads: the side counts could be read before the last entry arrived while the
     // entry count was read after it, so a session that was about to finalize looked like one
     // whose entries were all in but left a side uncovered - and got reset. Reading
-    // vecSessionCollaterals without the lock could also race SetNull() clearing it.
+    // the session collaterals without the lock could also race SetNull() clearing them.
     const auto snap = GetPoolSnapshot();
 
     if (snap.entries != 0)
@@ -369,7 +367,7 @@ CCoinJoinServer::PoolSnapshot CCoinJoinServer::GetPoolSnapshot() const
 {
     AssertLockNotHeld(cs_coinjoin);
     LOCK(cs_coinjoin);
-    return PoolSnapshot{nSessionID, nState, vecEntries.size(), vecSessionCollaterals.size(),
+    return PoolSnapshot{nSessionID, nState, vecEntries.size(), m_session_collaterals.size(),
                         GetMixSideCountsLocked(), IsSignaturesComplete()};
 }
 
@@ -514,10 +512,10 @@ void CCoinJoinServer::ChargeFees() const
         // and then charge and log them as "didn't sign", or pick offenders from a session the
         // state no longer describes.
         state = nState;
-        nSessionCollaterals = vecSessionCollaterals.size();
+        nSessionCollaterals = m_session_collaterals.size();
 
         if (state == POOL_STATE_ACCEPTING_ENTRIES) {
-            for (const auto& txCollateral : vecSessionCollaterals) {
+            for (const auto& txCollateral : m_session_collaterals.txs()) {
                 bool fFound = std::ranges::any_of(vecEntries, [&txCollateral](const auto& entry) {
                     return *entry.txCollateral == *txCollateral;
                 });
@@ -582,7 +580,7 @@ void CCoinJoinServer::ChargeRandomFees() const
     std::vector<CTransactionRef> session_collaterals;
     {
         LOCK(cs_coinjoin);
-        session_collaterals = vecSessionCollaterals;
+        session_collaterals = m_session_collaterals.txs();
     }
 
     for (const auto& txCollateral : session_collaterals) {
@@ -631,7 +629,7 @@ bool CCoinJoinServer::IsCurrentSession(int session_id) const
 bool CCoinJoinServer::HasSessionCollateral(const CTransactionRef& txref) const
 {
     AssertLockHeld(cs_coinjoin);
-    return std::ranges::any_of(vecSessionCollaterals,
+    return std::ranges::any_of(m_session_collaterals.txs(),
                                [&txref](const CTransactionRef& ref) { return *ref == *txref; });
 }
 
@@ -677,7 +675,7 @@ void CCoinJoinServer::CheckForCompleteQueue()
 
         SetState(POOL_STATE_ACCEPTING_ENTRIES);
         session_denom = nSessionDenom;
-        participants = vecSessionCollaterals.size();
+        participants = m_session_collaterals.size();
     }
 
     CCoinJoinQueue dsq(session_denom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), true);
@@ -761,7 +759,7 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
             return false;
         }
 
-        if (static_cast<size_t>(GetEntriesCountLocked()) >= vecSessionCollaterals.size()) {
+        if (static_cast<size_t>(GetEntriesCountLocked()) >= m_session_collaterals.size()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
             nMessageIDRet = ERR_ENTRIES_FULL;
             return false;
@@ -965,15 +963,6 @@ bool CCoinJoinServer::IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& n
     return true;
 }
 
-void CCoinJoinServer::CommitSessionCollateral(const CMutableTransaction& txCollateral)
-{
-    AssertLockHeld(cs_coinjoin);
-    vecSessionCollaterals.push_back(MakeTransactionRef(txCollateral));
-    for (const auto& txin : txCollateral.vin) {
-        setSessionCollateralPrevouts.insert(txin.prevout);
-    }
-}
-
 //! Which side of the session denomination a participant will occupy, from its declared dsa
 //! direction. A participant that declares nothing is mixing 1:1 and occupies both sides.
 static CoinJoin::MixShape DeclaredShape(const CCoinJoinAccept& dsa)
@@ -1025,6 +1014,8 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVers
         return false;
     }
 
+    int nDenom{0};
+    size_t nParticipants{0};
     {
         LOCK(cs_coinjoin);
 
@@ -1046,21 +1037,25 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVers
 
         SetState(POOL_STATE_QUEUE);
 
-        CommitSessionCollateral(dsa.txCollateral);
+        m_session_collaterals.Add(dsa.txCollateral);
+        nDenom = nSessionDenom;
+        nParticipants = m_session_collaterals.size();
     }
 
     if (!fUnitTest) {
         //broadcast that I'm accepting entries, only if it's the first entry through
-        CCoinJoinQueue dsq(nSessionDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(),
-                           GetAdjustedTime(), false);
+        CCoinJoinQueue dsq(nDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), false);
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
         dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peer_manager->PeerRelayDSQ(dsq);
         m_queueman.AddQueue(std::move(dsq));
     }
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
-        nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CoinJoin::GetMaxPoolParticipants());
+    LogPrint(BCLog::COINJOIN, /* Continued */
+             "CCoinJoinServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  "
+             "participants: %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
+             nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), nParticipants,
+             CoinJoin::GetMaxPoolParticipants());
 
     return true;
 }
@@ -1147,22 +1142,20 @@ bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, int n
 
     // IsSessionReady() can now hold a full session back waiting for a missing counterparty, so
     // the participant limit has to be enforced here rather than implied by session readiness
-    if (static_cast<int>(vecSessionCollaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
+    if (static_cast<int>(m_session_collaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- session is full\n");
         nMessageIDRet = ERR_QUEUE_FULL;
         return false;
     }
 
-    // Session collaterals are only ever test-accepted, never added to the mempool, so nothing
-    // pins their identity: the same UTXO can be re-signed into arbitrarily many distinct txids.
-    // Match on input prevouts so a resent or replayed dsa cannot be counted as a new participant.
-    for (const auto& txin : dsa.txCollateral.vin) {
-        if (setSessionCollateralPrevouts.contains(txin.prevout)) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- collateral %s spends prevout %s already committed to this session\n",
-                dsa.txCollateral.GetHash().ToString(), txin.prevout.ToStringShort());
-            nMessageIDRet = ERR_ALREADY_HAVE;
-            return false;
-        }
+    // A resent or replayed dsa must not be counted as a new participant; see SessionCollaterals.
+    if (const auto prevout = m_session_collaterals.FindCommittedPrevout(dsa.txCollateral)) {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::AddUserToExistingSession -- collateral %s spends prevout %s already committed to "
+                 "this session\n",
+                 dsa.txCollateral.GetHash().ToString(), prevout->ToStringShort());
+        nMessageIDRet = ERR_ALREADY_HAVE;
+        return false;
     }
 
     // count new user as accepted to an existing session
@@ -1173,10 +1166,13 @@ bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, int n
     m_fRebalanceSession |= dsa.IsRebalance();
     m_fHasLegacyParticipant |= nPeerVersion < COINJOIN_REBALANCE_VERSION;
     m_mapDeclaredShapes.emplace(dsa.txCollateral.GetHash(), DeclaredShape(dsa));
-    CommitSessionCollateral(dsa.txCollateral);
+    m_session_collaterals.Add(dsa.txCollateral);
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
-        nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CoinJoin::GetMaxPoolParticipants());
+    LogPrint(BCLog::COINJOIN, /* Continued */
+             "CCoinJoinServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  "
+             "participants: %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
+             nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), m_session_collaterals.size(),
+             CoinJoin::GetMaxPoolParticipants());
 
     return true;
 }
@@ -1191,10 +1187,10 @@ bool CCoinJoinServer::IsSessionReady() const
         // by nobody or by at least two participants. A session that never attracts the missing
         // counterparty simply expires in queue state, where no collateral is charged.
         if (!GetDeclaredSideCounts().IsCovered()) return false;
-        if (static_cast<int>(vecSessionCollaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
+        if (static_cast<int>(m_session_collaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
             return true;
         }
-        if (CCoinJoinServer::HasTimedOut() && static_cast<int>(vecSessionCollaterals.size()) >= CoinJoin::GetMinPoolParticipants()) {
+        if (CCoinJoinServer::HasTimedOut() && static_cast<int>(m_session_collaterals.size()) >= CoinJoin::GetMinPoolParticipants()) {
             return true;
         }
     }

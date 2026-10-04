@@ -203,7 +203,7 @@ public:
     {
         LOCK(cs_coinjoin);
         m_mapDeclaredShapes.emplace(txCollateral.GetHash(), shape);
-        CommitSessionCollateral(txCollateral);
+        m_session_collaterals.Add(txCollateral);
     }
 
     void SeedEntry(CCoinJoinEntry entry) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
