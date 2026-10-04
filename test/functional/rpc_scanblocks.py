@@ -132,6 +132,13 @@ class ScanblocksTest(BitcoinTestFramework):
         # test invalid command
         assert_raises_rpc_error(-8, "Invalid action 'foobar'", node.scanblocks, "foobar")
 
+        # test that unreadable block filters make the scan fail instead of being skipped
+        self.stop_node(0)
+        (node.chain_path / "indexes" / "blockfilter" / "basic" / "fltr00000.dat").unlink()
+        self.start_node(0, extra_args=self.extra_args[0])
+        assert_raises_rpc_error(-1, f"Failed to read block filters for heights 0 to {height_new}",
+                                node.scanblocks, "start", [f"addr({addr_1})"])
+
 
 if __name__ == '__main__':
     ScanblocksTest().main()

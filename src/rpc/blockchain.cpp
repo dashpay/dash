@@ -2869,6 +2869,7 @@ static RPCHelpMan scanblocks()
 {
     return RPCHelpMan{"scanblocks",
         "\nReturn relevant blockhashes for given descriptors (requires blockfilterindex).\n"
+        "Fails if the block filters for the requested range are not available, e.g. while the index is still being built.\n"
         "This call may take several minutes. Make sure to use no RPC timeout (bitcoin-cli -rpcclienttimeout=0)",
         {
             scan_action_arg_desc,
@@ -2974,6 +2975,12 @@ static RPCHelpMan scanblocks()
         }
         CHECK_NONFATAL(block);
 
+        // Do not return a partial result for blocks that the index has not processed yet
+        index->BlockUntilSyncedToCurrentChain();
+        if (index->GetSummary().best_block_height < stop_block->nHeight) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Block filters are still in the process of being indexed.");
+        }
+
         // loop through the scan objects, add scripts to the needle_set
         GCSFilter::ElementSet needle_set;
         for (const UniValue& scanobject : request.params[1].get_array().getValues()) {
@@ -3026,6 +3033,8 @@ static RPCHelpMan scanblocks()
                             LogPrint(BCLog::RPC, "scanblocks: found match in %s\n", filter.GetBlockHash().GetHex());
                         }
                     }
+                } else {
+                    throw JSONRPCError(RPC_MISC_ERROR, strprintf("Failed to read block filters for heights %d to %d", start_index->nHeight, block->nHeight));
                 }
                 start_index = block;
 
