@@ -60,7 +60,7 @@ util::Result<void> SetLoggingLevel(const ArgsManager& args)
 {
     if (args.IsArgSet("-loglevel")) {
         for (const std::string& level_str : args.GetArgs("-loglevel")) {
-            if (level_str.find_first_of(':', 3) == std::string::npos) {
+            if (level_str.find(':') == std::string::npos) {
                 // user passed a global log level, i.e. -loglevel=<level>
                 if (!LogInstance().SetLogLevel(level_str)) {
                     return util::Error{strprintf(_("Unsupported global logging level %s=%s. Valid values: %s."), "-loglevel", level_str, LogInstance().LogLevelsString())};

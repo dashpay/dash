@@ -251,6 +251,25 @@ BOOST_FIXTURE_TEST_CASE(logging_Conf, LogSetup)
         BOOST_CHECK_EQUAL(net_it->second, BCLog::Level::Trace);
     }
 
+    // Set category-specific log level for a two-character category
+    {
+        ResetLogger();
+        ArgsManager args;
+        args.AddArg("-loglevel", "...", ArgsManager::ALLOW_ANY, OptionsCategory::DEBUG_TEST);
+        const char* argv_test[] = {"dashd", "-loglevel=qt:trace"};
+        std::string err;
+        BOOST_REQUIRE(args.ParseParameters(2, argv_test, err));
+
+        auto result = init::SetLoggingLevel(args);
+        BOOST_REQUIRE(result);
+        BOOST_CHECK_EQUAL(LogInstance().LogLevel(), BCLog::DEFAULT_LOG_LEVEL);
+
+        const auto& category_levels{LogInstance().CategoryLevels()};
+        const auto qt_it{category_levels.find(BCLog::LogFlags::QT)};
+        BOOST_REQUIRE(qt_it != category_levels.end());
+        BOOST_CHECK_EQUAL(qt_it->second, BCLog::Level::Trace);
+    }
+
     // Set both global log level and category-specific log level
     {
         ResetLogger();
