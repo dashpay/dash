@@ -1996,8 +1996,9 @@ std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
         // is initialized with exactly one AddAccount(). A wallet created by a
         // modified build with multiple accounts cannot be migrated by this code path
         // since the descriptor wallet also only uses one account — bail out instead
-        // of silently dropping the higher accounts' keys.
-        if (hdChainDecrypted.CountAccounts() != 1) {
+        // of silently dropping the higher accounts' keys. A chain with no stored
+        // accounts has not derived any key yet; GetAccount(0) returns zeroed counters.
+        if (hdChainDecrypted.CountAccounts() > 1) {
             throw std::runtime_error(strprintf("%s: legacy HD chain has %d accounts; "
                 "migration only supports wallets with a single BIP44 account",
                 __func__, hdChainDecrypted.CountAccounts()));

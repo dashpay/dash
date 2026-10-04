@@ -208,6 +208,33 @@ class WalletMigrationTest(BitcoinTestFramework):
         self.log.info("Test \"nothing to migrate\" when the user tries to migrate a wallet with no legacy data")
         assert_raises_rpc_error(-4, "Error: This wallet is already a descriptor wallet", basic2.migratewallet)
 
+    def test_hd_seed_no_accounts(self):
+        self.log.info("Test migration of an encrypted HD wallet whose chain has no stored accounts")
+        # sethdseed without a keypool refill stores a chain with no accounts;
+        # account 0 is only created when the first key is derived, which a
+        # locked wallet cannot do when it is reloaded for migration.
+        SEED_WIF = "cMai6KJ8sHnNejZctqjiYdg2KSLeiaKcuTbZQrJNEjmMY5JQw6eP"
+        SEED_XPRV = "tprv8ZgxMBicQKsPe48qChGvN9oKqP6PP2Ecaso2tZ254CTd85JyX3dPfaWw3vWN4wgQeaNrX8ZfK3Zq2Q5LHvEoyfZv3mmJpyUz1caSFLya1Ca"
+
+        self.nodes[0].createwallet(wallet_name="hd_no_accounts", descriptors=False, blank=True, passphrase="pass")
+        wallet = self.nodes[0].get_wallet_rpc("hd_no_accounts")
+        wallet.walletpassphrase("pass", 10)
+        wallet.sethdseed(False, SEED_WIF)
+        wallet.walletlock()
+        info = wallet.getwalletinfo()
+        assert_equal(info["descriptors"], False)
+        assert_equal(info["hdaccountcount"], 0)
+
+        wallet.migratewallet(passphrase="pass")
+        assert_equal(wallet.getwalletinfo()["descriptors"], True)
+        self.assert_is_sqlite("hd_no_accounts")
+
+        # The migrated wallet keeps the seed and starts at the first BIP44 index
+        first_addr = self.nodes[0].deriveaddresses(descsum_create(f"pkh({SEED_XPRV}/44'/1'/0'/0/0)"))[0]
+        assert_equal(wallet.getnewaddress(), first_addr)
+
+        wallet.unloadwallet()
+
     def test_multisig(self):
         default = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
 
@@ -701,6 +728,7 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         # TODO: Test the actual records in the wallet for these tests too. The behavior may be correct, but the data written may not be what we actually want
         self.test_basic()
+        self.test_hd_seed_no_accounts()
         self.test_multisig()
         self.test_other_watchonly()
         self.test_no_privkeys()
