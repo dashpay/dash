@@ -23,6 +23,7 @@
 #include <univalue.h>
 
 #include <fstream>
+#include <utility>
 
 OptionTests::OptionTests(interfaces::Node& node) : m_node(node)
 {
@@ -262,4 +263,65 @@ void OptionTests::updateFontsWithPixelSizedWidget()
     // it -- the defect that makes the cache load-bearing rather than an optimisation.
     GUIUtil::updateFonts();
     QCOMPARE(label->font().pointSizeF(), scaled_size);
+}
+
+void OptionTests::fontScaleSources()
+{
+    const int previous_scale{GUIUtil::fontScale()};
+    const auto read_settings_file{[] {
+        std::ifstream file{gArgs.GetDataDirNet() / "settings.json"};
+        return std::string{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
+    }};
+
+    const auto set_sources{[](const util::SettingsValue& settings_file, const util::SettingsValue& command_line, const util::SettingsValue& config_file) {
+        gArgs.LockSettings([&](util::Settings& settings) {
+            settings.rw_settings.erase("font-scale");
+            settings.command_line_options.erase("font-scale");
+            settings.ro_config[""].erase("font-scale");
+            if (!settings_file.isNull()) settings.rw_settings["font-scale"] = settings_file;
+            if (!command_line.isNull()) settings.command_line_options["font-scale"] = {command_line};
+            if (!config_file.isNull()) settings.ro_config[""]["font-scale"] = {config_file};
+        });
+        gArgs.WriteSettingsFile();
+    }};
+
+    const UniValue none{};
+    struct Case {
+        UniValue settings_file, command_line, config_file;
+        bool accepted;
+        int scale;
+        //! Expected settings.json value afterwards, nullptr if absent.
+        const char* saved;
+    };
+    // OptionsModel writes the font scale as a string, older settings may hold a number.
+    for (const auto& [settings_file, command_line, config_file, accepted, scale, saved] : {
+             // An out-of-range settings.json value is clamped and saved back.
+             Case{"-80", none, none, true, GUIUtil::FONT_SCALE_MIN, "-50"},
+             Case{GUIUtil::FONT_SCALE_MAX + 1, none, none, true, GUIUtil::FONT_SCALE_MAX, "100"},
+             Case{"20", none, none, true, 20, "20"},
+             // Command line and config file values are validated strictly, and never saved.
+             Case{none, "-80", none, false, 0, nullptr},
+             Case{none, none, "-80", false, 0, nullptr},
+             Case{none, none, "20", true, 20, nullptr},
+             // settings.json is left alone while the command line overrides it.
+             Case{"-80", "20", none, true, 20, "-80"},
+         }) {
+        set_sources(settings_file, command_line, config_file);
+
+        // GuiMain() runs OptionsModel::Init() and then validates -font-scale.
+        bilingual_str error;
+        QVERIFY(OptionsModel{m_node}.Init(error));
+        QCOMPARE(GUIUtil::setFontScaleFromArg(), accepted);
+        if (accepted) QCOMPARE(GUIUtil::fontScale(), scale);
+
+        const std::string settings_json{read_settings_file()};
+        if (saved) {
+            QVERIFY(settings_json.find(strprintf("\"font-scale\": \"%s\"", saved)) != std::string::npos);
+        } else {
+            QVERIFY(settings_json.find("font-scale") == std::string::npos);
+        }
+    }
+
+    set_sources(none, none, none);
+    GUIUtil::setFontScale(previous_scale);
 }
