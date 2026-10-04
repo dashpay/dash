@@ -13,6 +13,7 @@
 #include <util/hasher.h>
 
 #include <map>
+#include <optional>
 #include <unordered_set>
 
 class CActiveMasternodeManager;
@@ -48,12 +49,47 @@ protected:
     // Session state and entry admission live in the protected section so unit tests can seed
     // and drive them through a test subclass.
 
-    // Mixing uses collateral transactions to trust parties entering the pool
-    // to behave honestly. If they don't it takes their money.
-    std::vector<CTransactionRef> vecSessionCollaterals;
-    // Input prevouts of every transaction in vecSessionCollaterals, so a dsa whose collateral
-    // reuses one of them can be rejected without rescanning them all.
-    std::unordered_set<COutPoint, SaltedOutpointHasher> setSessionCollateralPrevouts GUARDED_BY(cs_coinjoin);
+    /// The collateral transactions of every peer admitted to the current session.
+    ///
+    /// Mixing uses collateral transactions to trust parties entering the pool to behave
+    /// honestly. If they don't it takes their money.
+    ///
+    /// Session collaterals are only ever test-accepted, never added to the mempool, so nothing
+    /// pins their identity: the same UTXO can be re-signed into arbitrarily many distinct txids.
+    /// Matching on input prevouts is what makes a resent or replayed dsa recognisable as the
+    /// same participant.
+    class SessionCollaterals
+    {
+    public:
+        void Add(const CMutableTransaction& txCollateral)
+        {
+            m_txs.push_back(MakeTransactionRef(txCollateral));
+            for (const auto& txin : txCollateral.vin) {
+                m_prevouts.insert(txin.prevout);
+            }
+        }
+        void Clear()
+        {
+            m_txs.clear();
+            m_prevouts.clear();
+        }
+        //! The first input of txCollateral that an already admitted collateral also spends, if any.
+        std::optional<COutPoint> FindCommittedPrevout(const CMutableTransaction& txCollateral) const
+        {
+            for (const auto& txin : txCollateral.vin) {
+                if (m_prevouts.contains(txin.prevout)) return txin.prevout;
+            }
+            return std::nullopt;
+        }
+        const std::vector<CTransactionRef>& txs() const { return m_txs; }
+        size_t size() const { return m_txs.size(); }
+        bool empty() const { return m_txs.empty(); }
+
+    private:
+        std::vector<CTransactionRef> m_txs;
+        std::unordered_set<COutPoint, SaltedOutpointHasher> m_prevouts;
+    };
+    SessionCollaterals m_session_collaterals GUARDED_BY(cs_coinjoin);
 
     // Post-V24: true once a participant has been admitted that declared a promotion/demotion,
     // i.e. the final transaction may come out unbalanced. Latched on admission rather than
@@ -74,8 +110,6 @@ protected:
 
     /// Add a clients entry to the pool
     bool AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
-    /// Record an accepted collateral and index its input prevouts
-    void CommitSessionCollateral(const CMutableTransaction& txCollateral) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Build and relay the final transaction if the live session is still eligible
     void CreateFinalTransaction(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
