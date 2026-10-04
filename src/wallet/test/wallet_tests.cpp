@@ -112,6 +112,33 @@ public:
     std::string Format() override { return "faildb"; }
     std::unique_ptr<DatabaseBatch> MakeBatch(bool = true) override { return std::make_unique<FailBatch>(m_pass); }
 };
+
+/** A DummyDatabase that counts how many times each wallet transaction record is written. */
+class TxWriteCountingDatabase : public DummyDatabase
+{
+    class Batch : public DummyBatch
+    {
+        std::map<uint256, int>& m_tx_writes;
+        bool WriteKey(DataStream&& key, DataStream&&, bool) override
+        {
+            std::string type;
+            key >> type;
+            if (type == DBKeys::TX) {
+                uint256 hash;
+                key >> hash;
+                ++m_tx_writes[hash];
+            }
+            return true;
+        }
+
+    public:
+        explicit Batch(std::map<uint256, int>& tx_writes) : m_tx_writes(tx_writes) {}
+    };
+
+public:
+    std::map<uint256, int> m_tx_writes;
+    std::unique_ptr<DatabaseBatch> MakeBatch(bool = true) override { return std::make_unique<Batch>(m_tx_writes); }
+};
 } // namespace
 
 BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
@@ -2008,6 +2035,52 @@ BOOST_FIXTURE_TEST_CASE(wallet_sync_tx_invalid_state_test, TestChain100Setup)
     BOOST_CHECK_EXCEPTION(wallet.transactionAddedToMempool(MakeTransactionRef(mtx), 0),
                           std::runtime_error,
                           HasReason("DB error adding transaction to wallet, write failed"));
+}
+
+BOOST_FIXTURE_TEST_CASE(orphaned_coinbase_abandons_each_descendant_once, TestChain100Setup)
+{
+    auto database = std::make_unique<TxWriteCountingDatabase>();
+    auto& tx_writes = database->m_tx_writes;
+    CWallet wallet(m_node.chain.get(), m_node.coinjoin_loader.get(), "", m_args, std::move(database));
+    {
+        LOCK(wallet.cs_wallet);
+        wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+        wallet.SetupDescriptorScriptPubKeyMans("", "");
+    }
+    const auto& op_dest = wallet.GetNewDestination("");
+    BOOST_ASSERT(op_dest);
+    const CScript script = GetScriptForDestination(*op_dest);
+
+    const CTransactionRef& coinbase = m_coinbase_txns[0];
+    const uint256 block_hash = WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain()[1]->GetBlockHash());
+    wallet.AddToWallet(coinbase, TxStateConfirmed{block_hash, /*height=*/1, /*index=*/0});
+
+    // Build a chain of descendants where each transaction spends both outputs
+    // of its parent, so every descendant is reachable through two outpoints.
+    std::vector<uint256> descendants;
+    COutPoint prev_out0{coinbase->GetHash(), 0};
+    std::optional<COutPoint> prev_out1;
+    for (int i = 0; i < 8; ++i) {
+        CMutableTransaction mtx;
+        mtx.vin.emplace_back(prev_out0);
+        if (prev_out1) mtx.vin.emplace_back(*prev_out1);
+        mtx.vout.emplace_back(COIN, script);
+        mtx.vout.emplace_back(COIN, script);
+        const uint256 txid = wallet.AddToWallet(MakeTransactionRef(mtx), TxStateInactive{})->GetHash();
+        descendants.push_back(txid);
+        prev_out0 = COutPoint{txid, 0};
+        prev_out1 = COutPoint{txid, 1};
+    }
+
+    // Orphan the coinbase: every descendant must be abandoned and written once.
+    tx_writes.clear();
+    wallet.AddToWallet(coinbase, TxStateInactive{});
+
+    LOCK(wallet.cs_wallet);
+    for (const uint256& txid : descendants) {
+        BOOST_CHECK(wallet.GetWalletTx(txid)->isAbandoned());
+        BOOST_CHECK_EQUAL(tx_writes[txid], 1);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1094,6 +1094,7 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
     // Mark inactive coinbase transactions and their descendants as abandoned
     if (wtx.IsCoinBase() && wtx.isInactive()) {
         std::vector<CWalletTx*> txs{&wtx};
+        std::set<uint256> visited{wtx.GetHash()};
 
         TxStateInactive inactive_state = TxStateInactive{/*abandoned=*/true};
 
@@ -1111,7 +1112,7 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(outpoint);
                 for (TxSpends::const_iterator it = range.first; it != range.second; ++it) {
                     const auto wit = mapWallet.find(it->second);
-                    if (wit != mapWallet.end()) {
+                    if (wit != mapWallet.end() && visited.insert(wit->first).second) {
                         txs.push_back(&wit->second);
                     }
                 }
