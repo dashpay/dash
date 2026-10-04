@@ -153,8 +153,6 @@ public:
 
     size_t GetSize() const { return m_cache.GetSize(); }
     const cache_t::list_t& GetItemList() const { return m_cache.GetItemList(); }
-    //! The inner map, for writing the legacy on-disk field.
-    const cache_t& Store() const { return m_cache; }
 
 private:
     const size_t m_max_total;
@@ -317,12 +315,16 @@ public:
     void Serialize(Stream &s) const EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
     {
         LOCK(cs_store);
-        // TODO: Remove the historical invalid-vote-cache field on the next disk-format version bump.
+        // TODO: Remove the historical invalid-vote-cache and orphan-vote fields on the next disk-format version bump.
         const CacheMap<uint256, CGovernanceVote> empty_invalid_votes{MAX_CACHE_SIZE};
+        // Unserialize discards the orphans, so write none. Older releases still load this field,
+        // capacity included, as their live cache: keep the capacity they always wrote, since a
+        // CacheMultiMap with capacity 0 never prunes.
+        const vote_cmm_t empty_orphan_votes{MAX_CACHE_SIZE};
         s   << SERIALIZATION_VERSION_STRING
             << mapErasedGovernanceObjects
             << empty_invalid_votes
-            << m_orphan_votes.Store()
+            << empty_orphan_votes
             << mapObjects
             << mapLastMasternodeObject
             << *lastMNListForVotingKeys;

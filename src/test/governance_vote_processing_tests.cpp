@@ -710,4 +710,46 @@ BOOST_AUTO_TEST_CASE(legacy_orphan_votes_are_discarded_on_load)
     BOOST_CHECK_EQUAL(m_node.govman->GetOrphanVoteCount(), 0U);
 }
 
+// Orphans are not kept across a restart, so the legacy orphan field is written empty. Older releases
+// read that field, capacity included, straight into their live cache, so it must still carry the
+// capacity they always wrote; the rest of the store has to round-trip as before.
+BOOST_AUTO_TEST_CASE(saved_store_writes_an_empty_legacy_orphan_field)
+{
+    auto& govman = *m_node.govman;
+    CGovernanceVote vote{MakeVote(uint256S("91"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+    SignWithVotingKey(vote, mn_voting_key);
+    CGovernanceException exception;
+    uint256 hash_to_request;
+    BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+    BOOST_REQUIRE_EQUAL(govman.GetOrphanVoteCount(), 1U);
+
+    const auto proposal = std::make_shared<CGovernanceObject>(MakeProposal(uint256::ONE));
+    TestGovernanceStore store;
+    CDataStream legacy{MakeLegacyStore(CacheMap<uint256, CGovernanceVote>{1'000'000},
+                                       CacheMultiMap<uint256, governance::OrphanVote>{1'000'000},
+                                       {{proposal->GetHash(), proposal}})};
+    store.Unserialize(legacy);
+    BOOST_REQUIRE_EQUAL(store.ObjectCount(), 1U);
+
+    // Read back the way an older release does.
+    CDataStream saved{SER_DISK, CLIENT_VERSION};
+    govman.Serialize(saved);
+    std::string version;
+    std::map<uint256, int64_t> erased_objects;
+    CacheMap<uint256, CGovernanceVote> invalid_votes;
+    CacheMultiMap<uint256, governance::OrphanVote> orphan_votes;
+    saved >> version >> erased_objects >> invalid_votes >> orphan_votes;
+    BOOST_CHECK_EQUAL(version, "CGovernanceManager-Version-16");
+    BOOST_CHECK_EQUAL(orphan_votes.GetSize(), 0U);
+    BOOST_CHECK_EQUAL(orphan_votes.GetMaxSize(), 1'000'000U);
+
+    // A store with an object round-trips through the new writer.
+    CDataStream round_trip{SER_DISK, CLIENT_VERSION};
+    store.Serialize(round_trip);
+    TestGovernanceStore reloaded;
+    BOOST_REQUIRE_NO_THROW(reloaded.Unserialize(round_trip));
+    BOOST_CHECK_EQUAL(reloaded.ObjectCount(), 1U);
+    BOOST_CHECK(round_trip.empty());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
