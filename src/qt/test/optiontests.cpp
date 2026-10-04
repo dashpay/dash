@@ -101,6 +101,61 @@ void OptionTests::integerGetArgBug()
     gArgs.WriteSettingsFile();
 }
 
+void OptionTests::invalidFontSetting()
+{
+    if (QApplication::platformName() == "minimal") {
+        QSKIP("AppTests cannot initialize fonts with the 'minimal' platform plugin.");
+    }
+
+    // Font settings are only read once loadFonts() has run, which AppTests does.
+    QVERIFY2(GUIUtil::fontsLoaded(),
+             "GUIUtil::loadFonts() must succeed in AppTests::appTests() before OptionTests run.");
+
+    for (const std::string setting : {"font-family", "font-scale", "font-weight-normal", "font-weight-bold"}) {
+        gArgs.LockSettings([&](util::Settings& settings) {
+            settings.rw_settings[setting] = UniValue{UniValue::VARR};
+        });
+        bilingual_str error;
+        QVERIFY(!OptionsModel{m_node}.Init(error));
+        QCOMPARE(QString::fromStdString(error.original),
+                 QString::fromStdString(strprintf("Could not read setting \"%s\", JSON value of type array is not of expected type string.", setting)));
+        gArgs.LockSettings([&](util::Settings& settings) {
+            settings.rw_settings.erase(setting);
+        });
+    }
+
+    // With -font-family on the command line the stored weights are not used, but
+    // dash-qt still reads them through gArgs later, so they must be reported too.
+    for (const std::string setting : {"font-weight-normal", "font-weight-bold"}) {
+        gArgs.LockSettings([&](util::Settings& settings) {
+            settings.command_line_options["font-family"] = {UniValue{GUIUtil::defaultFontFamily().toStdString()}};
+            settings.rw_settings[setting] = UniValue{UniValue::VARR};
+        });
+        bilingual_str error;
+        QVERIFY(!OptionsModel{m_node}.Init(error));
+        QCOMPARE(QString::fromStdString(error.original),
+                 QString::fromStdString(strprintf("Could not read setting \"%s\", JSON value of type array is not of expected type string.", setting)));
+        gArgs.LockSettings([&](util::Settings& settings) {
+            settings.command_line_options.erase("font-family");
+            settings.rw_settings.erase(setting);
+        });
+    }
+}
+
+void OptionTests::invalidLangSetting()
+{
+    // A "lang" value with an unexpected type in settings.json must be reported
+    // through the error string like other settings instead of throwing out of
+    // OptionsModel::Init.
+    gArgs.LockSettings([&](util::Settings& settings) {
+        settings.rw_settings["lang"] = UniValue{UniValue::VOBJ};
+    });
+    bilingual_str error;
+    QVERIFY(!OptionsModel{m_node}.Init(error));
+    QCOMPARE(QString::fromStdString(error.original),
+             QString{"Could not read setting \"lang\", JSON value of type object is not of expected type string."});
+}
+
 void OptionTests::parametersInteraction()
 {
     // Test that the bug https://github.com/bitcoin-core/gui/issues/567 does not resurface.
