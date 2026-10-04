@@ -1959,12 +1959,18 @@ static RPCHelpMan protx_listdiff()
 
     UniValue jupdatedMNs(UniValue::VARR);
     for(const auto& [internal_id, stateDiff] : mnDiff.updatedMNs) {
-        auto dmn = baseBlockMNList.GetMNByInternalId(internal_id);
+        auto dmn = blockMNList.GetMNByInternalId(internal_id);
         // BuildDiff will construct itself with MNs that we already have knowledge
         // of, meaning that fetch operations should never fail.
         CHECK_NONFATAL(dmn);
+        UniValue diff_json{stateDiff.ToJson(dmn->nType)};
+        if ((stateDiff.fields & CDeterministicMNStateDiff::Field_netInfo) && !dmn->pdmnState->netInfo->IsEmpty()) {
+            // A legacy EvoNode's Platform addresses pair its core P2P address with the Platform ports,
+            // which the diff doesn't carry unless they changed too
+            diff_json.pushKV("addresses", GetNetInfoWithLegacyFields(*dmn->pdmnState, dmn->nType));
+        }
         UniValue obj(UniValue::VOBJ);
-        obj.pushKV(dmn->proTxHash.ToString(), stateDiff.ToJson(dmn->nType));
+        obj.pushKV(dmn->proTxHash.ToString(), diff_json);
         jupdatedMNs.push_back(obj);
     }
     ret.pushKV("updatedMNs", jupdatedMNs);

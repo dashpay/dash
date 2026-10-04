@@ -432,6 +432,7 @@ class NetInfoTest(BitcoinTestFramework):
         # updating Platform fields to trigger the conditions needed to report the dummy address
         proupservtx_hash = self.node_evo.update_mn(self, True, f"127.0.0.1:{self.node_evo.mn.nodePort + 10}", DEFAULT_PORT_PLATFORM_P2P + 10, DEFAULT_PORT_PLATFORM_HTTP + 10)
         proupservtx_rpc = self.node_evo.node.getrawtransaction(proupservtx_hash, True)
+        proupservtx_height_first = proupservtx_rpc['height']
 
         # Restore back to defaults
         proupservtx_hash = self.node_evo.update_mn(self, True, f"127.0.0.1:{self.node_evo.mn.nodePort}", DEFAULT_PORT_PLATFORM_P2P, DEFAULT_PORT_PLATFORM_HTTP)
@@ -440,6 +441,11 @@ class NetInfoTest(BitcoinTestFramework):
         # Revert back to incorrect values but only for Platform fields
         proupservtx_hash_pl = self.node_evo.update_mn(self, True, f"127.0.0.1:{self.node_evo.mn.nodePort}", DEFAULT_PORT_PLATFORM_P2P + 10, DEFAULT_PORT_PLATFORM_HTTP + 10)
         proupservtx_rpc_pl = self.node_evo.node.getrawtransaction(proupservtx_hash_pl, True)
+
+        # Revoke the operator key, which clears the core P2P address but keeps the Platform fields
+        prouprevtx_hash = self.node_evo.mn.revoke(self.node_evo.node, submit=True, reason=0, fundsAddr=self.node_evo.mn.fundsAddr)
+        self.node_evo.bury_tx(self, self.node_evo.node, prouprevtx_hash)
+        prouprevtx_height = self.node_evo.node.getrawtransaction(prouprevtx_hash, True)['height']
 
         # CSimplifiedMNListEntry::ToJson() <- CSimplifiedMNListDiff::mnList <- CSimplifiedMNListDiff::ToJson() <- protx_diff
         masternode_active_height: int = masternode_status['dmnState']['registeredHeight']
@@ -454,6 +460,13 @@ class NetInfoTest(BitcoinTestFramework):
         proupservtx_height_pl = proupservtx_rpc_pl['height']
         protx_listdiff_rpc_pl = self.node_evo.node.protx('listdiff', proupservtx_height_pl - 1, proupservtx_height_pl)
         protx_listdiff_rpc_pl = self.extract_from_listdiff(protx_listdiff_rpc_pl, proregtx_hash)
+
+        # The first and the third update set the same platform fields, so between them only the core P2P address differs
+        protx_listdiff_rpc_addr = self.node_evo.node.protx('listdiff', proupservtx_height_first, proupservtx_height_pl)
+        protx_listdiff_rpc_addr = self.extract_from_listdiff(protx_listdiff_rpc_addr, proregtx_hash)
+
+        protx_listdiff_rpc_rev = self.node_evo.node.protx('listdiff', prouprevtx_height - 1, prouprevtx_height)
+        protx_listdiff_rpc_rev = self.extract_from_listdiff(protx_listdiff_rpc_rev, proregtx_hash)
 
         self.log.info("Test RPCs return an 'addresses' field")
         assert "addresses" in proregtx_rpc['proRegTx'].keys()
@@ -474,6 +487,11 @@ class NetInfoTest(BitcoinTestFramework):
         assert "core_p2p" not in protx_listdiff_rpc_pl['addresses'].keys()
         assert_equal(protx_listdiff_rpc_pl['addresses']['platform_https'][0], f"{DMNSTATE_DIFF_DUMMY_ADDR}:{DEFAULT_PORT_PLATFORM_HTTP + 10}")
         assert_equal(protx_listdiff_rpc_pl['addresses']['platform_p2p'][0], f"{DMNSTATE_DIFF_DUMMY_ADDR}:{DEFAULT_PORT_PLATFORM_P2P + 10}")
+        # If only the core P2P address was updated, the platform fields are still reported, paired with the new address
+        self.check_netinfo_fields(protx_listdiff_rpc_addr['addresses'], self.node_evo.mn.nodePort, DEFAULT_PORT_PLATFORM_HTTP + 10, DEFAULT_PORT_PLATFORM_P2P + 10)
+        # If the core P2P address was cleared, there is nothing to pair the platform fields with and 'addresses' is omitted
+        assert_equal(self.node_evo.node.protx('info', proregtx_hash)['state']['addresses'], {})
+        assert "addresses" not in protx_listdiff_rpc_rev.keys()
 
         self.log.info("Test RPCs by default no longer return a 'service' field")
         assert "service" not in proregtx_rpc['proRegTx'].keys()
