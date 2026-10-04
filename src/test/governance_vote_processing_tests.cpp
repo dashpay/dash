@@ -659,6 +659,35 @@ BOOST_AUTO_TEST_CASE(orphan_vote_relayers_seed_parent_request_candidates)
     m_node.peerman->FinalizeNode(*unrelated_peer);
 }
 
+// With the periodic parent-request sweep gone, CheckAndRemove() is the only thing that drops an
+// orphan whose parent never arrives. It must drop exactly the expired ones.
+BOOST_AUTO_TEST_CASE(orphan_votes_expire_on_check_and_remove)
+{
+    auto& govman = *m_node.govman;
+    auto process_orphan = [&](const uint256& parent_hash) {
+        CGovernanceVote vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+        SignWithVotingKey(vote, mn_voting_key);
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(hash_to_request, parent_hash);
+    };
+
+    // Orphans live for ten minutes; the second arrives five minutes after the first.
+    process_orphan(uint256S("71"));
+    SetMockTime(GetTime() + 5 * 60);
+    process_orphan(uint256S("72"));
+    BOOST_REQUIRE_EQUAL(govman.GetOrphanVoteCount(), 2U);
+
+    SetMockTime(GetTime() + 6 * 60);
+    govman.CheckAndRemove();
+    BOOST_CHECK_EQUAL(govman.GetOrphanVoteCount(), 1U);
+
+    SetMockTime(GetTime() + 5 * 60);
+    govman.CheckAndRemove();
+    BOOST_CHECK_EQUAL(govman.GetOrphanVoteCount(), 0U);
+}
+
 // The legacy format stores the orphan cache -- entries and CacheMultiMap's own capacity, 1'000'000
 // in every release that wrote one -- with the store. Unserialize must drop both, whether the load
 // completes or throws mid-stream: orphans are a ten-minute recovery window invalidated by the
