@@ -174,8 +174,15 @@ protected:
     /// Check for process
     void CheckPool() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
+    /// Send a status update to every participant; a STATUS_REJECTED aborts the session for them
+    void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+
 private:
     std::optional<int> m_inflight_session GUARDED_BY(cs_coinjoin);
+    /// Set once this coordinator has told the session's participants to abort (a session-wide
+    /// STATUS_REJECTED). Honest clients obey it and stop cooperating, so the guaranteed timeout
+    /// charge that follows must not treat them as offenders.
+    bool m_relayed_abort GUARDED_BY(cs_coinjoin){false};
     /// Prevouts of collaterals selected for a penalty whose mempool submission has not settled.
     /// Selection happens under cs_coinjoin but the submission must not, and the reset that follows
     /// selection reopens admission in between: without this reservation the still-unspent
@@ -239,7 +246,6 @@ private:
     /// Relay mixing Messages
     void RelayFinalTransaction(const CTransaction& txFinal) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     void PushStatus(CNode& peer, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID) const;
-    void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     /// Addresses of the participants that submitted an entry to the current session
     std::vector<CService> GetParticipantAddrs() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 

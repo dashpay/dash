@@ -19,6 +19,7 @@
 #include <protocol.h>
 #include <script/script.h>
 #include <streams.h>
+#include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <txmempool.h>
 #include <uint256.h>
@@ -212,6 +213,13 @@ public:
     }
 
     void CheckPoolForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool) { CheckPool(); }
+
+    void RelayAbortForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        RelayStatus(STATUS_REJECTED);
+    }
+
 
     void SeedParticipant(const CService& addr) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
     {
@@ -744,6 +752,99 @@ BOOST_AUTO_TEST_CASE(server_timeout_defers_and_commits_fully_signed_session)
     BOOST_CHECK_EQUAL(delta, COIN / 10);
     BOOST_CHECK(server.consumed_collaterals.empty());
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_signing_saboteur_pays_instead_of_honest_participants)
+{
+    BOOST_REQUIRE(m_node.mn_sync);
+    if (!m_node.mn_sync->IsBlockchainSynced()) m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    // A signing session with a saboteur that already signed and an honest participant that has
+    // not yet. The saboteur resubmits an already-known signature, which fails AddScriptSig() and
+    // makes the coordinator abort the session for everyone.
+    const auto collateral_saboteur = MakeCollateral(0);
+    const auto collateral_honest = MakeCollateral(1);
+
+    auto saboteur = MakePeer(/*id=*/7, /*ipv4=*/0x0a000001);
+    auto honest = MakePeer(/*id=*/8, /*ipv4=*/0x0a000002);
+    saboteur->fSuccessfullyConnected = true;
+    honest->fSuccessfullyConnected = true;
+
+    server.ResetForTest(POOL_STATE_SIGNING);
+    server.AddCollateralForTest(collateral_saboteur);
+    server.AddCollateralForTest(collateral_honest);
+    auto entry_saboteur = MakeEntry(collateral_saboteur, /*unsigned_inputs=*/0);
+    entry_saboteur.addr = saboteur->addr;
+    server.SeedEntry(entry_saboteur);
+    auto entry_honest = MakeEntry(collateral_honest, /*unsigned_inputs=*/1);
+    entry_honest.addr = honest->addr;
+    server.SeedEntry(entry_honest);
+
+    CNode* saboteur_node = saboteur.get();
+    connman.AddTestNode(*saboteur.release());
+    connman.AddTestNode(*honest.release());
+
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    stream << std::vector<CTxIn>{CTxIn{COutPoint{uint256::ONE, 100}}};
+    BOOST_CHECK_NO_THROW(server.ProcessMessage(*saboteur_node, NetMsgType::DSSIGNFINALTX, stream));
+
+    // The abort charges the identifiable saboteur, immediately.
+    BOOST_REQUIRE_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK(*server.consumed_collaterals[0] == *collateral_saboteur);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+
+    // At the timeout that follows, the honest participant's missing signature is the result of
+    // obeying the coordinator's abort. It must not be treated as an offence.
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+
+    connman.ClearTestNodes();
+}
+
+BOOST_AUTO_TEST_CASE(server_relayed_abort_forgoes_guaranteed_timeout_charge)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    // Two participants that have not signed yet; one is no longer connected. A session-wide
+    // STATUS_REJECTED - as relayed when the final transaction cannot be delivered - tells the
+    // connected one to stand down, so the timeout may not charge either of them: the abort was
+    // the coordinator's, and a disconnect cannot be told apart from our own connection failing.
+    const auto collateral_connected = MakeCollateral(0);
+    const auto collateral_disconnected = MakeCollateral(1);
+
+    auto connected = MakePeer(/*id=*/7, /*ipv4=*/0x0a000001);
+    connected->fSuccessfullyConnected = true;
+
+    server.ResetForTest(POOL_STATE_SIGNING);
+    server.AddCollateralForTest(collateral_connected);
+    server.AddCollateralForTest(collateral_disconnected);
+    auto entry_connected = MakeEntry(collateral_connected, /*unsigned_inputs=*/1);
+    entry_connected.addr = connected->addr;
+    server.SeedEntry(entry_connected);
+    auto entry_disconnected = MakeEntry(collateral_disconnected, /*unsigned_inputs=*/1);
+    entry_disconnected.addr = MakePeer(/*id=*/8, /*ipv4=*/0x0a000002)->addr;
+    server.SeedEntry(entry_disconnected);
+
+    connman.AddTestNode(*connected.release());
+
+    server.RelayAbortForTest();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK(server.consumed_collaterals.empty());
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+
+    connman.ClearTestNodes();
 }
 
 BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)

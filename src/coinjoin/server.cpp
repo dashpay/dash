@@ -287,6 +287,8 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
 
     LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- vecTxIn.size() %s\n", vecTxIn.size());
 
+    bool rejected{false};
+    CTransactionRef collateral_to_charge;
     {
         LOCK(cs_coinjoin);
         // Apply the whole message in one critical section, against the signing session it was
@@ -306,11 +308,30 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
             if (!AddScriptSig(txin)) {
                 LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() failed at %d/%d, session: %d\n", nTxInIndex,
                          nTxInsCount, session_id);
+                // The sender is a verified participant of this signing session, so a signature
+                // that fails validation - a duplicate, an invalid script or an input that is not
+                // in the pool - is the sender's own doing, and the abort it forces on everyone
+                // else identifies the sender as the offender to charge. The participants this
+                // abort orphans must not pay for it at the timeout that follows.
+                const auto it = std::ranges::find_if(vecEntries,
+                                                     [&peer](const auto& entry) { return entry.addr == peer.addr; });
+                if (it != vecEntries.end()) {
+                    collateral_to_charge = it->txCollateral;
+                    // The submission below runs outside cs_coinjoin, and the reset that can follow
+                    // this abort would reopen admission before it settles: reserve the charge so
+                    // the collateral cannot be re-committed while its penalty spend is in flight.
+                    MarkPendingCharge(collateral_to_charge);
+                }
                 RelayStatus(STATUS_REJECTED);
-                return;
+                rejected = true;
+                break;
             }
             LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() %d/%d success\n", nTxInIndex, nTxInsCount);
         }
+    }
+    if (rejected) {
+        if (collateral_to_charge) ConsumePendingCharge(collateral_to_charge);
+        return;
     }
     // all is good
     CheckPool();
@@ -321,6 +342,7 @@ void CCoinJoinServer::SetNull()
     AssertLockHeld(cs_coinjoin);
     // MN side
     m_session_collaterals.Clear();
+    m_relayed_abort = false;
     m_fRebalanceSession = false;
     m_fHasLegacyParticipant = false;
     m_mapDeclaredShapes.clear();
@@ -808,7 +830,10 @@ void CCoinJoinServer::CheckTimeout()
         // The session can no longer advance (see above), so non-cooperation is forcing it to be
         // abandoned: charge exactly one offender. A queue that never became ready has no
         // identifiable offender - nobody was asked to submit anything yet - and stays free.
-        if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
+        // Once we have told the participants to abort, the cooperative ones stop submitting and
+        // signing on our instruction. Failing to cooperate with a session this coordinator already
+        // gave up on identifies no offender, so nobody is charged for it.
+        if ((nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) && !m_relayed_abort) {
             collateral_to_charge = SelectCollateralToCharge(FeePolicy::GUARANTEED_ON_ABORT);
         }
         if (collateral_to_charge) {
@@ -1416,6 +1441,9 @@ void CCoinJoinServer::PushStatus(CNode& peer, PoolStatusUpdate nStatusUpdate, Po
 void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID)
 {
     AssertLockHeld(cs_coinjoin);
+    if (nStatusUpdate == STATUS_REJECTED) {
+        m_relayed_abort = true;
+    }
     unsigned int nDisconnected{};
     // status updates should be relayed to mixing participants only
     for (const auto& entry : vecEntries) {
@@ -1436,6 +1464,7 @@ void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nM
         __func__, nDisconnected, nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
 
     // notify everyone else that this session should be terminated
+    m_relayed_abort = true;
     for (const auto& entry : vecEntries) {
         connman.ForNode(entry.addr, [this](CNode* pnode) {
             PushStatus(*pnode, STATUS_REJECTED, MSG_NOERR);
