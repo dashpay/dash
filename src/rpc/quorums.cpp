@@ -387,7 +387,7 @@ static RPCHelpMan quorum_dkgstatus()
             if (node.active_ctx) {
                 int quorumHeight = tipHeight - (tipHeight % llmq_params.dkgInterval) + quorumIndex;
                 if (quorumHeight <= tipHeight) {
-                    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return chainman.ActiveChain()[quorumHeight]);
+                    const CBlockIndex* pQuorumBaseBlockIndex = pindexTip->GetAncestor(quorumHeight);
                     obj.pushKV("pQuorumBaseBlockIndex", pQuorumBaseBlockIndex->nHeight);
                     obj.pushKV("quorumHash", pQuorumBaseBlockIndex->GetBlockHash().ToString());
                     obj.pushKV("pindexTip", pindexTip->nHeight);
@@ -427,7 +427,8 @@ static RPCHelpMan quorum_dkgstatus()
         }
 
         LOCK(cs_main);
-        std::optional<std::vector<llmq::CFinalCommitment>> vfqc = llmq_ctx.quorum_block_processor->GetMineableCommitments(llmq_params, tipHeight + 1);
+        std::optional<std::vector<llmq::CFinalCommitment>> vfqc =
+            llmq_ctx.quorum_block_processor->GetMineableCommitments(llmq_params, chainman.ActiveChain().Height() + 1);
         if (vfqc.has_value()) {
             for (const auto& fqc : vfqc.value()) {
                 minableCommitments.push_back(fqc.ToJson());
