@@ -122,6 +122,8 @@ protected:
     /// acquire it with TRY_LOCK, so a contended caller skips the round rather than blocking msghand.
     Mutex cs_check_pool;
 
+    void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+
 private:
     bool fUnitTest;
 
@@ -190,8 +192,6 @@ private:
     void ProcessDSQUEUE(NodeId from, CDataStream& vRecv);
     void ProcessDSVIN(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
     void ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
-
-    void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
 public:
     CCoinJoinServer() = delete;
