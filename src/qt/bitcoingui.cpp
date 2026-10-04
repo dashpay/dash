@@ -518,9 +518,11 @@ void BitcoinGUI::createActions()
     m_mask_values_action->setCheckable(true);
 
     m_zoom_in_action = new QAction(tr("Zoom &In"), this);
+    m_zoom_in_action->setObjectName("zoomInAction");
     m_zoom_in_action->setStatusTip(tr("Increase the font size"));
 
     m_zoom_out_action = new QAction(tr("Zoom &Out"), this);
+    m_zoom_out_action->setObjectName("zoomOutAction");
     m_zoom_out_action->setStatusTip(tr("Decrease the font size"));
 
     // Without a wallet the RPC console is the central widget and already binds these keys to its own font size
@@ -530,6 +532,7 @@ void BitcoinGUI::createActions()
     }
 
     m_zoom_reset_action = new QAction(tr("Reset &Zoom"), this);
+    m_zoom_reset_action->setObjectName("zoomResetAction");
     m_zoom_reset_action->setShortcut(QKeySequence(tr("Ctrl+0")));
     m_zoom_reset_action->setStatusTip(tr("Reset the font size to default"));
 
