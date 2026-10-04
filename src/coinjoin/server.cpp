@@ -232,14 +232,14 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
     // Only accept signatures while we are actually collecting them, and only
     // from peers that are active participants in this session. Otherwise a
     // stray or unauthenticated peer could abort the session for everyone.
-    if (nState != POOL_STATE_SIGNING) {
-        LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- wrong state, nState=%d, peer=%d\n",
-                 nState.load(), peer.GetId());
-        PushStatus(peer, STATUS_REJECTED, ERR_SESSION);
-        return;
-    }
+    int session_id{0};
     {
         LOCK(cs_coinjoin);
+        if (nState != POOL_STATE_SIGNING) {
+            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- wrong state, nState=%d, peer=%d\n", nState.load(), peer.GetId());
+            PushStatus(peer, STATUS_REJECTED, ERR_SESSION);
+            return;
+        }
         const bool is_participant = std::ranges::any_of(
             vecEntries, [&peer](const auto& entry) { return entry.addr == peer.addr; });
         if (!is_participant) {
@@ -248,6 +248,7 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
             PushStatus(peer, STATUS_REJECTED, ERR_INVALID_INPUT);
             return;
         }
+        session_id = nSessionID;
     }
 
     const size_t max_txins{CoinJoin::GetMaxPoolInputOutputCount()};
@@ -264,18 +265,30 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
 
     LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- vecTxIn.size() %s\n", vecTxIn.size());
 
-    int nTxInIndex = 0;
-    int nTxInsCount = static_cast<int>(vecTxIn.size());
-
-    for (const auto& txin : vecTxIn) {
-        nTxInIndex++;
-        if (!AddScriptSig(txin)) {
-            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() failed at %d/%d, session: %d\n", nTxInIndex, nTxInsCount, nSessionID);
-            LOCK(cs_coinjoin);
-            RelayStatus(STATUS_REJECTED);
+    {
+        LOCK(cs_coinjoin);
+        // Apply the whole message in one critical section, against the signing session it was
+        // checked for above. The lock was released while the body was decoded, and releasing it
+        // between inputs would let a timeout reset the session halfway through one sender's
+        // already-received signatures, after charging that sender as a non-signer.
+        if (nSessionID != session_id || nState != POOL_STATE_SIGNING) {
+            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- session %d is no longer signing, peer=%d\n", session_id,
+                     peer.GetId());
+            PushStatus(peer, STATUS_REJECTED, ERR_SESSION);
             return;
         }
-        LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() %d/%d success\n", nTxInIndex, nTxInsCount);
+        int nTxInIndex = 0;
+        int nTxInsCount = static_cast<int>(vecTxIn.size());
+        for (const auto& txin : vecTxIn) {
+            nTxInIndex++;
+            if (!AddScriptSig(txin)) {
+                LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() failed at %d/%d, session: %d\n", nTxInIndex,
+                         nTxInsCount, session_id);
+                RelayStatus(STATUS_REJECTED);
+                return;
+            }
+            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() %d/%d success\n", nTxInIndex, nTxInsCount);
+        }
     }
     // all is good
     CheckPool();
@@ -940,10 +953,9 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
 
 bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew)
 {
-    AssertLockNotHeld(cs_coinjoin);
+    AssertLockHeld(cs_coinjoin);
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
 
-    LOCK(cs_coinjoin);
     for (const auto& entry : vecEntries) {
         if (std::ranges::any_of(entry.vecTxDSIn,
                                 [&txinNew](const auto& txdsin) { return txdsin.scriptSig == txinNew.scriptSig; })) {
