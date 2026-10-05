@@ -1554,9 +1554,6 @@ static std::vector<unsigned int> AllConsensusFlags()
         if (i & 16) flag |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
         if (i & 64) flag |= SCRIPT_VERIFY_TAPROOT;
 
-        // SCRIPT_VERIFY_TAPROOT requires SCRIPT_VERIFY_WITNESS
-        if (flag & SCRIPT_VERIFY_TAPROOT) continue;
-
         ret.push_back(flag);
     }
 
@@ -1585,8 +1582,10 @@ static void AssetTest(const UniValue& test)
         CachingTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, true);
         for (const auto flags : ALL_CONSENSUS_FLAGS) {
             // "final": true tests are valid for all flags. Others are only valid with flags that are
-            // a subset of test_flags.
-            if (fin || ((flags & test_flags) == flags)) {
+            // a subset of test_flags. Dash: a taproot spend is a plain script without SCRIPT_VERIFY_TAPROOT
+            // (pushes over 520 bytes fail), so that flag has to stay as in test_flags.
+            const bool same_taproot{(flags & SCRIPT_VERIFY_TAPROOT) == (test_flags & SCRIPT_VERIFY_TAPROOT)};
+            if (fin || (same_taproot && (flags & test_flags) == flags)) {
                 bool ret = VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, flags, txcheck, nullptr);
                 BOOST_CHECK(ret);
             }
@@ -1600,8 +1599,10 @@ static void AssetTest(const UniValue& test)
         txdata.Init(tx, std::vector<CTxOut>(prevouts));
         CachingTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, true);
         for (const auto flags : ALL_CONSENSUS_FLAGS) {
-            // If a test is supposed to fail with test_flags, it should also fail with any superset thereof.
-            if ((flags & test_flags) == test_flags) {
+            // If a test is supposed to fail with test_flags, it should also fail with any superset thereof
+            // that keeps SCRIPT_VERIFY_TAPROOT as in test_flags (see above).
+            const bool same_taproot{(flags & SCRIPT_VERIFY_TAPROOT) == (test_flags & SCRIPT_VERIFY_TAPROOT)};
+            if (same_taproot && (flags & test_flags) == test_flags) {
                 bool ret = VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, flags, txcheck, nullptr);
                 BOOST_CHECK(!ret);
             }
