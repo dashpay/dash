@@ -102,9 +102,11 @@ static constexpr decltype(CTransaction::nVersion) TX_MAX_STANDARD_VERSION{3};
 
 /**
 * Check for standard transaction types
+* @param[in] taproot_active Whether taproot rules apply to the next block; a taproot output is
+*                           anyone-can-spend before that, so it is not a standard output until then
 * @return True if all outputs (scriptPubKeys) use only standard transaction forms
 */
-bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_datacarrier_bytes, bool permit_bare_multisig, const CFeeRate& dust_relay_fee, std::string& reason);
+bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_datacarrier_bytes, bool permit_bare_multisig, const CFeeRate& dust_relay_fee, bool taproot_active, std::string& reason);
 /**
  * Check for standard transaction types
  * @param[in] mapInputs       Map of previous transactions that have outputs we're spending
@@ -112,6 +114,13 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
  * @return True if all inputs (scriptSigs) use only standard transaction forms
  */
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs, bool taproot_active);
+/**
+ * Check policy limits for Taproot spends: no annex and, for tapscript script
+ * paths, no stack item larger than MAX_STANDARD_TAPSCRIPT_STACK_ITEM_SIZE
+ * @param[in] mapInputs       Map of previous transactions that have outputs we're spending
+ * @return True if all Taproot inputs use only standard spending forms
+ */
+bool IsTaprootStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
 /** Compute the virtual transaction size (taking sigops into account). */
 int64_t GetVirtualTransactionSize(int64_t nSize, int64_t nSigOp, unsigned int bytes_per_sigop);
