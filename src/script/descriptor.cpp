@@ -719,6 +719,9 @@ static std::optional<OutputType> OutputTypeFromDestination(const CTxDestination&
         std::holds_alternative<ScriptHash>(dest)) {
         return OutputType::LEGACY;
     }
+    if (std::holds_alternative<WitnessV1Taproot>(dest)) {
+        return OutputType::TAPROOT;
+    }
     return std::nullopt;
 }
 
@@ -911,7 +914,7 @@ public:
     {
         assert(m_subdescriptor_args.size() == m_depths.size());
     }
-    std::optional<OutputType> GetOutputType() const override { return std::nullopt; }
+    std::optional<OutputType> GetOutputType() const override { return OutputType::TAPROOT; }
     bool IsSingleType() const final { return true; }
 };
 

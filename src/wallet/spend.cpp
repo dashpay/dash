@@ -147,6 +147,8 @@ static OutputType GetOutputType(TxoutType type, bool is_from_p2sh)
         case TxoutType::SCRIPTHASH:
         case TxoutType::PUBKEYHASH:
             return OutputType::LEGACY;
+        case TxoutType::TAPROOT:
+            return OutputType::TAPROOT;
         default:
             return OutputType::UNKNOWN;
     }
