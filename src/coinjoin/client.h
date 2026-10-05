@@ -217,14 +217,9 @@ private:
     //! Whether the failure to read the record has been reported already, the read is
     //! retried for as long as this node runs and a corrupt record never becomes readable
     bool m_pending_obs_load_failed GUARDED_BY(cs_pending_obs){false};
-    //! Whether m_pending_obs holds entries whose locks are not persisted yet
-    bool m_pending_obs_dirty GUARDED_BY(cs_pending_obs){false};
 
     /// Populate m_pending_obs from the wallet database, once per run
     void LoadPendingObservations(wallet::WalletBatch& batch) EXCLUSIVE_LOCKS_REQUIRED(cs_pending_obs);
-    /// Persist m_pending_obs along with the locks of its entries in one database transaction
-    bool PersistPendingObservations(wallet::WalletBatch& batch)
-        EXCLUSIVE_LOCKS_REQUIRED(m_wallet->cs_wallet, cs_pending_obs);
 
     // Keep track of current block height
     int nCachedBlockHeight{0};
