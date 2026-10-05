@@ -67,6 +67,7 @@ add_executable(test_bitcoin
   coinjoin_queue_tests.cpp
   coins_tests.cpp
   coinstatsindex_tests.cpp
+  common_url_tests.cpp
   compilerbug_tests.cpp
   compress_tests.cpp
   crypto_tests.cpp
@@ -85,7 +86,9 @@ add_executable(test_bitcoin
   evo_mnauth_tests.cpp
   evo_mnhf_tests.cpp
   evo_netinfo_tests.cpp
+  evo_sharedmn_tests.cpp
   evo_simplifiedmns_tests.cpp
+  evo_snapshot_tests.cpp
   evo_trivialvalidation.cpp
   evo_utils_tests.cpp
   flatfile_tests.cpp
@@ -115,6 +118,7 @@ add_executable(test_bitcoin
   llmq_snapshot_tests.cpp
   llmq_utils_tests.cpp
   logging_tests.cpp
+  masternode_params_tests.cpp
   masternode_payments_tests.cpp
   mempool_tests.cpp
   merkle_tests.cpp
@@ -134,6 +138,7 @@ add_executable(test_bitcoin
   pow_tests.cpp
   prevector_tests.cpp
   raii_event_tests.cpp
+  quorum_proofs_tests.cpp
   random_tests.cpp
   ratecheck_tests.cpp
   rest_tests.cpp

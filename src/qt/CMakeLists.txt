@@ -113,6 +113,8 @@ add_library(bitcoinqt STATIC EXCLUDE_FROM_ALL
   proposalinfo.h
   proposalmodel.cpp
   proposalmodel.h
+  proposalvotedialog.cpp
+  proposalvotedialog.h
   qvalidatedlineedit.cpp
   qvalidatedlineedit.h
   qvaluecombobox.cpp
@@ -195,6 +197,8 @@ if(ENABLE_WALLET)
       masternodewizard.h
       mnemonicverificationdialog.cpp
       mnemonicverificationdialog.h
+      mnsharesession.cpp
+      mnsharesession.h
       openuridialog.cpp
       openuridialog.h
       overviewpage.cpp
@@ -223,6 +227,12 @@ if(ENABLE_WALLET)
       sendcoinsdialog.h
       sendcoinsentry.cpp
       sendcoinsentry.h
+      sharedmncreatedialog.cpp
+      sharedmncreatedialog.h
+      sharedmndialogs.cpp
+      sharedmndialogs.h
+      sharedmnwidgets.cpp
+      sharedmnwidgets.h
       signverifymessagedialog.cpp
       signverifymessagedialog.h
       transactiondesc.cpp
