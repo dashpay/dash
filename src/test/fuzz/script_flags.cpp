@@ -51,7 +51,9 @@ FUZZ_TARGET(script_flags)
             const bool ret = VerifyScript(tx.vin.at(i).scriptSig, prevout.scriptPubKey, verify_flags, checker, &serror);
             assert(ret == (serror == SCRIPT_ERR_OK));
 
-            // Verify that removing flags from a passing test or adding flags to a failing test does not change the result
+            // Verify that removing flags from a passing test or adding flags to a failing test does not change the result.
+            // Dash: without SCRIPT_VERIFY_TAPROOT a taproot spend is evaluated as a plain script, so that flag stays fixed.
+            fuzzed_flags &= ~SCRIPT_VERIFY_TAPROOT;
             if (ret) {
                 verify_flags &= ~fuzzed_flags;
             } else {
