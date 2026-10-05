@@ -202,8 +202,9 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   coins.cpp
   common/bloom.cpp
   common/init.cpp
+  common/interfaces.cpp
   common/run_command.cpp
-  $<$<TARGET_EXISTS:libevent::libevent>:common/url.cpp>
+  common/url.cpp
   compressor.cpp
   core_read.cpp
   core_write.cpp
@@ -273,6 +274,7 @@ if(ENABLE_WALLET)
       bitcoin_common
       bitcoin_util
       univalue
+      dashbls
       Boost::headers
     )
     set_target_properties(bitcoin-wallet PROPERTIES OUTPUT_NAME dash-wallet)
@@ -319,6 +321,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   evo/providertx_service.cpp
   evo/simplifiedmns.cpp
   evo/smldiff.cpp
+  evo/snapshot.cpp
   evo/specialtx.cpp
   evo/specialtx_filter.cpp
   evo/specialtxman.cpp
@@ -347,6 +350,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   kernel/checks.cpp
   kernel/coinstats.cpp
   kernel/context.cpp
+  kernel/cs_main.cpp
   kernel/mempool_persist.cpp
   instantsend/db.cpp
   instantsend/instantsend.cpp
@@ -366,6 +370,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   llmq/net_signing.cpp
   llmq/observer.cpp
   llmq/options.cpp
+  llmq/quorumproofs.cpp
   llmq/quorums.cpp
   llmq/quorumsman.cpp
   llmq/signhash.cpp

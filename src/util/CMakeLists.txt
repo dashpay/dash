@@ -36,14 +36,12 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   ../bls/bls_worker.cpp
   ../coinjoin/common.cpp
   ../coinjoin/options.cpp
-  ../interfaces/echo.cpp
-  ../interfaces/handler.cpp
-  ../interfaces/init.cpp
   ../logging.cpp
   ../messagesigner.cpp
   ../random.cpp
   ../randomenv.cpp
   ../stacktraces.cpp
+  ../streams.cpp
   ../support/cleanse.cpp
   ../support/lockedpool.cpp
   ../sync.cpp
