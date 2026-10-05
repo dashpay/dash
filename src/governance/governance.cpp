@@ -427,13 +427,17 @@ void CGovernanceManager::CheckAndRemove()
 
         // IF DELETE=TRUE, THEN CLEAN THE MESS UP!
 
-        const auto nTimeSinceDeletion = nNow - std::chrono::seconds{pObj->GetDeletionTime()};
+        // Read the flags before the deletion time: another thread can mark the object for deletion
+        // at any point, and a flag read after a zero deletion time would skip GOVERNANCE_DELETION_DELAY.
+        const bool fCachedDelete{pObj->IsSetCachedDelete()};
+        const bool fExpired{pObj->IsSetExpired()};
+        const int64_t nDeletionTime{pObj->GetDeletionTime()};
+        const auto nTimeSinceDeletion = nNow - std::chrono::seconds{nDeletionTime};
 
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- Checking object for deletion: %s, deletion time = %d, time since deletion = %d, delete flag = %d, expired flag = %d\n",
-            strHash, pObj->GetDeletionTime(), nTimeSinceDeletion.count(), pObj->IsSetCachedDelete(), pObj->IsSetExpired());
+            strHash, nDeletionTime, nTimeSinceDeletion.count(), fCachedDelete, fExpired);
 
-        if ((pObj->IsSetCachedDelete() || pObj->IsSetExpired()) &&
-            (nTimeSinceDeletion >= GOVERNANCE_DELETION_DELAY)) {
+        if ((fCachedDelete || fExpired) && (nTimeSinceDeletion >= GOVERNANCE_DELETION_DELAY)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- erase obj %s\n", nHash.ToString());
             m_mn_metaman.RemoveGovernanceObject(pObj->GetHash());
 

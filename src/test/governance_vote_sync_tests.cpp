@@ -10,7 +10,9 @@
 #include <netfulfilledman.h>
 #include <primitives/transaction.h>
 #include <pubkey.h>
+#include <streams.h>
 #include <uint256.h>
+#include <version.h>
 
 #include <test/util/setup_common.h>
 
@@ -133,6 +135,30 @@ BOOST_AUTO_TEST_CASE(stored_vote_file_reuses_signature_cache)
         BOOST_REQUIRE(stored.CheckSignature(pk));
         BOOST_CHECK(stored.GetMemoisedVerdict(pk) == true);
     });
+}
+
+// A copy-assigned vote file must index its own list, so it stays usable once the source is gone.
+BOOST_AUTO_TEST_CASE(copy_assigned_vote_file_indexes_its_own_votes)
+{
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    const CGovernanceVote vote{
+        MakeSignedVote(sk, COutPoint{uint256S("11"), /*n=*/1}, uint256S("22"), VOTE_SIGNAL_FUNDING, 1'700'000'100)};
+
+    CGovernanceObjectVoteFile copy;
+    {
+        CGovernanceObjectVoteFile source;
+        source.AddVote(vote);
+        copy = source;
+    }
+
+    BOOST_CHECK_EQUAL(copy.GetVoteCount(), 1);
+    BOOST_CHECK(copy.HasVote(vote.GetHash()));
+    CDataStream ss{SER_NETWORK, PROTOCOL_VERSION};
+    BOOST_REQUIRE(copy.SerializeVoteToStream(vote.GetHash(), ss));
+    CGovernanceVote roundtrip;
+    ss >> roundtrip;
+    BOOST_CHECK(roundtrip.GetHash() == vote.GetHash());
 }
 
 // The memo must never be keyed on the verification key alone. nTime is part of

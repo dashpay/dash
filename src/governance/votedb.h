@@ -44,6 +44,8 @@ public:
 
     CGovernanceObjectVoteFile(const CGovernanceObjectVoteFile& other);
 
+    CGovernanceObjectVoteFile& operator=(const CGovernanceObjectVoteFile& other);
+
     /**
      * Add a vote to the file
      */
