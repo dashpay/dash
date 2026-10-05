@@ -30,7 +30,8 @@ class MnehfTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        extra_args = [["-vbparams=testdummy:0:999999999999:0:4:4:4:5:1", "-persistmempool=0"]] * 2
+        # testdummy starts as NEVER_ACTIVE, run_test opens its signalling window later
+        extra_args = [["-vbparams=testdummy:-2:999999999999:0:4:4:4:5:1", "-persistmempool=0"]] * 2
         # One masternode is enough: the EHF signal only needs a recovered signature of any quorum
         self.set_dash_test_params(2, 1, extra_args=extra_args)
         self.set_dash_llmq_test_params(1, 1)
@@ -99,6 +100,37 @@ class MnehfTest(DashTestFramework):
         self.log.info(f"height: {self.nodes[0].getblockcount()} status: {status}")
         assert_equal(status, expected)
 
+    def ehf_signals_in_mempool(self, node, version_bit):
+        return [txid for txid in node.getrawmempool()
+                if node.getrawtransaction(txid, True).get('mnhfTx', {}).get('signal', {}).get('versionBit') == version_bit]
+
+    def check_no_ehf_signing(self, reason):
+        self.log.info(f"Check that masternodes do not sign testdummy {reason}")
+        mn_node = self.mninfo[0].get_node(self)
+        # Masternodes try to sign on every new tip, so an attempt is logged once the tip callbacks are done
+        with mn_node.assert_debug_log(expected_msgs=[], unexpected_msgs=["bit=28 at height"]):
+            self.generate(self.nodes[0], 2, sync_fun=self.sync_blocks)
+            mn_node.syncwithvalidationinterfacequeue()
+        assert_equal(self.ehf_signals_in_mempool(mn_node, 28), [])
+
+    def test_no_signing_outside_window(self):
+        node = self.nodes[0]
+        self.check_no_ehf_signing("while it is NEVER_ACTIVE")
+
+        self.restart_all_nodes(params=[0, 1])
+        self.check_no_ehf_signing("after its timeout")
+
+        start_time = self.mocktime + 600
+        self.restart_all_nodes(params=[start_time, 999999999999])
+        self.check_no_ehf_signing("before its start time")
+
+        self.log.info("Check that masternodes sign testdummy once its start time is reached")
+        self.bump_mocktime(600, update_schedulers=False)
+        while node.getblockheader(node.getbestblockhash())['mediantime'] < start_time:
+            self.generate(node, 1)
+        mn_node = self.mninfo[0].get_node(self)
+        self.wait_until(lambda: len(self.ehf_signals_in_mempool(mn_node, 28)) == 1)
+
     def ensure_tx_is_not_mined(self, tx_id):
         try:
             assert_equal(self.nodes[0].getrawtransaction(tx_id, 1)['height'], -1)
@@ -131,6 +163,7 @@ class MnehfTest(DashTestFramework):
         self.set_sporks()
         self.log.info("Mine a quorum...")
         self.mine_quorum_single_member()
+        self.test_no_signing_outside_window()
         self.check_fork('defined')
 
         key = ECKey()

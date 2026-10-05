@@ -33,16 +33,26 @@ CEHFSignalsHandler::~CEHFSignalsHandler()
     sigman.UnregisterRecoveredSigsListener(this);
 }
 
+static bool IsSignalWindowOpen(const Consensus::BIP9Deployment& deployment, int64_t time_past)
+{
+    return deployment.nStartTime != Consensus::BIP9Deployment::NEVER_ACTIVE && deployment.nStartTime <= time_past &&
+           time_past <= deployment.nTimeout;
+}
+
 void CEHFSignalsHandler::UpdatedBlockTip(const CBlockIndex* const pindexNew)
 {
     if (!DeploymentActiveAfter(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return;
 
     const auto ehfSignals = m_chainman.ActiveChainstate().ChainHelper().ehf_manager->GetSignalsStage(pindexNew);
+    const int64_t time_past = pindexNew->GetMedianTimePast();
     for (const auto& deployment : Params().GetConsensus().vDeployments) {
         // Skip deployments that do not use dip0023
         if (!deployment.useEHF) continue;
+        // IsValidMNActivation() is permissive for validation (it accepts bits of NEVER_ACTIVE deployments
+        // and bits outside of any window), so only sign inside the deployment's own start/timeout window
+        if (!IsSignalWindowOpen(deployment, time_past)) continue;
         // Try to sign only activable deployments that haven't been mined yet
-        if (ehfSignals.find(deployment.bit) == ehfSignals.end() && Params().IsValidMNActivation(deployment.bit, pindexNew->GetMedianTimePast())) {
+        if (ehfSignals.find(deployment.bit) == ehfSignals.end() && Params().IsValidMNActivation(deployment.bit, time_past)) {
             trySignEHFSignal(deployment.bit, pindexNew);
         }
     }
