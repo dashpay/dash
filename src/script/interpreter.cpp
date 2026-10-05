@@ -1689,9 +1689,14 @@ bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata
     if (!(hash_type <= 0x03 || (hash_type >= 0x81 && hash_type <= 0x83))) return false;
     ss << hash_type;
 
-    // Transaction level data
-    ss << tx_to.nVersion;
+    // Transaction level data. Dash commits to the 32-bit version|type word and,
+    // for special transactions, to the payload, exactly like the legacy sighash.
+    const int32_t n32bitVersion = tx_to.nVersion | (tx_to.nType << 16);
+    ss << n32bitVersion;
     ss << tx_to.nLockTime;
+    if (tx_to.nVersion >= CTransaction::SPECIAL_VERSION && tx_to.nType != TRANSACTION_NORMAL) {
+        ss << tx_to.vExtraPayload;
+    }
     if (input_type != SIGHASH_ANYONECANPAY) {
         ss << cache.m_prevouts_single_hash;
         ss << cache.m_spent_amounts_single_hash;

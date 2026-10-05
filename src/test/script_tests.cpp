@@ -1633,4 +1633,35 @@ BOOST_AUTO_TEST_CASE(script_assets_test)
     file.close();
 }
 
+BOOST_AUTO_TEST_CASE(bip341_dash_special_tx_sighash)
+{
+    // Vectors from the Python TaprootSignatureHash of the test framework: the digest commits to the
+    // 32-bit version|type word and, for a special transaction, to the serialized payload.
+    const auto utxo_bytes = ParseHex("00e1f5050000000022512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
+    CTxOut utxo;
+    SpanReader{SER_NETWORK, PROTOCOL_VERSION, utxo_bytes} >> utxo;
+
+    const std::vector<std::tuple<std::string, uint8_t, std::string>> vectors = {
+        // special transaction (nVersion 3, nType 8, 5-byte payload), SIGHASH_DEFAULT
+        {"030008000111111111111111111111111111111111111111111111111111111111111111110100000000feffffff01f0b9f50500000000225120222222222222222222222222222222222222222222222222222222222222222200000000050102030405", SIGHASH_DEFAULT, "828f19c0e3edc0a3077518104490e01562b46f625f56288d702857eb0d8da5e8"},
+        // the same special transaction, SIGHASH_ALL
+        {"030008000111111111111111111111111111111111111111111111111111111111111111110100000000feffffff01f0b9f50500000000225120222222222222222222222222222222222222222222222222222222222222222200000000050102030405", SIGHASH_ALL, "bc24dd617a4b4211ee80d037db6bb1ae826c9b6ef32e8f3eca678340414d3c3b"},
+        // version 3 normal transaction (no payload), SIGHASH_DEFAULT
+        {"030000000111111111111111111111111111111111111111111111111111111111111111110100000000feffffff01f0b9f50500000000225120222222222222222222222222222222222222222222222222222222222222222200000000", SIGHASH_DEFAULT, "c4512387dee74eaa4dfde9dfbd04178906b8a8fc7e72921c1a84582c7ecd542c"},
+    };
+    for (const auto& [tx_hex, hash_type, expected] : vectors) {
+        const auto tx_bytes = ParseHex(tx_hex);
+        CMutableTransaction tx;
+        SpanReader{SER_NETWORK, PROTOCOL_VERSION, tx_bytes} >> tx;
+        PrecomputedTransactionData txdata;
+        txdata.Init(tx, {utxo});
+        ScriptExecutionData execdata;
+        execdata.m_annex_init = true;
+        execdata.m_annex_present = false;
+        uint256 sighash;
+        BOOST_CHECK(SignatureHashSchnorr(sighash, execdata, tx, 0, hash_type, SigVersion::TAPROOT, txdata, MissingDataBehavior::FAIL));
+        BOOST_CHECK_EQUAL(HexStr(sighash), expected);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
