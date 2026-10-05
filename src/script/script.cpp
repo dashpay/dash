@@ -440,8 +440,12 @@ bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode)
 
 bool IsOpSuccess(const opcodetype& opcode)
 {
-    return opcode == 80 || opcode == 98 || (opcode >= 126 && opcode <= 129) ||
-           (opcode >= 131 && opcode <= 134) || (opcode >= 137 && opcode <= 138) ||
-           (opcode >= 141 && opcode <= 142) || (opcode >= 149 && opcode <= 153) ||
+    // The BIP 342 OP_SUCCESSx set, minus the opcodes Dash enabled with DIP0020
+    // (OP_CAT, OP_SPLIT, OP_NUM2BIN, OP_BIN2NUM, OP_AND, OP_OR, OP_XOR, OP_DIV,
+    // OP_MOD, OP_CHECKDATASIG, OP_CHECKDATASIGVERIFY) and OP_CHECKSIGADD at 0xbc.
+    return opcode == OP_RESERVED || opcode == OP_VER || opcode == OP_INVERT ||
+           opcode == OP_RESERVED1 || opcode == OP_RESERVED2 ||
+           opcode == OP_2MUL || opcode == OP_2DIV || opcode == OP_MUL ||
+           opcode == OP_LSHIFT || opcode == OP_RSHIFT ||
            (opcode >= 189 && opcode <= 254);
 }

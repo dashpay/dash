@@ -248,8 +248,8 @@ OP_NOP8 = CScriptOp(0xb7)
 OP_NOP9 = CScriptOp(0xb8)
 OP_NOP10 = CScriptOp(0xb9)
 
-# BIP 342 opcodes (Tapscript)
-OP_CHECKSIGADD = CScriptOp(0xba)
+# BIP 342 opcodes (Tapscript). Dash uses 0xba/0xbb for OP_CHECKDATASIG(VERIFY).
+OP_CHECKSIGADD = CScriptOp(0xbc)
 
 OP_INVALIDOPCODE = CScriptOp(0xff)
 
@@ -845,4 +845,5 @@ def taproot_construct(pubkey, scripts=None):
     return TaprootInfo(CScript([OP_1, tweaked]), pubkey, negated + 0, tweak, leaves)
 
 def is_op_success(o):
-    return o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe)
+    """OP_SUCCESSx set of BIP 342, minus the opcodes Dash has in use (DIP0020 and OP_CHECKSIGADD at 0xbc)."""
+    return o == 0x50 or o == 0x62 or o == 0x83 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or o == 0x95 or o == 0x98 or o == 0x99 or (o >= 0xbd and o <= 0xfe)
