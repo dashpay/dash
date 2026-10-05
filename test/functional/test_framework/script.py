@@ -728,8 +728,10 @@ def TaprootSignatureHash(txTo, spent_utxos, hash_type, input_index = 0, scriptpa
     in_type = hash_type & SIGHASH_ANYONECANPAY
     spk = spent_utxos[input_index].scriptPubKey
     ss = bytes([0, hash_type]) # epoch, hash_type
-    ss += txTo.nVersion.to_bytes(4, "little", signed=True)
+    ss += (txTo.nVersion | (txTo.nType << 16)).to_bytes(4, "little", signed=True)
     ss += txTo.nLockTime.to_bytes(4, "little")
+    if txTo.nVersion >= 3 and txTo.nType != 0:
+        ss += sha256(ser_string(txTo.vExtraPayload))
     if in_type != SIGHASH_ANYONECANPAY:
         ss += sha256(b"".join(i.prevout.serialize() for i in txTo.vin))
         ss += sha256(b"".join(u.nValue.to_bytes(8, "little", signed=True) for u in spent_utxos))
@@ -761,7 +763,8 @@ def TaprootSignatureHash(txTo, spent_utxos, hash_type, input_index = 0, scriptpa
         ss += TaggedHash("TapLeaf", bytes([leaf_ver]) + ser_string(script))
         ss += bytes([0])
         ss += codeseparator_pos.to_bytes(4, "little", signed=True)
-    assert len(ss) ==  175 - (in_type == SIGHASH_ANYONECANPAY) * 49 - (out_type != SIGHASH_ALL and out_type != SIGHASH_SINGLE) * 32 + (annex is not None) * 32 + scriptpath * 37
+    payload_size = 32 if txTo.nVersion >= 3 and txTo.nType != 0 else 0
+    assert len(ss) ==  175 - (in_type == SIGHASH_ANYONECANPAY) * 49 - (out_type != SIGHASH_ALL and out_type != SIGHASH_SINGLE) * 32 + (annex is not None) * 32 + scriptpath * 37 + payload_size
     return TaggedHash("TapSighash", ss)
 
 def taproot_tree_helper(scripts):

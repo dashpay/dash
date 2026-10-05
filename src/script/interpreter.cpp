@@ -1590,6 +1590,15 @@ uint256 GetSpentScriptsSHA256(const std::vector<CTxOut>& outputs_spent)
     return ss.GetSHA256();
 }
 
+/** Compute the single-SHA256 of the serialized special transaction payload. */
+template <class T>
+uint256 GetExtraPayloadSHA256(const T& txTo)
+{
+    HashWriter ss{};
+    ss << txTo.vExtraPayload;
+    return ss.GetSHA256();
+}
+
 
 } // namespace
 
@@ -1620,6 +1629,7 @@ void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOut>&& spent
 
         m_spent_amounts_single_hash = GetSpentAmountsSHA256(m_spent_outputs);
         m_spent_scripts_single_hash = GetSpentScriptsSHA256(m_spent_outputs);
+        m_extra_payload_single_hash = GetExtraPayloadSHA256(txTo);
         m_bip341_taproot_ready = true;
     }
 }
@@ -1689,9 +1699,14 @@ bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata
     if (!(hash_type <= 0x03 || (hash_type >= 0x81 && hash_type <= 0x83))) return false;
     ss << hash_type;
 
-    // Transaction level data
-    ss << tx_to.nVersion;
+    // Transaction level data. Dash commits to the 32-bit version|type word like
+    // the legacy sighash and, for special transactions, to the hash of the payload.
+    const int32_t n32bitVersion = PackVersionAndType(tx_to.nVersion, tx_to.nType);
+    ss << n32bitVersion;
     ss << tx_to.nLockTime;
+    if (tx_to.nVersion >= CTransaction::SPECIAL_VERSION && tx_to.nType != TRANSACTION_NORMAL) {
+        ss << cache.m_extra_payload_single_hash;
+    }
     if (input_type != SIGHASH_ANYONECANPAY) {
         ss << cache.m_prevouts_single_hash;
         ss << cache.m_spent_amounts_single_hash;

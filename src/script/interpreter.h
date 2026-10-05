@@ -143,7 +143,10 @@ struct PrecomputedTransactionData
     uint256 m_outputs_single_hash;
     uint256 m_spent_amounts_single_hash;
     uint256 m_spent_scripts_single_hash;
-    //! Whether the 5 fields above are initialized.
+    //! Dash: single-SHA256 of the serialized special transaction payload, so that
+    //! a signature check does not re-hash a payload of up to 10000 bytes.
+    uint256 m_extra_payload_single_hash;
+    //! Whether the 6 fields above are initialized.
     bool m_bip341_taproot_ready = false;
 
     std::vector<CTxOut> m_spent_outputs;
