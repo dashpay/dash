@@ -5,6 +5,7 @@
 add_executable(test_bitcoin-qt
   apptests.cpp
   optiontests.cpp
+  proposalvotetests.cpp
   rpcnestedtests.cpp
   test_main.cpp
   trafficgraphdatatests.cpp
@@ -35,8 +36,13 @@ if(ENABLE_WALLET)
     PRIVATE
       addressbooktests.cpp
       masternodemaintenancetests.cpp
+      masternodetestutil.cpp
       masternodewidgettests.cpp
+      mnsharesessiontests.cpp
       providertransactiontests.cpp
+      sharedmnwalkthroughtests.cpp
+      sharedmnwidgettests.cpp
+      sharedmnwizardtests.cpp
       wallettests.cpp
       ../../wallet/test/wallet_test_fixture.cpp
   )

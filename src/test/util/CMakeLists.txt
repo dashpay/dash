@@ -11,13 +11,13 @@ add_library(test_util STATIC EXCLUDE_FROM_ALL
   masternode.cpp
   mining.cpp
   net.cpp
+  random.cpp
   script.cpp
   setup_common.cpp
   str.cpp
   transaction_utils.cpp
   txmempool.cpp
   validation.cpp
-  $<$<BOOL:${ENABLE_WALLET}>:wallet.cpp>
   $<$<BOOL:${ENABLE_WALLET}>:${PROJECT_SOURCE_DIR}/src/wallet/test/util.cpp>
 )
 

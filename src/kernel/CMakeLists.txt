@@ -62,10 +62,12 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../init/common.cpp
   ../instantsend/db.cpp
   ../instantsend/instantsend.cpp
+  ../instantsend/lock.cpp
   chain.cpp
   checks.cpp
   coinstats.cpp
   context.cpp
+  cs_main.cpp
   mempool_persist.cpp
   ../key.cpp
   ../key_io.cpp
@@ -116,6 +118,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../script/sigcache.cpp
   ../script/standard.cpp
   ../shutdown.cpp
+  ../streams.cpp
   ../spork.cpp
   ../support/cleanse.cpp
   ../support/lockedpool.cpp
