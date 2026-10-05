@@ -222,6 +222,20 @@ bool CScript::IsPayToScriptHash() const
             (*this)[22] == OP_EQUAL);
 }
 
+bool CScript::IsPayToTaproot(std::vector<unsigned char>& program) const
+{
+    if (!IsPayToTaproot()) return false;
+    program = std::vector<unsigned char>(this->begin() + 2, this->end());
+    return true;
+}
+
+bool CScript::IsPayToTaproot() const
+{
+    return (this->size() == 34 &&
+            (*this)[0] == OP_1 &&
+            (*this)[1] == 0x20);
+}
+
 bool CScript::IsPayToPublicKey() const
 {
     // Test for pay-to-pubkey CScript with both

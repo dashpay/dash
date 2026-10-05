@@ -53,7 +53,7 @@ static constexpr unsigned int ANNEX_TAG = 0x50;
 // Validation weight per passing signature (Tapscript only, see BIP 342).
 static constexpr int64_t VALIDATION_WEIGHT_PER_SIGOP_PASSED{50};
 
-// How much weight budget is added to the witness size (Tapscript only, see BIP 342).
+// How much weight budget is added to the scriptSig size (Tapscript only, see BIP 342).
 static constexpr int64_t VALIDATION_WEIGHT_OFFSET{50};
 
 template <typename T>
@@ -532,6 +532,10 @@ public:
     bool IsPayToPublicKeyHash() const;
 
     bool IsPayToScriptHash() const;
+
+    /** Pay-to-taproot output: OP_1 <32-byte output key> (BIP 341). */
+    bool IsPayToTaproot(std::vector<unsigned char>& program) const;
+    bool IsPayToTaproot() const;
 
     /** Used for obsolete pay-to-pubkey addresses indexing. */
     bool IsPayToPublicKey() const;
