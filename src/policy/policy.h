@@ -40,7 +40,7 @@ static constexpr bool DEFAULT_PERMIT_BAREMULTISIG{true};
 /** The maximum size of a standard ScriptSig */
 static constexpr unsigned int MAX_STANDARD_SCRIPTSIG_SIZE{1650};
 /** The maximum size of each witness stack item in a standard BIP 342 script (Taproot, leaf version 0xc0) */
-static const unsigned int MAX_STANDARD_TAPSCRIPT_STACK_ITEM_SIZE{80}; // TODO: use it or remove (supposed to be validated in IsWitnessStandard)
+static const unsigned int MAX_STANDARD_TAPSCRIPT_STACK_ITEM_SIZE{80};
 /** Min feerate for defining dust.
  * Changing the dust limit changes which transactions are
  * standard and should be done with care and ideally rarely. It makes sense to
@@ -113,6 +113,13 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
  * @return True if all inputs (scriptSigs) use only standard transaction forms
  */
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs, bool taproot_active);
+/**
+ * Check policy limits for Taproot spends: no annex and, for tapscript script
+ * paths, no stack item larger than MAX_STANDARD_TAPSCRIPT_STACK_ITEM_SIZE
+ * @param[in] mapInputs       Map of previous transactions that have outputs we're spending
+ * @return True if all Taproot inputs use only standard spending forms
+ */
+bool IsTaprootStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
 /** Compute the virtual transaction size (taking sigops into account). */
 int64_t GetVirtualTransactionSize(int64_t nSize, int64_t nSigOp, unsigned int bytes_per_sigop);

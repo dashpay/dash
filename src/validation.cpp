@@ -1036,6 +1036,11 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_INPUTS_NOT_STANDARD, "bad-txns-nonstandard-inputs");
     }
 
+    // Check for non-standard Taproot spends
+    if (m_pool.m_require_standard && !IsTaprootStandard(tx, m_view)) {
+        return state.Invalid(TxValidationResult::TX_INPUTS_NOT_STANDARD, "bad-taproot-nonstandard");
+    }
+
     unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
     // ws.m_modified_fees includes any fee deltas from PrioritiseTransaction
