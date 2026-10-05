@@ -116,8 +116,8 @@
    sys/random.h */
 #cmakedefine HAVE_GETENTROPY_RAND 1
 
-/* Define this symbol if the Linux getrandom system call is available */
-#cmakedefine HAVE_SYS_GETRANDOM 1
+/* Define this symbol if the Linux getrandom function call is available */
+#cmakedefine HAVE_GETRANDOM 1
 
 /* Define this symbol if you have malloc_info */
 #cmakedefine HAVE_MALLOC_INFO 1

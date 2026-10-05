@@ -15,7 +15,9 @@ check_include_file_cxx(vm/vm_param.h HAVE_VM_VM_PARAM_H)
 check_cxx_symbol_exists(O_CLOEXEC "fcntl.h" HAVE_O_CLOEXEC)
 check_cxx_symbol_exists(fdatasync "unistd.h" HAVE_FDATASYNC)
 check_cxx_symbol_exists(fork "unistd.h" HAVE_DECL_FORK)
-check_cxx_symbol_exists(pipe2 "unistd.h" HAVE_DECL_PIPE2)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  check_cxx_symbol_exists(pipe2 "unistd.h" HAVE_DECL_PIPE2)
+endif()
 check_cxx_symbol_exists(setsid "unistd.h" HAVE_DECL_SETSID)
 
 check_include_file_cxx(sys/types.h HAVE_SYS_TYPES_H)
@@ -103,19 +105,15 @@ check_cxx_source_compiles("
 )
 
 # Check for different ways of gathering OS randomness:
-# - Linux getrandom syscall
-# NOTE: random.cpp issues the syscall directly rather than calling the libc
-#       wrapper, so probe for the syscall and keep the Autotools macro name.
+# - Linux getrandom()
 check_cxx_source_compiles("
-  #include <unistd.h>
-  #include <sys/syscall.h>
-  #include <linux/random.h>
+  #include <sys/random.h>
 
   int main()
   {
-    syscall(SYS_getrandom, nullptr, 32, 0);
+    getrandom(nullptr, 32, 0);
   }
-  " HAVE_SYS_GETRANDOM
+  " HAVE_GETRANDOM
 )
 
 # - BSD getentropy()

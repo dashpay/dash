@@ -25,9 +25,9 @@ endif()
 set(PACKAGE_NAME "Dash Core")
 # AC_INIT's tarname argument; used for the NSIS installer and URI class.
 set(PACKAGE_TARNAME "dashcore")
-set(CLIENT_VERSION_MAJOR 23)
+set(CLIENT_VERSION_MAJOR 24)
 set(CLIENT_VERSION_MINOR 1)
-set(CLIENT_VERSION_BUILD 8)
+set(CLIENT_VERSION_BUILD 0)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false")
 set(COPYRIGHT_YEAR "2026")
@@ -282,7 +282,6 @@ if(BUILD_FOR_FUZZING)
 
   target_compile_definitions(core_interface INTERFACE
     ABORT_ON_FAILED_ASSUME
-    BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
   )
 endif()
 

@@ -148,7 +148,6 @@ target_compile_definitions(core_interface_debug INTERFACE
   DEBUG_LOCKCONTENTION
   RPC_DOC_CHECK
   ABORT_ON_FAILED_ASSUME
-  BOOST_MULTI_INDEX_ENABLE_SAFE_MODE
 )
 # We leave assertions on.
 if(MSVC)
