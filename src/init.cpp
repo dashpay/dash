@@ -1439,6 +1439,13 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         }
     }
 
+    // Governance needs the transaction index to look up proposal collateral transactions
+    if (!args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE) &&
+        !args.GetBoolArg("-txindex", DEFAULT_TXINDEX) && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) {
+        return InitError(_("Transaction index can't be disabled with governance validation enabled. Either start with "
+                           "-disablegovernance command line switch or enable transaction index."));
+    }
+
     if (args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)) {
         InitWarning(_("You are starting with governance validation disabled.") +
             (fPruneMode ?

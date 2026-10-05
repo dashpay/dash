@@ -340,6 +340,7 @@ BASE_SCRIPTS = [
     'p2p_compactblocks_blocksonly.py',
     'p2p_mutated_blocks.py', # NOTE: needs dash_hash to pass
     'p2p_connect_to_devnet.py',
+    'feature_governance_txindex_devnet.py',
     'feature_sporks.py',
     'rpc_getblockstats.py',
     'feature_bind_port_externalip.py',
