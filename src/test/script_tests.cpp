@@ -1549,9 +1549,6 @@ static std::vector<unsigned int> AllConsensusFlags()
         if (i & 16) flag |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
         if (i & 64) flag |= SCRIPT_VERIFY_TAPROOT;
 
-        // SCRIPT_VERIFY_TAPROOT requires SCRIPT_VERIFY_WITNESS
-        if (flag & SCRIPT_VERIFY_TAPROOT) continue;
-
         ret.push_back(flag);
     }
 
