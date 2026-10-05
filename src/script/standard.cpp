@@ -126,6 +126,12 @@ TxoutType Solver(const CScript& scriptPubKey, std::vector<std::vector<unsigned c
         return TxoutType::SCRIPTHASH;
     }
 
+    std::vector<unsigned char> taproot_program;
+    if (scriptPubKey.IsPayToTaproot(taproot_program)) {
+        vSolutionsRet.push_back(std::move(taproot_program));
+        return TxoutType::TAPROOT;
+    }
+
     // Provably prunable, data-carrying output
     //
     // So long as script passes the IsUnspendable() test and all but the first

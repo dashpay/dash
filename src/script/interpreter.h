@@ -7,6 +7,7 @@
 #define BITCOIN_SCRIPT_INTERPRETER_H
 
 #include <consensus/amount.h>
+#include <hash.h>
 #include <primitives/transaction.h>
 #include <script/script_error.h> // IWYU pragma: export
 #include <span.h>
@@ -205,6 +206,10 @@ static constexpr size_t TAPROOT_CONTROL_NODE_SIZE = 32;
 static constexpr size_t TAPROOT_CONTROL_MAX_NODE_COUNT = 128;
 static constexpr size_t TAPROOT_CONTROL_MAX_SIZE = TAPROOT_CONTROL_BASE_SIZE + TAPROOT_CONTROL_NODE_SIZE * TAPROOT_CONTROL_MAX_NODE_COUNT;
 
+extern const HashWriter HASHER_TAPSIGHASH; //!< Hasher with tag "TapSighash" pre-fed to it.
+extern const HashWriter HASHER_TAPLEAF;    //!< Hasher with tag "TapLeaf" pre-fed to it.
+extern const HashWriter HASHER_TAPBRANCH;  //!< Hasher with tag "TapBranch" pre-fed to it.
+
 template <class T>
 uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache = nullptr);
 
@@ -247,6 +252,9 @@ enum class MissingDataBehavior
     FAIL,         //!< Just act as if the signature was invalid
 };
 
+template<typename T>
+bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache, MissingDataBehavior mdb);
+
 template <class T>
 class GenericTransactionSignatureChecker : public BaseSignatureChecker
 {
@@ -287,6 +295,10 @@ public:
     {
         return m_checker.CheckECDSASignature(scriptSig, vchPubKey, scriptCode, sigversion);
     }
+    bool CheckSchnorrSignature(Span<const unsigned char> sig, Span<const unsigned char> pubkey, SigVersion sigversion, const ScriptExecutionData& execdata, ScriptError* serror = nullptr) const override
+    {
+        return m_checker.CheckSchnorrSignature(sig, pubkey, sigversion, execdata, serror);
+    }
     bool CheckLockTime(const CScriptNum& nLockTime) const override
     {
         return m_checker.CheckLockTime(nLockTime);
@@ -301,6 +313,23 @@ public:
         return m_checker.CheckDataSig(vchSig, vchMessage, vchPubKey);
     }
 };
+
+/** Extract the BIP341 stack from a scriptSig that consists only of pushes.
+ *
+ * Small-integer and OP_1NEGATE pushes yield the same byte vectors they would
+ * leave on the stack when executed, so a scriptSig built by PushAll() round-trips.
+ * Returns false if the scriptSig contains anything but pushes.
+ */
+bool ParseTaprootStack(const CScript& scriptSig, std::vector<std::vector<unsigned char>>& stack);
+
+/** Compute the BIP341 tapleaf hash from leaf version & script. */
+uint256 ComputeTapleafHash(uint8_t leaf_version, const CScript& script);
+/** Compute the BIP341 tapbranch hash from two branches.
+ * Spans must be 32 bytes each. */
+uint256 ComputeTapbranchHash(Span<const unsigned char> a, Span<const unsigned char> b);
+/** Compute the BIP341 taproot script tree Merkle root from control block and leaf hash.
+ *  Requires control block to have valid length (33 + k*32, with k in {0,1,..,128}). */
+uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint256& tapleaf_hash);
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* error = nullptr);
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* error = nullptr);
