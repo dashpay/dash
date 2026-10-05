@@ -1136,6 +1136,15 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                     bool fSuccess = false;
                     if (vchSig.size()) {
+                        // Tapscript charges every attempted signature check against the
+                        // validation weight budget (BIP342), data signatures included
+                        if (sigversion == SigVersion::TAPSCRIPT) {
+                            assert(execdata.m_validation_weight_left_init);
+                            execdata.m_validation_weight_left -= VALIDATION_WEIGHT_PER_SIGOP_PASSED;
+                            if (execdata.m_validation_weight_left < 0) {
+                                return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_WEIGHT);
+                            }
+                        }
                         fSuccess = checker.CheckDataSig(vchSig, vchMessage, vchPubKey);
                     }
 
