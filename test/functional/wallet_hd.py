@@ -168,6 +168,8 @@ class WalletHDTest(BitcoinTestFramework):
             wallet_imported_seed = self.nodes[1].get_wallet_rpc('wallet_imported_seed')
             wallet_imported_seed.sethdseed(False, new_seed)
 
+            # A seed is one account even before any key is derived from it
+            assert_equal(wallet_imported_seed.getwalletinfo()['hdaccountcount'], 1)
             new_masterkeyid = wallet_imported_seed.getwalletinfo()['hdchainid']
             addr = wallet_imported_seed.getnewaddress()
             assert_equal(new_masterkeyid, wallet_imported_seed.getaddressinfo(addr)['hdchainid'])

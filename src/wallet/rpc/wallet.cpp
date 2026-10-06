@@ -917,6 +917,8 @@ static RPCHelpMan sethdseed()
         if (!newHdChain.SetSeed(SecureVector(key.begin(), key.end()), true)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key: SetSeed failed");
         }
+        // add default account
+        newHdChain.AddAccount();
         if (pwallet->IsCrypted() && !pwallet->WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
                 return spk_man.EncryptHDChain(encryption_key, newHdChain);
             })) {
@@ -925,8 +927,6 @@ static RPCHelpMan sethdseed()
         if (!spk_man.AddHDChainSingle(newHdChain)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key: AddHDChainSingle failed");
         }
-        // add default account
-        newHdChain.AddAccount();
     }
 
     if (flush_key_pool) spk_man.NewKeyPool();
