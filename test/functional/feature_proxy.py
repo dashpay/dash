@@ -49,6 +49,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     p2p_port,
+    tor_port,
 )
 from test_framework.netutil import test_ipv6_local, test_unix_socket
 
@@ -436,7 +437,7 @@ class ProxyTest(BitcoinTestFramework):
         self.nodes[1].assert_start_raises_init_error(expected_msg=msg)
 
         self.log.info("Test passing -onlynet=onion without -proxy or -onion but with -listenonion=1 is ok")
-        self.start_node(1, extra_args=["-onlynet=onion", "-listenonion=1"])
+        self.start_node(1, extra_args=["-onlynet=onion", "-listenonion=1", f"-bind=127.0.0.1:{tor_port(1)}=onion"])
         self.stop_node(1)
 
         self.log.info("Test passing unknown network to -onlynet raises expected init error")
