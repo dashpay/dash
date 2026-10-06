@@ -153,9 +153,12 @@ struct SharedShareSpec {
 //! Turns a funding transaction that already holds every participant's inputs and change
 //! into an unsigned shared ProRegTx. Needs no wallet: nothing is funded or signed.
 struct SharedRegistrationRequest {
+    MnType type{MnType::Regular};
     CMutableTransaction funding_tx;
     std::vector<SharedShareSpec> shares;
     ProviderNetInfo net_info;
+    //! Required for an EvoNode
+    std::optional<uint160> platform_node_id;
     CBLSPublicKey operator_key;
     CKeyID voting_key;
     uint16_t operator_reward{0};

@@ -131,6 +131,7 @@ BASE_SCRIPTS = [
     'feature_llmq_is_cl_conflicts.py', # NOTE: needs dash_hash to pass
     'feature_dip4_coinbasemerkleroots.py', # NOTE: needs dash_hash to pass
     'feature_mnehf.py', # NOTE: needs dash_hash to pass
+    'feature_evo_shares_activation.py', # NOTE: needs dash_hash to pass
     'feature_masternode_params.py', # NOTE: needs dash_hash to pass
     'feature_masternode_params_devnet.py', # NOTE: needs dash_hash to pass
     'feature_governance.py --descriptors',

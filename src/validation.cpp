@@ -734,7 +734,7 @@ private:
     // so it is validated against its window instead of the tip: nodes that did not hold it (after a
     // restart, or a new peer) admit it and its descendants too. It stays unminable and is not
     // InstantSend-locked until refreshed, as the miner and the lock signer validate against the tip.
-    bool CheckSpecialTxForMempool(const CTransaction& tx, bool is_v24_active, TxValidationState& state)
+    bool CheckSpecialTxForMempool(const CTransaction& tx, SpecialTxRules rules, TxValidationState& state)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Enforce package mempool ancestor/descendant limits (distinct from individual
@@ -799,12 +799,12 @@ private:
     CTxMemPool::Limits m_limits;
 };
 
-bool MemPoolAccept::CheckSpecialTxForMempool(const CTransaction& tx, bool is_v24_active, TxValidationState& state)
+bool MemPoolAccept::CheckSpecialTxForMempool(const CTransaction& tx, SpecialTxRules rules, TxValidationState& state)
 {
     const CChain& chain{m_active_chainstate.m_chain};
     const auto check_at = [&](const CBlockIndex* pindex,
                               TxValidationState& check_state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        return m_chain_helper.special_tx->CheckSpecialTx(tx, pindex, is_v24_active, m_active_chainstate.CoinsTip(),
+        return m_chain_helper.special_tx->CheckSpecialTx(tx, pindex, rules, m_active_chainstate.CoinsTip(),
                                                          /*check_sigs=*/true, check_state);
     };
     const auto payload{IsAssetUnlockWithStableTxid(tx) ? GetTxPayload<CAssetUnlockPayload>(tx) : std::nullopt};
@@ -1100,8 +1100,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // mined
     // NOTE: we use UTXO here and do NOT allow mempool txes as masternode collaterals
     const CBlockIndex* tip{m_active_chainstate.m_chain.Tip()};
-    const bool is_v24_active{DeploymentActiveAfter(tip, m_active_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
-    if (!CheckSpecialTxForMempool(tx, is_v24_active, state)) return false;
+    if (!CheckSpecialTxForMempool(tx, GetSpecialTxRules(tip, m_active_chainstate.m_chainman), state)) return false;
 
     if (m_pool.existsProviderTxConflict(tx)) {
         return state.Invalid(TxValidationResult::TX_CONFLICT, "protx-dup");
@@ -1398,8 +1397,8 @@ std::optional<MempoolAcceptResult> MemPoolAccept::TryAssetUnlockRefresh(const CT
     // and quorum signature. Everything the txid covers is identical to the held instance and
     // was validated when it was admitted.
     const CBlockIndex* tip{m_active_chainstate.m_chain.Tip()};
-    const bool is_v24_active{DeploymentActiveAfter(tip, m_active_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
-    if (!m_chain_helper.special_tx->CheckSpecialTx(*ptx, tip, is_v24_active, m_active_chainstate.CoinsTip(),
+    if (!m_chain_helper.special_tx->CheckSpecialTx(*ptx, tip, GetSpecialTxRules(tip, m_active_chainstate.m_chainman),
+                                                   m_active_chainstate.CoinsTip(),
                                                    /*check_sigs=*/true, state)) {
         return MempoolAcceptResult::Failure(state);
     }
@@ -2657,11 +2656,13 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     bool fDIP0001Active_context = DeploymentActiveAt(*pindex, params.GetConsensus(), Consensus::DEPLOYMENT_DIP0001);
 
     const CAmount blockSubsidy = GetBlockSubsidy(pindex, params.GetConsensus());
-    const bool is_v24_active{DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_V24)};
+    const SpecialTxRules special_tx_rules{GetSpecialTxRules(pindex->pprev, m_chainman)};
 
     // MUST process special txes before updating UTXO to ensure consistency between mempool and block processing
     MNListUpdates mnlist_updates;
-    if (!m_chain_helper->special_tx->ProcessSpecialTxsInBlock(*this, m_chain, block, pindex, is_v24_active, view, blockSubsidy, fJustCheck, fScriptChecks, state, mnlist_updates)) {
+    if (!m_chain_helper->special_tx->ProcessSpecialTxsInBlock(*this, m_chain, block, pindex, special_tx_rules, view,
+                                                              blockSubsidy, fJustCheck, fScriptChecks, state,
+                                                              mnlist_updates)) {
         LogError("ConnectBlock(DASH): ProcessSpecialTxsInBlock for block %s failed with %s\n",
                      pindex->GetBlockHash().ToString(), state.ToString());
         return false;
@@ -2839,7 +2840,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     const SuperBlockCheckType check_superblock = !m_chain_helper->IsSuperblockValidationRequired(pindex)
         ? SuperBlockCheckType::NoCheck
-        : is_v24_active ? SuperBlockCheckType::DisallowDuplicates : SuperBlockCheckType::AllowDuplicates;
+        : special_tx_rules.v24 ? SuperBlockCheckType::DisallowDuplicates : SuperBlockCheckType::AllowDuplicates;
 
 
     if (!m_chain_helper->mn_payments->IsBlockValueValid(m_chain, block, pindex->pprev, blockSubsidy + feeReward, strError, check_superblock)) {
@@ -2856,7 +2857,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<MillisecondsDouble>(time_value_valid) / num_blocks_total);
 
     const MnRewardEra mn_reward_era{GetMnRewardEraAfter(pindex->pprev, m_chainman)};
-    if (!m_chain_helper->mn_payments->IsBlockPayeeValid(m_chain, *block.vtx[0], pindex->pprev, blockSubsidy, feeReward, mn_reward_era, is_v24_active, check_superblock)) {
+    if (!m_chain_helper->mn_payments->IsBlockPayeeValid(m_chain, *block.vtx[0], pindex->pprev, blockSubsidy, feeReward,
+                                                        mn_reward_era, special_tx_rules.v24, check_superblock)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): couldn't find masternode or superblock payments\n");
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-payee");
@@ -5191,9 +5193,11 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
     // MUST process special txes before updating UTXO to ensure consistency between mempool and block processing
     BlockValidationState state;
     const CAmount blockSubsidy = GetBlockSubsidy(pindex, m_chainman.GetConsensus());
-    const bool is_v24_active{DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_V24)};
     MNListUpdates mnlist_updates;
-    if (!m_chain_helper->special_tx->ProcessSpecialTxsInBlock(*this, m_chain, block, pindex, is_v24_active, inputs, blockSubsidy, /*fJustCheck=*/false, /*fCheckCbTxMerkleRoots=*/false, state, mnlist_updates)) {
+    if (!m_chain_helper->special_tx->ProcessSpecialTxsInBlock(*this, m_chain, block, pindex,
+                                                              GetSpecialTxRules(pindex->pprev, m_chainman), inputs,
+                                                              blockSubsidy, /*fJustCheck=*/false,
+                                                              /*fCheckCbTxMerkleRoots=*/false, state, mnlist_updates)) {
         LogError("RollforwardBlock(DASH): ProcessSpecialTxsInBlock for block %s failed with %s\n",
             pindex->GetBlockHash().ToString(), state.ToString());
         return false;
@@ -6788,6 +6792,14 @@ bool IsBIP30Unspendable(const CBlockIndex& block_index)
 {
     // Dash blockchain does not have any BIP30 violations
     return false;
+}
+
+SpecialTxRules GetSpecialTxRules(const CBlockIndex* pindexPrev, const ChainstateManager& chainman)
+{
+    return SpecialTxRules{
+        .v24 = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24),
+        .evo_shares = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_EVO_SHARES),
+    };
 }
 
 [[nodiscard]] uint16_t DeploymentToProtxVersion(gsl::not_null<const CBlockIndex*> pindexPrev,

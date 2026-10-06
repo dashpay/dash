@@ -45,9 +45,14 @@ void CEHFSignalsHandler::UpdatedBlockTip(const CBlockIndex* const pindexNew)
 
     const auto ehfSignals = m_chainman.ActiveChainstate().ChainHelper().ehf_manager->GetSignalsStage(pindexNew);
     const int64_t time_past = pindexNew->GetMedianTimePast();
-    for (const auto& deployment : Params().GetConsensus().vDeployments) {
+    for (int i = 0; i < Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
+        const auto pos{static_cast<Consensus::DeploymentPos>(i)};
+        const auto& deployment{Params().GetConsensus().vDeployments[pos]};
         // Skip deployments that do not use dip0023
         if (!deployment.useEHF) continue;
+        // v24 follows evo_shares without signing it; a later release signs it once Platform supports
+        // EvoNode shares and payouts
+        if (pos == Consensus::DEPLOYMENT_EVO_SHARES) continue;
         // IsValidMNActivation() is permissive for validation (it accepts bits of NEVER_ACTIVE deployments
         // and bits outside of any window), so only sign inside the deployment's own start/timeout window
         if (!IsSignalWindowOpen(deployment, time_past)) continue;

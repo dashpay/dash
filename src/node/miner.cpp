@@ -378,8 +378,7 @@ bool BlockAssembler::TestPackage(uint64_t packageSize, unsigned int packageSigOp
 // - safe TXs in regard to ChainLocks
 bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& package) const
 {
-    const bool is_v24_active{
-        DeploymentActiveAfter(m_chainstate.m_chain.Tip(), m_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
+    const SpecialTxRules special_tx_rules{GetSpecialTxRules(m_chainstate.m_chain.Tip(), m_chainstate.m_chainman)};
     for (CTxMemPool::txiter it : package) {
         if (!IsFinalTx(it->GetTx(), nHeight, m_lock_time_cutoff)) {
             return false;
@@ -396,7 +395,7 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
         // signature regardless, which is cheap enough here given how rare MNHF signals are.
         if (it->GetTx().IsSpecialTxVersion()) {
             TxValidationState tx_state;
-            if (!m_chain_helper.special_tx->CheckSpecialTx(it->GetTx(), m_chainstate.m_chain.Tip(), is_v24_active,
+            if (!m_chain_helper.special_tx->CheckSpecialTx(it->GetTx(), m_chainstate.m_chain.Tip(), special_tx_rules,
                                                            m_chainstate.CoinsTip(), /*check_sigs=*/false, tx_state)) {
                 return false;
             }
@@ -406,8 +405,7 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
         // normal transaction creating or spending a template output can sit in the mempool across
         // v24 activation on a node accepting nonstandard transactions, and would poison every
         // template through the same TestBlockValidity path described above.
-        if (DeploymentActiveAfter(m_chainstate.m_chain.Tip(), m_chainstate.m_chainman,
-                                  Consensus::DEPLOYMENT_V24)) {
+        if (special_tx_rules.v24) {
             TxValidationState tx_state;
             if (!CheckSharedCollateralSpends(it->GetTx(), m_chainstate.CoinsTip(), tx_state) ||
                 !CheckSharedCollateralTemplateOutputs(it->GetTx(), tx_state)) {
@@ -511,7 +509,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
 
     // This map with signals is used only to find duplicates
     auto signals = m_chain_helper.ehf_manager->GetSignalsStage(pindexPrev);
-    const bool is_v24_active{DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
+    const SpecialTxRules special_tx_rules{GetSpecialTxRules(pindexPrev, m_chainstate.m_chainman)};
 
     // mapModifiedTx will store sorted packages after they are modified
     // because some of their txs are already in the block
@@ -651,7 +649,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 // producing an invalid template.
                 if (IsAssetUnlockWithStableTxid(tx)) {
                     TxValidationState state;
-                    if (!m_chain_helper.special_tx->CheckSpecialTx(tx, m_chainstate.m_chain.Tip(), is_v24_active,
+                    if (!m_chain_helper.special_tx->CheckSpecialTx(tx, m_chainstate.m_chain.Tip(), special_tx_rules,
                                                                    m_chainstate.CoinsTip(), /*check_sigs=*/true, state)) {
                         LogPrintf("%s: package tx %s skipped, asset unlock instance not currently minable: %s\n", __func__,
                                   tx.GetHash().ToString(), state.ToString());
