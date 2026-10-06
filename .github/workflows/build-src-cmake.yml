@@ -1,0 +1,141 @@
+name: Build source (CMake)
+
+on:
+  workflow_call:
+    inputs:
+      build-target:
+        description: "Target name as defined by inputs.sh"
+        required: true
+        type: string
+      container-path:
+        description: "Path to built container at registry"
+        required: true
+        type: string
+      depends-key:
+        description: "Key needed to access cached depends"
+        required: true
+        type: string
+      depends-host:
+        description: "Host triplet from depends build"
+        required: true
+        type: string
+      depends-dep-opts:
+        description: "DEP_OPTS used to build depends"
+        required: false
+        type: string
+        default: ""
+      depends-artifact:
+        description: "Artifact holding freshly built depends, used if the cache restore misses"
+        required: false
+        type: string
+        default: ""
+      runs-on:
+        description: "Runner label to use (e.g., ubuntu-24.04 or ubuntu-24.04-arm)"
+        required: true
+        type: string
+
+# Builds the tree with CMake on top of the depends prefix produced for the
+# Autotools jobs, which is what makes this a full-stack check: depends emits
+# toolchain.cmake, CMake consumes it, and the unit tests run against the
+# result, followed by a short functional smoke list. The full functional suite
+# stays with the Autotools jobs, so this job does not bundle artifacts.
+jobs:
+  build-src-cmake:
+    name: Build source (CMake)
+    runs-on: ${{ inputs.runs-on }}
+    container:
+      image: ${{ inputs.container-path }}
+      options: --user root
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
+          fetch-depth: 50
+
+      - name: Initial setup
+        run: |
+          git config --global --add safe.directory "$PWD"
+        shell: bash
+
+      - name: Restore depends cache
+        id: depends-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: depends/built/${{ inputs.depends-host }}
+          key: ${{ inputs.depends-key }}
+
+      - name: Download built depends
+        # Same-run handoff from build-depends.yml: pull_request_target runs
+        # have read-only cache tokens (GitHub change, June 2026), so freshly
+        # built depends arrive as an artifact instead of a cache entry. Also
+        # covers trusted runs whose cache save was denied (save only warns).
+        if: steps.depends-cache.outputs.cache-hit != 'true' && inputs.depends-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.depends-artifact }}
+          path: depends/built/${{ inputs.depends-host }}
+
+      - name: Check built depends are present
+        if: steps.depends-cache.outputs.cache-hit != 'true' && inputs.depends-artifact == ''
+        run: |
+          echo "::error::Depends cache restore missed and no built depends artifact was provided"
+          exit 1
+        shell: bash
+
+      - name: Rebuild depends prefix
+        run: |
+          # Use the HOST and DEP_OPTS from the depends build, not this build-target
+          # This ensures the build_id matches the cached packages, and it is what
+          # writes depends/${HOST}/toolchain.cmake.
+          make -j$(nproc) -C depends HOST="${{ inputs.depends-host }}" ${{ inputs.depends-dep-opts }}
+        shell: bash
+
+      - name: Restore ccache cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            /cache/ccache
+          key: ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-
+
+      - name: Build source
+        run: |
+          CCACHE_MAXSIZE="600M"
+          CACHE_DIR="/cache"
+          mkdir /output
+          BASE_OUTDIR="/output"
+          BUILD_TARGET="${{ inputs.build-target }}"
+          source ./ci/dash/matrix.sh
+          ./ci/dash/build_src_cmake.sh
+          ccache -X 9
+          ccache -c
+          du -hd0 "${BASE_OUTDIR}"
+        shell: bash
+
+      - name: Save ccache cache
+        if: |
+          github.event_name == 'push' &&
+          github.ref_name == github.event.repository.default_branch
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            /cache/ccache
+          key: ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
+
+      - name: Run unit tests
+        run: |
+          BUILD_TARGET="${{ inputs.build-target }}"
+          source ./ci/dash/matrix.sh
+          ./ci/dash/test_unittests_cmake.sh
+        shell: bash
+
+      - name: Run functional smoke tests
+        run: |
+          BUILD_TARGET="${{ inputs.build-target }}"
+          source ./ci/dash/matrix.sh
+          ./ci/dash/test_integrationtests_cmake.sh
+        shell: bash
