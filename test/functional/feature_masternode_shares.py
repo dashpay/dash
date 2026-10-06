@@ -1198,6 +1198,10 @@ class MasternodeSharesTest(DashTestFramework):
             assert_equal(node.protx("info", protx_hash4, node.getbestblockhash())["state"], state_at_snapshot)
 
         self.log.info("A reorg across a dissolution restores the masternode and its shares")
+        registrar_fee, share_fee = node.getnewaddress(), node.getnewaddress()
+        node.sendmany("", {registrar_fee: 1, share_fee: 1})
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
         info_before_dissolve = node.protx("info", protx_hash4)
         dissolve_txid4 = node.protx("shared_dissolve", protx_hash4, 0, DISSOLVE_FEE)
         self.bump_mocktime(10 * 60 + 1)
@@ -1210,9 +1214,18 @@ class MasternodeSharesTest(DashTestFramework):
         # the disconnected dissolution returns to the mempool: the restored masternode makes it
         # valid again, so it is not lost by the reorg
         assert dissolve_txid4 in node.getrawmempool()
+        # the restored masternode can be updated again, but the dissolution block was mined without
+        # these updates: once it is reconnected they can never be mined and must not stay behind
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash4, "", node.getnewaddress(), registrar_fee)
+        registrar_sigs = node.protx("shared_sign", prepared["tx"])["signatures"]
+        registrar = node.protx("shared_combine", prepared["tx"], registrar_sigs)
+        pending_txids = {node.sendrawtransaction(registrar),
+                         node.protx("shared_update_share", protx_hash4, 0, node.getnewaddress(), share_fee)}
+        assert pending_txids.issubset(node.getrawmempool())
         node.reconsiderblock(dissolve_block)
         assert_raises_rpc_error(None, None, node.protx, "info", protx_hash4)
         assert dissolve_txid4 not in node.getrawmempool()
+        assert pending_txids.isdisjoint(node.getrawmempool())
         assert_equal(node.masternodelist(), {})
 
         self.log.info("Every participant's principal was refunded by the dissolutions")

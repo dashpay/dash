@@ -1340,7 +1340,7 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     CKey ownerKey;
     CBLSSecretKey operatorKey;
     // Only the resulting proTxHash matters here; the registration never has to be mined because
-    // none of the paths under test consult the masternode list for a ProUpServ payload.
+    // a pending ProUpServ of a masternode missing from the list is evicted by any operator key change.
     auto tx_reg = CreateProRegTx(chainman, utxos, 1, scriptPayout, setup.coinbaseKey, ownerKey, operatorKey);
     const uint256 proTxHash = tx_reg.GetHash();
 
@@ -1536,6 +1536,43 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
         std::vector<CTransactionRef> connected{MakeTransactionRef(CMutableTransaction()),
                                                MakeTransactionRef(tx_reg_replace)};
         testPool.removeForBlock(connected, tip_height() + 1);
+        BOOST_CHECK_EQUAL(testPool.size(), 0U);
+    }
+
+    // The replacement is not the only confirmed transaction that can leave updates of the MN
+    // unmineable: so does a ProUpReg changing the operator key, and a spend of the collateral.
+    auto tx_up_reg = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey.GetPublicKey(),
+                                      ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
+    auto tx_up_reg_new_key = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey2.GetPublicKey(),
+                                              ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
+    auto tx_up_rev = CreateProUpRevTx(chainman, utxos, proTxHash, operatorKey, setup.coinbaseKey);
+
+    CMutableTransaction tx_spend_other;
+    tx_spend_other.vin.emplace_back(COutPoint(tx_collateral.GetHash(), collateralOutpoint.n + 1));
+    tx_spend_other.vout.emplace_back(0, CScript() << OP_RETURN);
+
+    CMutableTransaction tx_spend_collateral;
+    tx_spend_collateral.vin.emplace_back(collateralOutpoint);
+    tx_spend_collateral.vout.emplace_back(0, CScript() << OP_RETURN);
+
+    {
+        LOCK2(cs_main, testPool.cs);
+        // ProUpServ and ProUpRev are signed by the operator key, so they stay valid across a
+        // confirmed ProUpReg that keeps it, and across a spend of anything but the collateral.
+        testPool.addUnchecked(entry.FromTx(tx_up_serv));
+        testPool.addUnchecked(entry.FromTx(tx_up_rev));
+        testPool.removeForBlock({MakeTransactionRef(tx_up_reg), MakeTransactionRef(tx_spend_other)}, tip_height() + 1);
+        BOOST_CHECK_EQUAL(testPool.size(), 2U);
+
+        testPool.removeForBlock({MakeTransactionRef(tx_up_reg_new_key)}, tip_height() + 1);
+        BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+        // Spending the collateral removes the MN, and no update of any kind can be mined after that.
+        testPool.addUnchecked(entry.FromTx(tx_up_serv));
+        testPool.addUnchecked(entry.FromTx(tx_up_reg));
+        testPool.addUnchecked(entry.FromTx(tx_up_rev));
+        BOOST_CHECK_EQUAL(testPool.size(), 3U);
+        testPool.removeForBlock({MakeTransactionRef(tx_spend_collateral)}, tip_height() + 1);
         BOOST_CHECK_EQUAL(testPool.size(), 0U);
     }
 }
