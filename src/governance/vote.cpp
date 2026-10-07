@@ -243,12 +243,15 @@ bool CGovernanceVote::IsValid(const CDeterministicMNList& tip_mn_list, bool useV
     }
 }
 
-bool CGovernanceVote::IsValidForUnknownParent(const CDeterministicMNList& tip_mn_list) const
+bool CGovernanceVote::IsValidForUnknownParent(const CDeterministicMNList& tip_mn_list, bool* use_voting_key) const
 {
     if (nVoteSignal == VOTE_SIGNAL_FUNDING && IsValid(tip_mn_list, /*useVotingKey=*/true)) {
+        if (use_voting_key) *use_voting_key = true;
         return true;
     }
-    return IsValid(tip_mn_list, /*useVotingKey=*/false);
+    if (!IsValid(tip_mn_list, /*useVotingKey=*/false)) return false;
+    if (use_voting_key) *use_voting_key = false;
+    return true;
 }
 
 

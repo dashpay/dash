@@ -145,6 +145,7 @@ public:
     }
 
     void SetSignature(const std::vector<unsigned char>& vchSigIn) { vchSig = vchSigIn; }
+    size_t GetSignatureSize() const { return vchSig.size(); }
 
     bool CheckSignature(const CKeyID& keyID) const;
     bool CheckSignature(const CBLSPublicKey& pubKey) const;
@@ -156,8 +157,9 @@ public:
      * in CGovernanceObject::ProcessVote); every other signal requires the operator
      * key for every object type, and a funding vote on a non-proposal will be
      * re-checked against the operator-key requirement when its parent arrives.
+     * On success, use_voting_key reports which current key authenticated the vote.
      */
-    bool IsValidForUnknownParent(const CDeterministicMNList& tip_mn_list) const;
+    bool IsValidForUnknownParent(const CDeterministicMNList& tip_mn_list, bool* use_voting_key = nullptr) const;
 
     /** The memoised verdict for this key, or nullopt if the next CheckSignature
      *  with it would have to run the cryptography. */
