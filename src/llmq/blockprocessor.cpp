@@ -274,7 +274,10 @@ bool CQuorumBlockProcessor::ProcessBlock(Chainstate& chainstate, const CBlock& b
                          pindex->nHeight, qc.quorumHash.ToString());
                 return false;
             }
-            qc.VerifySignatureAsync({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, &queue_control);
+            if (!qc.VerifySignatureAsync({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, &queue_control) &&
+                DeploymentActiveAt(*pindex, m_chainman, Consensus::DEPLOYMENT_COMMITMENT_AUTH)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-invalid");
+            }
         }
 
         if (!queue_control.Wait()) {
