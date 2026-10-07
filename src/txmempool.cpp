@@ -996,6 +996,13 @@ void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CKeyID
             removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
         }
     }
+    // Owner key IDs and Platform node IDs share one uniqueness namespace in the masternode list
+    if (mapProTxPlatformNodeIDs.count(keyId)) {
+        uint256 conflictHash = mapProTxPlatformNodeIDs[keyId];
+        if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
+            removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
+    }
 }
 
 void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CBLSLazyPublicKey &pubKey)
@@ -1012,6 +1019,13 @@ void CTxMemPool::removeProTxPlatformNodeIDConflicts(const CTransaction &tx, cons
 {
     if (mapProTxPlatformNodeIDs.count(platformNodeID)) {
         uint256 conflictHash = mapProTxPlatformNodeIDs[platformNodeID];
+        if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
+            removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
+        }
+    }
+    // Owner key IDs and Platform node IDs share one uniqueness namespace in the masternode list
+    if (mapProTxPubKeyIDs.count(CKeyID{platformNodeID})) {
+        uint256 conflictHash = mapProTxPubKeyIDs[CKeyID{platformNodeID}];
         if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
             removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
         }
@@ -1590,6 +1604,12 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         return false;
     };
 
+    // Owner key IDs and Platform node IDs share one uniqueness namespace in the masternode list
+    auto isOwnerOrPlatformNodeIDClaimed = [&](const uint160& id) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+        AssertLockHeld(cs);
+        return mapProTxPubKeyIDs.count(CKeyID{id}) || mapProTxPlatformNodeIDs.count(id);
+    };
+
     const uint256 tx_hash{tx.GetHash()};
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
         const auto opt_proTx = GetTxPayload<CProRegTx>(tx);
@@ -1607,17 +1627,17 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             // share owner keys occupy the same conflict namespace as keyIDOwner, in both
             // directions between pending shared and non-shared registrations
             for (const auto& share : proTx.shares) {
-                if (mapProTxPubKeyIDs.count(share.keyIDOwner)) {
+                if (isOwnerOrPlatformNodeIDClaimed(share.keyIDOwner)) {
                     return true;
                 }
             }
             if (mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
                 return true;
             }
-        } else if (mapProTxPubKeyIDs.count(proTx.keyIDOwner) || mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
+        } else if (isOwnerOrPlatformNodeIDClaimed(proTx.keyIDOwner) || mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
             return true;
         }
-        if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull() && mapProTxPlatformNodeIDs.count(proTx.platformNodeID)) {
+        if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull() && isOwnerOrPlatformNodeIDClaimed(proTx.platformNodeID)) {
             return true;
         }
         if (!proTx.collateralOutpoint.hash.IsNull()) {
@@ -1654,6 +1674,9 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         if (opt_proTx->nType == MnType::Evo && !opt_proTx->platformNodeID.IsNull()) {
             auto it = mapProTxPlatformNodeIDs.find(opt_proTx->platformNodeID);
             if (it != mapProTxPlatformNodeIDs.end() && it->second != opt_proTx->proTxHash) {
+                return true;
+            }
+            if (mapProTxPubKeyIDs.count(CKeyID{opt_proTx->platformNodeID})) {
                 return true;
             }
         }
