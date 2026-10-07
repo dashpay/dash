@@ -181,7 +181,7 @@ static RPCHelpMan masternode_status()
             RPCResult::Type::OBJ, "", "",
             {
                 GetRpcResult("outpoint"),
-                GetRpcResult("service", /*optional=*/true),
+                {RPCResult::Type::STR, "service", "IP address and port of this masternode"},
                 GetRpcResult("proTxHash", /*optional=*/true),
                 GetRpcResult("type_str", /*optional=*/true, /*override_name=*/"type"),
                 GetRpcResult("collateralHash", /*optional=*/true),
