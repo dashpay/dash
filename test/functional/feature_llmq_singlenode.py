@@ -11,12 +11,24 @@ This functional test is similar to feature_llmq_signing.py but difference are bi
 
 '''
 
+from io import BytesIO
+
 from test_framework.authproxy import JSONRPCException
+from test_framework.messages import (
+    CBlock,
+    CCbTx,
+    CFinalCommitmentPayload,
+    from_hex,
+    hash256,
+    msg_getmnlistd,
+)
+from test_framework.p2p import P2PInterface
 from test_framework.test_framework import (
     DashTestFramework,
     MasternodeInfo,
 )
 from test_framework.util import (
+    assert_equal,
     assert_raises_rpc_error,
     assert_greater_than,
     wait_until_helper,
@@ -29,6 +41,22 @@ msgHashConflict = "0000000000000000000000000000000000000000000000000000000000000
 
 
 q_type=100
+
+class TestP2PConn(P2PInterface):
+    def __init__(self):
+        super().__init__()
+        self.last_mnlistdiff = None
+
+    def on_mnlistdiff(self, message):
+        self.last_mnlistdiff = message
+
+    def getmnlistdiff(self, baseBlockHash, blockHash):
+        self.last_mnlistdiff = None
+        self.send_message(msg_getmnlistd(baseBlockHash, blockHash))
+        self.wait_until(lambda: self.last_mnlistdiff is not None)
+        return self.last_mnlistdiff
+
+
 class LLMQSigningTest(DashTestFramework):
     def add_options(self, parser):
         self.add_wallet_options(parser)
@@ -168,6 +196,83 @@ class LLMQSigningTest(DashTestFramework):
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         self.log.info(f"InstantSend lock on tx: {txid} is expecting")
         self.wait_for_instantlock(txid)
+
+        self.test_mined_commitment_member_signature()
+
+    def sign_with_quorum(self, quorum_hash, sign_id, sign_msg):
+        # Only the quorum's single member signs
+        signed = [mn.get_node(self).quorum("sign", q_type, sign_id, sign_msg, quorum_hash) for mn in self.mninfo]
+        assert_equal(signed.count(True), 1)
+        signer = self.mninfo[signed.index(True)].get_node(self)
+        self.wait_until(lambda: signer.quorum("hasrecsig", q_type, sign_id, sign_msg))
+        recsig = signer.quorum("getrecsig", q_type, sign_id, sign_msg)
+        assert_equal(recsig["quorumHash"], quorum_hash)
+        return bytes.fromhex(recsig["sig"])
+
+    # time_offset makes a block distinct from an earlier variant that is already marked invalid
+    def block_with_members_sig(self, block, active_hashes, quorum_hash, members_sig, time_offset):
+        block = from_hex(CBlock(), block.serialize().hex())
+        active_hashes = set(active_hashes)
+        for tx in block.vtx:
+            if tx.nType != 6:
+                continue
+            payload = CFinalCommitmentPayload()
+            payload.deserialize(BytesIO(tx.vExtraPayload))
+            if payload.commitment.llmqType != q_type or payload.commitment.quorumHash != int(quorum_hash, 16):
+                continue
+            active_hashes.remove(hash256(payload.commitment.serialize()))
+            payload.commitment.membersSig = members_sig
+            active_hashes.add(hash256(payload.commitment.serialize()))
+            tx.vExtraPayload = payload.serialize()
+            tx.rehash()
+        # Keep the coinbase consistent so that only the commitment signature can make the block invalid
+        cbtx = CCbTx()
+        cbtx.deserialize(BytesIO(block.vtx[0].vExtraPayload))
+        cbtx.merkleRootQuorums = CBlock.get_merkle_root(sorted(active_hashes))
+        block.vtx[0].vExtraPayload = cbtx.serialize()
+        block.vtx[0].rehash()
+        block.hashMerkleRoot = block.calc_merkle_root()
+        block.nTime += time_offset
+        block.solve()
+        return block
+
+    def check_mined_commitment(self, mined_hash, tip, block, expected):
+        node = self.nodes[0]
+        node.invalidateblock(mined_hash)
+        assert_equal(node.submitblock(block.serialize().hex()), expected)
+        if expected is None:
+            assert_equal(node.getbestblockhash(), block.hash)
+            node.invalidateblock(block.hash)
+        # The original block, with a valid membersSig, is accepted again
+        node.reconsiderblock(mined_hash)
+        assert_equal(node.getbestblockhash(), tip)
+
+    # Must stay last: it leaves node0 restarted without peers, with ChainLocks off and commitment_auth active
+    def test_mined_commitment_member_signature(self):
+        self.log.info("A mined single-member commitment whose membersSig signs another message")
+        node = self.nodes[0]
+        test_node = node.add_p2p_connection(TestP2PConn())
+        # Keep a ChainLock from pinning the original block while it is swapped out
+        node.sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 4070908800)
+        self.wait_for_sporks_same()
+
+        quorum_hash = self.mine_quorum_single_member()
+        mined_hash = node.quorum("info", q_type, quorum_hash)["minedBlock"]
+        mined_block = from_hex(CBlock(), node.getblock(mined_hash, 0))
+        active_hashes = {hash256(qc.serialize()) for qc in test_node.getmnlistdiff(0, int(mined_hash, 16)).newQuorums}
+        # The member's operator key also signs this quorum's recovered signatures, so this is a valid
+        # signature by the right key over a different message
+        other_message_sig = self.sign_with_quorum(quorum_hash, "00" * 31 + "04", "00" * 31 + "05")
+        tip = node.getbestblockhash()
+
+        self.log.info("Accepted while commitment_auth is dormant")
+        self.check_mined_commitment(mined_hash, tip, self.block_with_members_sig(
+            mined_block, active_hashes, quorum_hash, other_message_sig, 0), None)
+
+        self.log.info("Rejected once commitment_auth is active")
+        self.restart_node(0, extra_args=self.extra_args[0] + ["-vbparams=commitment_auth:-1:9223372036854775807"])
+        self.check_mined_commitment(mined_hash, tip, self.block_with_members_sig(
+            mined_block, active_hashes, quorum_hash, other_message_sig, 1), "bad-qc-invalid")
 
 
 if __name__ == '__main__':
