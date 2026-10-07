@@ -233,6 +233,9 @@ public:
         return result;
     }
 
+    /** Sync committed records without committing any current/root overlay. */
+    bool Sync() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
     bool CommitRootTransaction(EvoDbIdentity identity = EvoDbIdentity::NORMAL, bool sync = false)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs);
 

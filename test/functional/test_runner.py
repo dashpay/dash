@@ -153,6 +153,7 @@ BASE_SCRIPTS = [
     'p2p_tx_download.py',
     'wallet_avoidreuse.py --legacy-wallet',
     'wallet_avoidreuse.py --descriptors',
+    'feature_creditpool_pruning.py',
     'feature_abortnode.py',
     'wallet_basic.py --legacy-wallet',
     'wallet_basic.py --descriptors',
