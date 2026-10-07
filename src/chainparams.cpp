@@ -218,6 +218,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
 
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].bit = 18;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
+
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE; // TODO: same as DEPLOYMENT_V24
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT; // TODO: same as DEPLOYMENT_V24
@@ -427,6 +430,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
 
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].bit = 18;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
+
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = 1790208000;     // Thursday, September 24, 2026 0:00:00
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
@@ -608,6 +614,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nThresholdMin = 72;         // 60% of 120
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].bit = 18;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = 1751328000;    // July 1, 2025
@@ -852,6 +861,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nThresholdMin = 250 / 5 * 3;       // 60% of window size
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;                 // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].bit = 18;
+        consensus.vDeployments[Consensus::DEPLOYMENT_SIGNATURE_WORK].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = 0;

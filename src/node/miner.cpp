@@ -333,7 +333,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
     pblocktemplate->nPrevBits = pindexPrev->nBits;
-    pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(*pblock->vtx[0]);
+    pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(*pblock->vtx[0],
+                                                       DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman,
+                                                                             Consensus::DEPLOYMENT_SIGNATURE_WORK));
 
     BlockValidationState state;
     if (m_options.test_block_validity && !TestBlockValidity(state, m_chainlocks, m_evoDb, chainparams, m_chainstate, *pblock, pindexPrev, /*fCheckPOW=*/false, /*fCheckMerkleRoot=*/false)) {
