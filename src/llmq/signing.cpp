@@ -15,12 +15,19 @@
 #include <util/system.h>
 
 #include <algorithm>
+#include <optional>
 #include <ranges>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace llmq
 {
+namespace {
+// Cleanup holds cs_cache, which lookups under cs_main wait on, so each pass examines a bounded
+// number of index entries. Expiry indexes erase every examined entry; the next pass resumes there.
+constexpr size_t MAX_CLEANUP_ENTRIES{1000};
+} // namespace
+
 CRecoveredSigsDb::CRecoveredSigsDb(const util::DbWrapperParams& db_params) :
     db{util::MakeDbWrapper({db_params.path / "llmq" / "recsigdb", db_params.memory, db_params.wipe, /*cache_size=*/8 << 20})}
 {
@@ -41,55 +48,46 @@ bool CRecoveredSigsDb::HasRecoveredSig(Consensus::LLMQType llmqType, const uint2
 bool CRecoveredSigsDb::HasRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id) const
 {
     auto cacheKey = std::make_pair(llmqType, id);
+    LOCK(cs_cache);
     bool ret;
-    {
-        LOCK(cs_cache);
-        if (hasSigForIdCache.get(cacheKey, ret)) {
-            return ret;
-        }
+    if (hasSigForIdCache.get(cacheKey, ret)) {
+        return ret;
     }
 
 
     auto k = std::make_tuple(std::string("rs_r"), llmqType, id);
     ret = db->Exists(k);
 
-    LOCK(cs_cache);
     hasSigForIdCache.insert(cacheKey, ret);
     return ret;
 }
 
 bool CRecoveredSigsDb::HasRecoveredSigForSession(const uint256& signHash) const
 {
+    LOCK(cs_cache);
     bool ret;
-    {
-        LOCK(cs_cache);
-        if (hasSigForSessionCache.get(signHash, ret)) {
-            return ret;
-        }
+    if (hasSigForSessionCache.get(signHash, ret)) {
+        return ret;
     }
 
     auto k = std::make_tuple(std::string("rs_s"), signHash);
     ret = db->Exists(k);
 
-    LOCK(cs_cache);
     hasSigForSessionCache.insert(signHash, ret);
     return ret;
 }
 
 bool CRecoveredSigsDb::HasRecoveredSigForHash(const uint256& hash) const
 {
+    LOCK(cs_cache);
     bool ret;
-    {
-        LOCK(cs_cache);
-        if (hasSigForHashCache.get(hash, ret)) {
-            return ret;
-        }
+    if (hasSigForHashCache.get(hash, ret)) {
+        return ret;
     }
 
     auto k = std::make_tuple(std::string("rs_h"), hash);
     ret = db->Exists(k);
 
-    LOCK(cs_cache);
     hasSigForHashCache.insert(hash, ret);
     return ret;
 }
@@ -145,6 +143,7 @@ bool CRecoveredSigsDb::GetRecoveredSig(Consensus::LLMQType llmqType, const uint2
 
 void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
 {
+    LOCK(cs_cache);
     CDBBatch batch(*db);
 
     uint32_t curTime = GetTime<std::chrono::seconds>().count();
@@ -166,61 +165,34 @@ void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
 
     // store by object hash
     auto k3 = std::make_tuple(std::string("rs_h"), recSig.GetHash());
-    batch.Write(k3, std::make_pair(recSig.getLlmqType(), recSig.getId()));
+    batch.Write(k3, std::make_tuple(recSig.getLlmqType(), recSig.getId(), curTime));
 
     // store by signHash
     auto signHash = recSig.buildSignHash();
     auto k4 = std::make_tuple(std::string("rs_s"), signHash.Get());
-    batch.Write(k4, static_cast<uint8_t>(1));
+    batch.Write(k4, curTime);
+    for (const auto& [prefix, hash] :
+         {std::make_pair(std::string("rs_h"), recSig.GetHash()), std::make_pair(std::string("rs_s"), signHash.Get())}) {
+        batch.Write(std::make_tuple(std::string("rs_e"), htobe32_internal(curTime), prefix, hash), uint8_t{1});
+    }
 
     db->WriteBatch(batch);
 
-    {
-        LOCK(cs_cache);
-        if (recSig.getLlmqType() != Params().GetConsensus().llmqTypePlatform) {
-            hasSigForIdCache.insert(std::make_pair(recSig.getLlmqType(), recSig.getId()), true);
-        }
-        hasSigForSessionCache.insert(signHash.Get(), true);
-        hasSigForHashCache.insert(recSig.GetHash(), true);
+    if (recSig.getLlmqType() != Params().GetConsensus().llmqTypePlatform) {
+        hasSigForIdCache.insert(std::make_pair(recSig.getLlmqType(), recSig.getId()), true);
     }
+    hasSigForSessionCache.insert(signHash.Get(), true);
+    hasSigForHashCache.insert(recSig.GetHash(), true);
 }
 
-void CRecoveredSigsDb::RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id, bool deleteHashKey, bool deleteTimeKey)
+void CRecoveredSigsDb::RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id)
 {
+    AssertLockHeld(cs_cache);
     CRecoveredSig recSig;
-    if (!ReadRecoveredSig(llmqType, id, recSig)) {
-        return;
-    }
-
-    auto signHash = recSig.buildSignHash();
-
-    auto k1 = std::make_tuple(std::string("rs_r"), recSig.getLlmqType(), recSig.getId());
-    auto k2 = std::make_tuple(std::string("rs_r"), recSig.getLlmqType(), recSig.getId(), recSig.getMsgHash());
-    auto k3 = std::make_tuple(std::string("rs_h"), recSig.GetHash());
-    auto k4 = std::make_tuple(std::string("rs_s"), signHash.Get());
-    batch.Erase(k1);
-    batch.Erase(k2);
-    if (deleteHashKey) {
-        batch.Erase(k3);
-        batch.Erase(k4);
-    }
-
-    if (deleteTimeKey) {
-        CDataStream writeTimeDs(SER_DISK, CLIENT_VERSION);
-        if (db->ReadDataStream(k2, writeTimeDs)) {
-            uint32_t writeTime;
-            writeTimeDs >> writeTime;
-            auto k5 = std::make_tuple(std::string("rs_t"), htobe32_internal(writeTime), recSig.getLlmqType(), recSig.getId());
-            batch.Erase(k5);
-        }
-    }
-
-    LOCK(cs_cache);
-    hasSigForIdCache.erase(std::make_pair(recSig.getLlmqType(), recSig.getId()));
-    if (deleteHashKey) {
-        hasSigForSessionCache.erase(signHash.Get());
-        hasSigForHashCache.erase(recSig.GetHash());
-    }
+    if (!ReadRecoveredSig(llmqType, id, recSig)) return;
+    batch.Erase(std::make_tuple(std::string("rs_r"), llmqType, id));
+    batch.Erase(std::make_tuple(std::string("rs_r"), llmqType, id, recSig.getMsgHash()));
+    hasSigForIdCache.erase(std::make_pair(llmqType, id));
 }
 
 // Remove the recovered sig itself and all keys required to get from id -> recSig
@@ -228,8 +200,9 @@ void CRecoveredSigsDb::RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType l
 // late-share filtering still returns true
 void CRecoveredSigsDb::TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
 {
+    LOCK(cs_cache);
     CDBBatch batch(*db);
-    RemoveRecoveredSig(batch, llmqType, id, false, false);
+    RemoveRecoveredSig(batch, llmqType, id);
     db->WriteBatch(batch);
 }
 
@@ -239,20 +212,119 @@ void CRecoveredSigsDb::CleanupOldPlatformSigs(int64_t maxAge)
     auto start = std::make_tuple(std::string("rs_u"), uint32_t{0}, uint256{});
     const auto end_time = static_cast<uint32_t>(GetTime<std::chrono::seconds>().count() - maxAge);
     CDBBatch batch(*db);
-    for (cursor->Seek(start); cursor->Valid(); cursor->Next()) {
+    cursor->Seek(start);
+    for (size_t examined{0}; examined < MAX_CLEANUP_ENTRIES && cursor->Valid(); ++examined, cursor->Next()) {
         decltype(start) key;
         if (!cursor->GetKey(key) || std::get<0>(key) != "rs_u" || be32toh_internal(std::get<1>(key)) >= end_time) break;
         const auto& hash = std::get<2>(key);
         CRecoveredSig rec_sig;
         if (db->Read(std::make_pair(std::string("rs_p"), hash), rec_sig)) {
-            const auto sign_hash = rec_sig.buildSignHash().Get();
             batch.Erase(std::make_pair(std::string("rs_p"), hash));
             batch.Erase(std::make_tuple(std::string("rs_m"), rec_sig.getLlmqType(), rec_sig.getId(), rec_sig.getMsgHash()));
-            batch.Erase(std::make_pair(std::string("rs_h"), hash));
-            batch.Erase(std::make_pair(std::string("rs_s"), sign_hash));
-            LOCK(cs_cache);
-            hasSigForHashCache.erase(hash);
-            hasSigForSessionCache.erase(sign_hash);
+        }
+        batch.Erase(key);
+        if (batch.SizeEstimate() >= (1 << 24)) {
+            db->WriteBatch(batch);
+            batch.Clear();
+        }
+    }
+    db->WriteBatch(batch);
+}
+
+namespace {
+struct RecoveredSigMarker {
+    std::pair<Consensus::LLMQType, uint256> owner{};
+    std::optional<uint32_t> time;
+};
+
+std::optional<RecoveredSigMarker> ReadRecoveredSigMarker(const CDBWrapper& db, const std::string& prefix, const uint256& hash)
+{
+    CDataStream value{SER_DISK, CLIENT_VERSION};
+    if (!db.ReadDataStream(std::make_pair(prefix, hash), value)) return std::nullopt;
+    RecoveredSigMarker marker;
+    try {
+        if (prefix == "rs_h") {
+            value >> marker.owner;
+            if (value.empty()) return marker;
+        } else if (prefix == "rs_s") {
+            if (value.size() == 1) {
+                uint8_t legacy;
+                value >> legacy;
+                return legacy == 1 ? std::optional{marker} : std::nullopt;
+            }
+        } else {
+            return std::nullopt;
+        }
+        if (value.size() != sizeof(uint32_t)) return std::nullopt;
+        uint32_t time;
+        value >> time;
+        marker.time = time;
+        return marker;
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+}
+} // namespace
+
+void CRecoveredSigsDb::MigrateLegacyMarkers(const std::string& prefix)
+{
+    AssertLockHeld(cs_cache);
+    const auto cursor_key = std::make_pair(std::string("rs_c"), prefix);
+    uint256 last;
+    const bool have_cursor = db->Read(cursor_key, last);
+    std::unique_ptr<CDBIterator> cursor{db->NewIterator()};
+    auto start = std::make_pair(prefix, last);
+    cursor->Seek(start);
+    if (have_cursor && cursor->Valid()) {
+        decltype(start) key;
+        if (cursor->GetKey(key) && key == start) cursor->Next();
+    }
+    CDBBatch batch(*db);
+    bool finished{false};
+    const uint32_t now = GetTime<std::chrono::seconds>().count();
+    for (size_t examined{0}; examined < MAX_CLEANUP_ENTRIES && cursor->Valid(); ++examined, cursor->Next()) {
+        decltype(start) key;
+        if (!cursor->GetKey(key) || key.first != prefix) {
+            finished = true;
+            break;
+        }
+        last = key.second;
+        const auto marker = ReadRecoveredSigMarker(*db, prefix, key.second);
+        if (!marker || marker->time) continue;
+        // Uncorrelated legacy session markers have no recoverable age; retain one grace interval.
+        if (prefix == "rs_h") {
+            batch.Write(key, std::make_tuple(marker->owner.first, marker->owner.second, now));
+        } else {
+            batch.Write(key, now);
+        }
+        batch.Write(std::make_tuple(std::string("rs_e"), htobe32_internal(now), prefix, key.second), uint8_t{1});
+    }
+    if (finished || !cursor->Valid()) {
+        batch.Erase(cursor_key);
+    } else {
+        batch.Write(cursor_key, last);
+    }
+    db->WriteBatch(batch);
+}
+
+void CRecoveredSigsDb::CleanupOldMarkers(int64_t maxAge)
+{
+    AssertLockHeld(cs_cache);
+    std::unique_ptr<CDBIterator> cursor{db->NewIterator()};
+    auto start = std::make_tuple(std::string("rs_e"), uint32_t{0}, std::string{}, uint256{});
+    const auto end_time = static_cast<uint32_t>(GetTime<std::chrono::seconds>().count() - maxAge);
+    CDBBatch batch(*db);
+    cursor->Seek(start);
+    for (size_t examined{0}; examined < MAX_CLEANUP_ENTRIES && cursor->Valid(); ++examined, cursor->Next()) {
+        decltype(start) key;
+        if (!cursor->GetKey(key) || std::get<0>(key) != "rs_e" || be32toh_internal(std::get<1>(key)) >= end_time) break;
+        const auto& prefix = std::get<2>(key);
+        const auto& hash = std::get<3>(key);
+        const auto marker = ReadRecoveredSigMarker(*db, prefix, hash);
+        if (marker && marker->time == be32toh_internal(std::get<1>(key))) {
+            batch.Erase(std::make_pair(prefix, hash));
+            if (prefix == "rs_h") hasSigForHashCache.erase(hash);
+            if (prefix == "rs_s") hasSigForSessionCache.erase(hash);
         }
         batch.Erase(key);
         if (batch.SizeEstimate() >= (1 << 24)) {
@@ -265,54 +337,39 @@ void CRecoveredSigsDb::CleanupOldPlatformSigs(int64_t maxAge)
 
 void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
 {
+    LOCK(cs_cache);
+    // Cycle the bounded scans so downgrade-written legacy values are adopted on re-upgrade too.
+    MigrateLegacyMarkers("rs_h");
+    MigrateLegacyMarkers("rs_s");
+    CleanupOldMarkers(maxAge);
     CleanupOldPlatformSigs(maxAge);
-    std::unique_ptr<CDBIterator> pcursor(db->NewIterator());
-
-    auto start = std::make_tuple(std::string("rs_t"), static_cast<uint32_t>(0), static_cast<Consensus::LLMQType>(0), uint256());
-    uint32_t endTime = static_cast<uint32_t>(GetTime<std::chrono::seconds>().count() - maxAge);
-    pcursor->Seek(start);
-
-    std::vector<std::pair<Consensus::LLMQType, uint256>> toDelete;
-    std::vector<decltype(start)> toDelete2;
-
-    while (pcursor->Valid()) {
-        decltype(start) k;
-
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_t") {
-            break;
-        }
-        if (be32toh_internal(std::get<1>(k)) >= endTime) {
-            break;
-        }
-
-        toDelete.emplace_back(std::get<2>(k), std::get<3>(k));
-        toDelete2.emplace_back(k);
-
-        pcursor->Next();
-    }
-    pcursor.reset();
-
-    if (toDelete.empty()) {
-        return;
-    }
-
+    std::unique_ptr<CDBIterator> cursor{db->NewIterator()};
+    auto start = std::make_tuple(std::string("rs_t"), uint32_t{0}, static_cast<Consensus::LLMQType>(0), uint256{});
+    const auto end_time = static_cast<uint32_t>(GetTime<std::chrono::seconds>().count() - maxAge);
     CDBBatch batch(*db);
-    for (const auto& e : toDelete) {
-        RemoveRecoveredSig(batch, e.first, e.second, true, false);
-
+    size_t removed{0};
+    cursor->Seek(start);
+    for (size_t examined{0}; examined < MAX_CLEANUP_ENTRIES && cursor->Valid(); ++examined, cursor->Next()) {
+        decltype(start) key;
+        if (!cursor->GetKey(key) || std::get<0>(key) != "rs_t" || be32toh_internal(std::get<1>(key)) >= end_time) break;
+        const auto type = std::get<2>(key);
+        const auto& id = std::get<3>(key);
+        CRecoveredSig rec_sig;
+        uint32_t write_time;
+        if (ReadRecoveredSig(type, id, rec_sig) &&
+            db->Read(std::make_tuple(std::string("rs_r"), type, id, rec_sig.getMsgHash()), write_time) &&
+            write_time == be32toh_internal(std::get<1>(key))) {
+            RemoveRecoveredSig(batch, type, id);
+            ++removed;
+        }
+        batch.Erase(key);
         if (batch.SizeEstimate() >= (1 << 24)) {
             db->WriteBatch(batch);
             batch.Clear();
         }
     }
-
-    for (const auto& e : toDelete2) {
-        batch.Erase(e);
-    }
-
     db->WriteBatch(batch);
-
-    LogPrint(BCLog::LLMQ, "CRecoveredSigsDb::%d -- deleted %d entries\n", __func__, toDelete.size());
+    LogPrint(BCLog::LLMQ, "CRecoveredSigsDb::%s -- deleted %d entries\n", __func__, removed);
 }
 
 bool CRecoveredSigsDb::HasVotedOnId(Consensus::LLMQType llmqType, const uint256& id) const
