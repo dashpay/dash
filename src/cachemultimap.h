@@ -132,6 +132,18 @@ public:
         return true;
     }
 
+    bool GetAll(const K& key, const V& lower, const V& upper, std::vector<V>& vecValues) const
+    {
+        const map_cit mit = mapIndex.find(key);
+        if (mit == mapIndex.end() || upper < lower) return false;
+        const it_map_t& mapIt = mit->second;
+        const auto range_end = mapIt.upper_bound(upper);
+        for (auto it = mapIt.lower_bound(lower); it != range_end; ++it) {
+            vecValues.push_back(it->second->value);
+        }
+        return true;
+    }
+
     void GetKeys(std::vector<K>& vecKeys)
     {
         for(map_cit it = mapIndex.begin(); it != mapIndex.end(); ++it) {
