@@ -669,6 +669,23 @@ void CCoinJoinServer::CheckTimeout()
         // closing the session form one atomic cutoff for late entries and signatures.
         if (!CCoinJoinServer::HasTimedOut()) return;
 
+        // CheckForCompleteQueue() and CheckPool() run before this method on the scheduler thread,
+        // but a final collateral, entry, or signature can arrive after their snapshots. The
+        // message-handling thread then skips its own CheckPool() if this scheduler tick still holds
+        // cs_check_pool. Give a session that can now advance priority over resetting it; the next
+        // scheduler tick will perform the transition, finalization, or commit.
+        // This mirrors the decisions CheckPool() makes for a timed-out session: an entry for every
+        // collateral is finalized (or, if a side is uncovered, reset with the participants told),
+        // and enough entries covering both sides are finalized without the stragglers.
+        const size_t entries{vecEntries.size()};
+        const bool can_advance{(nState == POOL_STATE_QUEUE && IsSessionReady()) ||
+                               (nState == POOL_STATE_ACCEPTING_ENTRIES &&
+                                (entries == m_session_collaterals.size() ||
+                                 (entries >= static_cast<size_t>(CoinJoin::GetMinPoolParticipants()) &&
+                                  GetMixSideCountsLocked().IsCovered()))) ||
+                               (nState == POOL_STATE_SIGNING && IsSignaturesComplete())};
+        if (can_advance) return;
+
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckTimeout -- %s timed out -- resetting\n",
                  (nState == POOL_STATE_SIGNING) ? "Signing" : "Session");
         collateral_to_charge = SelectCollateralToCharge();
