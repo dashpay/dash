@@ -299,6 +299,9 @@ G2Element PrivateKey::SignG2(
     const bool fLegacy) const
 {
     CheckKeyData();
+    if (fLegacy && len < BLS::MESSAGE_HASH_LEN) {
+        throw std::invalid_argument("Legacy message must contain at least 32 bytes");
+    }
 
     g2_t pt;
     g2_null(pt);

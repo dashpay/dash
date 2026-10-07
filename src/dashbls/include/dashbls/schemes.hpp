@@ -223,6 +223,8 @@ public:
 /**
  * This scheme reflects the Sign/Verify behaviour of older bls-signatures library versions (<0.1.29).
  */
+// Legacy signing and verification require at least 32 bytes and use only the first 32.
+// Signing rejects shorter messages with an exception; verification returns false.
 class LegacySchemeMPL final : public CoreMPL {
 
 public:

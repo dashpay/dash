@@ -9,7 +9,7 @@ use bls_dash_sys::{
 };
 
 // TODO Split into modules
-use crate::{private_key::PrivateKey, G1Element, G2Element};
+use crate::{private_key::PrivateKey, utils::c_err_to_result, BlsError, G1Element, G2Element};
 
 pub trait Scheme {
     fn as_mut_ptr(&self) -> *mut c_void;
@@ -130,16 +130,20 @@ impl Scheme for BasicSchemeMPL {
     }
 
     fn sign(&self, private_key: &PrivateKey, message: &[u8]) -> G2Element {
-        G2Element {
-            c_element: unsafe {
+        let c_element = c_err_to_result(|did_error| {
+            let result = unsafe {
                 CoreMPLSign(
                     self.scheme,
                     private_key.as_mut_ptr(),
                     message.as_ptr() as *const _,
                     message.len(),
                 )
-            },
-        }
+            };
+            *did_error = result.is_null();
+            result
+        })
+        .expect("Signing failed");
+        G2Element { c_element }
     }
 
     fn verify(&self, public_key: &G1Element, message: &[u8], signature: &G2Element) -> bool {
@@ -190,6 +194,32 @@ impl LegacySchemeMPL {
             scheme: unsafe { NewLegacySchemeMPL() },
         }
     }
+
+    /// Signs the first 32 bytes of a legacy message, rejecting shorter messages.
+    pub fn try_sign(
+        &self,
+        private_key: &PrivateKey,
+        message: &[u8],
+    ) -> Result<G2Element, BlsError> {
+        if message.len() < 32 {
+            return Err(BlsError {
+                msg: "Legacy message must contain at least 32 bytes".to_owned(),
+            });
+        }
+        let c_element = c_err_to_result(|did_error| {
+            let result = unsafe {
+                LegacySchemeMPLSign(
+                    self.scheme,
+                    private_key.as_mut_ptr(),
+                    message.as_ptr() as *const _,
+                    message.len(),
+                )
+            };
+            *did_error = result.is_null();
+            result
+        })?;
+        Ok(G2Element { c_element })
+    }
 }
 
 impl Scheme for LegacySchemeMPL {
@@ -197,17 +227,10 @@ impl Scheme for LegacySchemeMPL {
         self.scheme
     }
 
+    /// Panics if legacy signing fails. Use `try_sign` for a recoverable error.
     fn sign(&self, private_key: &PrivateKey, message: &[u8]) -> G2Element {
-        G2Element {
-            c_element: unsafe {
-                LegacySchemeMPLSign(
-                    self.scheme,
-                    private_key.as_mut_ptr(),
-                    message.as_ptr() as *const _,
-                    message.len(),
-                )
-            },
-        }
+        self.try_sign(private_key, message)
+            .expect("Legacy signing failed")
     }
 
     fn verify(&self, public_key: &G1Element, message: &[u8], signature: &G2Element) -> bool {
@@ -355,7 +378,7 @@ impl Drop for AugSchemeMPL {
 mod tests {
     use super::*;
 
-    fn verify_aggregate(scheme: impl Scheme) {
+    fn verify_aggregate(scheme: impl Scheme, message_repetitions: usize) {
         let seed1 = b"seedweedseedweedseedweedseedweed";
         let seed2 = b"weedseedweedseedweedseedweedseed";
         let seed3 = b"seedseedseedseedweedweedweedweed";
@@ -383,15 +406,15 @@ mod tests {
             .g1_element()
             .expect("unable to get public key");
 
-        let message_1 = b"ayya";
-        let message_2 = b"ayyb";
-        let message_3 = b"ayyc";
-        let message_4 = b"ayyd";
+        let message_1 = b"ayya".repeat(message_repetitions);
+        let message_2 = b"ayyb".repeat(message_repetitions);
+        let message_3 = b"ayyc".repeat(message_repetitions);
+        let message_4 = b"ayyd".repeat(message_repetitions);
 
-        let signature_1 = scheme.sign(&private_key_1, message_1);
-        let signature_2 = scheme.sign(&private_key_2, message_2);
-        let signature_3 = scheme.sign(&private_key_3, message_3);
-        let signature_4 = scheme.sign(&private_key_4, message_4);
+        let signature_1 = scheme.sign(&private_key_1, &message_1);
+        let signature_2 = scheme.sign(&private_key_2, &message_2);
+        let signature_3 = scheme.sign(&private_key_3, &message_3);
+        let signature_4 = scheme.sign(&private_key_4, &message_4);
 
         let signature_agg = scheme.aggregate_sigs([&signature_1, &signature_2, &signature_3]);
 
@@ -419,16 +442,95 @@ mod tests {
 
     #[test]
     fn verify_aggregate_aug() {
-        verify_aggregate(AugSchemeMPL::new());
+        verify_aggregate(AugSchemeMPL::new(), 1);
     }
 
     #[test]
     fn verify_aggregate_basic() {
-        verify_aggregate(BasicSchemeMPL::new());
+        verify_aggregate(BasicSchemeMPL::new(), 1);
     }
 
     #[test]
     fn verify_aggregate_legacy() {
-        verify_aggregate(LegacySchemeMPL::new());
+        verify_aggregate(LegacySchemeMPL::new(), 8);
+    }
+
+    #[test]
+    fn legacy_message_lengths() {
+        let scheme = LegacySchemeMPL::new();
+        let key1 = PrivateKey::key_gen(&scheme, &[1; 32]).unwrap();
+        let key2 = PrivateKey::key_gen(&scheme, &[2; 32]).unwrap();
+        let public1 = key1.g1_element().unwrap();
+        let public2 = key2.g1_element().unwrap();
+        let message1 = [0xAB; 64];
+        let message2 = [0xCD; 64];
+        let signature1 = scheme.try_sign(&key1, &message1[..32]).unwrap();
+        let signature2 = scheme.try_sign(&key2, &message2[..32]).unwrap();
+        let aggregate = scheme.aggregate_sigs([&signature1, &signature2]);
+
+        for length in 0..32 {
+            let short = &message1[..length];
+            assert!(scheme.try_sign(&key1, short).is_err());
+            assert!(std::panic::catch_unwind(|| scheme.sign(&key1, short)).is_err());
+            assert!(!scheme.verify(&public1, short, &signature1));
+            assert!(!scheme.aggregate_verify(
+                [&public1, &public2],
+                [short, &message2[..32]],
+                &aggregate
+            ));
+            assert!(!scheme.aggregate_verify(
+                [&public1, &public2],
+                [&message1[..32], &message2[..length]],
+                &aggregate
+            ));
+
+            // Both exported C signing paths must contain the native length exception.
+            for result in unsafe {
+                [
+                    LegacySchemeMPLSign(
+                        scheme.as_mut_ptr(),
+                        key1.as_mut_ptr(),
+                        message1.as_ptr() as *const _,
+                        length,
+                    ),
+                    CoreMPLSign(
+                        scheme.as_mut_ptr(),
+                        key1.as_mut_ptr(),
+                        message1.as_ptr() as *const _,
+                        length,
+                    ),
+                ]
+            } {
+                if !result.is_null() {
+                    unsafe { bls_dash_sys::G2ElementFree(result) };
+                }
+                assert!(result.is_null());
+            }
+        }
+
+        for length in [32, 33, 64] {
+            let message = &message1[..length];
+            assert_eq!(scheme.try_sign(&key1, message).unwrap(), signature1);
+            assert_eq!(scheme.sign(&key1, message), signature1);
+            assert!(scheme.verify(&public1, message, &signature1));
+            assert!(scheme.aggregate_verify(
+                [&public1, &public2],
+                [message, &message2[..length]],
+                &aggregate
+            ));
+            let result = unsafe {
+                CoreMPLSign(
+                    scheme.as_mut_ptr(),
+                    key1.as_mut_ptr(),
+                    message1.as_ptr() as *const _,
+                    length,
+                )
+            };
+            assert!(!result.is_null());
+            unsafe {
+                assert!(bls_dash_sys::G2ElementIsEqual(result, signature1.c_element));
+                bls_dash_sys::G2ElementFree(result);
+            }
+        }
     }
 }

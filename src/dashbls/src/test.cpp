@@ -1250,6 +1250,52 @@ TEST_CASE("Schemes") {
         REQUIRE(legacyScheme.VerifySecure(legacyPks, legacySecureAggSig, message));
     }
 
+    SECTION("Legacy message lengths") {
+        LegacySchemeMPL scheme;
+        const PrivateKey key1 = scheme.KeyGen(vector<uint8_t>(32, 1));
+        const PrivateKey key2 = scheme.KeyGen(vector<uint8_t>(32, 2));
+        const vector<G1Element> publicKeys{key1.GetG1Element(), key2.GetG1Element()};
+        vector<uint8_t> message1(64, 0xAB);
+        vector<uint8_t> message2(64, 0xCD);
+        const Bytes digest1(message1.data(), BLS::MESSAGE_HASH_LEN);
+        const Bytes digest2(message2.data(), BLS::MESSAGE_HASH_LEN);
+        const G2Element signature1 = scheme.Sign(key1, digest1);
+        const G2Element signature2 = scheme.Sign(key2, digest2);
+        const G2Element aggregate = signature1 + signature2;
+        const vector<G2Element> sameMessageSignatures{signature1, scheme.Sign(key2, digest1)};
+        const G2Element secureAggregate = scheme.AggregateSecure(publicKeys, sameMessageSignatures, digest1);
+        const G2Element mapped = G2Element::FromMessage(digest1, nullptr, 0, true);
+
+        for (size_t length = 0; length < BLS::MESSAGE_HASH_LEN; ++length) {
+            // The declared extent is short, with initialized storage for all 32 bytes.
+            const Bytes shortMessage(message1.data(), length);
+            REQUIRE_THROWS_AS(key1.SignG2(message1.data(), length, nullptr, 0, true), std::invalid_argument);
+            REQUIRE_THROWS_AS(G2Element::FromMessage(shortMessage, nullptr, 0, true), std::invalid_argument);
+            REQUIRE_THROWS_AS(scheme.Sign(key1, shortMessage), std::invalid_argument);
+            REQUIRE_FALSE(scheme.Verify(publicKeys[0], shortMessage, signature1));
+            REQUIRE_FALSE(scheme.VerifySecure(publicKeys, secureAggregate, shortMessage));
+            REQUIRE_FALSE(scheme.AggregateVerify(publicKeys, vector<Bytes>{shortMessage, digest2}, aggregate));
+            REQUIRE_FALSE(scheme.AggregateVerify(publicKeys, vector<Bytes>{digest1, Bytes(message2.data(), length)}, aggregate));
+        }
+
+        for (size_t length : {size_t{32}, size_t{33}, size_t{64}}) {
+            const Bytes longer1(message1.data(), length);
+            const Bytes longer2(message2.data(), length);
+            REQUIRE(scheme.Sign(key1, longer1) == signature1);
+            REQUIRE(key1.SignG2(message1.data(), length, nullptr, 0, true) == signature1);
+            REQUIRE(G2Element::FromMessage(longer1, nullptr, 0, true) == mapped);
+            REQUIRE(scheme.Verify(publicKeys[0], longer1, signature1));
+            REQUIRE(scheme.VerifySecure(publicKeys, secureAggregate, longer1));
+            REQUIRE(scheme.AggregateVerify(publicKeys, vector<Bytes>{longer1, longer2}, aggregate));
+        }
+        REQUIRE(scheme.AggregateSecure(publicKeys, sameMessageSignatures, Bytes(message1.data(), 0)) == secureAggregate);
+
+        BasicSchemeMPL basic;
+        const Bytes shortBasicMessage(message1.data(), 4);
+        const G2Element basicSignature = basic.Sign(key1, shortBasicMessage);
+        REQUIRE(basic.Verify(publicKeys[0], shortBasicMessage, basicSignature));
+    }
+
     SECTION("Legacy scheme") {
         // Test legacy example data defined in https://gist.github.com/xdustinface/318c2c08c36ab12a2b1963caf1f7815c
         std::string strSignHash{"b6d8ee31bbd375dfd55d5fb4b02cfccc68709e64f4c5ffcd3895ceb46540311d"};
@@ -1368,9 +1414,12 @@ TEST_CASE("Legacy HD keys") {
                 .GetPublicKey();
         REQUIRE(sk3.GetG1Element() == pk4);
 
-        G2Element sig = LegacySchemeMPL().Sign(sk3, Bytes(seed));
+        uint8_t messageHash[BLS::MESSAGE_HASH_LEN];
+        Util::Hash256(messageHash, seed.data(), seed.size());
+        const Bytes message(messageHash, sizeof(messageHash));
+        G2Element sig = LegacySchemeMPL().Sign(sk3, message);
 
-        REQUIRE(LegacySchemeMPL().Verify(sk3.GetG1Element(), Bytes(seed), sig));
+        REQUIRE(LegacySchemeMPL().Verify(sk3.GetG1Element(), message, sig));
     }
 
     SECTION("Should prevent hardened pk derivation") {
@@ -1402,7 +1451,9 @@ TEST_CASE("Legacy HD keys") {
         cout << epk.GetPublicKey() << endl;
         cout << epk.GetChainCode() << endl;
 
-        G2Element sig1 = LegacySchemeMPL().Sign(esk.GetPrivateKey(), Bytes(seed));
+        uint8_t messageHash[BLS::MESSAGE_HASH_LEN];
+        Util::Hash256(messageHash, seed.data(), seed.size());
+        G2Element sig1 = LegacySchemeMPL().Sign(esk.GetPrivateKey(), Bytes(messageHash, sizeof(messageHash)));
         cout << sig1 << endl;
     }
 

@@ -99,6 +99,7 @@ func (s *coreMPL) SkToG1(sk *PrivateKey) *G1Element {
 }
 
 // Sign signs a message using a PrivateKey and returns the G2Element as a signature
+// It returns nil if native signing fails.
 // this method is a binding of bls::CoreMPL::Sign
 func (s *coreMPL) Sign(sk *PrivateKey, msg []byte) *G2Element {
 	cMsgPtr := C.CBytes(msg)
@@ -106,9 +107,12 @@ func (s *coreMPL) Sign(sk *PrivateKey, msg []byte) *G2Element {
 	sig := G2Element{
 		val: C.CCoreMPLSign(s.val, sk.val, cMsgPtr, C.size_t(len(msg))),
 	}
-	runtime.SetFinalizer(&sig, func(sig *G2Element) { sig.free() })
 	runtime.KeepAlive(s)
 	runtime.KeepAlive(sk)
+	if sig.val == nil {
+		return nil
+	}
+	runtime.SetFinalizer(&sig, func(sig *G2Element) { sig.free() })
 	return &sig
 }
 

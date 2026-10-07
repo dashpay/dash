@@ -84,6 +84,7 @@ class PrivateKey {
     std::vector<uint8_t> Serialize(bool fLegacy = false) const;
     std::array<uint8_t, PrivateKey::PRIVATE_KEY_SIZE> SerializeToArray(bool fLegacy = false) const;
 
+    // Legacy mapping requires at least 32 message bytes and uses only the first 32.
     G2Element SignG2(
         const uint8_t *msg,
         size_t len,

@@ -87,6 +87,7 @@ public:
     static G2Element FromBytesUnchecked(Bytes bytes, bool fLegacy = false);
     static G2Element FromByteVector(const std::vector<uint8_t> &bytevec, bool fLegacy = false);
     static G2Element FromNative(const g2_t element);
+    // Legacy mapping requires at least 32 message bytes and uses only the first 32.
     static G2Element FromMessage(const std::vector<uint8_t>& message,
                                  const uint8_t* dst,
                                  int dst_len,

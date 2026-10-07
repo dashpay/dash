@@ -336,6 +336,9 @@ G2Element G2Element::FromMessage(Bytes const message,
                                  int dst_len,
                                  const bool fLegacy)
 {
+    if (fLegacy && message.size() < BLS::MESSAGE_HASH_LEN) {
+        throw std::invalid_argument("Legacy message must contain at least 32 bytes");
+    }
     G2Element ans;
     if (fLegacy) {
         ep2_map_legacy(ans.q, message.begin(), BLS::MESSAGE_HASH_LEN);

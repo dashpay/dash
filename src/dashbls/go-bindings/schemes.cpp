@@ -48,9 +48,14 @@ CG1Element CCoreMPSkToG1(const CCoreMPL scheme, const CPrivateKey sk) {
 CG2Element CCoreMPLSign(CCoreMPL scheme, const CPrivateKey sk, const void* msg, const size_t msgLen) {
     bls::CoreMPL* schemePtr = (bls::CoreMPL*)scheme;
     const bls::PrivateKey* skPtr = (bls::PrivateKey*)sk;
-    return new bls::G2Element(
-        schemePtr->Sign(*skPtr, bls::Bytes((uint8_t*)msg, msgLen))
-    );
+    try {
+        return new bls::G2Element(
+            schemePtr->Sign(*skPtr, bls::Bytes((uint8_t*)msg, msgLen))
+        );
+    } catch (const std::exception& ex) {
+        gErrMsg = ex.what();
+        return nullptr;
+    }
 }
 
 bool CCoreMPLVerify(const CCoreMPL scheme,

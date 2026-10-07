@@ -30,6 +30,7 @@ typedef CCoreMPL CPopSchemeMPL;
 // CoreMPL
 CPrivateKey CCoreMPLKeyGen(const CCoreMPL scheme, const void* seed, const size_t seedLen, bool* didErr);
 CG1Element CCoreMPSkToG1(const CCoreMPL scheme, const CPrivateKey sk);
+// Returns nullptr on signing failure; GetLastErrorMsg provides the error.
 CG2Element CCoreMPLSign(const CCoreMPL scheme, const CPrivateKey sk, const void* msg, const size_t msgLen);
 bool CCoreMPLVerify(const CBasicSchemeMPL scheme,
                     const CG1Element pk,

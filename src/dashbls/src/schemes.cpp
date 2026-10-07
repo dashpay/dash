@@ -657,6 +657,7 @@ G2Element LegacySchemeMPL::Sign(const PrivateKey& seckey, const Bytes& message)
 
 bool LegacySchemeMPL::Verify(const G1Element &pubkey, const Bytes& message, const G2Element &signature)
 {
+    if (message.size() < BLS::MESSAGE_HASH_LEN) return false;
     g1_t g1s[2];
     g2_t g2s[2];
 
@@ -677,6 +678,7 @@ G2Element LegacySchemeMPL::AggregateSecure(std::vector<G1Element> const &vecPubl
 bool LegacySchemeMPL::VerifySecure(const std::vector<G1Element>& vecPublicKeys,
                                    const G2Element& signature,
                                    const Bytes& message) {
+    if (message.size() < BLS::MESSAGE_HASH_LEN) return false;
     return CoreMPL::VerifySecure(vecPublicKeys, signature, message, true);
 }
 
@@ -687,6 +689,10 @@ bool LegacySchemeMPL::AggregateVerify(const vector<G1Element> &pubkeys,
     const size_t nPubKeys = pubkeys.size();
     const auto arg_check = VerifyAggregateSignatureArguments(nPubKeys, messages.size(), signature);
     if (arg_check != CONTINUE) return arg_check;
+
+    for (const auto& message : messages) {
+        if (message.size() < BLS::MESSAGE_HASH_LEN) return false;
+    }
 
     std::vector<g1_st> vecG1(nPubKeys + 1);
     std::vector<g2_st> vecG2(nPubKeys + 1);
