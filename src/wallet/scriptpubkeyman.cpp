@@ -406,14 +406,14 @@ void LegacyScriptPubKeyMan::UpgradeKeyMetadata()
     }
 }
 
-void LegacyScriptPubKeyMan::GenerateNewHDChain(const SecureString& secureMnemonic, const SecureString& secureMnemonicPassphrase, std::optional<CKeyingMaterial> vMasterKeyOpt)
+void LegacyScriptPubKeyMan::GenerateNewHDChain(const SecureString& secureMnemonic, const SecureString& secureMnemonicPassphrase, std::optional<CKeyingMaterial> vMasterKeyOpt, bool allow_legacy_passphrase)
 {
     assert(!m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS));
     CHDChain newHdChain;
 
     // NOTE: an empty mnemonic means "generate a new one for me"
     // NOTE: default mnemonic passphrase is an empty string
-    if (!newHdChain.SetMnemonic(secureMnemonic, secureMnemonicPassphrase, /* fUpdateID = */ true)) {
+    if (!newHdChain.SetMnemonic(secureMnemonic, secureMnemonicPassphrase, /* fUpdateID = */ true, allow_legacy_passphrase)) {
         throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
     }
 

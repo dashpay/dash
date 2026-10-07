@@ -258,6 +258,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "loadwallet", 1, "load_on_startup"},
     { "unloadwallet", 1, "load_on_startup"},
     { "upgradetohd", 3, "rescan"},
+    { "upgradetohd", 4, "allowlegacymnemonicpassphrase"},
     { "getnodeaddresses", 0, "count"},
     { "addpeeraddress", 1, "port"},
     { "addpeeraddress", 2, "tried"},

@@ -26,13 +26,17 @@
 
 #include <support/allocators/secure.h>
 
+#include <cstddef>
+
 class CMnemonic
 {
 public:
     static SecureString Generate(int strength);    // strength in bits
     static SecureString FromData(const SecureVector& data, int len);
     static bool Check(const SecureString& mnemonic);
-    // passphrase must be at most 256 characters otherwise it would be truncated
+    static constexpr std::size_t MAX_PASSPHRASE_BYTES{248};
+    static void ValidateGenerationParameters(const SecureString& mnemonic, const SecureString& passphrase, bool allow_legacy_passphrase = false);
+    // Preserve historical derivation: the complete salt is capped at 256 bytes.
     static void ToSeed(const SecureString& mnemonic, const SecureString& passphrase, SecureVector& seedRet);
 };
 

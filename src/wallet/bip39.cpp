@@ -30,6 +30,8 @@
 #include <crypto/sha256.h>
 #include <random.h>
 
+#include <stdexcept>
+
 SecureString CMnemonic::Generate(int strength)
 {
     if (strength % 32 || strength < 128 || strength > 256) {
@@ -137,7 +139,18 @@ bool CMnemonic::Check(const SecureString& mnemonic)
     return (bits[0] & mask) == (bits[32] & mask);
 }
 
-// passphrase must be at most 256 characters otherwise it would be truncated
+void CMnemonic::ValidateGenerationParameters(const SecureString& mnemonic, const SecureString& passphrase, bool allow_legacy_passphrase)
+{
+    if (allow_legacy_passphrase) {
+        if (!Check(mnemonic)) {
+            throw std::runtime_error("Legacy mnemonic passphrase recovery requires a supplied valid mnemonic");
+        }
+    } else if (passphrase.size() > MAX_PASSPHRASE_BYTES) {
+        throw std::runtime_error("Mnemonic passphrase is too long, must be at most 248 bytes. For recovery of an existing wallet, supply its mnemonic and explicitly allow the legacy truncated passphrase.");
+    }
+}
+
+// Preserve historical derivation: the complete salt is capped at 256 bytes.
 void CMnemonic::ToSeed(const SecureString& mnemonic, const SecureString& passphrase, SecureVector& seedRet)
 {
 

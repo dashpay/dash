@@ -1197,7 +1197,7 @@ public:
 
     //! Create new DescriptorScriptPubKeyMans and add them to the wallet
     void SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const SecureString& mnemonic, const SecureString mnemonic_passphrase) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    void SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic, const SecureString mnemonic_passphrase) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic, const SecureString mnemonic_passphrase, bool allow_legacy_passphrase = false) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! Return the DescriptorScriptPubKeyMan for a WalletDescriptor if it is already in the wallet
     DescriptorScriptPubKeyMan* GetDescriptorScriptPubKeyMan(const WalletDescriptor& desc) const;
