@@ -5,6 +5,7 @@
 #include <test/util/masternode.h>
 #include <test/util/setup_common.h>
 
+#include <active/masternode.h>
 #include <chainparams.h>
 #include <clientversion.h>
 #include <consensus/merkle.h>
@@ -19,9 +20,10 @@
 #include <evo/specialtxman.h>
 #include <interfaces/node.h>
 #include <llmq/context.h>
-#include <node/mempool_args.h>
 #include <messagesigner.h>
+#include <net.h>
 #include <netbase.h>
+#include <node/mempool_args.h>
 #include <node/miner.h>
 #include <policy/policy.h>
 #include <pow.h>
@@ -1940,6 +1942,42 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
     }
     setup.ProcessBlock({tx_reg_b});
     BOOST_REQUIRE(dmnman.GetListAtChainTip().GetMN(tx_reg_b.GetHash()));
+
+    // Both registrations decode to the same locally generated key. Put the local service on
+    // whichever registration the operator-only lookup does not select, independent of map order.
+    const auto operator_match = dmnman.GetListAtChainTip().GetMNByOperatorKey(operator_key.GetPublicKey());
+    BOOST_REQUIRE(operator_match);
+    const auto local_hash = operator_match->proTxHash == proTxHashA ? tx_reg_b.GetHash() : proTxHashA;
+    const auto local_mn = dmnman.GetListAtChainTip().GetMN(local_hash);
+    BOOST_REQUIRE(local_mn);
+    CProUpServTx local_payload;
+    local_payload.nVersion = local_mn->pdmnState->nVersion;
+    local_payload.proTxHash = local_hash;
+    local_payload.netInfo = NetInfoInterface::MakeNetInfo(local_payload.nVersion);
+    BOOST_REQUIRE_EQUAL(local_payload.netInfo->AddEntry(NetInfoPurpose::CORE_P2P,
+                                                        strprintf("127.0.0.1:%d", GetListenPort())),
+                        NetInfoStatus::Success);
+    CMutableTransaction local_update;
+    local_update.nVersion = 3;
+    local_update.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+    const auto local_spent = FundTransaction(chainman, local_update, utxos,
+                                             GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
+    local_payload.inputsHash = CalcTxInputsHash(CTransaction(local_update));
+    local_payload.sig = operator_key.Sign(::SerializeHash(local_payload), bls::bls_legacy_scheme);
+    SetTxPayload(local_update, local_payload);
+    SignTransaction(local_update, local_spent, setup.coinbaseKey);
+    setup.ProcessBlock({local_update});
+
+    const auto operator_only = dmnman.GetListAtChainTip().GetMNByOperatorKey(operator_key.GetPublicKey());
+    BOOST_REQUIRE(operator_only);
+    BOOST_CHECK(operator_only->proTxHash == operator_match->proTxHash);
+    BOOST_CHECK(operator_only->pdmnState->netInfo->GetPrimary() != LookupNumeric("127.0.0.1", GetListenPort()));
+    CActiveMasternodeManager manager(*setup.m_node.connman, dmnman, operator_key);
+    manager.Init(setup.Tip());
+    BOOST_CHECK_EQUAL(manager.GetStateString(), "READY");
+    BOOST_CHECK(manager.GetProTxHash() == local_hash);
+    BOOST_CHECK(manager.GetOutPoint() == local_mn->collateralOutpoint);
+    BOOST_CHECK(manager.GetService() == LookupNumeric("127.0.0.1", GetListenPort()));
 
     setup.MineToV24();
     BOOST_REQUIRE_EQUAL(dmnman.GetListAtChainTip().GetMN(proTxHashA)->pdmnState->nVersion, ProTxVersion::LegacyBLS);

@@ -131,7 +131,10 @@ void CActiveMasternodeManager::InitInternal(const CBlockIndex* pindex)
 
     CDeterministicMNList mnList = m_dmnman.GetListForBlock(pindex);
 
-    auto dmn = mnList.GetMNByOperatorKey(m_operator_pk);
+    auto dmn = mnList.GetMNByService(m_service);
+    if (!dmn || dmn->pdmnState->pubKeyOperator.Get() != m_operator_pk) {
+        dmn = mnList.GetMNByOperatorKey(m_operator_pk);
+    }
     if (!dmn) {
         // MN not appeared on the chain yet
         return;
