@@ -5,6 +5,9 @@
 #include <test/data/bip39_vectors.json.h>
 
 #include <wallet/bip39.h>
+#include <wallet/hdchain.h>
+#include <wallet/wallet.h>
+#include <wallet/walletdb.h>
 #include <key.h>
 #include <key_io.h>
 #include <test/util/json.h>
@@ -58,6 +61,23 @@ BOOST_AUTO_TEST_CASE(bip39_vectors)
 
         // printf("CBitcoinExtKey: %s\n", EncodeExtKey(key).c_str());
         BOOST_CHECK(EncodeExtKey(key) == test[3].get_str());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(invalid_mnemonic_diagnostics)
+{
+    for (const SecureString& mnemonic : {
+             SecureString{"abandon  abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"},
+             SecureString{"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"}}) {
+        CHDChain chain;
+        BOOST_CHECK_EXCEPTION(chain.SetMnemonic(mnemonic, "", true), std::runtime_error,
+                              [](const std::runtime_error& error) { return std::string{error.what()} == "SetMnemonic: invalid mnemonic"; });
+
+        CWallet wallet{nullptr, nullptr, "", m_args, CreateDummyWalletDatabase()};
+        LOCK(wallet.cs_wallet);
+        wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+        BOOST_CHECK_EXCEPTION(wallet.SetupDescriptorScriptPubKeyMans(mnemonic, ""), std::runtime_error,
+                              [](const std::runtime_error& error) { return std::string{error.what()} == "SetupDescriptorScriptPubKeyMans: invalid mnemonic"; });
     }
 }
 
