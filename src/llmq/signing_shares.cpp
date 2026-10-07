@@ -671,6 +671,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
         return nullptr;
     }
 
+    CBLSSignature recoveredSig;
     std::vector<CBLSSignature> sigSharesForRecovery;
     std::vector<CBLSId> idsForRecovery;
     {
@@ -680,24 +681,6 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
         const auto* sigSharesForSignHash = sigShares.GetAllForSignHash(signHash);
         if (sigSharesForSignHash == nullptr) {
             return nullptr;
-        }
-
-        std::shared_ptr<CRecoveredSig> singleMemberRecoveredSig;
-        if (quorum.params.is_single_member()) {
-            if (sigSharesForSignHash->empty()) {
-                LogPrint(BCLog::LLMQ_SIGS, /* Continued */
-                         "CSigSharesManager::%s -- impossible to recover single-node signature - no shares yet. id=%s, "
-                         "msgHash=%s\n",
-                         __func__, id.ToString(), msgHash.ToString());
-                return nullptr;
-            }
-            const auto& sigShare = sigSharesForSignHash->begin()->second;
-            CBLSSignature recoveredSig = sigShare.sigShare.Get();
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- recover single-node signature. id=%s, msgHash=%s\n",
-                     __func__, id.ToString(), msgHash.ToString());
-
-            singleMemberRecoveredSig = std::make_shared<CRecoveredSig>(quorum.params.type, quorum.qc->quorumHash, id, msgHash,
-                                                      recoveredSig);
         }
 
         sigSharesForRecovery.reserve(static_cast<size_t>(quorum.params.threshold));
@@ -713,14 +696,13 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
             return nullptr;
         }
         if (quorum.params.is_single_member()) {
-            return singleMemberRecoveredSig; // end of single-quorum processing
+            recoveredSig = sigSharesForRecovery.front();
         }
     }
 
     // now recover it
     cxxtimer::Timer t(true);
-    CBLSSignature recoveredSig;
-    if (!recoveredSig.Recover(sigSharesForRecovery, idsForRecovery)) {
+    if (!quorum.params.is_single_member() && !recoveredSig.Recover(sigSharesForRecovery, idsForRecovery)) {
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- failed to recover signature. id=%s, msgHash=%s, time=%d\n", __func__,
                   id.ToString(), msgHash.ToString(), t.count());
         return nullptr;
@@ -731,18 +713,10 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
 
     auto rs = std::make_shared<CRecoveredSig>(quorum.params.type, quorum.qc->quorumHash, id, msgHash, recoveredSig);
 
-    // There should actually be no need to verify the self-recovered signatures as it should always succeed. Let's
-    // however still verify it from time to time, so that we have a chance to catch bugs. We do only this sporadic
-    // verification because this is unbatched and thus slow verification that happens here.
-    if (((recoveredSigsCounter++) % 100) == 0) {
-        auto signHash = rs->buildSignHash();
-        bool valid = recoveredSig.VerifyInsecure(quorum.qc->quorumPublicKey, signHash.Get());
-        if (!valid) {
-            // this should really not happen as we have verified all signature shares before
-            LogPrintf("CSigSharesManager::%s -- own recovered signature is invalid. id=%s, msgHash=%s\n", __func__,
-                      id.ToString(), msgHash.ToString());
-            return nullptr;
-        }
+    if (!recoveredSig.VerifyInsecure(quorum.qc->quorumPublicKey, rs->buildSignHash().Get())) {
+        LogPrintf("CSigSharesManager::%s -- own recovered signature is invalid. id=%s, msgHash=%s\n", __func__,
+                  id.ToString(), msgHash.ToString());
+        return nullptr;
     }
     return rs;
 }

@@ -18,7 +18,6 @@
 #include <uint256.h>
 #include <util/time.h>
 
-#include <atomic>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -483,7 +482,6 @@ private:
     const CSporkManager& m_sporkman;
 
     CleanupThrottler<NodeClock> cleanupThrottler;
-    std::atomic<uint32_t> recoveredSigsCounter{0};
 
 public:
     CSigSharesManager() = delete;
