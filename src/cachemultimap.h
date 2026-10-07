@@ -86,22 +86,17 @@ public:
 
     bool Insert(const K& key, const V& value)
     {
-        map_it mit = mapIndex.find(key);
-        if(mit == mapIndex.end()) {
-            mit = mapIndex.emplace(key, it_map_t()).first;
-        }
-        it_map_t& mapIt = mit->second;
-
-        if(mapIt.count(value) > 0) {
+        if (map_cit mit = mapIndex.find(key); mit != mapIndex.end() && mit->second.count(value) > 0) {
             // Don't insert duplicates
             return false;
         }
 
+        // Pruning may erase this key's entry in mapIndex, so look it up only afterwards
         if(listItems.size() == nMaxSize) {
             PruneLast();
         }
         listItems.push_front(item_t(key, value));
-        mapIt.emplace(value, listItems.begin());
+        mapIndex[key].emplace(value, listItems.begin());
         return true;
     }
 
