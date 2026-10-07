@@ -28,6 +28,7 @@
 #include <deploymentstatus.h>
 #include <hash.h>
 #include <primitives/block.h>
+#include <shutdown.h>
 #include <util/system.h>
 
 static bool AddNetInfoEntries(const std::shared_ptr<NetInfoInterface>& net_info, NetInfoPurpose purpose,
@@ -986,6 +987,11 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             bls::bls_legacy_scheme.store(false);
             LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
         }
+    } catch (const CreditPoolBlockReadError& e) {
+        // Missing local history is not a statement about the block.
+        const std::string msg{strprintf("%s; restart with -reindex to restore it", e.what())};
+        AbortNode(msg);
+        return state.Error(msg);
     } catch (const EvoDbInconsistencyError& e) {
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.

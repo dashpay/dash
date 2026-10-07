@@ -107,6 +107,13 @@ bool CEvoDB::CommitRootTransaction(EvoDbIdentity identity, bool sync)
     return ret;
 }
 
+bool CEvoDB::Sync()
+{
+    LOCK(cs);
+    CDBBatch batch{*db};
+    return db->WriteBatch(batch, /*fSync=*/true);
+}
+
 bool CEvoDB::ReadBestBlock(EvoDbIdentity identity, uint256& hash)
 {
     LOCK(cs);

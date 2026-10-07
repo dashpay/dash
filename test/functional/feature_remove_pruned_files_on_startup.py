@@ -9,10 +9,15 @@ import os
 from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.test_framework import BitcoinTestFramework
 
+# Credit-pool reconstruction keeps history from V20 activation until its first snapshot, so postpone V20
+# to let this test prune its early blocks.
+DEPLOYMENT_ARGS = ["-testactivationheight=v20@2000", "-testactivationheight=mn_rr@2000"]
+
+
 class FeatureRemovePrunedFilesOnStartupTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
-        self.extra_args = [["-fastprune", "-prune=1"]]
+        self.extra_args = [["-fastprune", "-prune=1"] + DEPLOYMENT_ARGS]
 
     def mine_batches(self, blocks):
         n = blocks // 250

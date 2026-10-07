@@ -11,13 +11,17 @@
 #include <evo/cbtx.h>
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
+#include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
+#include <evo/specialtxman.h>
 #include <llmq/context.h>
 #include <policy/policy.h>
+#include <pow.h>
 #include <script/script.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
+#include <shutdown.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <util/ranges_set.h>
@@ -843,6 +847,106 @@ BOOST_FIXTURE_TEST_CASE(credit_pool_snapshot_persisted_after_transactionless_con
     const CCreditPool pool = m_node.chain_helper->credit_pool_manager->GetCreditPool(snapshot_index);
     BOOST_CHECK_EQUAL(snapshot.locked, pool.locked);
     BOOST_CHECK_EQUAL(snapshot.currentLimit, pool.currentLimit);
+}
+
+BOOST_FIXTURE_TEST_CASE(missing_credit_pool_history_is_local_error, TestChain100Setup)
+{
+    // A header without its body stands in for pruned history behind a credit-pool lookup.
+    const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+    auto& chainman = *m_node.chainman;
+    auto& chainstate = chainman.ActiveChainstate();
+    while (WITH_LOCK(cs_main, return chainstate.m_chain.Height()) <= chainman.GetConsensus().V20Height) {
+        CreateAndProcessBlock({}, coinbase_pk);
+    }
+    CBlock missing_body = CreateBlock({}, coinbase_pk, chainstate);
+    missing_body.nTime += 60;
+    while (!CheckProofOfWork(missing_body.GetHash(), missing_body.nBits, chainman.GetConsensus())) {
+        ++missing_body.nNonce;
+    }
+    BlockValidationState header_state;
+    BOOST_REQUIRE(chainman.ProcessNewBlockHeaders({missing_body.GetBlockHeader()}, header_state));
+    const auto missing_index = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(missing_body.GetHash()));
+    BOOST_REQUIRE(missing_index);
+    BOOST_REQUIRE(WITH_LOCK(cs_main, return !(missing_index->nStatus & BLOCK_HAVE_DATA)));
+
+    CBlock candidate = missing_body;
+    candidate.hashPrevBlock = missing_body.GetHash();
+    const uint256 candidate_hash = candidate.GetHash();
+    CBlockIndex candidate_index{candidate};
+    candidate_index.phashBlock = &candidate_hash;
+    candidate_index.pprev = missing_index;
+    candidate_index.nHeight = missing_index->nHeight + 1;
+
+    // Both entry points stop the node instead of marking the block invalid.
+    static std::atomic<int> exit_status{EXIT_SUCCESS};
+    BOOST_REQUIRE(InitShutdownState(exit_status));
+    struct ShutdownReset {
+        ~ShutdownReset() { AbortShutdown(); }
+    } shutdown_reset;
+
+    LOCK(cs_main);
+    auto& manager = *m_node.chain_helper->credit_pool_manager;
+    BlockValidationState diff_state;
+    BOOST_CHECK(!GetCreditPoolDiffForBlock(manager, candidate, missing_index, chainman.GetConsensus(),
+                                           GetBlockSubsidy(missing_index, chainman.GetConsensus()), diff_state));
+    BOOST_CHECK(diff_state.IsError());
+    BOOST_CHECK(!diff_state.IsInvalid());
+
+    const auto rules = GetSpecialTxRules(chainstate.m_chain.Tip(), chainman);
+    MNListUpdates updates;
+    BlockValidationState special_state;
+    BOOST_CHECK(!m_node.chain_helper->special_tx->ProcessSpecialTxsInBlock(
+        chainstate, chainstate.m_chain, candidate, &candidate_index, rules, chainstate.CoinsTip(),
+        GetBlockSubsidy(missing_index, chainman.GetConsensus()), /*fJustCheck=*/true,
+        /*fCheckCbTxMerkleRoots=*/false, special_state, updates));
+    BOOST_CHECK(special_state.IsError());
+    BOOST_CHECK(!special_state.IsInvalid());
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_EQUAL(exit_status.load(), EXIT_FAILURE);
+
+    CBlock invalid = missing_body;
+    invalid.vtx.push_back(CreateCreditPoolUnlockTx(1, MAX_MONEY));
+    BlockValidationState invalid_diff_state;
+    BOOST_CHECK(!GetCreditPoolDiffForBlock(manager, invalid, chainstate.m_chain.Tip(), chainman.GetConsensus(),
+                                           GetBlockSubsidy(chainstate.m_chain.Tip(), chainman.GetConsensus()),
+                                           invalid_diff_state));
+    BOOST_CHECK(invalid_diff_state.IsInvalid());
+    BOOST_CHECK_EQUAL(invalid_diff_state.GetRejectReason(), "failed-creditpool-unlock-too-much");
+
+    CMutableTransaction invalid_coinbase{*candidate.vtx[0]};
+    invalid_coinbase.vExtraPayload.clear();
+    invalid.vtx = {MakeTransactionRef(invalid_coinbase)};
+    BlockValidationState invalid_special_state;
+    BOOST_CHECK(!m_node.chain_helper->special_tx->ProcessSpecialTxsInBlock(
+        chainstate, chainstate.m_chain, invalid, &candidate_index, rules, chainstate.CoinsTip(),
+        GetBlockSubsidy(missing_index, chainman.GetConsensus()), /*fJustCheck=*/true,
+        /*fCheckCbTxMerkleRoots=*/true, invalid_special_state, updates));
+    BOOST_CHECK(invalid_special_state.IsInvalid());
+    BOOST_CHECK_EQUAL(invalid_special_state.GetRejectReason(), "bad-cbtx-payload");
+}
+
+BOOST_FIXTURE_TEST_CASE(credit_pool_prune_lock_waits_for_committed_snapshot, TestChain100Setup)
+{
+    // Pruning unlinks block files before the EvoDB overlays are committed, so a snapshot
+    // only protects history once it is on disk.
+    constexpr int SNAPSHOT_HEIGHT{576}; // CCreditPoolManager::DISK_SNAPSHOT_PERIOD
+    const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+    auto& chainstate = m_node.chainman->ActiveChainstate();
+    while (WITH_LOCK(cs_main, return chainstate.m_chain.Height()) <= SNAPSHOT_HEIGHT) {
+        CreateAndProcessBlock({}, coinbase_pk);
+    }
+    const CBlockIndex* parent = WITH_LOCK(cs_main, return chainstate.m_chain.Tip());
+    const int window = Params().CreditPoolPeriodBlocks();
+    // Without a committed snapshot, reconstruction starts at V20 activation. Its window reaches back
+    // before DIP0003, where there is no CbTx and no body is read.
+    const int no_snapshot_height = m_node.chainman->GetConsensus().DIP0003Height;
+    BOOST_REQUIRE_LT(m_node.chainman->GetConsensus().V20Height - window, no_snapshot_height);
+    auto& manager = *m_node.chain_helper->credit_pool_manager;
+    BOOST_CHECK_EQUAL(manager.GetPruneLockHeight(*parent), no_snapshot_height);
+
+    chainstate.ForceFlushStateToDisk();
+    BOOST_CHECK_EQUAL(manager.GetPruneLockHeight(*parent), SNAPSHOT_HEIGHT + 1 - window);
+    BOOST_CHECK_EQUAL(manager.GetPruneLockHeight(*parent->GetAncestor(SNAPSHOT_HEIGHT - 1)), no_snapshot_height);
 }
 
 BOOST_AUTO_TEST_CASE(credit_pool_unlock_limit_v24)
