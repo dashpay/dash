@@ -61,7 +61,8 @@ private:
 private:
     std::atomic<bool> stopRequested{false};
     std::atomic<int> currentHeight{-1};
-    std::unique_ptr<CDKGSession> curSession{nullptr};
+    mutable Mutex cs_session;
+    std::shared_ptr<CDKGSession> curSession GUARDED_BY(cs_session);
 
     mutable Mutex cs_phase_qhash;
     QuorumPhase phase GUARDED_BY(cs_phase_qhash){QuorumPhase::Idle};
@@ -81,10 +82,12 @@ public:
 
 public:
     //! CDKGSessionHandler
-    bool GetContribution(const uint256& hash, CDKGContribution& ret) const override;
-    bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const override;
-    bool GetJustification(const uint256& hash, CDKGJustification& ret) const override;
-    bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const override;
+    bool GetContribution(const uint256& hash, CDKGContribution& ret) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_session);
+    bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_session);
+    bool GetJustification(const uint256& hash, CDKGJustification& ret) const override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_session);
+    bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_session);
     QuorumPhase GetPhase() const override EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
     void UpdatedBlockTip(const CBlockIndex* pindexNew) override EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
 
@@ -96,12 +99,12 @@ public:
     int QuorumIndex() const { return quorumIndex; }
     bool QuorumsWatch() const { return m_quorums_watch; }
     uint256 GetCurrentQuorumHash() const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
-    CDKGSession* GetCurSession() { return curSession.get(); }
+    std::shared_ptr<CDKGSession> GetCurSession() const EXCLUSIVE_LOCKS_REQUIRED(!cs_session);
 
     void RequestStop() { stopRequested = true; }
     bool IsStopRequested() const { return stopRequested; }
 
-    bool InitNewQuorum(gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex);
+    bool InitNewQuorum(gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex) EXCLUSIVE_LOCKS_REQUIRED(!cs_session);
 
     /**
      * @param curPhase current QuorumPhase
@@ -114,10 +117,11 @@ public:
         const WhileWaitFunc& shouldNotWait = [] { return false; }) const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
     void WaitForNewQuorum(const uint256& oldQuorumHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
     void SleepBeforePhase(QuorumPhase curPhase, const uint256& expectedQuorumHash, double randomSleepFactor,
-                          const WhileWaitFunc& runWhileWaiting) const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
+                          const WhileWaitFunc& runWhileWaiting) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash, !cs_session);
     void HandlePhase(QuorumPhase curPhase, QuorumPhase nextPhase, const uint256& expectedQuorumHash,
                      double randomSleepFactor, const StartPhaseFunc& startPhaseFunc,
-                     const WhileWaitFunc& runWhileWaiting) EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
+                     const WhileWaitFunc& runWhileWaiting) EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash, !cs_session);
 
 private:
     std::pair<QuorumPhase, uint256> GetPhaseAndQuorumHash() const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
