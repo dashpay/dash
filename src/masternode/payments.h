@@ -36,6 +36,13 @@ int FindUnmatchedMasternodePayment(const std::vector<CTxOut>& expected,
                                    const std::vector<CTxOut>& actual,
                                    bool strict_multiplicity);
 
+/**
+ * Whether the masternode and superblock payments together can each be matched
+ * by a distinct coinbase output, so that one output never pays two obligations.
+ */
+bool HasDistinctRequiredPayments(const std::vector<CTxOut>& masternode_payments,
+                                 const std::vector<CTxOut>& superblock_payments, const std::vector<CTxOut>& actual);
+
 struct CMutableTransaction;
 
 namespace governance {
@@ -97,7 +104,9 @@ public:
     }
 
     bool IsBlockValueValid(const CChain& active_chain, const CBlock& block, const CBlockIndex* pindexPrev, const CAmount blockReward, std::string& strErrorRet, SuperBlockCheckType check_superblock);
-    bool IsBlockPayeeValid(const CChain& active_chain, const CTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, MnRewardEra era, bool strict_multiplicity, SuperBlockCheckType check_superblock);
+    bool IsBlockPayeeValid(const CChain& active_chain, const CTransaction& txNew, const CBlockIndex* pindexPrev,
+                           const CAmount blockSubsidy, const CAmount feeReward, MnRewardEra era, bool strict_multiplicity,
+                           SuperBlockCheckType check_superblock, bool distinct_required_payments);
     void FillBlockPayments(CMutableTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward,
                            MnRewardEra era, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& voutSuperblockPaymentsRet);
 };

@@ -64,6 +64,30 @@ BOOST_AUTO_TEST_CASE(strict_duplicate_expected_requires_duplicate_actual)
     BOOST_CHECK_EQUAL(FindUnmatchedMasternodePayment(expected, actual_two, /*strict_multiplicity=*/false), -1);
 }
 
+// A masternode payment and a superblock payment with the same script and amount
+// must be paid by two outputs; each category's own check would accept one.
+BOOST_AUTO_TEST_CASE(required_payments_across_categories_need_distinct_outputs)
+{
+    const std::vector<CTxOut> masternode{MakeOut(50, 0x03), MakeOut(100, 0x01)};
+    const std::vector<CTxOut> superblock{MakeOut(100, 0x01)};
+
+    const std::vector<CTxOut> shared{MakeOut(50, 0x03), MakeOut(100, 0x01)};
+    BOOST_CHECK_EQUAL(FindUnmatchedMasternodePayment(masternode, shared, /*strict_multiplicity=*/true), -1);
+    BOOST_CHECK_EQUAL(FindUnmatchedMasternodePayment(superblock, shared, /*strict_multiplicity=*/true), -1);
+    BOOST_CHECK(!HasDistinctRequiredPayments(masternode, superblock, shared));
+
+    const std::vector<CTxOut> distinct{MakeOut(100, 0x01), MakeOut(50, 0x03), MakeOut(100, 0x01)};
+    BOOST_CHECK(HasDistinctRequiredPayments(masternode, superblock, distinct));
+
+    // Different amount or script is a different obligation
+    BOOST_CHECK(HasDistinctRequiredPayments(masternode, {MakeOut(101, 0x01)},
+                                            {MakeOut(50, 0x03), MakeOut(100, 0x01), MakeOut(101, 0x01)}));
+    BOOST_CHECK(!HasDistinctRequiredPayments(masternode, {MakeOut(100, 0x02)}, shared));
+
+    // No masternode payments (before DIP3 enforcement or unknown payee) leaves the superblock check alone
+    BOOST_CHECK(HasDistinctRequiredPayments({}, superblock, shared));
+}
+
 // Pre-v24 path retains the old existence-only behaviour: a single actual output
 // can satisfy any number of identical expected outputs.
 BOOST_AUTO_TEST_CASE(legacy_existence_only_matches_duplicates)

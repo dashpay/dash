@@ -51,6 +51,14 @@ int FindUnmatchedMasternodePayment(const std::vector<CTxOut>& expected,
     return -1;
 }
 
+bool HasDistinctRequiredPayments(const std::vector<CTxOut>& masternode_payments,
+                                 const std::vector<CTxOut>& superblock_payments, const std::vector<CTxOut>& actual)
+{
+    std::vector<CTxOut> required{masternode_payments};
+    required.insert(required.end(), superblock_payments.begin(), superblock_payments.end());
+    return FindUnmatchedMasternodePayment(required, actual, /*strict_multiplicity=*/true) < 0;
+}
+
 CAmount PlatformShare(const CAmount reward)
 {
     const CAmount platformReward = reward * 375 / 1000;
@@ -389,7 +397,10 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CChain& active_chain, const C
     return true;
 }
 
-bool CMNPaymentsProcessor::IsBlockPayeeValid(const CChain& active_chain, const CTransaction& txNew, const CBlockIndex* pindexPrev, const CAmount blockSubsidy, const CAmount feeReward, MnRewardEra era, bool strict_multiplicity, SuperBlockCheckType check_superblock)
+bool CMNPaymentsProcessor::IsBlockPayeeValid(const CChain& active_chain, const CTransaction& txNew,
+                                             const CBlockIndex* pindexPrev, const CAmount blockSubsidy,
+                                             const CAmount feeReward, MnRewardEra era, bool strict_multiplicity,
+                                             SuperBlockCheckType check_superblock, bool distinct_required_payments)
 {
     const int nBlockHeight = pindexPrev  == nullptr ? 0 : pindexPrev->nHeight + 1;
 
@@ -423,11 +434,25 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CChain& active_chain, const C
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     const bool is_v24{check_superblock == SuperBlockCheckType::DisallowDuplicates};
     if (m_superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
-        if (m_superblocks.IsValidSuperblock(active_chain, tip_mn_list, txNew, nBlockHeight,
-                                            blockSubsidy + feeReward, is_v24)) {
+        std::vector<CTxOut> superblock_payments;
+        if (m_superblocks.IsValidSuperblock(active_chain, tip_mn_list, txNew, nBlockHeight, blockSubsidy + feeReward,
+                                            is_v24, &superblock_payments)) {
             LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", /* Continued */
                      __func__, nBlockHeight, txNew.ToString());
-            // continue validation, should also pay MN
+            if (distinct_required_payments) {
+                // Same masternode payments IsTransactionValid checked: none before DIP3 enforcement or
+                // when the payee can't be determined
+                std::vector<CTxOut> masternode_payments;
+                if (DeploymentDIP0003Enforced(nBlockHeight, m_consensus_params) &&
+                    !GetBlockTxOuts(pindexPrev, blockSubsidy, feeReward, era, masternode_payments)) {
+                    masternode_payments.clear();
+                }
+                if (!HasDistinctRequiredPayments(masternode_payments, superblock_payments, txNew.vout)) {
+                    LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Masternode and superblock payments share an output at height %d: %s", /* Continued */
+                              __func__, nBlockHeight, txNew.ToString());
+                    return false;
+                }
+            }
         } else {
             LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", /* Continued */
                       __func__, nBlockHeight, txNew.ToString());

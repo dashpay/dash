@@ -620,14 +620,24 @@ bool SuperblockManager::IsSuperblockTriggered(const CDeterministicMNList& tip_mn
 }
 
 bool SuperblockManager::IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list,
-                                          const CTransaction& txNew, int nBlockHeight, CAmount blockReward, bool is_v24) const
+                                          const CTransaction& txNew, int nBlockHeight, CAmount blockReward, bool is_v24,
+                                          std::vector<CTxOut>* payments_ret) const
 {
     LOCK(cs_sb);
     CSuperblock_sptr pSuperblock;
-    if (GetBestSuperblockInternal(tip_mn_list, pSuperblock, nBlockHeight)) {
-        return pSuperblock->IsValid(active_chain, txNew, nBlockHeight, blockReward, is_v24);
+    if (!GetBestSuperblockInternal(tip_mn_list, pSuperblock, nBlockHeight) ||
+        !pSuperblock->IsValid(active_chain, txNew, nBlockHeight, blockReward, is_v24)) {
+        return false;
     }
-    return false;
+    if (payments_ret) {
+        payments_ret->clear();
+        for (int i = 0; i < pSuperblock->CountPayments(); i++) {
+            if (CGovernancePayment payment; pSuperblock->GetPayment(i, payment)) {
+                payments_ret->emplace_back(payment.nAmount, payment.script);
+            }
+        }
+    }
+    return true;
 }
 
 bool SuperblockManager::GetSuperblockPayments(const CDeterministicMNList& tip_mn_list, int nBlockHeight,

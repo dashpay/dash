@@ -157,8 +157,10 @@ public:
 
     bool IsSuperblockTriggered(const CDeterministicMNList& tip_mn_list, int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
-    bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list, const CTransaction& txNew,
-                           int nBlockHeight, CAmount blockReward, bool is_v24) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
+    /** If valid and payments_ret is set, it receives the payments of the superblock that was checked */
+    bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list,
+                           const CTransaction& txNew, int nBlockHeight, CAmount blockReward, bool is_v24,
+                           std::vector<CTxOut>* payments_ret = nullptr) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
 
     bool GetSuperblockPayments(const CDeterministicMNList& tip_mn_list, int nBlockHeight,
                                std::vector<CTxOut>& voutSuperblockRet) const EXCLUSIVE_LOCKS_REQUIRED(!cs_sb);
