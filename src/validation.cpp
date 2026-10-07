@@ -3431,6 +3431,9 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
+            // Other threads read the open transaction, so roll it back before evicting the
+            // candidate or a concurrent lookup could cache it again.
+            dbTx->Rollback();
             m_chain_helper->DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
