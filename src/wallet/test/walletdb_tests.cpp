@@ -4,6 +4,9 @@
 
 #include <test/util/setup_common.h>
 #include <clientversion.h>
+#include <key_io.h>
+#include <util/strencodings.h>
+#include <util/message.h>
 #include <streams.h>
 #include <uint256.h>
 #include <wallet/hdchain.h>
@@ -147,6 +150,31 @@ BOOST_AUTO_TEST_CASE(walletdb_platform_data_corruption_policy)
                 DBErrors::NONCRITICAL_ERROR);
     BOOST_CHECK_EQUAL(platform_data.count("platform/identity/0"), 0U);
     BOOST_CHECK(platform_data.at("platform/intact") == std::vector<unsigned char>({0x01, 0x02}));
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_descriptor_orphan_records)
+{
+    CExtKey root;
+    const std::vector<unsigned char> seed(32, 1);
+    root.SetSeed(MakeByteSpan(seed));
+    const CPubKey pubkey{root.key.GetPubKey()};
+    for (const bool legacy_owner : {false, true}) {
+        for (int record = 0; record < 5; ++record) {
+            CWallet wallet(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args, CreateMockWalletDatabase());
+            const uint256 owner{legacy_owner ? wallet.GetOrCreateLegacyScriptPubKeyMan()->GetID() : uint256::TWO};
+            {
+                WalletBatch batch(wallet.GetDatabase());
+                switch (record) {
+                case 0: BOOST_REQUIRE(batch.WriteDescriptorParentCache(root.Neuter(), owner, 0)); break;
+                case 1: BOOST_REQUIRE(batch.WriteDescriptorDerivedCache(root.Neuter(), owner, 0, 0)); break;
+                case 2: BOOST_REQUIRE(batch.WriteDescriptorLastHardenedCache(root.Neuter(), owner, 0)); break;
+                case 3: BOOST_REQUIRE(batch.WriteDescriptorKey(owner, pubkey, root.key.GetPrivKey(), "", "")); break;
+                case 4: BOOST_REQUIRE(batch.WriteCryptedDescriptorKey(owner, pubkey, {1}, {}, {})); break;
+                }
+            }
+            BOOST_CHECK(wallet.LoadWallet() == DBErrors::LOAD_OK);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
