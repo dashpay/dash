@@ -502,6 +502,7 @@ std::shared_ptr<CWallet> RestoreWallet(WalletContext& context, const fs::path& b
     const fs::path wallet_path = fsbridge::AbsPathJoin(GetWalletDir(), fs::u8path(wallet_name));
     auto wallet_file = wallet_path / "wallet.dat";
     std::shared_ptr<CWallet> wallet;
+    bool created_parent_dir = false;
 
     try {
         if (!fs::exists(backup_file)) {
@@ -516,6 +517,7 @@ std::shared_ptr<CWallet> RestoreWallet(WalletContext& context, const fs::path& b
             return nullptr;
         }
 
+        created_parent_dir = true;
         fs::copy_file(backup_file, wallet_file, fs::copy_options::none);
 
         wallet = LoadWallet(context, wallet_name, load_on_start, options, status, error, warnings);
@@ -523,8 +525,9 @@ std::shared_ptr<CWallet> RestoreWallet(WalletContext& context, const fs::path& b
         assert(!wallet);
         if (!error.empty()) error += Untranslated("\n");
         error += strprintf(Untranslated("Unexpected exception: %s"), e.what());
+        status = DatabaseStatus::FAILED_LOAD;
     }
-    if (!wallet) {
+    if (!wallet && created_parent_dir) {
         fs::remove_all(wallet_path);
     }
 
