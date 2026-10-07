@@ -591,7 +591,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
     // fill values for found outpoints
     m_wallet->chain().findCoins(coins);
     std::map<int, bilingual_str> signing_errors;
-    m_wallet->SignTransaction(finalMutableTransaction, coins, SIGHASH_ALL | SIGHASH_ANYONECANPAY, signing_errors);
+    m_wallet->SignTransaction(finalMutableTransaction, coins, SIGHASH_ALL, signing_errors);
 
     for (const auto& [input_index, error_string] : signing_errors) {
         // NOTE: this is a partial signing so it's expected for SignTransaction to return
