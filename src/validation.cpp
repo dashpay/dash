@@ -2738,6 +2738,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         // GetTransactionSigOpCount counts 2 types of sigops:
         // * legacy (always)
         // * p2sh (when P2SH enabled in flags and excludes coinbase)
+        // Both include CHECKDATASIG once signature_work is active.
         nSigOps += GetTransactionSigOpCount(tx, view, flags, count_data_sigs);
         if (nSigOps > MaxBlockSigOps(fDIP0001Active_context)) {
             LogPrintf("ERROR: ConnectBlock(): too many sigops\n");

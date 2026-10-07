@@ -3,7 +3,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <coins.h>
+#include <consensus/consensus.h>
 #include <consensus/tx_verify.h>
+#include <deploymentstatus.h>
 #include <key.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
@@ -13,6 +15,7 @@
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
+#include <validation.h>
 
 #include <vector>
 
@@ -116,6 +119,40 @@ BOOST_AUTO_TEST_CASE(P2SHDataSigsAreStandardOnlyWithinSigOpLimit)
         const CTransaction tx{SpendP2SH(coins, redeem_script)};
         BOOST_CHECK_EQUAL(AreInputsStandard(tx, coins), data_sigs <= MAX_P2SH_SIGOPS);
     }
+}
+
+// CheckBlock does not count data signatures, so ConnectBlock is the only check that can reject this block
+static void CheckDataSigsAgainstBlockSigOpLimit(TestChain100Setup& setup, bool signature_work)
+{
+    auto& chainman = *Assert(setup.m_node.chainman);
+    const CBlockIndex* tip{WITH_LOCK(cs_main, return chainman.ActiveChain().Tip())};
+    BOOST_REQUIRE_EQUAL(DeploymentActiveAfter(tip, chainman, Consensus::DEPLOYMENT_SIGNATURE_WORK), signature_work);
+    const unsigned int limit{MaxBlockSigOps(DeploymentActiveAfter(tip, chainman, Consensus::DEPLOYMENT_DIP0001))};
+    const std::vector<unsigned char> data_sigs(limit + 1, OP_CHECKDATASIG);
+    const auto tx{setup.CreateValidMempoolTransaction(setup.m_coinbase_txns[0], 0, 1, setup.coinbaseKey,
+                                                      CScript(data_sigs.begin(), data_sigs.end()), COIN,
+                                                      /*submit=*/false)};
+
+    setup.CreateAndProcessBlock({tx}, GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey()));
+    BOOST_CHECK_EQUAL(WITH_LOCK(cs_main, return chainman.ActiveChain().Height()),
+                      signature_work ? tip->nHeight : tip->nHeight + 1);
+}
+
+BOOST_FIXTURE_TEST_CASE(block_sigop_limit_ignores_data_sigs_while_dormant, TestChain100Setup)
+{
+    CheckDataSigsAgainstBlockSigOpLimit(*this, /*signature_work=*/false);
+}
+
+struct SignatureWorkSetup : public TestChain100Setup {
+    SignatureWorkSetup() :
+        TestChain100Setup{CBaseChainParams::REGTEST, {"-vbparams=signature_work:-1:-1"}}
+    {
+    }
+};
+
+BOOST_FIXTURE_TEST_CASE(block_sigop_limit_counts_data_sigs_once_active, SignatureWorkSetup)
+{
+    CheckDataSigsAgainstBlockSigOpLimit(*this, /*signature_work=*/true);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
