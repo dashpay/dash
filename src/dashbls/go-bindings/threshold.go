@@ -64,6 +64,8 @@ func BuildSignHash(llmqType uint8, quorumHash Hash, signID Hash, msgHash Hash) H
 // from a set of PrivateKey(s) and a hash
 // this function is a binding of bls::Threshold::PrivateKeyShare
 func ThresholdPrivateKeyShare(sks []*PrivateKey, hash Hash) (*PrivateKey, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cHashPtr := C.CBytes(hash[:])
 	defer C.free(cHashPtr)
 	cArrPtr := cAllocPrivKeys(sks...)
@@ -84,6 +86,8 @@ func ThresholdPrivateKeyShare(sks []*PrivateKey, hash Hash) (*PrivateKey, error)
 // from a set of G1Element(s) and a hash
 // this function is a binding of bls::Threshold::PublicKeyShare
 func ThresholdPublicKeyShare(pks []*G1Element, hash Hash) (*G1Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cHashPtr := C.CBytes(hash[:])
 	defer C.free(cHashPtr)
 	cArrPtr := cAllocPubKeys(pks...)
@@ -104,6 +108,8 @@ func ThresholdPublicKeyShare(pks []*G1Element, hash Hash) (*G1Element, error) {
 // from a set of G2Element(s) and a hash
 // this function is a binding of bls::Threshold::SignatureShare
 func ThresholdSignatureShare(sigs []*G2Element, hash Hash) (*G2Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cHashPtr := C.CBytes(hash[:])
 	defer C.free(cHashPtr)
 	cArrPtr := cAllocSigs(sigs...)
@@ -124,6 +130,8 @@ func ThresholdSignatureShare(sigs []*G2Element, hash Hash) (*G2Element, error) {
 // from the set of shared PrivateKey(s) with a list of the hashes
 // this function is a binding of bls::Threshold::PrivateKeyRecover
 func ThresholdPrivateKeyRecover(sks []*PrivateKey, hashes []Hash) (*PrivateKey, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cArrPtr := cAllocPrivKeys(sks...)
 	defer C.FreePtrArray(cArrPtr)
 	cHashArrPtr := cAllocHashes(hashes)
@@ -150,6 +158,8 @@ func ThresholdPrivateKeyRecover(sks []*PrivateKey, hashes []Hash) (*PrivateKey, 
 // from the set of shared G1Element(s) with a list of the hashes
 // this function is a binding of bls::Threshold::PublicKeyRecover
 func ThresholdPublicKeyRecover(pks []*G1Element, hashes []Hash) (*G1Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cArrPtr := cAllocPubKeys(pks...)
 	defer C.FreePtrArray(cArrPtr)
 	cHashArrPtr := cAllocHashes(hashes)
@@ -176,6 +186,8 @@ func ThresholdPublicKeyRecover(pks []*G1Element, hashes []Hash) (*G1Element, err
 // from the set of shared G2Element(s) with a list of the hashes
 // this function is a binding of bls::Threshold::SignatureRecover
 func ThresholdSignatureRecover(sigs []*G2Element, hashes []Hash) (*G2Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cArrPtr := cAllocSigs(sigs...)
 	defer C.FreePtrArray(cArrPtr)
 	cHashArrPtr := cAllocHashes(hashes)

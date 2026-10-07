@@ -38,6 +38,8 @@ uint8_t* SecAllocBytes(size_t len);
 
 void* GetAddressAtIndex(uint8_t *ptr, int index);
 
+// Returns the last error on the calling OS thread. The borrowed pointer remains
+// valid until the next failure on that thread or until the thread exits.
 const char* GetLastErrorMsg();
 
 #ifdef __cplusplus

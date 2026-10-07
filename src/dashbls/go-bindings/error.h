@@ -16,6 +16,6 @@
 #define GO_BINDINGS_ERROR_H_
 #include <string>
 
-extern std::string gErrMsg;
+extern thread_local std::string gErrMsg;
 
 #endif  // GO_BINDINGS_ERROR_H_

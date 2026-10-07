@@ -32,6 +32,8 @@ type PrivateKey struct {
 // PrivateKeyFromBytes returns a new PrivateKey from bytes
 // this method allocates the new bls::PrivateKey object and keeps its pointer
 func PrivateKeyFromBytes(data []byte, modOrder bool) (*PrivateKey, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cBytesPtr := cAllocBytes(data)
 	defer C.SecFree(cBytesPtr)
 	var cDidErr C.bool
@@ -48,6 +50,8 @@ func PrivateKeyFromBytes(data []byte, modOrder bool) (*PrivateKey, error) {
 // G1Element returns a G1Element (public key) using a state of the current private key
 // this method is a binding of the bls::PrivateKey::G1Element
 func (sk *PrivateKey) G1Element() (*G1Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	var cDidErr C.bool
 	el := G1Element{
 		val: C.CPrivateKeyGetG1Element(sk.val, &cDidErr),
@@ -63,6 +67,8 @@ func (sk *PrivateKey) G1Element() (*G1Element, error) {
 // G2Element returns a G2Element (signature) using a state of the current private key
 // this method is a binding of the bls::PrivateKey::G2Element
 func (sk *PrivateKey) G2Element() (*G2Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	var cDidErr C.bool
 	el := G2Element{
 		val: C.CPrivateKeyGetG2Element(sk.val, &cDidErr),

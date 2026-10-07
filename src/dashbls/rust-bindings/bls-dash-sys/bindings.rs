@@ -116,6 +116,8 @@ extern "C" {
         index: ::std::os::raw::c_int,
     ) -> *mut ::std::os::raw::c_void;
 
+    /// Returns the last error on the calling OS thread. The borrowed pointer remains
+    /// valid until the next failure on that thread or until the thread exits.
     pub fn GetLastErrorMsg() -> *const ::std::os::raw::c_char;
 
     pub fn CoreMPLKeyGen(

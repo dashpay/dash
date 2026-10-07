@@ -34,6 +34,8 @@ type G1Element struct {
 // G1ElementFromBytes returns a new G1Element (public-key) from bytes
 // this method allocates the new bls::G2Element object and keeps its pointer
 func G1ElementFromBytes(data []byte) (*G1Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cBytesPtr := C.CBytes(data)
 	defer C.free(cBytesPtr)
 	var cDidErr C.bool
@@ -125,6 +127,8 @@ type G2Element struct {
 // G2ElementFromBytes returns a new G2Element (signature) from passed byte slice
 // this method allocates the new bls::G2Element object and keeps its pointer
 func G2ElementFromBytes(data []byte) (*G2Element, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cBytesPtr := C.CBytes(data)
 	defer C.free(cBytesPtr)
 	var cDidErr C.bool

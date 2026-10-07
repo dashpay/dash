@@ -18,6 +18,8 @@ package blschia
 import "C"
 import "errors"
 
+// The caller must remain locked to its OS thread from the native failure until
+// this function has copied the thread-local error message.
 func errFromC() error {
 	return errors.New(C.GoString(C.GetLastErrorMsg()))
 }

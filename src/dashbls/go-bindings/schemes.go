@@ -73,6 +73,8 @@ type coreMPL struct {
 // KeyGen returns a new generated PrivateKey using passed a genSeed data
 // this method is a binding of bls::CoreMPL::KeyGen
 func (s *coreMPL) KeyGen(seed []byte) (*PrivateKey, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	cSeedPtr := C.CBytes(seed)
 	defer C.free(cSeedPtr)
 	var cDidErr C.bool

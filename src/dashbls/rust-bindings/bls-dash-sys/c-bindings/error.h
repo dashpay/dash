@@ -16,6 +16,6 @@
 #define ERROR_H_
 #include <string>
 
-extern std::string gErrMsg;
+extern thread_local std::string gErrMsg;
 
 #endif  // ERROR_H_
