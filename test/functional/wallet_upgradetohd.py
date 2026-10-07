@@ -176,24 +176,40 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
             self.stop_node(0, expected_stderr="Warning: Legacy mnemonic recovery ignores passphrase bytes after byte 248. This option is only for recovering an existing wallet.")
 
     def test_config_section_recovery_opt_in(self):
-        self.log.info("A recovery opt-in from the network section of the config file lasts until seed generation")
+        self.log.info("Startup mnemonic options from the network section of the config file are used together")
         node = self.nodes[0]
         mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        passphrase = "x" * 249
         conf_path = os.path.join(node.datadir, "dash.conf")
         with open(conf_path, encoding="utf8") as f:
             conf = f.read()
-        append_config(node.datadir, ["allowlegacymnemonicpassphrase=1"])
-        self.restart_node(0, ["-usehd=1", "-mnemonic=" + mnemonic, "-mnemonicpassphrase=" + "x" * 249])
-        result = node.createwallet("config-recovery", descriptors=self.options.descriptors)
-        assert_equal(sum("ignores passphrase bytes after byte 248" in warning for warning in result["warnings"]), 1)
-        wallet = node.get_wallet_rpc("config-recovery")
-        assert_equal(get_mnemonic(wallet), (mnemonic, "x" * 249))
-        assert_equal(wallet.getnewaddress(), "yiMSVRFwgJSg6nXWKcKgvRU3ZWWXkm1NWo")
-        assert_equal(wallet.getrawchangeaddress(), "yS354oVpKrfjVG5XunAd74bpo3NEBHVvhf")
-        wallet.unloadwallet()
-        self.restart_node(0, ["-usehd=1", "-mnemonicpassphrase=" + "x" * 249])
-        assert_raises_rpc_error(-4, "requires a supplied valid mnemonic", node.createwallet, "config-recovery-missing", descriptors=self.options.descriptors)
-        assert not os.path.exists(os.path.join(node.datadir, self.chain, "config-recovery-missing"))
+        recovered = [
+            ("config-optin", ["allowlegacymnemonicpassphrase=1"], ["-mnemonic=" + mnemonic, "-mnemonicpassphrase=" + passphrase]),
+            ("config-all", ["mnemonic=" + mnemonic, "mnemonicpassphrase=" + passphrase, "allowlegacymnemonicpassphrase=1"], []),
+        ]
+        rejected = [
+            ("config-no-optin", ["mnemonic=" + mnemonic, "mnemonicpassphrase=" + passphrase], [], "at most 248 bytes"),
+            ("config-no-mnemonic", ["allowlegacymnemonicpassphrase=1"], ["-mnemonicpassphrase=" + passphrase], "requires a supplied valid mnemonic"),
+        ]
+        for name, config, extra_args in recovered:
+            with open(conf_path, "w", encoding="utf8") as f:
+                f.write(conf)
+            append_config(node.datadir, config)
+            self.restart_node(0, ["-usehd=1"] + extra_args)
+            result = node.createwallet(name, descriptors=self.options.descriptors)
+            assert_equal(sum("ignores passphrase bytes after byte 248" in warning for warning in result["warnings"]), 1)
+            wallet = node.get_wallet_rpc(name)
+            assert_equal(get_mnemonic(wallet), (mnemonic, passphrase))
+            assert_equal(wallet.getnewaddress(), "yiMSVRFwgJSg6nXWKcKgvRU3ZWWXkm1NWo")
+            assert_equal(wallet.getrawchangeaddress(), "yS354oVpKrfjVG5XunAd74bpo3NEBHVvhf")
+            wallet.unloadwallet()
+        for name, config, extra_args, message in rejected:
+            with open(conf_path, "w", encoding="utf8") as f:
+                f.write(conf)
+            append_config(node.datadir, config)
+            self.restart_node(0, ["-usehd=1"] + extra_args)
+            assert_raises_rpc_error(-4, message, node.createwallet, name, descriptors=self.options.descriptors)
+            assert not os.path.exists(os.path.join(node.datadir, self.chain, name))
         self.stop_node(0)
         with open(conf_path, "w", encoding="utf8") as f:
             f.write(conf)
