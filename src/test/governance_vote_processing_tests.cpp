@@ -282,6 +282,44 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
 }
 
+BOOST_AUTO_TEST_CASE(orphan_funding_votes_from_multiple_masternodes_are_applied)
+{
+    CKey second_voting_key;
+    CBLSSecretKey second_operator_key;
+    const auto protx{CreateProRegTx(*m_node.chainman, utxos, /*port=*/2, payout_script(), coinbaseKey,
+                                   second_voting_key, second_operator_key)};
+    MineBlock({protx});
+    const COutPoint second_collateral{protx.GetHash(), 0};
+    BOOST_REQUIRE(tip_mn_list().GetMNByCollateral(second_collateral) != nullptr);
+
+    auto& govman = *m_node.govman;
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    CGovernanceVote first_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+    SignWithVotingKey(first_vote, mn_voting_key);
+    CGovernanceVote second_vote{second_collateral, parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES};
+    SignWithVotingKey(second_vote, second_voting_key);
+
+    for (const auto& vote : {first_vote, second_vote, second_vote}) {
+        BOOST_REQUIRE(vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(exception.GetType(), GOVERNANCE_EXCEPTION_WARNING);
+        BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+    }
+
+    const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
+    CGovernanceObject proposal{MakeProposal(collateral_hash)};
+    BOOST_REQUIRE_EQUAL(proposal.GetHash(), parent_hash);
+    govman.AddGovernanceObject(proposal, /*peer_str=*/"");
+    const auto stored{govman.FindConstGovernanceObject(parent_hash)};
+    BOOST_REQUIRE(stored != nullptr);
+    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 2);
+    const auto current_votes{govman.GetCurrentVotes(parent_hash, COutPoint{})};
+    BOOST_REQUIRE_EQUAL(current_votes.size(), 2U);
+    BOOST_CHECK(govman.GetOrphanVoteObjectHashes().empty());
+}
+
 // Votes are only counted if they carry a signature from a registered masternode.
 BOOST_AUTO_TEST_CASE(unsigned_and_unknown_masternode_votes_are_rejected)
 {
