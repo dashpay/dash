@@ -343,12 +343,35 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
         wire << std::vector<CTxIn>{input};
         server.ProcessMessage(*peers[participant == participants - 1 ? 0 : participant], NetMsgType::DSSIGNFINALTX, wire);
     };
+    const auto check_rejected = [&](int participant, const CTxIn& input) {
+        const auto before{server.FinalTransaction()};
+        submit(participant, input);
+        BOOST_CHECK(rejected(*peers[participant == participants - 1 ? 0 : participant]));
+        BOOST_CHECK(server.FinalTransaction().GetHash() == before.GetHash());
+        BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    };
+
+    // An admitted connection cannot sign an input belonging to another connection.
+    check_rejected(1, signed_inputs[0]);
+    CMutableTransaction modified_proposal{final};
+    modified_proposal.vout.front().scriptPubKey = P2PKHScript(0xff);
+    const auto first_index{input_index(signed_inputs[0].prevout)};
+    constexpr int legacy_mode{SIGHASH_ALL | SIGHASH_ANYONECANPAY};
+    BOOST_REQUIRE(SignSignature(provider, previous_scripts[0], modified_proposal, first_index, amount, legacy_mode));
+    BOOST_REQUIRE(VerifyScript(modified_proposal.vin[first_index].scriptSig, previous_scripts[0],
+                               STANDARD_SCRIPT_VERIFY_FLAGS,
+                               MutableTransactionSignatureChecker(&modified_proposal, first_index, amount,
+                                                                  MissingDataBehavior::ASSERT_FAIL)));
+    check_rejected(0, modified_proposal.vin[first_index]);
 
     submit(0, signed_inputs[0]);
     BOOST_CHECK(!rejected(*peers[0]));
     // Multiple entries on this connection can receive the same final proposal again.
     submit(0, signed_inputs[0]);
     BOOST_CHECK(!rejected(*peers[0]));
+    CTxIn invalid_retry{signed_inputs[0]};
+    invalid_retry.scriptSig.clear();
+    check_rejected(0, invalid_retry);
     for (int i{1}; i < participants; ++i) {
         submit(i, signed_inputs[i]);
         BOOST_CHECK(!rejected(*peers[i == participants - 1 ? 0 : i]));
