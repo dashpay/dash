@@ -3282,6 +3282,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         }
 
         if ((wallet_creation_flags & WALLET_FLAG_EXTERNAL_SIGNER) || !(wallet_creation_flags & (WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_BLANK_WALLET))) {
+            const bool allow_legacy_passphrase{args.GetBoolArg("-allowlegacymnemonicpassphrase", false)};
             // Create new HD chain
             if (args.GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
                 std::string strSeed = args.GetArg("-hdseed", "not hex");
@@ -3320,8 +3321,8 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
                     mnemonic_passphrase = args.GetArg("-mnemonicpassphrase", "");
                     LOCK(walletInstance->cs_wallet);
                     if (auto spk_man = walletInstance->GetLegacyScriptPubKeyMan()) {
-                        spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase, std::nullopt, args.GetBoolArg("-allowlegacymnemonicpassphrase", false));
-                        if (args.GetBoolArg("-allowlegacymnemonicpassphrase", false) && mnemonic_passphrase.size() > CMnemonic::MAX_PASSPHRASE_BYTES) {
+                        spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase, std::nullopt, allow_legacy_passphrase);
+                        if (allow_legacy_passphrase && mnemonic_passphrase.size() > CMnemonic::MAX_PASSPHRASE_BYTES) {
                             warnings.push_back(_("Legacy mnemonic recovery ignores passphrase bytes after byte 248. This option is only for recovering an existing wallet."));
                         }
                     }
@@ -3341,7 +3342,6 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
                 mnemonic_passphrase.reserve(256);
                 mnemonic = args.GetArg("-mnemonic", "");
                 mnemonic_passphrase = args.GetArg("-mnemonicpassphrase", "");
-                const bool allow_legacy_passphrase{args.GetBoolArg("-allowlegacymnemonicpassphrase", false)};
                 args.ForceRemoveArg("mnemonic");
                 args.ForceRemoveArg("mnemonicpassphrase");
                 args.ForceRemoveArg("allowlegacymnemonicpassphrase");

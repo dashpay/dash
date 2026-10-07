@@ -15,6 +15,7 @@ import shutil
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import ErrorMatch
 from test_framework.util import (
+    append_config,
     assert_equal,
     assert_raises_rpc_error,
     get_mnemonic,
@@ -173,6 +174,29 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
             assert_equal(wallet.getrawchangeaddress(), "yS354oVpKrfjVG5XunAd74bpo3NEBHVvhf")
             assert_equal(get_mnemonic(wallet), (mnemonic, "x" * 249))
             self.stop_node(0, expected_stderr="Warning: Legacy mnemonic recovery ignores passphrase bytes after byte 248. This option is only for recovering an existing wallet.")
+
+    def test_config_section_recovery_opt_in(self):
+        self.log.info("A recovery opt-in from the network section of the config file lasts until seed generation")
+        node = self.nodes[0]
+        mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        conf_path = os.path.join(node.datadir, "dash.conf")
+        with open(conf_path, encoding="utf8") as f:
+            conf = f.read()
+        append_config(node.datadir, ["allowlegacymnemonicpassphrase=1"])
+        self.restart_node(0, ["-usehd=1", "-mnemonic=" + mnemonic, "-mnemonicpassphrase=" + "x" * 249])
+        result = node.createwallet("config-recovery", descriptors=self.options.descriptors)
+        assert_equal(sum("ignores passphrase bytes after byte 248" in warning for warning in result["warnings"]), 1)
+        wallet = node.get_wallet_rpc("config-recovery")
+        assert_equal(get_mnemonic(wallet), (mnemonic, "x" * 249))
+        assert_equal(wallet.getnewaddress(), "yiMSVRFwgJSg6nXWKcKgvRU3ZWWXkm1NWo")
+        assert_equal(wallet.getrawchangeaddress(), "yS354oVpKrfjVG5XunAd74bpo3NEBHVvhf")
+        wallet.unloadwallet()
+        self.restart_node(0, ["-usehd=1", "-mnemonicpassphrase=" + "x" * 249])
+        assert_raises_rpc_error(-4, "requires a supplied valid mnemonic", node.createwallet, "config-recovery-missing", descriptors=self.options.descriptors)
+        assert not os.path.exists(os.path.join(node.datadir, self.chain, "config-recovery-missing"))
+        self.stop_node(0)
+        with open(conf_path, "w", encoding="utf8") as f:
+            f.write(conf)
 
     def run_test(self):
         node = self.nodes[0]
@@ -396,6 +420,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         self.test_mnemonic_passphrase_limit()
         self.test_mnemonic_recovery()
         self.test_startup_mnemonic_recovery()
+        self.test_config_section_recovery_opt_in()
 
 
 if __name__ == '__main__':
