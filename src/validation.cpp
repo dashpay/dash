@@ -2567,13 +2567,16 @@ bool Chainstate::IsSuperblockValidationRequired(const CBlockIndex* const pindex)
 *   - Other blocks are 10% lower in outgoing value, so in total, no extra coins are created
 *   - When non-superblocks are detected, the normal schedule should be maintained
 */
-bool Chainstate::IsBlockValueValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, const CAmount blockReward, std::string& strErrorRet) const
+bool Chainstate::IsBlockValueValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list,
+                                   const CAmount blockReward, std::string& strErrorRet,
+                                   std::optional<std::vector<CTxOut>>* superblock_payments_ret) const
 {
     const Consensus::Params& consensus_params{m_chainman.GetConsensus()};
     const int nBlockHeight{pindex->nHeight};
     bool isBlockRewardValueMet = (block.vtx[0]->GetValueOut() <= blockReward);
 
     strErrorRet = "";
+    if (superblock_payments_ret) superblock_payments_ret->reset();
 
     if (nBlockHeight < consensus_params.nBudgetPaymentsStartBlock) {
         // old budget system is not activated yet, just make sure we do not exceed the regular block reward
@@ -2647,46 +2650,55 @@ bool Chainstate::IsBlockValueValid(const CBlock& block, const CBlockIndex* pinde
     }
 
     // we got a valid superblock
+    if (superblock_payments_ret) *superblock_payments_ret = std::move(superblock.payments);
     return true;
 }
 
-bool Chainstate::IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, const CDeterministicMNCPtr& payee, const CAmount blockSubsidy, const CAmount feeReward) const
+bool Chainstate::IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list,
+                                   const CDeterministicMNCPtr& payee, const CAmount blockSubsidy,
+                                   const CAmount feeReward, const std::vector<CTxOut>* superblock_payments) const
 {
     const Consensus::Params& consensus_params{m_chainman.GetConsensus()};
     const CTransaction& txNew{*block.vtx[0]};
     const int nBlockHeight{pindex->nHeight};
-    if (!DeploymentDIP0003Enforced(nBlockHeight, consensus_params)) {
-        // can't verify historical blocks here
-        return true;
-    }
-
     std::vector<CTxOut> voutMasternodePayments;
-    const MnRewardEra era{GetMnRewardEraAfter(pindex->pprev, m_chainman)};
-    if (!GetMasternodePayments(mn_list, pindex->pprev, payee, blockSubsidy, feeReward, era, consensus_params, voutMasternodePayments)) {
-        LogPrintf("%s -- ERROR! Failed to get payees for block at height %s\n", __func__, nBlockHeight);
-        return true;
-    }
-
-    // With strict multiplicity (v24 active) each expected payment must be matched by a
-    // distinct coinbase output: duplicate expected outputs require duplicate coinbase
-    // outputs. Pre-v24 retains the legacy existence-only check to avoid tightening
-    // historical validation.
-    const bool strict_multiplicity{DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_V24)};
-    const int unmatched_idx = FindUnmatchedMasternodePayment(voutMasternodePayments, txNew.vout, strict_multiplicity);
-    if (unmatched_idx >= 0) {
-        const auto& txout = voutMasternodePayments[unmatched_idx];
-        std::string str_payout;
-        if (CTxDestination dest; ExtractDestination(txout.scriptPubKey, dest)) {
-            str_payout = "address=" + EncodeDestination(dest);
+    if (DeploymentDIP0003Enforced(nBlockHeight, consensus_params)) {
+        const MnRewardEra era{GetMnRewardEraAfter(pindex->pprev, m_chainman)};
+        if (!GetMasternodePayments(mn_list, pindex->pprev, payee, blockSubsidy, feeReward, era, consensus_params,
+                                   voutMasternodePayments)) {
+            LogPrintf("%s -- ERROR! Failed to get payees for block at height %s\n", __func__, nBlockHeight);
+            voutMasternodePayments.clear();
         } else {
-            str_payout = "scriptPubKey=" + HexStr(txout.scriptPubKey);
+            // With strict multiplicity (v24 active) each expected payment must be matched by a
+            // distinct coinbase output: duplicate expected outputs require duplicate coinbase
+            // outputs. Pre-v24 retains the legacy existence-only check to avoid tightening
+            // historical validation.
+            const bool strict_multiplicity{DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_V24)};
+            const int unmatched_idx = FindUnmatchedMasternodePayment(voutMasternodePayments, txNew.vout,
+                                                                     strict_multiplicity);
+            if (unmatched_idx >= 0) {
+                const auto& txout = voutMasternodePayments[unmatched_idx];
+                std::string str_payout;
+                if (CTxDestination dest; ExtractDestination(txout.scriptPubKey, dest)) {
+                    str_payout = "address=" + EncodeDestination(dest);
+                } else {
+                    str_payout = "scriptPubKey=" + HexStr(txout.scriptPubKey);
+                }
+                LogPrintf("%s -- ERROR! Failed to find expected payee %s amount=%lld height=%d\n", __func__, str_payout,
+                          txout.nValue, nBlockHeight);
+                LogPrintf("%s -- ERROR! Invalid masternode payment detected at height %d: %s", /* Continued */
+                          __func__, nBlockHeight, txNew.ToString());
+                return false;
+            }
+            LogPrint(BCLog::MNPAYMENTS, "%s -- Valid masternode payment at height %d: %s", /* Continued */
+                     __func__, nBlockHeight, txNew.ToString());
         }
-        LogPrintf("%s -- ERROR! Failed to find expected payee %s amount=%lld height=%d\n",
-                  __func__, str_payout, txout.nValue, nBlockHeight);
-        LogPrintf("%s -- ERROR! Invalid masternode payment detected at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
+    }
+    if (superblock_payments && !HasDistinctRequiredPayments(voutMasternodePayments, *superblock_payments, txNew.vout)) {
+        LogPrintf("%s -- ERROR! Masternode and superblock payments share an output at height %d: %s", /* Continued */
+                  __func__, nBlockHeight, txNew.ToString());
         return false;
     }
-    LogPrint(BCLog::MNPAYMENTS, "%s -- Valid masternode payment at height %d: %s", __func__, nBlockHeight, txNew.ToString()); /* Continued */
     return true;
 }
 
@@ -3063,7 +3075,11 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<SecondsDouble>(time_subsidy),
              Ticks<MillisecondsDouble>(time_subsidy) / num_blocks_total);
 
-    if (!IsBlockValueValid(block, pindex, mnlist_updates.old_list, blockSubsidy + feeReward, strError)) {
+    std::optional<std::vector<CTxOut>> superblock_payments;
+    const bool distinct_required_payments{
+        DeploymentActiveAt(*pindex, m_chainman, Consensus::DEPLOYMENT_DISTINCT_REQUIRED_PAYMENTS)};
+    if (!IsBlockValueValid(block, pindex, mnlist_updates.old_list, blockSubsidy + feeReward, strError,
+                           distinct_required_payments ? &superblock_payments : nullptr)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): %s\n", strError);
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-amount");
@@ -3076,7 +3092,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<SecondsDouble>(time_value_valid),
              Ticks<MillisecondsDouble>(time_value_valid) / num_blocks_total);
 
-    if (!IsBlockPayeeValid(block, pindex, mnlist_updates.old_list, mnlist_updates.payee, blockSubsidy, feeReward)) {
+    if (!IsBlockPayeeValid(block, pindex, mnlist_updates.old_list, mnlist_updates.payee, blockSubsidy, feeReward,
+                           superblock_payments ? &*superblock_payments : nullptr)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): couldn't find masternode or superblock payments\n");
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-payee");
