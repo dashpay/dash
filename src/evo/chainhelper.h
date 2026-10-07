@@ -5,11 +5,15 @@
 #ifndef BITCOIN_EVO_CHAINHELPER_H
 #define BITCOIN_EVO_CHAINHELPER_H
 
+#include <kernel/cs_main.h>
+#include <threadsafety.h>
+
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
 
+class CBlock;
 class CBlockIndex;
 class CCreditPoolManager;
 class CDeterministicMNManager;
@@ -75,6 +79,9 @@ public:
 
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(const CBlockIndex* pindex) const;
+
+    void ResetPlatformBans(const CBlock& block, const CBlockIndex& index) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void DiscardDeterministicMNBlock(const uint256& block_hash);
 
     /** Passthrough functions to CCreditPoolManager */
     CCreditPool GetCreditPool(const CBlockIndex* const pindex);

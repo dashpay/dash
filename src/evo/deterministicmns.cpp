@@ -686,9 +686,8 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaM
 
 CDeterministicMNManager::~CDeterministicMNManager() = default;
 
-bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex,
-                                           BlockValidationState& state, const CDeterministicMNList& newList,
-                                           MNListUpdates& updatesRet)
+bool CDeterministicMNManager::ProcessBlock(gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state,
+                                           const CDeterministicMNList& newList, MNListUpdates& updatesRet)
 {
     AssertLockHeld(::cs_main);
 
@@ -731,23 +730,6 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
                 __func__, nHeight, newList.GetCounts().total());
         }
 
-        // apply platform unban for platform revive too, after all persistent
-        // payload checks have succeeded
-        for (int i = 1; i < static_cast<int>(block.vtx.size()); i++) {
-            const CTransaction& tx = *block.vtx[i];
-            if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE) {
-                // only interested in revive transactions
-                continue;
-            }
-            const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
-            if (!opt_proTx) continue; // should not happen but does not matter
-
-            if (!m_mn_metaman.ResetPlatformBan(opt_proTx->proTxHash, nHeight)) {
-                LogPrint(BCLog::LLMQ, "%s -- MN %s is failed to Platform revived at height %d\n", __func__,
-                         opt_proTx->proTxHash.ToString(), nHeight);
-            }
-        }
-
         diff.nHeight = pindex->nHeight;
         mnListDiffsCache.emplace(pindex->GetBlockHash(), diff);
         mnListsCache.emplace(newList.GetBlockHash(), newList);
@@ -779,6 +761,30 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
         LogPrintf("CDeterministicMNManager::%s -- DIP3 is enforced now. nHeight=%d\n", __func__, nHeight);
     }
     return true;
+}
+
+void CDeterministicMNManager::ResetPlatformBans(const CBlock& block, const CBlockIndex& index)
+{
+    AssertLockHeld(::cs_main);
+    if (!DeploymentActiveAt(index, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) return;
+
+    for (size_t i = 1; i < block.vtx.size(); ++i) {
+        const CTransaction& tx = *block.vtx[i];
+        if (!tx.IsSpecialTxVersion() || tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE) continue;
+        const auto pro_tx = GetTxPayload<CProUpServTx>(tx);
+        if (!pro_tx) continue;
+        if (!m_mn_metaman.ResetPlatformBan(pro_tx->proTxHash, index.nHeight)) {
+            LogPrint(BCLog::LLMQ, "%s -- MN %s is failed to Platform revived at height %d\n", __func__,
+                     pro_tx->proTxHash.ToString(), index.nHeight);
+        }
+    }
+}
+
+void CDeterministicMNManager::DiscardBlock(const uint256& block_hash)
+{
+    LOCK(cs);
+    mnListsCache.erase(block_hash);
+    mnListDiffsCache.erase(block_hash);
 }
 
 bool CDeterministicMNManager::UndoBlock(gsl::not_null<const CBlockIndex*> pindex, MNListUpdates& updatesRet)

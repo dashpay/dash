@@ -786,10 +786,15 @@ public:
     explicit CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaMan& mn_metaman);
     ~CDeterministicMNManager();
 
-    bool ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state,
+    bool ProcessBlock(gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state,
                       const CDeterministicMNList& newList, MNListUpdates& updatesRet)
         EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
     bool UndoBlock(gsl::not_null<const CBlockIndex*> pindex, MNListUpdates& updatesRet) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    /** Apply local metadata updates only after successful active-chain connection. */
+    void ResetPlatformBans(const CBlock& block, const CBlockIndex& index) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    /** Drop candidate state whose EvoDB transaction was rolled back. */
+    void DiscardBlock(const uint256& block_hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     void UpdatedBlockTip(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 

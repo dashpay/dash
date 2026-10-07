@@ -10,6 +10,7 @@
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
+#include <evo/cbtx.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
 #include <evo/providertx.h>
@@ -19,9 +20,11 @@
 #include <evo/specialtxman.h>
 #include <interfaces/node.h>
 #include <llmq/context.h>
-#include <node/mempool_args.h>
+#include <masternode/meta.h>
 #include <messagesigner.h>
 #include <netbase.h>
+#include <node/blockstorage.h>
+#include <node/mempool_args.h>
 #include <node/miner.h>
 #include <policy/policy.h>
 #include <pow.h>
@@ -3812,6 +3815,99 @@ BOOST_AUTO_TEST_CASE(migration_logic_validation)
     BOOST_CHECK_EQUAL(convertedDiff.state.GetBannedHeight(), legacyDiff.state.GetBannedHeight());
     BOOST_CHECK(convertedDiff.state.pubKeyOperator.Get() == legacyDiff.state.pubKeyOperator.Get());
     BOOST_CHECK_EQUAL(convertedDiff.state.pubKeyOperator.ToString(), legacyDiff.state.pubKeyOperator.ToString());
+}
+
+BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
+{
+    TestMNChainSetup setup{100, {"-dip3params=109:500"}};
+    for (int i = 0; i < 20; ++i)
+        setup.ProcessBlock();
+    auto& chainman = setup.chainman;
+    auto& dmnman = setup.dmnman;
+    auto& metaman = *setup.m_node.mn_metaman;
+
+    CKey owner_key;
+    owner_key.MakeNewKey(true);
+    CBLSSecretKey operator_key;
+    operator_key.MakeNewKey();
+    CProRegTx pro_reg;
+    pro_reg.nVersion = ProTxVersion::BasicBLS;
+    pro_reg.nType = MnType::Evo;
+    pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
+    BOOST_REQUIRE_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:1"), NetInfoStatus::Success);
+    pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
+    pro_reg.keyIDVoting = pro_reg.keyIDOwner;
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg.scriptPayout = GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey()));
+    pro_reg.collateralOutpoint.n = 0;
+    pro_reg.platformNodeID.SetHex("00112233445566778899aabbccddeeff00112233");
+    pro_reg.platformP2PPort = 20001;
+    pro_reg.platformHTTPPort = 20002;
+    CMutableTransaction tx_reg;
+    tx_reg.nVersion = 3;
+    tx_reg.nType = TRANSACTION_PROVIDER_REGISTER;
+    const auto reg_spent = FundTransaction(chainman, tx_reg, setup.utxos, pro_reg.scriptPayout,
+                                           dmn_types::Evo.collat_amount);
+    pro_reg.inputsHash = CalcTxInputsHash(CTransaction(tx_reg));
+    SetTxPayload(tx_reg, pro_reg);
+    SignTransaction(tx_reg, reg_spent, setup.coinbaseKey);
+    const uint256 protx_hash = tx_reg.GetHash();
+    setup.ProcessBlock({tx_reg});
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(protx_hash));
+
+    PlatformBanMessage ban;
+    ban.m_protx_hash = protx_hash;
+    ban.m_requested_height = setup.Tip()->nHeight;
+    const auto ban_hash = ban.GetHash();
+    BOOST_REQUIRE(metaman.SetPlatformBan(ban_hash, std::move(ban)));
+    const auto metadata_before = metaman.GetInfo(protx_hash);
+
+    CProUpServTx pro_serv;
+    pro_serv.nVersion = pro_reg.nVersion;
+    pro_serv.nType = MnType::Evo;
+    pro_serv.proTxHash = protx_hash;
+    pro_serv.netInfo = NetInfoInterface::MakeNetInfo(pro_serv.nVersion);
+    BOOST_REQUIRE_EQUAL(pro_serv.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:2"), NetInfoStatus::Success);
+    pro_serv.platformNodeID = pro_reg.platformNodeID;
+    pro_serv.platformP2PPort = pro_reg.platformP2PPort;
+    pro_serv.platformHTTPPort = pro_reg.platformHTTPPort;
+    CMutableTransaction tx_serv;
+    tx_serv.nVersion = 3;
+    tx_serv.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+    const auto serv_spent = FundTransaction(chainman, tx_serv, setup.utxos, pro_reg.scriptPayout, COIN);
+    pro_serv.inputsHash = CalcTxInputsHash(CTransaction(tx_serv));
+    pro_serv.sig = operator_key.Sign(::SerializeHash(pro_serv), /*specificLegacyScheme=*/false);
+    SetTxPayload(tx_serv, pro_serv);
+    SignTransaction(tx_serv, serv_spent, setup.coinbaseKey);
+    const CBlock good = setup.CreateBlock({tx_serv}, setup.coinbase_pk, chainman.ActiveChainstate());
+    CBlock rejected = good;
+    auto cbtx = GetTxPayload<CCbTx>(*rejected.vtx[0]);
+    BOOST_REQUIRE(cbtx.has_value());
+    BOOST_REQUIRE(cbtx->merkleRootMNList != uint256::ONE);
+    cbtx->merkleRootMNList = uint256::ONE;
+    CMutableTransaction coinbase{*rejected.vtx[0]};
+    SetTxPayload(coinbase, *cbtx);
+    rejected.vtx[0] = MakeTransactionRef(coinbase);
+    rejected.hashMerkleRoot = BlockMerkleRoot(rejected);
+    while (!CheckProofOfWork(rejected.GetHash(), rejected.nBits, chainman.GetConsensus()))
+        ++rejected.nNonce;
+
+    const auto tip_before = setup.Tip();
+    chainman.ProcessNewBlock(std::make_shared<CBlock>(rejected), /*force_processing=*/true, nullptr);
+    BOOST_CHECK(setup.Tip() == tip_before);
+    BOOST_CHECK(metaman.IsPlatformBanned(protx_hash));
+    BOOST_CHECK_EQUAL(metaman.GetInfo(protx_hash).m_platform_ban_updated, metadata_before.m_platform_ban_updated);
+    const auto rejected_index = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(rejected.GetHash()));
+    BOOST_REQUIRE(rejected_index);
+    BOOST_REQUIRE(WITH_LOCK(cs_main, return rejected_index->nStatus & BLOCK_FAILED_VALID));
+    CDeterministicMNManager reloaded{*setup.m_node.evodb, metaman};
+    BOOST_CHECK(SerializeHash(dmnman.GetListForBlock(rejected_index)) ==
+                SerializeHash(reloaded.GetListForBlock(rejected_index)));
+
+    BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<CBlock>(good), /*force_processing=*/true, nullptr));
+    BOOST_CHECK(setup.Tip()->GetBlockHash() == good.GetHash());
+    BOOST_CHECK(!metaman.IsPlatformBanned(protx_hash));
+    BOOST_CHECK_EQUAL(metaman.GetInfo(protx_hash).m_platform_ban_updated, setup.Tip()->nHeight);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
