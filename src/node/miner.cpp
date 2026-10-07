@@ -114,10 +114,16 @@ void BlockAssembler::resetBlock()
 }
 
 // Helper to calculate best chainlock
-static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
-                                  uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
+bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
+                           uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature, bool enforce_branch_binding)
 {
     auto best_clsig = chainlocks.GetBestChainLock();
+    if (enforce_branch_binding) {
+        const auto* certified_ancestor = pindexPrev->GetAncestor(best_clsig.getHeight());
+        if (!certified_ancestor || certified_ancestor->GetBlockHash() != best_clsig.getBlockHash()) {
+            best_clsig = chainlock::ChainLockSig{};
+        }
+    }
     if (best_clsig.getHeight() < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)) {
         // We don't want legacy BLS ChainLocks in CbTx (can happen on regtest/devenets)
         best_clsig = chainlock::ChainLockSig{};
@@ -355,7 +361,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             }
             if (fV20Active_context) {
                 CBLSSignature best_cl_sig;
-                const bool has_best_cl{CalcCbTxBestChainlock(m_chainlocks, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig)};
+                const bool has_best_cl{
+                    CalcCbTxBestChainlock(m_chainlocks, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig,
+                                          DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman,
+                                                                Consensus::DEPLOYMENT_CHAINLOCK_BRANCH_BINDING))};
                 cbTx.bestCLSignature.Set(best_cl_sig, bls::bls_legacy_scheme.load());
                 if (has_best_cl) {
                     LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());

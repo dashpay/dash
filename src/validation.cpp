@@ -2504,7 +2504,13 @@ static int64_t num_blocks_total = 0;
 
 bool Chainstate::IsSuperblockValidationRequired(const CBlockIndex* const pindex) const
 {
-    if (m_chainlocks.GetBestChainLockHeight() >= pindex->nHeight) {
+    bool chainlocked = m_chainlocks.GetBestChainLockHeight() >= pindex->nHeight;
+    if (DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_CHAINLOCK_BRANCH_BINDING)) {
+        const auto* certified_index = m_chainlocks.GetBestChainlockWithPindex().second;
+        chainlocked = certified_index && certified_index->nHeight >= pindex->nHeight &&
+                      certified_index->GetAncestor(pindex->nHeight)->GetBlockHash() == pindex->GetBlockHash();
+    }
+    if (chainlocked) {
         LogPrint(BCLog::MNPAYMENTS, "%s -- validation of chainlocked block=%s is skipped\n", __func__, pindex->GetBlockHash().ToString());
         return false;
     }
@@ -7031,6 +7037,8 @@ SpecialTxRules GetSpecialTxRules(const CBlockIndex* pindexPrev, const Chainstate
     return SpecialTxRules{
         .v24 = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24),
         .evo_shares = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_EVO_SHARES),
+        .chainlock_branch_binding = DeploymentActiveAfter(pindexPrev, chainman,
+                                                          Consensus::DEPLOYMENT_CHAINLOCK_BRANCH_BINDING),
     };
 }
 
