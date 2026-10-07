@@ -4910,6 +4910,11 @@ BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
     const auto rejected_index = WITH_LOCK(cs_main, return chainman.m_blockman.LookupBlockIndex(rejected.GetHash()));
     BOOST_REQUIRE(rejected_index);
     BOOST_REQUIRE(WITH_LOCK(cs_main, return rejected_index->nStatus & BLOCK_FAILED_VALID));
+    const auto rejected_list = dmnman.GetListForBlock(rejected_index);
+    const auto rejected_dmn = rejected_list.GetMN(protx_hash);
+    BOOST_CHECK(!rejected_dmn || rejected_dmn->pdmnState->netInfo->GetPrimary().GetPort() != 2);
+    CDeterministicMNManager fresh_dmnman{*Assert(setup.m_node.evodb), metaman};
+    BOOST_CHECK(rejected_list == fresh_dmnman.GetListForBlock(rejected_index));
 
     BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<CBlock>(good), /*force_processing=*/true, nullptr));
     BOOST_CHECK(setup.Tip()->GetBlockHash() == good.GetHash());
