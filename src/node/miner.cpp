@@ -113,10 +113,16 @@ void BlockAssembler::resetBlock()
 }
 
 // Helper to calculate best chainlock
-static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
-                                  uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
+bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
+                           uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature, bool enforce_branch_binding)
 {
     auto best_clsig = chainlocks.GetBestChainLock();
+    if (enforce_branch_binding) {
+        const auto* certified_ancestor = pindexPrev->GetAncestor(best_clsig.getHeight());
+        if (!certified_ancestor || certified_ancestor->GetBlockHash() != best_clsig.getBlockHash()) {
+            best_clsig = chainlock::ChainLockSig{};
+        }
+    }
     if (best_clsig.getHeight() < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)) {
         // We don't want legacy BLS ChainLocks in CbTx (can happen on regtest/devenets)
         best_clsig = chainlock::ChainLockSig{};
@@ -296,7 +302,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, state.ToString()));
             }
             if (fV20Active_context) {
-                if (CalcCbTxBestChainlock(m_chainlocks, pindexPrev, cbTx.bestCLHeightDiff, cbTx.bestCLSignature)) {
+                if (CalcCbTxBestChainlock(m_chainlocks, pindexPrev, cbTx.bestCLHeightDiff, cbTx.bestCLSignature,
+                                          DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman,
+                                                                Consensus::DEPLOYMENT_CHAINLOCK_BRANCH_BINDING))) {
                     LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());
                 } else {
                     // not an error

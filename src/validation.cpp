@@ -2838,9 +2838,11 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<SecondsDouble>(time_subsidy),
              Ticks<MillisecondsDouble>(time_subsidy) / num_blocks_total);
 
-    const SuperBlockCheckType check_superblock = !m_chain_helper->IsSuperblockValidationRequired(pindex)
-        ? SuperBlockCheckType::NoCheck
-        : special_tx_rules.v24 ? SuperBlockCheckType::DisallowDuplicates : SuperBlockCheckType::AllowDuplicates;
+    const SuperBlockCheckType check_superblock =
+        !m_chain_helper->IsSuperblockValidationRequired(pindex, special_tx_rules.chainlock_branch_binding)
+            ? SuperBlockCheckType::NoCheck
+        : special_tx_rules.v24 ? SuperBlockCheckType::DisallowDuplicates
+                               : SuperBlockCheckType::AllowDuplicates;
 
 
     if (!m_chain_helper->mn_payments->IsBlockValueValid(m_chain, block, pindex->pprev, blockSubsidy + feeReward, strError, check_superblock)) {
@@ -6799,6 +6801,8 @@ SpecialTxRules GetSpecialTxRules(const CBlockIndex* pindexPrev, const Chainstate
     return SpecialTxRules{
         .v24 = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24),
         .evo_shares = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_EVO_SHARES),
+        .chainlock_branch_binding = DeploymentActiveAfter(pindexPrev, chainman,
+                                                          Consensus::DEPLOYMENT_CHAINLOCK_BRANCH_BINDING),
     };
 }
 

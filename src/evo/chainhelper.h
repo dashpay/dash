@@ -66,7 +66,7 @@ public:
                                const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman);
     ~CChainstateHelper();
 
-    bool IsSuperblockValidationRequired(const CBlockIndex* const pindex);
+    bool IsSuperblockValidationRequired(const CBlockIndex* const pindex, bool enforce_branch_binding);
 
     /** Passthrough functions to chainlock::Chainlocks */
     bool HasConflictingChainLock(int nHeight, const uint256& blockHash) const;

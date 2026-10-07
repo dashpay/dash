@@ -50,6 +50,8 @@ struct SpecialTxRules {
     bool v24{false};
     //! EvoNodes may register with shared collateral and have multiple owner payouts
     bool evo_shares{false};
+    //! ChainLock shortcuts must authenticate the candidate ancestor
+    bool chainlock_branch_binding{false};
 };
 
 class CSpecialTxProcessor
@@ -128,8 +130,8 @@ std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<c
 
 /** Validates the bestCLSignature / bestCLHeightDiff fields embedded in a CbTx payload. */
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                            const CChain& chain, const llmq::CQuorumManager& qman,
-                            const chainlock::Chainlocks& chainlocks, BlockValidationState& state);
+                            const CChain& chain, const llmq::CQuorumManager& qman, const chainlock::Chainlocks& chainlocks,
+                            bool enforce_branch_binding, BlockValidationState& state);
 
 bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                    const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,
