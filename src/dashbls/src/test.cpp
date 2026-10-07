@@ -1437,6 +1437,69 @@ TEST_CASE("Legacy HD keys") {
 }
 
 TEST_CASE("Threshold Signatures") {
+    SECTION("Identifier lengths") {
+        const vector<PrivateKey> coefficients{
+            BasicSchemeMPL().KeyGen(vector<uint8_t>(32, 1)),
+            BasicSchemeMPL().KeyGen(vector<uint8_t>(32, 2)),
+        };
+        const vector<G1Element> publicCoefficients{
+            coefficients[0].GetG1Element(), coefficients[1].GetG1Element(),
+        };
+        const vector<G2Element> signatureCoefficients{
+            coefficients[0].GetG2Element(), coefficients[1].GetG2Element(),
+        };
+        vector<uint8_t> id1(32, 0), id2(32, 0);
+        id1.back() = 1;
+        id2.back() = 2;
+        const vector<Bytes> ids{id1, id2};
+        const vector<PrivateKey> secretShares{
+            Threshold::PrivateKeyShare(coefficients, ids[0]),
+            Threshold::PrivateKeyShare(coefficients, ids[1]),
+        };
+        const vector<G1Element> publicShares{
+            Threshold::PublicKeyShare(publicCoefficients, ids[0]),
+            Threshold::PublicKeyShare(publicCoefficients, ids[1]),
+        };
+        const vector<G2Element> signatureShares{
+            Threshold::SignatureShare(signatureCoefficients, ids[0]),
+            Threshold::SignatureShare(signatureCoefficients, ids[1]),
+        };
+        REQUIRE(secretShares[0].GetG1Element() == publicShares[0]);
+        REQUIRE(secretShares[0].GetG2Element() == signatureShares[0]);
+        REQUIRE(Threshold::PrivateKeyRecover(secretShares, ids) == coefficients[0]);
+        REQUIRE(Threshold::PublicKeyRecover(publicShares, ids) == publicCoefficients[0]);
+        REQUIRE(Threshold::SignatureRecover(signatureShares, ids) == signatureCoefficients[0]);
+
+        for (const size_t size : {0U, 1U, 31U}) {
+            // Keep the backing buffer initialized and full-sized even when the view is short.
+            const Bytes shortId(id1.data(), size);
+            REQUIRE_THROWS_AS(Threshold::PrivateKeyShare(coefficients, shortId), std::invalid_argument);
+            REQUIRE_THROWS_AS(Threshold::PublicKeyShare(publicCoefficients, shortId), std::invalid_argument);
+            REQUIRE_THROWS_AS(Threshold::SignatureShare(signatureCoefficients, shortId), std::invalid_argument);
+            for (size_t position = 0; position < ids.size(); ++position) {
+                vector<Bytes> shortIds;
+                for (size_t i = 0; i < ids.size(); ++i) {
+                    shortIds.emplace_back(ids[i].begin(), i == position ? size : ids[i].size());
+                }
+                REQUIRE_THROWS_AS(Threshold::PrivateKeyRecover(secretShares, shortIds), std::invalid_argument);
+                REQUIRE_THROWS_AS(Threshold::PublicKeyRecover(publicShares, shortIds), std::invalid_argument);
+                REQUIRE_THROWS_AS(Threshold::SignatureRecover(signatureShares, shortIds), std::invalid_argument);
+            }
+        }
+
+        auto longId1 = id1;
+        auto longId2 = id2;
+        longId1.push_back(0xff);
+        longId2.push_back(0xff);
+        const vector<Bytes> longIds{longId1, longId2};
+        REQUIRE(Threshold::PrivateKeyShare(coefficients, longIds[0]) == secretShares[0]);
+        REQUIRE(Threshold::PublicKeyShare(publicCoefficients, longIds[0]) == publicShares[0]);
+        REQUIRE(Threshold::SignatureShare(signatureCoefficients, longIds[0]) == signatureShares[0]);
+        REQUIRE(Threshold::PrivateKeyRecover(secretShares, longIds) == coefficients[0]);
+        REQUIRE(Threshold::PublicKeyRecover(publicShares, longIds) == publicCoefficients[0]);
+        REQUIRE(Threshold::SignatureRecover(signatureShares, longIds) == signatureCoefficients[0]);
+    }
+
     SECTION("Secret Key Shares") {
         size_t m = 3;
         size_t n = 5;

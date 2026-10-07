@@ -11,6 +11,7 @@
 namespace bls {
 
     namespace Threshold {
+        // Identifiers must provide at least 32 bytes; only their first 32 bytes are used.
 
         PrivateKey PrivateKeyShare(const std::vector<PrivateKey>& sks, const Bytes& id);
         PrivateKey PrivateKeyRecover(const std::vector<PrivateKey>& sks, const std::vector<Bytes>& ids);

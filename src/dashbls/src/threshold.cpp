@@ -173,6 +173,9 @@ namespace bls {
         if (vecIn.size() < 2) {
             throw std::length_error("At least 2 coefficients required");
         }
+        if (id.size() < Poly::nIdSize) {
+            throw std::invalid_argument("Threshold identifier must contain at least 32 bytes");
+        }
 
         BnGuard x;
         bn_read_bin(x.val, id.begin(), Poly::nIdSize);
@@ -204,6 +207,12 @@ namespace bls {
             where a = prod S[j], b = S[i] * prod_{j != i} (S[j] - S[i])
         */
         const size_t k = vec.size();
+
+        for (const auto& id : ids) {
+            if (id.size() < Poly::nIdSize) {
+                throw std::invalid_argument("Threshold identifier must contain at least 32 bytes");
+            }
+        }
 
         BnArrayGuard delta(k);
         BnArrayGuard ids2(k);

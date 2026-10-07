@@ -38,6 +38,55 @@ mod tests {
     use crate::schemes::{AugSchemeMPL, Scheme};
 
     #[test]
+    fn threshold_recovery_identifier_lengths() {
+        let scheme = BasicSchemeMPL::new();
+        let keys = [
+            PrivateKey::key_gen(&scheme, &[1; 32]).unwrap(),
+            PrivateKey::key_gen(&scheme, &[2; 32]).unwrap(),
+        ];
+        let public_keys = [keys[0].g1_element().unwrap(), keys[1].g1_element().unwrap()];
+        let signatures = [scheme.sign(&keys[0], b"message"), scheme.sign(&keys[1], b"message")];
+        let mut ids = [vec![0; 32], vec![0; 32]];
+        ids[0][31] = 1;
+        ids[1][31] = 2;
+        let secret_shares = [(ids[0].clone(), keys[0].clone()), (ids[1].clone(), keys[1].clone())];
+        let public_shares = [(ids[0].clone(), public_keys[0].clone()), (ids[1].clone(), public_keys[1].clone())];
+        let signature_shares = [(ids[0].clone(), signatures[0].clone()), (ids[1].clone(), signatures[1].clone())];
+        let secret = PrivateKey::threshold_recover(&secret_shares).unwrap();
+        let public = G1Element::threshold_recover(&public_shares).unwrap();
+        let signature = G2Element::threshold_recover(&signature_shares).unwrap();
+        assert_eq!(secret.g1_element().unwrap(), public);
+        assert!(scheme.verify(&public, b"message", &signature));
+
+        for length in [0, 1, 31] {
+            for position in 0..2 {
+                let mut short_secret = secret_shares.clone();
+                let mut short_public = public_shares.clone();
+                let mut short_signature = signature_shares.clone();
+                // Truncation keeps initialized 32-byte backing allocations for regression checks.
+                short_secret[position].0.truncate(length);
+                short_public[position].0.truncate(length);
+                short_signature[position].0.truncate(length);
+                assert!(PrivateKey::threshold_recover(&short_secret).is_err());
+                assert!(G1Element::threshold_recover(&short_public).is_err());
+                assert!(G2Element::threshold_recover(&short_signature).is_err());
+            }
+        }
+
+        let mut long_secret = secret_shares;
+        let mut long_public = public_shares;
+        let mut long_signature = signature_shares;
+        for position in 0..2 {
+            long_secret[position].0.push(0xff);
+            long_public[position].0.push(0xff);
+            long_signature[position].0.push(0xff);
+        }
+        assert_eq!(PrivateKey::threshold_recover(&long_secret).unwrap(), secret);
+        assert_eq!(G1Element::threshold_recover(&long_public).unwrap(), public);
+        assert_eq!(G2Element::threshold_recover(&long_signature).unwrap(), signature);
+    }
+
+    #[test]
     fn basic_sign() {
         let seed = b"seedweedseedweedseedweedseedweed";
         let bad_seed = b"weedseedweedseedweedseedweedseed";

@@ -8,6 +8,15 @@ use bls_dash_sys::{GetLastErrorMsg, SecAllocBytes, SecFree};
 
 use crate::BlsError;
 
+pub(crate) fn check_threshold_ids<T>(shares: &[(Vec<u8>, T)]) -> Result<(), BlsError> {
+    if shares.iter().any(|(id, _)| id.len() < 32) {
+        return Err(BlsError {
+            msg: "Threshold identifier must contain at least 32 bytes".to_owned(),
+        });
+    }
+    Ok(())
+}
+
 pub(crate) fn c_err_to_result<T, F>(f: F) -> Result<T, BlsError>
 where
     F: FnOnce(&mut bool) -> T,

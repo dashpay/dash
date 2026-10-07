@@ -10,7 +10,7 @@ use rand::{prelude::StdRng, Rng};
 #[cfg(feature = "use_serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{schemes::Scheme, utils::{c_err_to_result, SecureBox}, BasicSchemeMPL, BlsError, G1Element, G2Element};
+use crate::{schemes::Scheme, utils::{c_err_to_result, check_threshold_ids, SecureBox}, BasicSchemeMPL, BlsError, G1Element, G2Element};
 
 pub const PRIVATE_KEY_SIZE: usize = 32; // TODO somehow extract it from bls library
 
@@ -171,9 +171,11 @@ impl PrivateKey {
         }
     }
 
+    /// Identifiers must contain at least 32 bytes; only their first 32 bytes are used.
     pub fn threshold_recover(
         bls_ids_with_private_keys: &[(Vec<u8>, PrivateKey)],
     ) -> Result<Self, BlsError> {
+        check_threshold_ids(bls_ids_with_private_keys)?;
         unsafe {
             let len = bls_ids_with_private_keys.len();
             let (c_hashes, c_elements): (Vec<_>, Vec<_>) = bls_ids_with_private_keys

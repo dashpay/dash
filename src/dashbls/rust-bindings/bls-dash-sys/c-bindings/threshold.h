@@ -25,6 +25,8 @@ extern "C" {
 
 const int HashSize = 32;
 
+// Each hash pointer must reference at least HashSize readable bytes.
+
 PrivateKey ThresholdPrivateKeyShare(void** sks, const size_t sksLen, const void* hash, bool* didErr);
 PrivateKey ThresholdPrivateKeyRecover(void** sks,
                                         const size_t sksLen,

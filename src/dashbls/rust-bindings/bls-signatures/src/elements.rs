@@ -6,7 +6,7 @@ use bls_dash_sys::{CoreMPLDeriveChildPkUnhardened, G1ElementFree, G1ElementFromB
 #[cfg(feature = "use_serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{schemes::Scheme, utils::c_err_to_result, BlsError, BasicSchemeMPL};
+use crate::{schemes::Scheme, utils::{c_err_to_result, check_threshold_ids}, BlsError, BasicSchemeMPL};
 
 // TODO Split into modules
 
@@ -115,9 +115,11 @@ impl G1Element {
         self.fingerprint_with_legacy_flag(false)
     }
 
+    /// Identifiers must contain at least 32 bytes; only their first 32 bytes are used.
     pub fn threshold_recover(
         bls_ids_with_elements: &[(Vec<u8>, G1Element)],
     ) -> Result<Self, BlsError> {
+        check_threshold_ids(bls_ids_with_elements)?;
         unsafe {
             let len = bls_ids_with_elements.len();
             let (c_hashes, c_elements): (Vec<_>, Vec<_>) = bls_ids_with_elements
@@ -254,9 +256,11 @@ impl G2Element {
         self.to_bytes_with_legacy_flag(false)
     }
 
+    /// Identifiers must contain at least 32 bytes; only their first 32 bytes are used.
     pub fn threshold_recover(
         bls_ids_with_elements: &[(Vec<u8>, G2Element)],
     ) -> Result<Self, BlsError> {
+        check_threshold_ids(bls_ids_with_elements)?;
         unsafe {
             let len = bls_ids_with_elements.len();
             let (c_hashes, c_elements): (Vec<_>, Vec<_>) = bls_ids_with_elements
