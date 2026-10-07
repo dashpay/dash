@@ -137,9 +137,8 @@ protected:
 
     /// Serializes CheckPool() against itself and against CheckTimeout(). CheckPool() runs both on
     /// the scheduler thread and on the message-handling thread, and its finalize and commit steps
-    /// have to be single-shot: relaying DSFINALTX twice makes every client sign twice, and the
-    /// duplicate signatures then abort the session for all of them. CheckTimeout() uses the same
-    /// guard so it cannot reset a session during finalization or commit. Production paths always
+    /// have to be single-shot. CheckTimeout() uses the same guard so it cannot reset a session
+    /// during finalization or commit. Production paths always
     /// acquire it with TRY_LOCK, so a contended caller skips the round rather than blocking msghand.
     Mutex cs_check_pool;
 
@@ -190,9 +189,11 @@ private:
     /// Deliberately not cleared by SetNull() - a pending charge outlives the session it was
     /// incurred in - and erased once the submission settles and the mempool takes over.
     std::unordered_set<COutPoint, SaltedOutpointHasher> m_pending_charges GUARDED_BY(cs_coinjoin);
+    /// Invalidate collateral checks that started before a pending penalty settled.
+    uint64_t m_collateral_validation_epoch GUARDED_BY(cs_coinjoin){0};
 
     /// Add signature to a txin
-    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
+    bool AddScriptSig(const CTxIn& txin, const CService& sender) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     /// Reserve a selected collateral's prevouts so admission rejects them until the charge settles.
     void MarkPendingCharge(const CTransactionRef& txref) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
@@ -234,8 +235,6 @@ private:
 
     /// Check that all inputs are signed. (Are all inputs signed?)
     bool IsSignaturesComplete() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
-    /// Check to make sure a given input matches an input in the pool and its scriptSig is valid
-    bool IsInputScriptSigValid(const CTxIn& txin) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     // Set the 'state' value, with some logging and capturing when the state changed.
     // Requires cs_coinjoin so that a transition and the session data it describes are always

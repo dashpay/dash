@@ -339,8 +339,11 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
     peerLogic->InitializeNode(*nodes[0], NODE_NETWORK);
     nodes[0]->fSuccessfullyConnected = true;
     connman->AddTestNode(*nodes[0]);
+    BOOST_CHECK(!peerLogic->PeerShouldBeDiscouraged(nodes[0]->GetId()));
     peerLogic->UnitTestMisbehaving(nodes[0]->GetId(), DISCOURAGEMENT_THRESHOLD); // Should be discouraged
+    BOOST_CHECK(peerLogic->PeerShouldBeDiscouraged(nodes[0]->GetId()));
     BOOST_CHECK(peerLogic->SendMessages(nodes[0]));
+    BOOST_CHECK(!peerLogic->PeerShouldBeDiscouraged(nodes[0]->GetId())); // Consumed by SendMessages
     BOOST_CHECK(banman->IsDiscouraged(addr[0]));
     BOOST_CHECK(nodes[0]->fDisconnect);
     BOOST_CHECK(!banman->IsDiscouraged(other_addr)); // Different address, not discouraged
@@ -359,6 +362,7 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
     nodes[1]->fSuccessfullyConnected = true;
     connman->AddTestNode(*nodes[1]);
     peerLogic->UnitTestMisbehaving(nodes[1]->GetId(), DISCOURAGEMENT_THRESHOLD - 1);
+    BOOST_CHECK(!peerLogic->PeerShouldBeDiscouraged(nodes[1]->GetId()));
     BOOST_CHECK(peerLogic->SendMessages(nodes[1]));
     // [0] is still discouraged/disconnected.
     BOOST_CHECK(banman->IsDiscouraged(addr[0]));
@@ -400,6 +404,7 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
 
     for (CNode* node : nodes) {
         peerLogic->FinalizeNode(*node);
+        BOOST_CHECK(!peerLogic->PeerShouldBeDiscouraged(node->GetId()));
     }
     connman->ClearTestNodes();
 }

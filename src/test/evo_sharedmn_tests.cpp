@@ -214,11 +214,6 @@ BOOST_AUTO_TEST_CASE(shared_proregtx_shape_validation)
 
     {
         auto proTx = base();
-        proTx.nType = MnType::Evo;
-        check(proTx, "bad-protx-shares-evo");
-    }
-    {
-        auto proTx = base();
         proTx.collateralOutpoint.hash = GetRandHash();
         check(proTx, "bad-protx-shares-external");
     }
@@ -499,6 +494,21 @@ BOOST_AUTO_TEST_CASE(shared_reg_consent_hash)
         CProRegTx mutated{proTx};
         mutated.nType = MnType::Evo;
         BOOST_CHECK(mutated.MakeSharedRegConsentHash(CTransaction(mtx)) != base);
+    }
+    const uint160 platform_node_id{std::vector<unsigned char>(20, 0x01)};
+    {
+        // An EvoNode's Platform node ID is covered
+        CProRegTx evo{proTx};
+        evo.nType = MnType::Evo;
+        const uint256 evo_base = evo.MakeSharedRegConsentHash(CTransaction(mtx));
+        evo.platformNodeID = platform_node_id;
+        BOOST_CHECK(evo.MakeSharedRegConsentHash(CTransaction(mtx)) != evo_base);
+    }
+    {
+        // A regular masternode has no Platform node ID, and its digest is unchanged by the field
+        CProRegTx mutated{proTx};
+        mutated.platformNodeID = platform_node_id;
+        BOOST_CHECK(mutated.MakeSharedRegConsentHash(CTransaction(mtx)) == base);
     }
     {
         CProRegTx mutated{proTx};

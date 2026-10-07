@@ -18,6 +18,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_raises_rpc_error,
+    get_bip9_details,
     softfork_active,
 )
 from test_framework.wallet_util import get_generate_key
@@ -25,7 +26,11 @@ from test_framework.wallet_util import get_generate_key
 # Keep the earliest activation height above the ~119 blocks the framework setup mines, so
 # run_test starts with v24 locked in but not yet active and can exercise pre-activation rules
 V24_MIN_ACTIVATION_HEIGHT = 250
+# Above the ~1300 blocks the regular shared masternode checks mine, which run before evo_shares
+# activates
+EVO_SHARES_MIN_ACTIVATION_HEIGHT = 2000
 COLLATERAL = 1000 * COIN
+EVO_COLLATERAL = 4000 * COIN
 SHARED_COLLATERAL_SCRIPT = "04445348437551"
 # Must comfortably exceed the blocks mined between the first registration and its early-period
 # dissolution checks (~16 worst case), so the masternode is still inside the early period there
@@ -42,25 +47,26 @@ class MasternodeSharesTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
+        # evo_shares is activated by miners here; as shipped, masternodes do not sign it
         self.set_dash_test_params(2, 0, extra_args=[[
             f"-vbparams=v24:{self.mocktime}:999999999999:{V24_MIN_ACTIVATION_HEIGHT}:10:8:6:5:0",
+            f"-vbparams=evo_shares:{self.mocktime}:999999999999:{EVO_SHARES_MIN_ACTIVATION_HEIGHT}:10:8:6:5:0",
         ]] * 2)
 
-    def activate_v24(self):
-        while not softfork_active(self.nodes[0], "v24"):
+    def activate(self, name):
+        while not softfork_active(self.nodes[0], name):
             self.bump_mocktime(50)
             self.generate(self.nodes[0], 50, sync_fun=self.no_op)
-        assert softfork_active(self.nodes[0], "v24")
 
-    def build_funding_tx(self, node):
+    def build_funding_tx(self, node, collateral=COLLATERAL):
         """Returns hex of a transaction with enough inputs to fund the collateral plus fee
         and a change output, but without the collateral output itself (shared_register_prepare
         appends it)."""
         dummy = node.getnewaddress()
-        raw = node.createrawtransaction([], {dummy: 1000})
+        raw = node.createrawtransaction([], {dummy: collateral // COIN})
         funded = node.fundrawtransaction(raw, {"feeRate": 0.00010000})["hex"]
         tx = tx_from_hex(funded)
-        vout = [out for out in tx.vout if out.nValue != COLLATERAL]
+        vout = [out for out in tx.vout if out.nValue != collateral]
         assert_equal(len(vout), len(tx.vout) - 1)
         tx.vout = vout
         return tx.serialize().hex()
@@ -593,7 +599,7 @@ class MasternodeSharesTest(DashTestFramework):
         pre_tmpl_txid = node.decoderawtransaction(pre_tmpl_signed["hex"])["txid"]
         self.generateblock(node, pre_miner, [pre_tmpl_signed["hex"]], sync_fun=self.no_op)
 
-        self.activate_v24()
+        self.activate("v24")
 
         self.log.info("A coinbase cannot create a shared collateral template output")
         assert_raises_rpc_error(-1, "bad-shared-collateral-create", self.generateblock, node,
@@ -1198,6 +1204,10 @@ class MasternodeSharesTest(DashTestFramework):
             assert_equal(node.protx("info", protx_hash4, node.getbestblockhash())["state"], state_at_snapshot)
 
         self.log.info("A reorg across a dissolution restores the masternode and its shares")
+        registrar_fee, share_fee = node.getnewaddress(), node.getnewaddress()
+        node.sendmany("", {registrar_fee: 1, share_fee: 1})
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
         info_before_dissolve = node.protx("info", protx_hash4)
         dissolve_txid4 = node.protx("shared_dissolve", protx_hash4, 0, DISSOLVE_FEE)
         self.bump_mocktime(10 * 60 + 1)
@@ -1210,9 +1220,18 @@ class MasternodeSharesTest(DashTestFramework):
         # the disconnected dissolution returns to the mempool: the restored masternode makes it
         # valid again, so it is not lost by the reorg
         assert dissolve_txid4 in node.getrawmempool()
+        # the restored masternode can be updated again, but the dissolution block was mined without
+        # these updates: once it is reconnected they can never be mined and must not stay behind
+        prepared = node.protx("shared_update_registrar_prepare", protx_hash4, "", node.getnewaddress(), registrar_fee)
+        registrar_sigs = node.protx("shared_sign", prepared["tx"])["signatures"]
+        registrar = node.protx("shared_combine", prepared["tx"], registrar_sigs)
+        pending_txids = {node.sendrawtransaction(registrar),
+                         node.protx("shared_update_share", protx_hash4, 0, node.getnewaddress(), share_fee)}
+        assert pending_txids.issubset(node.getrawmempool())
         node.reconsiderblock(dissolve_block)
         assert_raises_rpc_error(None, None, node.protx, "info", protx_hash4)
         assert dissolve_txid4 not in node.getrawmempool()
+        assert pending_txids.isdisjoint(node.getrawmempool())
         assert_equal(node.masternodelist(), {})
 
         self.log.info("Every participant's principal was refunded by the dissolutions")
@@ -1222,6 +1241,90 @@ class MasternodeSharesTest(DashTestFramework):
             assert_greater_than(node.getreceivedbyaddress(addr, 1), Decimal(0))
 
         self.test_separate_participant_wallets()
+        self.test_evonode_shared_registration()
+
+    def test_evonode_shared_registration(self):
+        self.log.info("An EvoNode cannot be prepared for shared collateral before evo_shares activation")
+        node = self.nodes[0]
+        wallet = node.get_wallet_rpc(self.default_wallet_name)
+        assert not softfork_active(node, "evo_shares")
+        port = p2p_port(9)
+        platform_node_id = "%040x" % port
+        shares = [
+            {"amount": 3000 * COIN, "refundAddress": wallet.getnewaddress(), "ownerAddress": wallet.getnewaddress()},
+            {"amount": 1000 * COIN, "refundAddress": wallet.getnewaddress(), "ownerAddress": wallet.getnewaddress()},
+        ]
+        # Funded before activation so that its inputs are mature below the activation height too
+        funding_hex = self.build_funding_tx(wallet, EVO_COLLATERAL)
+        operator = node.bls("generate")
+        args = [funding_hex, shares, f"127.0.0.1:{port}", operator["public"], wallet.getnewaddress(), 0,
+                EARLY_PERIOD_BLOCKS, EARLY_PENALTY, platform_node_id, [f"127.0.0.1:{port + 1000}"],
+                [f"127.0.0.1:{port + 2000}"]]
+        assert_raises_rpc_error(-8, "requires the evo_shares deployment to be active", wallet.protx,
+                                "shared_register_prepare_evo", *args)
+
+        self.activate("evo_shares")
+        prepared = wallet.protx("shared_register_prepare_evo", *args)
+        assert_equal(prepared["terms"]["platformNodeID"], platform_node_id)
+        signatures = wallet.protx("shared_sign", prepared["tx"])["signatures"]
+        signed = wallet.signrawtransactionwithwallet(wallet.protx("shared_combine", prepared["tx"], signatures))
+        assert_equal(signed["complete"], True)
+
+        self.log.info("A shared EvoNode registration is invalid in a block before evo_shares activation")
+        last_inactive = node.getblockhash(get_bip9_details(node, "evo_shares")["since"] - 1)
+        node.invalidateblock(last_inactive)
+        assert not softfork_active(node, "evo_shares")
+        self.assert_rejected_transaction(node, tx_from_hex(signed["hex"]), "bad-protx-shares-evo")
+        node.reconsiderblock(last_inactive)
+
+        self.log.info("An EvoNode registers with shared collateral once evo_shares is active")
+        protx_hash = node.sendrawtransaction(signed["hex"])
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        info = node.protx("info", protx_hash)
+        assert_equal(info["type"], "Evo")
+        assert_equal(info["state"]["platformNodeID"], platform_node_id)
+        assert_equal([share["amount"] for share in info["state"]["shares"]], [share["amount"] for share in shares])
+
+        self.log.info("A shared EvoNode's owner reward is split by share amounts")
+        payees = self.owner_gbt_payees(node)
+        assert_equal([p["payee"] for p in payees], [share["refundAddress"] for share in shares])
+        owner_total = sum(p["amount"] for p in payees)
+        assert_equal(payees[0]["amount"], owner_total * shares[0]["amount"] // EVO_COLLATERAL)
+        assert_equal(payees[1]["amount"], owner_total - payees[0]["amount"])
+        self.generate(node, 1, sync_fun=self.no_op)
+
+        self.log.info("A shared EvoNode updates its Platform service, a share reward and its voting key")
+        fee_addresses = [wallet.getnewaddress() for _ in range(3)]
+        wallet.sendmany("", {address: 1 for address in fee_addresses})
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        new_platform_node_id = "%040x" % (port + 1)
+        wallet.protx("update_service_evo", protx_hash, [f"127.0.0.1:{port}"], operator["secret"], new_platform_node_id,
+                     [f"127.0.0.1:{port + 3000}"], [f"127.0.0.1:{port + 4000}"], "", fee_addresses[0])
+        reward = wallet.getnewaddress()
+        wallet.protx("shared_update_share", protx_hash, 0, reward, fee_addresses[1])
+        voting = wallet.getnewaddress()
+        prepared = wallet.protx("shared_update_registrar_prepare", protx_hash, "", voting, fee_addresses[2])
+        wallet.protx("shared_combine", prepared["tx"], wallet.protx("shared_sign", prepared["tx"])["signatures"], True)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        state = node.protx("info", protx_hash)["state"]
+        assert_equal(state["platformNodeID"], new_platform_node_id)
+        assert_equal(state["shares"][0]["rewardAddress"], reward)
+        assert_equal(state["votingAddress"], voting)
+
+        self.log.info("A shared EvoNode dissolves and refunds its collateral to every share")
+        prepared = wallet.protx("shared_dissolve_prepare", protx_hash, 1, DISSOLVE_FEE)
+        dissolution = wallet.protx("shared_combine", prepared["tx"], wallet.protx("shared_sign", prepared["tx"])["signatures"])
+        refunds = {out["scriptPubKey"]["address"]: out["value"] for out in node.decoderawtransaction(dissolution)["vout"]}
+        assert_equal(refunds, {shares[0]["refundAddress"]: Decimal(shares[0]["amount"]) / COIN,
+                               shares[1]["refundAddress"]: Decimal(shares[1]["amount"] - DISSOLVE_FEE) / COIN})
+        dissolve_txid = node.sendrawtransaction(dissolution)
+        self.bump_mocktime(10 * 60 + 1)
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert dissolve_txid in node.getblock(block_hash)["tx"]
+        assert_equal(node.masternodelist(), {})
 
 
 if __name__ == '__main__':

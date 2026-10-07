@@ -1192,10 +1192,10 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
 BOOST_FIXTURE_TEST_CASE(mnhf_signals_outnumbering_deployments_are_valid, BasicTestingSetup)
 {
     // CMNHFManager drops a signal only when a current deployment reuses its
-    // bit, so signals of buried EHF forks (MN_RR bit 10, WITHDRAWALS bit 11)
-    // stay in the map alongside V24's bit 12.
+    // bit, so signals of buried EHF forks (bits 10, 11 and 12) stay in the
+    // map alongside V24's bit 13.
     auto snapshot{SyntheticSnapshot()};
-    snapshot.mnhf_signals = {{10, 100}, {11, 200}, {12, 300}};
+    snapshot.mnhf_signals = {{10, 100}, {11, 200}, {12, 300}, {13, 400}};
     BOOST_REQUIRE_GT(snapshot.mnhf_signals.size(), size_t{Consensus::MAX_VERSION_BITS_DEPLOYMENTS});
 
     BOOST_CHECK_NO_THROW(snapshot.Validate());

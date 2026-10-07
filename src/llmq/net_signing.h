@@ -71,7 +71,7 @@ private:
         std::unordered_map<NodeId, std::vector<CSigShare>>&& sigSharesByNodes,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>&& quorums);
 
-    void RemoveBannedNodeStates();
+    void RemoveDiscouragedNodeStates();
     //! Score the peer with 100 misbehavior points and drop its not-yet-verified pending recovered
     //! sigs. mark_shares_banned additionally suppresses the peer's sig-share channel and must stay
     //! false for recovered-sig-only failures: NoBan/manual peers survive the misbehavior score, and

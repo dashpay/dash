@@ -61,6 +61,7 @@ struct PrecomputedTransactionData;
 struct ChainTxData;
 class DisconnectedBlockTransactions;
 struct LockPoints;
+struct SpecialTxRules;
 struct AssumeutxoData;
 namespace Consensus {
 struct Params;
@@ -1272,6 +1273,9 @@ bool DeploymentEnabled(const ChainstateManager& chainman, DEP dep)
 {
     return DeploymentEnabled(chainman.GetConsensus(), dep);
 }
+
+/** The special transaction rules in force for the block after pindexPrev */
+SpecialTxRules GetSpecialTxRules(const CBlockIndex* pindexPrev, const ChainstateManager& chainman);
 
 /** Get highest permissible ProTx version based on deployment status
  *  Note: The override is needed because some RPCs need to use deployment status information for everything *except*

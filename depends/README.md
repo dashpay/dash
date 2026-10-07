@@ -128,9 +128,6 @@ Common `host-platform-triplet`s for cross compilation are:
 - `riscv32-linux-gnu` for Linux RISC-V 32 bit
 - `riscv64-linux-gnu` for Linux RISC-V 64 bit
 - `s390x-linux-gnu` for Linux S390X
-- `armv7a-linux-android` for Android ARM 32 bit
-- `aarch64-linux-android` for Android ARM 64 bit
-- `x86_64-linux-android` for Android x86 64 bit
 
 The paths are automatically configured and no other options are needed.
 

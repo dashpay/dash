@@ -643,6 +643,10 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
         auto proTx = *Assert(GetTxPayload<CProUpServTx>(tx));
         mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
+        // Without a masternode to take the key from, any registrar update evicts it
+        if (auto dmn = m_dmnman.GetListAtChainTip().GetMN(proTx.proTxHash)) {
+            newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
+        }
         for (const auto& entry : proTx.netInfo->GetEntries()) {
             mapProTxAddresses.emplace(entry, tx_hash);
         }

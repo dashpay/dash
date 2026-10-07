@@ -119,7 +119,12 @@ static QString GetLangTerritory()
     if(!lang_territory_qsettings.isEmpty())
         lang_territory = lang_territory_qsettings;
     // 3) -lang command line argument
-    lang_territory = QString::fromStdString(gArgs.GetArg("-lang", lang_territory.toStdString()));
+    try {
+        lang_territory = QString::fromStdString(gArgs.GetArg("-lang", lang_territory.toStdString()));
+    } catch (const std::exception&) {
+        // Keep the language selected above if "lang" in settings.json has an
+        // unexpected type. OptionsModel::Init reports it as an error.
+    }
     return lang_territory;
 }
 

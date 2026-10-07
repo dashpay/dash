@@ -11,6 +11,13 @@
 #include <coinjoin/options.h>
 #include <coinjoin/util.h>
 #include <consensus/amount.h>
+#include <coins.h>
+#include <key.h>
+#include <policy/policy.h>
+#include <script/interpreter.h>
+#include <script/sign.h>
+#include <script/signingprovider.h>
+#include <script/standard.h>
 #include <interfaces/coinjoin.h>
 #include <masternode/sync.h>
 #include <node/context.h>
@@ -26,6 +33,8 @@
 #include <wallet/walletdb.h>
 
 #include <boost/test/unit_test.hpp>
+
+#include <algorithm>
 
 namespace wallet {
 BOOST_FIXTURE_TEST_SUITE(coinjoin_tests, BasicTestingSetup)
@@ -230,6 +239,61 @@ public:
         return tallyItem;
     }
 };
+
+BOOST_FIXTURE_TEST_CASE(coinjoin_signer_uses_standard_all_signatures, CTransactionBuilderTestSetup)
+{
+    const CAmount amount{CoinJoin::GetSmallestDenomination()};
+    const auto tally{GetTallyItem({amount})};
+    std::map<COutPoint, Coin> own_coins{{tally.outpoints[0], Coin{}}};
+    wallet->chain().findCoins(own_coins);
+    const auto& own_coin{own_coins.at(tally.outpoints[0])};
+    BOOST_REQUIRE(!own_coin.IsSpent());
+    FillableSigningProvider other_participants;
+    std::map<COutPoint, Coin> other_coins;
+    CMutableTransaction final;
+    final.vin.emplace_back(tally.outpoints[0]);
+    for (uint32_t i{0}; i < 2; ++i) {
+        CKey key;
+        key.MakeNewKey(true);
+        BOOST_REQUIRE(other_participants.AddKey(key));
+        const COutPoint input{uint256::ONE, i};
+        Coin coin{CTxOut{amount, GetScriptForDestination(PKHash(key.GetPubKey()))}, 0, false};
+        WITH_LOCK(cs_main, m_node.chainman->ActiveChainstate().CoinsTip().AddCoin(input, Coin{coin}, false));
+        other_coins.emplace(input, std::move(coin));
+        final.vin.emplace_back(input);
+    }
+    for (int i{0}; i < 3; ++i) {
+        const auto destination{wallet->GetNewDestination("")};
+        BOOST_REQUIRE(destination);
+        final.vout.emplace_back(amount, GetScriptForDestination(*destination));
+    }
+    std::sort(final.vin.begin(), final.vin.end(), CompareInputBIP69());
+    std::sort(final.vout.begin(), final.vout.end(), CompareOutputBIP69());
+    std::map<int, bilingual_str> signing_errors;
+    WITH_LOCK(wallet->cs_wallet, CoinJoin::SignFinalTransaction(*wallet, final, own_coins, signing_errors));
+    BOOST_CHECK_EQUAL(signing_errors.size(), other_coins.size());
+    for (const auto& [index, error] : signing_errors) {
+        BOOST_CHECK_EQUAL(error.original, "Input not found or already spent");
+    }
+    for (size_t i{0}; i < final.vin.size(); ++i) {
+        if (final.vin[i].prevout != tally.outpoints[0]) {
+            const auto& coin{other_coins.at(final.vin[i].prevout)};
+            BOOST_REQUIRE(SignSignature(other_participants, coin.out.scriptPubKey, final, i, amount, SIGHASH_ALL));
+            continue;
+        }
+        opcodetype opcode;
+        std::vector<unsigned char> signature;
+        CScript::const_iterator cursor{final.vin[i].scriptSig.begin()};
+        BOOST_REQUIRE(final.vin[i].scriptSig.GetOp(cursor, opcode, signature));
+        BOOST_REQUIRE(!signature.empty());
+        BOOST_CHECK_EQUAL(signature.back(), SIGHASH_ALL);
+        BOOST_REQUIRE(VerifyScript(final.vin[i].scriptSig, own_coin.out.scriptPubKey, STANDARD_SCRIPT_VERIFY_FLAGS,
+                                   MutableTransactionSignatureChecker(&final, i, amount, MissingDataBehavior::ASSERT_FAIL)));
+    }
+    m_node.mempool->PrioritiseTransaction(final.GetHash(), COIN / 10);
+    BOOST_REQUIRE(WITH_LOCK(cs_main, return ATMPIfSaneFee(*m_node.chainman, MakeTransactionRef(final))));
+    BOOST_CHECK(m_node.mempool->exists(final.GetHash()));
+}
 
 BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_tests, CTransactionBuilderTestSetup)
 {

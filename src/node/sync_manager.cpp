@@ -83,7 +83,7 @@ int SyncManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesC
     static std::map<uint256, std::map<CService, int64_t>> mapAskedRecently GUARDED_BY(cs_recently);
     LOCK(cs_recently);
 
-    auto [vTriggerObjHashes, vOtherObjHashes] = m_gov_manager.FetchGovernanceObjectVotes(nMaxObjRequestsPerNode, nNow,
+    auto [vTriggerObjHashes, vOtherObjHashes] = m_gov_manager.FetchGovernanceObjectVotes(nPeersPerHashMax, nNow,
                                                                                          mapAskedRecently);
 
     if (vTriggerObjHashes.empty() && vOtherObjHashes.empty()) return -2;

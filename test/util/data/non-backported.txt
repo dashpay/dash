@@ -49,6 +49,7 @@ src/qt/masternodewizard.*
 src/qt/mnsharesession.*
 src/qt/mnemonicverificationdialog.*
 src/qt/networkwidget.*
+src/qt/test/coincontroltreewidgettests.*
 src/qt/test/providertransactiontests.cpp
 src/qt/test/providertransactiontests.h
 src/qt/test/masternodemaintenancetests.*

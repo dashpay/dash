@@ -227,6 +227,19 @@ class BlockchainTest(BitcoinTestFramework):
                 },
                 'active': False
             },
+            'evo_shares': {
+                'type': 'bip9',
+                'bip9': {
+                    'start_time': 0,
+                    'timeout': 9223372036854775807,  # "evo_shares" does not have a timeout so is set to the max int64 value
+                    'min_activation_height': 0,
+                    'since': 0,
+                    'status': 'defined',
+                    'status_next': 'defined',
+                    'ehf': True,
+                },
+                'active': False
+            },
             'testdummy': {
                 'type': 'bip9',
                 'bip9': {
@@ -526,7 +539,7 @@ class BlockchainTest(BitcoinTestFramework):
         except (ConnectionError, http.client.BadStatusLine):
             pass  # The node already shut down before response
         self.log.debug('Node should stop at this height...')
-        self.nodes[0].wait_until_stopped()
+        self.nodes[0].wait_until_stopped(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
         self.start_node(0, ['-txindex=0'])
         assert_equal(self.nodes[0].getblockcount(), HEIGHT + 7)
 

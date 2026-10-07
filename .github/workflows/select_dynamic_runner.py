@@ -179,8 +179,10 @@ def is_selfhosted_allowed(
         pull_request = event.get("pull_request") or {}
 
         # Both must be allowlisted: the author is stable across synchronize,
-        # while the actor is whoever pushed the head that is about to run. A
-        # fork branch can be pushed to by someone other than the PR author.
+        # while the actor is whoever triggered this event - the pusher on
+        # synchronize, the person who opened or reopened the pull request on
+        # opened/reopened. A fork branch can be pushed to by someone other than
+        # the PR author.
         author = (pull_request.get("user") or {}).get("login") or ""
         if author.strip().lower() not in allowed_authors:
             return False
@@ -201,6 +203,14 @@ def is_selfhosted_allowed(
             if head_owner.strip().lower() not in allowed_authors:
                 return False
 
+        # This gate trusts allowlisted people and the repositories they own,
+        # not individual commits. Whoever an allowlisted fork owner lets push
+        # to their fork is trusted like anyone with write access to a same-repo
+        # head, and an allowlisted user who opens, reopens or pushes to a pull
+        # request vouches for its head. So an opened/reopened run whose head
+        # was pushed by a fork collaborator is intentionally allowed: limiting
+        # forks to synchronize would not change who is trusted, it would only
+        # send every first run to hosted runners.
         return True
 
     return False

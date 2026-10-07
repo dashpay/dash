@@ -20,6 +20,7 @@
 
 #ifdef ENABLE_WALLET
 #include <qt/test/addressbooktests.h>
+#include <qt/test/coincontroltreewidgettests.h>
 #include <qt/test/masternodemaintenancetests.h>
 #include <qt/test/masternodewidgettests.h>
 #include <qt/test/mnsharesessiontests.h>
@@ -122,6 +123,9 @@ int main(int argc, char* argv[])
 
     AddressBookTests test6(app.node());
     num_test_failures += QTest::qExec(&test6);
+
+    CoinControlTreeWidgetTests coin_control_tree_widget_tests;
+    num_test_failures += QTest::qExec(&coin_control_tree_widget_tests);
 
     MnShareSessionTests mn_share_session_tests;
     num_test_failures += QTest::qExec(&mn_share_session_tests);

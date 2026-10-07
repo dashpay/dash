@@ -297,11 +297,10 @@ void NetSigning::WorkThreadSigning()
     }
 }
 
-void NetSigning::RemoveBannedNodeStates()
+void NetSigning::RemoveDiscouragedNodeStates()
 {
     assert(m_shares_manager != nullptr);
-    // Called regularly to cleanup local node states for banned nodes
-    m_shares_manager->RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerIsBanned(node_id); });
+    m_shares_manager->RemoveNodesIf([this](NodeId node_id) { return m_peer_manager->PeerShouldBeDiscouraged(node_id); });
 }
 
 void NetSigning::BanNode(NodeId nodeId, bool mark_shares_banned)
@@ -324,7 +323,7 @@ void NetSigning::WorkThreadCleaning()
     assert(m_shares_manager);
 
     while (!workInterrupt) {
-        RemoveBannedNodeStates();
+        RemoveDiscouragedNodeStates();
 
         m_shares_manager->SendMessages();
         m_shares_manager->Cleanup();

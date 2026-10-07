@@ -8,6 +8,7 @@
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
 #include <masternode/payments.h>
+#include <util/check.h>
 #include <util/helpers.h>
 
 #include <chainparams.h>
@@ -108,7 +109,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         // This applies even if reallocation was activated right at superblock height like it does here.
         // next block should be signaling by default
         LOCK(cs_main);
-        const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
+        const CBlockIndex* const tip{Assert(m_node.chainman->ActiveChain().Tip())};
         const MnRewardEra era{GetMnRewardEraAfter(tip, *m_node.chainman)};
         const bool isV20Active{era != MnRewardEra::Classic};
         dmnman.UpdatedBlockTip(tip);
@@ -125,7 +126,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
 
     {
         LOCK(cs_main);
-        const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
+        const CBlockIndex* const tip{Assert(m_node.chainman->ActiveChain().Tip())};
         const MnRewardEra era{GetMnRewardEraAfter(tip, *m_node.chainman)};
         const bool isV20Active{era != MnRewardEra::Classic};
         const CAmount block_subsidy = GetBlockSubsidyInner(tip->nBits, tip->nHeight, consensus_params, isV20Active);
@@ -143,7 +144,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
                 CreateAndProcessBlock({}, coinbasePubKey);
             }
             LOCK(cs_main);
-            const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
+            const CBlockIndex* const tip{Assert(m_node.chainman->ActiveChain().Tip())};
             const MnRewardEra era{GetMnRewardEraAfter(tip, *m_node.chainman)};
             const bool isV20Active{era != MnRewardEra::Classic};
             const CAmount block_subsidy = GetBlockSubsidyInner(tip->nBits, tip->nHeight, consensus_params, isV20Active);
@@ -157,7 +158,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
     {
         // Reward split should reach ~75/25 after reallocation is done
         LOCK(cs_main);
-        const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
+        const CBlockIndex* const tip{Assert(m_node.chainman->ActiveChain().Tip())};
         const MnRewardEra era{GetMnRewardEraAfter(tip, *m_node.chainman)};
         const bool isV20Active{era != MnRewardEra::Classic};
         const CAmount block_subsidy = GetBlockSubsidyInner(tip->nBits, tip->nHeight, consensus_params, isV20Active);
@@ -182,7 +183,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
             CreateAndProcessBlock({}, coinbasePubKey);
         }
         LOCK(cs_main);
-        const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
+        const CBlockIndex* const tip{Assert(m_node.chainman->ActiveChain().Tip())};
         const MnRewardEra era{GetMnRewardEraAfter(tip, *m_node.chainman)};
         const bool isV20Active{era != MnRewardEra::Classic};
         const bool isMNRewardReallocated{era == MnRewardEra::EvoReward};
@@ -203,7 +204,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
     { // At this moment Masternode reward should be reallocated to platform
         // Allocation of block subsidy is 60% MN, 20% miners and 20% treasury
         LOCK(cs_main);
-        const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
+        const CBlockIndex* const tip{Assert(m_node.chainman->ActiveChain().Tip())};
         const MnRewardEra era{GetMnRewardEraAfter(tip, *m_node.chainman)};
         const bool isV20Active{era != MnRewardEra::Classic};
         const CAmount block_subsidy = GetBlockSubsidyInner(tip->nBits, tip->nHeight, consensus_params, isV20Active);

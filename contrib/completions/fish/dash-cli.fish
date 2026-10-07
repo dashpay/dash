@@ -9,14 +9,20 @@ function __fish_dash_cli_get_commands_helper
         return
     end
 
-    # Strip help cmd from token to avoid duplication errors
-    set --local cmd (string match --invert --regex -- '^help$' $cmd)
-    # Strip -stdin* options to avoid waiting for input while we fetch completions
-    # TODO: this appears to be broken when run as tab completion (requires ctrl+c to exit)
-    set --local cmd (string match --invert --regex -- '^-stdin.*$' $cmd)
+    # Only keep the connection options given before the RPC command. Never pass
+    # on the typed command or its arguments: they would be executed on every Tab
+    # (e.g. `sendtoaddress <address> <amount> <Tab>` would send funds).
+    # -rpcwait* is dropped so Tab doesn't hang while the node is down.
+    set --local base $cmd[1]
+    for arg in $cmd[2..-1]
+        string match --quiet --regex -- '^-' $arg; or break
+        if string match --quiet --regex -- '^--?(conf|datadir|testnet|regtest|devnet|chain|rpc(?!wait))' $arg
+            set --append base $arg
+        end
+    end
 
     # Match, format and return commands
-    for command in ($cmd help 2>&1 | string match --invert -r '^\=\=.*' | string match --invert -r '^\\s*$')
+    for command in ($base help 2>&1 | string match --invert -r '^\=\=.*' | string match --invert -r '^\\s*$')
         echo $command
     end
 end
@@ -60,9 +66,9 @@ function __fish_dash_cli_get_options
     set --local options
 
     if set -q _flag_nofiles
-        set --append options ($cmd -help 2>&1 | string match -r '^  -.*' | string replace -r '  -' '-' | string replace -r '=.*' '=' | string match --invert -r '^.*=$')
+        set --append options ($cmd[1] -help 2>&1 | string match -r '^  -.*' | string replace -r '  -' '-' | string replace -r '=.*' '=' | string match --invert -r '^.*=$')
     else
-        set --append options ($cmd -help 2>&1 | string match -r '^  -.*' | string replace -r '  -' '-' | string replace -r '=.*' '=' | string match -r '^.*=$')
+        set --append options ($cmd[1] -help 2>&1 | string match -r '^  -.*' | string replace -r '  -' '-' | string replace -r '=.*' '=' | string match -r '^.*=$')
     end
 
     for option in $options

@@ -20,6 +20,15 @@ CGovernanceObjectVoteFile::CGovernanceObjectVoteFile(const CGovernanceObjectVote
     RebuildIndex();
 }
 
+CGovernanceObjectVoteFile& CGovernanceObjectVoteFile::operator=(const CGovernanceObjectVoteFile& other)
+{
+    if (this != &other) {
+        listVotes = vote_l_t{other.listVotes};
+        RebuildIndex();
+    }
+    return *this;
+}
+
 void CGovernanceObjectVoteFile::AddVote(const CGovernanceVote& vote)
 {
     uint256 nHash = vote.GetHash();

@@ -418,21 +418,13 @@ class TestNode():
         for profile_name in tuple(self.perf_subprocesses.keys()):
             self._stop_perf(profile_name)
 
-        # Check that stderr is as expected
-        self.stderr.seek(0)
-        stderr = self.stderr.read().decode('utf-8').strip()
-        if stderr != expected_stderr:
-            raise AssertionError("Unexpected stderr {} != {}".format(stderr, expected_stderr))
-
-        self.stdout.close()
-        self.stderr.close()
-
         del self.p2ps[:]
 
+        assert (not expected_stderr) or wait_until_stopped  # Must wait to check stderr
         if wait_until_stopped:
-            self.wait_until_stopped()
+            self.wait_until_stopped(expected_stderr=expected_stderr)
 
-    def is_node_stopped(self, expected_ret_code=None):
+    def is_node_stopped(self, *, expected_stderr="", expected_ret_code=0):
         """Checks whether the node has stopped.
 
         Returns True if the node has stopped. False otherwise.
@@ -444,13 +436,17 @@ class TestNode():
             return False
 
         # process has stopped. Assert that it didn't return an error code.
-        # unless 'expected_ret_code' is provided.
-        if expected_ret_code is not None:
-            assert return_code == expected_ret_code, self._node_msg(
-                "Node returned unexpected exit code (%d) vs (%d) when stopping" % (return_code, expected_ret_code))
-        else:
-            assert return_code == 0, self._node_msg(
-                "Node returned non-zero exit code (%d) when stopping" % return_code)
+        assert return_code == expected_ret_code, self._node_msg(
+            f"Node returned unexpected exit code ({return_code}) vs ({expected_ret_code}) when stopping")
+        # Check that stderr is as expected
+        self.stderr.seek(0)
+        stderr = self.stderr.read().decode('utf-8').strip()
+        if stderr != expected_stderr:
+            raise AssertionError("Unexpected stderr {} != {}".format(stderr, expected_stderr))
+
+        self.stdout.close()
+        self.stderr.close()
+
         self.running = False
         self.process = None
         self.rpc_connected = False
@@ -458,9 +454,9 @@ class TestNode():
         self.log.debug("Node stopped")
         return True
 
-    def wait_until_stopped(self, timeout=BITCOIND_PROC_WAIT_TIMEOUT, expect_error=False):
-        expected_ret_code = 1 if expect_error else None  # Whether node shutdown return EXIT_FAILURE or EXIT_SUCCESS
-        wait_until_helper(lambda: self.is_node_stopped(expected_ret_code=expected_ret_code), timeout=timeout, timeout_factor=self.timeout_factor)
+    def wait_until_stopped(self, *, timeout=BITCOIND_PROC_WAIT_TIMEOUT, expect_error=False, **kwargs):
+        expected_ret_code = 1 if expect_error else 0  # Whether node shutdown return EXIT_FAILURE or EXIT_SUCCESS
+        wait_until_helper(lambda: self.is_node_stopped(expected_ret_code=expected_ret_code, **kwargs), timeout=timeout, timeout_factor=self.timeout_factor)
 
     def replace_in_config(self, replacements):
         """

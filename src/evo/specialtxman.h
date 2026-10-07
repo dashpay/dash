@@ -44,6 +44,14 @@ namespace node {
 class BlockManager;
 } // namespace node
 
+/** Activation state of the deployments that special transaction validation depends on, evaluated by the
+ *  caller for the block after pindexPrev (see GetSpecialTxRules() in validation.h) */
+struct SpecialTxRules {
+    bool v24{false};
+    //! EvoNodes may register with shared collateral and have multiple owner payouts
+    bool evo_shares{false};
+};
+
 class CSpecialTxProcessor
 {
 private:
@@ -77,13 +85,14 @@ public:
     {
     }
 
-    bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, bool is_v24_active,
+    bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, SpecialTxRules rules,
                         const CCoinsViewCache& view, bool check_sigs, TxValidationState& state)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool ProcessSpecialTxsInBlock(Chainstate& chainstate, const CChain& chain, const CBlock& block, const CBlockIndex* pindex,
-                                  bool is_v24_active, const CCoinsViewCache& view, CAmount blockSubsidy, bool fJustCheck,
-                                  bool fCheckCbTxMerkleRoots, BlockValidationState& state,
-                                  MNListUpdates& updatesRet) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool ProcessSpecialTxsInBlock(Chainstate& chainstate, const CChain& chain, const CBlock& block,
+                                  const CBlockIndex* pindex, SpecialTxRules rules, const CCoinsViewCache& view,
+                                  CAmount blockSubsidy, bool fJustCheck, bool fCheckCbTxMerkleRoots,
+                                  BlockValidationState& state, MNListUpdates& updatesRet)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, MNListUpdates& updatesRet)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
@@ -101,7 +110,7 @@ public:
 
 private:
     bool CheckSpecialTxInner(const CChain* chain, const CTransaction& tx, const CBlockIndex* pindexPrev,
-                             bool is_v24_active, const CCoinsViewCache& view, const std::optional<CRangesSet>& indexes,
+                             SpecialTxRules rules, const CCoinsViewCache& view, const std::optional<CRangesSet>& indexes,
                              bool check_sigs, TxValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool CheckCreditPoolDiffForBlock(const CBlock& block, const CBlockIndex* pindex, const CCbTx& cbTx,
                                      CAmount blockSubsidy, BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -123,13 +132,13 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
                             const chainlock::Chainlocks& chainlocks, BlockValidationState& state);
 
 bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
-                   const CCoinsViewCache& view, const Consensus::Params& consensus_params, bool is_v24_active,
+                   const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,
                    TxValidationState& state, bool check_sigs);
 bool CheckProUpServTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                       CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,
                       TxValidationState& state, bool check_sigs);
 bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
-                     const CCoinsViewCache& view, const Consensus::Params& consensus_params, bool is_v24_active,
+                     const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs);
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                      CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,

@@ -87,5 +87,22 @@ class BindExtraTest(BitcoinTestFramework):
             binds = set(filter(lambda e: e[1] != rpc_port(i), binds))
             assert_equal(binds, set(expected_services))
 
+        self.log.info("Test -listenonion with a normal bind and no dedicated onion bind")
+        self.stop_node(2)
+        self.nodes[2].assert_start_raises_init_error(
+            self.extra_args[2] + ["-listenonion=1", "-torcontrol=127.0.0.1:1"],
+            "Error: The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0.",
+        )
+
+        self.log.info("Test -bind with dedicated onion bind starts when -listenonion=1")
+        self.restart_node(1, extra_args=self.extra_args[1] + ["-listenonion=1", "-torcontrol=127.0.0.1:1"])
+
+        self.log.info("Test wildcard onion bind with -listenonion=1")
+        self.stop_node(0)
+        self.nodes[0].assert_start_raises_init_error(
+            [f"-bind=0.0.0.0:{p2p_port(0)}=onion", "-listenonion=1", "-torcontrol=127.0.0.1:1"],
+            "Error: The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0.",
+        )
+
 if __name__ == '__main__':
     BindExtraTest().main()

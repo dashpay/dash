@@ -211,8 +211,8 @@ bool InstantSendSigner::CheckCanLockAssetUnlock(const CTransaction& tx, bool pri
     const CBlockIndex* tip = chainstate.m_chain.Tip();
     // Minable in the next block: inside its height window and signed by a recent quorum
     TxValidationState state;
-    const bool is_v24_active{DeploymentActiveAfter(tip, m_chainman, Consensus::DEPLOYMENT_V24)};
-    if (!chainstate.ChainHelper().special_tx->CheckSpecialTx(tx, tip, is_v24_active, chainstate.CoinsTip(),
+    if (!chainstate.ChainHelper().special_tx->CheckSpecialTx(tx, tip, GetSpecialTxRules(tip, m_chainman),
+                                                             chainstate.CoinsTip(),
                                                              /*check_sigs=*/true, state)) {
         return log_refusal(state.ToString());
     }
