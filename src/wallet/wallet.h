@@ -663,8 +663,8 @@ public:
 
     void RecalculateMixedCredit(const uint256 hash) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
-    /** Display address on an external signer. Returns false if external signer support is not compiled */
-    bool DisplayAddress(const CTxDestination& dest) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Display address on an external signer. */
+    util::Result<void> DisplayAddress(const CTxDestination& dest) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     bool IsLockedCoin(const COutPoint& output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool LockCoin(const COutPoint& output, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);

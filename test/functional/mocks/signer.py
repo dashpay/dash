@@ -23,13 +23,14 @@ def enumerate(args):
 def getdescriptors(args):
     xpub = "tpubD6NzVbkrYhZ4WaWSyoBvQwbpLkojyoTZPRsgXELWz3Popb3qkjcJyJUGLnL4qHHoQvao8ESaAstxYSnhyswJ76uZPStJRJCTKvosUCJZL5B"
 
+    legacy = os.path.isfile(os.path.join(os.getcwd(), "mock_legacy_markers"))
+    marker = "'" if legacy else "h"
+    receive_checksum = "vt6w3l3j" if legacy else "aqllu46s"
+    internal_checksum = "all0v2p2" if legacy else "v567pq2g"
+    origin = f"[00000001/44{marker}/1{marker}/{args.account}']"
     sys.stdout.write(json.dumps({
-        "receive": [
-            "pkh([00000001/44'/1'/" + args.account + "']" + xpub + "/0/*)#vt6w3l3j"
-        ],
-        "internal": [
-            "pkh([00000001/44'/1'/" + args.account + "']" + xpub + "/1/*)#all0v2p2"
-        ]
+        "receive": [f"pkh({origin}{xpub}/0/*)#{receive_checksum}"],
+        "internal": [f"pkh({origin}{xpub}/1/*)#{internal_checksum}"],
     }))
 
 
@@ -39,13 +40,14 @@ def displayaddress(args):
     if args.fingerprint != "00000001":
         return sys.stdout.write(json.dumps({"error": "Unexpected fingerprint", "fingerprint": args.fingerprint}))
 
-    expected_desc = [
-        "pkh([00000001/44'/1'/0'/0/0]02c97dc3f4420402e01a113984311bf4a1b8de376cac0bdcfaf1b3ac81f13433c7)#0yneg42r"
-    ]
+    expected_desc = {
+        "pkh([00000001/44h/1h/0h/0/0]02c97dc3f4420402e01a113984311bf4a1b8de376cac0bdcfaf1b3ac81f13433c7)#q3pqd8wh": "yg8pCsowDbY7PbJMthTi4xkkmhNfcNNdHV",
+        "pkh([00000001/44h/1h/0h/0/1]03a20a46308be0b8ded6dff0a22b10b4245c587ccf23f3b4a303885be3a524f172)#x450egwy": "wrong_address",
+    }
     if args.desc not in expected_desc:
         return sys.stdout.write(json.dumps({"error": "Unexpected descriptor", "desc": args.desc}))
 
-    return sys.stdout.write(json.dumps({"address": "yg8pCsowDbY7PbJMthTi4xkkmhNfcNNdHV"}))
+    return sys.stdout.write(json.dumps({"address": expected_desc[args.desc]}))
 
 def signtx(args):
     if args.fingerprint != "00000001":

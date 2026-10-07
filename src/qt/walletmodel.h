@@ -138,7 +138,7 @@ public:
 
     UnlockContext requestUnlock(bool fForMixingOnly = false);
 
-    bool displayAddress(std::string sAddress);
+    void displayAddress(std::string sAddress);
 
     static bool isWalletEnabled();
 
