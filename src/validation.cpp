@@ -1108,7 +1108,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     const CBlockIndex* tip{m_active_chainstate.m_chain.Tip()};
     if (!CheckSpecialTxForMempool(tx, GetSpecialTxRules(tip, m_active_chainstate.m_chainman), state)) return false;
 
-    if (m_pool.existsProviderTxConflict(tx)) {
+    if (m_pool.existsProviderTxConflict(tx) || m_pool.IsUnorderableServiceUpdate(tx, *ancestors)) {
         return state.Invalid(TxValidationResult::TX_CONFLICT, "protx-dup");
     }
 
