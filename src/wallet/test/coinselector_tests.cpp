@@ -1189,6 +1189,24 @@ BOOST_AUTO_TEST_CASE(check_max_weight)
         }, m_node);
 
         BOOST_CHECK(!result);
+        BOOST_CHECK(util::ErrorString(result).original.find("The inputs size exceeds the maximum weight") != std::string::npos);
+    }
+
+    {
+        // The small coins sum up exactly to the target but exceed the max weight,
+        // the closest larger coin must be selected instead
+        const auto result = select_coins(target, cs_params, cc, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 1500; ++j) {
+                add_coin(available_coins, wallet, CAmount(0.033 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            }
+            add_coin(available_coins, wallet, CAmount(50 * COIN), CFeeRate(0), 144, false, 0, true, 68);
+            return available_coins;
+        }, m_node);
+
+        BOOST_REQUIRE(result);
+        BOOST_CHECK_EQUAL(result->GetInputSet().size(), 1U);
+        BOOST_CHECK_EQUAL(result->GetInputSet().begin()->GetEffectiveValue(), 50 * COIN);
     }
 }
 

@@ -8,6 +8,8 @@
 #include <tinyformat.h>
 #include <util/system.h>
 
+#include <algorithm>
+
 namespace wallet {
 bool CHDChain::SetNull()
 {
@@ -207,7 +209,8 @@ bool CHDChain::SetAccount(uint32_t nAccountIndex, const CHDAccount& hdAccount)
 size_t CHDChain::CountAccounts()
 {
     LOCK(cs);
-    return mapAccounts.size();
+    if (IsNull()) return 0;
+    return std::max<size_t>(1, mapAccounts.size());
 }
 
 std::string CHDPubKey::GetKeyPath() const

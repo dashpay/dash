@@ -218,6 +218,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
 
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE; // TODO: same as DEPLOYMENT_V24
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT; // TODO: same as DEPLOYMENT_V24
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nWindowSize = 4032;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdStart = 3226;     // 80% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdMin = 2420;       // 60% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
+
         consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000ba7225adc3153945d14d"); // 2487500
         consensus.defaultAssumeValid = uint256S("0x00000000000000119fe42827219e0686d3f7b494ae65f823194c740c5dbab492"); // 2487500
 
@@ -418,6 +427,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
 
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = 1790208000;     // Thursday, September 24, 2026 0:00:00
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nWindowSize = 100;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdStart = 80;       // 80% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdMin = 60;         // 60% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
+
         consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000036c8f738da818d2"); // 1400000
         consensus.defaultAssumeValid = uint256S("0x000000541a23f9db7411cddbe50f9f1ebd4aa7108ebdcad62214753f648c0239"); // 1400000
 
@@ -590,6 +608,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nThresholdMin = 72;         // 60% of 120
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = 1751328000;    // July 1, 2025
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nWindowSize = 120;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdStart = 96;       // 80% of 120
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdMin = 72;         // 60% of 120
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
 
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};
@@ -825,6 +852,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nThresholdMin = 250 / 5 * 3;       // 60% of window size
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].nFalloffCoeff = 5;                 // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V24].useEHF = true;
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].bit = 14;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nWindowSize = 250;
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdStart = 250 / 5 * 4;     // 80% of window size
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdMin = 250 / 5 * 3;       // 60% of window size
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;                 // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
 
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};

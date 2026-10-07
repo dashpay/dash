@@ -16,7 +16,7 @@ from test_framework.test_framework import (
     DashTestFramework,
     MasternodeInfo,
 )
-from test_framework.util import assert_greater_than_or_equal
+from test_framework.util import assert_greater_than_or_equal, force_finish_mnsync
 
 class LLMQConnections(DashTestFramework):
     def add_options(self, parser):
@@ -113,6 +113,89 @@ class LLMQConnections(DashTestFramework):
             if added:
                 break
         assert added # no way we added none
+
+        self.test_instantsend_after_restart()
+
+    def test_instantsend_after_restart(self):
+        self.log.info("Testing InstantSend works after full restart without new blocks")
+
+        # node0 missed the EHF signal txs the quorum members created while it was disconnected from them
+        for mn_info in self.mninfo:
+            for txid in mn_info.get_node(self).getrawmempool():
+                self.nodes[0].sendrawtransaction(mn_info.get_node(self).getrawtransaction(txid))
+
+        # fund sender with confirmed coins
+        sender = self.nodes[0]
+        receiver = self.nodes[0]
+        sender_addr = sender.getnewaddress()
+        fund_id = self.nodes[0].sendtoaddress(sender_addr, 1)
+        self.wait_for_instantlock(fund_id)
+        tip = self.generate(self.nodes[0], 2)[-1]
+        self.bump_mocktime(30)
+        self.wait_for_chainlocked_block_all_nodes(tip)
+        self.sync_blocks()
+        assert sender.getbalance() >= 0.5
+
+        receiver_addr = receiver.getnewaddress()
+
+        # restart all nodes without mining new blocks
+        self.log.info("Restarting all nodes")
+        num_simple_nodes = self.num_nodes - self.mn_count
+        self.stop_nodes()
+
+        for i in range(num_simple_nodes):
+            self.start_node(i)
+        for mn_info in self.mninfo:
+            self.start_masternode(mn_info)
+
+        # reconnect: simple nodes to node 0, MNs to node 0 only.
+        # Quorum connections between MNs must be re-established automatically
+        # via InitializeCurrentBlockTip → EnsureQuorumConnections, NOT via
+        # manual connect_nodes between MN pairs.
+        for i in range(1, num_simple_nodes):
+            self.connect_nodes(i, 0)
+        for mn_info in self.mninfo:
+            self.connect_nodes(mn_info.nodeIdx, 0)
+        for i in range(num_simple_nodes):
+            force_finish_mnsync(self.nodes[i])
+
+        # bump past WAIT_FOR_ISLOCK_TIMEOUT so txFirstSeenTime loss doesn't
+        # block chainlock signing for TXs mined before restart
+        self.bump_mocktime(10 * 60 + 1)
+        self.sync_blocks()
+
+        # Verify that MNs formed quorum connections to other MNs after restart.
+        # InitializeCurrentBlockTip → EnsureQuorumConnections must populate
+        # masternodeQuorumNodes so ThreadOpenMasternodeConnections establishes
+        # MN-to-MN links beyond the manual connections to node 0.
+        self.log.info("Verifying MN-to-MN quorum connections formed after restart")
+        for llmq_type, llmq_type_name in ((100, 'llmq_test'), (103, 'llmq_test_dip0024')):
+            for q in self.nodes[0].quorum('list')[llmq_type_name]:
+                members = self.get_quorum_masternodes(q, llmq_type)
+                for mn_info in members:
+                    others = {m.proTxHash for m in members if m is not mn_info}
+
+                    def check_mn_peers(node=mn_info.get_node(self), others=others):
+                        peers = [p['verified_proregtx_hash'] for p in node.getpeerinfo() if p.get('verified_proregtx_hash')]
+                        # a member listed twice still has a duplicate connection on its way out, and a sig
+                        # share queued to that one is lost
+                        return others <= set(peers) and len(peers) == len(set(peers))
+                    self.wait_until(check_mn_peers, timeout=30)
+
+        # re-grab references after restart
+        sender = self.nodes[0]
+        receiver = self.nodes[0]
+
+        # send a TX — needs IS lock from all restarted MNs, no new blocks mined
+        is_id = sender.sendtoaddress(receiver_addr, 0.5)
+        self.wait_for_instantlock(is_id)
+        self.log.info("InstantSend lock succeeded after full restart")
+
+        # clean up
+        receiver.sendtoaddress(self.nodes[0].getnewaddress(), 0.5, "", "", True)
+        self.bump_mocktime(30)
+        self.sync_mempools()
+        self.generate(self.nodes[0], 2)
 
     def check_reconnects(self, expected_connection_count):
         self.log.info("disable and re-enable networking on all masternodes")

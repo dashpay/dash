@@ -19,6 +19,7 @@
 #include <script/script.h>
 #include <streams.h>
 #include <test/util/setup_common.h>
+#include <tinyformat.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/time.h>
@@ -1366,6 +1367,28 @@ BOOST_AUTO_TEST_CASE(gap_threshold_reachable_at_every_goal)
 
     // The default goal keeps the threshold it was tuned with
     BOOST_CHECK_EQUAL(CoinJoin::GetGapThreshold(DEFAULT_COINJOIN_DENOMS_GOAL), 10);
+}
+
+BOOST_AUTO_TEST_CASE(rebalance_never_immediately_reverses)
+{
+    // A conversion must never leave the wallet in a state where the opposite conversion fires,
+    // otherwise the wallet keeps paying for 10:1 and 1:10 conversions that undo each other
+    // (with a gap of 2, 10 smaller and 7 larger coins at goal 10 would promote to 0/8 and then
+    // demote straight back).
+    // Counts above the goal are included so the deficit cap is covered as well.
+    const int ratio = CoinJoin::PROMOTION_RATIO;
+    for (int goal = MIN_COINJOIN_DENOMS_GOAL; goal <= 200; ++goal) {
+        for (int smaller = 0; smaller <= 2 * goal; ++smaller) {
+            for (int larger = 0; larger <= 2 * goal; ++larger) {
+                if (TestShouldPromote(smaller, larger, goal) && TestShouldDemote(larger + 1, smaller - ratio, goal)) {
+                    BOOST_ERROR(strprintf("goal %d: promoting %d/%d is undone by a demotion", goal, smaller, larger));
+                }
+                if (TestShouldDemote(larger, smaller, goal) && TestShouldPromote(smaller + ratio, larger - 1, goal)) {
+                    BOOST_ERROR(strprintf("goal %d: demoting %d/%d is undone by a promotion", goal, larger, smaller));
+                }
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(should_promote_small_gap_false)

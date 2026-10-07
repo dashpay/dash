@@ -99,6 +99,14 @@ uint16_t CurrentProviderTxVersion(node::NodeContext& node, std::optional<bool> b
     return DeploymentToProtxVersion(chainman.ActiveChain().Tip(), chainman, basic_override);
 }
 
+bool EvoSharesActive(node::NodeContext& node)
+{
+    AssertLockNotHeld(::cs_main);
+    auto& chainman{*Assert(node.chainman)};
+    LOCK(::cs_main);
+    return DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_EVO_SHARES);
+}
+
 struct ChainSnapshot {
     uint16_t provider_tx_version{0};
     CDeterministicMNCPtr dmn;
@@ -255,6 +263,17 @@ std::optional<ProviderTxError> ValidateNetworkFields(const ProTx& payload, bool 
     return std::nullopt;
 }
 
+template <typename ProTx>
+std::optional<ProviderTxError> ApplyPlatformNodeId(ProTx& payload, const std::optional<uint160>& platform_node_id)
+{
+    if (payload.nType != MnType::Evo) return std::nullopt;
+    if (!platform_node_id) {
+        return Error(ProviderTxErrorCode::INVALID_PARAMETER, "platformNodeID must be specified for an EvoNode");
+    }
+    payload.platformNodeID = *platform_node_id;
+    return std::nullopt;
+}
+
 using PayoutResult = std::variant<MasternodePayoutShares, ProviderTxError>;
 
 PayoutResult BuildPayouts(const std::vector<ProviderPayout>& payouts)
@@ -360,9 +379,8 @@ std::optional<ProviderTxError> Preflight(node::NodeContext& node, const CTransac
     }
 
     TxValidationState state;
-    const bool is_v24_active{DeploymentActiveAfter(tip, chainman, Consensus::DEPLOYMENT_V24)};
-    if (!chain_helper.special_tx->CheckSpecialTx(tx, tip, is_v24_active, chainman.ActiveChainstate().CoinsTip(), true,
-                                                 state)) {
+    if (!chain_helper.special_tx->CheckSpecialTx(tx, tip, GetSpecialTxRules(tip, chainman),
+                                                 chainman.ActiveChainstate().CoinsTip(), true, state)) {
         return Error(ProviderTxErrorCode::CONSENSUS_REJECTED, state.ToString(), state.GetRejectReason());
     }
     return std::nullopt;
@@ -515,12 +533,7 @@ RegistrationResult BuildRegistration(node::NodeContext& node, Wallet& wallet,
         return Error(ProviderTxErrorCode::INVALID_PARAMETER, "payouts array requires provider transaction version 3");
     }
 
-    if (request.type == MnType::Evo) {
-        if (!request.platform_node_id) {
-            return Error(ProviderTxErrorCode::INVALID_PARAMETER, "platformNodeID must be specified for an EvoNode");
-        }
-        payload.platformNodeID = *request.platform_node_id;
-    }
+    if (auto error{ApplyPlatformNodeId(payload, request.platform_node_id)}) return *error;
     if (auto error{ValidateNetworkFields(payload, /*allow_empty=*/true,
                                          /*check_platform_node_id=*/true)}) {
         return *error;
@@ -822,12 +835,7 @@ ProviderTxResult<ProviderTxSubmission> UpdateService(node::NodeContext& node, Wa
     if (auto error{ApplyNetInfo(payload, request.net_info, request.type == MnType::Evo, /*optional=*/false)}) {
         return *error;
     }
-    if (request.type == MnType::Evo) {
-        if (!request.platform_node_id) {
-            return Error(ProviderTxErrorCode::INVALID_PARAMETER, "platformNodeID must be specified for an EvoNode");
-        }
-        payload.platformNodeID = *request.platform_node_id;
-    }
+    if (auto error{ApplyPlatformNodeId(payload, request.platform_node_id)}) return *error;
     if (auto error{ValidateNetworkFields(payload, /*allow_empty=*/false,
                                          /*check_platform_node_id=*/true)}) {
         return *error;
@@ -992,12 +1000,20 @@ ProviderTxResult<ProviderTxSubmission> Revoke(node::NodeContext& node, Wallet& w
 ProviderTxResult<PreparedSharedRegistration> PrepareSharedRegistration(node::NodeContext& node,
                                                                        const SharedRegistrationRequest& request)
 {
+    if (!IsValidMnType(request.type)) {
+        return Error(ProviderTxErrorCode::INVALID_PARAMETER, "invalid masternode type");
+    }
+    if (request.type == MnType::Evo && !EvoSharesActive(node)) {
+        return Error(ProviderTxErrorCode::INVALID_PARAMETER,
+                     "EvoNode shared registration requires the evo_shares deployment to be active");
+    }
+
     CMutableTransaction tx{request.funding_tx};
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
 
     CProRegTx payload;
-    payload.nType = MnType::Regular;
+    payload.nType = request.type;
     payload.nVersion = CurrentProviderTxVersion(node);
     if (payload.nVersion < ProTxVersion::ExtAddr) {
         return Error(ProviderTxErrorCode::INVALID_PARAMETER,
@@ -1023,7 +1039,13 @@ ProviderTxResult<PreparedSharedRegistration> PrepareSharedRegistration(node::Nod
                                     share.reward ? GetScriptForDestination(*share.reward) : CScript{}, share.owner);
     }
 
-    if (auto error{ApplyNetInfo(payload, request.net_info, /*platform=*/false, /*optional=*/true)}) return *error;
+    if (auto error{ApplyNetInfo(payload, request.net_info, /*platform=*/payload.nType == MnType::Evo, /*optional=*/true)}) {
+        return *error;
+    }
+    if (auto error{ApplyPlatformNodeId(payload, request.platform_node_id)}) return *error;
+    if (auto error{ValidateNetworkFields(payload, /*allow_empty=*/true, /*check_platform_node_id=*/true)}) {
+        return *error;
+    }
 
     if (!request.operator_key.IsValid()) {
         return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator BLS address must be a valid BLS public key");

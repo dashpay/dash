@@ -227,6 +227,19 @@ class BlockchainTest(BitcoinTestFramework):
                 },
                 'active': False
             },
+            'evo_shares': {
+                'type': 'bip9',
+                'bip9': {
+                    'start_time': 0,
+                    'timeout': 9223372036854775807,  # "evo_shares" does not have a timeout so is set to the max int64 value
+                    'min_activation_height': 0,
+                    'since': 0,
+                    'status': 'defined',
+                    'status_next': 'defined',
+                    'ehf': True,
+                },
+                'active': False
+            },
             'testdummy': {
                 'type': 'bip9',
                 'bip9': {

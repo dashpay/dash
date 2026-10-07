@@ -402,7 +402,10 @@ util::Result<SelectionResult> KnapsackSolver(std::vector<OutputGroup>& groups, c
             for (const auto& group : applicable_groups) {
                 result.AddInput(group);
             }
-            return result;
+            if (GetSelectionWeight(result) <= max_weight) return result;
+
+            // Try something else
+            result.Clear();
         }
 
         if (nTotalLower < nTargetValue) {

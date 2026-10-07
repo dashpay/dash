@@ -476,4 +476,26 @@ BOOST_AUTO_TEST_CASE(versionbits_computeblockversion)
     }
 }
 
+BOOST_AUTO_TEST_CASE(evo_shares_follows_v24)
+{
+    // evo_shares lifts restrictions that v24 introduces. Its consensus parameters ship in v24 and must
+    // stay identical in the release that signals for it, so they mirror v24's on every network.
+    for (const auto& chain_name : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::DEVNET,
+                                   CBaseChainParams::REGTEST}) {
+        BOOST_TEST_MESSAGE(chain_name);
+        const auto chainParams = CreateChainParams(*m_node.args, chain_name);
+        const auto& v24{chainParams->GetConsensus().vDeployments[Consensus::DEPLOYMENT_V24]};
+        const auto& evo_shares{chainParams->GetConsensus().vDeployments[Consensus::DEPLOYMENT_EVO_SHARES]};
+        BOOST_CHECK_EQUAL(evo_shares.bit, 14);
+        BOOST_CHECK_EQUAL(evo_shares.nStartTime, v24.nStartTime);
+        BOOST_CHECK_EQUAL(evo_shares.nTimeout, v24.nTimeout);
+        BOOST_CHECK_EQUAL(evo_shares.min_activation_height, v24.min_activation_height);
+        BOOST_CHECK_EQUAL(evo_shares.nWindowSize, v24.nWindowSize);
+        BOOST_CHECK_EQUAL(evo_shares.nThresholdStart, v24.nThresholdStart);
+        BOOST_CHECK_EQUAL(evo_shares.nThresholdMin, v24.nThresholdMin);
+        BOOST_CHECK_EQUAL(evo_shares.nFalloffCoeff, v24.nFalloffCoeff);
+        BOOST_CHECK(evo_shares.useEHF && v24.useEHF);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -356,19 +356,20 @@ CGovernanceObject::CGovernanceObject(const uint256& nHashParentIn, int nRevision
 CGovernanceObject::CGovernanceObject(const CGovernanceObject& other) :
     cs(),
     m_obj{other.m_obj},
-    nDeletionTime(other.nDeletionTime),
     fCachedLocalValidity(other.fCachedLocalValidity),
     strLocalValidityError(other.strLocalValidityError),
-    fCachedFunding(other.fCachedFunding),
-    fCachedValid(other.fCachedValid),
-    fCachedDelete(other.fCachedDelete),
-    fCachedEndorsed(other.fCachedEndorsed),
-    fDirtyCache(other.fDirtyCache),
-    fExpired(other.fExpired),
-    fUnparsable(other.fUnparsable),
-    mapCurrentMNVotes(other.mapCurrentMNVotes),
-    fileVotes(other.fileVotes)
+    fUnparsable(other.fUnparsable)
 {
+    LOCK(other.cs);
+    nDeletionTime = other.nDeletionTime;
+    fCachedFunding = other.fCachedFunding;
+    fCachedValid = other.fCachedValid;
+    fCachedDelete = other.fCachedDelete;
+    fCachedEndorsed = other.fCachedEndorsed;
+    fDirtyCache = other.fDirtyCache;
+    fExpired = other.fExpired;
+    mapCurrentMNVotes = other.mapCurrentMNVotes;
+    fileVotes = other.fileVotes;
 }
 
 bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateChecksEnabled,
@@ -614,10 +615,11 @@ UniValue CGovernanceObject::GetStateJson(const ChainstateManager& chainman, cons
     std::string strError;
     ret.pushKV(local_valid_key, WITH_LOCK(::cs_main, return IsValidLocally(tip_mn_list, chainman, strError, /*fCheckCollateral=*/false)));
     ret.pushKV("IsValidReason", strError.c_str());
-    ret.pushKV("fCachedValid", IsSetCachedValid());
-    ret.pushKV("fCachedFunding", IsSetCachedFunding());
-    ret.pushKV("fCachedDelete", IsSetCachedDelete());
-    ret.pushKV("fCachedEndorsed", IsSetCachedEndorsed());
+    LOCK(cs);
+    ret.pushKV("fCachedValid", fCachedValid);
+    ret.pushKV("fCachedFunding", fCachedFunding);
+    ret.pushKV("fCachedDelete", fCachedDelete);
+    ret.pushKV("fCachedEndorsed", fCachedEndorsed);
     return ret;
 }
 
@@ -877,7 +879,7 @@ bool CGovernanceObject::IsCollateralValid(const ChainstateManager& chainman, std
 
 int CGovernanceObject::CountMatchingVotes(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn, vote_outcome_enum_t eVoteOutcomeIn) const
 {
-    LOCK(cs);
+    AssertLockHeld(cs);
 
     int nCount = 0;
     for (const auto& [outpoint, recVote] : mapCurrentMNVotes) {
@@ -911,19 +913,19 @@ int CGovernanceObject::GetAbsoluteNoCount(const CDeterministicMNList& tip_mn_lis
 int CGovernanceObject::GetYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
     AssertLockNotHeld(cs);
-    return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_YES);
+    return WITH_LOCK(cs, return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_YES));
 }
 
 int CGovernanceObject::GetNoCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
     AssertLockNotHeld(cs);
-    return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_NO);
+    return WITH_LOCK(cs, return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_NO));
 }
 
 int CGovernanceObject::GetAbstainCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
     AssertLockNotHeld(cs);
-    return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_ABSTAIN);
+    return WITH_LOCK(cs, return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_ABSTAIN));
 }
 
 CGovernanceObject::UniqueVoterCount CGovernanceObject::GetUniqueVoterCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
@@ -973,27 +975,25 @@ void CGovernanceObject::UpdateSentinelVariables(const CDeterministicMNList& tip_
     int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
     int nAbsDeleteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, (2 * nWeightedMnCount) / 3);
 
-    // SET SENTINEL FLAGS TO FALSE
+    // COUNT VOTES AND SET ALL SENTINEL FLAGS IN ONE CRITICAL SECTION
 
-    fCachedFunding = false;
-    fCachedValid = true; //default to valid
-    fCachedEndorsed = false;
+    LOCK(cs);
+    const auto absolute_yes_count = [&](vote_signal_enum_t signal) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+        return CountMatchingVotes(tip_mn_list, signal, VOTE_OUTCOME_YES) -
+               CountMatchingVotes(tip_mn_list, signal, VOTE_OUTCOME_NO);
+    };
+    const auto absolute_no_count = [&](vote_signal_enum_t signal) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+        return CountMatchingVotes(tip_mn_list, signal, VOTE_OUTCOME_NO) -
+               CountMatchingVotes(tip_mn_list, signal, VOTE_OUTCOME_YES);
+    };
+
     fDirtyCache = false;
-
-    // SET SENTINEL FLAGS TO TRUE IF MINIMUM SUPPORT LEVELS ARE REACHED
-    // ARE ANY OF THESE FLAGS CURRENTLY ACTIVATED?
-
-    if (GetAbsoluteYesCount(tip_mn_list, VOTE_SIGNAL_FUNDING) >= nAbsVoteReq) fCachedFunding = true;
-    if ((GetAbsoluteYesCount(tip_mn_list, VOTE_SIGNAL_DELETE) >= nAbsDeleteReq) && !fCachedDelete) {
-        fCachedDelete = true;
-        LOCK(cs);
-        if (nDeletionTime == 0) {
-            nDeletionTime = GetTime<std::chrono::seconds>().count();
-        }
+    fCachedFunding = absolute_yes_count(VOTE_SIGNAL_FUNDING) >= nAbsVoteReq;
+    if (absolute_yes_count(VOTE_SIGNAL_DELETE) >= nAbsDeleteReq) {
+        MarkForDeletion(GetTime<std::chrono::seconds>().count());
     }
-    if (GetAbsoluteYesCount(tip_mn_list, VOTE_SIGNAL_ENDORSED) >= nAbsVoteReq) fCachedEndorsed = true;
-
-    if (GetAbsoluteNoCount(tip_mn_list, VOTE_SIGNAL_VALID) >= nAbsVoteReq) fCachedValid = false;
+    fCachedEndorsed = absolute_yes_count(VOTE_SIGNAL_ENDORSED) >= nAbsVoteReq;
+    fCachedValid = absolute_no_count(VOTE_SIGNAL_VALID) < nAbsVoteReq;
 }
 
 namespace governance {

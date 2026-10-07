@@ -563,6 +563,16 @@ static interfaces::ProviderPlatformEndpoints ParsePlatformNetInfo(const UniValue
                        strprintf("Invalid param for %s, must be a valid port [1-65535]", field_name));
 }
 
+static uint160 ParsePlatformNodeID(const UniValue& value)
+{
+    if (!IsHex(value.get_str())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "platformNodeID must be hexadecimal string");
+    }
+    uint160 platform_node_id;
+    platform_node_id.SetHex(value.get_str());
+    return platform_node_id;
+}
+
 // forward declaration
 namespace {
 enum class ProTxRegisterAction
@@ -912,12 +922,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     typed_request.payouts = ParsePayouts(request.params[paramIdx + 5], "payouts");
 
     if (mnType == MnType::Evo) {
-        if (!IsHex(request.params[paramIdx + 6].get_str())) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "platformNodeID must be hexadecimal string");
-        }
-        uint160 platform_node_id;
-        platform_node_id.SetHex(request.params[paramIdx + 6].get_str());
-        typed_request.platform_node_id = platform_node_id;
+        typed_request.platform_node_id = ParsePlatformNodeID(request.params[paramIdx + 6]);
         typed_request.net_info.platform_p2p = ParsePlatformNetInfo(request.params[paramIdx + 7], "platformP2PAddrs",
                                                                    capabilities.extended_addresses);
         typed_request.net_info.platform_https = ParsePlatformNetInfo(request.params[paramIdx + 8], "platformHTTPSAddrs",
@@ -1062,12 +1067,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
     size_t paramIdx{3};
     if (mnType == MnType::Evo) {
         const auto capabilities{evo::provider::GetCapabilities(node)};
-        if (!IsHex(request.params[paramIdx].get_str())) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "platformNodeID must be hexadecimal string");
-        }
-        uint160 platform_node_id;
-        platform_node_id.SetHex(request.params[paramIdx].get_str());
-        typed_request.platform_node_id = platform_node_id;
+        typed_request.platform_node_id = ParsePlatformNodeID(request.params[paramIdx]);
         typed_request.net_info.platform_p2p = ParsePlatformNetInfo(request.params[paramIdx + 1], "platformP2PAddrs",
                                                                    capabilities.extended_addresses);
         typed_request.net_info.platform_https = ParsePlatformNetInfo(request.params[paramIdx + 2], "platformHTTPSAddrs",
@@ -1959,12 +1959,18 @@ static RPCHelpMan protx_listdiff()
 
     UniValue jupdatedMNs(UniValue::VARR);
     for(const auto& [internal_id, stateDiff] : mnDiff.updatedMNs) {
-        auto dmn = baseBlockMNList.GetMNByInternalId(internal_id);
+        auto dmn = blockMNList.GetMNByInternalId(internal_id);
         // BuildDiff will construct itself with MNs that we already have knowledge
         // of, meaning that fetch operations should never fail.
         CHECK_NONFATAL(dmn);
+        UniValue diff_json{stateDiff.ToJson(dmn->nType)};
+        if ((stateDiff.fields & CDeterministicMNStateDiff::Field_netInfo) && !dmn->pdmnState->netInfo->IsEmpty()) {
+            // A legacy EvoNode's Platform addresses pair its core P2P address with the Platform ports,
+            // which the diff doesn't carry unless they changed too
+            diff_json.pushKV("addresses", GetNetInfoWithLegacyFields(*dmn->pdmnState, dmn->nType));
+        }
         UniValue obj(UniValue::VOBJ);
-        obj.pushKV(dmn->proTxHash.ToString(), stateDiff.ToJson(dmn->nType));
+        obj.pushKV(dmn->proTxHash.ToString(), diff_json);
         jupdatedMNs.push_back(obj);
     }
     ret.pushKV("updatedMNs", jupdatedMNs);
@@ -2150,26 +2156,10 @@ static RPCHelpMan evodb_repair()
 }
 
 #ifdef ENABLE_WALLET
-static RPCHelpMan protx_shared_register_prepare()
+static RPCHelpMan protx_shared_register_prepare_wrapper(const MnType mn_type)
 {
-    return RPCHelpMan{"protx shared_register_prepare",
-        "\nCreates an unsigned shared masternode registration (a version 3 ProRegTx with a collateral share\n"
-        "table) by appending the shared-collateral output and payload to a caller-supplied funding\n"
-        "transaction. The funding transaction must already contain every participant's contribution inputs\n"
-        "and any change outputs; the consent digest binds all of them. Every share owner must sign the\n"
-        "returned consent hash via \"protx shared_sign\"; combine with \"protx shared_combine\", then have the\n"
-        "funding inputs signed (signrawtransactionwithwallet) and broadcast with sendrawtransaction.\n"
-        "\nIMPORTANT: consent is required from each share in the table, not from each funding input; an input\n"
-        "is not tied to any share. Before signing its funding inputs, each participant should check the\n"
-        "share table (\"proRegTx\" in decoderawtransaction, or \"terms\" from shared_sign) for its own share,\n"
-        "with its own amount and addresses. Signing inputs into a table without that share gives the\n"
-        "contribution to the other shares.\n"
-        "\nIMPORTANT: once the registration confirms, every participant should create a zero-penalty\n"
-        "standby dissolution (\"protx shared_dissolve <proTxHash> <shareIndex> <fee> false false\") and store\n"
-        "the returned hex with their refund-key backup, separately from the share owner key. It becomes\n"
-        "valid when the early period ends (or immediately when no early period applies), then never expires;\n"
-        "broadcasting it after that point recovers the participant's principal without cooperation.\n",
-        {
+    const bool evo{mn_type == MnType::Evo};
+    std::vector<RPCArg> args{
             {"fundingTx", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The serialized funding transaction with all participants' inputs and change outputs."},
             {"shares", RPCArg::Type::ARR, RPCArg::Optional::NO, "The collateral share table, in consensus-significant order. Amounts must sum to the collateral.",
             {
@@ -2189,7 +2179,46 @@ static RPCHelpMan protx_shared_register_prepare()
              RPCArgOptions{.skip_type_check = true}},
             {"earlyPeriodBlocks", RPCArg::Type::NUM, RPCArg::Optional::NO, "Length in blocks of the early period during which unilateral dissolution is penalized (up to 420480)."},
             {"earlyPenalty", RPCArg::Type::NUM, RPCArg::Optional::NO, "Penalty in duffs for unilateral dissolution during the early period (must be below the smallest share, and zero when earlyPeriodBlocks is zero)."},
-        },
+    };
+    if (evo) {
+        args.push_back(GetRpcArg("platformNodeID"));
+        args.push_back({"platformP2PAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
+            "Array of addresses in the form \"ADDR:PORT\" used by Platform for peer-to-peer connection.\n"
+            "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
+            {
+                {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
+            },
+            RPCArgOptions{.skip_type_check = true}});
+        args.push_back({"platformHTTPSAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
+            "Array of addresses in the form \"ADDR:PORT\" used by Platform for their HTTPS API.\n"
+            "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
+            {
+                {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
+            },
+            RPCArgOptions{.skip_type_check = true}});
+    }
+    const std::string example_args{"\"fundingTx\" \"[...]\" \"1.2.3.4:1234\" \"operatorPubKey\" \"" + EXAMPLE_ADDRESS[1] +
+                                   "\" 0 10000 5000000000"};
+    return RPCHelpMan{evo ? "protx shared_register_prepare_evo" : "protx shared_register_prepare",
+        std::string{evo ? "\nSame as \"protx shared_register_prepare\", but for an EvoNode. EvoNodes can only register with\n"
+                          "shared collateral once the evo_shares deployment is active.\n" : ""} +
+        "\nCreates an unsigned shared masternode registration (a version 3 ProRegTx with a collateral share\n"
+        "table) by appending the shared-collateral output and payload to a caller-supplied funding\n"
+        "transaction. The funding transaction must already contain every participant's contribution inputs\n"
+        "and any change outputs; the consent digest binds all of them. Every share owner must sign the\n"
+        "returned consent hash via \"protx shared_sign\"; combine with \"protx shared_combine\", then have the\n"
+        "funding inputs signed (signrawtransactionwithwallet) and broadcast with sendrawtransaction.\n"
+        "\nIMPORTANT: consent is required from each share in the table, not from each funding input; an input\n"
+        "is not tied to any share. Before signing its funding inputs, each participant should check the\n"
+        "share table (\"proRegTx\" in decoderawtransaction, or \"terms\" from shared_sign) for its own share,\n"
+        "with its own amount and addresses. Signing inputs into a table without that share gives the\n"
+        "contribution to the other shares.\n"
+        "\nIMPORTANT: once the registration confirms, every participant should create a zero-penalty\n"
+        "standby dissolution (\"protx shared_dissolve <proTxHash> <shareIndex> <fee> false false\") and store\n"
+        "the returned hex with their refund-key backup, separately from the share owner key. It becomes\n"
+        "valid when the early period ends (or immediately when no early period applies), then never expires;\n"
+        "broadcasting it after that point recovers the participant's principal without cooperation.\n",
+        args,
         RPCResult{RPCResult::Type::OBJ, "", "",
         {
             {RPCResult::Type::STR_HEX, "tx", "The serialized unsigned shared ProRegTx"},
@@ -2198,12 +2227,14 @@ static RPCHelpMan protx_shared_register_prepare()
             CProRegTx::GetJsonHelp("terms", /*optional=*/false),
             {RPCResult::Type::STR, "warning", /*optional=*/true, "Present when earlyPenalty is zero: any participant can force an early exit at no cost beyond the transaction fee"},
         }},
-        RPCExamples{HelpExampleCli("protx", "shared_register_prepare \"fundingTx\" \"[...]\" \"1.2.3.4:1234\" \"operatorPubKey\" \"" + EXAMPLE_ADDRESS[1] + "\" 0 10000 5000000000")},
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        RPCExamples{evo ? HelpExampleCli("protx", "shared_register_prepare_evo " + example_args + " \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" \"[\\\"1.2.3.4:22821\\\"]\" \"[\\\"1.2.3.4:22822\\\"]\"")
+                        : HelpExampleCli("protx", "shared_register_prepare " + example_args)},
+        [mn_type](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     NodeContext& node = EnsureAnyNodeContext(request.context);
 
     interfaces::SharedRegistrationRequest typed_request;
+    typed_request.type = mn_type;
     if (!DecodeHexTx(typed_request.funding_tx, request.params[0].get_str())) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "funding transaction not deserializable");
     }
@@ -2233,6 +2264,14 @@ static RPCHelpMan protx_shared_register_prepare()
     typed_request.early_period_blocks = static_cast<uint32_t>(earlyPeriodBlocks);
     typed_request.early_penalty = request.params[7].getInt<int64_t>();
 
+    if (mn_type == MnType::Evo) {
+        typed_request.platform_node_id = ParsePlatformNodeID(request.params[8]);
+        typed_request.net_info.platform_p2p = ParsePlatformNetInfo(request.params[9], "platformP2PAddrs",
+                                                                   /*extended_addresses=*/true);
+        typed_request.net_info.platform_https = ParsePlatformNetInfo(request.params[10], "platformHTTPSAddrs",
+                                                                     /*extended_addresses=*/true);
+    }
+
     const auto prepared{UnwrapOrThrow(evo::provider::PrepareSharedRegistration(node, typed_request))};
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("tx", EncodeHexTx(*prepared.tx));
@@ -2245,6 +2284,16 @@ static RPCHelpMan protx_shared_register_prepare()
     return ret;
 },
     };
+}
+
+static RPCHelpMan protx_shared_register_prepare()
+{
+    return protx_shared_register_prepare_wrapper(MnType::Regular);
+}
+
+static RPCHelpMan protx_shared_register_prepare_evo()
+{
+    return protx_shared_register_prepare_wrapper(MnType::Evo);
 }
 
 static RPCHelpMan protx_shared_dissolve_prepare()
@@ -2311,6 +2360,7 @@ static RPCHelpMan protx_help()
         "  update_registrar_legacy  - (DEPRECATED) Create ProUpRegTx by parsing BLS using the legacy scheme, then send it to network\n"
         "  revoke                   - Create and send ProUpRevTx to network\n"
         "  shared_register_prepare         - Create an unsigned shared masternode ProTx\n"
+        "  shared_register_prepare_evo     - Create an unsigned shared masternode ProTx for an EvoNode\n"
         "  shared_sign                     - Sign a shared masternode transaction with this wallet's share owner keys\n"
         "  shared_combine                  - Combine share owner signatures into a shared masternode transaction\n"
         "  shared_dissolve                 - Create, sign and send a unilateral ProDisTx\n"
@@ -2442,6 +2492,7 @@ Span<const CRPCCommand> GetWalletEvoRPCCommands()
         {"evo", &protx_update_registrar},
         {"evo", &protx_revoke},
         {"evo", &protx_shared_register_prepare},
+        {"evo", &protx_shared_register_prepare_evo},
         {"evo", &protx_shared_sign},
         {"evo", &protx_shared_combine},
         {"evo", &protx_shared_dissolve},

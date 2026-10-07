@@ -157,21 +157,21 @@ private:
     // VARIOUS FLAGS FOR OBJECT / SET VIA MASTERNODE VOTING
 
     /// true == minimum network support has been reached for this object to be funded (doesn't mean it will for sure though)
-    bool fCachedFunding{false};
+    bool fCachedFunding GUARDED_BY(cs){false};
 
     /// true == minimum network has been reached flagging this object as a valid and understood governance object (e.g, the serialized data is correct format, etc)
-    bool fCachedValid{true};
+    bool fCachedValid GUARDED_BY(cs){true};
 
     /// true == minimum network support has been reached saying this object should be deleted from the system entirely
-    bool fCachedDelete{false};
+    bool fCachedDelete GUARDED_BY(cs){false};
 
     /** true == minimum network support has been reached flagging this object as endorsed by an elected representative body
      * (e.g. business review board / technical review board /etc)
      */
-    bool fCachedEndorsed{false};
+    bool fCachedEndorsed GUARDED_BY(cs){false};
 
     /// object was updated and cached values should be updated soon
-    bool fDirtyCache{true};
+    bool fDirtyCache GUARDED_BY(cs){true};
 
     /// Object is no longer of interest
     bool fExpired GUARDED_BY(cs){false};
@@ -192,11 +192,11 @@ public:
     CGovernanceObject(deserialize_type, Stream& s) { s >> *this; }
 
     // Getters
-    bool IsSetCachedFunding() const { return fCachedFunding; }
-    bool IsSetCachedValid() const { return fCachedValid; }
-    bool IsSetCachedDelete() const { return fCachedDelete; }
-    bool IsSetCachedEndorsed() const { return fCachedEndorsed; }
-    bool IsSetDirtyCache() const { return fDirtyCache; }
+    bool IsSetCachedFunding() const EXCLUSIVE_LOCKS_REQUIRED(!cs) { return WITH_LOCK(cs, return fCachedFunding); }
+    bool IsSetCachedValid() const EXCLUSIVE_LOCKS_REQUIRED(!cs) { return WITH_LOCK(cs, return fCachedValid); }
+    bool IsSetCachedDelete() const EXCLUSIVE_LOCKS_REQUIRED(!cs) { return WITH_LOCK(cs, return fCachedDelete); }
+    bool IsSetCachedEndorsed() const EXCLUSIVE_LOCKS_REQUIRED(!cs) { return WITH_LOCK(cs, return fCachedEndorsed); }
+    bool IsSetDirtyCache() const EXCLUSIVE_LOCKS_REQUIRED(!cs) { return WITH_LOCK(cs, return fDirtyCache); }
     bool IsSetExpired() const EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         return WITH_LOCK(cs, return fExpired);
@@ -250,11 +250,8 @@ public:
 
     void PrepareDeletion(int64_t nDeletionTime_) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
-        fCachedDelete = true;
         LOCK(cs);
-        if (nDeletionTime == 0) {
-            nDeletionTime = nDeletionTime_;
-        }
+        MarkForDeletion(nDeletionTime_);
     }
 
     CAmount GetMinCollateralFee() const;
@@ -265,9 +262,6 @@ public:
     uint256 GetDataHash() const;
 
     // GET VOTE COUNT FOR SIGNAL
-
-    int CountMatchingVotes(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn, vote_outcome_enum_t eVoteOutcomeIn) const
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     int GetAbsoluteYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -350,6 +344,18 @@ public:
     // Returns deleted vote hashes.
     std::set<uint256> RemoveInvalidVotes(const CDeterministicMNList& tip_mn_list, const COutPoint& mnOutpoint)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+private:
+    int CountMatchingVotes(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn,
+                           vote_outcome_enum_t eVoteOutcomeIn) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    void MarkForDeletion(int64_t nDeletionTime_) EXCLUSIVE_LOCKS_REQUIRED(cs)
+    {
+        fCachedDelete = true;
+        if (nDeletionTime == 0) {
+            nDeletionTime = nDeletionTime_;
+        }
+    }
 };
 
 namespace governance {

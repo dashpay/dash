@@ -204,8 +204,20 @@ void OptionsModel::addOverriddenOption(const std::string &option)
 // Writes all missing QSettings with their default values
 bool OptionsModel::Init(bilingual_str& error)
 {
+    // Handles exceptions thrown by univalue that can happen if settings in
+    // settings.json don't have the expected types.
+    const auto setting_error = [&](const std::string& setting, const std::exception& e) {
+        error.original = strprintf("Could not read setting \"%s\", %s.", setting, e.what());
+        error.translated = tr("Could not read setting \"%1\", %2.").arg(QString::fromStdString(setting), e.what()).toStdString();
+        return false;
+    };
+
     // Initialize display settings from stored settings.
-    language = QString::fromStdString(SettingToString(node().getPersistentSetting("lang"), ""));
+    try {
+        language = QString::fromStdString(SettingToString(node().getPersistentSetting("lang"), ""));
+    } catch (const std::exception& e) {
+        return setting_error("lang", e);
+    }
 
     checkAndMigrate();
 
@@ -256,9 +268,13 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-family");
     }
     if (GUIUtil::fontsLoaded()) {
-        const QString font_name = QString::fromStdString(
-            SettingToString(node().getPersistentSetting("font-family"), ""));
-        GUIUtil::setActiveFont(font_name);
+        try {
+            const QString font_name = QString::fromStdString(
+                SettingToString(node().getPersistentSetting("font-family"), ""));
+            GUIUtil::setActiveFont(font_name);
+        } catch (const std::exception& e) {
+            return setting_error("font-family", e);
+        }
     }
 
     // Font Scale
@@ -266,7 +282,11 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-scale");
     }
     if (GUIUtil::fontsLoaded()) {
-        GUIUtil::setFontScale(SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::defaultFontScale()));
+        try {
+            GUIUtil::setFontScale(SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::defaultFontScale()));
+        } catch (const std::exception& e) {
+            return setting_error("font-scale", e);
+        }
     }
 
     // Font Weight (Normal)
@@ -276,11 +296,17 @@ bool OptionsModel::Init(bilingual_str& error)
 
     const bool override_family{isOptionOverridden("-font-family")};
     if (GUIUtil::fontsLoaded()) {
-        // If font was overridden by CLI but weight wasn't, use the font's default weight
         const int default_arg = GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Normal);
-        const int arg = (!override_family || isOptionOverridden("-font-weight-normal"))
-            ? SettingToInt(node().getPersistentSetting("font-weight-normal"), default_arg)
-            : default_arg;
+        // Read the stored value even when it is not used below, so that a
+        // malformed one is reported here rather than thrown later via gArgs.
+        int setting_arg;
+        try {
+            setting_arg = SettingToInt(node().getPersistentSetting("font-weight-normal"), default_arg);
+        } catch (const std::exception& e) {
+            return setting_error("font-weight-normal", e);
+        }
+        // If font was overridden by CLI but weight wasn't, use the font's default weight
+        const int arg = (!override_family || isOptionOverridden("-font-weight-normal")) ? setting_arg : default_arg;
         if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, arg)) {
             node().forceSetting("font-weight-normal", default_arg);
             GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Normal, default_arg);
@@ -292,11 +318,17 @@ bool OptionsModel::Init(bilingual_str& error)
         addOverriddenOption("-font-weight-bold");
     }
     if (GUIUtil::fontsLoaded()) {
-        // If font was overridden by CLI but weight wasn't, use the font's default weight
         const int default_arg = GUIUtil::defaultWeightArg(GUIUtil::FontWeight::Bold);
-        const int arg = (!override_family || isOptionOverridden("-font-weight-bold"))
-            ? SettingToInt(node().getPersistentSetting("font-weight-bold"), default_arg)
-            : default_arg;
+        // Read the stored value even when it is not used below, so that a
+        // malformed one is reported here rather than thrown later via gArgs.
+        int setting_arg;
+        try {
+            setting_arg = SettingToInt(node().getPersistentSetting("font-weight-bold"), default_arg);
+        } catch (const std::exception& e) {
+            return setting_error("font-weight-bold", e);
+        }
+        // If font was overridden by CLI but weight wasn't, use the font's default weight
+        const int arg = (!override_family || isOptionOverridden("-font-weight-bold")) ? setting_arg : default_arg;
         if (!GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, arg)) {
             node().forceSetting("font-weight-bold", default_arg);
             GUIUtil::setWeightFromArg(GUIUtil::FontWeight::Bold, default_arg);
@@ -361,11 +393,7 @@ bool OptionsModel::Init(bilingual_str& error)
         try {
             getOption(option);
         } catch (const std::exception& e) {
-            // This handles exceptions thrown by univalue that can happen if
-            // settings in settings.json don't have the expected types.
-            error.original = strprintf("Could not read setting \"%s\", %s.", setting, e.what());
-            error.translated = tr("Could not read setting \"%1\", %2.").arg(QString::fromStdString(setting), e.what()).toStdString();
-            return false;
+            return setting_error(setting, e);
         }
     }
 

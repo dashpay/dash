@@ -30,7 +30,9 @@ class NotificationsTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        self.set_dash_test_params(6, 4)
+        # One masternode with single-member quorums is all the ChainLock and InstantSend notifications need
+        self.set_dash_test_params(3, 1, [["-llmqtestinstantsenddip0024=llmq_test_instantsend"]] * 3)
+        self.set_dash_llmq_test_params(1, 1)
 
     def setup_network(self):
         self.wallet = ''.join(chr(i) for i in range(FILE_CHAR_START, FILE_CHAR_END) if chr(i) not in FILE_CHARS_DISALLOWED)
@@ -50,16 +52,16 @@ class NotificationsTest(DashTestFramework):
 
         # -alertnotify and -blocknotify on node0, walletnotify on node1
         # -chainlocknotify on node0, -instantsendnotify on node1
-        self.extra_args = [[
+        self.extra_args[0] += [
             f"-alertnotify=echo > {os.path.join(self.alertnotify_dir, '%s')}",
             f"-blocknotify=echo > {os.path.join(self.blocknotify_dir, '%s')}",
             f"-shutdownnotify=echo > {self.shutdownnotify_file}",
             f"-chainlocknotify=echo > {os.path.join(self.chainlocknotify_dir, '%s')}",
-        ], [
+        ]
+        self.extra_args[1] += [
             f"-walletnotify=echo %h_%b > {os.path.join(self.walletnotify_dir, notify_outputname('%w', '%s'))}",
             f"-instantsendnotify=echo > {os.path.join(self.instantsendnotify_dir, notify_outputname('%w', '%s'))}",
-        ],
-        [], [], [], []]
+        ]
 
         self.wallet_names = [self.default_wallet_name, self.wallet]
         super().setup_network()
@@ -107,13 +109,8 @@ class NotificationsTest(DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 4070908800)
         self.wait_for_sporks_same()
-        self.log.info("Mine quorum for InstantSend")
-        (quorum_info_i_0, quorum_info_i_1) = self.mine_cycle_quorum()
-        self.log.info("Mine quorum for ChainLocks")
-        if len(self.nodes[0].quorum('list')['llmq_test']) == 0:
-            self.mine_quorum(llmq_type_name='llmq_test', llmq_type=104)
-        else:
-            self.log.info("Quorum `llmq_test` already exist")
+        self.log.info("Mine quorums for InstantSend and ChainLocks")
+        self.mine_quorum_single_member()
         self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 0)
         self.wait_for_sporks_same()
 

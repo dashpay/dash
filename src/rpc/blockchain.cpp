@@ -1685,6 +1685,7 @@ UniValue DeploymentInfo(const CBlockIndex* blockindex, const CMNHFManager::Signa
     }
     for (auto ehf_deploy : { /* sorted by activation block */
                              Consensus::DEPLOYMENT_V24,
+                             Consensus::DEPLOYMENT_EVO_SHARES,
                              Consensus::DEPLOYMENT_TESTDUMMY }) {
         SoftForkDescPushBack(blockindex, ehf_signals, softforks, chainman, ehf_deploy);
     }

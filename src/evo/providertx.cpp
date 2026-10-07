@@ -278,9 +278,6 @@ bool CProRegTx::IsTriviallyValid(TxValidationState& state) const
     }
 
     if (IsShared()) {
-        if (nType != MnType::Regular) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-evo");
-        }
         // The collateral must be internal; the funding inputs and outputs are covered by the consent digest
         if (!collateralOutpoint.hash.IsNull()) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-external");
@@ -359,6 +356,9 @@ uint256 CProRegTx::MakeSharedRegConsentHash(const CTransaction& tx) const
     hw << nMode;
     hw << NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(netInfo),
                             nVersion >= ProTxVersion::ExtAddr);
+    if (nType == MnType::Evo) {
+        hw << platformNodeID;
+    }
     hw << keyIDVoting;
     hw << CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(pubKeyOperator),
                                           nVersion == ProTxVersion::LegacyBLS);

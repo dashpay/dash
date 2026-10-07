@@ -2381,12 +2381,13 @@ class DashTestFramework(BitcoinTestFramework):
         node = self.nodes[0]
         quorums = node.quorum('list')['llmq_test']
 
+        self.mine_until_mns_confirmed_for_next_dkg()
         skip_count = 24 - (node.getblockcount() % 24)
         if skip_count != 0:
             self.bump_mocktime(1)
-            self.generate(node, skip_count)
+            self.generate(node, skip_count, sync_fun=lambda: self.sync_blocks())
         time.sleep(1)
-        self.generate(node, 30)
+        self.generate(node, 30, sync_fun=lambda: self.sync_blocks())
         new_quorums_list = node.quorum('list')['llmq_test']
 
         self.log.info(f"Test Quorums at height={node.getblockcount()} : {new_quorums_list}")
