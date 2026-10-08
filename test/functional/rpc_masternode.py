@@ -3,7 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_equal
+from test_framework.util import assert_equal, assert_raises_rpc_error
 
 '''
 rpc_masternode.py
@@ -102,6 +102,13 @@ class RPCMasternodeTest(DashTestFramework):
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
         # we have 3 masternodes that are running already and 2 new outputs we just created
         assert_equal(len(self.nodes[0].masternode("outputs")), 5)
+
+        self.log.info("test payments without historical transaction data")
+        spend_blockhash = self.nodes[0].getrawtransaction(self.mninfo[0].proTxHash, True)["blockhash"]
+        self.restart_node(0, extra_args=self.nodes[0].extra_args + ["-txindex=0"])
+        assert_raises_rpc_error(-1, "previous transaction not found",
+                                self.nodes[0].masternode, "payments", spend_blockhash)
+        self.nodes[0].getblockcount()
 
 if __name__ == '__main__':
     RPCMasternodeTest().main()

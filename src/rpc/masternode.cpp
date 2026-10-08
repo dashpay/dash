@@ -442,6 +442,13 @@ static RPCHelpMan masternode_payments()
             for (const auto& txin : tx->vin) {
                 uint256 blockHashTmp;
                 CTransactionRef txPrev = GetTransaction(/* block_index */ nullptr, &mempool, txin.prevout.hash, Params().GetConsensus(), blockHashTmp);
+                if (!txPrev) {
+                    throw JSONRPCError(RPC_MISC_ERROR, "Unable to calculate block fees: previous transaction not "
+                                                       "found. Use -txindex to enable historical transaction queries");
+                }
+                if (txin.prevout.n >= txPrev->vout.size()) {
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to calculate block fees: previous output not found");
+                }
                 nValueIn += txPrev->vout[txin.prevout.n].nValue;
             }
             nBlockFees += nValueIn - tx->GetValueOut();
