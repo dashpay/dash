@@ -413,6 +413,22 @@ std::shared_ptr<CWallet> CreateWallet(WalletContext& context, const std::string&
         return nullptr;
     }
 
+    if (passphrase.empty() && !(wallet_creation_flags & (WALLET_FLAG_BLANK_WALLET | WALLET_FLAG_DISABLE_PRIVATE_KEYS)) &&
+        ((wallet_creation_flags & WALLET_FLAG_DESCRIPTORS) || (args.GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !args.IsArgSet("-hdseed")))) {
+        const SecureString mnemonic{args.GetArg("-mnemonic", "")};
+        const SecureString mnemonic_passphrase{args.GetArg("-mnemonicpassphrase", "")};
+        try {
+            CMnemonic::ValidateGenerationParameters(mnemonic, mnemonic_passphrase, args.GetBoolArg("-allowlegacymnemonicpassphrase", false));
+            if (!(wallet_creation_flags & WALLET_FLAG_DESCRIPTORS) && mnemonic_passphrase.size() > 256) {
+                throw std::runtime_error("Mnemonic passphrase is too long, must be at most 256 bytes for legacy wallet recovery");
+            }
+        } catch (const std::runtime_error& e) {
+            error = Untranslated(e.what());
+            status = DatabaseStatus::FAILED_CREATE;
+            return nullptr;
+        }
+    }
+
     // Wallet::Verify will check if we're trying to create a wallet with a duplicate name.
     std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(name, options, status, error);
     if (!database) {
@@ -3266,6 +3282,12 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         }
 
         if ((wallet_creation_flags & WALLET_FLAG_EXTERNAL_SIGNER) || !(wallet_creation_flags & (WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_BLANK_WALLET))) {
+            SecureString mnemonic, mnemonic_passphrase;
+            mnemonic.reserve(256);
+            mnemonic_passphrase.reserve(256);
+            mnemonic = args.GetArg("-mnemonic", "");
+            mnemonic_passphrase = args.GetArg("-mnemonicpassphrase", "");
+            const bool allow_legacy_passphrase{args.GetBoolArg("-allowlegacymnemonicpassphrase", false)};
             // Create new HD chain
             if (args.GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
                 std::string strSeed = args.GetArg("-hdseed", "not hex");
@@ -3296,15 +3318,12 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
                         return nullptr;
                     }
 
-                    SecureString mnemonic, mnemonic_passphrase;
-                    mnemonic.reserve(256);
-                    mnemonic_passphrase.reserve(256);
-
-                    mnemonic = args.GetArg("-mnemonic", "");
-                    mnemonic_passphrase = args.GetArg("-mnemonicpassphrase", "");
                     LOCK(walletInstance->cs_wallet);
                     if (auto spk_man = walletInstance->GetLegacyScriptPubKeyMan()) {
-                        spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase);
+                        spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase, std::nullopt, allow_legacy_passphrase);
+                        if (allow_legacy_passphrase && mnemonic_passphrase.size() > CMnemonic::MAX_PASSPHRASE_BYTES) {
+                            warnings.push_back(_("Legacy mnemonic recovery ignores passphrase bytes after byte 248. This option is only for recovering an existing wallet."));
+                        }
                     }
                 }
 
@@ -3312,18 +3331,18 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
                 args.ForceRemoveArg("hdseed");
                 args.ForceRemoveArg("mnemonic");
                 args.ForceRemoveArg("mnemonicpassphrase");
+                args.ForceRemoveArg("allowlegacymnemonicpassphrase");
             } // Otherwise, do not create a new HD chain
 
             LOCK(walletInstance->cs_wallet);
             if (walletInstance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
-                SecureString mnemonic, mnemonic_passphrase;
-                mnemonic.reserve(256);
-                mnemonic_passphrase.reserve(256);
-                mnemonic = args.GetArg("-mnemonic", "");
-                mnemonic_passphrase = args.GetArg("-mnemonicpassphrase", "");
                 args.ForceRemoveArg("mnemonic");
                 args.ForceRemoveArg("mnemonicpassphrase");
-                walletInstance->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
+                args.ForceRemoveArg("allowlegacymnemonicpassphrase");
+                walletInstance->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase, allow_legacy_passphrase);
+                if (!walletInstance->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER) && allow_legacy_passphrase && mnemonic_passphrase.size() > CMnemonic::MAX_PASSPHRASE_BYTES) {
+                    warnings.push_back(_("Legacy mnemonic recovery ignores passphrase bytes after byte 248. This option is only for recovering an existing wallet."));
+                }
                 // SetupDescriptorScriptPubKeyMans already calls SetupGeneration for us so we don't need to call SetupGeneration separately
             } else { // Top up the keypool
                 // Legacy wallets need SetupGeneration here.
@@ -4401,16 +4420,17 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
     }
 }
 
-void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, const SecureString mnemonic_passphrase)
+void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, const SecureString mnemonic_passphrase, bool allow_legacy_passphrase)
 {
     AssertLockHeld(cs_wallet);
 
     if (!IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER)) {
+    CMnemonic::ValidateGenerationParameters(mnemonic_arg, mnemonic_passphrase, allow_legacy_passphrase);
     // Make a seed
     // TODO: remove duplicated code with CHDChain::SetMnemonic
     const SecureString mnemonic = mnemonic_arg.empty() ? CMnemonic::Generate(m_args.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS)) : mnemonic_arg;
     if (!CMnemonic::Check(mnemonic)) {
-        throw std::runtime_error(std::string(__func__) + ": invalid mnemonic: `" + std::string(mnemonic) + "`");
+        throw std::runtime_error(std::string(__func__) + ": invalid mnemonic");
     }
     SecureVector seed_key;
     CMnemonic::ToSeed(mnemonic, mnemonic_passphrase, seed_key);

@@ -21,6 +21,7 @@
 #include <util/fees.h>
 #include <util/translation.h>
 #include <util/vector.h>
+#include <wallet/bip39.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
@@ -324,9 +325,10 @@ static RPCHelpMan upgradetohd()
         "\nWarning: You will need to make a new backup of your wallet after setting the HD wallet mnemonic.\n",
         {
             {"mnemonic", RPCArg::Type::STR, RPCArg::Default{""}, "Mnemonic as defined in BIP39 to use for the new HD wallet. Use an empty string \"\" to generate a new random mnemonic."},
-            {"mnemonicpassphrase", RPCArg::Type::STR, RPCArg::Default{""}, "Optional mnemonic passphrase as defined in BIP39"},
+            {"mnemonicpassphrase", RPCArg::Type::STR, RPCArg::Default{""}, "Optional mnemonic passphrase as defined in BIP39, at most 248 UTF-8 bytes"},
             {"walletpassphrase", RPCArg::Type::STR, RPCArg::Default{""}, "If your wallet is encrypted you must have your wallet passphrase here. If your wallet is not encrypted, specifying wallet passphrase will trigger wallet encryption."},
             {"rescan", RPCArg::Type::BOOL, RPCArg::DefaultHint{"false if mnemonic is empty"}, "Whether to rescan the blockchain for missing transactions or not"},
+            {"allowlegacymnemonicpassphrase", RPCArg::Type::BOOL, RPCArg::Default{false}, "Recover an existing wallet with a supplied valid mnemonic using historical truncation after 248 passphrase bytes. Never use this option for a new wallet."},
         },
         RPCResult{RPCResult::Type::STR, "", "A string with further instructions"},
         RPCExamples{
@@ -343,6 +345,8 @@ static RPCHelpMan upgradetohd()
 
     bool generate_mnemonic = request.params[0].isNull() || request.params[0].get_str().empty();
     bool mnemonic_passphrase_has_null{false};
+    const bool allow_legacy_passphrase = !request.params[4].isNull() && request.params[4].get_bool();
+    bool legacy_passphrase_truncated{false};
     {
         LOCK2(pwallet->m_relock_mutex, pwallet->cs_wallet);
 
@@ -379,6 +383,12 @@ static RPCHelpMan upgradetohd()
             throw JSONRPCError(RPC_WALLET_ERROR, "Private keys are disabled for this wallet");
         }
 
+        CMnemonic::ValidateGenerationParameters(mnemonic, mnemonic_passphrase, allow_legacy_passphrase);
+        if (!pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) && mnemonic_passphrase.size() > 256) {
+            throw std::runtime_error("Mnemonic passphrase is too long, must be at most 256 bytes for legacy wallet recovery");
+        }
+        legacy_passphrase_truncated = mnemonic_passphrase.size() > CMnemonic::MAX_PASSPHRASE_BYTES;
+
         pwallet->WalletLogPrintf("Upgrading wallet to HD\n");
         pwallet->SetMinVersion(FEATURE_HD);
 
@@ -408,7 +418,7 @@ static RPCHelpMan upgradetohd()
         }
 
         if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
-            pwallet->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
+            pwallet->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase, allow_legacy_passphrase);
         } else {
             auto spk_man = pwallet->GetLegacyScriptPubKeyMan();
             if (!spk_man) {
@@ -417,11 +427,11 @@ static RPCHelpMan upgradetohd()
 
             if (pwallet->IsCrypted()) {
                 pwallet->WithEncryptionKey([&](const CKeyingMaterial& encryption_key) {
-                        spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase, encryption_key);
+                        spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase, encryption_key, allow_legacy_passphrase);
                         return true;
                     });
             } else {
-                spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase);
+                spk_man->GenerateNewHDChain(mnemonic, mnemonic_passphrase, std::nullopt, allow_legacy_passphrase);
             }
         }
 
@@ -455,16 +465,17 @@ static RPCHelpMan upgradetohd()
         }
     }
 
+    const std::string legacy_warning = legacy_passphrase_truncated ? " Warning: Legacy mnemonic recovery ignores passphrase bytes after byte 248; use this only to recover an existing wallet." : "";
     // Check if the passphrase has a null character (see #27067 for details)
     if (!mnemonic_passphrase_has_null) {
-        return "Make sure that you have backup of your mnemonic.";
+        return "Make sure that you have backup of your mnemonic." + legacy_warning;
     } else {
         return "Make sure that you have backup of your mnemonic. "
                "Your mnemonic passphrase contains a null character (ie - a zero byte). "
                "If the passphrase was created with a version of this software prior to 23.0, "
                "please try again with only the characters up to — but not including — "
                "the first null character. If this is successful, please set a new "
-               "passphrase to avoid this issue in the future.";
+               "passphrase to avoid this issue in the future." + legacy_warning;
     }
 },
     };

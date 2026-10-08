@@ -64,6 +64,7 @@ void DummyWalletInit::AddWalletOptions(ArgsManager& argsman) const
         "-hdseed=<hex>",
         "-mnemonic=<text>",
         "-mnemonicpassphrase=<text>",
+        "-allowlegacymnemonicpassphrase",
         "-usehd",
         "-enablecoinjoin",
         "-coinjoinamount=<n>",

@@ -47,7 +47,7 @@ bool CHDChain::SetMnemonic(const SecureVector& mnemonic, const SecureVector& mne
     return SetMnemonic(SecureString(mnemonic.begin(), mnemonic.end()), SecureString(mnemonic_passphrase.begin(), mnemonic_passphrase.end()), fUpdateID);
 }
 
-bool CHDChain::SetMnemonic(const SecureString& ssMnemonic, const SecureString& ssMnemonicPassphrase, bool fUpdateID)
+bool CHDChain::SetMnemonic(const SecureString& ssMnemonic, const SecureString& ssMnemonicPassphrase, bool fUpdateID, bool allow_legacy_passphrase)
 {
     LOCK(cs);
     SecureString ssMnemonicTmp = ssMnemonic;
@@ -58,8 +58,10 @@ bool CHDChain::SetMnemonic(const SecureString& ssMnemonic, const SecureString& s
             return false;
 
         if (ssMnemonicPassphrase.size() > 256) {
-            throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 characters");
+            throw std::runtime_error(std::string(__func__) + ": Mnemonic passphrase is too long, must be at most 256 bytes");
         }
+
+        CMnemonic::ValidateGenerationParameters(ssMnemonic, ssMnemonicPassphrase, allow_legacy_passphrase);
 
         // empty mnemonic i.e. "generate a new one"
         if (ssMnemonic.empty()) {
@@ -69,7 +71,7 @@ bool CHDChain::SetMnemonic(const SecureString& ssMnemonic, const SecureString& s
 
         // printf("mnemonic: %s\n", ssMnemonicTmp.c_str());
         if (!CMnemonic::Check(ssMnemonicTmp)) {
-            throw std::runtime_error(std::string(__func__) + ": invalid mnemonic: `" + std::string(ssMnemonicTmp) + "`");
+            throw std::runtime_error(std::string(__func__) + ": invalid mnemonic");
         }
 
         CMnemonic::ToSeed(ssMnemonicTmp, ssMnemonicPassphrase, vchSeed);
