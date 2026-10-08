@@ -65,11 +65,14 @@ BOOST_AUTO_TEST_CASE(flatfile_open)
         std::string text;
         AutoFile file{seq.Open(FlatFilePos(0, pos1), true)};
 
+        BOOST_CHECK_EQUAL(file.size(), pos2 + GetSerializeSize(line2, CLIENT_VERSION));
         file >> LIMITED_STRING(text, 256);
         BOOST_CHECK_EQUAL(text, line1);
+        BOOST_CHECK_EQUAL(file.size(), GetSerializeSize(line2, CLIENT_VERSION));
 
         file >> LIMITED_STRING(text, 256);
         BOOST_CHECK_EQUAL(text, line2);
+        BOOST_CHECK_EQUAL(file.size(), 0U);
     }
 
     // Read text from file with position offset.

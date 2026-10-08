@@ -12,6 +12,7 @@
 #include <llmq/signhash.h>
 #include <node/blockstorage.h>
 #include <shutdown.h>
+#include <util/check.h>
 #include <util/std23.h>
 
 #include <chain.h>
@@ -380,6 +381,12 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
         LOCK(cs_cache);
         mnhfCache.insert(blockHash, signals);
     }
+}
+
+bool CMNHFManager::SeedSignals(const CBlockIndex* pindex, const Signals& signals)
+{
+    if (!Assume(pindex != nullptr)) return false;
+    return m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, pindex->GetBlockHash()), signals);
 }
 
 void CMNHFManager::AddSignal(const CBlockIndex* const pindex, int bit)

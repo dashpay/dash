@@ -15,6 +15,7 @@
 #include <evo/netinfo.h>
 #include <evo/sharedcollateral.h>
 #include <evo/simplifiedmns.h>
+#include <evo/snapshot.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
@@ -265,6 +266,13 @@ bool CSpecialTxProcessor::CheckSpecialTxInner(const CChain* chain, const CTransa
             return chain ? CheckAssetUnlockTx(m_blockman, m_qman, *chain, tx, pindexPrev, indexes, rules.v24, state)
                          : CheckAssetUnlockTx(m_blockman, m_qman, tx, pindexPrev, indexes, rules.v24, state);
         }
+    } catch (const evo::SnapshotStateMismatchError&) {
+        // During block connection the local snapshot state is wrong, not the
+        // block: let the chainstate boundary reject the snapshot after the
+        // EvoDB transaction unwinds. Mempool and mining callers have no such
+        // boundary and keep rejecting the transaction.
+        if (chain != nullptr) throw;
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-check-special-tx");
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-check-special-tx");
@@ -902,7 +910,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
         LogPrint(BCLog::BENCHMARK, "      - m_qblockman.ProcessBlock: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4),
                  nTimeQuorum * 0.000001);
 
-        CDeterministicMNList mn_list;
+        // Even before DIP3, bind the canonical empty list to the block so the
+        // independently derived completion hash has the same identity as an
+        // empty evo snapshot section.
+        CDeterministicMNList mn_list{pindex->GetBlockHash(), pindex->nHeight, 0};
         if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0003)) {
             if (!BuildNewListFromBlock(block, pindex->pprev, rules.v24, view, true, state, mn_list)) {
                 // pass the state returned by the function above
@@ -990,6 +1001,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
+    } catch (const evo::SnapshotStateMismatchError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-procspectxsinblock");
@@ -1058,6 +1071,8 @@ bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
+    } catch (const evo::SnapshotStateMismatchError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-checkcreditpooldiff");
