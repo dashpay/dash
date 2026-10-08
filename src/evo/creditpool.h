@@ -100,10 +100,9 @@ public:
 
     /**
      * this function returns total amount of credits for the next block
+     * Throws if the total cannot be represented as CAmount.
      */
-    CAmount GetTotalLocked() const {
-        return pool.locked + sessionLocked - sessionUnlocked + platformReward;
-    }
+    CAmount GetTotalLocked() const;
 
     std::string ToString() const {
         return strprintf("CCreditPoolDiff(sessionLocked=%lld, sessionUnlocked=%lld, platforomReward=%lld, newIndexes=%lld, pool=%s)", sessionLocked, sessionUnlocked, platformReward, newIndexes.size(), pool.ToString());

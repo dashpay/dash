@@ -17,12 +17,14 @@
 #include <masternode/payments.h>
 #include <node/blockstorage.h>
 #include <shutdown.h>
+#include <util/overflow.h>
 #include <validation.h>
 
 #include <algorithm>
 #include <exception>
 #include <memory>
 #include <stack>
+#include <stdexcept>
 
 using node::ReadBlockFromDisk;
 
@@ -41,7 +43,11 @@ static bool GetDataFromUnlockTx(const CTransaction& tx, CAmount& toUnlock, uint6
         if (!MoneyRange(txout.nValue)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-creditpool-unlock-txout-outofrange");
         }
-        toUnlock += txout.nValue;
+        const auto total = CheckedAdd(toUnlock, txout.nValue);
+        if (!total) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-creditpool-unlock-overflow");
+        }
+        toUnlock = *total;
     }
     return true;
 }
@@ -288,6 +294,16 @@ CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex* pindexP
     }
 }
 
+CAmount CCreditPoolDiff::GetTotalLocked() const
+{
+    // Subtract withdrawals first to preserve a representable net balance.
+    auto total = CheckedAdd(pool.locked, -sessionUnlocked);
+    if (total) total = CheckedAdd(*total, sessionLocked);
+    if (total) total = CheckedAdd(*total, platformReward);
+    if (!total) throw std::overflow_error("credit-pool balance overflow");
+    return *total;
+}
+
 bool CCreditPoolDiff::Lock(const CTransaction& tx, TxValidationState& state)
 {
     if (const auto opt_assetLockTx = GetTxPayload<CAssetLockPayload>(tx); !opt_assetLockTx) {
@@ -297,7 +313,11 @@ bool CCreditPoolDiff::Lock(const CTransaction& tx, TxValidationState& state)
     for (const CTxOut& txout : tx.vout) {
         if (const CScript& script = txout.scriptPubKey; script.empty() || script[0] != OP_RETURN) continue;
 
-        sessionLocked += txout.nValue;
+        const auto total = CheckedAdd(sessionLocked, txout.nValue);
+        if (!total) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-creditpool-lock-overflow");
+        }
+        sessionLocked = *total;
         return true;
     }
 
@@ -313,7 +333,8 @@ bool CCreditPoolDiff::Unlock(const CTransaction& tx, TxValidationState& state, s
         return false;
     }
 
-    if (sessionUnlocked + toUnlock > pool.currentLimit) {
+    const auto total = CheckedAdd(sessionUnlocked, toUnlock);
+    if (!total || *total > pool.currentLimit) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-creditpool-unlock-too-much");
     }
 
@@ -323,7 +344,7 @@ bool CCreditPoolDiff::Unlock(const CTransaction& tx, TxValidationState& state, s
 
     newIndexes.insert(index);
     if (inserted_index) *inserted_index = index;
-    sessionUnlocked += toUnlock;
+    sessionUnlocked = *total;
     return true;
 }
 

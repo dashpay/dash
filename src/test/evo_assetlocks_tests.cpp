@@ -25,6 +25,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <limits>
+
 // Helpers:
 static bool IsStandardTx(const CTransaction& tx, std::string& reason)
 {
@@ -138,6 +140,17 @@ static CTransactionRef CreateCreditPoolUnlockTx(uint64_t index, CAmount amount, 
     tx.nType = TRANSACTION_ASSET_UNLOCK;
     tx.vout.emplace_back(amount, CScript{});
     SetTxPayload(tx, CAssetUnlockPayload{version, index, fee, requested_height, {}, {}});
+    return MakeTransactionRef(std::move(tx));
+}
+
+static CTransactionRef CreateCreditPoolLockTx(CAmount amount)
+{
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_ASSET_LOCK;
+    tx.vout.emplace_back(amount, CScript{} << OP_RETURN << OP_0);
+    SetTxPayload(tx, CAssetLockPayload{std::vector<CTxOut>{{amount, GetScriptForDestination(PKHash{})}},
+                                       CAssetLockPayload::INITIAL_VERSION});
     return MakeTransactionRef(std::move(tx));
 }
 
@@ -883,6 +896,28 @@ BOOST_AUTO_TEST_CASE(credit_pool_unlock_limit_v24)
     BOOST_CHECK_EQUAL(limit(10000 * COIN + 4, 10000 * COIN + 4), 2000 * COIN);
     BOOST_CHECK_EQUAL(limit(10000 * COIN + 5, 10000 * COIN + 5), 2000 * COIN + 1);
     BOOST_CHECK_EQUAL(limit(MAX_MONEY, MAX_MONEY), MAX_MONEY * 20 / 100);
+}
+
+BOOST_FIXTURE_TEST_CASE(credit_pool_lock_arithmetic, TestChain100Setup)
+{
+    LOCK(cs_main);
+    const auto* tip = m_node.chainman->ActiveChain().Tip();
+    CCreditPoolDiff diff{CCreditPool{}, tip, m_node.chainman->GetConsensus(), 0};
+    const CAmount maximum = std::numeric_limits<CAmount>::max();
+    const auto lock_max_money = CreateCreditPoolLockTx(MAX_MONEY);
+    for (CAmount i = 0; i < maximum / MAX_MONEY; ++i) {
+        TxValidationState state;
+        BOOST_REQUIRE(diff.ProcessLockUnlockTransaction(*lock_max_money, state));
+        if (i == 1) BOOST_CHECK_EQUAL(diff.GetTotalLocked(), 2 * MAX_MONEY);
+    }
+    TxValidationState remainder_state;
+    BOOST_REQUIRE(diff.ProcessLockUnlockTransaction(*CreateCreditPoolLockTx(maximum % MAX_MONEY), remainder_state));
+    BOOST_CHECK_EQUAL(diff.GetTotalLocked(), maximum);
+
+    TxValidationState overflow_state;
+    BOOST_CHECK(!diff.ProcessLockUnlockTransaction(*CreateCreditPoolLockTx(1), overflow_state));
+    BOOST_CHECK_EQUAL(overflow_state.GetRejectReason(), "failed-creditpool-lock-overflow");
+    BOOST_CHECK_EQUAL(diff.GetTotalLocked(), maximum);
 }
 
 BOOST_FIXTURE_TEST_CASE(credit_pool_package_atomicity, TestChain100Setup)
