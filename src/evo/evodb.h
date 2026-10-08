@@ -32,6 +32,9 @@ static const std::string EVODB_BEST_BLOCK = "b_b4";
 static const std::string EVODB_DUAL_CHAINSTATE = "b_dcs";
 static const std::string EVODB_SNAPSHOT_MNLIST_HASH = "b_dcs_mn";
 static const std::string EVODB_BACKGROUND_MNLIST_HASH = "b_dcs_bg_mn";
+static const std::string EVODB_REQUIRED_WORK_MNLISTS = "b_dcs_req_mn";
+static const std::string EVODB_BACKGROUND_WORK_MNLIST_HASH = "b_dcs_bg_work_mn";
+static const std::string EVODB_SNAPSHOT_EVO_SECTION = "b_dcs_evo";
 
 enum class EvoDbIdentity {
     NORMAL,
@@ -263,6 +266,10 @@ public:
     bool ReadSnapshotBaseMNListHash(uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void WriteBackgroundMNListHash(const uint256& block_hash, const uint256& mn_list_hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool ReadBackgroundMNListHash(uint256& block_hash, uint256& mn_list_hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void WriteRequiredWorkMNListHashes(const std::vector<uint256>& block_hashes) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool ReadRequiredWorkMNListHashes(std::vector<uint256>& block_hashes) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void WriteBackgroundWorkMNListHash(const uint256& block_hash, const uint256& mn_list_hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool ReadBackgroundWorkMNListHash(const uint256& block_hash, uint256& mn_list_hash) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /**
      * Atomically promote the surviving snapshot marker to the legacy NORMAL key
