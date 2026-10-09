@@ -651,7 +651,7 @@ RPCHelpMan importelectrumwallet()
         "Note: This command is only compatible with legacy wallets.\n",
         {
             {"filename", RPCArg::Type::STR, RPCArg::Optional::NO, "The Electrum wallet export file, should be in csv or json format"},
-            {"index", RPCArg::Type::NUM, RPCArg::Default{0}, "Rescan the wallet for transactions starting from this block index"},
+            {"index", RPCArg::Type::NUM, RPCArg::Default{0}, "Rescan the wallet for transactions starting from this non-negative block index"},
         },
         RPCResult{RPCResult::Type::NONE, "", ""},
         RPCExamples{
@@ -681,6 +681,11 @@ RPCHelpMan importelectrumwallet()
 
     EnsureWalletIsUnlocked(*pwallet);
 
+    int nStartHeight = request.params[1].isNull() ? 0 : request.params[1].getInt<int>();
+    if (nStartHeight < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Rescan index must be non-negative");
+    }
+
     std::ifstream file;
     std::string strFileName = request.params[0].get_str();
     size_t nDotPos = strFileName.find_last_of('.');
@@ -691,7 +696,7 @@ RPCHelpMan importelectrumwallet()
     if(strFileExt != "json" && strFileExt != "csv")
         throw JSONRPCError(RPC_INVALID_PARAMETER, "File has wrong extension, should be .json or .csv");
 
-    file.open(strFileName, std::ios::in | std::ios::ate);
+    file.open(strFileName, std::ios::in | std::ios::ate | std::ios::binary);
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open Electrum wallet export file");
 
@@ -699,7 +704,11 @@ RPCHelpMan importelectrumwallet()
 
     WalletBatch batch(pwallet->GetDatabase());
 
-    int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
+    const auto file_size = file.tellg();
+    if (file_size < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot read Electrum wallet export file");
+    }
+    const int64_t nFilesize = std::max<int64_t>(1, file_size);
     file.seekg(0, file.beg);
 
     pwallet->ShowProgress(_("Importing…").translated, 0); // show progress dialog in GUI
@@ -750,9 +759,13 @@ RPCHelpMan importelectrumwallet()
         // json
         UniValue data(UniValue::VOBJ);
         {
-            auto buffer = std::make_unique<char[]>(nFilesize);
-            file.read(buffer.get(), nFilesize);
-            if(!data.read(buffer.get()))
+            std::string buffer(nFilesize, '\0');
+            file.read(buffer.data(), buffer.size());
+            if (file.bad() || (file.fail() && !file.eof())) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot read Electrum wallet export file");
+            }
+            buffer.resize(file.gcount());
+            if (!data.read(buffer))
                 throw JSONRPCError(RPC_TYPE_ERROR, "Cannot parse Electrum wallet export file");
         }
 
@@ -798,9 +811,6 @@ RPCHelpMan importelectrumwallet()
     const int32_t tip_height = pwallet->chain().getHeight().value_or(std::numeric_limits<int32_t>::max());
 
     // Whether to perform rescan after import
-    int nStartHeight = 0;
-    if (!request.params[1].isNull())
-        nStartHeight = request.params[1].getInt<int>();
     if (tip_height < nStartHeight)
         nStartHeight = tip_height;
 
