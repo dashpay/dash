@@ -37,6 +37,11 @@ bool MutableTransactionSignatureCreator::CreateSig(const SigningProvider& provid
     if (!provider.GetKey(address, key))
         return false;
 
+    // If an input is signed with SIGHASH_SINGLE but there is no output at the same index, the
+    // signature commits to no output at all. Which means such a signature stays valid if the
+    // output is swapped, which is a footgun. So don't produce it.
+    if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn >= m_txto.vout.size()) return false;
+
     uint256 hash = SignatureHash(scriptCode, m_txto, nIn, nHashType, amount, sigversion, m_txdata);
     if (!key.Sign(hash, vchSig))
         return false;
@@ -400,8 +405,6 @@ bool IsSolvable(const SigningProvider& provider, const CScript& script)
 
 bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, const std::map<COutPoint, Coin>& coins, int nHashType, std::map<int, bilingual_str>& input_errors)
 {
-    bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
-
     // Use CTransaction for the constant parts of the
     // transaction to avoid rehashing.
     const CTransaction txConst(mtx);
@@ -437,10 +440,7 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
         const CAmount& amount = coin->second.out.nValue;
 
         SignatureData sigdata = DataFromTransaction(mtx, i, coin->second.out);
-        // Only sign SIGHASH_SINGLE if there's a corresponding output:
-        if (!fHashSingle || (i < mtx.vout.size())) {
-            ProduceSignature(*keystore, MutableTransactionSignatureCreator(mtx, i, amount, &txdata, nHashType), prevPubKey, sigdata);
-        }
+        ProduceSignature(*keystore, MutableTransactionSignatureCreator(mtx, i, amount, &txdata, nHashType), prevPubKey, sigdata);
 
         UpdateInput(txin, sigdata);
 
