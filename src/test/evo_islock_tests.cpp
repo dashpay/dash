@@ -14,6 +14,7 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <primitives/transaction.h>
+#include <script/standard.h>
 #include <spork.h>
 #include <streams.h>
 #include <test/util/llmq_tests.h>
@@ -27,11 +28,66 @@
 
 #include <boost/test/unit_test.hpp>
 
-struct NetInstantSendTest : RegTestingSetup {
+struct NetInstantSendTest : TestChain100Setup {
+    const Consensus::LLMQParams& params{llmq::testutils::GetLLMQParams(Consensus::LLMQType::LLMQ_TEST_INSTANTSEND)};
+    llmq::CSigningManager& sigman{*m_node.llmq_ctx->sigman};
+    NetInstantSend net{m_node.peerman.get(), *m_node.isman,    nullptr,         sigman,         *m_node.llmq_ctx->qman,
+                       *m_node.chainlocks,   *m_node.chainman, *m_node.mempool, *m_node.mn_sync};
+
+    NetInstantSendTest()
+    {
+        constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
+        BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+        BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
+        BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 0).has_value());
+    }
+
     static Uint256HashSet ProcessBatch(NetInstantSend& net, const Consensus::LLMQParams& params, int offset,
                                        const std::vector<instantsend::PendingISLockEntry>& locks)
     {
         return net.ProcessPendingInstantSendLocks(params, offset, /*ban=*/true, locks);
+    }
+
+    // Returns the cycle hash of a quorum whose base block is at `height`. Mining a block afterwards drops it.
+    uint256 AddMinedQuorum(int height, const CBLSSecretKey& key)
+    {
+        LOCK(cs_main);
+        const CChain& chain = m_node.chainman->ActiveChain();
+        auto qc = llmq::testutils::CreateValidCommitment(params, chain[height]->GetBlockHash());
+        qc.quorumPublicKey = key.GetPublicKey();
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb, qc, chain[height + 10]->GetBlockHash(), height + 10, height);
+        return qc.quorumHash;
+    }
+
+    void Sign(instantsend::InstantSendLock& islock, const CBLSSecretKey& key) const
+    {
+        const auto sign_hash = llmq::SignHash{params.type, islock.cycleHash, islock.GetRequestId(), islock.txid}.Get();
+        const bool legacy = bls::bls_legacy_scheme.load();
+        islock.sig.Set(key.Sign(sign_hash, legacy), legacy);
+    }
+
+    std::shared_ptr<instantsend::InstantSendLock> MakeLock(const uint256& cycle_hash, const CBLSSecretKey& key,
+                                                           const uint256& txid = GetRandHash(),
+                                                           const COutPoint& input = COutPoint{GetRandHash(), 0}) const
+    {
+        auto islock = std::make_shared<instantsend::InstantSendLock>();
+        islock->txid = txid;
+        islock->inputs.push_back(input);
+        islock->cycleHash = cycle_hash;
+        Sign(*islock, key);
+        return islock;
+    }
+
+    void CacheRecoveredSig(const instantsend::InstantSendLock& islock)
+    {
+        BOOST_REQUIRE(sigman.ProcessRecoveredSig(std::make_shared<llmq::CRecoveredSig>(params.type, islock.cycleHash,
+                                                                                       islock.GetRequestId(),
+                                                                                       islock.txid, islock.sig)));
+    }
+
+    void Process(NodeId node, const std::shared_ptr<instantsend::InstantSendLock>& islock)
+    {
+        ProcessBatch(net, params, /*offset=*/0, {{{node, islock}, ::SerializeHash(*islock)}});
     }
 };
 
@@ -93,49 +149,69 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
 
 BOOST_FIXTURE_TEST_CASE(missing_quorum_does_not_drop_batch, NetInstantSendTest)
 {
-    constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
-    BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
-    BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
-    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 0).has_value());
-    auto& sigman = *m_node.llmq_ctx->sigman;
-    NetInstantSend net{m_node.peerman.get(), *m_node.isman,    nullptr,         sigman,         *m_node.llmq_ctx->qman,
-                       *m_node.chainlocks,   *m_node.chainman, *m_node.mempool, *m_node.mn_sync};
-    const auto cycle_hash = WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Genesis()->GetBlockHash());
     CBLSSecretKey key;
     key.MakeNewKey();
+    const auto cycle_hash = AddMinedQuorum(/*height=*/24, key);
+    const auto missing_cycle = WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Genesis()->GetBlockHash());
 
-    for (const auto type : {Consensus::LLMQType::LLMQ_TEST_DIP0024, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND}) {
-        const auto& params = llmq::testutils::GetLLMQParams(type);
-        std::vector<instantsend::PendingISLockEntry> locks;
-        for (int i = 0; i < 3; ++i) {
-            auto islock = std::make_shared<instantsend::InstantSendLock>();
-            islock->txid = GetRandHash();
-            islock->inputs.emplace_back(GetRandHash(), 0);
-            islock->cycleHash = cycle_hash;
-            const auto sign_hash = llmq::SignHash{type, cycle_hash, islock->GetRequestId(), islock->txid}.Get();
-            const bool legacy = bls::bls_legacy_scheme.load();
-            islock->sig.Set(key.Sign(sign_hash, legacy), legacy);
-            if (i != 1) {
-                // Exercise the already-verified path on either side of an unavailable quorum.
-                BOOST_REQUIRE(sigman.ProcessRecoveredSig(
-                    std::make_shared<llmq::CRecoveredSig>(type, cycle_hash, islock->GetRequestId(), islock->txid,
-                                                          islock->sig)));
-            }
-            locks.push_back({{i == 2 ? 2 : 1, islock}, ::SerializeHash(*islock)});
+    std::vector<instantsend::PendingISLockEntry> locks;
+    for (int i = 0; i < 3; ++i) {
+        auto islock = MakeLock(i == 1 ? missing_cycle : cycle_hash, key);
+        if (i != 1) {
+            // Exercise the already-verified path on either side of an unavailable quorum.
+            CacheRecoveredSig(*islock);
         }
+        locks.push_back({{i == 2 ? 2 : 1, islock}, ::SerializeHash(*islock)});
+    }
 
-        const auto failed = ProcessBatch(net, params, /*offset=*/0, locks);
-        BOOST_CHECK_EQUAL(failed.size(), 1U);
-        BOOST_CHECK(failed.contains(locks[1].islock_hash));
-        BOOST_CHECK(m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[0].islock_hash}));
-        BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[1].islock_hash}));
-        BOOST_CHECK(m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[2].islock_hash}));
+    const auto failed = ProcessBatch(net, params, /*offset=*/0, locks);
+    BOOST_CHECK_EQUAL(failed.size(), 1U);
+    BOOST_CHECK(failed.contains(locks[1].islock_hash));
+    BOOST_CHECK(m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[0].islock_hash}));
+    BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[1].islock_hash}));
+    BOOST_CHECK(m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[2].islock_hash}));
 
-        const auto retried = ProcessBatch(net, params, params.dkgInterval, {locks[1]});
-        BOOST_CHECK(retried.contains(locks[1].islock_hash));
-        BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[1].islock_hash}));
-        BOOST_CHECK(!sigman.HasRecoveredSig(type, locks[1].islock->GetRequestId(), locks[1].islock->txid));
-        BOOST_CHECK(sigman.FetchPendingReconstructed().empty());
+    const auto retried = ProcessBatch(net, params, params.dkgInterval, {locks[1]});
+    BOOST_CHECK(retried.contains(locks[1].islock_hash));
+    BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[1].islock_hash}));
+    BOOST_CHECK(!sigman.HasRecoveredSig(params.type, locks[1].islock->GetRequestId(), locks[1].islock->txid));
+    BOOST_CHECK(sigman.FetchPendingReconstructed().empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(cached_recovered_sig_does_not_authenticate_other_lock, NetInstantSendTest)
+{
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    CBLSSecretKey other_key;
+    other_key.MakeNewKey();
+    mineBlocks(1); // Matures a second coinbase to spend.
+    const auto cycle_hash = AddMinedQuorum(/*height=*/24, key);
+    const auto other_cycle_hash = AddMinedQuorum(/*height=*/48, other_key);
+
+    for (const bool change_cycle : {false, true}) {
+        // A stored lock only blocks later locks for the same txid once the transaction is known.
+        const int coinbase_index{change_cycle};
+        const auto& coinbase = m_coinbase_txns[coinbase_index];
+        const auto tx = CreateValidMempoolTransaction(coinbase, /*input_vout=*/0, /*input_height=*/coinbase_index + 1,
+                                                      coinbaseKey, GetScriptForRawPubKey(coinbaseKey.GetPubKey()),
+                                                      coinbase->vout[0].nValue - 1000);
+        const auto authentic = MakeLock(cycle_hash, key, tx.GetHash(), tx.vin[0].prevout);
+        CacheRecoveredSig(*authentic);
+
+        // Same txid, but either signed by another key or claiming another cycle.
+        auto forged = std::make_shared<instantsend::InstantSendLock>(*authentic);
+        if (change_cycle) {
+            forged->cycleHash = other_cycle_hash;
+        } else {
+            Sign(*forged, other_key);
+        }
+        Process(/*node=*/1, forged);
+        BOOST_CHECK(!m_node.isman->GetInstantSendLockByTxid(authentic->txid));
+
+        Process(/*node=*/2, authentic);
+        const auto stored = m_node.isman->GetInstantSendLockByTxid(authentic->txid);
+        BOOST_REQUIRE(stored);
+        BOOST_CHECK(::SerializeHash(*stored) == ::SerializeHash(*authentic));
     }
 }
 
