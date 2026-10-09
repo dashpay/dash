@@ -1229,6 +1229,9 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
     // Storage for recalculated diffs if we plan to repair
     std::vector<std::pair<uint256, CDeterministicMNListDiff>> recalculated_diffs;
 
+    // Snapshots can't be rebuilt from diffs, so in repair mode a missing one means the repair failed
+    auto& missing_snapshot_errors = repair ? result.repair_errors : result.verification_errors;
+
     // Process each pair of consecutive snapshots
     for (size_t i = 0; i < snapshot_blocks.size() - 1; ++i) {
         const CBlockIndex* from_index = snapshot_blocks[i];
@@ -1252,7 +1255,7 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
                           __func__, from_index->nHeight);
             } else {
                 // Any other missing snapshot is critical corruption beyond our repair capability
-                result.verification_errors.push_back(strprintf("CRITICAL: Snapshot missing at height %d. "
+                missing_snapshot_errors.push_back(strprintf("CRITICAL: Snapshot missing at height %d. "
                     "This cannot be repaired by this tool - full reindex required.", from_index->nHeight));
                 return result;
             }
@@ -1260,7 +1263,7 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
 
         if (!has_to_snapshot) {
             // Missing target snapshot is always critical - we cannot repair snapshots, only diffs
-            result.verification_errors.push_back(strprintf("CRITICAL: Snapshot missing at height %d. "
+            missing_snapshot_errors.push_back(strprintf("CRITICAL: Snapshot missing at height %d. "
                 "This cannot be repaired by this tool - full reindex required.", to_index->nHeight));
             return result;
         }

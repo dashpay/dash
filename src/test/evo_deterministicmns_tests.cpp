@@ -12,6 +12,7 @@
 #include <deploymentstatus.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <evo/sharedcollateral.h>
 #include <evo/simplifiedmns.h>
@@ -3696,6 +3697,70 @@ BOOST_AUTO_TEST_CASE(test_sml_cache_basic)
 {
     TestChainV19Setup setup;
     SmlCache(setup);
+}
+
+// Startup repair marks evodb as repaired unless repair_errors is set, so a snapshot missing from disk
+// must land there in repair mode, while "evodb verify" keeps reporting it as a verification error.
+BOOST_AUTO_TEST_CASE(evodb_repair_missing_snapshot_is_repair_error)
+{
+    TestChainDIP3Setup setup;
+    auto& chainman = *Assert(setup.m_node.chainman);
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    auto& evodb = *Assert(setup.m_node.evodb);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+
+    // CDeterministicMNManager::DISK_SNAPSHOT_PERIOD
+    constexpr int snapshot_period{576};
+    while (WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()) < 2 * snapshot_period) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+    }
+    const CBlockIndex* dip3_index;
+    const CBlockIndex* first_index;
+    const CBlockIndex* second_index;
+    {
+        LOCK(::cs_main);
+        dip3_index = chainman.ActiveChain()[Params().GetConsensus().DIP0003Height];
+        first_index = chainman.ActiveChain()[snapshot_period];
+        second_index = chainman.ActiveChain()[2 * snapshot_period];
+    }
+
+    // Diffs between intact snapshots verify, so the rebuild callback is never needed here
+    const auto build_list_func = [](const CBlock&, gsl::not_null<const CBlockIndex*>, const CDeterministicMNList&,
+                                    const CCoinsViewCache&, bool, BlockValidationState&,
+                                    CDeterministicMNList&) { return false; };
+
+    auto result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/true);
+    BOOST_CHECK(result.verification_errors.empty());
+    BOOST_CHECK(result.repair_errors.empty());
+    BOOST_CHECK_EQUAL(result.snapshots_verified, 2);
+
+    {
+        LOCK(::cs_main);
+        auto db_tx = evodb.BeginTransaction();
+        // DB_LIST_SNAPSHOT
+        evodb.Erase(std::make_pair(std::string{"dmn_S3"}, first_index->GetBlockHash()));
+        db_tx->Commit();
+    }
+
+    const std::string missing_msg{strprintf("Snapshot missing at height %d", snapshot_period)};
+
+    // Snapshot missing as the end of a pair
+    result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/true);
+    BOOST_CHECK(result.verification_errors.empty());
+    BOOST_REQUIRE_EQUAL(result.repair_errors.size(), 1U);
+    BOOST_CHECK(result.repair_errors[0].find(missing_msg) != std::string::npos);
+
+    // Snapshot missing as the start of a pair
+    result = dmnman.RecalculateAndRepairDiffs(first_index, second_index, build_list_func, /*repair=*/true);
+    BOOST_CHECK(result.verification_errors.empty());
+    BOOST_REQUIRE_EQUAL(result.repair_errors.size(), 1U);
+    BOOST_CHECK(result.repair_errors[0].find(missing_msg) != std::string::npos);
+
+    // Verify-only mode has no repair errors to report
+    result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/false);
+    BOOST_CHECK(result.repair_errors.empty());
+    BOOST_REQUIRE_EQUAL(result.verification_errors.size(), 1U);
+    BOOST_CHECK(result.verification_errors[0].find(missing_msg) != std::string::npos);
 }
 
 BOOST_AUTO_TEST_CASE(field_bit_migration_validation)
