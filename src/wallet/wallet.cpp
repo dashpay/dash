@@ -35,6 +35,7 @@
 #include <util/fs_helpers.h>
 #include <util/moneystr.h>
 #include <util/string.h>
+#include <util/strencodings.h>
 #include <util/time.h>
 #include <util/translation.h>
 #ifdef USE_BDB
@@ -4152,20 +4153,22 @@ bool CWallet::Lock(bool fAllowMixing)
 
 bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnly)
 {
-    if (!IsLocked()) // was already fully unlocked, not only for mixing
-        return true;
-
     CCrypter crypter;
     CKeyingMaterial _vMasterKey;
 
     {
         LOCK(cs_wallet);
+        if (!IsCrypted()) return true;
         for (const MasterKeyMap::value_type& pMasterKey : mapMasterKeys)
         {
             if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, _vMasterKey))
                 continue; // try another master key
+            if (!vMasterKey.empty() && !TimingResistantEqual(_vMasterKey, vMasterKey)) {
+                continue;
+            }
+            if (!IsLocked()) return true;
             if (Unlock(_vMasterKey, fForMixingOnly)) {
                 // Now that we've unlocked, upgrade the key metadata
                 UpgradeKeyMetadata();
