@@ -1659,6 +1659,9 @@ class DashTestFramework(BitcoinTestFramework):
 
     def bury_tx(self, node: TestNode, txid: Optional[str], sync_fun=None):
         assert txid is not None
+        if sync_fun is None:
+            # ChainLock signers only count the age from when they first saw the tx
+            self.sync_mempools()
         self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
         chain_tip = self.generate(node, 1, sync_fun=sync_fun)[0]
         assert_equal(node.getrawtransaction(txid, 1, chain_tip)['confirmations'], 1)
