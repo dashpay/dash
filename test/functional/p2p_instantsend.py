@@ -55,6 +55,7 @@ class InstantSendTest(DashTestFramework):
         self.test_mempool_doublespend()
         self.test_block_doublespend()
         self.test_isdlock_relayed_to_recsigs_observer()
+        self.test_provider_tx_not_locked()
 
     def test_block_doublespend(self):
         sender = self.nodes[self.sender_idx]
@@ -167,6 +168,23 @@ class InstantSendTest(DashTestFramework):
 
         for node, _ in observers:
             node.disconnect_p2ps()
+
+    def test_provider_tx_not_locked(self):
+        self.log.info("Provider txs are not locked, but are mined and ChainLocked once safe")
+        node = self.nodes[0]
+        funds_addr = node.getnewaddress()
+        fund_id = node.sendtoaddress(funds_addr, 1)
+        self.wait_for_instantlock(fund_id)
+
+        protx_id = self.mninfo[0].update_service(node, submit=True, fundsAddr=funds_addr)
+        later_id = node.sendtoaddress(node.getnewaddress(), 1)
+        self.wait_for_instantlock(later_id)
+        self.sync_mempools()
+        for n in self.nodes:
+            assert not n.getrawtransaction(protx_id, True)["instantlock_internal"]
+
+        tip = self.bury_tx(node, protx_id)
+        self.wait_for_chainlocked_block(node, tip)
 
 if __name__ == '__main__':
     InstantSendTest().main()
