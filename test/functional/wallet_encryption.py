@@ -24,6 +24,29 @@ class WalletEncryptionTest(BitcoinTestFramework):
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
 
+    def test_passphrase_change_permissions(self):
+        self.log.info("Passphrase changes preserve locked, mixing-only and full permissions")
+        node = self.nodes[0]
+        for mode in ("locked", "mixing", "full"):
+            node.createwallet("change-" + mode, descriptors=self.options.descriptors)
+            wallet = node.get_wallet_rpc("change-" + mode)
+            address = wallet.getnewaddress()
+            wallet.encryptwallet("old passphrase")
+            if mode != "locked":
+                wallet.walletpassphrase("old passphrase", 100, mode == "mixing")
+            wallet.walletpassphrasechange("old passphrase", "new passphrase")
+            if mode == "full":
+                signature = wallet.signmessage(address, "passphrase change")
+                assert node.verifymessage(address, signature, "passphrase change")
+            else:
+                assert_raises_rpc_error(-13, "Please enter the wallet passphrase", wallet.signmessage, address, "passphrase change")
+            if mode == "locked":
+                assert_raises_rpc_error(-13, "Please unlock wallet for mixing", wallet.coinjoin, "start")
+            else:
+                assert_equal(wallet.coinjoin("start"), "Mixing requested")
+                wallet.coinjoin("stop")
+            wallet.unloadwallet()
+
     def run_test(self):
         passphrase = "WalletPassphrase"
         passphrase2 = "SecondWalletPassphrase"
@@ -108,6 +131,8 @@ class WalletEncryptionTest(BitcoinTestFramework):
         assert_raises_rpc_error(-14, "wallet passphrase entered", self.nodes[0].walletpassphrase, "incorrect passphrase", 1000)
         assert_equal(self.nodes[0].getwalletinfo()['unlocked_until'], unlocked_until)
         self.nodes[0].walletlock()
+
+        self.test_passphrase_change_permissions()
 
 
 if __name__ == '__main__':

@@ -576,10 +576,13 @@ void CWallet::UpgradeDescriptorCache()
 
 bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase)
 {
-    bool fWasLocked = IsLocked(true);
-
     {
         LOCK2(m_relock_mutex, cs_wallet);
+        const bool was_locked = IsLocked(true);
+        const bool was_mixing_only = fOnlyMixingAllowed;
+        const auto relock = interfaces::MakeCleanupHandler([this, was_locked] {
+            if (was_locked) Lock();
+        });
         Lock();
 
         CCrypter crypter;
@@ -590,7 +593,7 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, _vMasterKey))
                 return false;
-            if (Unlock(_vMasterKey))
+            if (Unlock(_vMasterKey, was_mixing_only))
             {
                 constexpr MillisecondsDouble target{100};
                 auto start{SteadyClock::now()};
@@ -611,9 +614,6 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
                 if (!crypter.Encrypt(_vMasterKey, pMasterKey.second.vchCryptedKey))
                     return false;
                 WalletBatch(GetDatabase()).WriteMasterKey(pMasterKey.first, pMasterKey.second);
-                if (fWasLocked)
-                    Lock();
-
                 return true;
             }
         }
