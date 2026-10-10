@@ -36,6 +36,13 @@ You can find installation instructions in the `build-*.md` file for your platfor
 | [qrencode](../depends/packages/qrencode.mk) | [link](https://fukuchi.org/works/qrencode/) | [4.1.1](https://github.com/bitcoin/bitcoin/pull/27312) | | No |
 | [Qt](../depends/packages/qt.mk) | [link](https://download.qt.io/official_releases/qt/) | [5.15.18](https://github.com/dashpay/dash/pull/6949) | [5.11.3](https://github.com/bitcoin/bitcoin/pull/24132) | No |
 
+### Dash Platform GUI (`--enable-platform-gui`, depends `PLATFORM_GUI=1` only)
+| Dependency | Releases | Version used | Minimum required | Runtime |
+| --- | --- | --- | --- | --- |
+| [Rust](../depends/packages/native_rust.mk) (compiler and standard library) | [link](https://forge.rust-lang.org/infra/other-installation-methods.html#standalone-installers) | 1.98.1 | 1.98.1 | No |
+| [protoc](../depends/packages/native_protobuf.mk) (build tool) | [link](https://github.com/protocolbuffers/protobuf/releases) | 32.0 | 25.0 | No |
+| [Dash Platform CXX bindings](../depends/packages/platform_cxx.mk) | [link](https://github.com/dashpay/platform) | commit [02b1749...](https://github.com/dashpay/platform/tree/02b1749cb6aefd75a6fd6a15cbd666fd7a58dfa8) | | No |
+
 ### Networking
 | Dependency | Releases | Version used | Minimum required | Runtime |
 | --- | --- | --- | --- | --- |

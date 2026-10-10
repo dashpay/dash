@@ -36,7 +36,9 @@
 #include <wallet/hdchain.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/walletutil.h>
+#include <evo/assetlocktx.h>
 #include <evo/deterministicmns.h>
+#include <evo/specialtx.h>
 #include <masternode/sync.h>
 #include <txdb.h>
 #include <node/context.h>
@@ -138,6 +140,10 @@ WalletTxStatus MakeWalletTxStatus(const CWallet& wallet, const CWalletTx& wtx)
     result.is_in_main_chain = wallet.IsTxInMainChain(wtx);
     result.is_chainlocked = wallet.IsTxChainLocked(wtx);
     result.is_islocked = wallet.IsTxLockedByInstantSend(wtx);
+    const auto* conflict{wtx.state<TxStateConflicted>()};
+    result.is_conflict_chainlocked = conflict && wallet.HaveChain() &&
+                                     wallet.chain().hasChainLock(conflict->conflicting_block_height,
+                                                                 conflict->conflicting_block_hash);
     return result;
 }
 
@@ -188,20 +194,24 @@ public:
     {
         return m_wallet->ChangeWalletPassphrase(old_wallet_passphrase, new_wallet_passphrase);
     }
-    wallet::RescanStatus startRescan(bool from_genesis) override
+    //! Where a rescan from the birth of the wallet's first key starts.
+    int rescanStartHeight()
     {
         int rescan_height{0};
-        if (!from_genesis) {
-            std::optional<int64_t> time_first_key;
-            for (auto spk_man : m_wallet->GetAllScriptPubKeyMans()) {
-                int64_t time = spk_man->GetTimeFirstKey();
-                if (!time_first_key || time < *time_first_key) time_first_key = time;
-            }
-            if (time_first_key) {
-                m_wallet->chain().findFirstBlockWithTimeAndHeight(*time_first_key - TIMESTAMP_WINDOW, rescan_height,
-                                                                  FoundBlock().height(rescan_height));
-            }
+        std::optional<int64_t> time_first_key;
+        for (auto spk_man : m_wallet->GetAllScriptPubKeyMans()) {
+            int64_t time = spk_man->GetTimeFirstKey();
+            if (!time_first_key || time < *time_first_key) time_first_key = time;
         }
+        if (time_first_key) {
+            m_wallet->chain().findFirstBlockWithTimeAndHeight(*time_first_key - TIMESTAMP_WINDOW, rescan_height,
+                                                              FoundBlock().height(rescan_height));
+        }
+        return rescan_height;
+    }
+    wallet::RescanStatus startRescan(bool from_genesis) override
+    {
+        const int rescan_height{from_genesis ? 0 : rescanStartHeight()};
 
         WalletRescanReserver reserver(*m_wallet);
         if (!reserver.reserve()) {
@@ -220,6 +230,14 @@ public:
         return wallet::RescanStatus::FAILURE; // fallback for release builds
     }
     void abortRescan() override { m_wallet->AbortRescan(); }
+    std::optional<int> rescanPrunedFrom() override
+    {
+        if (!m_wallet->chain().havePruned()) return std::nullopt;
+        const int rescan_height{rescanStartHeight()};
+        const uint256 tip{WITH_LOCK(m_wallet->cs_wallet, return m_wallet->GetLastBlockHash())};
+        if (m_wallet->chain().hasBlocks(tip, rescan_height)) return std::nullopt;
+        return rescan_height;
+    }
     void autoLockMasternodeCollaterals() override { m_wallet->AutoLockMasternodeCollaterals(); }
     bool backupWallet(const std::string& filename) override { return m_wallet->BackupWallet(filename); }
     bool autoBackupWallet(const fs::path& wallet_path, bilingual_str& error_string, std::vector<bilingual_str>& warnings) override
@@ -262,6 +280,11 @@ public:
                                                                const CPubKey& counterparty) override
     {
         return m_wallet->PlatformECDHSecret(key, counterparty);
+    }
+    wallet::PlatformKeyResult<uint256> platformAccountReferenceMac(const wallet::IdentityAuthKey& key,
+                                                                   const wallet::CompactXpub& compact_xpub) override
+    {
+        return m_wallet->PlatformAccountReferenceMac(key, compact_xpub);
     }
     wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) override
@@ -527,12 +550,67 @@ public:
             errors.push_back(std::move(error));
         return WalletTxSignResult{MakeTransactionRef(std::move(signed_tx)), complete, std::move(errors)};
     }
-    void commitTransaction(CTransactionRef tx,
+    util::Result<CTransactionRef> createAssetLockTransaction(CAmount credit_amount,
+        const CPubKey& credit_pubkey,
+        const CCoinControl& coin_control) override
+    {
+        // Platform recovers a compressed key from the identity registration
+        // signature and matches its hash against the credit output, so any
+        // other key would lock funds that can never be claimed.
+        if (credit_amount <= 0 || !credit_pubkey.IsFullyValid() || !credit_pubkey.IsCompressed()) {
+            return util::Error{Untranslated("invalid asset lock parameters")};
+        }
+
+        LOCK(m_wallet->cs_wallet);
+        // A wallet unlocked only for mixing keeps its keys but must not spend.
+        if (m_wallet->IsLocked()) {
+            return util::Error{_("Please enter the wallet passphrase with walletpassphrase first.")};
+        }
+
+        CMutableTransaction mtx;
+        mtx.nVersion = 3;
+        mtx.nType = TRANSACTION_ASSET_LOCK;
+        // Version 1 admits exactly the P2PKH credit output built here, stays
+        // consensus-valid after v24 and is the only version the mempool
+        // relays today (IsStandardSpecialTx), so it is used unconditionally.
+        const CAssetLockPayload payload{{CTxOut{credit_amount, GetScriptForDestination(PKHash{credit_pubkey})}},
+                                        CAssetLockPayload::INITIAL_VERSION};
+        SetTxPayload(mtx, payload);
+
+        // The single OP_RETURN "burn" output must carry the total credit
+        // amount (see CheckAssetLockTx).
+        const std::vector<CRecipient> recipients{{CScript() << OP_RETURN << OP_0, credit_amount, /*fSubtractFeeFromAmount=*/false}};
+        auto res = CreateTransaction(*m_wallet, recipients, RANDOM_CHANGE_POSITION, coin_control,
+                                     /*sign=*/false, static_cast<int>(mtx.vExtraPayload.size()));
+        if (!res) return util::Error{util::ErrorString(res)};
+
+        // Graft the funded inputs/outputs and the anti-fee-sniping locktime
+        // onto the special tx and sign it as a whole (input signatures commit
+        // to nType and vExtraPayload).
+        mtx.vin = res->tx->vin;
+        mtx.vout = res->tx->vout;
+        mtx.nLockTime = res->tx->nLockTime;
+        if (!m_wallet->SignTransaction(mtx)) {
+            return util::Error{_("Signing transaction failed")};
+        }
+        CTransactionRef tx{MakeTransactionRef(std::move(mtx))};
+        // Too many inputs or too large a transaction would be committed but
+        // never relayed; fail here like CreateTransaction does for Platform
+        // recipients.
+        if (std::string reason; m_wallet->chain().isNonStandardSpecialTx(tx, reason)) {
+            return util::Error{strprintf(_("Transaction is non-standard (%s) and would not relay"), reason)};
+        }
+        return tx;
+    }
+    std::optional<bilingual_str> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) override
     {
         LOCK(m_wallet->cs_wallet);
-        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
+        bilingual_str broadcast_error;
+        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form), &broadcast_error);
+        if (broadcast_error.empty()) return std::nullopt;
+        return broadcast_error;
     }
     bool transactionCanBeAbandoned(const uint256& txid) override { return m_wallet->TransactionCanBeAbandoned(txid); }
     bool transactionCanBeResent(const uint256& txid) override { return m_wallet->TransactionCanBeResent(txid); }
