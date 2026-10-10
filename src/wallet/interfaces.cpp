@@ -355,7 +355,7 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->GetPlatformData(prefix);
     }
-    bool displayAddress(const CTxDestination& dest) override
+    util::Result<void> displayAddress(const CTxDestination& dest) override
     {
         LOCK(m_wallet->cs_wallet);
         return m_wallet->DisplayAddress(dest);

@@ -108,9 +108,25 @@ class WalletSignerTest(BitcoinTestFramework):
         assert_equal(address_info['hdkeypath'], "m/44h/1h/0h/0/0")
         address1 = address3
 
+        legacy_marker_path = os.path.join(self.nodes[1].cwd, "mock_legacy_markers")
+        with open(legacy_marker_path, "w", encoding="utf8") as f:
+            f.write("use apostrophe markers")
+        self.nodes[1].createwallet(wallet_name='hww_legacy', disable_private_keys=True, descriptors=True, external_signer=True)
+        legacy_hww = self.nodes[1].get_wallet_rpc('hww_legacy')
+        assert_equal(legacy_hww.getwalletinfo()["keypoolsize"], 10)
+        assert_equal(legacy_hww.getnewaddress(), address1)
+        legacy_hww.unloadwallet()
+        os.remove(legacy_marker_path)
+
         self.log.info('Test walletdisplayaddress')
         result = hww.walletdisplayaddress(address1)
         assert_equal(result, {"address": address1})
+
+        address2 = hww.getnewaddress()
+        assert_equal(address2, "yjcVxaFdQsXpCtqEPtsNDc3QXzfVFycqKk")
+        assert_raises_rpc_error(-1, "Signer echoed unexpected address wrong_address", hww.walletdisplayaddress, address2)
+        assert_raises_rpc_error(-5, "Invalid address", hww.walletdisplayaddress, "invalid")
+        assert_raises_rpc_error(-1, "There is no ScriptPubKeyManager for this address", not_hww.walletdisplayaddress, address1)
 
         # Handle error thrown by script
         self.set_mock_result(self.nodes[1], "2")
