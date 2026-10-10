@@ -16,6 +16,7 @@
 #include <util/helpers.h>
 
 #include <chain.h>
+#include <chainparams.h>
 #include <deploymentstatus.h>
 #include <validation.h>
 

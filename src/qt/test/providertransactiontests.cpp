@@ -4,6 +4,7 @@
 
 #include <qt/test/providertransactiontests.h>
 
+#include <chainparams.h>
 #include <evo/assetlocktx.h>
 #include <evo/specialtx.h>
 #include <interfaces/chain.h>

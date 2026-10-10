@@ -7,6 +7,7 @@
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
 
+#include <chainparams.h>
 #include <evo/cbtx.h>
 #include <evo/specialtx.h>
 #include <hash.h>

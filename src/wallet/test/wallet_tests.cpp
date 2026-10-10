@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <bls/bls.h>
+#include <chainparams.h>
 #include <coinjoin/client.h>
 #include <coinjoin/coinjoin.h>
 #include <evo/deterministicmns.h>
