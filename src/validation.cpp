@@ -425,6 +425,12 @@ void Chainstate::MaybeUpdateMempoolForReorg(
 
     AssertLockHeld(cs_main);
     AssertLockHeld(m_mempool->cs);
+    // The mempool checks provider transactions against the masternode list at the tip, which the
+    // block tip notifications move only after this. Move it now, so a transaction re-added below is
+    // not checked against the list of a disconnected block.
+    if (fAddToMempool && m_chain_helper && m_chain.Tip()) {
+        m_chain_helper->UpdatedMNListTip(m_chain.Tip());
+    }
     std::vector<uint256> vHashUpdate;
     {
         // disconnectpool is ordered so that the front is the most recently-confirmed
@@ -1102,7 +1108,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     const CBlockIndex* tip{m_active_chainstate.m_chain.Tip()};
     if (!CheckSpecialTxForMempool(tx, GetSpecialTxRules(tip, m_active_chainstate.m_chainman), state)) return false;
 
-    if (m_pool.existsProviderTxConflict(tx)) {
+    if (m_pool.existsProviderTxConflict(tx) || m_pool.IsUnorderableServiceUpdate(tx, *ancestors)) {
         return state.Invalid(TxValidationResult::TX_CONFLICT, "protx-dup");
     }
 
