@@ -10,16 +10,27 @@
 #include <coinjoin/common.h>
 #include <coinjoin/options.h>
 #include <coinjoin/server.h>
+#include <coins.h>
+#include <consensus/amount.h>
 #include <evo/chainhelper.h>
+#include <key.h>
 #include <llmq/context.h>
 #include <masternode/sync.h>
 #include <net.h>
 #include <node/connection_types.h>
+#include <policy/policy.h>
 #include <protocol.h>
+#include <script/interpreter.h>
 #include <script/script.h>
+#include <script/sign.h>
+#include <script/signingprovider.h>
+#include <script/standard.h>
 #include <streams.h>
+#include <test/util/net.h>
+#include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
+#include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/time.h>
@@ -30,7 +41,11 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iterator>
+#include <latch>
 #include <memory>
+#include <ranges>
+#include <thread>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(coinjoin_inouts_tests, TestingSetup)
@@ -176,9 +191,9 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
     }
 }
 
-// Test-only subclass exposing the minimal seams needed to observe how
-// ProcessDSSIGNFINALTX treats messages from participants vs. non-participants
-// without standing up a full DKG-backed signing session.
+// Test-only subclass exposing the minimal seams needed to exercise server lifecycle behavior
+// without standing up a full DKG-backed signing session. The helpers only establish preconditions
+// and invoke the production paths; the behavior under test is not reproduced here.
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
@@ -187,9 +202,41 @@ public:
     using CCoinJoinServer::CreateFinalTransaction;
 
     // A live session always carries a non-zero id, and AddEntry rejects entries that don't
-    // belong to one, so seed an id along with the state.
-    void EnterSigningState() { nSessionID = 1; nState = POOL_STATE_SIGNING; }
-    void EnterAcceptingEntriesState() { nSessionID = 1; nState = POOL_STATE_ACCEPTING_ENTRIES; }
+    // belong to one, so seed an id along with the state. Entering a state also starts its
+    // timeout, as SetState() does, so the session is not seeded as already timed out.
+    void EnterSigningState()
+    {
+        nSessionID = 1;
+        nState = POOL_STATE_SIGNING;
+        nTimeLastSuccessfulStep = GetTime();
+    }
+    void EnterAcceptingEntriesState(int denom = 0)
+    {
+        nSessionID = 1;
+        nState = POOL_STATE_ACCEPTING_ENTRIES;
+        nSessionDenom = denom;
+        nTimeLastSuccessfulStep = GetTime();
+    }
+
+    void SetFinalTransactionForTest(const CMutableTransaction& tx)
+    {
+        LOCK(cs_coinjoin);
+        finalMutableTransaction = tx;
+    }
+
+    void CheckPoolForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool) { CheckPool(); }
+
+    void RelayAbortForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        RelayStatus(STATUS_REJECTED);
+    }
+
+    CMutableTransaction FinalTransaction() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        return finalMutableTransaction;
+    }
 
     void SeedParticipant(const CService& addr) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
     {
@@ -204,7 +251,7 @@ public:
     {
         LOCK(cs_coinjoin);
         m_mapDeclaredShapes.emplace(txCollateral.GetHash(), shape);
-        CommitSessionCollateral(txCollateral);
+        m_session_collaterals.Add(txCollateral);
     }
 
     void SeedEntry(CCoinJoinEntry entry) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
@@ -212,7 +259,196 @@ public:
         LOCK(cs_coinjoin);
         vecEntries.push_back(std::move(entry));
     }
+
+    void SeedCompletionSession(int session_id, const CService& addr, PoolState state = POOL_STATE_SIGNING)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+        nSessionID = session_id;
+        nState = state;
+
+        if (state == POOL_STATE_SIGNING) {
+            CCoinJoinEntry entry;
+            entry.addr = addr;
+            vecEntries.push_back(std::move(entry));
+        }
+    }
+
+    void RelayCompletion(int session_id, const CService& addr) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        RelayCompletedTransaction(session_id, {addr}, MSG_SUCCESS);
+    }
+
+    void ResetForSession(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        ResetSigningSessionIfCurrent(session_id);
+    }
+
+    void SeedTimedOutSession() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        nSessionID = 1;
+        nState = POOL_STATE_ACCEPTING_ENTRIES;
+        nTimeLastSuccessfulStep = GetTime() - COINJOIN_QUEUE_TIMEOUT;
+        for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+            m_session_collaterals.Add(collateral);
+        }
+    }
+
+    void SeedTimedOutActionableSession(PoolState state, bool has_missing_entry = false)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+
+        nSessionID = 1;
+        nState = state;
+        nTimeLastSuccessfulStep = GetTime() -
+                                  (state == POOL_STATE_SIGNING ? COINJOIN_SIGNING_TIMEOUT : COINJOIN_QUEUE_TIMEOUT);
+
+        for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+            m_mapDeclaredShapes.emplace(collateral.GetHash(), CoinJoin::MixShape::STANDARD);
+            m_session_collaterals.Add(collateral);
+
+            if (state == POOL_STATE_QUEUE) continue;
+
+            CTxDSIn txdsin{CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i)}}, P2PKHScript(), 0};
+            txdsin.fHasSig = state == POOL_STATE_SIGNING;
+            std::vector<CTxOut> outputs{CTxOut{CoinJoin::GetSmallestDenomination(), P2PKHScript()}};
+            vecEntries.emplace_back(std::vector<CTxDSIn>{txdsin}, std::move(outputs), CTransaction{collateral});
+        }
+
+        if (has_missing_entry) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(CoinJoin::GetMinPoolParticipants())});
+            m_mapDeclaredShapes.emplace(collateral.GetHash(), CoinJoin::MixShape::STANDARD);
+            m_session_collaterals.Add(collateral);
+        }
+    }
+
+    void HoldPoolCheck(std::latch& locked, std::latch& release) EXCLUSIVE_LOCKS_REQUIRED(!cs_check_pool)
+    {
+        LOCK(cs_check_pool);
+        locked.count_down();
+        release.wait();
+    }
+
+    void ResetForTest(PoolState state) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+        nState = state;
+        nSessionID = 1;
+        nTimeLastSuccessfulStep = GetTime();
+    }
+
+    void SetTimedOutForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        nTimeLastSuccessfulStep = GetTime() -
+                                  ((nState == POOL_STATE_SIGNING) ? COINJOIN_SIGNING_TIMEOUT : COINJOIN_QUEUE_TIMEOUT);
+    }
+
+    void AddCollateralForTest(const CTransactionRef& collateral) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        m_session_collaterals.Add(CMutableTransaction{*collateral});
+    }
+
+    CTransactionRef SelectForTest(FeePolicy policy) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        return SelectCollateralToCharge(policy);
+    }
+
+    void ChargeRandomFeesForTest() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        ChargeRandomFees(WITH_LOCK(cs_coinjoin, return m_session_collaterals.txs()));
+    }
+
+    //! Offer a collateral to CreateNewSession() the way a DSACCEPT would. fUnitTest skips the
+    //! mempool-backed collateral validity check and the dsq relay, isolating admission logic.
+    bool TryAdmit(const CTransactionRef& collateral, PoolMessage& message) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        fUnitTest = true;
+        const CCoinJoinAccept dsa{CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination()),
+                                  CMutableTransaction{*collateral}};
+        return CreateNewSession(dsa, PROTOCOL_VERSION, message);
+    }
+
+    int MarkMessageInFlightForTest() EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        return MarkMessageInFlight();
+    }
+
+    void ClearMessageInFlightForTest(int session_id) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        ClearMessageInFlight(session_id);
+    }
 };
+
+//! Records the collaterals the server charges instead of submitting them to the mempool. Every
+//! test drives the server from its own thread only, so the record needs no synchronization.
+class ChargeRecordingServer : public TestableCoinJoinServer
+{
+public:
+    using TestableCoinJoinServer::TestableCoinJoinServer;
+
+    mutable std::vector<CTransactionRef> consumed_collaterals;
+
+    void ConsumeCollateral(const CTransactionRef& txref) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        consumed_collaterals.push_back(txref);
+    }
+
+    void ResetForTest(PoolState state) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        TestableCoinJoinServer::ResetForTest(state);
+        consumed_collaterals.clear();
+    }
+};
+
+//! A server, and the masternode manager it borrows, wired to the test node.
+template <typename Server = ChargeRecordingServer>
+struct ServerHarness {
+    CActiveMasternodeManager mn_activeman;
+    Server server;
+
+    explicit ServerHarness(node::NodeContext& node) :
+        mn_activeman{*Assert(node.connman), *Assert(node.dmnman), MakeSecretKey()},
+        server{node.peerman.get(), *Assert(node.chainman), *Assert(node.connman), *Assert(node.dmnman),
+               *Assert(node.dstxman), *Assert(node.mn_metaman), *Assert(node.mempool), mn_activeman,
+               *Assert(node.mn_sync), *Assert(node.isman)}
+    {
+    }
+};
+
+static CTransactionRef MakeCollateral(uint32_t id)
+{
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint{uint256::ONE, id});
+    tx.vout.emplace_back(CoinJoin::GetCollateralAmount(), P2PKHScript(static_cast<uint8_t>(id)));
+    return MakeTransactionRef(tx);
+}
+
+//! An entry for collateral. unsigned_inputs == 0 gives one signed input (a participant that has
+//! signed, or merely submitted); unsigned_inputs == n > 0 gives n inputs that are still unsigned.
+static CCoinJoinEntry MakeEntry(const CTransactionRef& collateral, size_t unsigned_inputs = 0)
+{
+    std::vector<CTxDSIn> inputs;
+    for (size_t i = 0; i < std::max<size_t>(unsigned_inputs, 1); ++i) {
+        CTxDSIn input{CTxIn{COutPoint{uint256::ONE, static_cast<uint32_t>(100 + i)}}, P2PKHScript(1), 0};
+        input.fHasSig = unsigned_inputs == 0;
+        inputs.push_back(input);
+    }
+    return CCoinJoinEntry{inputs, {}, CTransaction{*collateral}};
+}
 
 static std::unique_ptr<CNode> MakePeer(NodeId id, uint32_t ipv4)
 {
@@ -230,6 +466,143 @@ static std::unique_ptr<CNode> MakePeer(NodeId id, uint32_t ipv4)
     peer->nVersion = PROTOCOL_VERSION;
     peer->SetCommonVersion(PROTOCOL_VERSION);
     return peer;
+}
+
+BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signatures)
+{
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+    auto& connman{static_cast<ConnmanTestMsg&>(*Assert(m_node.connman))};
+    CActiveMasternodeManager mn_activeman(connman, *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), connman,
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync), *Assert(m_node.isman));
+    struct PeerCleanup {
+        ConnmanTestMsg& connman;
+        ~PeerCleanup() { connman.ClearTestNodes(); }
+    } cleanup{connman};
+    FillableSigningProvider provider;
+    const CAmount amount{CoinJoin::GetSmallestDenomination()};
+    const int participants{std::max(3, CoinJoin::GetMinPoolParticipants())};
+    std::vector<CNode*> peers;
+    std::vector<CScript> previous_scripts;
+    std::vector<CKey> keys;
+    std::vector<CCoinJoinEntry> entries;
+
+    for (int i{0}; i < participants; ++i) {
+        auto peer = MakePeer(i + 100, 0x0a000010 + i);
+        peer->fSuccessfullyConnected = true;
+        peers.push_back(peer.get());
+        connman.AddTestNode(*peer.release());
+        CKey key;
+        key.MakeNewKey(true);
+        BOOST_REQUIRE(provider.AddKey(key));
+        keys.push_back(key);
+        const CScript previous_script{GetScriptForDestination(PKHash(key.GetPubKey()))};
+        previous_scripts.push_back(previous_script);
+        const COutPoint input{uint256::ONE, static_cast<uint32_t>(100 + participants - i)};
+        const COutPoint collateral_input{uint256::TWO, static_cast<uint32_t>(100 + i)};
+        {
+            LOCK(cs_main);
+            auto& coins{m_node.chainman->ActiveChainstate().CoinsTip()};
+            coins.AddCoin(input, Coin{CTxOut{amount, previous_script}, 0, false}, false);
+            coins.AddCoin(collateral_input, Coin{CTxOut{COIN / 10, previous_script}, 0, false}, false);
+        }
+        CMutableTransaction collateral;
+        collateral.vin.emplace_back(collateral_input);
+        collateral.vout.emplace_back(COIN / 10 - CoinJoin::GetCollateralAmount(), P2PKHScript(100 + i));
+        BOOST_REQUIRE(SignSignature(provider, previous_script, collateral, 0, COIN / 10, SIGHASH_ALL));
+        server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
+        // Descending output order requires verification against the canonical BIP69 transaction.
+        CCoinJoinEntry original{{CTxDSIn{CTxIn{input}, previous_script, 0}},
+                               {CTxOut{amount, P2PKHScript(participants - i)}}, CTransaction{collateral}};
+        CDataStream wire{SER_NETWORK, PROTOCOL_VERSION};
+        wire << original;
+        CCoinJoinEntry entry;
+        wire >> entry;
+        BOOST_REQUIRE(entry.vecTxDSIn[0].prevPubKey.empty());
+        entry.addr = peers[i == participants - 1 ? 0 : i]->addr;
+        entries.push_back(std::move(entry));
+    }
+    server.EnterAcceptingEntriesState(CoinJoin::AmountToDenomination(amount));
+    for (const auto& entry : entries) {
+        PoolMessage message{MSG_NOERR};
+        BOOST_REQUIRE(server.AddEntry(entry, message));
+    }
+    server.CreateFinalTransaction(1, /*charge_fees=*/false);
+    BOOST_REQUIRE_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    CMutableTransaction final{server.FinalTransaction()};
+    BOOST_REQUIRE(final.vout.front().scriptPubKey == P2PKHScript(1));
+
+    const auto input_index = [&final](const COutPoint& prevout) {
+        return std::distance(final.vin.begin(), std::ranges::find(final.vin, prevout, &CTxIn::prevout));
+    };
+    std::vector<CTxIn> signed_inputs;
+    for (int i{0}; i < participants; ++i) {
+        const auto index{input_index(entries[i].vecTxDSIn[0].prevout)};
+        BOOST_REQUIRE(SignSignature(provider, previous_scripts[i], final, index, amount,
+                                    SIGHASH_ALL | (i == 0 ? SIGHASH_ANYONECANPAY : 0)));
+        signed_inputs.push_back(final.vin[index]);
+    }
+    const auto rejected = [](CNode& peer) {
+        LOCK(peer.cs_vSend);
+        for (const auto& msg : peer.vSendMsg) {
+            if (msg.m_type != NetMsgType::DSSTATUSUPDATE) continue;
+            CDataStream wire{msg.data, SER_NETWORK, PROTOCOL_VERSION};
+            CCoinJoinStatusUpdate status;
+            wire >> status;
+            if (status.nStatusUpdate == STATUS_REJECTED) return true;
+        }
+        return false;
+    };
+    const auto submit = [&server, &peers, participants](int participant, const CTxIn& input) {
+        for (auto* peer : peers) {
+            LOCK(peer->cs_vSend);
+            peer->vSendMsg.clear();
+        }
+        CDataStream wire{SER_NETWORK, PROTOCOL_VERSION};
+        wire << std::vector<CTxIn>{input};
+        server.ProcessMessage(*peers[participant == participants - 1 ? 0 : participant], NetMsgType::DSSIGNFINALTX, wire);
+    };
+
+    // Missing chainstate data after admission must not invalidate an ordinary signature.
+    Coin admitted_coin;
+    WITH_LOCK(cs_main, BOOST_REQUIRE(m_node.chainman->ActiveChainstate().CoinsTip().SpendCoin(signed_inputs[0].prevout, &admitted_coin)));
+    submit(0, signed_inputs[0]);
+    BOOST_CHECK(!rejected(*peers[0]));
+    // Multiple entries on this connection can receive the same final proposal again.
+    submit(0, signed_inputs[0]);
+    BOOST_CHECK(!rejected(*peers[0]));
+    std::vector<unsigned char> alternate_signature;
+    constexpr int legacy_mode{SIGHASH_ALL | SIGHASH_ANYONECANPAY};
+    const auto hash{SignatureHash(previous_scripts[0], final, input_index(signed_inputs[0].prevout),
+                                  legacy_mode, amount, SigVersion::BASE)};
+    CTxIn alternate{signed_inputs[0]};
+    // Low-R grinding may already have selected the first extra-entropy nonce.
+    for (const uint32_t nonce : {1U, 2U}) {
+        BOOST_REQUIRE(keys[0].Sign(hash, alternate_signature, /*grind=*/false, /*test_case=*/nonce));
+        alternate_signature.push_back(legacy_mode);
+        alternate.scriptSig = CScript{} << alternate_signature << ToByteVector(keys[0].GetPubKey());
+        if (alternate.scriptSig != signed_inputs[0].scriptSig) break;
+    }
+    BOOST_REQUIRE(alternate.scriptSig != signed_inputs[0].scriptSig);
+    BOOST_REQUIRE(VerifyScript(alternate.scriptSig, previous_scripts[0], STANDARD_SCRIPT_VERIFY_FLAGS,
+                               MutableTransactionSignatureChecker(&final, input_index(alternate.prevout), amount,
+                                                                   MissingDataBehavior::ASSERT_FAIL)));
+    submit(0, alternate);
+    BOOST_CHECK(!rejected(*peers[0]));
+    BOOST_CHECK(server.FinalTransaction().vin[input_index(signed_inputs[0].prevout)].scriptSig == signed_inputs[0].scriptSig);
+    WITH_LOCK(cs_main, m_node.chainman->ActiveChainstate().CoinsTip().AddCoin(signed_inputs[0].prevout, std::move(admitted_coin), false));
+    for (const auto& entry : entries) {
+        BOOST_CHECK(!m_node.mempool->exists(entry.txCollateral->GetHash()));
+        BOOST_CHECK(!m_node.mempool->isSpent(entry.txCollateral->vin[0].prevout));
+    }
+    for (int i{1}; i < participants; ++i) {
+        submit(i, signed_inputs[i]);
+        BOOST_CHECK(!rejected(*peers[i == participants - 1 ? 0 : i]));
+    }
+    BOOST_CHECK(m_node.mempool->exists(final.GetHash()));
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
 }
 
 BOOST_AUTO_TEST_CASE(server_signfinaltx_nonparticipant_cannot_abort_session)
@@ -458,13 +831,643 @@ BOOST_AUTO_TEST_CASE(server_finalization_rechecks_live_side_coverage)
     server.EnterAcceptingEntriesState();
 
     // A timeout snapshot could have observed only the three demotions as covered (0/3), then
-    // this first promotion could commit while ChargeFees() ran. Finalization must use the live
-    // 1/3 side counts and refuse to build the uncovered transaction, staying out of
+    // this first promotion could commit before finalization took the lock. Finalization must use
+    // the live 1/3 side counts and refuse to build the uncovered transaction, staying out of
     // POOL_STATE_SIGNING; the still-timed-out session is then reset by the scheduler's
     // regular CheckTimeout() pass instead of leaking a lone promoter on-chain.
-    server.CreateFinalTransaction(/*session_id=*/1);
+    server.CreateFinalTransaction(/*session_id=*/1, /*charge_fees=*/true);
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 4);
+}
+
+BOOST_AUTO_TEST_CASE(server_completion_does_not_reset_an_unreachable_or_replacement_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+
+    auto participant = MakePeer(/*id=*/7, /*ipv4=*/0x0a000001);
+    server.SeedCompletionSession(/*session_id=*/1, participant->addr);
+
+    // The participant is deliberately absent from connman. Failing to deliver DSCOMPLETE must not
+    // reset live session data; only CommitFinalTransaction owns the completion reset.
+    server.RelayCompletion(/*session_id=*/1, participant->addr);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+
+    // A delayed tail operation from session 1 must never clear a replacement queue, even if the
+    // random wire session ID happens to be reused.
+    server.SeedCompletionSession(/*session_id=*/1, participant->addr, POOL_STATE_QUEUE);
+    server.ResetForSession(/*session_id=*/1);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_QUEUE});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 0);
+
+    // The signing session it was issued for is still reset.
+    server.SeedCompletionSession(/*session_id=*/1, participant->addr);
+    server.ResetForSession(/*session_id=*/1);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_defers_and_commits_fully_signed_session)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // A fully signed session whose committing CheckPool() round was skipped: the final signature
+    // arrived while the scheduler held cs_check_pool, so its DSSIGNFINALTX could not commit, and
+    // the scheduler's own sample predated the signature. CheckTimeout() then runs past the
+    // deadline and must not treat the session as failed.
+    const auto collateral = MakeCollateral(0);
+    server.ResetForTest(POOL_STATE_SIGNING);
+    server.AddCollateralForTest(collateral);
+    server.SeedEntry(MakeEntry(collateral, /*unsigned_inputs=*/0));
+
+    CMutableTransaction final_tx;
+    final_tx.vin.emplace_back(COutPoint{uint256::ONE, 100});
+    server.SetFinalTransactionForTest(final_tx);
+    const uint256 final_hash{MakeTransactionRef(final_tx)->GetHash()};
+
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+
+    // Nobody misbehaved, so nobody may be charged and nothing may be reset: the timed-out but
+    // fully signed session defers to the next CheckPool() round.
+    BOOST_CHECK(server.consumed_collaterals.empty());
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+
+    // That round commits it. The commit attempt is observable through the mempool prioritisation
+    // CommitFinalTransaction() applies before submitting; the submission itself fails in this
+    // fixture (the inputs do not exist), which resets the pool.
+    server.CheckPoolForTest();
+    CAmount delta{0};
+    WITH_LOCK(m_node.mempool->cs, m_node.mempool->ApplyDelta(final_hash, delta));
+    BOOST_CHECK_EQUAL(delta, COIN / 10);
+    BOOST_CHECK(server.consumed_collaterals.empty());
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+//! Uses real funded inputs, entry validation, signature messages and collateral consumption.
+//! Only the live-session admission precondition comes from the existing test subclass.
+struct FundedSigningSession {
+    node::NodeContext& node;
+    ConnmanTestMsg& connman;
+    ServerHarness<TestableCoinJoinServer> harness;
+    std::vector<CNode*> peers;
+    std::vector<CCoinJoinEntry> entries;
+    std::vector<std::vector<CTxIn>> signatures;
+
+    FundedSigningSession(node::NodeContext& node_in, size_t last_input_count = 1, uint32_t offset = 0,
+                         bool missing_last_entry = false) :
+        node{node_in},
+        connman{static_cast<ConnmanTestMsg&>(*Assert(node.connman))},
+        harness{node}
+    {
+        if (!node.mn_sync->IsBlockchainSynced()) node.mn_sync->SwitchToNextAsset();
+        BOOST_REQUIRE(node.mn_sync->IsBlockchainSynced());
+        FillableSigningProvider provider;
+        const CAmount amount{CoinJoin::GetSmallestDenomination()};
+        const int participants{std::max(3, CoinJoin::GetMinPoolParticipants()) + (missing_last_entry ? 1 : 0)};
+        for (int i{0}; i < participants; ++i) {
+            auto peer = MakePeer(i + 200, 0x0a000020 + i);
+            peer->fSuccessfullyConnected = true;
+            peers.push_back(peer.get());
+            connman.AddTestNode(*peer.release());
+            CKey collateral_key;
+            collateral_key.MakeNewKey(true);
+            BOOST_REQUIRE(provider.AddKey(collateral_key));
+            const CScript collateral_script{GetScriptForDestination(PKHash(collateral_key.GetPubKey()))};
+            const COutPoint collateral_input{uint256::TWO, static_cast<uint32_t>(200 + offset + i)};
+            WITH_LOCK(cs_main, node.chainman->ActiveChainstate().CoinsTip().AddCoin(
+                                   collateral_input, Coin{CTxOut{COIN / 10, collateral_script}, 0, false}, false));
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(collateral_input);
+            collateral.vout.emplace_back(COIN / 10 - CoinJoin::GetCollateralAmount(), P2PKHScript(200 + i));
+            BOOST_REQUIRE(SignSignature(provider, collateral_script, collateral, 0, COIN / 10, SIGHASH_ALL));
+            std::vector<CTxDSIn> inputs;
+            std::vector<CTxOut> outputs;
+            const size_t input_count{i == participants - 1 ? last_input_count : 1};
+            for (size_t j{0}; j < input_count; ++j) {
+                CKey key;
+                key.MakeNewKey(true);
+                BOOST_REQUIRE(provider.AddKey(key));
+                const CScript script{GetScriptForDestination(PKHash(key.GetPubKey()))};
+                const COutPoint input{uint256::ONE, static_cast<uint32_t>(200 + offset + i * 10 + j)};
+                WITH_LOCK(cs_main, node.chainman->ActiveChainstate().CoinsTip().AddCoin(
+                                       input, Coin{CTxOut{amount, script}, 0, false}, false));
+                inputs.emplace_back(CTxIn{input}, script, 0);
+                outputs.emplace_back(amount, P2PKHScript(1 + i * 10 + j));
+            }
+            harness.server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
+            CCoinJoinEntry entry{std::move(inputs), std::move(outputs), CTransaction{collateral}};
+            // The first and last entries deliberately use the same connection.
+            entry.addr = peers[i == participants - 1 ? 0 : i]->addr;
+            entries.push_back(std::move(entry));
+        }
+        harness.server.EnterAcceptingEntriesState(CoinJoin::AmountToDenomination(amount));
+        for (size_t i{0}; i < entries.size() - (missing_last_entry ? 1 : 0); ++i) {
+            PoolMessage message{MSG_NOERR};
+            BOOST_REQUIRE(harness.server.AddEntry(entries[i], message));
+        }
+        if (missing_last_entry) return;
+        harness.server.CreateFinalTransaction(1, /*charge_fees=*/false);
+        BOOST_REQUIRE_EQUAL(harness.server.GetState(), int{POOL_STATE_SIGNING});
+        CMutableTransaction final{harness.server.FinalTransaction()};
+        for (const auto& entry : entries) {
+            std::vector<CTxIn> signed_inputs;
+            for (const auto& input : entry.vecTxDSIn) {
+                const auto index{
+                    std::distance(final.vin.begin(), std::ranges::find(final.vin, input.prevout, &CTxIn::prevout))};
+                BOOST_REQUIRE(SignSignature(provider, input.prevPubKey, final, index, amount, SIGHASH_ALL));
+                signed_inputs.push_back(final.vin[index]);
+            }
+            signatures.push_back(std::move(signed_inputs));
+        }
+    }
+
+    ~FundedSigningSession() { connman.ClearTestNodes(); }
+
+    void Submit(size_t participant, const std::vector<CTxIn>& inputs)
+    {
+        CDataStream wire{SER_NETWORK, PROTOCOL_VERSION};
+        wire << inputs;
+        harness.server.ProcessMessage(*peers[participant == peers.size() - 1 ? 0 : participant],
+                                      NetMsgType::DSSIGNFINALTX, wire);
+    }
+
+    void CheckCollateral(size_t participant, bool spent) const
+    {
+        const auto& collateral{entries[participant].txCollateral};
+        BOOST_CHECK_EQUAL(node.mempool->exists(collateral->GetHash()), spent);
+        BOOST_CHECK_EQUAL(node.mempool->isSpent(collateral->vin[0].prevout), spent);
+    }
+};
+
+struct DeterministicFeeGates {
+    const bool previous{g_mock_deterministic_tests};
+    DeterministicFeeGates() { g_mock_deterministic_tests = true; }
+    ~DeterministicFeeGates() { g_mock_deterministic_tests = previous; }
+};
+
+BOOST_AUTO_TEST_CASE(server_multi_input_non_signer_pays_own_collateral)
+{
+    FundedSigningSession session{m_node, /*last_input_count=*/3};
+    auto& server{session.harness.server};
+    for (size_t i{0}; i + 1 < session.entries.size(); ++i)
+        session.Submit(i, session.signatures[i]);
+    const size_t non_signer{session.entries.size() - 1};
+    // Pin the historical fee gates so only participant cardinality decides the result.
+    const DeterministicFeeGates gates;
+    BOOST_REQUIRE_LE(GetRand<int>(100), 33);
+    const auto selected{server.SelectForTest(CCoinJoinServer::FeePolicy::PROBABILISTIC)};
+    BOOST_REQUIRE(selected);
+    BOOST_CHECK(*selected == *session.entries[non_signer].txCollateral);
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    for (size_t i{0}; i < session.entries.size(); ++i)
+        session.CheckCollateral(i, i == non_signer);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_signature_rejection_charges_only_attributable_entry)
+{
+    // An owned invalid signature is attributable; unknown inputs and mismatched sequences are not.
+    for (int failure{0}; failure < 3; ++failure) {
+        FundedSigningSession session{m_node, /*last_input_count=*/1, static_cast<uint32_t>(failure * 1000)};
+        auto& server{session.harness.server};
+        session.Submit(0, session.signatures[0]);
+        const size_t rejected_entry{session.entries.size() - 1};
+        session.Submit(rejected_entry, session.signatures[rejected_entry]);
+        CTxIn invalid{session.signatures[rejected_entry][0]};
+        invalid.scriptSig = CScript{} << OP_0;
+        if (failure == 1) invalid.prevout = COutPoint{uint256::ONE, 999};
+        if (failure == 2) --invalid.nSequence;
+        session.Submit(rejected_entry, {invalid});
+        for (size_t i{0}; i < session.entries.size(); ++i) {
+            session.CheckCollateral(i, failure == 0 && i == rejected_entry);
+        }
+        server.SetTimedOutForTest();
+        server.CheckTimeout();
+        for (size_t i{0}; i < session.entries.size(); ++i) {
+            session.CheckCollateral(i, failure == 0 && i == rejected_entry);
+        }
+        BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+    }
+}
+
+BOOST_AUTO_TEST_CASE(server_relayed_abort_cancels_missing_entry_fee_during_finalization)
+{
+    FundedSigningSession session{m_node, /*last_input_count=*/1, /*offset=*/0, /*missing_last_entry=*/true};
+    auto& server{session.harness.server};
+    const DeterministicFeeGates gates;
+    BOOST_REQUIRE_LE(GetRand<int>(100), 33);
+    server.RelayAbortForTest();
+    server.SetTimedOutForTest();
+    // There are enough entries to finalize, but the shared connection received an abort
+    // that also canceled its outstanding entry. Advancing the pool cannot penalize it.
+    server.CheckPoolForTest();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    for (size_t i{0}; i < session.entries.size(); ++i)
+        session.CheckCollateral(i, false);
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    for (size_t i{0}; i < session.entries.size(); ++i)
+        session.CheckCollateral(i, false);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_relayed_abort_forgoes_guaranteed_timeout_charge)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    // Two participants that have not signed yet; one is no longer connected. A session-wide
+    // STATUS_REJECTED - as relayed when the final transaction cannot be delivered - tells the
+    // connected one to stand down, so the timeout may not charge either of them: the abort was
+    // the coordinator's, and a disconnect cannot be told apart from our own connection failing.
+    const auto collateral_connected = MakeCollateral(0);
+    const auto collateral_disconnected = MakeCollateral(1);
+
+    auto connected = MakePeer(/*id=*/7, /*ipv4=*/0x0a000001);
+    connected->fSuccessfullyConnected = true;
+
+    server.ResetForTest(POOL_STATE_SIGNING);
+    server.AddCollateralForTest(collateral_connected);
+    server.AddCollateralForTest(collateral_disconnected);
+    auto entry_connected = MakeEntry(collateral_connected, /*unsigned_inputs=*/1);
+    entry_connected.addr = connected->addr;
+    server.SeedEntry(entry_connected);
+    auto entry_disconnected = MakeEntry(collateral_disconnected, /*unsigned_inputs=*/1);
+    entry_disconnected.addr = MakePeer(/*id=*/8, /*ipv4=*/0x0a000002)->addr;
+    server.SeedEntry(entry_disconnected);
+
+    connman.AddTestNode(*connected.release());
+
+    server.RelayAbortForTest();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK(server.consumed_collaterals.empty());
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+
+    connman.ClearTestNodes();
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_during_pool_check)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+    server.SeedTimedOutSession();
+
+    std::latch locked{1};
+    std::latch release{1};
+    std::thread pool_check{[&] { server.HoldPoolCheck(locked, release); }};
+    locked.wait();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+
+    release.count_down();
+    pool_check.join();
+
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_actionable_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+
+    // A queue that just became ready, an entry for every collateral, and a fully signed final
+    // transaction can all still advance, so a timeout landing after the scheduler's own
+    // CheckPool() snapshot must leave them for the next tick instead of discarding them.
+    for (const auto state : {POOL_STATE_QUEUE, POOL_STATE_ACCEPTING_ENTRIES, POOL_STATE_SIGNING}) {
+        BOOST_TEST_CONTEXT("state=" << state)
+        {
+            server.SeedTimedOutActionableSession(state);
+            server.CheckTimeout();
+            BOOST_CHECK_EQUAL(server.GetState(), int{state});
+        }
+    }
+
+    // Enough covered entries to finalize without the straggler.
+    server.SeedTimedOutActionableSession(POOL_STATE_ACCEPTING_ENTRIES, /*has_missing_entry=*/true);
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+}
+
+BOOST_AUTO_TEST_CASE(server_queue_timeout_charges_nobody)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // Nobody was asked to submit anything before the queue became ready, so a queue that never
+    // did has no identifiable offender.
+    server.ResetForTest(POOL_STATE_QUEUE);
+    server.AddCollateralForTest(MakeCollateral(0));
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK(server.consumed_collaterals.empty());
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_abort_charges_one_collateral_when_every_reservation_failed)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // All 20 reservations failed to submit. The probabilistic policy exempts a session in which
+    // everyone offended; the abort policy still selects exactly one of them.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (uint32_t i = 0; i < 20; ++i) {
+        server.AddCollateralForTest(MakeCollateral(i));
+    }
+    BOOST_CHECK(server.SelectForTest(CCoinJoinServer::FeePolicy::PROBABILISTIC) == nullptr);
+    BOOST_CHECK(server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT) != nullptr);
+
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_abort_selects_only_missing_submitters)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    std::vector<CTransactionRef> collaterals;
+    for (uint32_t i = 0; i < 20; ++i) {
+        collaterals.push_back(MakeCollateral(i));
+    }
+
+    // With one submission, only one of the other 19 reservations can be selected.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (const auto& collateral : collaterals) server.AddCollateralForTest(collateral);
+    server.SeedEntry(MakeEntry(collaterals[0]));
+    for (int i = 0; i < 64; ++i) {
+        const auto selected = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_REQUIRE(selected);
+        BOOST_CHECK(*selected != *collaterals[0]);
+    }
+
+    // Three of five submitted, so only the two missing reservations are eligible.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (size_t i = 0; i < 5; ++i) server.AddCollateralForTest(collaterals[i]);
+    for (size_t i = 0; i < 3; ++i) server.SeedEntry(MakeEntry(collaterals[i]));
+    for (int i = 0; i < 64; ++i) {
+        const auto selected = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_REQUIRE(selected);
+        BOOST_CHECK(*selected == *collaterals[3] || *selected == *collaterals[4]);
+    }
+
+    // If every reservation submitted, there is no missing-entry collateral to select.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (size_t i = 0; i < 5; ++i) {
+        server.AddCollateralForTest(collaterals[i]);
+        server.SeedEntry(MakeEntry(collaterals[i]));
+    }
+    BOOST_CHECK(server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT) == nullptr);
+}
+
+BOOST_AUTO_TEST_CASE(server_abort_selects_each_non_signer_once)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    std::vector<CTransactionRef> collaterals;
+    for (uint32_t i = 0; i < 3; ++i) {
+        collaterals.push_back(MakeCollateral(i));
+    }
+
+    // A lone non-signer is selected deterministically.
+    server.ResetForTest(POOL_STATE_SIGNING);
+    for (size_t i = 0; i < 3; ++i) {
+        server.AddCollateralForTest(collaterals[i]);
+        server.SeedEntry(MakeEntry(collaterals[i], i == 2 ? 1 : 0));
+    }
+    const auto lone_non_signer = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+    BOOST_REQUIRE(lone_non_signer);
+    BOOST_CHECK(*lone_non_signer == *collaterals[2]);
+
+    // Multiple non-signers select one member of that set; the number of unsigned inputs gives a
+    // participant no extra weight.
+    server.ResetForTest(POOL_STATE_SIGNING);
+    server.AddCollateralForTest(collaterals[0]);
+    server.SeedEntry(MakeEntry(collaterals[0], /*unsigned_inputs=*/8));
+    server.AddCollateralForTest(collaterals[1]);
+    server.SeedEntry(MakeEntry(collaterals[1], /*unsigned_inputs=*/1));
+    size_t selected_first{0};
+    size_t selected_second{0};
+    for (int i = 0; i < 256; ++i) {
+        const auto selected = server.SelectForTest(CCoinJoinServer::FeePolicy::GUARANTEED_ON_ABORT);
+        BOOST_REQUIRE(selected);
+        if (*selected == *collaterals[0]) ++selected_first;
+        if (*selected == *collaterals[1]) ++selected_second;
+    }
+    BOOST_CHECK_GT(selected_first, 64U);
+    BOOST_CHECK_GT(selected_second, 64U);
+
+    // When every participant fails to sign, the abort still charges exactly one.
+    server.SetTimedOutForTest();
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+}
+
+BOOST_AUTO_TEST_CASE(server_recoverable_timeout_keeps_probabilistic_policy)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // Three of five submitted: enough to finalize without the stragglers, which keeps the
+    // historical charge-sometimes policy rather than the abort guarantee.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (uint32_t i = 0; i < 5; ++i) {
+        const auto collateral{MakeCollateral(i)};
+        server.AddCollateralForTest(collateral);
+        if (i < 3) server.SeedEntry(MakeEntry(collateral));
+    }
+    bool selected{false};
+    bool skipped{false};
+    for (int i = 0; i < 256; ++i) {
+        if (server.SelectForTest(CCoinJoinServer::FeePolicy::PROBABILISTIC)) {
+            selected = true;
+        } else {
+            skipped = true;
+        }
+    }
+    BOOST_CHECK(selected);
+    BOOST_CHECK(skipped);
+}
+
+BOOST_AUTO_TEST_CASE(server_successful_session_random_charge_stays_probabilistic)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    server.ResetForTest(POOL_STATE_SIGNING);
+    for (uint32_t i = 0; i < 5; ++i) {
+        server.AddCollateralForTest(MakeCollateral(i));
+    }
+    bool charged{false};
+    bool skipped{false};
+    for (int i = 0; i < 256; ++i) {
+        server.consumed_collaterals.clear();
+        server.ChargeRandomFeesForTest();
+        charged |= !server.consumed_collaterals.empty();
+        skipped |= server.consumed_collaterals.empty();
+    }
+    BOOST_CHECK(charged);
+    BOOST_CHECK(skipped);
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_reset_precedes_collateral_consumption)
+{
+    class SessionReplacingServer : public ChargeRecordingServer
+    {
+    public:
+        using ChargeRecordingServer::ChargeRecordingServer;
+        mutable PoolState state_during_consume{POOL_STATE_ERROR};
+
+        void ConsumeCollateral(const CTransactionRef& txref) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+        {
+            state_during_consume = static_cast<PoolState>(GetState());
+            auto* self = const_cast<SessionReplacingServer*>(this);
+            self->TestableCoinJoinServer::ResetForTest(POOL_STATE_QUEUE);
+            ChargeRecordingServer::ConsumeCollateral(txref);
+        }
+    };
+
+    ServerHarness<SessionReplacingServer> harness{m_node};
+    auto& server{harness.server};
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    server.AddCollateralForTest(MakeCollateral(0));
+    server.SetTimedOutForTest();
+
+    server.CheckTimeout();
+
+    // The collateral is consumed only after the reset, outside cs_coinjoin, and a session opened
+    // in the meantime is left alone.
+    BOOST_CHECK(server.state_during_consume == POOL_STATE_IDLE);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_QUEUE});
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+}
+
+BOOST_AUTO_TEST_CASE(server_pending_charge_blocks_readmission_until_consumed)
+{
+    // The timeout reset reopens admission before the penalty spend reaches the mempool. In that
+    // window the selected collateral is still unspent and would pass every other admission check;
+    // committing it to a replacement session would strand that session on a reservation whose
+    // funds are already promised to the penalty.
+    class ReadmissionRacingServer : public ChargeRecordingServer
+    {
+    public:
+        using ChargeRecordingServer::ChargeRecordingServer;
+        mutable int readmitted_during_consume{-1};
+        mutable PoolMessage readmission_message{MSG_NOERR};
+
+        void ConsumeCollateral(const CTransactionRef& txref) const override EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+        {
+            auto* self = const_cast<ReadmissionRacingServer*>(this);
+            PoolMessage message{MSG_NOERR};
+            readmitted_during_consume = self->TryAdmit(txref, message) ? 1 : 0;
+            readmission_message = message;
+            ChargeRecordingServer::ConsumeCollateral(txref);
+        }
+    };
+
+    ServerHarness<ReadmissionRacingServer> harness{m_node};
+    auto& server{harness.server};
+    const auto collateral = MakeCollateral(0);
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    server.AddCollateralForTest(collateral);
+    server.SetTimedOutForTest();
+
+    server.CheckTimeout();
+
+    // The pool was already reset when the consume ran, yet the pending charge kept the collateral
+    // out of a replacement session.
+    BOOST_REQUIRE_EQUAL(server.readmitted_during_consume, 0);
+    BOOST_CHECK_EQUAL(server.readmission_message, ERR_INVALID_COLLATERAL);
+    BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+
+    // Once the charge has settled the reservation is released and admission works again; in
+    // production the mempool, which now contains the penalty spend, takes over rejecting it.
+    PoolMessage message{MSG_NOERR};
+    BOOST_CHECK(server.TryAdmit(collateral, message));
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_QUEUE});
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_waits_for_in_flight_messages)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+    const auto collateral = MakeCollateral(0);
+
+    for (const PoolState state : {POOL_STATE_ACCEPTING_ENTRIES, POOL_STATE_SIGNING}) {
+        BOOST_TEST_CONTEXT("state=" << state)
+        {
+            server.ResetForTest(state);
+            server.AddCollateralForTest(collateral);
+            if (state == POOL_STATE_SIGNING) {
+                server.SeedEntry(MakeEntry(collateral, /*unsigned_inputs=*/1));
+            }
+
+            const int session_id = server.MarkMessageInFlightForTest();
+            server.SetTimedOutForTest();
+            server.CheckTimeout();
+
+            BOOST_CHECK_EQUAL(server.GetState(), int{state});
+            BOOST_CHECK(server.consumed_collaterals.empty());
+
+            server.ClearMessageInFlightForTest(session_id);
+            server.CheckTimeout();
+
+            BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
+            BOOST_CHECK_EQUAL(server.consumed_collaterals.size(), 1U);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_finalization_waits_for_in_flight_entry)
+{
+    ServerHarness harness{m_node};
+    auto& server{harness.server};
+
+    // Enough entries to finalize without the straggler, but the straggler's entry is still being
+    // validated: it must neither be charged as missing nor be left out of the final transaction.
+    server.ResetForTest(POOL_STATE_ACCEPTING_ENTRIES);
+    for (int i = 0; i <= CoinJoin::GetMinPoolParticipants(); ++i) {
+        const auto collateral{MakeCollateral(static_cast<uint32_t>(i))};
+        server.AddCollateralForTest(collateral);
+        if (i < CoinJoin::GetMinPoolParticipants()) {
+            auto entry{MakeEntry(collateral)};
+            entry.vecTxDSIn[0].prevout.n = static_cast<uint32_t>(200 + i);
+            server.SeedEntry(std::move(entry));
+        }
+    }
+    server.SetTimedOutForTest();
+
+    const int session_id = server.MarkMessageInFlightForTest();
+    server.CreateFinalTransaction(session_id, /*charge_fees=*/true);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+    BOOST_CHECK(server.consumed_collaterals.empty());
+
+    // Once the entry has been handled, the session finalizes without it. (None of the seeded
+    // participants is connected, so relaying the final transaction then resets the pool.)
+    server.ClearMessageInFlightForTest(session_id);
+    server.CreateFinalTransaction(session_id, /*charge_fees=*/true);
+    BOOST_CHECK(server.GetState() != int{POOL_STATE_ACCEPTING_ENTRIES});
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)

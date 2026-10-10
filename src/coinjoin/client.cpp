@@ -456,6 +456,13 @@ void CCoinJoinClientSession::ProcessPoolStateUpdate(CCoinJoinStatusUpdate psssup
     }
 }
 
+void CoinJoin::SignFinalTransaction(const wallet::CWallet& wallet, CMutableTransaction& tx,
+                                    const std::map<COutPoint, Coin>& coins,
+                                    std::map<int, bilingual_str>& signing_errors)
+{
+    wallet.SignTransaction(tx, coins, SIGHASH_ALL, signing_errors);
+}
+
 //
 // After we receive the finalized transaction from the Masternode, we must
 // check it to make sure it's what we want, then sign it if we agree.
@@ -591,7 +598,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
     // fill values for found outpoints
     m_wallet->chain().findCoins(coins);
     std::map<int, bilingual_str> signing_errors;
-    m_wallet->SignTransaction(finalMutableTransaction, coins, SIGHASH_ALL | SIGHASH_ANYONECANPAY, signing_errors);
+    CoinJoin::SignFinalTransaction(*m_wallet, finalMutableTransaction, coins, signing_errors);
 
     for (const auto& [input_index, error_string] : signing_errors) {
         // NOTE: this is a partial signing so it's expected for SignTransaction to return

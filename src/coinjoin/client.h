@@ -32,6 +32,13 @@ class CTxMemPool;
 
 class UniValue;
 
+namespace CoinJoin {
+//! Sign only the participant's inputs, committing to the approved final transaction.
+void SignFinalTransaction(const wallet::CWallet& wallet, CMutableTransaction& tx,
+                          const std::map<COutPoint, Coin>& coins, std::map<int, bilingual_str>& signing_errors)
+    EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
+} // namespace CoinJoin
+
 class CPendingDsaRequest
 {
 private:

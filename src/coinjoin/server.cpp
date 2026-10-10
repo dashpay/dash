@@ -10,10 +10,12 @@
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 
+#include <coins.h>
 #include <core_io.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
+#include <policy/policy.h>
 #include <scheduler.h>
 #include <script/interpreter.h>
 #include <serialize.h>
@@ -26,6 +28,8 @@
 
 #include <univalue.h>
 
+#include <algorithm>
+#include <iterator>
 #include <ranges>
 
 CCoinJoinServer::CCoinJoinServer(PeerManagerInternal* peer_manager, ChainstateManager& chainman, CConnman& _connman,
@@ -42,12 +46,19 @@ CCoinJoinServer::CCoinJoinServer(PeerManagerInternal* peer_manager, ChainstateMa
     m_mn_activeman{mn_activeman},
     m_mn_sync{mn_sync},
     m_isman{isman},
-    vecSessionCollaterals{},
     fUnitTest{false}
 {
 }
 
 CCoinJoinServer::~CCoinJoinServer() = default;
+
+CCoinJoinServer::InFlightMessageGuard::InFlightMessageGuard(CCoinJoinServer& server, int session_id) :
+    m_server{server},
+    m_session_id{session_id}
+{
+}
+
+CCoinJoinServer::InFlightMessageGuard::~InFlightMessageGuard() { m_server.ClearMessageInFlight(m_session_id); }
 
 void CCoinJoinServer::ProcessMessage(CNode& peer, const std::string& msg_type, CDataStream& vRecv)
 {
@@ -87,7 +98,7 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
         return;
     }
 
-    if (WITH_LOCK(cs_coinjoin, return vecSessionCollaterals.empty())) {
+    if (WITH_LOCK(cs_coinjoin, return m_session_collaterals.empty())) {
         {
             const auto hasQueue = m_queueman.TryHasQueueFromMasternode(m_mn_activeman.GetOutPoint());
             if (!hasQueue.has_value()) return;
@@ -200,12 +211,22 @@ void CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream& vRecv)
 
 void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
 {
-    //do we have enough users in the current session?
-    if (!WITH_LOCK(cs_coinjoin, return IsSessionReady())) {
+    std::optional<int> session_id;
+    {
+        LOCK(cs_coinjoin);
+        // Establish the timeout cutoff before deserializing or validating the entry. CheckTimeout()
+        // will defer while this message is in flight, so an on-time submission cannot be mistaken
+        // for a missing one merely because validation outlives the deadline.
+        if (nState == POOL_STATE_ACCEPTING_ENTRIES && !HasTimedOut()) {
+            session_id = MarkMessageInFlight();
+        }
+    }
+    if (!session_id) {
         LogPrint(BCLog::COINJOIN, "DSVIN -- session not complete!\n");
         PushStatus(peer, STATUS_REJECTED, ERR_SESSION);
         return;
     }
+    const InFlightMessageGuard in_flight{*this, *session_id};
 
     CCoinJoinEntry entry;
     vRecv >> entry;
@@ -233,14 +254,17 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
     // Only accept signatures while we are actually collecting them, and only
     // from peers that are active participants in this session. Otherwise a
     // stray or unauthenticated peer could abort the session for everyone.
-    if (nState != POOL_STATE_SIGNING) {
-        LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- wrong state, nState=%d, peer=%d\n",
-                 nState.load(), peer.GetId());
-        PushStatus(peer, STATUS_REJECTED, ERR_SESSION);
-        return;
-    }
+    int session_id{0};
     {
         LOCK(cs_coinjoin);
+        // As for DSVIN, the timeout cutoff is taken before the body is decoded: CheckTimeout()
+        // defers while this message is in flight instead of charging its sender as a non-signer.
+        if (nState != POOL_STATE_SIGNING || HasTimedOut()) {
+            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- wrong state or timed out, nState=%d, peer=%d\n",
+                     nState.load(), peer.GetId());
+            PushStatus(peer, STATUS_REJECTED, ERR_SESSION);
+            return;
+        }
         const bool is_participant = std::ranges::any_of(
             vecEntries, [&peer](const auto& entry) { return entry.addr == peer.addr; });
         if (!is_participant) {
@@ -249,7 +273,9 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
             PushStatus(peer, STATUS_REJECTED, ERR_INVALID_INPUT);
             return;
         }
+        session_id = MarkMessageInFlight();
     }
+    const InFlightMessageGuard in_flight{*this, session_id};
 
     const size_t max_txins{CoinJoin::GetMaxPoolInputOutputCount()};
     std::vector<CTxIn> vecTxIn;
@@ -265,18 +291,51 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
 
     LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- vecTxIn.size() %s\n", vecTxIn.size());
 
-    int nTxInIndex = 0;
-    int nTxInsCount = static_cast<int>(vecTxIn.size());
-
-    for (const auto& txin : vecTxIn) {
-        nTxInIndex++;
-        if (!AddScriptSig(txin)) {
-            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() failed at %d/%d, session: %d\n", nTxInIndex, nTxInsCount, nSessionID);
-            LOCK(cs_coinjoin);
-            RelayStatus(STATUS_REJECTED);
+    bool rejected{false};
+    CTransactionRef collateral_to_charge;
+    {
+        LOCK(cs_coinjoin);
+        // Apply the whole message in one critical section, against the signing session it was
+        // checked for above. The lock was released while the body was decoded, and releasing it
+        // between inputs would let a timeout reset the session halfway through one sender's
+        // already-received signatures, after charging that sender as a non-signer.
+        if (nSessionID != session_id || nState != POOL_STATE_SIGNING) {
+            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- session %d is no longer signing, peer=%d\n", session_id,
+                     peer.GetId());
+            PushStatus(peer, STATUS_REJECTED, ERR_SESSION);
             return;
         }
-        LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() %d/%d success\n", nTxInIndex, nTxInsCount);
+        int nTxInIndex = 0;
+        int nTxInsCount = static_cast<int>(vecTxIn.size());
+        for (const auto& txin : vecTxIn) {
+            nTxInIndex++;
+            if (!AddScriptSig(txin, peer.addr)) {
+                LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() failed at %d/%d, session: %d\n", nTxInIndex,
+                         nTxInsCount, session_id);
+                // A connection may carry several entries. Charge only the entry that owns the
+                // failed input; an unknown input or sequence does not identify a collateral.
+                const auto it = std::ranges::find_if(vecEntries, [&peer, &txin](const auto& entry) {
+                    return entry.addr == peer.addr && std::ranges::any_of(entry.vecTxDSIn, [&txin](const auto& input) {
+                               return input.prevout == txin.prevout && input.nSequence == txin.nSequence;
+                           });
+                });
+                if (it != vecEntries.end()) {
+                    collateral_to_charge = it->txCollateral;
+                    // The submission below runs outside cs_coinjoin, and the reset that can follow
+                    // this abort would reopen admission before it settles: reserve the charge so
+                    // the collateral cannot be re-committed while its penalty spend is in flight.
+                    MarkPendingCharge(collateral_to_charge);
+                }
+                RelayStatus(STATUS_REJECTED);
+                rejected = true;
+                break;
+            }
+            LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() %d/%d success\n", nTxInIndex, nTxInsCount);
+        }
+    }
+    if (rejected) {
+        if (collateral_to_charge) ConsumePendingCharge(collateral_to_charge);
+        return;
     }
     // all is good
     CheckPool();
@@ -286,8 +345,8 @@ void CCoinJoinServer::SetNull()
 {
     AssertLockHeld(cs_coinjoin);
     // MN side
-    vecSessionCollaterals.clear();
-    setSessionCollateralPrevouts.clear();
+    m_session_collaterals.Clear();
+    m_relayed_abort = false;
     m_fRebalanceSession = false;
     m_fHasLegacyParticipant = false;
     m_mapDeclaredShapes.clear();
@@ -296,17 +355,45 @@ void CCoinJoinServer::SetNull()
     m_queueman.SetNull();
 }
 
+int CCoinJoinServer::MarkMessageInFlight()
+{
+    AssertLockHeld(cs_coinjoin);
+    // msghand processes one message at a time and every mark is cleared by its guard before the
+    // next message is handled, so a mark left behind is a bug - but only one that could delay a
+    // timeout, so the newest message takes over the mark.
+    Assume(!m_inflight_session.has_value());
+    m_inflight_session = nSessionID;
+    return *m_inflight_session;
+}
+
+void CCoinJoinServer::ClearMessageInFlight(int session_id)
+{
+    AssertLockNotHeld(cs_coinjoin);
+    LOCK(cs_coinjoin);
+    if (m_inflight_session == session_id) {
+        m_inflight_session.reset();
+    }
+}
+
 //
 // Check the mixing progress and send client updates if a Masternode
 //
 void CCoinJoinServer::CheckPool()
 {
+    AssertLockNotHeld(cs_coinjoin);
+
+    // Both the scheduler thread and the message-handling thread get here. Skip the round if the
+    // other one is already in it rather than blocking msghand behind its mempool work: whichever
+    // thread holds the lock is performing the same check we would.
+    TRY_LOCK(cs_check_pool, lock_check_pool);
+    if (!lock_check_pool) return;
+
     // Every decision below reads several pieces of session state at once, so take them as one
     // snapshot. Sampling them separately let the message-handling thread commit an entry
     // between two reads: the side counts could be read before the last entry arrived while the
     // entry count was read after it, so a session that was about to finalize looked like one
     // whose entries were all in but left a side uncovered - and got reset. Reading
-    // vecSessionCollaterals without the lock could also race SetNull() clearing it.
+    // the session collaterals without the lock could also race SetNull() clearing them.
     const auto snap = GetPoolSnapshot();
 
     if (snap.entries != 0)
@@ -320,7 +407,7 @@ void CCoinJoinServer::CheckPool()
     if (snap.state == POOL_STATE_ACCEPTING_ENTRIES && snap.entries == snap.collaterals) {
         if (snap.sides.IsCovered()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- FINALIZE TRANSACTIONS\n");
-            CreateFinalTransaction(snap.session_id);
+            CreateFinalTransaction(snap.session_id, /*charge_fees=*/false);
             return;
         }
         // The participant set is frozen once entries are being accepted, so this session can
@@ -328,13 +415,18 @@ void CCoinJoinServer::CheckPool()
         // timeout. Shouldn't happen: admission checks the declared shapes up front.
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- all entries received but a session denom side is uncovered (%d in, %d out), resetting session\n",
                  snap.sides.inputs, snap.sides.outputs);
-        // Tell the participants before dropping them, so they release their inputs and collateral
-        // right away instead of waiting out their own timeout. Must precede SetNull(), which
-        // clears the entries this iterates.
-        RelayCompletedTransaction(ERR_SESSION);
         // Only drop the session the snapshot described; the message-handling thread may have
-        // reset and restarted one while we were relaying.
-        WITH_LOCK(cs_coinjoin, if (IsCurrentSession(snap.session_id)) SetNull());
+        // reset and restarted one since. Capture its participants in the same step, then tell
+        // them, so they release their inputs and collateral right away instead of waiting out
+        // their own timeout.
+        std::vector<CService> participants;
+        {
+            LOCK(cs_coinjoin);
+            if (!IsCurrentSession(snap.session_id)) return;
+            participants = GetParticipantAddrs();
+            SetNull();
+        }
+        RelayCompletedTransaction(snap.session_id, participants, ERR_SESSION);
         return;
     }
 
@@ -342,17 +434,15 @@ void CCoinJoinServer::CheckPool()
     // If we timed out while accepting entries, then if we have more than minimum, create final tx
     if (snap.state == POOL_STATE_ACCEPTING_ENTRIES && CCoinJoinServer::HasTimedOut() && snap.sides.IsCovered() &&
         snap.entries >= static_cast<size_t>(CoinJoin::GetMinPoolParticipants())) {
-        // Punish misbehaving participants
-        ChargeFees();
-        // Try to complete this session ignoring the misbehaving ones
-        CreateFinalTransaction(snap.session_id);
+        // Punish misbehaving participants and try to complete this session ignoring them
+        CreateFinalTransaction(snap.session_id, /*charge_fees=*/true);
         return;
     }
 
     // If we have all the signatures, try to compile the transaction
-    if (snap.state == POOL_STATE_SIGNING && IsSignaturesComplete()) {
+    if (snap.state == POOL_STATE_SIGNING && snap.signatures_complete) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- SIGNING\n");
-        CommitFinalTransaction();
+        CommitFinalTransaction(snap.session_id);
         return;
     }
 }
@@ -361,65 +451,105 @@ CCoinJoinServer::PoolSnapshot CCoinJoinServer::GetPoolSnapshot() const
 {
     AssertLockNotHeld(cs_coinjoin);
     LOCK(cs_coinjoin);
-    return PoolSnapshot{nSessionID, nState, vecEntries.size(), vecSessionCollaterals.size(),
-                        GetMixSideCountsLocked()};
+    return PoolSnapshot{nSessionID, nState, vecEntries.size(), m_session_collaterals.size(),
+                        GetMixSideCountsLocked(), IsSignaturesComplete()};
 }
 
-void CCoinJoinServer::CreateFinalTransaction(int session_id)
+void CCoinJoinServer::CreateFinalTransaction(int session_id, bool charge_fees)
 {
     AssertLockNotHeld(cs_coinjoin);
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- FINALIZE TRANSACTIONS\n");
 
-    LOCK(cs_coinjoin);
+    CTransactionRef collateral_to_charge;
+    {
+        LOCK(cs_coinjoin);
 
-    // The decision to finalize came from a snapshot taken before this lock, so make sure it
-    // still describes an eligible live session. An entry can finish validation and commit while
-    // the timeout path charges fees, changing a covered side from empty to a lone participant.
-    // Check the live entries under the same lock used to build the transaction so that entry
-    // admission cannot invalidate the decision before the state moves to signing.
-    if (!IsCurrentSession(session_id)) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- session changed, not finalizing\n");
-        return;
-    }
-    const auto sides = GetMixSideCountsLocked();
-    if (vecEntries.size() < static_cast<size_t>(CoinJoin::GetMinPoolParticipants()) || !sides.IsCovered()) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- session no longer eligible, entries=%d, sides=%d/%d\n",
-                 vecEntries.size(), sides.inputs, sides.outputs);
-        // Deliberately no timer refresh: on the timeout path the session stays timed out and
-        // the scheduler's next CheckTimeout() resets it. The missing side already had the full
-        // entry window, so waiting another one would only keep everyone else's coins locked.
-        return;
-    }
-
-    CMutableTransaction txNew;
-
-    // make our new transaction
-    for (const auto& entry : vecEntries) {
-        for (const auto& txout : entry.vecTxOut) {
-            txNew.vout.push_back(txout);
+        // The decision to finalize came from a snapshot taken before this lock, so make sure it
+        // still describes an eligible live session. An entry can finish validation and commit in
+        // between, changing a covered side from empty to a lone participant. Check the live
+        // entries under the same lock used to build the transaction so that entry admission
+        // cannot invalidate the decision before the state moves to signing.
+        if (!IsCurrentSession(session_id)) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- session changed, not finalizing\n");
+            return;
         }
-        for (const auto& txdsin : entry.vecTxDSIn) {
-            txNew.vin.push_back(txdsin);
+        const auto sides = GetMixSideCountsLocked();
+        if (vecEntries.size() < static_cast<size_t>(CoinJoin::GetMinPoolParticipants()) || !sides.IsCovered()) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- session no longer eligible, entries=%d, sides=%d/%d\n",
+                     vecEntries.size(), sides.inputs, sides.outputs);
+            // Deliberately no timer refresh: on the timeout path the session stays timed out and
+            // the scheduler's next CheckTimeout() resets it. The missing side already had the full
+            // entry window, so waiting another one would only keep everyone else's coins locked.
+            return;
         }
+
+        // Selecting the offenders and moving to signing below happen under one lock, so a
+        // participant whose entry commits before the cutoff can no longer be charged as missing.
+        if (charge_fees) {
+            // An entry still being validated is not missing: defer to the next round, like
+            // CheckTimeout() does, instead of charging its sender and finalizing without it.
+            if (m_inflight_session == session_id) {
+                LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- entry in flight, deferring\n");
+                return;
+            }
+            collateral_to_charge = SelectCollateralToCharge(FeePolicy::PROBABILISTIC);
+            if (collateral_to_charge) {
+                // The submission below runs outside cs_coinjoin, and a disconnect-triggered or
+                // timeout reset can reopen admission before it settles: reserve the charge so the
+                // collateral cannot be accepted into a replacement session it could never pay for.
+                MarkPendingCharge(collateral_to_charge);
+            }
+        }
+
+        CMutableTransaction txNew;
+
+        // make our new transaction
+        for (const auto& entry : vecEntries) {
+            for (const auto& txout : entry.vecTxOut) {
+                txNew.vout.push_back(txout);
+            }
+            for (const auto& txdsin : entry.vecTxDSIn) {
+                txNew.vin.push_back(txdsin);
+            }
+        }
+
+        sort(txNew.vin.begin(), txNew.vin.end(), CompareInputBIP69());
+        sort(txNew.vout.begin(), txNew.vout.end(), CompareOutputBIP69());
+
+        finalMutableTransaction = txNew;
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- finalMutableTransaction=%s", /* Continued */
+                 txNew.ToString());
+
+        // request signatures from clients
+        SetState(POOL_STATE_SIGNING);
+        RelayFinalTransaction(CTransaction(finalMutableTransaction));
     }
 
-    sort(txNew.vin.begin(), txNew.vin.end(), CompareInputBIP69());
-    sort(txNew.vout.begin(), txNew.vout.end(), CompareOutputBIP69());
-
-    finalMutableTransaction = txNew;
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateFinalTransaction -- finalMutableTransaction=%s", /* Continued */
-             txNew.ToString());
-
-    // request signatures from clients
-    SetState(POOL_STATE_SIGNING);
-    RelayFinalTransaction(CTransaction(finalMutableTransaction));
+    if (collateral_to_charge) {
+        ConsumePendingCharge(collateral_to_charge);
+    }
 }
 
-void CCoinJoinServer::CommitFinalTransaction()
+void CCoinJoinServer::CommitFinalTransaction(int session_id)
 {
     AssertLockNotHeld(cs_coinjoin);
 
-    CTransactionRef finalTransaction = WITH_LOCK(cs_coinjoin, return MakeTransactionRef(finalMutableTransaction));
+    CTransactionRef finalTransaction;
+    std::vector<CService> participants;
+    std::vector<CTransactionRef> collaterals;
+    {
+        LOCK(cs_coinjoin);
+        // Committing a session that is already gone would push a cleared finalMutableTransaction
+        // through ATMP and notify the participants of a failure that never happened.
+        if (nSessionID != session_id || nState != POOL_STATE_SIGNING) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- session %d is gone, not committing\n",
+                     session_id);
+            return;
+        }
+        finalTransaction = MakeTransactionRef(finalMutableTransaction);
+        participants = GetParticipantAddrs();
+        collaterals = m_session_collaterals.txs();
+    }
     uint256 hashTx = finalTransaction->GetHash();
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- finalTransaction=%s", /* Continued */
@@ -432,9 +562,9 @@ void CCoinJoinServer::CommitFinalTransaction()
         if (!lockMain || !ATMPIfSaneFee(m_chainman, finalTransaction)) {
             LogPrint(BCLog::COINJOIN, /* Continued */
                      "CCoinJoinServer::CommitFinalTransaction -- ATMPIfSaneFee() error: Transaction not valid\n");
-            WITH_LOCK(cs_coinjoin, SetNull());
             // not much we can do in this case, just notify clients
-            RelayCompletedTransaction(ERR_INVALID_TX);
+            RelayCompletedTransaction(session_id, participants, ERR_INVALID_TX);
+            ResetSigningSessionIfCurrent(session_id);
             return;
         }
     }
@@ -455,14 +585,14 @@ void CCoinJoinServer::CommitFinalTransaction()
     m_peer_manager->PeerRelayInv(inv);
 
     // Tell the clients it was successful
-    RelayCompletedTransaction(MSG_SUCCESS);
+    RelayCompletedTransaction(session_id, participants, MSG_SUCCESS);
 
     // Randomly charge clients
-    ChargeRandomFees();
+    ChargeRandomFees(collaterals);
 
     // Reset
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- COMPLETED -- RESETTING\n");
-    WITH_LOCK(cs_coinjoin, SetNull());
+    ResetSigningSessionIfCurrent(session_id);
 }
 
 //
@@ -477,18 +607,24 @@ void CCoinJoinServer::CommitFinalTransaction()
 // transaction for the client to be able to enter the pool. This transaction is kept by the Masternode
 // until the transaction is either complete or fails.
 //
-void CCoinJoinServer::ChargeFees() const
+/*
+ * Select one offender while cs_coinjoin still binds the state, entries and collaterals to the
+ * same session. The caller must close the relevant admission path before releasing the lock and
+ * consuming the returned collateral, so a late entry or signature cannot make the snapshot stale.
+ */
+CTransactionRef CCoinJoinServer::SelectCollateralToCharge(FeePolicy policy) const
 {
-    AssertLockNotHeld(cs_coinjoin);
+    AssertLockHeld(cs_coinjoin);
 
-    //we don't need to charge collateral for every offence.
-    if (GetRand<int>(/*nMax=*/100) > 33) return;
+    // A relayed rejection cancels the clients' submission and signing obligations.
+    if (m_relayed_abort) return {};
 
     std::vector<CTransactionRef> vecOffendersCollaterals;
+    const PoolState state{nState};
+    const size_t nSessionCollaterals{m_session_collaterals.size()};
 
-    if (nState == POOL_STATE_ACCEPTING_ENTRIES) {
-        LOCK(cs_coinjoin);
-        for (const auto& txCollateral : vecSessionCollaterals) {
+    if (state == POOL_STATE_ACCEPTING_ENTRIES) {
+        for (const auto& txCollateral : m_session_collaterals.txs()) {
             bool fFound = std::ranges::any_of(vecEntries, [&txCollateral](const auto& entry) {
                 return *entry.txCollateral == *txCollateral;
             });
@@ -496,45 +632,61 @@ void CCoinJoinServer::ChargeFees() const
             // This queue entry didn't send us the promised transaction
             if (!fFound) {
                 LogPrint(BCLog::COINJOIN, /* Continued */
-                         "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't send transaction), found "
-                         "offence\n");
+                         "CCoinJoinServer::SelectCollateralToCharge -- found uncooperative node (didn't send "
+                         "transaction), found offence\n");
                 vecOffendersCollaterals.push_back(txCollateral);
             }
         }
-    }
-
-    if (nState == POOL_STATE_SIGNING) {
-        // who didn't sign?
-        LOCK(cs_coinjoin);
+    } else if (state == POOL_STATE_SIGNING) {
+        // who didn't sign? Include each participant once even if multiple inputs are unsigned.
         for (const auto& entry : vecEntries) {
-            for (const auto& txdsin : entry.vecTxDSIn) {
-                if (!txdsin.fHasSig) {
-                    LogPrint(BCLog::COINJOIN, /* Continued */
-                             "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't sign), found offence\n");
-                    vecOffendersCollaterals.push_back(entry.txCollateral);
-                }
+            if (std::ranges::any_of(entry.vecTxDSIn, [](const auto& txdsin) { return !txdsin.fHasSig; })) {
+                LogPrint(BCLog::COINJOIN, /* Continued */
+                         "CCoinJoinServer::SelectCollateralToCharge -- found uncooperative node (didn't sign), "
+                         "found offence\n");
+                vecOffendersCollaterals.push_back(entry.txCollateral);
             }
         }
     }
 
     // no offences found
-    if (vecOffendersCollaterals.empty()) return;
+    if (vecOffendersCollaterals.empty()) return {};
 
-    //mostly offending? Charge sometimes
-    if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size() - 1 && GetRand<int>(/*nMax=*/100) > 33) return;
+    if (policy == FeePolicy::PROBABILISTIC) {
+        // we don't need to charge collateral for every offence.
+        if (GetRand<int>(/*nMax=*/100) > 33) return {};
 
-    //everyone is an offender? That's not right
-    if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size()) return;
+        //mostly offending? Charge sometimes
+        if (vecOffendersCollaterals.size() + 1 >= nSessionCollaterals && GetRand<int>(/*nMax=*/100) > 33) return {};
+
+        //everyone is an offender? That's not right
+        if (vecOffendersCollaterals.size() >= nSessionCollaterals) return {};
+    }
 
     //charge one of the offenders randomly
     Shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end(), FastRandomContext());
 
-    if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
+    const auto& selected_collateral = vecOffendersCollaterals.front();
+    if (policy == FeePolicy::PROBABILISTIC) {
         LogPrint(BCLog::COINJOIN, /* Continued */
-                 "CCoinJoinServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s",
-                 (nState == POOL_STATE_SIGNING) ? "sign" : "send", vecOffendersCollaterals[0]->ToString());
-        ConsumeCollateral(vecOffendersCollaterals[0]);
+                 "CCoinJoinServer::SelectCollateralToCharge -- selected non-cooperating participant for probabilistic "
+                 "penalty, state=%s, participants=%d, offenders=%d, txid=%s\n",
+                 GetStateString(), nSessionCollaterals, vecOffendersCollaterals.size(),
+                 selected_collateral->GetHash().ToString());
+    } else if (vecOffendersCollaterals.size() == nSessionCollaterals) {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::SelectCollateralToCharge -- all participants failed to cooperate; selected "
+                 "participant for failed-session fee, state=%s, participants=%d, offenders=%d, txid=%s\n",
+                 GetStateString(), nSessionCollaterals, vecOffendersCollaterals.size(),
+                 selected_collateral->GetHash().ToString());
+    } else {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::SelectCollateralToCharge -- selected participant for failed-session fee, "
+                 "state=%s, participants=%d, offenders=%d, txid=%s\n",
+                 GetStateString(), nSessionCollaterals, vecOffendersCollaterals.size(),
+                 selected_collateral->GetHash().ToString());
     }
+    return selected_collateral;
 }
 
 /*
@@ -549,17 +701,11 @@ void CCoinJoinServer::ChargeFees() const
     stop these kinds of attacks 1 in 10 successful transactions are charged. This
     adds up to a cost of 0.001DRK per transaction on average.
 */
-void CCoinJoinServer::ChargeRandomFees() const
+void CCoinJoinServer::ChargeRandomFees(const std::vector<CTransactionRef>& collaterals) const
 {
     AssertLockNotHeld(cs_coinjoin);
 
-    std::vector<CTransactionRef> session_collaterals;
-    {
-        LOCK(cs_coinjoin);
-        session_collaterals = vecSessionCollaterals;
-    }
-
-    for (const auto& txCollateral : session_collaterals) {
+    for (const auto& txCollateral : collaterals) {
         if (GetRand<int>(/*nMax=*/100) > 10) return;
         LogPrint(BCLog::COINJOIN, /* Continued */
                  "CCoinJoinServer::ChargeRandomFees -- charging random fees, txCollateral=%s", txCollateral->ToString());
@@ -596,6 +742,36 @@ void CCoinJoinServer::ConsumeCollateralIfCurrentSession(int session_id, const CT
     ConsumeCollateral(txref);
 }
 
+void CCoinJoinServer::MarkPendingCharge(const CTransactionRef& txref)
+{
+    AssertLockHeld(cs_coinjoin);
+    for (const auto& txin : txref->vin) {
+        m_pending_charges.insert(txin.prevout);
+    }
+}
+
+bool CCoinJoinServer::IsCollateralPendingCharge(const CMutableTransaction& txCollateral) const
+{
+    AssertLockHeld(cs_coinjoin);
+    for (const auto& txin : txCollateral.vin) {
+        if (m_pending_charges.contains(txin.prevout)) return true;
+    }
+    return false;
+}
+
+void CCoinJoinServer::ConsumePendingCharge(const CTransactionRef& txref)
+{
+    AssertLockNotHeld(cs_coinjoin);
+    ConsumeCollateral(txref);
+    // Whether or not the mempool accepted the spend, the submission has settled: from here on
+    // IsCollateralValid()'s own mempool test decides whether this collateral is acceptable.
+    LOCK(cs_coinjoin);
+    ++m_collateral_validation_epoch;
+    for (const auto& txin : txref->vin) {
+        m_pending_charges.erase(txin.prevout);
+    }
+}
+
 bool CCoinJoinServer::IsCurrentSession(int session_id) const
 {
     AssertLockHeld(cs_coinjoin);
@@ -605,7 +781,7 @@ bool CCoinJoinServer::IsCurrentSession(int session_id) const
 bool CCoinJoinServer::HasSessionCollateral(const CTransactionRef& txref) const
 {
     AssertLockHeld(cs_coinjoin);
-    return std::ranges::any_of(vecSessionCollaterals,
+    return std::ranges::any_of(m_session_collaterals.txs(),
                                [&txref](const CTransactionRef& ref) { return *ref == *txref; });
 }
 
@@ -625,13 +801,58 @@ void CCoinJoinServer::CheckTimeout()
 {
     m_queueman.CheckQueue();
 
-    // Too early to do anything
-    if (!CCoinJoinServer::HasTimedOut()) return;
+    // CheckPool can be finalizing or committing on the message-handling thread. Skipping this tick
+    // keeps timeout reset and finalization/commit single-flight without blocking the scheduler.
+    TRY_LOCK(cs_check_pool, lock_check_pool);
+    if (!lock_check_pool) return;
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckTimeout -- %s timed out -- resetting\n",
-        (nState == POOL_STATE_SIGNING) ? "Signing" : "Session");
-    ChargeFees();
-    WITH_LOCK(cs_coinjoin, SetNull());
+    CTransactionRef collateral_to_charge;
+    {
+        LOCK(cs_coinjoin);
+
+        // Too early to do anything. Recheck while holding the lock so selecting an offender and
+        // closing the session form one atomic cutoff for late entries and signatures. Messages
+        // which crossed that cutoff first get to finish before we decide who failed to cooperate.
+        if (!CCoinJoinServer::HasTimedOut()) return;
+        if (m_inflight_session == nSessionID) return;
+
+        // CheckForCompleteQueue() and CheckPool() run before this method on the scheduler thread,
+        // but a final collateral, entry, or signature can arrive after their snapshots. The
+        // message-handling thread then skips its own CheckPool() if this scheduler tick still holds
+        // cs_check_pool. Give a session that can now advance priority over resetting it; the next
+        // scheduler tick will perform the transition, finalization, or commit.
+        // This mirrors the decisions CheckPool() makes for a timed-out session: an entry for every
+        // collateral is finalized (or, if a side is uncovered, reset with the participants told),
+        // and enough entries covering both sides are finalized without the stragglers.
+        const size_t entries{vecEntries.size()};
+        const bool can_advance{(nState == POOL_STATE_QUEUE && IsSessionReady()) ||
+                               (nState == POOL_STATE_ACCEPTING_ENTRIES &&
+                                (entries == m_session_collaterals.size() ||
+                                 (entries >= static_cast<size_t>(CoinJoin::GetMinPoolParticipants()) &&
+                                  GetMixSideCountsLocked().IsCovered()))) ||
+                               (nState == POOL_STATE_SIGNING && IsSignaturesComplete())};
+        if (can_advance) return;
+
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckTimeout -- %s timed out -- resetting\n",
+                 (nState == POOL_STATE_SIGNING) ? "Signing" : "Session");
+        // The session can no longer advance (see above), so non-cooperation is forcing it to be
+        // abandoned: charge exactly one offender. A queue that never became ready has no
+        // identifiable offender - nobody was asked to submit anything yet - and stays free.
+        if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
+            collateral_to_charge = SelectCollateralToCharge(FeePolicy::GUARANTEED_ON_ABORT);
+        }
+        if (collateral_to_charge) {
+            // Reserve the charge before SetNull() reopens admission: the mempool submission below
+            // runs outside cs_coinjoin, and until it settles this collateral must not be accepted
+            // into a replacement session it could never pay for.
+            MarkPendingCharge(collateral_to_charge);
+        }
+        SetNull();
+    }
+
+    if (collateral_to_charge) {
+        ConsumePendingCharge(collateral_to_charge);
+    }
 }
 
 /*
@@ -641,6 +862,8 @@ void CCoinJoinServer::CheckTimeout()
 */
 void CCoinJoinServer::CheckForCompleteQueue()
 {
+    AssertLockNotHeld(cs_coinjoin);
+
     int session_denom;
     size_t participants;
     {
@@ -649,7 +872,7 @@ void CCoinJoinServer::CheckForCompleteQueue()
 
         SetState(POOL_STATE_ACCEPTING_ENTRIES);
         session_denom = nSessionDenom;
-        participants = vecSessionCollaterals.size();
+        participants = m_session_collaterals.size();
     }
 
     CCoinJoinQueue dsq(session_denom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), true);
@@ -658,51 +881,6 @@ void CCoinJoinServer::CheckForCompleteQueue()
     dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
     m_peer_manager->PeerRelayDSQ(dsq);
     m_queueman.AddQueue(std::move(dsq));
-}
-
-// Check to make sure a given input matches an input in the pool and its scriptSig is valid
-bool CCoinJoinServer::IsInputScriptSigValid(const CTxIn& txin) const
-{
-    AssertLockHeld(cs_coinjoin);
-    CMutableTransaction txNew;
-    txNew.vin.clear();
-    txNew.vout.clear();
-
-    int nTxInIndex = -1;
-    CScript sigPubKey = CScript();
-
-    {
-        int i = 0;
-        for (const auto &entry: vecEntries) {
-            for (const auto &txout: entry.vecTxOut) {
-                txNew.vout.push_back(txout);
-            }
-            for (const auto &txdsin: entry.vecTxDSIn) {
-                txNew.vin.push_back(txdsin);
-
-                if (txdsin.prevout == txin.prevout) {
-                    nTxInIndex = i;
-                    sigPubKey = txdsin.prevPubKey;
-                }
-                i++;
-            }
-        }
-    }
-    if (nTxInIndex >= 0) { //might have to do this one input at a time?
-        txNew.vin[nTxInIndex].scriptSig = txin.scriptSig;
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::IsInputScriptSigValid -- verifying scriptSig %s\n", ScriptToAsmStr(txin.scriptSig).substr(0, 24));
-        // TODO we're using amount=0 here but we should use the correct amount. This works because Dash ignores the amount while signing/verifying (only used in Bitcoin/Segwit)
-        if (!VerifyScript(txNew.vin[nTxInIndex].scriptSig, sigPubKey, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, MutableTransactionSignatureChecker(&txNew, nTxInIndex, 0, MissingDataBehavior::ASSERT_FAIL))) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::IsInputScriptSigValid -- VerifyScript() failed on input %d\n", nTxInIndex);
-            return false;
-        }
-    } else {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::IsInputScriptSigValid -- Failed to find matching input in pool, %s\n", txin.ToString());
-        return false;
-    }
-
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::IsInputScriptSigValid -- Successfully validated input and scriptSig\n");
-    return true;
 }
 
 //
@@ -733,7 +911,7 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
             return false;
         }
 
-        if (static_cast<size_t>(GetEntriesCountLocked()) >= vecSessionCollaterals.size()) {
+        if (static_cast<size_t>(GetEntriesCountLocked()) >= m_session_collaterals.size()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
             nMessageIDRet = ERR_ENTRIES_FULL;
             return false;
@@ -848,6 +1026,21 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
         return false;
     }
 
+    CCoinJoinEntry admitted_entry{entry};
+    {
+        LOCK(cs_main);
+        CCoinsViewMemPool view{&m_chainman.ActiveChainstate().CoinsTip(), mempool};
+        for (auto& input : admitted_entry.vecTxDSIn) {
+            Coin coin;
+            if (!view.GetCoin(input.prevout, coin) || coin.IsSpent()) {
+                nMessageIDRet = ERR_MISSING_TX;
+                return false;
+            }
+            // prevPubKey is memory-only; keep the admitted script even if chainstate changes before signing.
+            input.prevPubKey = coin.out.scriptPubKey;
+        }
+    }
+
     {
         LOCK(cs_coinjoin);
         // cs_coinjoin was released around the UTXO checks above, so the scheduler thread may
@@ -861,7 +1054,7 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
             nMessageIDRet = ERR_SESSION;
             return false;
         }
-        vecEntries.push_back(entry);
+        vecEntries.push_back(std::move(admitted_entry));
     }
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- adding entry %d of %d required\n", __func__, GetEntriesCount(), CoinJoin::GetMaxPoolParticipants());
@@ -870,49 +1063,48 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
     return true;
 }
 
-bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew)
+bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew, const CService& sender)
 {
-    AssertLockNotHeld(cs_coinjoin);
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
+    AssertLockHeld(cs_coinjoin);
+    if (nState != POOL_STATE_SIGNING) return false;
 
-    LOCK(cs_coinjoin);
-    for (const auto& entry : vecEntries) {
-        if (std::ranges::any_of(entry.vecTxDSIn,
-                                [&txinNew](const auto& txdsin) { return txdsin.scriptSig == txinNew.scriptSig; })) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- already exists\n");
-            return false;
-        }
-    }
+    const auto matches_input = [&txinNew](const CTxIn& input) {
+        return input.prevout == txinNew.prevout && input.nSequence == txinNew.nSequence;
+    };
+    const auto entry = std::ranges::find_if(vecEntries, [&](const auto& candidate) {
+        return candidate.addr == sender && std::ranges::any_of(candidate.vecTxDSIn, matches_input);
+    });
+    if (entry == vecEntries.end()) return false;
 
-    if (!IsInputScriptSigValid(txinNew)) {
+    const auto admitted_input = std::ranges::find_if(entry->vecTxDSIn, matches_input);
+    const auto final_input = std::ranges::find_if(finalMutableTransaction.vin, matches_input);
+    if (final_input == finalMutableTransaction.vin.end() || admitted_input->prevPubKey.empty()) return false;
+    if (admitted_input->fHasSig && admitted_input->scriptSig == txinNew.scriptSig) return true;
+
+    const auto index = static_cast<unsigned int>(std::distance(finalMutableTransaction.vin.begin(), final_input));
+    // Dash's legacy signature hash does not use the input amount.
+    if (!VerifyScript(txinNew.scriptSig, admitted_input->prevPubKey,
+                      STANDARD_SCRIPT_VERIFY_FLAGS | SCRIPT_VERIFY_SIGPUSHONLY,
+                      MutableTransactionSignatureChecker(&finalMutableTransaction, index, 0, MissingDataBehavior::ASSERT_FAIL))) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- Invalid scriptSig\n");
         return false;
     }
-
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- scriptSig=%s new\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
-
-    for (auto& txin : finalMutableTransaction.vin) {
-        if (txin.prevout == txinNew.prevout && txin.nSequence == txinNew.nSequence) {
-            txin.scriptSig = txinNew.scriptSig;
-            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to finalMutableTransaction, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
+    if (admitted_input->fHasSig) return true;
+    for (const auto& other_entry : vecEntries) {
+        if (std::ranges::any_of(other_entry.vecTxDSIn,
+                               [&txinNew](const auto& input) { return input.scriptSig == txinNew.scriptSig; })) {
+            return false;
         }
     }
-    for (auto& entry : vecEntries) {
-        if (entry.AddScriptSig(txinNew)) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to entries, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
-            return true;
-        }
-    }
-
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- Couldn't set sig!\n");
-    return false;
+    if (!entry->AddScriptSig(txinNew)) return false;
+    final_input->scriptSig = txinNew.scriptSig;
+    return true;
 }
 
 // Check to make sure everything is signed
 bool CCoinJoinServer::IsSignaturesComplete() const
 {
-    AssertLockNotHeld(cs_coinjoin);
-    LOCK(cs_coinjoin);
+    AssertLockHeld(cs_coinjoin);
 
     return std::ranges::all_of(vecEntries, [](const auto& entry) {
         return std::ranges::all_of(entry.vecTxDSIn, [](const auto& txdsin) { return txdsin.fHasSig; });
@@ -936,15 +1128,6 @@ bool CCoinJoinServer::IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& n
     }
 
     return true;
-}
-
-void CCoinJoinServer::CommitSessionCollateral(const CMutableTransaction& txCollateral)
-{
-    AssertLockHeld(cs_coinjoin);
-    vecSessionCollaterals.push_back(MakeTransactionRef(txCollateral));
-    for (const auto& txin : txCollateral.vin) {
-        setSessionCollateralPrevouts.insert(txin.prevout);
-    }
 }
 
 //! Which side of the session denomination a participant will occupy, from its declared dsa
@@ -977,6 +1160,7 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVers
         return false;
     }
 
+    const uint64_t collateral_epoch = WITH_LOCK(cs_coinjoin, return m_collateral_validation_epoch);
     if (!IsAcceptableDSA(dsa, nMessageIDRet)) {
         return false;
     }
@@ -998,6 +1182,8 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVers
         return false;
     }
 
+    int nDenom{0};
+    size_t nParticipants{0};
     {
         LOCK(cs_coinjoin);
 
@@ -1006,6 +1192,17 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVers
         // that opened it have to be committed as one unit.
         if (nSessionID != 0 || nState != POOL_STATE_IDLE) {
             nMessageIDRet = ERR_MODE;
+            return false;
+        }
+
+        // A collateral selected for a penalty stays unacceptable until its spend has settled in
+        // the mempool, where IsCollateralValid() takes over rejecting it.
+        if (m_collateral_validation_epoch != collateral_epoch || IsCollateralPendingCharge(dsa.txCollateral)) {
+            LogPrint(BCLog::COINJOIN, /* Continued */
+                     "CCoinJoinServer::CreateNewSession -- collateral %s has a pending penalty or was validated before "
+                     "one settled\n",
+                     dsa.txCollateral.GetHash().ToString());
+            nMessageIDRet = ERR_INVALID_COLLATERAL;
             return false;
         }
 
@@ -1019,21 +1216,25 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVers
 
         SetState(POOL_STATE_QUEUE);
 
-        CommitSessionCollateral(dsa.txCollateral);
+        m_session_collaterals.Add(dsa.txCollateral);
+        nDenom = nSessionDenom;
+        nParticipants = m_session_collaterals.size();
     }
 
     if (!fUnitTest) {
         //broadcast that I'm accepting entries, only if it's the first entry through
-        CCoinJoinQueue dsq(nSessionDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(),
-                           GetAdjustedTime(), false);
+        CCoinJoinQueue dsq(nDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), false);
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
         dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peer_manager->PeerRelayDSQ(dsq);
         m_queueman.AddQueue(std::move(dsq));
     }
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
-        nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CoinJoin::GetMaxPoolParticipants());
+    LogPrint(BCLog::COINJOIN, /* Continued */
+             "CCoinJoinServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  "
+             "participants: %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
+             nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), nParticipants,
+             CoinJoin::GetMaxPoolParticipants());
 
     return true;
 }
@@ -1056,6 +1257,7 @@ bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, int n
         session_denom = nSessionDenom;
     }
 
+    const uint64_t collateral_epoch = WITH_LOCK(cs_coinjoin, return m_collateral_validation_epoch);
     if (!IsAcceptableDSA(dsa, nMessageIDRet)) {
         return false;
     }
@@ -1120,22 +1322,31 @@ bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, int n
 
     // IsSessionReady() can now hold a full session back waiting for a missing counterparty, so
     // the participant limit has to be enforced here rather than implied by session readiness
-    if (static_cast<int>(vecSessionCollaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
+    if (static_cast<int>(m_session_collaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- session is full\n");
         nMessageIDRet = ERR_QUEUE_FULL;
         return false;
     }
 
-    // Session collaterals are only ever test-accepted, never added to the mempool, so nothing
-    // pins their identity: the same UTXO can be re-signed into arbitrarily many distinct txids.
-    // Match on input prevouts so a resent or replayed dsa cannot be counted as a new participant.
-    for (const auto& txin : dsa.txCollateral.vin) {
-        if (setSessionCollateralPrevouts.contains(txin.prevout)) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- collateral %s spends prevout %s already committed to this session\n",
-                dsa.txCollateral.GetHash().ToString(), txin.prevout.ToStringShort());
-            nMessageIDRet = ERR_ALREADY_HAVE;
-            return false;
-        }
+    // A resent or replayed dsa must not be counted as a new participant; see SessionCollaterals.
+    if (const auto prevout = m_session_collaterals.FindCommittedPrevout(dsa.txCollateral)) {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::AddUserToExistingSession -- collateral %s spends prevout %s already committed to "
+                 "this session\n",
+                 dsa.txCollateral.GetHash().ToString(), prevout->ToStringShort());
+        nMessageIDRet = ERR_ALREADY_HAVE;
+        return false;
+    }
+
+    // A collateral selected for a penalty stays unacceptable until its spend has settled in the
+    // mempool, where IsCollateralValid() takes over rejecting it.
+    if (m_collateral_validation_epoch != collateral_epoch || IsCollateralPendingCharge(dsa.txCollateral)) {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::AddUserToExistingSession -- collateral %s has a pending penalty or was validated "
+                 "before one settled\n",
+                 dsa.txCollateral.GetHash().ToString());
+        nMessageIDRet = ERR_INVALID_COLLATERAL;
+        return false;
     }
 
     // count new user as accepted to an existing session
@@ -1146,10 +1357,13 @@ bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, int n
     m_fRebalanceSession |= dsa.IsRebalance();
     m_fHasLegacyParticipant |= nPeerVersion < COINJOIN_REBALANCE_VERSION;
     m_mapDeclaredShapes.emplace(dsa.txCollateral.GetHash(), DeclaredShape(dsa));
-    CommitSessionCollateral(dsa.txCollateral);
+    m_session_collaterals.Add(dsa.txCollateral);
 
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
-        nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CoinJoin::GetMaxPoolParticipants());
+    LogPrint(BCLog::COINJOIN, /* Continued */
+             "CCoinJoinServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  "
+             "participants: %d  CoinJoin::GetMaxPoolParticipants(): %d\n",
+             nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom), m_session_collaterals.size(),
+             CoinJoin::GetMaxPoolParticipants());
 
     return true;
 }
@@ -1157,15 +1371,17 @@ bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, int n
 // Returns true if either max size has been reached or if the mix timed out and min size was reached
 bool CCoinJoinServer::IsSessionReady() const
 {
+    AssertLockHeld(cs_coinjoin);
+
     if (nState == POOL_STATE_QUEUE) {
         // PRIVACY: don't start mixing until each side of the session denomination is occupied
         // by nobody or by at least two participants. A session that never attracts the missing
         // counterparty simply expires in queue state, where no collateral is charged.
         if (!GetDeclaredSideCounts().IsCovered()) return false;
-        if (static_cast<int>(vecSessionCollaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
+        if (static_cast<int>(m_session_collaterals.size()) >= CoinJoin::GetMaxPoolParticipants()) {
             return true;
         }
-        if (CCoinJoinServer::HasTimedOut() && static_cast<int>(vecSessionCollaterals.size()) >= CoinJoin::GetMinPoolParticipants()) {
+        if (CCoinJoinServer::HasTimedOut() && static_cast<int>(m_session_collaterals.size()) >= CoinJoin::GetMinPoolParticipants()) {
             return true;
         }
     }
@@ -1205,6 +1421,9 @@ void CCoinJoinServer::PushStatus(CNode& peer, PoolStatusUpdate nStatusUpdate, Po
 void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID)
 {
     AssertLockHeld(cs_coinjoin);
+    if (nStatusUpdate == STATUS_REJECTED) {
+        m_relayed_abort = true;
+    }
     unsigned int nDisconnected{};
     // status updates should be relayed to mixing participants only
     for (const auto& entry : vecEntries) {
@@ -1225,6 +1444,7 @@ void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nM
         __func__, nDisconnected, nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
 
     // notify everyone else that this session should be terminated
+    m_relayed_abort = true;
     for (const auto& entry : vecEntries) {
         connman.ForNode(entry.addr, [this](CNode* pnode) {
             PushStatus(*pnode, STATUS_REJECTED, MSG_NOERR);
@@ -1239,30 +1459,49 @@ void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nM
     }
 }
 
-void CCoinJoinServer::RelayCompletedTransaction(PoolMessage nMessageID)
+void CCoinJoinServer::RelayCompletedTransaction(int session_id, const std::vector<CService>& participants,
+                                                PoolMessage nMessageID)
 {
     AssertLockNotHeld(cs_coinjoin);
-    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- nSessionID: %d  nSessionDenom: %d (%s)\n",
-        __func__, nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
+    LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- nSessionID: %d\n", __func__, session_id);
 
-    // final mixing tx with empty signatures should be relayed to mixing participants only
-    LOCK(cs_coinjoin);
-    for (const auto& entry : vecEntries) {
-        bool fOk = connman.ForNode(entry.addr, [&nMessageID, this](CNode* pnode) {
+    for (const auto& addr : participants) {
+        const bool fOk = connman.ForNode(addr, [&nMessageID, session_id, this](CNode* pnode) {
             CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSCOMPLETE, nSessionID.load(), nMessageID));
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSCOMPLETE, session_id, nMessageID));
             return true;
         });
         if (!fOk) {
-            // no such node? maybe client disconnected or our own connection went down
-            RelayStatus(STATUS_REJECTED);
-            break;
+            LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- participant disconnected before completion\n", __func__);
         }
     }
 }
 
+std::vector<CService> CCoinJoinServer::GetParticipantAddrs() const
+{
+    AssertLockHeld(cs_coinjoin);
+    std::vector<CService> participants;
+    participants.reserve(vecEntries.size());
+    std::ranges::transform(vecEntries, std::back_inserter(participants), [](const auto& entry) { return entry.addr; });
+    return participants;
+}
+
+void CCoinJoinServer::ResetSigningSessionIfCurrent(int session_id)
+{
+    AssertLockNotHeld(cs_coinjoin);
+    LOCK(cs_coinjoin);
+    if (nSessionID != session_id || nState != POOL_STATE_SIGNING) {
+        LogPrint(BCLog::COINJOIN, /* Continued */
+                 "CCoinJoinServer::%s -- signing session %d is no longer current, not resetting\n", __func__, session_id);
+        return;
+    }
+    SetNull();
+}
+
 void CCoinJoinServer::SetState(PoolState nStateNew)
 {
+    AssertLockHeld(cs_coinjoin);
+
     if (nStateNew == POOL_STATE_ERROR) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::SetState -- Can't set state to ERROR as a Masternode. \n");
         return;
