@@ -54,6 +54,11 @@ class multidict(dict):
         return self.x
 
 
+# Credit-pool reconstruction keeps history from V20 activation until its first snapshot, so postpone V20
+# to let this test prune its early blocks.
+DEPLOYMENT_ARGS = ["-testactivationheight=v20@2000", "-testactivationheight=mn_rr@2000"]
+
+
 class RawTransactionsTest(BitcoinTestFramework):
     def add_options(self, parser):
         self.add_wallet_options(parser, descriptors=False)
@@ -68,6 +73,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         # whitelist all peers to speed up tx relay / mempool sync
         for args in self.extra_args:
             args.append("-whitelist=noban@127.0.0.1")
+            args.extend(DEPLOYMENT_ARGS)
         self.supports_cli = False
 
     def setup_network(self):

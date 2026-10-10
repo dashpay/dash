@@ -2966,6 +2966,34 @@ CoinsCacheSizeState Chainstate::GetCoinsCacheSizeState(
     return CoinsCacheSizeState::OK;
 }
 
+/** Earliest block body that any chainstate may need to rebuild a credit pool after a reorg or restart. */
+static int GetCreditPoolPruneLockHeight(ChainstateManager& chainman, CCreditPoolManager& cpoolman)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    const auto& params{chainman.GetParams()};
+    const auto& consensus{params.GetConsensus()};
+    int height_first{std::numeric_limits<int>::max()};
+    if (!DeploymentEnabled(consensus, Consensus::DEPLOYMENT_V20)) return height_first;
+    for (Chainstate* chainstate : chainman.GetAll()) {
+        if (!chainstate->CanFlushToDisk()) continue;
+        const uint256 live_hash{chainstate->CoinsTip().GetBestBlock()};
+        if (live_hash.IsNull()) continue;
+        const uint256 disk_hash{chainstate->CoinsDB().GetBestBlock()};
+        const CBlockIndex* live_tip{chainman.m_blockman.LookupBlockIndex(live_hash)};
+        const CBlockIndex* disk_tip{chainman.m_blockman.LookupBlockIndex(disk_hash)};
+        // Every coins best block is in the block index; if not, prune nothing.
+        if (!Assume(live_tip && (disk_hash.IsNull() || disk_tip))) return 0;
+        if (live_tip->nHeight < consensus.V20Height - params.CreditPoolPeriodBlocks()) continue;
+        // Restart recovery rolls forward from the fork between the on-disk and live coins tips,
+        // which can be deeper than the ordinary reorg range.
+        const int recovery_height{disk_tip ? LastCommonAncestor(live_tip, disk_tip)->nHeight : 0};
+        const int reorg_floor{std::max(0, live_tip->nHeight - static_cast<int>(MIN_BLOCKS_TO_KEEP))};
+        const int parent_height{std::min(reorg_floor, recovery_height)};
+        height_first = std::min(height_first, cpoolman.GetPruneLockHeight(*live_tip->GetAncestor(parent_height)));
+    }
+    return height_first;
+}
+
 bool Chainstate::FlushStateToDisk(
     BlockValidationState &state,
     FlushStateMode mode,
@@ -2987,6 +3015,9 @@ bool Chainstate::FlushStateToDisk(
         CoinsCacheSizeState cache_state = GetCoinsCacheSizeState();
         LOCK(m_blockman.cs_LastBlockFile);
         if (m_blockman.IsPruneMode() && (m_blockman.m_check_for_pruning || nManualPruneHeight > 0) && !fReindex) {
+            m_blockman.UpdatePruneLock("creditpool",
+                                       {GetCreditPoolPruneLockHeight(m_chainman, *m_chain_helper->credit_pool_manager)});
+
             // make sure we don't prune above any of the prune locks bestblocks
             // pruning is height-based
             int last_prune{m_chain.Height()}; // last height we can prune
@@ -3017,6 +3048,9 @@ bool Chainstate::FlushStateToDisk(
                 m_blockman.m_check_for_pruning = false;
             }
             if (!setFilesToPrune.empty()) {
+                // Make the snapshots used by the lock durable before recording
+                // prune marks and unlinking their reconstruction history.
+                if (!m_evoDb.Sync()) return AbortNode(state, "Failed to sync EvoDB before pruning");
                 fFlushForPrune = true;
                 if (!m_blockman.m_have_pruned) {
                     m_blockman.m_block_tree_db->WriteFlag("prunedblockfiles", true);

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <unordered_set>
 #include <vector>
 
@@ -35,6 +36,13 @@ struct Params;
 namespace llmq {
 class CQuorumManager;
 } // namespace llmq
+
+/** Unavailable local block history must not invalidate a candidate block. */
+class CreditPoolBlockReadError : public std::runtime_error
+{
+public:
+    using std::runtime_error::runtime_error;
+};
 
 struct CCreditPool {
     CAmount locked{0};
@@ -174,6 +182,9 @@ public:
       * it can happen if there limits of withdrawal (unlock) exceed
       */
     CCreditPool GetCreditPool(const CBlockIndex* block) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
+
+    /** First required body when reconstructing from a persisted snapshot at/before this parent. */
+    int GetPruneLockHeight(const CBlockIndex& oldest_parent);
 
 private:
     std::optional<CCreditPool> GetFromCache(const CBlockIndex& block_index) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);

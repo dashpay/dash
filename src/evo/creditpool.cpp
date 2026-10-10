@@ -80,7 +80,8 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
 
     CBlock block;
     if (!ReadBlockFromDisk(block, block_index, consensusParams)) {
-        throw std::runtime_error("failed-getcbforblock-read");
+        throw CreditPoolBlockReadError(strprintf("failed-getcbforblock-read: block %s at height %d is unavailable",
+                                                 block_index->GetBlockHash().ToString(), block_index->nHeight));
     }
 
     if (block.vtx.empty() || block.vtx[0]->vExtraPayload.empty() || !block.vtx[0]->IsSpecialTxVersion()) {
@@ -141,6 +142,26 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
         }
     }
     return std::nullopt;
+}
+
+int CCreditPoolManager::GetPruneLockHeight(const CBlockIndex& oldest_parent)
+{
+    const auto& consensus = m_chainman.GetConsensus();
+    const int window = m_chainman.GetParams().CreditPoolPeriodBlocks();
+    // Pending snapshots cannot protect history: pruning unlinks files before
+    // the current coins and EvoDB overlays are committed.
+    int first_read = consensus.V20Height - window;
+    for (int height = oldest_parent.nHeight - oldest_parent.nHeight % DISK_SNAPSHOT_PERIOD;
+         height >= consensus.V20Height; height -= DISK_SNAPSHOT_PERIOD) {
+        CCreditPool pool;
+        if (evoDb.GetRawDB().Read(std::make_pair(DB_CREDITPOOL_SNAPSHOT, oldest_parent.GetAncestor(height)->GetBlockHash()),
+                                  pool)) {
+            first_read = height + 1 - window;
+            break;
+        }
+    }
+    // GetCreditDataFromBlock() never reads bodies from before DIP0003.
+    return std::max(consensus.DIP0003Height, first_read);
 }
 
 void CCreditPoolManager::MaybeWriteSnapshot(const uint256& block_hash, int height, const CCreditPool& pool)
@@ -413,6 +434,10 @@ std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpo
             }
         }
         return creditPoolDiff;
+    } catch (const CreditPoolBlockReadError& e) {
+        // Missing local history is not a statement about the block.
+        AbortNode(state, strprintf("%s; restart with -reindex to restore it", e.what()));
+        return std::nullopt;
     } catch (const EvoDbInconsistencyError& e) {
         // Local EvoDB corruption (the node is already aborting): fail with
         // M_ERROR so the block is not marked invalid.
