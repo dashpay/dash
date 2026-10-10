@@ -48,6 +48,8 @@ src/qt/masternodewidgets.*
 src/qt/masternodewizard.*
 src/qt/mnsharesession.*
 src/qt/mnemonicverificationdialog.*
+src/platform/*.cpp
+src/platform/*.h
 src/qt/networkwidget.*
 src/qt/test/coincontroltreewidgettests.*
 src/qt/test/providertransactiontests.cpp
@@ -82,6 +84,9 @@ src/stats/*.cpp
 src/stats/*.h
 src/test/block_reward_reallocation_tests.cpp
 src/test/bls_tests.cpp
+src/test/fuzz/platform_walletrecords.cpp
+src/test/platform_client_tests.cpp
+src/test/util/platform_client.*
 src/test/coinjoin_*.cpp
 src/test/dip0020opcodes_tests.cpp
 src/test/dip14_tests.cpp
