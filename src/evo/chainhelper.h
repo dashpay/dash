@@ -76,6 +76,9 @@ public:
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(const CBlockIndex* pindex) const;
 
+    /** Passthrough to CDeterministicMNManager::UpdatedBlockTip */
+    void UpdatedMNListTip(const CBlockIndex* pindex);
+
     /** Passthrough functions to CCreditPoolManager */
     CCreditPool GetCreditPool(const CBlockIndex* const pindex);
 
