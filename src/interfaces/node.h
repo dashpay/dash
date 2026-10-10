@@ -32,6 +32,7 @@
 
 class BanMan;
 class CBlockIndex;
+class CBLSPublicKey;
 class CDeterministicMNList;
 class CFeeRate;
 class CGovernanceObject;
@@ -182,6 +183,15 @@ public:
     virtual ProviderTxResult<ProviderTxSubmission> updateShare(Wallet& wallet, const SharedUpdateShareRequest& request) = 0;
     virtual ProviderTxResult<PreparedSharedConsent> prepareSharedRegistrarUpdate(
         Wallet& wallet, const SharedRegistrarUpdatePrepareRequest& request) = 0;
+    /**
+     * Whether an operator public key is assigned to any masternode in the
+     * deterministic list at the current chain tip, under either BLS scheme
+     * encoding. This is a UX guard for skipping keys that would be rejected
+     * by DIP3 duplicate-key checks, not a safety mechanism: when the node is
+     * not ready to answer (no tip or no masternode manager yet), it returns
+     * false. Keys used only historically also return false.
+     */
+    virtual bool isMasternodeOperatorKeyInUse(const CBLSPublicKey& public_key) = 0;
     virtual void setContext(node::NodeContext* context) {}
 };
 

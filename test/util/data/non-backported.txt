@@ -28,6 +28,7 @@ src/index/timestamp*.cpp
 src/index/timestamp*.h
 src/instantsend/*.cpp
 src/instantsend/*.h
+src/interfaces/masternode_operator.h
 src/interfaces/providertx.h
 src/llmq/*.cpp
 src/llmq/*.h
@@ -106,6 +107,8 @@ src/util/wpipe.*
 src/wallet/bip39*
 src/wallet/coinjoin.*
 src/wallet/hdchain.*
+src/wallet/masternode_operator*
+src/wallet/test/masternode_operator_tests.cpp
 src/wallet/platformkeys.*
 src/wallet/platformtypes.h
 src/wallet/test/platformkeys_tests.cpp
