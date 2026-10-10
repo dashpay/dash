@@ -31,28 +31,32 @@ namespace Consensus {
 
 /**
  * Count ECDSA signature operations the old-fashioned (pre-0.6) way
+ * @param[in] count_data_sigs Also count CHECKDATASIG and CHECKDATASIGVERIFY
  * @return number of sigops this transaction's outputs will produce when spent
  * @see CTransaction::FetchInputs
  */
-unsigned int GetLegacySigOpCount(const CTransaction& tx);
+unsigned int GetLegacySigOpCount(const CTransaction& tx, bool count_data_sigs = false);
 
 /**
  * Count ECDSA signature operations in pay-to-script-hash inputs.
  *
  * @param[in] mapInputs Map of previous transactions that have outputs we're spending
+ * @param[in] count_data_sigs Also count CHECKDATASIG and CHECKDATASIGVERIFY
  * @return maximum number of sigops required to validate this transaction's inputs
  * @see CTransaction::FetchInputs
  */
-unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& mapInputs);
+unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& mapInputs, bool count_data_sigs = false);
 
 /**
  * Count total signature operations for a transaction.
  * @param[in] tx     Transaction for which we are counting sigops
  * @param[in] inputs Map of previous transactions that have outputs we're spending
  * @param[in] flags Script verification flags
+ * @param[in] count_data_sigs Also count CHECKDATASIG and CHECKDATASIGVERIFY
  * @return Total signature operation count for a tx
  */
-unsigned int GetTransactionSigOpCount(const CTransaction& tx, const CCoinsViewCache& inputs, uint32_t flags);
+unsigned int GetTransactionSigOpCount(const CTransaction& tx, const CCoinsViewCache& inputs, uint32_t flags,
+                                      bool count_data_sigs = false);
 
 /**
  * Check if transaction is final and can be included in a block with the

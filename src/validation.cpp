@@ -1022,7 +1022,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_INPUTS_NOT_STANDARD, "bad-txns-nonstandard-inputs");
     }
 
-    unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
+    unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS, /*count_data_sigs=*/true);
 
     // ws.m_modified_fees includes any fee deltas from PrioritiseTransaction
     ws.m_modified_fees = ws.m_base_fees;
@@ -1251,7 +1251,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     // Store transaction in memory
     m_pool.addUnchecked(*entry, ws.m_ancestors, validForFeeEstimation);
     CAmount nValueOut = tx.GetValueOut();
-    unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
+    unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS, /*count_data_sigs=*/true);
 
     ::g_stats_client->count("transactions.sizeBytes", entry->GetTxSize(), 1.0f);
     ::g_stats_client->count("transactions.fees", ws.m_modified_fees, 1.0f);
@@ -2654,6 +2654,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     unsigned int nSigOps = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
     bool fDIP0001Active_context = DeploymentActiveAt(*pindex, params.GetConsensus(), Consensus::DEPLOYMENT_DIP0001);
+    const bool count_data_sigs = DeploymentActiveAt(*pindex, m_chainman, Consensus::DEPLOYMENT_SIGNATURE_WORK);
 
     const CAmount blockSubsidy = GetBlockSubsidy(pindex, params.GetConsensus());
     const SpecialTxRules special_tx_rules{GetSpecialTxRules(pindex->pprev, m_chainman)};
@@ -2737,7 +2738,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         // GetTransactionSigOpCount counts 2 types of sigops:
         // * legacy (always)
         // * p2sh (when P2SH enabled in flags and excludes coinbase)
-        nSigOps += GetTransactionSigOpCount(tx, view, flags);
+        // Both include CHECKDATASIG once signature_work is active.
+        nSigOps += GetTransactionSigOpCount(tx, view, flags, count_data_sigs);
         if (nSigOps > MaxBlockSigOps(fDIP0001Active_context)) {
             LogPrintf("ERROR: ConnectBlock(): too many sigops\n");
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-sigops");

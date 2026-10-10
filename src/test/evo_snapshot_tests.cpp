@@ -1196,6 +1196,9 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signals_outnumbering_deployments_are_valid, BasicTe
     // map alongside V24's bit 13.
     auto snapshot{SyntheticSnapshot()};
     snapshot.mnhf_signals = {{10, 100}, {11, 200}, {12, 300}, {13, 400}};
+    for (uint8_t bit{0}; snapshot.mnhf_signals.size() <= size_t{Consensus::MAX_VERSION_BITS_DEPLOYMENTS}; ++bit) {
+        snapshot.mnhf_signals.emplace(bit, 100);
+    }
     BOOST_REQUIRE_GT(snapshot.mnhf_signals.size(), size_t{Consensus::MAX_VERSION_BITS_DEPLOYMENTS});
 
     BOOST_CHECK_NO_THROW(snapshot.Validate());
