@@ -31,6 +31,10 @@ EXPECTED_DASH_CIRCULAR_DEPENDENCIES = (
     "index/addressindex -> index/base -> node/context -> index/addressindex",
     "index/base -> node/context -> index/spentindex -> index/base",
     "index/base -> node/context -> index/timestampindex -> index/base",
+    # Platform GUI: the per-wallet service owns its flow state machines and the
+    # flows call back into the service (same shape as qt/*tablemodel <->
+    # qt/walletmodel above).
+    "qt/platform/identityflow -> qt/platform/platformservice -> qt/platform/identityflow",
     "banman -> common/bloom -> evo/assetlocktx -> llmq/quorumsman -> llmq/blockprocessor -> net -> banman",
     "coinjoin/client -> coinjoin/util -> wallet/wallet -> psbt -> node/transaction -> net_processing -> coinjoin/walletman -> coinjoin/client",
     "common/bloom -> evo/assetlocktx -> llmq/commitment -> evo/deterministicmns -> evo/simplifiedmns -> merkleblock -> common/bloom",

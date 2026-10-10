@@ -193,3 +193,37 @@ Example usage:
 
     cd .../src
     ../contrib/devtools/circular-dependencies.py {*,*/*,*/*/*}.{h,cpp}
+
+update-rust-hashes.py
+=====================
+
+Refreshes the sha256 pins of the prebuilt Rust toolchain
+(`depends/packages/native_rust.mk`) and of the per-host standard libraries
+(`depends/packages/rust_stdlib.mk`) after the version in `native_rust.mk` was
+changed; each downloaded archive must match the `.sha256` file published next
+to it. `--check` compares the pins with the published `.sha256` files instead
+of rewriting them.
+
+platform-bundle.sh
+==================
+
+Produces the crate bundle that `depends/packages/platform_cxx.mk` builds the
+Dash Platform CXX bindings from, for a given `dashpay/platform` commit, and
+prints the hashes to pin in `platform_cxx.mk`. The bundle includes the
+Tenderdash source archive for the tag the commit's `Cargo.lock` pins, so the
+two cannot disagree. Requires the Cargo version pinned in `native_rust.mk`,
+GNU tar, GNU gzip (set `TAR` and `GZIP_PROG` if they are installed under other
+names) and a `TMPDIR` with no `.cargo/config.toml` in any parent directory.
+The output is reproducible: rerunning it for the same commit yields the same
+bundle hash on any machine. The Platform tarball and the bundle are then
+uploaded to the depends sources mirror.
+
+    contrib/devtools/platform-bundle.sh <platform-commit>
+
+check-no-rust.py
+================
+
+Fails if any of the given executables contain Rust code. Run by the
+`linux64_sqlite` CI job, which builds against depends with `PLATFORM_GUI=1`,
+on `dashd`, the command-line tools and the fuzz binary, which must never link
+the Dash Platform CXX bindings.
