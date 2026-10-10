@@ -944,8 +944,6 @@ class RPCCoverage():
         covered_cmds = set({'generate'})
         # TODO: implement functional tests for voteraw
         covered_cmds.add('voteraw')
-        # TODO: implement functional tests for importelectrumwallet
-        covered_cmds.add('importelectrumwallet')
 
         if not os.path.isfile(coverage_ref_filename):
             raise RuntimeError("No coverage reference found")

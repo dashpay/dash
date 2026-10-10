@@ -131,11 +131,12 @@ appended to `test/util/data/non-backported.txt`.
 Pick the test type by what it can observe, not by where it is easiest to
 write.
 
-- A unit test (`src/test/`, `src/wallet/test/` with Boost; `src/qt/test/` with QTest) checks one function or class through the standard fixtures (`BasicTestingSetup`, `TestingSetup`) and its public surface, (not `friend` or injected private state); if the behavior can't be observed that way, extract a testable function or write a functional test.
+- A unit test (`src/test/`, `src/wallet/test/` with Boost; `src/qt/test/` with QTest) checks one function or class through the standard fixtures (`BasicTestingSetup`, `TestingSetup`) and its public surface, (not `friend` or injected private state); if the behavior can't be observed that way, extract a testable function or write a functional test. Name it after the scenario.
 - A functional test (`test/functional/`) proves a user-visible outcome over RPC or P2P — a block accepted, a lock formed, a peer banned — and is the home for anything spanning several subsystems.
-- A regression test must fail without the fix, pass with it, and observe the actual claimed behavior rather than a reachable proxy like a cache entry, seen-set size, or returned container.
-- Use one scenario (or one input table) per test case with a negative case for every special-cased path, put it in the file that already covers that scope, and add it only when catching the regression outweighs its maintenance and compile cost, naming it after the scenario.
-- Don't force a test: when a change is self-evident from the diff (typo, missing `const`, log category, renamed local) or untestable deterministically (performance, races, timing), state in the PR how you actually verified it, and claim mutation checks or "fails without the fix" only when you really ran them.
+- Don't force a test: when a change is self-evident from the diff (typo, missing `const`, log category, renamed local) or untestable deterministically (performance, races, timing), state in the PR how you actually verified it, and claim mutation checks or "fails without the fix" only when you really ran them. Add a test only when catching the regression outweighs its maintenance and compile cost.
+- If a regression test is added, it must fail without the fix, pass with it, and observe the actual claimed behavior rather than a reachable proxy like a cache entry, seen-set size, or returned container.
+- A scope is what a test file covers (a subsystem, RPC, or feature), a scenario is one setup inside it (a fixture and the sequence of steps run on it), and a case is a single check or input-table row inside a scenario.
+- If a feature or fix can be tested by adding an extra check to an existing relevant scenario, avoid creating a new scenario. If an existing fixture can be used for a new scenario, use it. Add new scenarios to the file that already covers that scope. Cover every special-cased path, including a negative case, preferably as extra checks or input-table rows in an existing scenario.
 
 ## Test Commands
 

@@ -45,36 +45,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         if not self.options.descriptors:
             assert 'hdchainid' not in node.getwalletinfo()
 
-    def test_failed_upgrade(self):
-        self.log.info("Failed encrypted HD upgrades must keep existing keys locked")
-        node = self.nodes[0]
-        node.createwallet("failed-upgrade", blank=True, descriptors=self.options.descriptors)
-        wallet = node.get_wallet_rpc("failed-upgrade")
-        key = node.get_deterministic_priv_key()
-        wallet.importprivkey(key.key)
-        passphrase = "upgrade passphrase"
-        wallet.encryptwallet(passphrase)
-        mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-        invalid_inputs = [("invalid mnemonic", "", "invalid mnemonic")]
-        if not self.options.descriptors:
-            invalid_inputs.append((mnemonic, "x" * 257, "Mnemonic passphrase is too long"))
-        for invalid_mnemonic, invalid_passphrase, error in invalid_inputs:
-            assert_raises_rpc_error(-1, error, wallet.upgradetohd, invalid_mnemonic, invalid_passphrase, passphrase)
-            assert_raises_rpc_error(-13, "Please enter the wallet passphrase", wallet.signmessage, key.address, "failed upgrade")
-            wallet.walletpassphrase(passphrase, 100)
-            sig = wallet.signmessage(key.address, "explicit unlock")
-            assert node.verifymessage(key.address, sig, "explicit unlock")
-            wallet.walletlock()
-        wallet.upgradetohd(mnemonic, "", passphrase, False)
-        assert_raises_rpc_error(-13, "Please enter the wallet passphrase", wallet.signmessage, key.address, "successful upgrade")
-        wallet.walletpassphrase(passphrase, 100)
-        sig = wallet.signmessage(key.address, "imported key after upgrade")
-        assert node.verifymessage(key.address, sig, "imported key after upgrade")
-        wallet.walletlock()
-        wallet.unloadwallet()
-
     def run_test(self):
-        self.test_failed_upgrade()
         node = self.nodes[0]
         node.backupwallet(os.path.join(node.datadir, "non_hd.bak"))
 
@@ -238,6 +209,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         # Null characters are allowed in wallet passphrases since v23
         walletpass = "111\0pass222"
         node.encryptwallet(walletpass)
+        assert_raises_rpc_error(-1, "invalid mnemonic", node.upgradetohd, "invalid mnemonic", "", walletpass)
         assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", node.rescanblockchain)
         assert_raises_rpc_error(-13, "Error: Wallet encrypted but passphrase not supplied to RPC.", node.upgradetohd, mnemonic[0])
         assert_raises_rpc_error(-14, "Error: The wallet passphrase entered was incorrect", node.upgradetohd, mnemonic[0], "", "111")

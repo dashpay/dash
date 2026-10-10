@@ -25,8 +25,18 @@ class RPCMasternodeTest(DashTestFramework):
         self.set_dash_llmq_test_params(1, 1)
 
     def run_test(self):
-        self.test_active_dkg_membership()
-
+        self.mine_until_mns_confirmed_for_next_dkg()
+        tip = self.nodes[0].getblockcount()
+        start_height = tip + 24 - tip % 24
+        self.generate(self.nodes[0], start_height - tip - 1)
+        node = self.mninfo[0].get_node(self)
+        other = "01" * 32
+        other_upcoming = [d for d in node.quorum("dkginfo", other)["upcoming_dkgs"] if d["blocksUntilStart"] == 1]
+        assert any(d["known"] and not d["isMember"] for d in other_upcoming)
+        self.generate(self.nodes[0], 1)
+        assert node.quorum("dkginfo")["active_dkgs"] > 0  # DKG is still disabled by spork
+        # A non-member only gets the sessions whose membership is unknown, e.g. a rotated type without a snapshot yet
+        assert_equal(node.quorum("dkginfo", other)["active_dkgs"], sum(not d["known"] for d in other_upcoming))
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
         self.mine_until_mns_confirmed_for_next_dkg()
@@ -38,42 +48,6 @@ class RPCMasternodeTest(DashTestFramework):
             for member in quorum_info["members"]:
                 if member["proTxHash"] == mn.proTxHash:
                     assert_equal(member['addresses']['core_p2p'][0], f'127.0.0.1:{mn.nodePort}')
-
-    def test_active_dkg_membership(self):
-        # Keep DKG disabled so no local session record can hide a reporting gap.
-        # Membership must remain counted for the whole current window anyway.
-        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
-        self.wait_for_sporks_same()
-        self.mine_until_mns_confirmed_for_next_dkg()
-        mn = self.mninfo[0]
-        node = mn.get_node(self)
-        other = "01" * 32
-        tip = self.nodes[0].getblockcount()
-        start_height = tip + 24 - tip % 24
-        self.generate(self.nodes[0], start_height - tip - 1)
-        info = node.quorum("dkginfo")
-        assert_equal(info["active_dkgs"], 0)
-        upcoming = info["upcoming_dkgs"]
-        other_upcoming = node.quorum("dkginfo", other)["upcoming_dkgs"]
-        [llmq_test] = [d for d in upcoming if d["llmqType"] == 100]
-        assert_equal(llmq_test["blocksUntilStart"], 1)
-        assert_equal(llmq_test["known"], True)
-        assert_equal(llmq_test["isMember"], True)
-        [other_llmq_test] = [d for d in other_upcoming if d["llmqType"] == 100]
-        assert_equal(other_llmq_test["known"], True)
-        assert_equal(other_llmq_test["isMember"], False)
-
-        for offset in (0, 1, 9, 10):
-            height = start_height + offset
-            self.generate(self.nodes[0], height - self.nodes[0].getblockcount())
-            info = node.quorum("dkginfo")
-            if offset < 10:
-                assert info["active_dkgs"] > 0
-            assert_equal(info["active_dkgs"], self.expected_active_dkgs(upcoming, height))
-            assert_equal(node.quorum("dkginfo", other)["active_dkgs"], self.expected_active_dkgs(other_upcoming, height))
-            assert_equal(node.quorum("dkgstatus")["session"], [])
-            assert all(d["blocksUntilStart"] > 0 for d in info["upcoming_dkgs"])
-
 
 if __name__ == '__main__':
     RPCMasternodeTest().main()

@@ -2218,11 +2218,6 @@ class DashTestFramework(BitcoinTestFramework):
                                if d["llmqType"] == llmq_type]
                 for mn in self.mninfo}
 
-    def expected_active_dkgs(self, upcoming, height):
-        # 'quorum dkginfo' active_dkgs at height from earlier upcoming_dkgs entries. Every regtest
-        # LLMQ type has dkgPhaseBlocks = 2, so a session is active through Commit for 10 blocks.
-        return sum(0 <= height - d["quorumHeight"] < 10 and (not d["known"] or d["isMember"]) for d in upcoming)
-
     def verify_upcoming_dkg_predictions(self, predictions, quorum_info):
         # 'quorum info' lists members in member-index order
         members = [m["proTxHash"] for m in quorum_info["members"]]
