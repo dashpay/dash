@@ -537,4 +537,32 @@ BOOST_FIXTURE_TEST_CASE(nonlocked_asset_unlock_dropped_when_removed_from_mempool
     BOOST_CHECK(isman.PrepareTxToRetry().empty());
 }
 
+BOOST_FIXTURE_TEST_CASE(nonlocked_tx_dropped_when_removed_from_mempool, TestChain100Setup)
+{
+    // Only mined entries are dropped once ChainLocked, so an unlocked transaction leaving the
+    // mempool must be dropped from the tracker; a mined one stays to retry its children later
+    auto& isman = *m_node.isman;
+    const auto make_spend = [](const COutPoint& prevout) {
+        CMutableTransaction mtx;
+        mtx.vin.emplace_back(prevout);
+        mtx.vout.emplace_back(COIN, CScript{});
+        return MakeTransactionRef(mtx);
+    };
+    const auto parent = make_spend(COutPoint(uint256::ONE, 0));
+    const auto child = make_spend(COutPoint(parent->GetHash(), 0));
+
+    isman.AddNonLockedTx(parent, nullptr);
+    isman.AddNonLockedTx(child, nullptr);
+    isman.RemoveUnminedNonLockedTx(*parent);
+    isman.RemoveUnminedNonLockedTx(*child);
+    BOOST_CHECK_EQUAL(isman.GetCounts().m_unprotected_tx, 0U);
+
+    const auto mined = make_spend(COutPoint(uint256::TWO, 0));
+    isman.AddNonLockedTx(mined, WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
+    const auto tracked{isman.GetCounts().m_unprotected_tx};
+    BOOST_REQUIRE_GT(tracked, 0U);
+    isman.RemoveUnminedNonLockedTx(*mined);
+    BOOST_CHECK_EQUAL(isman.GetCounts().m_unprotected_tx, tracked);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

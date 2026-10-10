@@ -531,6 +531,7 @@ void NetInstantSend::TransactionRemovedFromMempool(const CTransactionRef& tx, Me
                                                    uint64_t mempool_sequence)
 {
     m_is_manager.TransactionIsRemoved(tx);
+    m_is_manager.RemoveUnminedNonLockedTx(*tx);
 }
 
 void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)

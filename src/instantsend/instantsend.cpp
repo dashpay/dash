@@ -219,6 +219,12 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
     if (it == nonLockedTxs.end()) {
         return;
     }
+    EraseNonLockedTx(it, retryChildren);
+}
+
+void CInstantSendManager::EraseNonLockedTx(Uint256HashMap<NonLockedTxInfo>::iterator it, bool retryChildren)
+{
+    const uint256 txid{it->first};
     const auto& info = it->second;
 
     size_t retryChildrenCount = 0;
@@ -246,9 +252,22 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
     }
 
     nonLockedTxs.erase(it);
+    // A tx that is no longer tracked won't be locked, so its seen time would never be consumed
+    WITH_LOCK(cs_timingsTxSeen, timingsTxSeen.erase(txid));
 
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, retryChildren=%d, retryChildrenCount=%d\n",
              __func__, txid.ToString(), retryChildren, retryChildrenCount);
+}
+
+void CInstantSendManager::RemoveUnminedNonLockedTx(const CTransaction& tx)
+{
+    LOCK(cs_nonLocked);
+    auto it = nonLockedTxs.find(tx.GetHash());
+    if (it == nonLockedTxs.end() || it->second.pindexMined || !it->second.tx ||
+        it->second.tx->GetInstanceHash() != tx.GetInstanceHash()) {
+        return;
+    }
+    EraseNonLockedTx(it, /*retryChildren=*/false);
 }
 
 void CInstantSendManager::RetryUnminedAssetUnlocks()
