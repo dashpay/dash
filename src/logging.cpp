@@ -196,6 +196,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::SPORK, "spork"},
     {BCLog::NETCONN, "netconn"},
     {BCLog::CREDITPOOL, "creditpool"},
+    {BCLog::PLATFORM, "platform"},
     {BCLog::EHF, "ehf"},
     {BCLog::DASH, "dash"},
     //End Dash
@@ -322,6 +323,8 @@ std::string LogCategoryToStr(BCLog::LogFlags category)
         return "netconn";
     case BCLog::LogFlags::CREDITPOOL:
         return "creditpool";
+    case BCLog::LogFlags::PLATFORM:
+        return "platform";
     case BCLog::LogFlags::EHF:
         return "ehf";
     case BCLog::LogFlags::DASH:

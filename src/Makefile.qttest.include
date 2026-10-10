@@ -26,6 +26,9 @@ TEST_QT_MOC_CPP += \
   qt/test/moc_sharedmnwidgettests.cpp \
   qt/test/moc_sharedmnwizardtests.cpp \
   qt/test/moc_wallettests.cpp
+if ENABLE_PLATFORM_GUI
+TEST_QT_MOC_CPP += qt/test/moc_platformtests.cpp
+endif
 endif # ENABLE_WALLET
 
 TEST_QT_H = \
@@ -37,6 +40,7 @@ TEST_QT_H = \
   qt/test/masternodetestutil.h \
   qt/test/masternodewidgettests.h \
   qt/test/optiontests.h \
+  qt/test/platformtests.h \
   qt/test/proposalvotetests.h \
   qt/test/providertransactiontests.h \
   qt/test/rpcnestedtests.h \
@@ -76,6 +80,9 @@ qt_test_test_dash_qt_SOURCES += \
   qt/test/sharedmnwizardtests.cpp \
   qt/test/wallettests.cpp \
   wallet/test/wallet_test_fixture.cpp
+if ENABLE_PLATFORM_GUI
+qt_test_test_dash_qt_SOURCES += qt/test/platformtests.cpp
+endif
 endif # ENABLE_WALLET
 
 nodist_qt_test_test_dash_qt_SOURCES = $(TEST_QT_MOC_CPP)
@@ -86,6 +93,9 @@ qt_test_test_dash_qt_LDADD += $(LIBBITCOIN_UTIL) $(LIBBITCOIN_WALLET)
 endif
 if ENABLE_ZMQ
 qt_test_test_dash_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+endif
+if ENABLE_PLATFORM_GUI
+qt_test_test_dash_qt_LDADD += $(LIBDASH_PLATFORM) $(PLATFORM_CXX_LIBS)
 endif
 qt_test_test_dash_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBDASHBLS) $(LIBUNIVALUE) $(LIBLEVELDB) \
   $(LIBMEMENV) $(BACKTRACE_LIBS) $(QT_LIBS) $(QT_DBUS_LIBS) $(QT_TEST_LIBS) \
