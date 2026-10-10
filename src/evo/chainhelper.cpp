@@ -4,6 +4,7 @@
 
 #include <evo/chainhelper.h>
 
+#include <chain.h>
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <evo/creditpool.h>
@@ -38,9 +39,15 @@ CChainstateHelper::CChainstateHelper(CEvoDB& evodb, CDeterministicMNManager& dmn
 
 CChainstateHelper::~CChainstateHelper() = default;
 
-bool CChainstateHelper::IsSuperblockValidationRequired(const CBlockIndex* const pindex)
+bool CChainstateHelper::IsSuperblockValidationRequired(const CBlockIndex* const pindex, bool enforce_branch_binding)
 {
-    if (m_chainlocks.GetBestChainLockHeight() >= pindex->nHeight) {
+    bool chainlocked = m_chainlocks.GetBestChainLockHeight() >= pindex->nHeight;
+    if (enforce_branch_binding) {
+        const auto* certified_index = m_chainlocks.GetBestChainlockWithPindex().second;
+        chainlocked = certified_index && certified_index->nHeight >= pindex->nHeight &&
+                      certified_index->GetAncestor(pindex->nHeight)->GetBlockHash() == pindex->GetBlockHash();
+    }
+    if (chainlocked) {
         LogPrint(BCLog::MNPAYMENTS, "%s -- validation of chainlocked block=%s is skipped\n", __func__, pindex->GetBlockHash().ToString());
         return false;
     }

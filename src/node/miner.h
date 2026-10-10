@@ -22,6 +22,7 @@
 
 class ArgsManager;
 class CBlockIndex;
+class CBLSSignature;
 class CChainParams;
 class CChainstateHelper;
 class CConnman;
@@ -41,6 +42,10 @@ class CQuorumBlockProcessor;
 
 namespace node {
 struct NodeContext;
+
+/** Choose the coinbase ChainLock for the candidate parent's ancestry. */
+bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
+                           uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature, bool enforce_branch_binding);
 
 static const bool DEFAULT_PRINTPRIORITY = false;
 
