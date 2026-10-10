@@ -176,9 +176,9 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
     }
 }
 
-// Test-only subclass exposing the minimal seams needed to observe how
-// ProcessDSSIGNFINALTX treats messages from participants vs. non-participants
-// without standing up a full DKG-backed signing session.
+// Test-only subclass exposing the minimal seams needed to exercise server lifecycle behavior
+// without standing up a full DKG-backed signing session. The helpers only establish preconditions
+// and invoke the production paths; the behavior under test is not reproduced here.
 class TestableCoinJoinServer : public CCoinJoinServer
 {
 public:
@@ -204,13 +204,46 @@ public:
     {
         LOCK(cs_coinjoin);
         m_mapDeclaredShapes.emplace(txCollateral.GetHash(), shape);
-        CommitSessionCollateral(txCollateral);
+        m_session_collaterals.Add(txCollateral);
     }
 
     void SeedEntry(CCoinJoinEntry entry) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
     {
         LOCK(cs_coinjoin);
         vecEntries.push_back(std::move(entry));
+    }
+
+    void SeedTimedOutSession(PoolState state, int participants = CoinJoin::GetMinPoolParticipants(),
+                             bool has_missing_entry = false) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin)
+    {
+        LOCK(cs_coinjoin);
+        SetNull();
+
+        nSessionID = 1;
+        nState = state;
+        nTimeLastSuccessfulStep = GetTime() -
+                                  (state == POOL_STATE_SIGNING ? COINJOIN_SIGNING_TIMEOUT : COINJOIN_QUEUE_TIMEOUT);
+
+        for (int i = 0; i < participants; ++i) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+            m_mapDeclaredShapes.emplace(collateral.GetHash(), CoinJoin::MixShape::STANDARD);
+            m_session_collaterals.Add(collateral);
+
+            if (state == POOL_STATE_QUEUE) continue;
+
+            CTxDSIn txdsin{CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i)}}, P2PKHScript(), 0};
+            txdsin.fHasSig = state == POOL_STATE_SIGNING;
+            std::vector<CTxOut> outputs{CTxOut{CoinJoin::GetSmallestDenomination(), P2PKHScript()}};
+            vecEntries.emplace_back(std::vector<CTxDSIn>{txdsin}, std::move(outputs), CTransaction{collateral});
+        }
+
+        if (has_missing_entry) {
+            CMutableTransaction collateral;
+            collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(participants)});
+            m_mapDeclaredShapes.emplace(collateral.GetHash(), CoinJoin::MixShape::STANDARD);
+            m_session_collaterals.Add(collateral);
+        }
     }
 };
 
@@ -458,13 +491,45 @@ BOOST_AUTO_TEST_CASE(server_finalization_rechecks_live_side_coverage)
     server.EnterAcceptingEntriesState();
 
     // A timeout snapshot could have observed only the three demotions as covered (0/3), then
-    // this first promotion could commit while ChargeFees() ran. Finalization must use the live
-    // 1/3 side counts and refuse to build the uncovered transaction, staying out of
+    // this first promotion could commit before finalization took the lock. Finalization must use
+    // the live 1/3 side counts and refuse to build the uncovered transaction, staying out of
     // POOL_STATE_SIGNING; the still-timed-out session is then reset by the scheduler's
     // regular CheckTimeout() pass instead of leaking a lone promoter on-chain.
-    server.CreateFinalTransaction(/*session_id=*/1);
+    server.CreateFinalTransaction(/*session_id=*/1, /*charge_fees=*/true);
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 4);
+}
+
+BOOST_AUTO_TEST_CASE(server_timeout_does_not_reset_actionable_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+
+    // A queue that just became ready, an entry for every collateral, and a fully signed final
+    // transaction can all still advance, so a timeout landing after the scheduler's own
+    // CheckPool() snapshot must leave them for the next tick instead of discarding them.
+    for (const auto state : {POOL_STATE_QUEUE, POOL_STATE_ACCEPTING_ENTRIES, POOL_STATE_SIGNING}) {
+        BOOST_TEST_CONTEXT("state=" << state)
+        {
+            server.SeedTimedOutSession(state);
+            server.CheckTimeout();
+            BOOST_CHECK_EQUAL(server.GetState(), int{state});
+        }
+    }
+
+    // Enough covered entries to finalize without the straggler.
+    server.SeedTimedOutSession(POOL_STATE_ACCEPTING_ENTRIES, CoinJoin::GetMinPoolParticipants(),
+                               /*has_missing_entry=*/true);
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_ACCEPTING_ENTRIES});
+
+    // A queue that never reached the minimum participant count cannot advance and is reset.
+    server.SeedTimedOutSession(POOL_STATE_QUEUE, CoinJoin::GetMinPoolParticipants() - 1);
+    server.CheckTimeout();
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_IDLE});
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
