@@ -27,6 +27,7 @@
 #include <cuckoocache.h>
 #include <flatfile.h>
 #include <hash.h>
+#include <kernel/chainparams.h>
 #include <kernel/disconnected_transactions.h>
 #include <kernel/mempool_entry.h>
 #include <logging.h>
@@ -6544,7 +6545,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
 
     CCoinsViewDB& ibd_coins_db = m_ibd_chainstate->CoinsDB();
 
-    auto maybe_au_data = ExpectedAssumeutxo(curr_height, ::Params());
+    auto maybe_au_data = ExpectedAssumeutxo(curr_height, m_options.chainparams);
     if (!maybe_au_data) {
         LogPrintf("[snapshot] assumeutxo data not found for height " /* Continued */
             "(%d) - refusing to validate snapshot\n", curr_height);

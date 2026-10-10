@@ -6,6 +6,7 @@
 
 #include <chainlock/clsig.h>
 #include <chainlock/handler.h>
+#include <chainparams.h>
 #include <instantsend/instantsend.h>
 #include <llmq/signing_shares.h>
 #include <masternode/sync.h>

@@ -6,6 +6,8 @@
 
 #include <consensus/params.h>
 
+#include <string_view>
+
 const struct VBDeploymentInfo VersionBitsDeploymentInfo[Consensus::MAX_VERSION_BITS_DEPLOYMENTS] = {
     {
         /*.name =*/ "testdummy",
@@ -57,4 +59,34 @@ std::string DeploymentName(Consensus::BuriedDeployment dep)
         return "withdrawals";
     } // no default case, so the compiler can warn about missing cases
     return "";
+}
+
+std::optional<Consensus::BuriedDeployment> GetBuriedDeployment(const std::string_view name)
+{
+    if (name == "bip147") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_BIP147;
+    } else if (name == "bip34") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_HEIGHTINCB;
+    } else if (name == "dersig") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_DERSIG;
+    } else if (name == "cltv") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_CLTV;
+    } else if (name == "csv") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_CSV;
+    } else if (name == "brr") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_BRR;
+    } else if (name == "dip0001") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_DIP0001;
+    } else if (name == "dip0008") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_DIP0008;
+    } else if (name == "dip0024") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_DIP0024;
+    } else if (name == "v19") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_V19;
+    } else if (name == "v20") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_V20;
+    } else if (name == "mn_rr") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_MN_RR;
+    }
+    return std::nullopt;
 }

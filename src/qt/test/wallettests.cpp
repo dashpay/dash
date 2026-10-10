@@ -5,6 +5,7 @@
 #include <qt/test/wallettests.h>
 #include <qt/test/util.h>
 
+#include <chainparams.h>
 #include <interfaces/chain.h>
 #include <interfaces/node.h>
 #include <qt/bitcoinamountfield.h>

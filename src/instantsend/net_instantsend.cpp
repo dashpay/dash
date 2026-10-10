@@ -6,6 +6,7 @@
 
 #include <bls/bls_batchverifier.h>
 #include <chainlock/chainlock.h>
+#include <chainparams.h>
 #include <consensus/params.h>
 #include <cxxtimer.hpp>
 #include <instantsend/instantsend.h>

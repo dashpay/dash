@@ -5,6 +5,7 @@
 #include <bls/bls.h>
 #include <bls/bls_batchverifier.h>
 #include <bls/bls_worker.h>
+#include <chainparams.h>
 #include <clientversion.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>

@@ -5,11 +5,11 @@
 #include <node/blockstorage.h>
 
 #include <chain.h>
-#include <chainparams.h>
 #include <clientversion.h>
 #include <consensus/validation.h>
 #include <flatfile.h>
 #include <hash.h>
+#include <kernel/chainparams.h>
 #include <pow.h>
 #include <shutdown.h>
 #include <streams.h>
