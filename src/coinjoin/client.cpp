@@ -678,6 +678,33 @@ void CCoinJoinClientManager::UpdatedSuccessBlock()
     nCachedLastSuccessBlock = nCachedBlockHeight;
 }
 
+// NOTE: the record which owns the locks and the persistent locks themselves are
+// separate writes and each write is its own implicit transaction, so commit them in
+// one explicit database transaction: a crash in between must neither leave
+// persistently locked coins behind with nothing tracking them (nothing would ever
+// release them again) nor persist the record without its locks (on restart the
+// missing lock reads as a manual unlock, the entry is dropped and the input becomes
+// selectable again while the finalized mixing transaction may still be in flight).
+// If no transaction can be started, don't persist anything rather than risk exactly
+// those partial states. The locks of all entries are written, not only of the ones
+// just added: entries added while nothing could be persisted are locked in memory only.
+// A lock released manually in the meantime is left alone, the next check drops its entry.
+static bool PersistPendingObservations(const CWallet& wallet, wallet::WalletBatch& batch,
+                                       const std::map<COutPoint, int64_t>& pending)
+    EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+{
+    if (!batch.TxnBegin()) return false;
+    bool fPersisted{batch.WriteCoinJoinPendingObs(pending)};
+    for (auto it = pending.begin(); fPersisted && it != pending.end(); ++it) {
+        if (wallet.IsLockedCoin(it->first)) fPersisted = batch.WriteLockedUTXO(it->first);
+    }
+    if (!fPersisted) {
+        batch.TxnAbort();
+        return false;
+    }
+    return batch.TxnCommit();
+}
+
 void CCoinJoinClientManager::AddPendingObservation(const std::vector<COutPoint>& outpoints)
 {
     AssertLockNotHeld(cs_pending_obs);
@@ -691,36 +718,16 @@ void CCoinJoinClientManager::AddPendingObservation(const std::vector<COutPoint>&
     const int64_t nNow{GetTime()};
     for (const auto& outpoint : outpoints) {
         m_pending_obs.emplace(outpoint, nNow);
-    }
-
-    // NOTE: the record which owns the locks and the persistent locks themselves are
-    // separate writes and each write is its own implicit transaction, so commit them in
-    // one explicit database transaction: a crash in between must neither leave
-    // persistently locked coins behind with nothing tracking them (nothing would ever
-    // release them again) nor persist the record without its locks (on restart the
-    // missing lock reads as a manual unlock, the entry is dropped and the input becomes
-    // selectable again while the finalized mixing transaction may still be in flight).
-    // If no transaction can be started, don't persist anything rather than risk exactly
-    // those partial states. Likewise if the existing record could not be read
-    // (LoadPendingObservations() left m_pending_obs_loaded unset): overwriting it would
-    // permanently orphan the locks it still tracks.
-    const bool fTxn{m_pending_obs_loaded && batch.TxnBegin()};
-    bool fPersisted{fTxn && batch.WriteCoinJoinPendingObs(m_pending_obs)};
-    for (const auto& outpoint : outpoints) {
-        // The coins are locked in memory already (see PrepareDenominate), this only
-        // persists the lock so that a restart before the finalized transaction is
-        // observed cannot make the input available for selection again. Stop writing
-        // once anything failed, the transaction is aborted as a whole below.
-        if (!m_wallet->LockCoin(outpoint, fPersisted ? &batch : nullptr)) fPersisted = false;
+        // The coins are locked in memory already (see PrepareDenominate), the lock is
+        // persisted below so that a restart before the finalized transaction is observed
+        // cannot make the input available for selection again
+        m_wallet->LockCoin(outpoint);
         WalletCJLogPrint(m_wallet, "CCoinJoinClientManager::%s -- %s is locked until the finalized mixing transaction is observed\n",
                          __func__, outpoint.ToStringShort());
     }
-    if (fPersisted) {
-        fPersisted = batch.TxnCommit();
-    } else if (fTxn) {
-        batch.TxnAbort();
-    }
-    if (!fPersisted) {
+    // Never overwrite a record which could not be read (LoadPendingObservations() left
+    // m_pending_obs_loaded unset), that would permanently orphan the locks it still tracks
+    if (!m_pending_obs_loaded || !PersistPendingObservations(*m_wallet, batch, m_pending_obs)) {
         // The in-memory lock still protects these inputs for as long as this process
         // runs, but a restart would make them selectable again while a valid mixing
         // transaction spending them may already be in flight. Nothing we can do about
@@ -783,6 +790,9 @@ void CCoinJoinClientManager::CheckPendingObservations(const CTxMemPool& mempool)
     LOCK(m_wallet->cs_wallet);
     LOCK(cs_pending_obs);
 
+    // Entries added while the record could not be read are locked in memory only (see
+    // AddPendingObservation()), persist them once the record has been recovered
+    bool fChanged{!m_pending_obs_loaded && !m_pending_obs.empty()};
     if (!m_pending_obs_loaded) {
         // Read-only, no need to checkpoint the database on the way out
         wallet::WalletBatch batch_load(m_wallet->GetDatabase(), /*_fFlushOnClose=*/false);
@@ -800,7 +810,6 @@ void CCoinJoinClientManager::CheckPendingObservations(const CTxMemPool& mempool)
 
     const int64_t nNow{GetTime()};
     const bool fSynced{m_mn_sync.IsBlockchainSynced()};
-    bool fChanged{false};
     for (auto it = m_pending_obs.begin(); it != m_pending_obs.end();) {
         const COutPoint& outpoint = it->first;
         if (!m_wallet->IsLockedCoin(outpoint)) {
@@ -862,7 +871,7 @@ void CCoinJoinClientManager::CheckPendingObservations(const CTxMemPool& mempool)
     // it may still track locks nothing else would ever release. An entry released
     // above but left in such a record self-heals: once the record is readable again
     // the entry reloads, its coin is no longer locked and it is dropped right here.
-    if (fChanged && m_pending_obs_loaded && !get_batch().WriteCoinJoinPendingObs(m_pending_obs)) {
+    if (fChanged && m_pending_obs_loaded && !PersistPendingObservations(*m_wallet, get_batch(), m_pending_obs)) {
         LogPrintf("CCoinJoinClientManager::%s -- ERROR: failed to persist %d pending observation(s)\n", __func__,
                   m_pending_obs.size());
     }

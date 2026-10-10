@@ -447,14 +447,18 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_unreadable_tests, CTransact
         }
 
         // Once the record is readable again the entry it tracks is picked back up and the
-        // lock behind it can finally be released
+        // lock behind it can finally be released. An entry added in the meantime is only
+        // locked in memory until then, its lock is persisted along with the record.
+        cj_man.AddPendingObservation({outpointInMemory});
         {
             WalletBatch batch(wallet->GetDatabase());
             BOOST_REQUIRE(batch.WriteCoinJoinPendingObs({{outpointPersisted, nStart}}));
         }
         cj_man.CheckPendingObservations(*m_node.mempool);
         BOOST_CHECK(cj_man.IsPendingObservation(outpointPersisted));
-        BOOST_CHECK_EQUAL(cj_man.GetPendingObservationCount(), 1);
+        BOOST_CHECK_EQUAL(cj_man.GetPendingObservationCount(), 2);
+        BOOST_CHECK(wallet->GetDatabase().MakeBatch()->Exists(
+            std::make_pair(DBKeys::LOCKED_UTXO, std::make_pair(outpointInMemory.hash, outpointInMemory.n))));
 
         m_node.mn_sync->SwitchToNextAsset();
         BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
