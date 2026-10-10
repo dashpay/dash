@@ -19,8 +19,21 @@
 void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternodeManager& mn_activeman)
 {
     CMNAuth mnauth;
-    if (mn_activeman.GetProTxHash().IsNull()) {
+    const uint256 pro_tx_hash{mn_activeman.GetProTxHash()};
+    if (pro_tx_hash.IsNull()) {
         return;
+    }
+    if (peer.IsInboundConn()) {
+        const CService expected_service{mn_activeman.GetService()};
+        const CService connected_service{static_cast<const CService&>(peer.addrBind)};
+        if (expected_service.GetPort() != connected_service.GetPort() ||
+            expected_service.GetNetwork() != peer.ConnectedThroughNetwork()) {
+            LogPrint(BCLog::NET_NETCONN, /* Continued */
+                     "CMNAuth::%s -- Not sending MNAUTH on unexpected local service, expected=%s, connected=%s, "
+                     "peer=%d\n",
+                     __func__, expected_service.ToStringAddrPort(), connected_service.ToStringAddrPort(), peer.GetId());
+            return;
+        }
     }
 
     const auto receivedMNAuthChallenge = peer.GetReceivedMNAuthChallenge();
@@ -39,7 +52,7 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternode
     }
     const uint256 signHash{::SerializeHash(std::make_tuple(mn_activeman.GetPubKey(), receivedMNAuthChallenge, peer.IsInboundConn(), nOurNodeVersion))};
 
-    mnauth.proRegTxHash = mn_activeman.GetProTxHash();
+    mnauth.proRegTxHash = pro_tx_hash;
 
     // all clients uses basic BLS
     mnauth.sig = mn_activeman.Sign(signHash, false);
