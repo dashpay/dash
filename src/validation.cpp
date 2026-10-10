@@ -3431,6 +3431,10 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
+            // Other threads read the open transaction, so roll it back before evicting the
+            // candidate or a concurrent lookup could cache it again.
+            dbTx->Rollback();
+            m_chain_helper->DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
             LogError("%s: ConnectBlock %s failed, %s\n", __func__, pindexNew->GetBlockHash().ToString(), state.ToString());
@@ -3476,6 +3480,9 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     // on legacy.
     if (this == &m_chainman.ActiveChainstate()) bls_scheme_guard.Commit();
     UpdateTip(pindexNew);
+    if (this == &m_chainman.ActiveChainstate()) {
+        m_chain_helper->ResetPlatformBans(blockConnecting, *pindexNew);
+    }
 
     const auto time_6{SteadyClock::now()};
     time_post_connect += time_6 - time_5;

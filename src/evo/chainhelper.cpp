@@ -69,6 +69,14 @@ uint256 CChainstateHelper::GetDeterministicMNListHash(const CBlockIndex* pindex)
     return SerializeHash(m_dmnman.GetListForBlock(Assert(pindex)));
 }
 
+void CChainstateHelper::ResetPlatformBans(const CBlock& block, const CBlockIndex& index)
+{
+    AssertLockHeld(::cs_main);
+    m_dmnman.ResetPlatformBans(block, index);
+}
+
+void CChainstateHelper::DiscardDeterministicMNBlock(const uint256& block_hash) { m_dmnman.DiscardBlock(block_hash); }
+
 /** Passthrough functions to CCreditPoolManager */
 CCreditPool CChainstateHelper::GetCreditPool(const CBlockIndex* const pindex)
 {
