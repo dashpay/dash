@@ -5,6 +5,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/params.h>
+#include <deploymentstatus.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <versionbits.h>
@@ -281,7 +282,9 @@ static void check_computeblockversion(VersionBitsCache& versionbitscache, const 
         nStartTime == Consensus::BIP9Deployment::NEVER_ACTIVE)
     {
         BOOST_CHECK_EQUAL(min_activation_height, 0);
-        BOOST_CHECK_EQUAL(nTimeout, Consensus::BIP9Deployment::NO_TIMEOUT);
+        BOOST_CHECK(nTimeout == Consensus::BIP9Deployment::NO_TIMEOUT ||
+                    (nStartTime == Consensus::BIP9Deployment::NEVER_ACTIVE &&
+                     nTimeout == Consensus::BIP9Deployment::NEVER_ACTIVE));
         return;
     }
 
@@ -495,6 +498,62 @@ BOOST_AUTO_TEST_CASE(evo_shares_follows_v24)
         BOOST_CHECK_EQUAL(evo_shares.nThresholdMin, v24.nThresholdMin);
         BOOST_CHECK_EQUAL(evo_shares.nFalloffCoeff, v24.nFalloffCoeff);
         BOOST_CHECK(evo_shares.useEHF && v24.useEHF);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(distinct_required_payments_is_dormant)
+{
+    for (const auto& chain_name :
+         {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::DEVNET, CBaseChainParams::REGTEST}) {
+        const auto chain_params = CreateChainParams(*m_node.args, chain_name);
+        auto params = chain_params->GetConsensus();
+        const auto deployment = Consensus::DEPLOYMENT_DISTINCT_REQUIRED_PAYMENTS;
+        VersionBitsCache cache;
+        CBlockIndex index;
+        BOOST_CHECK_EQUAL(params.vDeployments[deployment].nTimeout, Consensus::BIP9Deployment::NEVER_ACTIVE);
+        for (const int64_t time :
+             {int64_t{0}, int64_t{chain_params->GenesisBlock().nTime}, std::numeric_limits<int64_t>::max()}) {
+            BOOST_CHECK(chain_params->IsValidMNActivation(params.vDeployments[deployment].bit, time));
+        }
+        BOOST_CHECK(!DeploymentEnabled(params, deployment));
+        BOOST_CHECK(!DeploymentActiveAt(index, params, deployment, cache));
+        params.vDeployments[deployment].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        cache.Clear();
+        BOOST_CHECK(DeploymentActiveAt(index, params, deployment, cache));
+    }
+    // Test-only schedule: activation follows the candidate's branch, with a shared or a fresh cache.
+    auto params = Params().GetConsensus();
+    params.MinBIP9WarningHeight = 0;
+    const auto deployment = Consensus::DEPLOYMENT_DISTINCT_REQUIRED_PAYMENTS;
+    auto& test_deployment = params.vDeployments[deployment];
+    test_deployment.nStartTime = 0;
+    test_deployment.nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+    test_deployment.nWindowSize = 4;
+    test_deployment.nThresholdStart = 3;
+    test_deployment.nThresholdMin = 3;
+    test_deployment.nFalloffCoeff = 0;
+    test_deployment.useEHF = false;
+    std::vector<CBlockIndex> signaled(20), unsignaled(20);
+    for (auto* branch : {&signaled, &unsignaled}) {
+        for (size_t i{0}; i < branch->size(); ++i) {
+            auto& index = (*branch)[i];
+            index.nHeight = i;
+            index.nTime = 1000 + i;
+            index.nVersion = VERSIONBITS_TOP_BITS;
+            if (branch == &signaled) index.nVersion |= uint32_t{1} << test_deployment.bit;
+            if (i) index.pprev = &(*branch)[i - 1];
+            index.BuildSkip();
+        }
+    }
+    VersionBitsCache cache;
+    CBlockIndex candidate;
+    candidate.nHeight = 20;
+    for (CBlockIndex* parent : {&signaled.back(), &unsignaled.back(), &signaled.back()}) {
+        candidate.pprev = parent;
+        const bool active = parent == &signaled.back();
+        BOOST_CHECK_EQUAL(DeploymentActiveAt(candidate, params, deployment, cache), active);
+        VersionBitsCache restarted_cache;
+        BOOST_CHECK_EQUAL(DeploymentActiveAt(candidate, params, deployment, restarted_cache), active);
     }
 }
 

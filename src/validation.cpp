@@ -2858,7 +2858,9 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     const MnRewardEra mn_reward_era{GetMnRewardEraAfter(pindex->pprev, m_chainman)};
     if (!m_chain_helper->mn_payments->IsBlockPayeeValid(m_chain, *block.vtx[0], pindex->pprev, blockSubsidy, feeReward,
-                                                        mn_reward_era, special_tx_rules.v24, check_superblock)) {
+                                                        mn_reward_era, special_tx_rules.v24, check_superblock,
+                                                        DeploymentActiveAt(*pindex, m_chainman,
+                                                                           Consensus::DEPLOYMENT_DISTINCT_REQUIRED_PAYMENTS))) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): couldn't find masternode or superblock payments\n");
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-payee");

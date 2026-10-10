@@ -4,15 +4,15 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Tests around dash governance."""
 
+from copy import deepcopy
+from decimal import Decimal
 import json
 
-from test_framework.messages import uint256_to_string
-from test_framework.test_framework import (
-    DashTestFramework,
-    MasternodeInfo,
-)
+from test_framework.authproxy import JSONRPCException
+from test_framework.messages import CBlock, COIN, from_hex, uint256_to_string
+from test_framework.test_framework import DashTestFramework
 from test_framework.governance import have_trigger_for_height, prepare_object
-from test_framework.util import assert_equal, satoshi_round
+from test_framework.util import assert_equal, force_finish_mnsync, satoshi_round
 
 GOVERNANCE_UPDATE_MIN = 60 * 60 # src/governance/object.h
 
@@ -57,6 +57,131 @@ class DashGovernanceTest (DashTestFramework):
                     assert False
 
         assert_equal(payments_found, 2)
+
+    def test_distinct_required_payments(self):
+        node = self.nodes[0]
+        self.sync_all()
+        parent_height = node.getblockcount()
+        target_height = node.getgovernanceinfo()["nextsuperblock"]
+        assert_equal(target_height - parent_height, 20)
+        assert_equal(len(node.protx("list", "valid")), self.mn_count)
+        # Twenty blocks are four full payment cycles of the five regular masternodes.
+        owner_addresses = {mn.rewards_address for mn in self.mninfo}
+        payment, = [p for p in node.masternode("payments", node.getbestblockhash())[0]["masternodes"][0]["payees"] if p["address"] in owner_addresses]
+        payment_amount = Decimal(payment["amount"]) / COIN
+        assert payment_amount <= node.getsuperblockbudget(target_height)
+
+        node.sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 4070908800)
+        self.wait_for_sporks_same()
+        self.bump_mocktime(GOVERNANCE_UPDATE_MIN + 1, update_schedulers=False)
+        for proposal_hash in (self.p0_hash, self.p1_hash, self.p2_hash):
+            node.gobject("vote-many", proposal_hash, "funding", "no")
+            self.wait_until(lambda: all(n.gobject("get", proposal_hash)["FundingResult"]["NoCount"] == self.mn_count for n in self.nodes))
+
+        proposal_time = self.mocktime
+        proposal = prepare_object(node, 1, uint256_to_string(0), proposal_time, 1,
+                                  "DistinctPayments", payment_amount, payment["address"])
+        self.bump_mocktime(6)
+        self.generate(node, 6)
+        proposal_hash = node.gobject("submit", "0", 1, proposal_time, proposal["hex"], proposal["collateralHash"])
+        self.wait_until(lambda: all(proposal_hash in n.gobject("list") for n in self.nodes))
+        node.gobject("vote-many", proposal_hash, "funding", "yes")
+        self.wait_until(lambda: all(n.gobject("get", proposal_hash)["FundingResult"]["YesCount"] == self.mn_count for n in self.nodes))
+        trigger_hash = None
+        trigger_voted = False
+        while node.getblockcount() < target_height - 1:
+            self.bump_mocktime(1)
+            # Flush tip callbacks before another payee can create a competing trigger.
+            self.generate(node, 1)
+            if trigger_hash is not None:
+                if not trigger_voted:
+                    self.wait_until(lambda: all(n.gobject("get", trigger_hash)["FundingResult"]["YesCount"] == self.mn_count for n in self.nodes))
+                    trigger_voted = True
+                continue
+            triggers = {h for n in self.nodes for h, trigger in n.gobject("list", "valid", "triggers").items()
+                        if json.loads(trigger["DataString"])["event_block_height"] == target_height}
+            if triggers:
+                trigger_hash, = triggers
+                # Recipients vote on the next tip; first relay this exact trigger to everyone.
+                self.wait_until(lambda: all(trigger_hash in n.gobject("list", "valid", "triggers") for n in self.nodes))
+        assert trigger_voted
+        self.wait_until(lambda: have_trigger_for_height(self.nodes, target_height))
+
+        def check_validator(active):
+            assert_equal(node.mnsync("status")["IsSynced"], True)
+            deployments = node.getdeploymentinfo()["deployments"]
+            if active:
+                assert_equal(deployments["distinct_required_payments"]["active"], True)
+            else:
+                # NEVER_ACTIVE deployments are omitted from this RPC.
+                assert "distinct_required_payments" not in deployments
+            assert_equal(have_trigger_for_height([node], target_height), True)
+            template = node.getblocktemplate()
+            assert_equal(template["height"], target_height)
+            superblock_payment, = template["superblock"]
+            assert_equal(superblock_payment["script"], payment["script"])
+            assert_equal(superblock_payment["amount"], payment["amount"])
+            assert any(p["script"] == payment["script"] and p["amount"] == payment["amount"] for p in template["masternode"])
+            assert_equal(node.spork("active")["SPORK_19_CHAINLOCKS_ENABLED"], False)
+            try:
+                assert node.getbestchainlock()["height"] < target_height
+            except JSONRPCException as error:
+                assert_equal(error.error["code"], -32603)
+                assert_equal(error.error["message"], "Unable to find any ChainLock")
+
+        check_validator(False)
+        miner_address = node.getnewaddress()
+        result = self.generateblock(node, miner_address, [], False, sync_fun=self.no_op)
+        valid_block = from_hex(CBlock(), result["hex"])
+        shared_block = deepcopy(valid_block)
+        coinbase = shared_block.vtx[0]
+        required_outputs = [i for i, output in enumerate(coinbase.vout)
+                            if output.scriptPubKey.hex() == payment["script"] and output.nValue == payment["amount"]]
+        assert_equal(len(required_outputs), 2)
+        miner_script = node.getaddressinfo(miner_address)["scriptPubKey"]
+        assert miner_script != payment["script"]
+        miner_output, = [output for output in coinbase.vout if output.scriptPubKey.hex() == miner_script]
+        miner_output.nValue += coinbase.vout.pop(required_outputs[-1]).nValue
+        assert_equal(sum(output.nValue for output in coinbase.vout), sum(output.nValue for output in valid_block.vtx[0].vout))
+        assert_equal(sum(output.scriptPubKey.hex() == payment["script"] and output.nValue == payment["amount"] for output in coinbase.vout), 1)
+        coinbase.rehash()
+        shared_block.hashMerkleRoot = shared_block.calc_merkle_root()
+        shared_block.solve()
+
+        # Keep this historical acceptance local so other nodes retain the honest parent.
+        self.isolate_node(0)
+        parent_hash = node.getbestblockhash()
+        check_validator(False)
+        self.log.info("Dormant distinct_required_payments accepts a shared MN/treasury output")
+        assert_equal(node.submitblock(shared_block.serialize().hex()), None)
+        assert_equal(node.getbestblockhash(), shared_block.hash)
+        dormant_hash = shared_block.hash
+        node.invalidateblock(shared_block.hash)
+        assert_equal(node.getbestblockhash(), parent_hash)
+
+        self.restart_node(0, extra_args=node.extra_args + ["-vbparams=distinct_required_payments:-1:-1", "-networkactive=0"])
+        # Startup reconsiders invalidated blocks before governance sync is complete.
+        node.invalidateblock(dormant_hash)
+        assert_equal(node.getbestblockhash(), parent_hash)
+        self.reconnect_isolated_node(0, 1)
+        force_finish_mnsync(node)
+        self.wait_until(lambda: have_trigger_for_height([node], target_height))
+        self.isolate_node(0)
+        check_validator(True)
+        self.log.info("Active distinct_required_payments accepts two distinct equal outputs")
+        assert_equal(node.submitblock(valid_block.serialize().hex()), None)
+        assert_equal(node.getbestblockhash(), result["hash"])
+        node.invalidateblock(result["hash"])
+        assert_equal(node.getbestblockhash(), parent_hash)
+        check_validator(True)
+        # A fresh hash prevents duplicate-block handling from reusing the dormant verdict.
+        shared_block.nTime += 1
+        shared_block.solve()
+        assert shared_block.hash != dormant_hash
+        self.log.info("Active distinct_required_payments rejects the shared output at ConnectBlock")
+        with node.assert_debug_log([f"Masternode and superblock payments share an output at height {target_height}"]):
+            assert_equal(node.submitblock(shared_block.serialize().hex()), "bad-cb-payee")
+        assert_equal(node.getbestblockhash(), parent_hash)
 
     def run_test(self):
         self.log.info("Start testing...")
@@ -195,7 +320,7 @@ class DashGovernanceTest (DashTestFramework):
         _, mn_payee_protx = height_protx_list[1]
 
         payee_idx = None
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             if mn.proTxHash == mn_payee_protx:
                 payee_idx = mn.nodeIdx
                 break
@@ -389,6 +514,9 @@ class DashGovernanceTest (DashTestFramework):
             assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], True)
             self.check_superblockbudget(True)
             self.check_superblock()
+
+        # This restarts an isolated validator with the draft gate forced active; keep it last.
+        self.test_distinct_required_payments()
 
 
 if __name__ == '__main__':

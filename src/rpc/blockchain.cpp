@@ -1685,10 +1685,9 @@ UniValue DeploymentInfo(const CBlockIndex* blockindex, const CMNHFManager::Signa
                         }) {
         SoftForkDescPushBack(blockindex, softforks, chainman, deploy);
     }
-    for (auto ehf_deploy : { /* sorted by activation block */
-                             Consensus::DEPLOYMENT_V24,
-                             Consensus::DEPLOYMENT_EVO_SHARES,
-                             Consensus::DEPLOYMENT_TESTDUMMY }) {
+    for (auto ehf_deploy : {/* sorted by activation block */
+                            Consensus::DEPLOYMENT_V24, Consensus::DEPLOYMENT_EVO_SHARES,
+                            Consensus::DEPLOYMENT_DISTINCT_REQUIRED_PAYMENTS, Consensus::DEPLOYMENT_TESTDUMMY}) {
         SoftForkDescPushBack(blockindex, ehf_signals, softforks, chainman, ehf_deploy);
     }
     return softforks;
