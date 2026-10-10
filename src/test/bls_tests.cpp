@@ -19,6 +19,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <future>
+
 BOOST_AUTO_TEST_SUITE(bls_tests)
 
 void FuncSign(const bool legacy_scheme)
@@ -291,9 +293,9 @@ static void AddMessage(std::vector<Message>& vec, uint32_t sourceId, uint32_t ms
     vec.emplace_back(m);
 }
 
-static void Verify(std::vector<Message>& vec, bool secureVerification, bool perMessageFallback)
+static void Verify(std::vector<Message>& vec, bool secureVerification, bool perMessageFallback, size_t subBatchSize = 0)
 {
-    CBLSBatchVerifier<uint32_t, uint32_t> batchVerifier(secureVerification, perMessageFallback);
+    CBLSBatchVerifier<uint32_t, uint32_t> batchVerifier(secureVerification, perMessageFallback, subBatchSize);
 
     std::set<uint32_t> expectedBadMessages;
     std::set<uint32_t> expectedBadSources;
@@ -368,6 +370,116 @@ void FuncBatchVerifier(const bool legacy_scheme)
     // last message invalid from one source
     AddMessage(msgs, 1, 7, 1, false);
     Verify(msgs);
+}
+
+void FuncBatchVerifierMessageIdentity(const bool legacy_scheme)
+{
+    bls::bls_legacy_scheme.store(legacy_scheme);
+
+    std::vector<Message> initial;
+    AddMessage(initial, 1, 1, 1, true);
+    const Message valid = initial.front();
+    BOOST_REQUIRE(valid.sig.VerifyInsecure(valid.pk, valid.msgHash));
+
+    CBLSSecretKey otherKey;
+    otherKey.MakeNewKey();
+    const auto otherSignature = otherKey.Sign(valid.msgHash, legacy_scheme);
+    BOOST_REQUIRE(otherSignature.VerifyInsecure(otherKey.GetPublicKey(), valid.msgHash));
+
+    auto check = [](std::vector<Message> messages) {
+        for (bool secure : {false, true}) {
+            for (bool fallback : {false, true}) {
+                for (size_t subBatchSize : {size_t{0}, size_t{1}, size_t{2}}) {
+                    Verify(messages, secure, fallback, subBatchSize);
+                }
+            }
+        }
+    };
+
+    std::vector<Message> invalidVariants;
+    Message invalid = valid;
+    invalid.sourceId = 2;
+    invalid.valid = false;
+    invalid.sig = otherSignature;
+    invalidVariants.push_back(invalid);
+    invalid = valid;
+    invalid.sourceId = 2;
+    invalid.valid = false;
+    invalid.pk = otherKey.GetPublicKey();
+    invalidVariants.push_back(invalid);
+    for (uint8_t hash : {0, 2}) {
+        invalid = valid;
+        invalid.sourceId = 2;
+        invalid.valid = false;
+        invalid.msgHash = uint256(hash);
+        invalidVariants.push_back(invalid);
+    }
+
+    for (const auto& variant : invalidVariants) {
+        BOOST_REQUIRE(!variant.sig.VerifyInsecure(variant.pk, variant.msgHash));
+        check({valid, variant});
+        check({variant, valid});
+    }
+
+    std::vector<Message> alternatives;
+    AddMessage(alternatives, 2, valid.msgId, 1, true);
+    check({valid, alternatives.front()});
+    Message changedMessage = valid;
+    changedMessage.sourceId = 2;
+    changedMessage.msgHash = uint256::TWO;
+    changedMessage.sig = valid.sk.Sign(changedMessage.msgHash, legacy_scheme);
+    check({valid, changedMessage});
+
+    Message duplicate = valid;
+    duplicate.sourceId = 2;
+    check({valid, valid, duplicate});
+    invalid = invalidVariants.front();
+    duplicate = invalid;
+    duplicate.sourceId = 1;
+    check({invalid, invalid, duplicate});
+
+    std::vector<Message> rejectedOwner;
+    AddMessage(rejectedOwner, 1, 2, 2, false);
+    check({valid, rejectedOwner.front(), invalid});
+    check({invalid, valid, rejectedOwner.front()});
+
+    for (bool secure : {false, true}) {
+        for (bool fallback : {false, true}) {
+            CBLSBatchVerifier<uint32_t, uint32_t> verifier(secure, fallback);
+            verifier.PushMessage(valid.sourceId, valid.msgId, valid.msgHash, valid.sig, valid.pk);
+            verifier.Verify();
+            BOOST_CHECK(verifier.badSources.empty());
+            BOOST_CHECK(verifier.badMessages.empty());
+            verifier.PushMessage(valid.sourceId, invalid.msgId, invalid.msgHash, invalid.sig, invalid.pk);
+            verifier.Verify();
+            BOOST_CHECK(verifier.badSources == std::set<uint32_t>{valid.sourceId});
+            BOOST_CHECK(verifier.badMessages == (fallback ? std::set<uint32_t>{invalid.msgId} : std::set<uint32_t>{}));
+            verifier.ClearMessages();
+            BOOST_CHECK_EQUAL(verifier.GetUniqueSourceCount(), 0);
+            verifier.PushMessage(valid.sourceId, valid.msgId, valid.msgHash, valid.sig, valid.pk);
+            verifier.Verify();
+            BOOST_CHECK(verifier.badSources == std::set<uint32_t>{valid.sourceId});
+            BOOST_CHECK(verifier.badMessages == (fallback ? std::set<uint32_t>{invalid.msgId} : std::set<uint32_t>{}));
+
+            CBLSBatchVerifier<uint32_t, uint32_t> preseeded(secure, fallback);
+            preseeded.badSources.emplace(99);
+            preseeded.badMessages.emplace(99);
+            preseeded.Verify();
+            preseeded.PushMessage(valid.sourceId, valid.msgId, valid.msgHash, valid.sig, valid.pk);
+            preseeded.Verify();
+            BOOST_CHECK(preseeded.badSources == std::set<uint32_t>{99});
+            BOOST_CHECK(preseeded.badMessages == std::set<uint32_t>{99});
+
+            CBLSBatchVerifier<uint32_t, uint32_t> subBatch(secure, fallback, 2);
+            subBatch.PushMessage(valid.sourceId, valid.msgId, valid.msgHash, valid.sig, valid.pk);
+            subBatch.PushMessage(valid.sourceId, valid.msgId, valid.msgHash, valid.sig, valid.pk);
+            BOOST_CHECK_EQUAL(subBatch.GetUniqueSourceCount(), 1);
+            subBatch.PushMessage(invalid.sourceId, invalid.msgId, invalid.msgHash, invalid.sig, invalid.pk);
+            BOOST_CHECK_EQUAL(subBatch.GetUniqueSourceCount(), 0);
+            BOOST_CHECK(subBatch.badSources == std::set<uint32_t>{invalid.sourceId});
+            BOOST_CHECK(subBatch.badMessages == (fallback ? std::set<uint32_t>{invalid.msgId} : std::set<uint32_t>{}));
+        }
+    }
 }
 
 void FuncThresholdSignature(const bool legacy_scheme)
@@ -472,6 +584,57 @@ BOOST_AUTO_TEST_CASE(batch_verifier_tests)
 {
     FuncBatchVerifier(true);
     FuncBatchVerifier(false);
+}
+
+BOOST_AUTO_TEST_CASE(batch_verifier_message_identity)
+{
+    FuncBatchVerifierMessageIdentity(true);
+    FuncBatchVerifierMessageIdentity(false);
+}
+
+BOOST_FIXTURE_TEST_CASE(async_verification_preserves_individual_results, BasicTestingSetup)
+{
+    const bool previous_scheme = bls::bls_legacy_scheme.load();
+    for (bool legacy_scheme : {true, false}) {
+        bls::bls_legacy_scheme.store(legacy_scheme);
+        CBLSSecretKey key, other_key;
+        key.MakeNewKey();
+        other_key.MakeNewKey();
+        const auto public_key = key.GetPublicKey();
+        std::vector<CBLSSignature> signatures;
+        std::vector<uint256> hashes;
+        std::vector<bool> expected;
+        for (uint8_t i = 1; i <= 20; ++i) {
+            const auto hash = uint256((i + 1) / 2);
+            const auto signature = (i % 3 == 1 ? other_key : key).Sign(hash, legacy_scheme);
+            BOOST_REQUIRE(signature.VerifyInsecure((i % 3 == 1 ? other_key : key).GetPublicKey(), hash));
+            const auto verification_hash = i % 3 == 2 ? uint256(100 + i) : hash;
+            signatures.push_back(signature);
+            hashes.push_back(verification_hash);
+            expected.push_back(signature.VerifyInsecure(public_key, verification_hash));
+        }
+
+        CBLSWorker worker;
+        worker.Start(1);
+        std::promise<void> entered, release;
+        auto released = release.get_future();
+        worker.PushJob([&] {
+            entered.set_value();
+            released.wait();
+        });
+        entered.get_future().wait();
+        std::vector<std::future<bool>> results;
+        for (size_t i = 0; i < signatures.size(); ++i) {
+            results.push_back(worker.AsyncVerifySig(signatures[i], public_key, hashes[i]));
+        }
+        release.set_value();
+        for (size_t i = 0; i < results.size(); ++i) {
+            BOOST_CHECK_EQUAL(results[i].get(), expected[i]);
+        }
+        BOOST_CHECK(!worker.AsyncVerifySig(CBLSSignature{}, public_key, uint256::ONE).get());
+        worker.Stop();
+    }
+    bls::bls_legacy_scheme.store(previous_scheme);
 }
 
 BOOST_AUTO_TEST_CASE(bls_threshold_signature_tests)

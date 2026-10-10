@@ -7,7 +7,10 @@
 
 #include <bls/bls.h>
 
+#include <array>
 #include <map>
+#include <set>
+#include <tuple>
 #include <vector>
 
 template<typename SourceId, typename MessageId>
@@ -21,11 +24,12 @@ private:
         CBLSPublicKey pubKey;
     };
 
-    using MessageMap = std::map<MessageId, Message>;
+    using MessageKey = std::tuple<MessageId, uint256, std::array<uint8_t, CBLSSignature::SerSize>,
+                                  std::array<uint8_t, CBLSPublicKey::SerSize>>;
+    using MessageMap = std::map<MessageKey, Message>;
     using MessageMapIterator = typename MessageMap::iterator;
     using MessagesBySourceMap = std::map<SourceId, std::vector<MessageMapIterator>>;
 
-    bool secureVerification;
     bool perMessageFallback;
     size_t subBatchSize;
 
@@ -37,8 +41,8 @@ public:
     std::set<MessageId> badMessages;
 
 public:
-    CBLSBatchVerifier(bool _secureVerification, bool _perMessageFallback, size_t _subBatchSize = 0) :
-            secureVerification(_secureVerification),
+    // Individual verification is safe in both modes; retain the parameter for existing callers.
+    CBLSBatchVerifier(bool /*secureVerification*/, bool _perMessageFallback, size_t _subBatchSize = 0) :
             perMessageFallback(_perMessageFallback),
             subBatchSize(_subBatchSize)
     {
@@ -48,7 +52,9 @@ public:
     {
         assert(sig.IsValid() && pubKey.IsValid());
 
-        auto it = messages.emplace(msgId, Message{msgId, msgHash, sig, pubKey}).first;
+        // Only identical verification inputs may share a verdict.
+        const MessageKey key{msgId, msgHash, sig.ToBytes(false), pubKey.ToBytes(false)};
+        auto it = messages.emplace(key, Message{msgId, msgHash, sig, pubKey}).first;
         messagesBySource[sourceId].emplace_back(it);
 
         if (subBatchSize != 0 && messages.size() >= subBatchSize) {
@@ -70,162 +76,27 @@ public:
 
     void Verify()
     {
-        std::map<uint256, std::vector<MessageMapIterator>> byMessageHash;
-
-        for (auto it = messages.begin(); it != messages.end(); ++it) {
-            byMessageHash[it->second.msgHash].emplace_back(it);
-        }
-
-        if (VerifyBatch(byMessageHash)) {
-            // full batch is valid
-            return;
-        }
-
-        // revert to per-source verification
-        for (const auto& [from, message_map] : messagesBySource) {
-            bool batchValid = false;
-
-            // no need to verify it again if there was just one source
-            if (messagesBySource.size() != 1) {
-                byMessageHash.clear();
-                for (auto it = message_map.begin(); it != message_map.end(); ++it) {
-                    byMessageHash[(*it)->second.msgHash].emplace_back(*it);
-                }
-                batchValid = VerifyBatch(byMessageHash);
-            }
-            if (!batchValid) {
-                badSources.emplace(from);
-
-                if (perMessageFallback) {
-                    // revert to per-message verification
-                    if (message_map.size() == 1) {
-                        // no need to re-verify a single message
-                        badMessages.emplace(message_map[0]->second.msgId);
-                    } else {
-                        for (const auto& msgIt : message_map) {
-                            if (badMessages.count(msgIt->first)) {
-                                // same message might be invalid from different source, so no need to re-verify it
-                                continue;
-                            }
-
-                            const auto& msg = msgIt->second;
-                            if (!msg.sig.VerifyInsecure(msg.pubKey, msg.msgHash)) {
-                                badMessages.emplace(msg.msgId);
-                            }
-                        }
-                    }
-                }
+        // Aggregate validity does not authenticate the individual signatures retained by callers.
+        const bool legacy_scheme = bls::bls_legacy_scheme.load();
+        std::set<const Message*> invalid_messages;
+        for (const auto& [key, msg] : messages) {
+            if (!msg.sig.VerifyInsecure(msg.pubKey, msg.msgHash, legacy_scheme)) {
+                invalid_messages.emplace(&msg);
             }
         }
-    }
 
-private:
-    // All Verify methods take ownership of the passed byMessageHash map and thus might modify the map. This is to avoid
-    // unnecessary copies
-
-    bool VerifyBatch(std::map<uint256, std::vector<MessageMapIterator>>& byMessageHash)
-    {
-        if (secureVerification) {
-            return VerifyBatchSecure(byMessageHash);
-        } else {
-            return VerifyBatchInsecure(byMessageHash);
-        }
-    }
-
-    bool VerifyBatchInsecure(const std::map<uint256, std::vector<MessageMapIterator>>& byMessageHash)
-    {
-        std::vector<CBLSSignature> sigsToAggregate;
-        std::vector<uint256> msgHashes;
-        std::vector<CBLSPublicKey> pubKeys;
-        std::set<MessageId> dups;
-
-        msgHashes.reserve(messages.size());
-        pubKeys.reserve(messages.size());
-        sigsToAggregate.reserve(messages.size());
-
-        std::vector<CBLSPublicKey> pubKeysToAggregate;
-        for (const auto& [msgHash, vec_message_it] : byMessageHash) {
-            pubKeysToAggregate.clear();
-            pubKeysToAggregate.reserve(vec_message_it.size());
-
-            for (const auto& msgIt : vec_message_it) {
-                const auto& msg = msgIt->second;
-
-                if (!dups.emplace(msg.msgId).second) {
+        for (const auto& [source, source_messages] : messagesBySource) {
+            for (const auto& msg_it : source_messages) {
+                const auto& msg = msg_it->second;
+                if (invalid_messages.count(&msg) == 0) {
                     continue;
                 }
-
-                sigsToAggregate.push_back(msg.sig);
-                pubKeysToAggregate.push_back(msg.pubKey);
-            }
-
-            CBLSPublicKey aggPubKey = CBLSPublicKey::AggregateInsecure(pubKeysToAggregate);
-
-            if (!aggPubKey.IsValid()) {
-                // only duplicates for this msgHash
-                continue;
-            }
-
-            msgHashes.emplace_back(msgHash);
-            pubKeys.emplace_back(aggPubKey);
-        }
-
-        if (msgHashes.empty()) {
-            return true;
-        }
-
-        CBLSSignature aggSig = CBLSSignature::AggregateInsecure(sigsToAggregate);
-        return aggSig.VerifyInsecureAggregated(pubKeys, msgHashes);
-    }
-
-    bool VerifyBatchSecure(std::map<uint256, std::vector<MessageMapIterator>>& byMessageHash)
-    {
-        // Loop until the byMessageHash map is empty, which means that all messages were verified
-        // The secure form of verification will only aggregate one message for the same message hash, even if multiple
-        // exist (signed with different keys). This avoids the rogue public key attack.
-        // This is slower than the insecure form as it requires more pairings
-        while (!byMessageHash.empty()) {
-            if (!VerifyBatchSecureStep(byMessageHash)) {
-                return false;
+                badSources.emplace(source);
+                if (perMessageFallback) {
+                    badMessages.emplace(msg.msgId);
+                }
             }
         }
-        return true;
-    }
-
-    bool VerifyBatchSecureStep(std::map<uint256, std::vector<MessageMapIterator>>& byMessageHash)
-    {
-        std::vector<CBLSSignature> sigsToAggregate;
-        std::vector<uint256> msgHashes;
-        std::vector<CBLSPublicKey> pubKeys;
-        std::set<MessageId> dups;
-
-        msgHashes.reserve(messages.size());
-        pubKeys.reserve(messages.size());
-        sigsToAggregate.reserve(messages.size());
-
-        for (auto it = byMessageHash.begin(); it != byMessageHash.end(); ) {
-            const auto& msgHash = it->first;
-            auto& messageIts = it->second;
-            const auto& msg = messageIts.back()->second;
-
-            if (dups.emplace(msg.msgId).second) {
-                msgHashes.emplace_back(msgHash);
-                pubKeys.emplace_back(msg.pubKey);
-                sigsToAggregate.push_back(msg.sig);
-            }
-
-            messageIts.pop_back();
-            if (messageIts.empty()) {
-                it = byMessageHash.erase(it);
-            } else {
-                ++it;
-            }
-        }
-
-        assert(!msgHashes.empty());
-
-        CBLSSignature aggSig = CBLSSignature::AggregateInsecure(sigsToAggregate);
-        return aggSig.VerifyInsecureAggregated(pubKeys, msgHashes);
     }
 };
 

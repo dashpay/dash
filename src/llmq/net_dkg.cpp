@@ -5,6 +5,7 @@
 #include <llmq/net_dkg.h>
 
 #include <active/dkgsessionhandler.h>
+#include <bls/bls_batchverifier.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <hash.h>
@@ -217,107 +218,23 @@ template <typename Message>
 std::unordered_set<NodeId> BatchVerifyMessageSigs(CDKGSession& session,
                                                   const std::vector<std::pair<NodeId, std::shared_ptr<Message>>>& messages)
 {
-    if (messages.empty()) {
-        return {};
-    }
-
-    std::unordered_set<NodeId> ret;
-    bool revertToSingleVerification = false;
-
-    CBLSSignature aggSig;
-    std::vector<CBLSPublicKey> pubKeys;
-    std::vector<uint256> messageHashes;
-    Uint256HashSet messageHashesSet;
-    pubKeys.reserve(messages.size());
-    messageHashes.reserve(messages.size());
-    bool first = true;
-    for (const auto& [nodeId, msg] : messages) {
-        auto member = session.GetMember(msg->proTxHash);
-        if (!member) {
-            // should not happen as it was verified before
-            ret.emplace(nodeId);
-            continue;
-        }
-
-        // An invalid signature must never reach AggregateInsecure(), which asserts
-        // that both operands are valid. Mark the sender bad and skip it instead of
-        // aggregating it. This guard is mandatory: it covers every
-        // message type the batch verifier is instantiated for, including those whose
-        // per-message PreVerifyMessage does not (yet) reject invalid signatures.
-        // Note: 'first' below tracks the first *accumulated* (valid) signature, not
-        // the first *examined* message, so skipping leading invalid sigs is safe.
-        if (!msg->sig.IsValid()) {
-            ret.emplace(nodeId);
-            continue;
-        }
-
-        if (first) {
-            aggSig = msg->sig;
-        } else {
-            aggSig.AggregateInsecure(msg->sig);
-        }
-        first = false;
-
-        auto msgHash = msg->GetSignHash();
-        if (!messageHashesSet.emplace(msgHash).second) {
-            // can only happen in 2 cases:
-            // 1. Someone sent us the same message twice but with differing signature, meaning that at least one of them
-            //    must be invalid. In this case, we'd have to revert to single message verification nevertheless
-            // 2. Someone managed to find a way to create two different binary representations of a message that deserializes
-            //    to the same object representation. This would be some form of malleability. However, this shouldn't be
-            //    possible as only deterministic/unique BLS signatures and very simple data types are involved
-            revertToSingleVerification = true;
-            break;
-        }
-
-        pubKeys.emplace_back(member->dmn->pdmnState->pubKeyOperator.Get());
-        messageHashes.emplace_back(msgHash);
-    }
-    if (!revertToSingleVerification) {
-        if (pubKeys.empty()) {
-            // Every message had an unknown member or invalid signature; all such
-            // senders are already in ret. VerifyInsecureAggregated() asserts that
-            // the pubkey/hash spans are non-empty, so bail out here.
-            return ret;
-        }
-        if (aggSig.VerifyInsecureAggregated(pubKeys, messageHashes)) {
-            // all good
-            return ret;
-        }
-
-        // are all messages from the same node?
-        bool nodeIdsAllSame = std::adjacent_find(messages.begin(), messages.end(),
-                                                 [](const auto& first, const auto& second) {
-                                                     return first.first != second.first;
-                                                 }) == messages.end();
-
-        // if yes, take a short path and return a set with only him
-        if (nodeIdsAllSame) {
-            ret.emplace(messages[0].first);
-            return ret;
-        }
-        // different nodes, let's figure out who are the bad ones
-    }
-
-    for (const auto& [nodeId, msg] : messages) {
-        if (ret.count(nodeId)) {
-            continue;
-        }
-
-        auto member = session.GetMember(msg->proTxHash);
+    CBLSBatchVerifier<NodeId, uint256> verifier(false, false);
+    for (const auto& [node_id, msg] : messages) {
+        const auto* member = session.GetMember(msg->proTxHash);
         if (member == nullptr || !msg->sig.IsValid()) {
-            // Examined messages with these properties are already in ret, but the
-            // early break on a duplicate hash above can leave some unexamined.
-            // Stay defensive: never dereference a null member or verify an invalid sig.
-            ret.emplace(nodeId);
+            verifier.badSources.emplace(node_id);
             continue;
         }
-        bool valid = msg->sig.VerifyInsecure(member->dmn->pdmnState->pubKeyOperator.Get(), msg->GetSignHash());
-        if (!valid) {
-            ret.emplace(nodeId);
+        const auto public_key = member->dmn->pdmnState->pubKeyOperator.Get();
+        if (!public_key.IsValid()) {
+            verifier.badSources.emplace(node_id);
+            continue;
         }
+        const auto sign_hash = msg->GetSignHash();
+        verifier.PushMessage(node_id, sign_hash, sign_hash, msg->sig, public_key);
     }
-    return ret;
+    verifier.Verify();
+    return {verifier.badSources.begin(), verifier.badSources.end()};
 }
 
 void RelayInvToParticipants(const CDKGSession& session, const CConnman& connman, PeerManagerInternal& peerman,
