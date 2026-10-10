@@ -8,6 +8,7 @@ permissions:
   actions: read
   contents: read
   packages: read
+  pull-requests: read
 
 # Develop pushes get a group of their own, so a newer push neither cancels nor
 # queues behind an older run: every build finishes and saves its caches. Only
@@ -32,6 +33,7 @@ jobs:
     runs-on: ${{ vars.RUNNER_CHECK_SKIP || 'ubuntu-24.04-arm' }}
     outputs:
       skip: ${{ steps.skip-check.outputs.skip }}
+      run-build-tests: ${{ steps.classify-changes.outputs.run-build-tests }}
       runner-amd64: ${{ steps.select-runner.outputs.runner_amd64 }}
       runner-arm64: ${{ steps.select-runner.outputs.runner_arm64 }}
       runner-prelint: ${{ steps.select-runner.outputs.runner_prelint }}
@@ -63,6 +65,30 @@ jobs:
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Classify changed paths
+        id: classify-changes
+        if: ${{ steps.skip-check.outputs.skip == 'false' }}
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Pull requests that only touch Markdown outside src/ skip the full
+          # build and test matrix. Any API failure, or a PR too large for the
+          # files endpoint (3000-file cap), leaves the full matrix on.
+          RUN=true
+          if [[ "$EVENT_NAME" == "pull_request_target" && "${CHANGED_FILES:-3000}" -lt 3000 ]]; then
+            FILES="$(gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files" \
+              --jq '.[] | .filename, (.previous_filename // empty)')" || FILES=""
+            if [[ -n "$FILES" ]] && ! grep -qvE '\.md$' <<< "$FILES" && ! grep -qE '^src/' <<< "$FILES"; then
+              RUN=false
+            fi
+          fi
+          echo "Full build and test matrix: $RUN"
+          echo "run-build-tests=$RUN" >> "$GITHUB_OUTPUT"
 
       - name: Checkout code
         if: ${{ steps.skip-check.outputs.skip == 'false' }}
@@ -128,7 +154,9 @@ jobs:
   cache-sources:
     name: Cache depends sources
     needs: [check-skip]
-    if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    if: |
+      needs.check-skip.outputs.skip == 'false' &&
+      needs.check-skip.outputs.run-build-tests == 'true'
     uses: ./.github/workflows/cache-depends-sources.yml
     with:
       runs-on: ${{ needs.check-skip.outputs['runner-prelint'] }}
@@ -141,7 +169,9 @@ jobs:
       packages: write
     name: Build container
     needs: [check-skip]
-    if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    if: |
+      needs.check-skip.outputs.skip == 'false' &&
+      needs.check-skip.outputs.run-build-tests == 'true'
     uses: ./.github/workflows/build-container.yml
     with:
       context: ./contrib/containers/ci
