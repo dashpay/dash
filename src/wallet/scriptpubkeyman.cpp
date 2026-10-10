@@ -2916,7 +2916,7 @@ bool DescriptorScriptPubKeyMan::AddKey(const CKeyID& key_id, const CKey& key, co
 
         CExtKey master_key_tmp;
         master_key_tmp.SetSeed(MakeByteSpan(seed_key_tmp));
-        assert(key == master_key_tmp.key);
+        if (key != master_key_tmp.key) return false;
     }
 
     m_map_keys[key_id] = key;

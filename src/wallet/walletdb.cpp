@@ -994,29 +994,34 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
 
     // Set the descriptor caches
     for (const auto& desc_cache_pair : wss.m_descriptor_caches) {
-        auto spk_man = pwallet->GetScriptPubKeyMan(desc_cache_pair.first);
-        assert(spk_man);
-        ((DescriptorScriptPubKeyMan*)spk_man)->SetCache(desc_cache_pair.second);
+        auto* spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(pwallet->GetScriptPubKeyMan(desc_cache_pair.first));
+        if (!spk_man) continue;
+        spk_man->SetCache(desc_cache_pair.second);
     }
 
     // Set the descriptor keys
     for (const auto& desc_key_pair : wss.m_descriptor_keys) {
-        auto spk_man = pwallet->GetScriptPubKeyMan(desc_key_pair.first.first);
+        auto* spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(pwallet->GetScriptPubKeyMan(desc_key_pair.first.first));
+        if (!spk_man) continue;
         auto it = wss.mnemonics.find(desc_key_pair.first);
         if (it == wss.mnemonics.end()) {
-            ((DescriptorScriptPubKeyMan*)spk_man)->AddKey(desc_key_pair.first.second, desc_key_pair.second, "", "");
+            if (!spk_man->AddKey(desc_key_pair.first.second, desc_key_pair.second, "", "")) return DBErrors::CORRUPT;
         } else {
-            ((DescriptorScriptPubKeyMan*)spk_man)->AddKey(desc_key_pair.first.second, desc_key_pair.second, it->second.first, it->second.second);
+            if (!spk_man->AddKey(desc_key_pair.first.second, desc_key_pair.second, it->second.first, it->second.second)) {
+                pwallet->WalletLogPrintf("Error reading wallet database: descriptor mnemonic does not match private key\n");
+                return DBErrors::CORRUPT;
+            }
         }
     }
 
     for (const auto& desc_key_pair : wss.m_descriptor_crypt_keys) {
-        auto spk_man = pwallet->GetScriptPubKeyMan(desc_key_pair.first.first);
+        auto* spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(pwallet->GetScriptPubKeyMan(desc_key_pair.first.first));
+        if (!spk_man) continue;
         auto it = wss.crypted_mnemonics.find(desc_key_pair.first);
         if (it == wss.crypted_mnemonics.end()) {
-            ((DescriptorScriptPubKeyMan*)spk_man)->AddCryptedKey(desc_key_pair.first.second, desc_key_pair.second.first, desc_key_pair.second.second, {}, {});
+            if (!spk_man->AddCryptedKey(desc_key_pair.first.second, desc_key_pair.second.first, desc_key_pair.second.second, {}, {})) return DBErrors::CORRUPT;
         } else {
-            ((DescriptorScriptPubKeyMan*)spk_man)->AddCryptedKey(desc_key_pair.first.second, desc_key_pair.second.first, desc_key_pair.second.second, it->second.first, it->second.second);
+            if (!spk_man->AddCryptedKey(desc_key_pair.first.second, desc_key_pair.second.first, desc_key_pair.second.second, it->second.first, it->second.second)) return DBErrors::CORRUPT;
         }
     }
 
