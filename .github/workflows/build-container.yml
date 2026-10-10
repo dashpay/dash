@@ -188,10 +188,14 @@ jobs:
         env:
           TRUSTED: ${{ github.event_name == 'push' }}
           CONTEXT_TAG: ${{ inputs.context-tag }}
+          REPO_NAME: ${{ needs.build-amd64.outputs.repo }}
+          IMAGE_NAME: ${{ inputs.name }}
+          TAG: ${{ needs.build-amd64.outputs.tag }}
+          HASH_TAG: ${{ hashFiles(inputs.file) }}
+          AMD64_DIGEST: ${{ needs.build-amd64.outputs.digest }}
+          ARM64_DIGEST: ${{ needs.build-arm64.outputs.digest }}
         run: |
-          REPO="ghcr.io/${{ needs.build-amd64.outputs.repo }}/${{ inputs.name }}"
-          TAG="${{ needs.build-amd64.outputs.tag }}"
-          HASH_TAG="${{ hashFiles(inputs.file) }}"
+          REPO="ghcr.io/${REPO_NAME}/${IMAGE_NAME}"
 
           if [[ "$TRUSTED" == "true" ]]; then
             TAGS=(-t "${REPO}:${HASH_TAG}" -t "${REPO}:${TAG}" -t "${REPO}:latest")
@@ -205,8 +209,8 @@ jobs:
 
           # Use this run's digests: tags can be moved by concurrent runs
           docker buildx imagetools create --metadata-file "${RUNNER_TEMP}/manifest.json" "${TAGS[@]}" \
-            "${REPO}@${{ needs.build-amd64.outputs.digest }}" \
-            "${REPO}@${{ needs.build-arm64.outputs.digest }}"
+            "${REPO}@${AMD64_DIGEST}" \
+            "${REPO}@${ARM64_DIGEST}"
 
           DIGEST=$(jq -er '."containerimage.descriptor".digest' "${RUNNER_TEMP}/manifest.json")
           echo "path=${REPO}@${DIGEST}" >> "$GITHUB_OUTPUT"

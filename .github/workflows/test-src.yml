@@ -38,7 +38,7 @@ jobs:
       group: ${{ github.workflow }}-${{ inputs.cancel-stale && github.ref || github.run_id }}-test-src-${{ inputs.build-target }}
       cancel-in-progress: true
     container:
-      image: ${{ inputs.container-path }}
+      image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
       # SYS_PTRACE is required by LeakSanitizer's stop-the-world
       # (https://github.com/google/sanitizers/issues/764)
       options: --user root --cap-add SYS_PTRACE
@@ -66,10 +66,11 @@ jobs:
 
       - name: Run functional tests
         id: test
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+          BUNDLE_KEY: ${{ inputs.bundle-key }}
         run: |
           git config --global --add safe.directory "$PWD"
-          export BUILD_TARGET="${{ inputs.build-target }}"
-          export BUNDLE_KEY="${{ inputs.bundle-key }}"
           ./ci/dash/bundle-artifacts.sh extract
           ./ci/dash/slim-workspace.sh
           source ./ci/dash/matrix.sh
@@ -79,8 +80,9 @@ jobs:
       - name: Bundle test logs
         id: bundle
         if: success() || (failure() && steps.test.outcome == 'failure')
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          export BUILD_TARGET="${{ inputs.build-target }}"
           echo "short-sha=$(git rev-parse --short=8 HEAD)" >> "${GITHUB_OUTPUT}"
           ( [ -d "testlogs" ] && echo "upload-logs=true" >> "${GITHUB_OUTPUT}" && ./ci/dash/bundle-logs.sh ) \
                               || echo "upload-logs=false" >> "${GITHUB_OUTPUT}"
