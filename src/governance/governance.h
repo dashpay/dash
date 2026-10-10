@@ -56,6 +56,8 @@ struct OrphanVote {
 
 inline bool operator<(const OrphanVote& lhs, const OrphanVote& rhs)
 {
+    // Equal signed fields may arrive authenticated by different voting/operator keys.
+    if (lhs.vote == rhs.vote) return lhs.vote.GetSignatureSize() < rhs.vote.GetSignatureSize();
     return lhs.vote < rhs.vote;
 }
 } // namespace governance

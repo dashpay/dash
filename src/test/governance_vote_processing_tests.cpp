@@ -5,6 +5,8 @@
 #include <consensus/amount.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <governance/governance.h>
 #include <governance/object.h>
 #include <governance/vote.h>
@@ -60,6 +62,24 @@ void SignWithOperatorKey(CGovernanceVote& vote, const CBLSSecretKey& key)
         key.Sign(vote.GetSignatureHash(), /*specificLegacyScheme=*/false).ToByteVector(/*specificLegacyScheme=*/false));
 }
 
+struct GovernanceVoteNotifications final : CValidationInterface {
+    mutable Mutex cs;
+    std::vector<uint256> hashes GUARDED_BY(cs);
+
+    void NotifyGovernanceVote(const std::shared_ptr<CDeterministicMNList>&,
+                              const std::shared_ptr<const CGovernanceVote>& vote) override EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        hashes.push_back(vote->GetHash());
+    }
+
+    std::vector<uint256> GetHashes() const EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return hashes;
+    }
+};
+
 // A chain with one registered masternode whose voting (ECDSA) and operator (BLS) keys are known
 // to the test, so votes can be signed for real and CGovernanceVote::CheckSignature is actually
 // reached. Without a populated masternode list every CGovernanceVote::IsValid() call would
@@ -69,6 +89,7 @@ struct GovernanceVoteSetup : public TestChainSetup {
     CBLSSecretKey mn_operator_key;
     COutPoint mn_collateral;
     SimpleUTXOMap utxos;
+    std::shared_ptr<GovernanceVoteNotifications> vote_notifications;
     //! Fixed so a proposal can be rebuilt bit-for-bit (and keep its hash) once its fee tx is known.
     int64_t proposal_time{0};
     std::string proposal_payment_address;
@@ -121,6 +142,8 @@ struct GovernanceVoteSetup : public TestChainSetup {
                                                              *m_node.chain_helper->superblocks, *m_node.dmnman,
                                                              *m_node.mn_sync);
         BOOST_REQUIRE(m_node.govman->LoadCache(/*load_cache=*/false));
+        vote_notifications = std::make_shared<GovernanceVoteNotifications>();
+        RegisterSharedValidationInterface(vote_notifications);
 
         proposal_time = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
         CKey payment_key;
@@ -130,6 +153,11 @@ struct GovernanceVoteSetup : public TestChainSetup {
 
     void TearDown()
     {
+        if (vote_notifications) {
+            SyncWithValidationInterfaceQueue();
+            UnregisterSharedValidationInterface(vote_notifications);
+            vote_notifications.reset();
+        }
         // govman holds a reference into chain_helper, so it must go first (matches PrepareShutdown
         // ordering in init.cpp).
         m_node.govman.reset();
@@ -266,6 +294,203 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_CHECK(!govman.ProcessVote(vote, replay_exception, replay_hash_to_request));
     BOOST_CHECK_EQUAL(replay_exception.GetNodePenalty(), 0);
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
+}
+
+BOOST_AUTO_TEST_CASE(orphan_funding_votes_from_multiple_masternodes_are_applied)
+{
+    CKey second_voting_key;
+    CBLSSecretKey second_operator_key;
+    const auto protx{CreateProRegTx(*m_node.chainman, utxos, /*port=*/2, payout_script(), coinbaseKey,
+                                   second_voting_key, second_operator_key)};
+    MineBlock({protx});
+    const COutPoint second_collateral{protx.GetHash(), 0};
+    BOOST_REQUIRE(tip_mn_list().GetMNByCollateral(second_collateral) != nullptr);
+
+    auto& govman = *m_node.govman;
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    CGovernanceVote first_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+    SignWithVotingKey(first_vote, mn_voting_key);
+    CGovernanceVote second_vote{second_collateral, parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES};
+    SignWithVotingKey(second_vote, second_voting_key);
+
+    for (const auto& vote : {first_vote, second_vote, second_vote}) {
+        BOOST_REQUIRE(vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(exception.GetType(), GOVERNANCE_EXCEPTION_WARNING);
+        BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+    }
+
+    const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
+    CGovernanceObject proposal{MakeProposal(collateral_hash)};
+    BOOST_REQUIRE_EQUAL(proposal.GetHash(), parent_hash);
+    govman.AddGovernanceObject(proposal, /*peer_str=*/"");
+    const auto stored{govman.FindConstGovernanceObject(parent_hash)};
+    BOOST_REQUIRE(stored != nullptr);
+    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 2);
+    const auto current_votes{govman.GetCurrentVotes(parent_hash, COutPoint{})};
+    BOOST_REQUIRE_EQUAL(current_votes.size(), 2U);
+    BOOST_CHECK(govman.GetOrphanVoteObjectHashes().empty());
+}
+
+BOOST_AUTO_TEST_CASE(operator_signed_orphan_does_not_hide_proposal_funding_vote)
+{
+    auto& govman = *m_node.govman;
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+
+    // The operator may sign funding votes for triggers, but this parent will be a proposal.
+    CGovernanceVote operator_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_NO)};
+    SignWithOperatorKey(operator_vote, mn_operator_key);
+    BOOST_REQUIRE(operator_vote.IsValidForUnknownParent(tip_mn_list()));
+    BOOST_REQUIRE(!operator_vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+
+    CGovernanceVote funding_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1s)};
+    SignWithVotingKey(funding_vote, mn_voting_key);
+    BOOST_REQUIRE(funding_vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+
+    for (const auto& vote : {operator_vote, funding_vote, funding_vote}) {
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(exception.GetType(), GOVERNANCE_EXCEPTION_WARNING);
+        BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+    }
+
+    const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
+    CGovernanceObject proposal{MakeProposal(collateral_hash)};
+    BOOST_REQUIRE_EQUAL(proposal.GetHash(), parent_hash);
+    govman.AddGovernanceObject(proposal, /*peer_str=*/"");
+    const auto stored{govman.FindConstGovernanceObject(parent_hash)};
+    BOOST_REQUIRE(stored != nullptr);
+
+    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
+    const auto current_votes{govman.GetCurrentVotes(parent_hash, mn_collateral)};
+    BOOST_REQUIRE_EQUAL(current_votes.size(), 1U);
+    BOOST_CHECK_EQUAL(current_votes.front().GetHash(), funding_vote.GetHash());
+}
+
+BOOST_AUTO_TEST_CASE(orphan_timestamp_variants_replay_only_the_newest_vote)
+{
+    auto& govman = *m_node.govman;
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    uint256 newest_hash;
+    for (const int offset : {5, 1, 4, 3, 2, 5}) {
+        CGovernanceVote vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, std::chrono::seconds{offset})};
+        SignWithVotingKey(vote, mn_voting_key);
+        if (offset == 5) newest_hash = vote.GetHash();
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+    }
+
+    const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
+    CGovernanceObject proposal{MakeProposal(collateral_hash)};
+    govman.AddGovernanceObject(proposal, /*peer_str=*/"");
+    SyncWithValidationInterfaceQueue();
+    BOOST_CHECK(vote_notifications->GetHashes() == std::vector<uint256>{newest_hash});
+    const auto stored{govman.FindConstGovernanceObject(parent_hash)};
+    BOOST_REQUIRE(stored != nullptr);
+    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
+    const auto votes{govman.GetCurrentVotes(parent_hash, mn_collateral)};
+    BOOST_REQUIRE_EQUAL(votes.size(), 1U);
+    BOOST_CHECK_EQUAL(votes.front().GetHash(), newest_hash);
+}
+
+BOOST_AUTO_TEST_CASE(newer_operator_orphan_does_not_replace_voting_key_orphan)
+{
+    auto& govman = *m_node.govman;
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    CGovernanceVote operator_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 30s)};
+    SignWithOperatorKey(operator_vote, mn_operator_key);
+    CGovernanceVote voting_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1s)};
+    SignWithVotingKey(voting_vote, mn_voting_key);
+    for (const auto& vote : {operator_vote, voting_vote, voting_vote}) {
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+    }
+    const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
+    CGovernanceObject proposal{MakeProposal(collateral_hash)};
+    govman.AddGovernanceObject(proposal, /*peer_str=*/"");
+    SyncWithValidationInterfaceQueue();
+    BOOST_CHECK(vote_notifications->GetHashes() == std::vector<uint256>{voting_vote.GetHash()});
+    const auto votes{govman.GetCurrentVotes(parent_hash, mn_collateral)};
+    BOOST_REQUIRE_EQUAL(votes.size(), 1U);
+    BOOST_CHECK_EQUAL(votes.front().GetHash(), voting_vote.GetHash());
+}
+
+BOOST_AUTO_TEST_CASE(equal_time_operator_orphan_does_not_hide_voting_key_orphan)
+{
+    auto& govman = *m_node.govman;
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    CGovernanceVote operator_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
+    SignWithOperatorKey(operator_vote, mn_operator_key);
+    CGovernanceVote voting_vote{operator_vote};
+    SignWithVotingKey(voting_vote, mn_voting_key);
+    for (const auto& vote : {operator_vote, voting_vote}) {
+        CGovernanceException exception;
+        uint256 hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
+        BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+    }
+    const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
+    CGovernanceObject proposal{MakeProposal(collateral_hash)};
+    govman.AddGovernanceObject(proposal, /*peer_str=*/"");
+    SyncWithValidationInterfaceQueue();
+    BOOST_CHECK(vote_notifications->GetHashes() == std::vector<uint256>{voting_vote.GetHash()});
+    const auto votes{govman.GetCurrentVotes(parent_hash, mn_collateral)};
+    BOOST_REQUIRE_EQUAL(votes.size(), 1U);
+    BOOST_CHECK_EQUAL(votes.front().GetHash(), voting_vote.GetHash());
+}
+
+BOOST_AUTO_TEST_CASE(old_key_orphan_does_not_suppress_a_current_key_vote)
+{
+    // Before DIP3 enforcement, registrar updates must keep the owner and voting keys equal.
+    MineBlocks(500 - tip_mn_list().GetHeight());
+    auto& govman = *m_node.govman;
+    const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
+    CGovernanceVote old_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 30s)};
+    SignWithVotingKey(old_vote, mn_voting_key);
+    CGovernanceException exception;
+    uint256 hash_to_request;
+    BOOST_CHECK(!govman.ProcessVote(old_vote, exception, hash_to_request));
+    BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+
+    CKey new_voting_key;
+    new_voting_key.MakeNewKey(true);
+    CProUpRegTx update;
+    update.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    update.proTxHash = mn_collateral.hash;
+    update.pubKeyOperator.Set(mn_operator_key.GetPublicKey(), update.nVersion == ProTxVersion::LegacyBLS);
+    update.keyIDVoting = new_voting_key.GetPubKey().GetID();
+    update.scriptPayout = payout_script();
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+    const auto spent{FundTransaction(*m_node.chainman, tx, utxos, payout_script(), 1 * COIN)};
+    update.inputsHash = CalcTxInputsHash(CTransaction{tx});
+    BOOST_REQUIRE(CHashSigner::SignHash(SerializeHash(update), mn_voting_key, update.vchSig));
+    SetTxPayload(tx, update);
+    SignTransaction(tx, spent, coinbaseKey);
+    MineBlock({tx});
+    BOOST_REQUIRE(!old_vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+
+    CGovernanceVote current_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1s)};
+    SignWithVotingKey(current_vote, new_voting_key);
+    BOOST_REQUIRE(current_vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+    BOOST_CHECK(!govman.ProcessVote(current_vote, exception, hash_to_request));
+    BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
+    const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
+    CGovernanceObject proposal{MakeProposal(collateral_hash)};
+    govman.AddGovernanceObject(proposal, /*peer_str=*/"");
+    SyncWithValidationInterfaceQueue();
+    BOOST_CHECK(vote_notifications->GetHashes() == std::vector<uint256>{current_vote.GetHash()});
+    const auto votes{govman.GetCurrentVotes(parent_hash, mn_collateral)};
+    BOOST_REQUIRE_EQUAL(votes.size(), 1U);
+    BOOST_CHECK_EQUAL(votes.front().GetHash(), current_vote.GetHash());
 }
 
 // Votes are only counted if they carry a signature from a registered masternode.
