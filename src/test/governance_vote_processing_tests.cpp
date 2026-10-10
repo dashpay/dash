@@ -437,7 +437,7 @@ BOOST_AUTO_TEST_CASE(proposal_funding_votes_require_the_voting_key)
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
 }
 
-BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
+BOOST_AUTO_TEST_CASE(legacy_governance_cache_is_discarded)
 {
     const uint256 parent_hash{MakeProposal(uint256::ONE).GetHash()};
     CKey attacker_key;
@@ -449,28 +449,41 @@ BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
     CacheMap<uint256, CGovernanceVote> legacy_invalid_votes{3};
     legacy_invalid_votes.Insert(forged.GetHash(), forged);
     const auto proposal = std::make_shared<CGovernanceObject>(MakeProposal(uint256::ONE));
+    const std::map<uint256, std::shared_ptr<CGovernanceObject>> objects{{proposal->GetHash(), proposal}};
 
-    CDataStream stream{SER_DISK, CLIENT_VERSION};
-    stream << std::string{"CGovernanceManager-Version-16"}
+    // A version 16 cache, including its invalid-vote field, is dropped as a whole.
+    CDataStream legacy{SER_DISK, CLIENT_VERSION};
+    legacy << std::string{"CGovernanceManager-Version-16"}
            << std::map<uint256, int64_t>{}
            << legacy_invalid_votes
            << CacheMultiMap<uint256, governance::OrphanVote>{3}
-           << std::map<uint256, std::shared_ptr<CGovernanceObject>>{{proposal->GetHash(), proposal}}
+           << objects
            << std::map<COutPoint, TestGovernanceStore::last_object_rec>{}
            << CDeterministicMNList{};
 
+    TestGovernanceStore legacy_store;
+    legacy_store.Unserialize(legacy);
+    BOOST_CHECK_EQUAL(legacy_store.ObjectCount(), 0U);
+
+    // The current format has no invalid-vote field and round-trips.
+    CDataStream current{SER_DISK, CLIENT_VERSION};
+    current << std::string{"CGovernanceManager-Version-17"}
+            << std::map<uint256, int64_t>{}
+            << CacheMultiMap<uint256, governance::OrphanVote>{3}
+            << objects
+            << std::map<COutPoint, TestGovernanceStore::last_object_rec>{}
+            << CDeterministicMNList{};
+
     TestGovernanceStore store;
-    store.Unserialize(stream);
+    store.Unserialize(current);
     BOOST_CHECK_EQUAL(store.ObjectCount(), 1U);
 
     CDataStream saved{SER_DISK, CLIENT_VERSION};
     store.Serialize(saved);
-    std::string version;
-    std::map<uint256, int64_t> erased_objects;
-    CacheMap<uint256, CGovernanceVote> saved_invalid_votes;
-    saved >> version >> erased_objects >> saved_invalid_votes;
-    BOOST_CHECK_EQUAL(version, "CGovernanceManager-Version-16");
-    BOOST_CHECK_EQUAL(saved_invalid_votes.GetSize(), 0U);
+    TestGovernanceStore reloaded;
+    reloaded.Unserialize(saved);
+    BOOST_CHECK_EQUAL(reloaded.ObjectCount(), 1U);
+    BOOST_CHECK(saved.empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

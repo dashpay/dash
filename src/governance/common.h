@@ -10,6 +10,7 @@
 
 #include <serialize.h>
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,8 @@ namespace Governance {
 class Object
 {
 public:
+    static constexpr size_t MAX_SIGNATURE_SIZE{96};
+
     Object() = default;
 
     Object(const uint256& nHashParent, int nRevision, int64_t nTime, const uint256& nCollateralHash, const std::string& strDataHex);
@@ -79,7 +82,7 @@ public:
                 obj.masternodeOutpoint
                 );
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.vchSig);
+            READWRITE(LIMITED_VECTOR(obj.vchSig, MAX_SIGNATURE_SIZE));
         }
     }
 };

@@ -28,7 +28,7 @@
 
 #include <ranges>
 
-const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-16";
+const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-17";
 
 namespace {
 constexpr std::chrono::seconds GOVERNANCE_DELETION_DELAY{10min};
