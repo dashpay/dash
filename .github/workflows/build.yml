@@ -191,8 +191,7 @@ jobs:
     if: |
       vars.SKIP_LINUX64 == '' ||
       vars.SKIP_LINUX64_ASAN == '' ||
-      vars.SKIP_LINUX64_FUZZ == '' ||
-      vars.SKIP_LINUX64_SQLITE == ''
+      vars.SKIP_LINUX64_FUZZ == ''
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
@@ -219,6 +218,17 @@ jobs:
     if: ${{ vars.SKIP_LINUX64_NOWALLET == '' }}
     with:
       build-target: linux64_nowallet
+      container-path: ${{ needs.container.outputs.path }}
+      base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+
+  depends-linux64_platform_gui:
+    name: x86_64-pc-linux-gnu_platform_gui
+    uses: ./.github/workflows/build-depends.yml
+    needs: [check-skip, container, cache-sources]
+    if: ${{ vars.SKIP_LINUX64_SQLITE == '' }}
+    with:
+      build-target: linux64_platform_gui
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
@@ -345,15 +355,15 @@ jobs:
   src-linux64_sqlite:
     name: linux64_sqlite-build
     uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-linux64]
+    needs: [check-skip, container, depends-linux64_platform_gui]
     if: ${{ vars.SKIP_LINUX64_SQLITE == '' }}
     with:
       build-target: linux64_sqlite
       container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-linux64.outputs.key }}
-      depends-host: ${{ needs.depends-linux64.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
+      depends-key: ${{ needs.depends-linux64_platform_gui.outputs.key }}
+      depends-host: ${{ needs.depends-linux64_platform_gui.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64_platform_gui.outputs.dep-opts }}
+      depends-artifact: ${{ needs.depends-linux64_platform_gui.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
     secrets: *remote-ccache-auth
 
