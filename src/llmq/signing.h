@@ -15,6 +15,7 @@
 #include <unordered_lru_cache.h>
 
 #include <memory>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <variant>
@@ -115,6 +116,7 @@ class CRecoveredSigsDb
 private:
     std::unique_ptr<CDBWrapper> db{nullptr};
 
+    // Serialize index mutations with cache lookups and invalidation.
     mutable Mutex cs_cache;
     mutable unordered_lru_cache<std::pair<Consensus::LLMQType, uint256>, bool, StaticSaltedHasher, 30000> hasSigForIdCache GUARDED_BY(cs_cache);
     mutable Uint256LruHashMap<bool, 30000> hasSigForSessionCache GUARDED_BY(cs_cache);
@@ -144,10 +146,12 @@ public:
     void CleanupOldVotes(int64_t maxAge);
 
 private:
-    void CleanupOldPlatformSigs(int64_t maxAge) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    void MigrateLegacyMarkers(const std::string& prefix) EXCLUSIVE_LOCKS_REQUIRED(cs_cache);
+    void CleanupOldMarkers(int64_t maxAge) EXCLUSIVE_LOCKS_REQUIRED(cs_cache);
+    void CleanupOldPlatformSigs(int64_t maxAge) EXCLUSIVE_LOCKS_REQUIRED(cs_cache);
     bool ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const;
-    void RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id, bool deleteHashKey,
-                            bool deleteTimeKey) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    void RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_cache);
 };
 
 class CRecoveredSigsListener

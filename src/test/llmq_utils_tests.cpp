@@ -110,6 +110,156 @@ BOOST_AUTO_TEST_CASE(platform_recovered_sigs_persistence_and_expiry)
     SetMockTime(0);
 }
 
+BOOST_AUTO_TEST_CASE(truncated_recovered_sig_markers_expire_after_reopen)
+{
+    const auto type = Params().GetConsensus().llmqTypeChainLocks;
+    const auto id = GetTestQuorumHash(1);
+    const auto quorum = GetTestQuorumHash(2);
+    const auto msg = GetTestQuorumHash(3);
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const CRecoveredSig sig{type, quorum, id, msg,
+                            key.Sign(SignHash{type, quorum, id, msg}.Get(), bls::bls_legacy_scheme.load())};
+    const auto path = m_args.GetDataDirBase() / "truncated_sigs";
+    const auto now = GetTime();
+    SetMockTime(now);
+    {
+        CRecoveredSigsDb db({.path = path, .wipe = true});
+        db.WriteRecoveredSig(sig);
+        db.TruncateRecoveredSig(type, id);
+        BOOST_CHECK(!db.HasRecoveredSigForId(type, id));
+        BOOST_CHECK(db.HasRecoveredSigForHash(sig.GetHash()));
+        BOOST_CHECK(db.HasRecoveredSigForSession(sig.buildSignHash().Get()));
+    }
+    {
+        auto legacy_reader = util::MakeDbWrapper({.path = path / "llmq" / "recsigdb"});
+        std::pair<Consensus::LLMQType, uint256> owner;
+        BOOST_REQUIRE(legacy_reader->Read(std::make_pair(std::string("rs_h"), sig.GetHash()), owner));
+        BOOST_CHECK(owner == std::make_pair(type, id));
+        BOOST_CHECK(legacy_reader->Exists(std::make_pair(std::string("rs_s"), sig.buildSignHash().Get())));
+    }
+    {
+        CRecoveredSigsDb db({.path = path});
+        BOOST_CHECK(db.HasRecoveredSigForHash(sig.GetHash()));
+        BOOST_CHECK(db.HasRecoveredSigForSession(sig.buildSignHash().Get()));
+        SetMockTime(now + 99);
+        db.CleanupOldRecoveredSigs(100);
+        BOOST_CHECK(db.HasRecoveredSigForHash(sig.GetHash()));
+        BOOST_CHECK(db.HasRecoveredSigForSession(sig.buildSignHash().Get()));
+        SetMockTime(now + 101);
+        db.CleanupOldRecoveredSigs(100);
+        BOOST_CHECK(!db.HasRecoveredSigForHash(sig.GetHash()));
+        BOOST_CHECK(!db.HasRecoveredSigForSession(sig.buildSignHash().Get()));
+    }
+    {
+        CRecoveredSigsDb db({.path = path});
+        BOOST_CHECK(!db.HasRecoveredSigForHash(sig.GetHash()));
+        BOOST_CHECK(!db.HasRecoveredSigForSession(sig.buildSignHash().Get()));
+    }
+    SetMockTime(0);
+}
+
+BOOST_AUTO_TEST_CASE(recovered_sig_reinsertion_survives_stale_expiry)
+{
+    const auto type = Params().GetConsensus().llmqTypeChainLocks;
+    const auto id = GetTestQuorumHash(1);
+    const auto quorum = GetTestQuorumHash(2);
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto make_sig = [&](uint32_t message) {
+        const auto msg = GetTestQuorumHash(message);
+        return CRecoveredSig{type, quorum, id, msg,
+                             key.Sign(SignHash{type, quorum, id, msg}.Get(), bls::bls_legacy_scheme.load())};
+    };
+    const auto now = GetTime();
+    for (const bool same_message : {false, true}) {
+        const auto first = make_sig(3);
+        const auto second = make_sig(same_message ? 3 : 4);
+        const auto path = m_args.GetDataDirBase() / (same_message ? "refreshed_sigs" : "reinserted_sigs");
+        {
+            CRecoveredSigsDb db({.path = path, .wipe = true});
+            SetMockTime(now);
+            db.WriteRecoveredSig(first);
+            db.TruncateRecoveredSig(type, id);
+            SetMockTime(now + 60);
+            db.WriteRecoveredSig(second);
+        }
+        {
+            CRecoveredSigsDb db({.path = path});
+            SetMockTime(now + 101);
+            db.CleanupOldRecoveredSigs(100);
+            CRecoveredSig stored;
+            BOOST_REQUIRE(db.GetRecoveredSigById(type, id, stored));
+            BOOST_CHECK(stored.GetHash() == second.GetHash());
+            BOOST_CHECK(db.HasRecoveredSigForHash(second.GetHash()));
+            BOOST_CHECK(db.HasRecoveredSigForSession(second.buildSignHash().Get()));
+            if (!same_message) {
+                BOOST_CHECK(!db.HasRecoveredSigForHash(first.GetHash()));
+                BOOST_CHECK(!db.HasRecoveredSigForSession(first.buildSignHash().Get()));
+            }
+            SetMockTime(now + 161);
+            db.CleanupOldRecoveredSigs(100);
+            BOOST_CHECK(!db.HasRecoveredSigForId(type, id));
+            BOOST_CHECK(!db.HasRecoveredSigForHash(second.GetHash()));
+            BOOST_CHECK(!db.HasRecoveredSigForSession(second.buildSignHash().Get()));
+        }
+    }
+    SetMockTime(0);
+}
+
+BOOST_AUTO_TEST_CASE(legacy_recovered_sig_markers_migrate_with_bounded_grace)
+{
+    const auto type = Params().GetConsensus().llmqTypeChainLocks;
+    const auto path = m_args.GetDataDirBase() / "legacy_markers";
+    const auto db_path = path / "llmq" / "recsigdb";
+    const auto now = GetTime();
+    // Serialized legacy index records can outlive both the signature and its old rs_t entry.
+    {
+        auto legacy = util::MakeDbWrapper({.path = db_path, .wipe = true});
+        CDBBatch batch{*legacy};
+        for (uint32_t i = 1; i <= 3; ++i) {
+            const auto hash = GetTestQuorumHash(i);
+            batch.Write(std::make_pair(std::string("rs_h"), hash), std::make_pair(type, hash));
+            batch.Write(std::make_pair(std::string("rs_s"), hash), uint8_t{1});
+        }
+        BOOST_REQUIRE(legacy->WriteBatch(batch));
+    }
+    {
+        CRecoveredSigsDb db({.path = path});
+        SetMockTime(now);
+        db.CleanupOldRecoveredSigs(100);
+        for (uint32_t i = 1; i <= 3; ++i) {
+            BOOST_CHECK(db.HasRecoveredSigForHash(GetTestQuorumHash(i)));
+            BOOST_CHECK(db.HasRecoveredSigForSession(GetTestQuorumHash(i)));
+        }
+        SetMockTime(now + 101);
+        db.CleanupOldRecoveredSigs(100);
+        for (uint32_t i = 1; i <= 3; ++i) {
+            BOOST_CHECK(!db.HasRecoveredSigForHash(GetTestQuorumHash(i)));
+            BOOST_CHECK(!db.HasRecoveredSigForSession(GetTestQuorumHash(i)));
+        }
+    }
+    // A later legacy writer must be adopted again, even after an earlier sweep completed.
+    const auto later = GetTestQuorumHash(2000);
+    {
+        auto legacy = util::MakeDbWrapper({.path = db_path});
+        legacy->Write(std::make_pair(std::string("rs_h"), later), std::make_pair(type, later));
+        legacy->Write(std::make_pair(std::string("rs_s"), later), uint8_t{1});
+    }
+    {
+        CRecoveredSigsDb db({.path = path});
+        SetMockTime(now + 300);
+        db.CleanupOldRecoveredSigs(100);
+        BOOST_CHECK(db.HasRecoveredSigForHash(later));
+        BOOST_CHECK(db.HasRecoveredSigForSession(later));
+        SetMockTime(now + 401);
+        db.CleanupOldRecoveredSigs(100);
+        BOOST_CHECK(!db.HasRecoveredSigForHash(later));
+        BOOST_CHECK(!db.HasRecoveredSigForSession(later));
+    }
+    SetMockTime(0);
+}
+
 BOOST_AUTO_TEST_CASE(trivially_passes) { BOOST_CHECK(true); }
 
 static CSigSesAnn MakeSigSesAnn(uint32_t session_id, uint32_t nonce, Consensus::LLMQType llmq_type = Consensus::LLMQType::LLMQ_50_60)
