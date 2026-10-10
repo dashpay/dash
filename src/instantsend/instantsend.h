@@ -80,6 +80,9 @@ private:
     Uint256HashMap<NonLockedTxInfo> nonLockedTxs GUARDED_BY(cs_nonLocked);
     std::unordered_map<COutPoint, uint256, SaltedOutpointHasher> nonLockedTxsByOutpoints GUARDED_BY(cs_nonLocked);
 
+    void EraseNonLockedTx(Uint256HashMap<NonLockedTxInfo>::iterator it, bool retryChildren)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_nonLocked, !cs_pendingRetry);
+
     mutable Mutex cs_pendingRetry;
     Uint256HashSet pendingRetryTxs GUARDED_BY(cs_pendingRetry);
 
@@ -103,6 +106,9 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_timingsTxSeen);
     void RemoveNonLockedTx(const uint256& txid, bool retryChildren)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+    /** Stop tracking an unlocked transaction that left the mempool without being mined. Only mined
+     *  entries are dropped once ChainLocked, so it would otherwise be tracked forever. */
+    void RemoveUnminedNonLockedTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     /** Queue every tracked unmined asset unlock for another locking attempt. Whether an unlock
      *  may be locked depends on the tip (its height window and the credit pool limit), so this
      *  runs on each connected block. */
