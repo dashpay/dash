@@ -2558,6 +2558,87 @@ BOOST_AUTO_TEST_CASE(evonode_payout_update_needs_evo_shares)
     FuncEvoNodePayoutUpdateNeedsEvoShares(setup);
 }
 
+static CTransaction WithOwnerAndPlatformNodeID(const CTransaction& tx, const std::optional<CKeyID>& owner,
+                                               const std::optional<uint160>& platform_node_id)
+{
+    CMutableTransaction mtx{tx};
+    auto pro_reg{*Assert(GetTxPayload<CProRegTx>(mtx))};
+    if (owner) pro_reg.keyIDOwner = *owner;
+    if (platform_node_id) pro_reg.platformNodeID = *platform_node_id;
+    SetTxPayload(mtx, pro_reg);
+    return CTransaction(mtx);
+}
+
+static CTransaction CreateUnsignedEvoProUpServTx(const uint160& platform_node_id)
+{
+    CProUpServTx pro_up_serv;
+    pro_up_serv.nVersion = ProTxVersion::ExtAddr;
+    pro_up_serv.nType = MnType::Evo;
+    pro_up_serv.proTxHash = GetRandHash();
+    pro_up_serv.netInfo = NetInfoInterface::MakeNetInfo(pro_up_serv.nVersion);
+    pro_up_serv.platformNodeID = platform_node_id;
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+    tx.vin.emplace_back(COutPoint(GetRandHash(), 0));
+    pro_up_serv.inputsHash = CalcTxInputsHash(CTransaction(tx));
+    SetTxPayload(tx, pro_up_serv);
+    return CTransaction(tx);
+}
+
+// The masternode list keeps owner key IDs and Platform node IDs in one uniqueness namespace, so a
+// pending owner key and a pending Platform node ID with the same 160 bits cannot both be mined in one
+// block. The mempool must treat them as conflicts in both directions, or block assembly fails.
+void FuncMempoolOwnerAndPlatformNodeIDConflict(TestChainV24SignalBeforeV19Setup& setup)
+{
+    const MasternodePayoutShares one_payout{{GenerateRandomAddress(), MasternodePayoutShare::MAX_REWARD}};
+    const CKeyID id{GenerateRandomKey().GetPubKey().GetID()};
+    const auto owner_reg{WithOwnerAndPlatformNodeID(CreateExtAddrProRegTx(MnType::Regular, one_payout, {}), id, {})};
+    const auto platform_reg{WithOwnerAndPlatformNodeID(CreateExtAddrProRegTx(MnType::Evo, one_payout, {}), {}, id)};
+    const auto unrelated_reg{CreateExtAddrProRegTx(MnType::Evo, one_payout, {})};
+    const auto self_reg{WithOwnerAndPlatformNodeID(CreateExtAddrProRegTx(MnType::Evo, one_payout, {}), id, id)};
+    const auto platform_up_serv{CreateUnsignedEvoProUpServTx(id)};
+    const CAmount collateral{GetMnType(MnType::Regular).collat_amount};
+    const auto shared_owner_reg{CreateExtAddrProRegTx(MnType::Regular, {},
+                                                      {{collateral - 100 * COIN, GenerateRandomAddress(), CScript{}, id},
+                                                       {100 * COIN, GenerateRandomAddress(), CScript{},
+                                                        GenerateRandomKey().GetPubKey().GetID()}})};
+
+    CTxMemPool pool{MemPoolOptionsForTest(setup.m_node)};
+    TestMemPoolEntryHelper entry;
+    LOCK2(cs_main, pool.cs);
+
+    // A registration claiming the same value in both fields is one masternode, not a conflict
+    BOOST_CHECK(!pool.existsProviderTxConflict(self_reg));
+
+    pool.addUnchecked(entry.FromTx(MakeTransactionRef(owner_reg)));
+    BOOST_CHECK(pool.existsProviderTxConflict(platform_reg));
+    BOOST_CHECK(pool.existsProviderTxConflict(platform_up_serv));
+    BOOST_CHECK(!pool.existsProviderTxConflict(unrelated_reg));
+    pool.removeRecursive(owner_reg, MemPoolRemovalReason::CONFLICT);
+
+    pool.addUnchecked(entry.FromTx(MakeTransactionRef(platform_reg)));
+    BOOST_CHECK(pool.existsProviderTxConflict(owner_reg));
+    BOOST_CHECK(pool.existsProviderTxConflict(shared_owner_reg));
+    BOOST_CHECK(!pool.existsProviderTxConflict(unrelated_reg));
+
+    // A confirmed claim evicts the pending claim of the same value in the other field
+    pool.removeForBlock({MakeTransactionRef(owner_reg)}, setup.chainman.ActiveChain().Height() + 1);
+    BOOST_CHECK(!pool.exists(platform_reg.GetHash()));
+
+    pool.addUnchecked(entry.FromTx(MakeTransactionRef(owner_reg)));
+    pool.removeForBlock({MakeTransactionRef(platform_up_serv)}, setup.chainman.ActiveChain().Height() + 1);
+    BOOST_CHECK(!pool.exists(owner_reg.GetHash()));
+    BOOST_CHECK_EQUAL(pool.size(), 0U);
+}
+
+BOOST_AUTO_TEST_CASE(mempool_owner_and_platform_node_id_conflict)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncMempoolOwnerAndPlatformNodeIDConflict(setup);
+}
+
 // The SAME masternode, two registrar updates in one block, version-crossing. tx1 rotates a
 // legacy MN to a new key at v2 (making it BasicBLS); tx2 then rotates it to another new key at v1.
 // tx2 passes CheckProUpRegTx against pindexPrev (the MN was legacy there), but in the rebuild the MN
