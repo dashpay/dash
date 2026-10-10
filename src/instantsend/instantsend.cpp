@@ -252,6 +252,8 @@ void CInstantSendManager::EraseNonLockedTx(Uint256HashMap<NonLockedTxInfo>::iter
     }
 
     nonLockedTxs.erase(it);
+    // A tx that is no longer tracked won't be locked, so its seen time would never be consumed
+    WITH_LOCK(cs_timingsTxSeen, timingsTxSeen.erase(txid));
 
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, retryChildren=%d, retryChildrenCount=%d\n",
              __func__, txid.ToString(), retryChildren, retryChildrenCount);
