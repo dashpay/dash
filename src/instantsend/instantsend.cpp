@@ -134,16 +134,11 @@ void CInstantSendManager::TransactionIsRemoved(const CTransactionRef& tx)
         return;
     }
 
+    WITH_LOCK(cs_timingsTxSeen, timingsTxSeen.erase(tx->GetHash()));
     instantsend::InstantSendLockPtr islock = GetInstantSendLockByTxid(tx->GetHash());
 
     if (islock == nullptr) {
-        // An unlocked asset unlock leaving the mempool (evicted by another instance of its
-        // withdrawal index, expired, or trimmed) is gone for good under this txid. It has no
-        // inputs, so the conflict cleanup keyed on spent outpoints never reaches its entry;
-        // drop it here or it would be re-queued for locking on every block.
-        if (tx->IsPlatformTransfer()) {
-            RemoveNonLockedTx(tx->GetHash(), false);
-        }
+        RemoveNonLockedTx(tx->GetHash(), false, /*keepMined=*/!tx->IsPlatformTransfer());
         return;
     }
 
@@ -211,7 +206,7 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlock
              tx->GetHash().ToString(), pindexMined ? pindexMined->GetBlockHash().ToString() : "");
 }
 
-void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChildren)
+void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChildren, bool keepMined)
 {
     LOCK(cs_nonLocked);
 
@@ -220,6 +215,9 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
         return;
     }
     const auto& info = it->second;
+    if (keepMined && info.pindexMined) {
+        return;
+    }
 
     size_t retryChildrenCount = 0;
     if (retryChildren) {

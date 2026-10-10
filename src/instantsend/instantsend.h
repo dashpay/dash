@@ -101,7 +101,7 @@ public:
 
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_timingsTxSeen);
-    void RemoveNonLockedTx(const uint256& txid, bool retryChildren)
+    void RemoveNonLockedTx(const uint256& txid, bool retryChildren, bool keepMined = false)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     /** Queue every tracked unmined asset unlock for another locking attempt. Whether an unlock
      *  may be locked depends on the tip (its height window and the credit pool limit), so this
@@ -141,7 +141,7 @@ public:
     instantsend::InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
 
     void TransactionIsRemoved(const CTransactionRef& tx)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache, !cs_nonLocked, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache, !cs_nonLocked, !cs_pendingRetry, !cs_timingsTxSeen);
     void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void TryEmplacePendingLock(const uint256& hash, const NodeId id, const instantsend::InstantSendLockPtr& islock)
