@@ -34,6 +34,8 @@
 
 #include <univalue.h>
 
+#include <algorithm>
+
 const char *DEFAULT_GUI_PROXY_HOST = "127.0.0.1";
 
 static QString GetDefaultProxyAddress();
@@ -113,6 +115,14 @@ static void UpdateRwSetting(interfaces::Node& node, OptionsModel::OptionID optio
     } else {
         node.updateRwSetting(SettingName(option) + suffix, value);
     }
+}
+
+//! Whether settings.json holds the setting, which then takes precedence over the config file.
+static bool IsSettingsFileValue(const std::string& name)
+{
+    bool found{false};
+    gArgs.LockSettings([&](const util::Settings& settings) { found = settings.rw_settings.count(name) > 0; });
+    return found;
 }
 
 //! Convert enabled/size values to bitcoin -prune setting.
@@ -278,15 +288,24 @@ bool OptionsModel::Init(bilingual_str& error)
     }
 
     // Font Scale
-    if (node().isSettingIgnored("font-scale")) {
+    const bool font_scale_overridden{node().isSettingIgnored("font-scale")};
+    if (font_scale_overridden) {
         addOverriddenOption("-font-scale");
     }
+    int64_t font_scale;
+    try {
+        font_scale = SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::defaultFontScale());
+    } catch (const std::exception& e) {
+        return setting_error("font-scale", e);
+    }
+    const int clamped_scale{static_cast<int>(std::clamp<int64_t>(font_scale, GUIUtil::FONT_SCALE_MIN, GUIUtil::FONT_SCALE_MAX))};
+    // Save a clamped settings.json value so the -font-scale validation at startup accepts it;
+    // an out-of-range config file value is left for that validation to reject.
+    if (clamped_scale != font_scale && !font_scale_overridden && IsSettingsFileValue("font-scale")) {
+        UpdateRwSetting(node(), FontScale, /*suffix=*/"", clamped_scale);
+    }
     if (GUIUtil::fontsLoaded()) {
-        try {
-            GUIUtil::setFontScale(SettingToInt(node().getPersistentSetting("font-scale"), GUIUtil::defaultFontScale()));
-        } catch (const std::exception& e) {
-            return setting_error("font-scale", e);
-        }
+        GUIUtil::setFontScale(clamped_scale);
     }
 
     // Font Weight (Normal)
