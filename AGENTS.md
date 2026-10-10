@@ -168,6 +168,8 @@ test/lint/lint-circular-dependencies.py
 
 Functional-test prerequisites and usage details live in `test/README.md`.
 Several Dash-specific tests need the `dash_hash` Python package.
+To reproduce the CI lint job, including cppcheck, run `ci/dash/lint.sh` in the
+`ci-slim` container as described in `test/lint/README.md`.
 
 ## Backport Work
 
