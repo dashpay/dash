@@ -1311,17 +1311,16 @@ void CCoinJoinServer::RelayFinalTransaction(const CTransaction& txFinal)
         __func__, nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
 
     // final mixing tx with empty signatures should be relayed to mixing participants only
-    for (const auto& entry : vecEntries) {
-        bool fOk = connman.ForNode(entry.addr, [&txFinal, this](CNode* pnode) {
+    const bool all_reached = std::ranges::all_of(vecEntries, [&txFinal, this](const auto& entry) {
+        return connman.ForNode(entry.addr, [&txFinal, this](CNode* pnode) {
             CNetMsgMaker msgMaker(pnode->GetCommonVersion());
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSFINALTX, nSessionID.load(), txFinal));
             return true;
         });
-        if (!fOk) {
-            // no such node? maybe this client disconnected or our own connection went down
-            RelayStatus(STATUS_REJECTED);
-            break;
-        }
+    });
+    if (!all_reached) {
+        // no such node? maybe this client disconnected or our own connection went down
+        RelayStatus(STATUS_REJECTED);
     }
 }
 
@@ -1361,11 +1360,11 @@ void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nM
         });
     }
 
-    if (nDisconnected == vecEntries.size()) {
-        // all clients disconnected, there is probably some issues with our own connection
-        // do not charge any fees, just reset the pool
-        SetNull();
-    }
+    // The participants told to terminate release their inputs and stop, so the session can no
+    // longer complete. End it now without charging anyone: at the timeout they would look like
+    // participants that never sent or signed, and a peer we cannot reach is no evidence of
+    // misbehavior - our own connection may be the one that failed.
+    SetNull();
 }
 
 void CCoinJoinServer::RelayCompletedTransaction(int session_id, const std::vector<CService>& participants,

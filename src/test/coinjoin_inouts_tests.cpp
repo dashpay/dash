@@ -565,6 +565,47 @@ BOOST_AUTO_TEST_CASE(server_invalid_signature_rejects_only_its_sender)
     connman.ClearTestNodes();
 }
 
+BOOST_AUTO_TEST_CASE(server_unreachable_participant_ends_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    // Every participant has submitted an entry, so the final transaction is relayed to them. If
+    // one of them can no longer be reached, the others are told to abandon the session; they
+    // cannot be charged at its timeout for obeying, so it must end right away. If everyone can be
+    // reached, it moves on to signing.
+    for (const bool all_reachable : {true, false}) {
+        BOOST_TEST_CONTEXT("all_reachable=" << all_reachable)
+        {
+            TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                          *Assert(m_node.dmnman), *Assert(m_node.dstxman),
+                                          *Assert(m_node.mn_metaman), *Assert(m_node.mempool), mn_activeman,
+                                          *Assert(m_node.mn_sync), *Assert(m_node.isman));
+            for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+                auto peer = MakePeer(/*id=*/i, /*ipv4=*/0x0a000001 + i);
+                CMutableTransaction collateral;
+                collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+                server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
+                CCoinJoinEntry entry{{CTxDSIn{CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i)}}, P2PKHScript(), 0}},
+                                     {CTxOut{CoinJoin::GetSmallestDenomination(), P2PKHScript()}},
+                                     CTransaction{collateral}};
+                entry.addr = peer->addr;
+                server.SeedEntry(std::move(entry));
+                if (all_reachable || i == 0) {
+                    peer->fSuccessfullyConnected = true;
+                    connman.AddTestNode(*peer.release());
+                }
+            }
+            server.EnterAcceptingEntriesState();
+
+            server.CreateFinalTransaction(/*session_id=*/1, /*charge_fees=*/false);
+            BOOST_CHECK_EQUAL(server.GetState(), all_reachable ? int{POOL_STATE_SIGNING} : int{POOL_STATE_IDLE});
+
+            connman.ClearTestNodes();
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
 {
     const size_t wire_cap{CoinJoin::GetMaxPoolInputOutputCount()};
