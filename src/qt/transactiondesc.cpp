@@ -18,7 +18,7 @@
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <validation.h>
-#include <wallet/ismine.h>
+#include <wallet/types.h>
 
 #include <stdint.h>
 #include <string>

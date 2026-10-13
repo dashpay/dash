@@ -12,6 +12,10 @@
 
 #include <memory>
 
+namespace wallet {
+enum class AddressPurpose;
+} // namespace wallet
+
 namespace interfaces {
 class Handler;
 }
@@ -120,7 +124,7 @@ public Q_SLOTS:
     /* New transaction, or transaction changed status */
     void updateTransaction(const QString &hash, int status, bool showTransaction);
     void updateAddressBook(const QString &address, const QString &label,
-                           bool isMine, const QString &purpose, int status);
+                           bool isMine, wallet::AddressPurpose purpose, int status);
     void updateConfirmations();
     void updateDisplayUnit();
     /** Updates the column title to "Amount (DisplayUnit)" and emits headerDataChanged() signal for table headers to react. */

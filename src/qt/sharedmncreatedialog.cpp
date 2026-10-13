@@ -19,7 +19,7 @@
 #include <univalue.h>
 #include <util/result.h>
 #include <util/strencodings.h>
-#include <wallet/ismine.h>
+#include <wallet/types.h>
 
 #include <qt/bitcoinamountfield.h>
 #include <qt/bitcoinunits.h>

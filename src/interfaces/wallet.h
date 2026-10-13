@@ -43,6 +43,7 @@ struct NodeContext;
 namespace wallet {
 class CCoinControl;
 class CWallet;
+enum class AddressPurpose;
 enum isminetype : unsigned int;
 enum class RescanStatus : uint8_t;
 struct CRecipient;
@@ -172,7 +173,7 @@ public:
     virtual bool haveWatchOnly() = 0;
 
     //! Add or update address.
-    virtual bool setAddressBook(const CTxDestination& dest, const std::string& name, const std::string& purpose) = 0;
+    virtual bool setAddressBook(const CTxDestination& dest, const std::string& name, const std::optional<wallet::AddressPurpose>& purpose) = 0;
 
     // Remove address.
     virtual bool delAddressBook(const CTxDestination& dest) = 0;
@@ -181,7 +182,7 @@ public:
     virtual bool getAddress(const CTxDestination& dest,
         std::string* name,
         wallet::isminetype* is_mine,
-        std::string* purpose) = 0;
+        wallet::AddressPurpose* purpose) = 0;
 
     //! Get wallet address list.
     virtual std::vector<WalletAddress> getAddresses() const = 0;
@@ -398,7 +399,7 @@ public:
     using AddressBookChangedFn = std::function<void(const CTxDestination& address,
         const std::string& label,
         bool is_mine,
-        const std::string& purpose,
+        wallet::AddressPurpose purpose,
         ChangeType status)>;
     virtual std::unique_ptr<Handler> handleAddressBookChanged(AddressBookChangedFn fn) = 0;
 
@@ -491,11 +492,11 @@ struct WalletAddress
 {
     CTxDestination dest;
     wallet::isminetype is_mine;
+    wallet::AddressPurpose purpose;
     std::string name;
-    std::string purpose;
 
-    WalletAddress(CTxDestination dest, wallet::isminetype is_mine, std::string name, std::string purpose)
-        : dest(std::move(dest)), is_mine(is_mine), name(std::move(name)), purpose(std::move(purpose))
+    WalletAddress(CTxDestination dest, wallet::isminetype is_mine, wallet::AddressPurpose purpose, std::string name)
+        : dest(std::move(dest)), is_mine(is_mine), purpose(std::move(purpose)), name(std::move(name))
     {
     }
 };

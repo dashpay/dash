@@ -179,7 +179,7 @@ RPCHelpMan importprivkey()
             pwallet->MarkDirty();
 
             if (!request.params[1].isNull() || !pwallet->FindAddressBookEntry(vchAddress)) {
-                pwallet->SetAddressBook(vchAddress, strLabel, "receive");
+                pwallet->SetAddressBook(vchAddress, strLabel, AddressPurpose::RECEIVE);
             }
 
             // Use timestamp of 1 to scan the whole chain
@@ -613,7 +613,7 @@ RPCHelpMan importwallet()
                     continue;
                 }
                 if (has_label)
-                    pwallet->SetAddressBook(pkhash, label, "receive");
+                    pwallet->SetAddressBook(pkhash, label, AddressPurpose::RECEIVE);
 
                 nTimeBegin = std::min(nTimeBegin, time);
                 progress++;

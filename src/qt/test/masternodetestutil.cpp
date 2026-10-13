@@ -94,7 +94,7 @@ std::shared_ptr<CWallet> MakeWallet(interfaces::Node& node, WalletContext& conte
             WalletDescriptor wallet_descriptor(std::move(descriptor), 0, 0, 1, 1);
             if (!wallet->AddWalletDescriptor(wallet_descriptor, provider, "", false)) return nullptr;
             if (options.setup != nullptr) {
-                wallet->SetAddressBook(PKHash(options.key->GetPubKey()), "", "receive");
+                wallet->SetAddressBook(PKHash(options.key->GetPubKey()), "", wallet::AddressPurpose::RECEIVE);
                 wallet->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
             }
         }
