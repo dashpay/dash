@@ -107,6 +107,18 @@ class RPCMasternodeTest(DashTestFramework):
         # we have 3 masternodes that are running already and 2 new outputs we just created
         assert_equal(len(self.nodes[0].masternode("outputs")), 5)
 
+        self.log.info("test that masternode list RPCs refuse a block that is not connected")
+        node = self.nodes[0]
+        block = self.generateblock(node, output=addr1, transactions=[], submit=False)
+        node.submitheader(block["hex"][:160])
+        assert_raises_rpc_error(-8, "Block is not in main chain", node.protx, "info", self.mninfo[0].proTxHash, block["hash"])
+        assert_raises_rpc_error(-8, "Block is not in main chain", node.protx, "listdiff", 1, block["hash"])
+        assert_raises_rpc_error(-8, "Block is not in main chain", node.masternode, "payments", block["hash"])
+        # a list cached for the header alone would make the next block fail with bad-cbtx-mnmerkleroot
+        assert_equal(node.submitblock(block["hex"]), None)
+        tip = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert_equal(node.getbestblockhash(), tip)
+
         self.log.info("test payments without historical transaction data")
         spend_blockhash = self.nodes[0].getrawtransaction(self.mninfo[0].proTxHash, True)["blockhash"]
         self.restart_node(0, extra_args=self.nodes[0].extra_args + ["-txindex=0"])

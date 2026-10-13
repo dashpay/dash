@@ -242,6 +242,11 @@ void FuncDIP3Activation(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(tip_height(), nHeight + 1);
     // Mining a block with a DIP3 transaction should succeed now
     block = std::make_shared<CBlock>(setup.CreateBlock(txns, coinbase_pk, chainman.ActiveChainstate()));
+    // A list looked up while only the header is known must not outlive the block's connection
+    BlockValidationState header_state;
+    const CBlockIndex* header_index{nullptr};
+    BOOST_REQUIRE(chainman.ProcessNewBlockHeaders({block->GetBlockHeader()}, header_state, &header_index));
+    BOOST_REQUIRE(!dmnman.GetListForBlock(Assert(header_index)).HasMN(tx.GetHash()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
     sync_dmn_tip();
     BOOST_CHECK_EQUAL(tip_height(), nHeight + 2);

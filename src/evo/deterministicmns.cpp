@@ -726,7 +726,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
                 AbortNode(msg);
                 return state.Error(msg);
             }
-            mnListsCache.emplace(newList.GetBlockHash(), newList);
+            mnListsCache.insert_or_assign(newList.GetBlockHash(), newList);
             LogPrintf("CDeterministicMNManager::%s -- Wrote snapshot. nHeight=%d, mapCurMNs.allMNsCount=%d\n",
                 __func__, nHeight, newList.GetCounts().total());
         }
@@ -750,7 +750,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
 
         diff.nHeight = pindex->nHeight;
         mnListDiffsCache.emplace(pindex->GetBlockHash(), diff);
-        mnListsCache.emplace(newList.GetBlockHash(), newList);
+        mnListsCache.insert_or_assign(newList.GetBlockHash(), newList);
     } catch (const std::exception& e) {
         LogPrintf("CDeterministicMNManager::%s -- internal error: %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-dmn-block");
