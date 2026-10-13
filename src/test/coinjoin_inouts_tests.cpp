@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -602,6 +603,96 @@ BOOST_AUTO_TEST_CASE(server_unreachable_participant_ends_session)
             BOOST_CHECK_EQUAL(server.GetState(), all_reachable ? int{POOL_STATE_SIGNING} : int{POOL_STATE_IDLE});
 
             connman.ClearTestNodes();
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(server_charges_only_attributable_offenders)
+{
+    struct Case {
+        std::string name;
+        PoolState state;
+        int collaterals;
+        //! The submitted entries, entry i belonging to collateral i: {signed inputs, inputs}
+        std::vector<std::pair<int, int>> entries;
+        //! The collaterals expected to be found offending
+        std::vector<int> offenders;
+        size_t participants;
+        OffenderChargeRate rate;
+    };
+    const std::pair<int, int> sent{0, 1}, signed_entry{1, 1}, unsigned_entry{0, 1};
+    const std::vector<Case> cases{
+        {"accepting, two entries missing", POOL_STATE_ACCEPTING_ENTRIES, 5, {sent, sent, sent}, {3, 4}, 5, OffenderChargeRate::NORMAL},
+        {"accepting, every entry in", POOL_STATE_ACCEPTING_ENTRIES, 3, {sent, sent, sent}, {}, 3, OffenderChargeRate::NONE},
+        {"accepting, all entries but one missing", POOL_STATE_ACCEPTING_ENTRIES, 3, {sent}, {1, 2}, 3, OffenderChargeRate::REDUCED},
+        {"accepting, no entry at all", POOL_STATE_ACCEPTING_ENTRIES, 3, {}, {0, 1, 2}, 3, OffenderChargeRate::NONE},
+        // A single non-signer however many inputs it holds. Counted once per input it looked like every
+        // participant had failed, which exempts the session from charging.
+        {"signing, one participant leaves all of its inputs unsigned",
+         POOL_STATE_SIGNING,
+         4,
+         {{0, 4}, signed_entry, signed_entry, signed_entry},
+         {0},
+         4,
+         OffenderChargeRate::NORMAL},
+        {"signing, one participant signs only some of its inputs",
+         POOL_STATE_SIGNING,
+         4,
+         {{2, 3}, signed_entry, signed_entry, signed_entry},
+         {0},
+         4,
+         OffenderChargeRate::NORMAL},
+        {"signing, everyone signed", POOL_STATE_SIGNING, 3, {signed_entry, signed_entry, signed_entry}, {}, 3, OffenderChargeRate::NONE},
+        // Finalized on timeout without the last two participants' entries, so only the first two were asked to
+        // sign. Every one of them failing points at the masternode rather than at any one of them.
+        {"signing after a timeout, every participant asked to sign fails",
+         POOL_STATE_SIGNING,
+         4,
+         {unsigned_entry, unsigned_entry},
+         {0, 1},
+         2,
+         OffenderChargeRate::NONE},
+        {"signing after a timeout, all signers but one fail",
+         POOL_STATE_SIGNING,
+         5,
+         {unsigned_entry, unsigned_entry, signed_entry},
+         {0, 1},
+         3,
+         OffenderChargeRate::REDUCED},
+        {"queue", POOL_STATE_QUEUE, 3, {}, {}, 0, OffenderChargeRate::NONE},
+    };
+
+    for (const auto& [name, state, n_collaterals, entry_shapes, expected_offenders, participants, rate] : cases) {
+        BOOST_TEST_CONTEXT(name)
+        {
+            std::vector<CTransactionRef> collaterals;
+            for (int i = 0; i < n_collaterals; ++i) {
+                CMutableTransaction collateral;
+                collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+                collaterals.push_back(MakeTransactionRef(collateral));
+            }
+            std::vector<CCoinJoinEntry> entries;
+            for (size_t i = 0; i < entry_shapes.size(); ++i) {
+                const auto [n_signed, n_inputs] = entry_shapes[i];
+                std::vector<CTxDSIn> inputs;
+                for (int j = 0; j < n_inputs; ++j) {
+                    inputs.emplace_back(CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i * 16 + j)}},
+                                        P2PKHScript(), 0);
+                    inputs.back().fHasSig = j < n_signed;
+                }
+                entries.emplace_back(inputs, std::vector<CTxOut>{}, *collaterals[i]);
+            }
+
+            const auto offenders{FindSessionOffenders(state, collaterals, entries)};
+            // An entry carries its own copy of the collateral, so compare transactions, not pointers
+            std::vector<uint256> found, expected;
+            std::ranges::transform(offenders.collaterals, std::back_inserter(found),
+                                   [](const auto& collateral) { return collateral->GetHash(); });
+            std::ranges::transform(expected_offenders, std::back_inserter(expected),
+                                   [&collaterals](int i) { return collaterals[i]->GetHash(); });
+            BOOST_CHECK_EQUAL_COLLECTIONS(found.begin(), found.end(), expected.begin(), expected.end());
+            BOOST_CHECK_EQUAL(offenders.participants, participants);
+            BOOST_CHECK(GetOffenderChargeRate(offenders) == rate);
         }
     }
 }
