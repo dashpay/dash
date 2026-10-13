@@ -3,9 +3,6 @@
 This file is for automated coding agents working in Dash Core. Keep it
 practical: prefer local source, tests, and project history over guesses.
 
-`AGENTS.md` and `CLAUDE.md` intentionally contain the same guidance. When one
-changes, update the other in the same commit.
-
 ## First Principles
 
 - Understand the code path before editing. Read callers, callees, tests, and
@@ -184,13 +181,11 @@ source-history work, not only conflict resolution.
   correctness, security, or consensus issues are valid reasons to adapt
   upstream code.
 - Compare the upstream diff to the Dash diff file by file.
-- Check prerequisite PRs. If an upstream hunk depends on a helper, test, type,
-  or file introduced by an earlier Bitcoin PR, either backport the prerequisite
-  or document why the hunk is intentionally excluded.
-- Do not silently drop upstream tests. If a test depends on a missing
-  prerequisite, call that out in the PR description or add the prerequisite.
-- If a backport is partial, explain the omitted upstream commits, hunks, or
-  tests in the commit or PR text.
+- Check prerequisite PRs. If an upstream hunk or test depends on a helper,
+  type, or file from an earlier Bitcoin PR, backport the prerequisite or
+  explain in the commit or PR text why it is left out. Every other omitted
+  upstream commit, hunk, or test needs the same explanation, except the
+  features listed below.
 - Verify the PR title/body matches the actual commits still reachable from the
   branch. Stale "backports X" metadata has caused bad reviews.
 - Keep Dash adaptations explicit. When upstream code touches a path that Dash
@@ -209,13 +204,9 @@ them, do not open follow-ups to add them, and do not describe a backport as
 "partial" solely because it omits them. Drop such hunks silently and mention
 the omission in one line only if the upstream commit is otherwise unclear.
 
-- SegWit itself: witness data and its serialization, weight units and
+- SegWit: witness data and its serialization, weight units and
   `-blockmaxweight`, `NODE_WITNESS`, wtxid-based relay (BIP 339), P2WPKH and
   P2WSH outputs, `wpkh()`/`wsh()` descriptors, BIP 49/84 derivation paths.
-  Taproot is a separate matter: BIP 143 signature hashing, BIP 340/341/342,
-  P2TR outputs, tapscript, `tr()` descriptors, bech32m payment addresses may
-  be adopted together as one future project. Until that lands, treat them as
-  temporarily absent or incomplete.
 - Replace-by-fee (BIP 125) and everything built on it: `replaceable` flags,
   `-walletrbf`, `-mempoolfullrbf`, `bumpfee`/`psbtbumpfee`, mempool
   replacement policy, v3/TRUC transactions, ephemeral anchors. Dash mempool
@@ -224,7 +215,12 @@ the omission in one line only if the upstream commit is otherwise unclear.
   message table stays aligned with upstream.
 - Signet.
 
-If a backport touches one of these areas, keep the surrounding upstream
+Taproot is not on the list: BIP 143 signature hashing, BIP 340/341/342,
+P2TR outputs, tapscript, `tr()` descriptors, bech32m payment addresses may
+be adopted together as one future project. Until that lands, treat them as
+temporarily absent or partial.
+
+If a backport touches one of the features above, keep the surrounding upstream
 structure and remove only the feature-specific lines, so later backports still
 apply cleanly.
 
@@ -276,7 +272,8 @@ Be extra careful around:
 test/functional/test_runner.py --dashd=/path/to/dashd wallet_hd.py
 
 # Keep failed functional-test datadirs
-test/functional/test_runner.py --nocleanup --tracerpc -l DEBUG wallet_hd.py
+test/functional/test_runner.py --nocleanup --tracerpc --loglevel=DEBUG \
+    wallet_hd.py
 
 # Debug a unit-test binary
 gdb ./src/test/test_dash
