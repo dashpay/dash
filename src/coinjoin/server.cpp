@@ -284,7 +284,10 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
             if (!AddScriptSig(txin)) {
                 LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() failed at %d/%d, session: %d\n", nTxInIndex,
                          nTxInsCount, session_id);
-                RelayStatus(STATUS_REJECTED);
+                // Only the sender is at fault, so only the sender is rejected. A session-wide
+                // rejection would let one participant abort the session for everyone, and those
+                // that obeyed it would be counted as non-signers at the timeout.
+                PushStatus(peer, STATUS_REJECTED, ERR_INVALID_INPUT);
                 return;
             }
             LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() %d/%d success\n", nTxInIndex, nTxInsCount);

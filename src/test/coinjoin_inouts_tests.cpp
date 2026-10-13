@@ -17,6 +17,7 @@
 #include <protocol.h>
 #include <script/script.h>
 #include <streams.h>
+#include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
 #include <uint256.h>
@@ -515,6 +516,53 @@ BOOST_AUTO_TEST_CASE(server_timeout_resets_only_sessions_that_cannot_advance)
             BOOST_CHECK_EQUAL(ShouldResetTimedOutSession(session), reset);
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(server_invalid_signature_rejects_only_its_sender)
+{
+    BOOST_REQUIRE(m_node.mn_sync);
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    CNode& sender = *MakePeer(/*id=*/7, /*ipv4=*/0x0a000001).release();
+    CNode& other = *MakePeer(/*id=*/8, /*ipv4=*/0x0a000002).release();
+    for (CNode* node : {&sender, &other}) {
+        node->fSuccessfullyConnected = true;
+        connman.AddTestNode(*node);
+        server.SeedParticipant(node->addr);
+    }
+    server.EnterSigningState();
+
+    std::vector<CService> status_recipients;
+    const auto capture_orig{CaptureMessage};
+    m_node.args->ForceSetArg("-capturemessages", "1");
+    CaptureMessage = [&status_recipients](const CAddress& addr, const std::string& msg_type,
+                                          Span<const unsigned char>, bool is_incoming) {
+        if (!is_incoming && msg_type == NetMsgType::DSSTATUSUPDATE) status_recipients.push_back(addr);
+    };
+
+    // A signature that fails validation is the sender's own doing. Only the sender is rejected:
+    // the other participant is not told to abandon a session it can still complete.
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    stream << std::vector<CTxIn>{CTxIn{COutPoint{uint256::ONE, 0}}};
+    BOOST_CHECK_NO_THROW(server.ProcessMessage(sender, NetMsgType::DSSIGNFINALTX, stream));
+
+    CaptureMessage = capture_orig;
+    m_node.args->ForceSetArg("-capturemessages", "0");
+
+    BOOST_CHECK(std::ranges::count(status_recipients, sender.addr) == 1);
+    BOOST_CHECK(std::ranges::count(status_recipients, other.addr) == 0);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 2);
+
+    connman.ClearTestNodes();
 }
 
 BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
