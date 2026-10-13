@@ -547,11 +547,20 @@ class RawTransactionsTest(BitcoinTestFramework):
     def test_locked_wallet(self):
         self.log.info("Test fundrawtxn with locked wallet and hardened derivation")
 
-        self.nodes[1].encryptwallet("test")
+        df_wallet = self.nodes[1].get_wallet_rpc(self.default_wallet_name)
+        self.nodes[1].createwallet(wallet_name="locked_wallet", descriptors=self.options.descriptors)
+        wallet = self.nodes[1].get_wallet_rpc("locked_wallet")
+
+        # Add some balance to the wallet (this will be reverted at the end of the test)
+        df_wallet.sendall(recipients=[wallet.getnewaddress()])
+        self.generate(self.nodes[1], 1)
+
+        # Encrypt wallet and import descriptors
+        wallet.encryptwallet("test")
 
         if self.options.descriptors:
-            self.nodes[1].walletpassphrase('test', 999000)
-            self.nodes[1].importdescriptors([{
+            wallet.walletpassphrase('test', 999000)
+            wallet.importdescriptors([{
                 'desc': descsum_create('pkh(tprv8ZgxMBicQKsPdYeeZbPSKd2KYLmeVKtcFA7kqCxDvDR13MQ6us8HopUR2wLcS2ZKPhLyKsqpDL2FtL73LMHcgoCL7DXsciA8eX8nbjCR2eG/0h/*h)'),
                 'timestamp': 'now',
                 'active': True
@@ -562,47 +571,56 @@ class RawTransactionsTest(BitcoinTestFramework):
                 'active': True,
                 'internal': True
             }])
-            self.nodes[1].walletlock()
+            wallet.walletlock()
 
         # Drain the keypool.
-        self.nodes[1].getnewaddress()
+        wallet.getnewaddress()
 
-        # Choose 2 inputs
-        # bnb doesn't work same way as in bitcoin, so, `value` is also calculated by different way
-        inputs = self.nodes[1].listunspent()
-        value = sum(inp["amount"] for inp in inputs) - Decimal("0.00002200")
+        # Choose input
+        inputs = wallet.listunspent()
+        # Deduce fee to produce a changeless transaction
+        # (500 duffs is above the fee of this 1-in/1-out tx at the test feerate,
+        #  while the remainder stays below the cost of creating a change output)
+        value = inputs[0]["amount"] - Decimal("0.00000500")
         outputs = {self.nodes[0].getnewaddress():value}
-        rawtx = self.nodes[1].createrawtransaction(inputs, outputs)
+        rawtx = wallet.createrawtransaction(inputs, outputs)
         # fund a transaction that does not require a new key for the change output
-        self.nodes[1].fundrawtransaction(rawtx)
+        funded_tx = wallet.fundrawtransaction(rawtx)
+        assert_equal(funded_tx["changepos"], -1)
 
         # fund a transaction that requires a new key for the change output
         # creating the key must be impossible because the wallet is locked
         outputs = {self.nodes[0].getnewaddress():value - Decimal("0.1")}
-        rawtx = self.nodes[1].createrawtransaction(inputs, outputs)
-        assert_raises_rpc_error(-4, "Transaction needs a change address, but we can't generate it.", self.nodes[1].fundrawtransaction, rawtx)
+        rawtx = wallet.createrawtransaction(inputs, outputs)
+        assert_raises_rpc_error(-4, "Transaction needs a change address, but we can't generate it.", wallet.fundrawtransaction, rawtx)
 
         # Refill the keypool.
-        self.nodes[1].walletpassphrase("test", 999000)
-        self.nodes[1].walletlock()
+        wallet.walletpassphrase("test", 999000)
+        wallet.walletlock()
 
-        assert_raises_rpc_error(-13, "walletpassphrase", self.nodes[1].sendtoaddress, self.nodes[0].getnewaddress(), 12)
+        assert_raises_rpc_error(-13, "walletpassphrase", wallet.sendtoaddress, self.nodes[0].getnewaddress(), 12)
 
         oldBalance = self.nodes[0].getbalance()
 
         inputs = []
         outputs = {self.nodes[0].getnewaddress():11}
-        rawtx = self.nodes[1].createrawtransaction(inputs, outputs)
-        fundedTx = self.nodes[1].fundrawtransaction(rawtx)
+        rawtx = wallet.createrawtransaction(inputs, outputs)
+        fundedTx = wallet.fundrawtransaction(rawtx)
+        assert fundedTx["changepos"] != -1
 
         # Now we need to unlock.
-        self.nodes[1].walletpassphrase("test", 999000)
-        signedTx = self.nodes[1].signrawtransactionwithwallet(fundedTx['hex'])
-        self.nodes[1].sendrawtransaction(signedTx['hex'])
+        wallet.walletpassphrase("test", 999000)
+        signedTx = wallet.signrawtransactionwithwallet(fundedTx['hex'])
+        wallet.sendrawtransaction(signedTx['hex'])
         self.generate(self.nodes[1], 1)
 
         # Make sure funds are received at node1.
         assert_equal(oldBalance+Decimal('511.0000000'), self.nodes[0].getbalance())
+
+        # Restore pre-test wallet state
+        wallet.sendall(recipients=[df_wallet.getnewaddress(), df_wallet.getnewaddress(), df_wallet.getnewaddress()])
+        wallet.unloadwallet()
+        self.generate(self.nodes[1], 1)
 
     def test_many_inputs_fee(self):
         """Multiple (~19) inputs tx test | Compare fee."""
