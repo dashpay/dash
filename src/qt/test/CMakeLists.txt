@@ -35,6 +35,7 @@ if(ENABLE_WALLET)
   target_sources(test_bitcoin-qt
     PRIVATE
       addressbooktests.cpp
+      coincontroltreewidgettests.cpp
       masternodemaintenancetests.cpp
       masternodetestutil.cpp
       masternodewidgettests.cpp
