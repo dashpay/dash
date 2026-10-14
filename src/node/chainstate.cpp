@@ -262,6 +262,19 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         }
     }
 
+    // Blocks pruned without the "evo" prune lock, e.g. by an earlier release, may be missing blocks that validating the
+    // next blocks reads. A snapshot chainstate has no blocks below its base, -reindex can't help it.
+    if (chainman.m_blockman.m_have_pruned && !chainman.IsSnapshotActive() &&
+        !is_coinsview_empty(&chainman.ActiveChainstate())) {
+        const CBlockIndex* missing{FindMissingEvoBlockData(chainman.GetParams(), chainman.ActiveTip())};
+        if (missing) {
+            return {ChainstateLoadStatus::FAILURE,
+                    strprintf(_("Block %d, which is needed to validate new blocks, has been pruned. You need to "
+                                "rebuild the database using -reindex. This will redownload the entire blockchain"),
+                              missing->nHeight)};
+        }
+    }
+
     if (!special_tx.m_mnhfman->ForceSignalDBUpdate(chainman.ActiveTip())) {
         return {ChainstateLoadStatus::FAILURE, _("Error upgrading evo database for EHF")};
     }

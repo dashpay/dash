@@ -143,6 +143,16 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pin
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight);
 
+/** Height of the oldest block that the "evo" prune lock keeps for a chain tip at tip_height */
+[[nodiscard]] int GetEvoPruneLockHeightForTip(const CChainParams& chainparams, int tip_height);
+
+/**
+ * @return the newest block from tip down to GetEvoPruneLockHeight() that has no data on disk (e.g. because it was
+ * pruned before the "evo" prune lock existed), or nullptr if there is none
+ */
+const CBlockIndex* FindMissingEvoBlockData(const CChainParams& chainparams, const CBlockIndex* tip)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 /**
 * Validation result for a single transaction mempool acceptance.
 */

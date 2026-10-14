@@ -4,12 +4,14 @@
 
 #include <test/util/setup_common.h>
 
+#include <chain.h>
 #include <chainparams.h>
 #include <chainparamsbase.h>
 #include <evo/creditpool.h>
 #include <evo/specialtxman.h>
 #include <llmq/snapshot.h>
 #include <util/system.h>
+#include <validation.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -85,6 +87,76 @@ BOOST_FIXTURE_TEST_CASE(evo_prune_lock_before_v20, RegTestV20At2000Setup)
     BOOST_CHECK_EQUAL(GetEvoPruneLockHeight(params, 2000 + 576), 2000 - 100);
     BOOST_CHECK_EQUAL(GetEvoPruneLockHeight(params, 2000 + 576 + 1), 2000 - 100 + 1);
     BOOST_CHECK_EQUAL(GetEvoPruneLockHeight(params, 5000), 5000 - (576 + 100));
+}
+
+// Link blocks into a chain of block indexes from first_height on, all with data
+static void MakeChain(std::vector<CBlockIndex>& blocks, int first_height) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    for (size_t i{0}; i < blocks.size(); ++i) {
+        blocks[i].nHeight = first_height + static_cast<int>(i);
+        blocks[i].pprev = i > 0 ? &blocks[i - 1] : nullptr;
+        blocks[i].nStatus = BLOCK_HAVE_DATA;
+    }
+}
+
+// The height of the block FindMissingEvoBlockData() reports for the last block when only the block at missing_height
+// has no data, or -1 for none
+static int FindMissingWith(const CChainParams& params, std::vector<CBlockIndex>& blocks, int missing_height)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    CBlockIndex& missing{blocks.at(missing_height - blocks.front().nHeight)};
+    missing.nStatus &= ~BLOCK_HAVE_DATA;
+    const CBlockIndex* found{FindMissingEvoBlockData(params, &blocks.back())};
+    missing.nStatus |= BLOCK_HAVE_DATA;
+    return found ? found->nHeight : -1;
+}
+
+BOOST_AUTO_TEST_CASE(evo_prune_find_missing_block_data)
+{
+    LOCK(cs_main);
+    const auto params{CreateChainParams(ArgsManager{}, CBaseChainParams::MAIN)};
+    const auto llmq_params{params->GetLLMQ(Consensus::LLMQType::LLMQ_60_75)};
+    BOOST_REQUIRE(llmq_params && llmq_params->useRotation);
+    const int interval{llmq_params->dkgInterval};
+    const int period{CCreditPoolManager::DISK_SNAPSHOT_PERIOD};
+    // A cycle of rotated quorums that starts at a credit pool snapshot height, with a commitment mined on top of tip
+    const int cycle_base{(params->GetConsensus().V20Height / period + 10) * period};
+    BOOST_REQUIRE_EQUAL(cycle_base % interval, 0);
+    const int tip{cycle_base + 40};
+    // Its members are built from the work block of the third cycle before it, which is older than any block that the
+    // credit pool reads for the next block (from the snapshot of cycle_base on)
+    const int work_block{cycle_base - 3 * interval - llmq::WORK_DIFF_DEPTH};
+    BOOST_REQUIRE_LT(work_block, cycle_base + 1 - params->CreditPoolPeriodBlocks());
+
+    const int height_first{GetEvoPruneLockHeight(*params, tip)};
+    BOOST_CHECK_EQUAL(height_first, tip - (6 * 288 + 50 + 8));
+    // The lock keeps more blocks below them for a reorg, which a rewound tip may have used up, so these aren't checked
+    const int lock_first{GetEvoPruneLockHeightForTip(*params, tip)};
+    BOOST_CHECK_EQUAL(lock_first, height_first - static_cast<int>(MIN_BLOCKS_TO_KEEP));
+    std::vector<CBlockIndex> blocks(tip - (lock_first - 10) + 1);
+    MakeChain(blocks, lock_first - 10);
+    BOOST_CHECK(FindMissingEvoBlockData(*params, &blocks.back()) == nullptr);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, blocks, work_block), work_block);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, blocks, tip), tip);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, blocks, height_first), height_first);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, blocks, height_first - 1), -1);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, blocks, lock_first), -1);
+}
+
+BOOST_AUTO_TEST_CASE(evo_prune_find_missing_block_data_before_v20)
+{
+    LOCK(cs_main);
+    const auto params{CreateChainParams(ArgsManager{}, CBaseChainParams::REGTEST)};
+    // Nothing before the credit pool window of the V20 activation block is kept or checked
+    const int floor{params->GetConsensus().V20Height - params->CreditPoolPeriodBlocks()};
+    std::vector<CBlockIndex> blocks(floor + 11);
+    MakeChain(blocks, 0);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, blocks, floor), floor);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, blocks, floor - 1), -1);
+    // A chain that ends below it isn't checked at all
+    std::vector<CBlockIndex> short_blocks(floor);
+    MakeChain(short_blocks, 0);
+    BOOST_CHECK_EQUAL(FindMissingWith(*params, short_blocks, floor - 1), -1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

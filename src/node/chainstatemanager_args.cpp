@@ -34,6 +34,8 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, Chains
 
     if (auto value{args.GetIntArg("-maxtipage")}) opts.max_tip_age = std::chrono::seconds{*value};
 
+    if (auto value{args.GetBoolArg("-evoprunelock")}) opts.evo_prune_lock = *value;
+
     return std::nullopt;
 }
 } // namespace node

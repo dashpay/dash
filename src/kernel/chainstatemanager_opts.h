@@ -20,6 +20,7 @@ struct SuperblockStatus;
 
 static constexpr bool DEFAULT_CHECKPOINTS_ENABLED{true};
 static constexpr auto DEFAULT_MAX_TIP_AGE{6h}; // ~144 blocks behind -> 2 x fork detection time, was 24h in bitcoin
+static constexpr bool DEFAULT_EVO_PRUNE_LOCK{true};
 
 namespace kernel {
 
@@ -38,6 +39,9 @@ struct ChainstateManagerOpts {
     std::optional<uint256> assumed_valid_block{};
     //! If the tip is older than this, the node is considered to be in initial block download.
     std::chrono::seconds max_tip_age{DEFAULT_MAX_TIP_AGE};
+    //! Dash: keep the blocks evo validation reads back from disk when pruning, see GetEvoPruneLockHeight(). Only
+    //! disabled in tests, to get a datadir pruned without them.
+    bool evo_prune_lock{DEFAULT_EVO_PRUNE_LOCK};
     //! Dash: governance's superblock status for a block height, consulted by
     //! block validation and the miner. Unset means superblock validation is disabled.
     std::function<SuperblockStatus(const CDeterministicMNList& mn_list, int nBlockHeight)> superblock_status{};

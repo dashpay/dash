@@ -597,6 +597,7 @@ void SetupServerArgs(ArgsManager& argsman)
 #endif
     argsman.AddArg("-assumevalid=<hex>", strprintf("If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet: %s, devnet: %s)", defaultChainParams->GetConsensus().defaultAssumeValid.GetHex(), testnetChainParams->GetConsensus().defaultAssumeValid.GetHex(), devnetChainParams->GetConsensus().defaultAssumeValid.GetHex()), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksdir=<dir>", "Specify directory to hold blocks subdirectory for *.dat files (default: <datadir>)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-evoprunelock", strprintf("Keep the blocks that evo validation reads back from disk when pruning, only disable it for testing (default: %u)", DEFAULT_EVO_PRUNE_LOCK), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-fastprune", "Use smaller block files and lower minimum prune height for testing purposes", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-tinyblk", "Use smaller block files for testing purposes", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
 #if HAVE_SYSTEM
@@ -2134,7 +2135,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             if (!options.reindex) {
                 bool fRet = uiInterface.ThreadSafeQuestion(
                     error + Untranslated(".\n\n") + _("Do you want to rebuild the block database now?"),
-                    error.original + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
+                    error.original + (args.GetIntArg("-prune", 0) ? ".\nPlease restart with -reindex to recover." : ".\nPlease restart with -reindex or -reindex-chainstate to recover."),
                     "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
                 if (fRet) {
                     fReindex = true;
