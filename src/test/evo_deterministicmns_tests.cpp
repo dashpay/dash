@@ -3538,35 +3538,59 @@ BOOST_AUTO_TEST_CASE(proregtx_rejects_cross_scheme_key_reuse)
 
 BOOST_AUTO_TEST_CASE(statediff_captures_operator_key_reencoding)
 {
-    // A same-key legacy->basic migration re-encodes the operator key (same point, different scheme).
-    // CDeterministicMNStateDiff must capture that, or the evoDB diff path reconstructs the masternode
-    // with the old encoding while an online-built list has the new one -- a reconstruction split that
-    // full-snapshot serialization (which re-derives the encoding from nVersion) would not reveal.
+    // A legacy->basic migration re-encodes the operator key. CDeterministicMNStateDiff must capture that,
+    // or the evoDB diff path reconstructs the masternode with the old encoding while an online-built list
+    // has the new one -- a reconstruction split that full-snapshot serialization (which re-derives the
+    // encoding from nVersion) would not reveal.
     CBLSSecretKey sk;
     sk.MakeNewKey();
 
-    CDeterministicMNState a;
-    a.nVersion = ProTxVersion::LegacyBLS;
-    a.pubKeyOperator.Set(sk.GetPublicKey(), /*specificLegacyScheme=*/true);
-    a.netInfo = NetInfoInterface::MakeNetInfo(a.nVersion);
+    // Mainnet block 2005287 migrated a masternode with a key whose bytes match its legacy key. The bytes
+    // decode to different keys under each scheme, so the encoded bytes (and GetHash()) do not change.
+    const auto same_bytes{ParseHex("991ffe06346a3652cb5f26e614ad9c57b2651405c64712beb45c0b8c870e86fab7fa47a77bb66d1d6d79ce95c40150fc")};
+    CBLSPublicKey same_bytes_legacy;
+    same_bytes_legacy.SetBytes(same_bytes, /*specificLegacyScheme=*/true);
+    CBLSPublicKey same_bytes_basic;
+    same_bytes_basic.SetBytes(same_bytes, /*specificLegacyScheme=*/false);
+    BOOST_REQUIRE(same_bytes_legacy.IsValid() && same_bytes_basic.IsValid());
+    BOOST_REQUIRE(same_bytes_legacy != same_bytes_basic);
 
-    CDeterministicMNState b{a};
-    b.nVersion = ProTxVersion::BasicBLS;
-    b.pubKeyOperator.Set(sk.GetPublicKey(), /*specificLegacyScheme=*/false); // same point, re-encoded
+    const struct {
+        std::string name;
+        CBLSPublicKey legacy_key;
+        CBLSPublicKey basic_key;
+    } cases[]{
+        {"same key, new encoding", sk.GetPublicKey(), sk.GetPublicKey()},
+        {"same bytes, different key", same_bytes_legacy, same_bytes_basic},
+    };
 
-    CDeterministicMNStateDiff diff{a, b};
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
-    ds << diff;
-    CDeterministicMNStateDiff diff2;
-    ds >> diff2;
+    for (const auto& c : cases) {
+        BOOST_TEST_CONTEXT(c.name)
+        {
+            CDeterministicMNState a;
+            a.nVersion = ProTxVersion::LegacyBLS;
+            a.pubKeyOperator.Set(c.legacy_key, /*specificLegacyScheme=*/true);
+            a.netInfo = NetInfoInterface::MakeNetInfo(a.nVersion);
 
-    CDeterministicMNState reconstructed{a};
-    diff2.ApplyToState(reconstructed);
+            CDeterministicMNState b{a};
+            b.nVersion = ProTxVersion::BasicBLS;
+            b.pubKeyOperator.Set(c.basic_key, /*specificLegacyScheme=*/false);
 
-    BOOST_CHECK_EQUAL(reconstructed.nVersion, ProTxVersion::BasicBLS);
-    BOOST_CHECK(!reconstructed.pubKeyOperator.IsLegacy());
-    BOOST_CHECK(reconstructed.pubKeyOperator.Get() == sk.GetPublicKey());
-    BOOST_CHECK(::SerializeHash(reconstructed.pubKeyOperator) == ::SerializeHash(b.pubKeyOperator));
+            CDeterministicMNStateDiff diff{a, b};
+            CDataStream ds(SER_DISK, CLIENT_VERSION);
+            ds << diff;
+            CDeterministicMNStateDiff diff2;
+            ds >> diff2;
+
+            CDeterministicMNState reconstructed{a};
+            diff2.ApplyToState(reconstructed);
+
+            BOOST_CHECK_EQUAL(reconstructed.nVersion, ProTxVersion::BasicBLS);
+            BOOST_CHECK(!reconstructed.pubKeyOperator.IsLegacy());
+            BOOST_CHECK(reconstructed.pubKeyOperator.Get() == c.basic_key);
+            BOOST_CHECK(::SerializeHash(reconstructed.pubKeyOperator) == ::SerializeHash(b.pubKeyOperator));
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(has_operator_key_under_any_scheme)
