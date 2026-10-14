@@ -9,6 +9,7 @@
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <instantsend/net_instantsend.h>
+#include <interfaces/handler.h>
 #include <llmq/context.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
@@ -535,6 +536,63 @@ BOOST_FIXTURE_TEST_CASE(nonlocked_asset_unlock_dropped_when_removed_from_mempool
     BOOST_CHECK_EQUAL(isman.GetCounts().m_unprotected_tx, 0U);
     isman.RetryUnminedAssetUnlocks();
     BOOST_CHECK(isman.PrepareTxToRetry().empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(nonlocked_ordinary_tx_released_on_mempool_removal, TestChain100Setup)
+{
+    auto& isman = *m_node.isman;
+    auto net = std::make_shared<NetInstantSend>(m_node.peerman.get(), isman, nullptr, *m_node.llmq_ctx->sigman,
+                                                *m_node.llmq_ctx->qman, *m_node.chainlocks, *m_node.chainman,
+                                                *m_node.mempool, *m_node.mn_sync);
+    RegisterSharedValidationInterface(net);
+    const auto unregister = interfaces::MakeCleanupHandler([&] { UnregisterSharedValidationInterface(net); });
+    for (const bool expire : {true, false}) {
+        auto mtx = CreateValidMempoolTransaction(m_coinbase_txns.front(), 0, 1, coinbaseKey,
+                                                 GetScriptForRawPubKey(coinbaseKey.GetPubKey()),
+                                                 m_coinbase_txns.front()->vout[0].nValue - (expire ? 1000 : 2000));
+        const auto tx = WITH_LOCK(m_node.mempool->cs, return m_node.mempool->get(mtx.GetHash()));
+        BOOST_REQUIRE(tx);
+        isman.AddNonLockedTx(tx, nullptr);
+        if (expire) {
+            WITH_LOCK(m_node.mempool->cs,
+                      m_node.mempool->Expire(GetTime<std::chrono::seconds>() + std::chrono::seconds{1}));
+        } else {
+            WITH_LOCK(m_node.mempool->cs, m_node.mempool->TrimToSize(0));
+        }
+        SyncWithValidationInterfaceQueue();
+        BOOST_CHECK_EQUAL(tx.use_count(), 1);
+    }
+    unregister->disconnect();
+
+    // Block removals do not emit TransactionRemovedFromMempool. Mined tracking must still
+    // retain the transaction and report a conflict until confirmation cleanup removes it.
+    CMutableTransaction mined;
+    mined.vin.emplace_back(COutPoint{GetRandHash(), 0});
+    mined.vout.emplace_back(COIN, CScript{});
+    const auto tx = MakeTransactionRef(mined);
+    const auto* tip = WITH_LOCK(cs_main, return m_node.chainman->ActiveTip());
+    isman.AddNonLockedTx(tx, tip);
+    // Peer rejection also reaches this entry point; it must preserve still-mined conflicts.
+    isman.TransactionIsRemoved(tx);
+    BOOST_CHECK_EQUAL(tx.use_count(), 2);
+    // An unmined spend of the same input, e.g. admitted after a reorg, must not drop the mined
+    // transaction from the outpoint index when it leaves the mempool.
+    CMutableTransaction spend;
+    spend.vin = mined.vin;
+    spend.vout.emplace_back(COIN / 2, CScript{});
+    const auto spend_tx = MakeTransactionRef(spend);
+    isman.AddNonLockedTx(spend_tx, nullptr);
+    isman.TransactionIsRemoved(spend_tx);
+    instantsend::InstantSendLock conflict;
+    conflict.txid = GetRandHash();
+    conflict.inputs.push_back(mined.vin.front().prevout);
+    {
+        const auto conflicts = isman.RetrieveISConflicts(GetRandHash(), conflict);
+        BOOST_REQUIRE_EQUAL(conflicts.size(), 1U);
+        BOOST_CHECK(conflicts.at(tip).contains(tx->GetHash()));
+    }
+    isman.RemoveNonLockedTx(tx->GetHash(), false);
+    BOOST_CHECK_EQUAL(tx.use_count(), 1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
