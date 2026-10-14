@@ -5,7 +5,6 @@
 """Test the getblockfrompeer RPC."""
 
 from test_framework.authproxy import JSONRPCException
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.messages import (
     CBlock,
     from_hex,
@@ -108,7 +107,7 @@ class GetBlockFromPeerTest(BitcoinTestFramework):
         # Trying to fetch this block from the P2PInterface should not be possible
         error_msg = "In prune mode, only blocks that the node has already synced previously can be fetched from a peer"
         assert_raises_rpc_error(-1, error_msg, self.nodes[1].getblockfrompeer, blockhash, node1_interface_id)
-        self.stop_node(1, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_node(1)
 
         self.log.info("Connect pruned node")
         self.connect_nodes(0, 2)
@@ -153,7 +152,7 @@ class GetBlockFromPeerTest(BitcoinTestFramework):
         self.sync_blocks([self.nodes[0], pruned_node])
         assert_greater_than(pruned_node.pruneblockchain(tip_at_fetch + 1000), tip_at_fetch)
         assert_raises_rpc_error(-1, "Block not available (pruned data)", pruned_node.getblock, pruned_block)
-        self.stop_node(2, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_node(2)
 
 
 if __name__ == '__main__':

@@ -536,9 +536,8 @@ void OptionsModel::SetPruneTargetGB(int prune_target_gb)
     // shown, before the node starts.
     node().forceSetting("prune", new_value);
 
-    // When pruning is enabled, force disable governance and txindex
+    // Pruning is incompatible with txindex. Governance keeps working through the governance collateral index.
     if (prune_target_gb > 0) {
-        node().forceSetting("disablegovernance", "1");
         node().forceSetting("txindex", "0");
     }
 

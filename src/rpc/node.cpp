@@ -15,6 +15,7 @@
 #include <index/addressindex.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/govcollateralindex.h>
 #include <index/spentindex.h>
 #include <index/timestampindex.h>
 #include <index/txindex.h>
@@ -1213,6 +1214,10 @@ static RPCHelpMan getindexinfo()
 
     if (g_coin_stats_index) {
         result.pushKVs(SummaryToJSON(g_coin_stats_index->GetSummary(), index_name));
+    }
+
+    if (node.gov_collateral_index) {
+        result.pushKVs(SummaryToJSON(node.gov_collateral_index->GetSummary(), index_name));
     }
 
     ForEachBlockFilterIndex([&result, &index_name](const BlockFilterIndex& index) {

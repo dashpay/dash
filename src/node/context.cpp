@@ -17,6 +17,7 @@
 #include <txmempool.h>
 #include <validation.h>
 #include <index/addressindex.h>
+#include <index/govcollateralindex.h>
 #include <index/spentindex.h>
 #include <index/timestampindex.h>
 
