@@ -5,6 +5,7 @@
 #ifndef BITCOIN_GOVERNANCE_OBJECT_H
 #define BITCOIN_GOVERNANCE_OBJECT_H
 
+#include <governance/collateral.h>
 #include <governance/common.h>
 #include <governance/vote.h>
 #include <governance/votedb.h>
@@ -84,7 +85,6 @@ public:
 };
 
 static constexpr double GOVERNANCE_FILTER_FP_RATE = 0.001;
-static constexpr CAmount GOVERNANCE_PROPOSAL_FEE_TX = (1 * COIN);
 static constexpr int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
 static constexpr int64_t GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS = 1;
 static constexpr std::chrono::hours GOVERNANCE_UPDATE_MIN{1};
