@@ -65,6 +65,22 @@ static void BlockUntilCollateralIndexSynced(const NodeContext& node)
     }
 }
 
+//! Checking and relaying a proposal needs governance and an index to find its collateral in.
+static void EnsureCanSubmitProposals(const NodeContext& node, const std::string& consequence)
+{
+    if (!CHECK_NONFATAL(node.govman)->IsValid() || !node.gov_collateral_index) {
+        throw JSONRPCError(RPC_MISC_ERROR,
+                           "Governance is disabled on this node, so it can't check or relay proposals. Restart without "
+                           "-disablegovernance, or once with -reindex if the node warned that it has already pruned "
+                           "the blocks the governance collateral index needs. " + consequence);
+    }
+    if (!node.gov_collateral_index->BlockUntilSyncedToCurrentChain()) {
+        throw JSONRPCError(RPC_MISC_ERROR, "This node is still building its governance collateral index (see "
+                                           "getindexinfo), so it can't look up proposal collateral yet. Try again "
+                                           "once the index has synced.");
+    }
+}
+
 static RPCHelpMan gobject_count()
 {
     const auto json_help{CGovernanceManager::GetJsonHelp(/*key=*/"", /*optional=*/false)};
@@ -125,7 +141,8 @@ static RPCHelpMan gobject_deserialize()
 static RPCHelpMan gobject_check()
 {
     return RPCHelpMan{"gobject check",
-        "Validate governance object data (proposal only)\n",
+        "Validate governance object data (proposal only)\n"
+        "This only checks the proposal data. It does not check the collateral or whether this node can submit the proposal.\n",
         {
             {"hex_data", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "data in hex string format"},
         },
@@ -189,6 +206,9 @@ static RPCHelpMan gobject_prepare()
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return UniValue::VNULL;
+
+    EnsureCanSubmitProposals(EnsureAnyNodeContext(request.context),
+                             "Preparing a proposal now would burn its fee with no way to submit it from this node.");
 
     EnsureWalletIsUnlocked(*wallet);
 
@@ -352,6 +372,8 @@ static RPCHelpMan gobject_submit()
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const ChainstateManager& chainman = EnsureChainman(node);
+
+    EnsureCanSubmitProposals(node, "The parameters can be submitted unchanged from any node that can.");
 
     if(!node.mn_sync->IsBlockchainSynced()) {
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Must wait for client to sync with masternode network. Try again in a minute or so.");
