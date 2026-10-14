@@ -233,6 +233,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   external_signer.cpp
   governance/common.cpp
   init/common.cpp
+  kernel/chainparams.cpp
   key.cpp
   key_io.cpp
   llmq/core_write.cpp
@@ -329,7 +330,6 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   evo/assetlocktx.cpp
   evo/cbtx.cpp
   evo/creditpool.cpp
-  evo/chainhelper.cpp
   evo/deterministicmns.cpp
   evo/dmnstate.cpp
   evo/evodb.cpp

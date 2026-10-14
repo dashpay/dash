@@ -30,7 +30,6 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../deploymentstatus.cpp
   ../evo/assetlocktx.cpp
   ../evo/cbtx.cpp
-  ../evo/chainhelper.cpp
   ../evo/creditpool.cpp
   ../evo/deterministicmns.cpp
   ../evo/dmnstate.cpp
@@ -45,25 +44,17 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../evo/specialtx_filter.cpp
   ../evo/specialtxman.cpp
   ../flatfile.cpp
-  ../governance/common.cpp
-  ../governance/object.cpp
-  ../governance/superblock.cpp
-  ../governance/vote.cpp
-  ../governance/votedb.cpp
   ../gsl/assert.cpp
   ../hash.cpp
-  ../index/addressindex.cpp
   ../index/addressindex_util.cpp
   ../index/base.cpp
-  ../index/blockfilterindex.cpp
-  ../index/coinstatsindex.cpp
-  ../index/spentindex.cpp
   ../index/txindex.cpp
   ../init/common.cpp
   ../instantsend/db.cpp
   ../instantsend/instantsend.cpp
   ../instantsend/lock.cpp
   chain.cpp
+  chainparams.cpp
   checks.cpp
   coinstats.cpp
   context.cpp
@@ -74,9 +65,6 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../llmq/blockprocessor.cpp
   ../llmq/commitment.cpp
   ../llmq/context.cpp
-  ../llmq/debug.cpp
-  ../llmq/dkgsession.cpp
-  ../llmq/dkgsessionhandler.cpp
   ../llmq/dkgsessionmgr.cpp
   ../llmq/options.cpp
   ../llmq/quorums.cpp
@@ -88,7 +76,6 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../logging.cpp
   ../masternode/meta.cpp
   ../masternode/payments.cpp
-  ../masternode/sync.cpp
   ../merkleblock.cpp
   ../messagesigner.cpp
   ../netaddress.cpp
