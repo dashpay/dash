@@ -247,8 +247,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         # check that verbosity 2 for a mempool tx will fallback to verbosity 1
         # Do this with a pruned chain, as a regression test for https://github.com/bitcoin/bitcoin/pull/29003
         # Pre-DIP3 regtest blocks are small enough that the first 64 KiB block file only ends around height 365,
-        # so prune above that while staying MIN_BLOCKS_TO_KEEP below the tip
-        self.generate(self.nodes[2], 600)
+        # so prune above that while staying below the blocks that pruning keeps for evo validation, see
+        # feature_pruning_evo.py
+        for _ in range(4):
+            self.generate(self.nodes[2], 300)
         assert_greater_than(self.nodes[2].pruneblockchain(400), 0)
         mempool_tx = self.wallet.send_self_transfer(from_node=self.nodes[2])['txid']
         gottx = self.nodes[2].getrawtransaction(txid=mempool_tx, verbosity=2)

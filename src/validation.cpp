@@ -3191,6 +3191,12 @@ bool Chainstate::FlushStateToDisk(
         CoinsCacheSizeState cache_state = GetCoinsCacheSizeState();
         LOCK(m_blockman.cs_LastBlockFile);
         if (m_blockman.IsPruneMode() && (m_blockman.m_check_for_pruning || nManualPruneHeight > 0) && !fReindex) {
+            // evo and LLMQ validation reads blocks from disk further back than MIN_BLOCKS_TO_KEEP, also for the blocks
+            // connected after a reorg of up to MIN_BLOCKS_TO_KEEP blocks
+            const int reorg_tip_height{m_chain.Height() - static_cast<int>(MIN_BLOCKS_TO_KEEP)};
+            const int evo_height_first{GetEvoPruneLockHeight(m_chainman.GetParams(), reorg_tip_height)};
+            m_blockman.UpdatePruneLock("evo", {.height_first = evo_height_first});
+
             // make sure we don't prune above any of the prune locks bestblocks
             // pruning is height-based
             int last_prune{m_chain.Height()}; // last height we can prune

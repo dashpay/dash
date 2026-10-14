@@ -19,6 +19,7 @@ class CBlock;
 class CBlockIndex;
 class CCbTx;
 class CChain;
+class CChainParams;
 class CCoinsViewCache;
 class CCreditPoolManager;
 class CDeterministicMNList;
@@ -114,6 +115,12 @@ private:
     bool CheckCreditPoolDiffForBlock(const CBlock& block, const CBlockIndex* pindex, const CCbTx& cbTx,
                                      CAmount blockSubsidy, BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
+
+/**
+ * Lowest height whose block data the credit pool and quorum member code may read back from disk while
+ * validating the blocks after tip_height. Pruning has to keep these blocks, see Chainstate::FlushStateToDisk().
+ */
+[[nodiscard]] int GetEvoPruneLockHeight(const CChainParams& chainparams, int tip_height);
 
 /**
  * This helper does some trivial validations that doesn't depends on collateral and

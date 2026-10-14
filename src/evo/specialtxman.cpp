@@ -18,6 +18,7 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
+#include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <messagesigner.h>
 
@@ -49,6 +50,26 @@ CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager&
 }
 
 CSpecialTxProcessor::~CSpecialTxProcessor() = default;
+
+int GetEvoPruneLockHeight(const CChainParams& chainparams, int tip_height)
+{
+    // On a cold cache the credit pool is rebuilt from the last disk snapshot, up to DISK_SNAPSHOT_PERIOD blocks back
+    // (the snapshot of a block is only written once the next block connects), reading every block on the way and the
+    // block CreditPoolPeriodBlocks before each of them
+    int depth{CCreditPoolManager::DISK_SNAPSHOT_PERIOD + chainparams.CreditPoolPeriodBlocks()};
+    for (const auto& llmq_params : chainparams.GetConsensus().llmqs) {
+        // Quorum members depend on the coinbase ChainLock in the work block of the quorum. Rotated quorum members
+        // also depend on the work blocks of the three previous cycles, and are stored as a snapshot that the next
+        // three cycles build on. Members and their snapshot are built and stored again whenever they are not cached,
+        // so keep the work blocks of a cycle and of the three cycles before it until the last commitment of the third
+        // cycle after it can be mined.
+        const int cycles{llmq_params.useRotation ? 6 : 0};
+        const int llmq_depth{cycles * llmq_params.dkgInterval + llmq_params.dkgMiningWindowEnd + llmq::WORK_DIFF_DEPTH};
+        depth = std::max(depth, llmq_depth);
+    }
+    // Nothing before the credit pool window of the first V20 block is read
+    return std::max(tip_height - depth, chainparams.GetConsensus().V20Height - chainparams.CreditPoolPeriodBlocks());
+}
 
 static bool AddNetInfoEntries(const std::shared_ptr<NetInfoInterface>& net_info, NetInfoPurpose purpose,
                               const NetInfoList& entries, BlockValidationState& state)

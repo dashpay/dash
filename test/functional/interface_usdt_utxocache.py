@@ -392,9 +392,11 @@ class UTXOCacheTracepointTest(BitcoinTestFramework):
         self.log.info("restart the node with -prune")
         self.start_node(0, ["-fastprune=1", "-prune=1"])
 
-        BLOCKS_TO_MINE = 450
+        # Pruning keeps the blocks evo validation reads, see feature_pruning_evo.py
+        BLOCKS_TO_MINE = 1200
         self.log.info(f"mine {BLOCKS_TO_MINE} blocks to be able to prune")
-        self.generate(self.wallet, BLOCKS_TO_MINE)
+        for _ in range(4):
+            self.generate(self.wallet, BLOCKS_TO_MINE // 4)
         # we added BLOCKS_TO_MINE coinbase UTXOs to the cache
         possible_cache_sizes = {BLOCKS_TO_MINE}
         expected_flushes.append(

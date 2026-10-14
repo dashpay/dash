@@ -118,7 +118,8 @@ class GetBlockFromPeerTest(BitcoinTestFramework):
         # (-fastprune) block file. More blocks are needed before the first block
         # file wraps and can be pruned, and the resulting prune heights are not the
         # same as upstream, hence they are not compared against fixed values here.
-        self.generate(self.nodes[0], 900, sync_fun=self.no_op)
+        # Pruning also keeps the blocks evo validation reads, see feature_pruning_evo.py.
+        self.generate(self.nodes[0], 1200, sync_fun=self.no_op)
         self.sync_blocks([self.nodes[0], pruned_node])
         pruneheight = pruned_node.pruneblockchain(800)
         assert_greater_than(pruneheight, 2)

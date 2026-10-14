@@ -149,7 +149,8 @@ private:
     std::set<int> m_dirty_fileinfo;
 
     /**
-     * Map from external index name to oldest block that must not be pruned.
+     * Map from external index name (or "evo", see Chainstate::FlushStateToDisk()) to oldest block that must not be
+     * pruned.
      *
      * @note Internally, only blocks at height (height_first - PRUNE_LOCK_BUFFER - 1) and
      * below will be pruned, but callers should avoid assuming any particular buffer size.

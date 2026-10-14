@@ -26,7 +26,8 @@ class FeatureRemovePrunedFilesOnStartupTest(BitcoinTestFramework):
         rev0 = os.path.join(self.nodes[0].datadir, self.nodes[0].chain, 'blocks', 'rev00000.dat')
         blk1 = os.path.join(self.nodes[0].datadir, self.nodes[0].chain, 'blocks', 'blk00001.dat')
         rev1 = os.path.join(self.nodes[0].datadir, self.nodes[0].chain, 'blocks', 'rev00001.dat')
-        self.mine_batches(800)
+        # Mine past the blocks that pruning keeps for evo validation, see feature_pruning_evo.py
+        self.mine_batches(1400)
         fo1 = os.open(blk0, os.O_RDONLY)
         fo2 = os.open(rev1, os.O_RDONLY)
         fd1 = os.fdopen(fo1)
