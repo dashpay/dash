@@ -9,43 +9,47 @@ from test_framework.util import (
     assert_greater_than,
     assert_raises_rpc_error,
 )
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 
 DEPLOYMENT_ARGS = [
     "-dip3params=3000:3000",
     "-testactivationheight=v20@3000",
     "-testactivationheight=mn_rr@3000",
 ]
+PRUNE_ARGS = ["-fastprune", "-prune=1"]
 
 class FeatureIndexPruneTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 5
         self.extra_args = [
-            ["-fastprune", "-prune=1", "-blockfilterindex=1"] + DEPLOYMENT_ARGS,
-            ["-fastprune", "-prune=1", "-coinstatsindex=1"] + DEPLOYMENT_ARGS,
-            ["-fastprune", "-prune=1", "-blockfilterindex=1", "-coinstatsindex=1"] + DEPLOYMENT_ARGS,
-            ["-fastprune", "-prune=1", "-timestampindex"] + DEPLOYMENT_ARGS,
+            PRUNE_ARGS + ["-blockfilterindex=1"] + DEPLOYMENT_ARGS,
+            PRUNE_ARGS + ["-coinstatsindex=1"] + DEPLOYMENT_ARGS,
+            PRUNE_ARGS + ["-blockfilterindex=1", "-coinstatsindex=1"] + DEPLOYMENT_ARGS,
+            PRUNE_ARGS + ["-timestampindex"] + DEPLOYMENT_ARGS,
             [] + DEPLOYMENT_ARGS,
         ]
 
     def sync_index(self, height):
+        # The governance collateral index always runs
+        expected_gov = {
+            'govcollateralindex': {'synced': True, 'best_block_height': height},
+        }
         expected_filter = {
             'basic block filter index': {'synced': True, 'best_block_height': height},
         }
-        self.wait_until(lambda: self.nodes[0].getindexinfo() == expected_filter)
+        self.wait_until(lambda: self.nodes[0].getindexinfo() == {**expected_gov, **expected_filter})
 
         expected_stats = {
             'coinstatsindex': {'synced': True, 'best_block_height': height}
         }
-        self.wait_until(lambda: self.nodes[1].getindexinfo() == expected_stats)
+        self.wait_until(lambda: self.nodes[1].getindexinfo() == {**expected_gov, **expected_stats})
 
-        expected = {**expected_filter, **expected_stats}
+        expected = {**expected_gov, **expected_filter, **expected_stats}
         self.wait_until(lambda: self.nodes[2].getindexinfo() == expected)
 
         expected_timestamp = {
             'timestampindex': {'synced': True, 'best_block_height': height}
         }
-        self.wait_until(lambda: self.nodes[3].getindexinfo() == expected_timestamp)
+        self.wait_until(lambda: self.nodes[3].getindexinfo() == {**expected_gov, **expected_timestamp})
 
     def reconnect_nodes(self):
         self.connect_nodes(0,1)
@@ -61,7 +65,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
 
     def restart_without_indices(self):
         for i in range(4):
-            self.restart_node(i, extra_args=["-fastprune", "-prune=1"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+            self.restart_node(i, extra_args=PRUNE_ARGS + DEPLOYMENT_ARGS)
         self.reconnect_nodes()
 
     def assert_timestampindex_covers(self, height):
@@ -134,7 +138,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
             pruneheight_2 = self.nodes[i].pruneblockchain(1000)
             assert_equal(pruneheight_2, 735)
             # Restart the nodes again with the indices activated
-            self.restart_node(i, extra_args=self.extra_args[i], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+            self.restart_node(i, extra_args=self.extra_args[i])
 
         self.log.info("make sure that we can continue with the partially synced indices after having pruned up to the index height")
         self.sync_index(height=1500)
@@ -146,7 +150,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         for i in range(4):
             pruneheight_3 = self.nodes[i].pruneblockchain(2000)
             assert_greater_than(pruneheight_3, pruneheight_2)
-            self.stop_node(i, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+            self.stop_node(i)
 
         self.log.info("make sure we get an init error when starting the nodes again with the indices")
         filter_msg = "Error: basic block filter index best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
@@ -154,12 +158,12 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         timestamp_msg = "Error: timestampindex best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
         # Node 2 has both blockfilter and coinstats indexes; the blockfilter init runs first and produces the error.
         for i, msg in enumerate([filter_msg, stats_msg, filter_msg, timestamp_msg]):
-            self.nodes[i].assert_start_raises_init_error(extra_args=self.extra_args[i], expected_msg=f"{EXPECTED_STDERR_NO_GOV_PRUNE}\n{msg}")
+            self.nodes[i].assert_start_raises_init_error(extra_args=self.extra_args[i], expected_msg=msg)
 
         self.log.info("make sure the nodes start again with the indices and an additional -reindex arg")
         for i in range(4):
             restart_args = self.extra_args[i]+["-reindex"]
-            self.restart_node(i, extra_args=restart_args, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+            self.restart_node(i, extra_args=restart_args)
             # The nodes need to be reconnected to the non-pruning node upon restart, otherwise they will be stuck
             self.connect_nodes(i, 4)
 
@@ -177,7 +181,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
             self.generate(self.nodes[4], 30)
 
         for idx in range(self.num_nodes):
-            self.nodes[idx].stop_node(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE if idx != 4 else "")
+            self.nodes[idx].stop_node()
 
         self.log.info("ensure -prune is incompatible with -addressindex and -spentindex at startup")
         # Reuse the unrestricted control node datadir for these init-error checks; -prune

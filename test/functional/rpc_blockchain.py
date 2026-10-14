@@ -34,7 +34,6 @@ from test_framework.blocktools import (
     create_block,
     create_coinbase,
 )
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.messages import (
     CBlockHeader,
     dashhash,
@@ -157,7 +156,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert res['pruned']
         assert not res['automatic_pruning']
 
-        self.restart_node(0, ['-stopatheight=207', '-txindex=0'], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_node(0, ['-stopatheight=207', '-txindex=0'])
         res = self.nodes[0].getblockchaininfo()
         # should have exact keys
         assert_equal(sorted(res.keys()), keys)
@@ -539,7 +538,7 @@ class BlockchainTest(BitcoinTestFramework):
         except (ConnectionError, http.client.BadStatusLine):
             pass  # The node already shut down before response
         self.log.debug('Node should stop at this height...')
-        self.nodes[0].wait_until_stopped(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.nodes[0].wait_until_stopped()
         self.start_node(0, ['-txindex=0'])
         assert_equal(self.nodes[0].getblockcount(), HEIGHT + 7)
 

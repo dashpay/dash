@@ -28,6 +28,7 @@ public:
     void ProcessMessage(CNode& peer, const std::string& msg_type, CDataStream& vRecv) override;
 
     bool AlreadyHave(const CInv& inv) override;
+    bool DeferAnnouncement(const CInv& inv) override;
     bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
 
 private:

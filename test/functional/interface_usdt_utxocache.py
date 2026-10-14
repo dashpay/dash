@@ -14,7 +14,6 @@ try:
 except ImportError:
     pass
 from test_framework.messages import COIN
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 from test_framework.wallet import MiniWallet
@@ -412,7 +411,7 @@ class UTXOCacheTracepointTest(BitcoinTestFramework):
         assert_equal(0, len(possible_cache_sizes))
         assert_equal(EXPECTED_HANDLE_FLUSH_SUCCESS, handle_flush_succeeds)
 
-        self.stop_node(0, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_node(0)
 
 if __name__ == '__main__':
     UTXOCacheTracepointTest().main()

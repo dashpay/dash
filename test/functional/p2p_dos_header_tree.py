@@ -6,7 +6,6 @@
 
 from test_framework.blocktools import filter_tip_keys
 
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.messages import (
     CBlockHeader,
     from_hex,
@@ -66,7 +65,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
 
         self.log.info("Feed all fork headers (succeeds without checkpoint)")
         # On node 0 it succeeds because checkpoints are disabled
-        self.restart_node(0, extra_args=['-nocheckpoints', '-prune=945'], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_node(0, extra_args=['-nocheckpoints', '-prune=945'])
         peer_no_checkpoint = self.nodes[0].add_p2p_connection(P2PInterface())
         peer_no_checkpoint.send_and_ping(msg_headers(self.headers_fork))
         assert {
@@ -87,7 +86,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
         } in filter_tip_keys(self.nodes[0].getchaintips())
 
         for idx in range(self.num_nodes):
-            self.nodes[idx].stop_node(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+            self.nodes[idx].stop_node()
 
 if __name__ == '__main__':
     RejectLowDifficultyHeadersTest().main()

@@ -162,7 +162,8 @@ std::optional<const CGovernanceObject> GovernanceSigner::CreateGovernanceTrigger
     gov_sb.SetMasternodeOutpoint(m_mn_activeman.GetOutPoint());
     gov_sb.SetSignature(m_mn_activeman.SignBasic(gov_sb.GetSignatureHash()));
 
-    if (std::string strError; !gov_sb.IsValidLocally(m_dmnman.GetListAtChainTip(), m_chainman, strError, true)) {
+    if (std::string strError;
+        !gov_sb.IsValidLocally(m_dmnman.GetListAtChainTip(), m_chainman, m_govman.GetCollateralSource(), strError, true)) {
         LogPrint(BCLog::GOBJECT, "%s -- Created trigger is invalid:%s\n", __func__, strError);
         return std::nullopt;
     }

@@ -8,7 +8,7 @@
 #include <governance/governance.h>
 #include <governance/object.h>
 #include <governance/vote.h>
-#include <index/txindex.h>
+#include <index/govcollateralindex.h>
 #include <interfaces/chain.h>
 #include <key.h>
 #include <key_io.h>
@@ -105,12 +105,13 @@ struct GovernanceVoteSetup : public TestChainSetup {
 
     void SetUp()
     {
-        // CGovernanceObject::IsCollateralValid() reads the proposal fee tx out of the tx index;
-        // without it no proposal can ever be accepted, orphan votes included.
-        g_txindex = std::make_unique<TxIndex>(interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20,
-                                              /*f_memory=*/true);
-        BOOST_REQUIRE(g_txindex->Start());
-        IndexWaitSynced(*g_txindex);
+        // CGovernanceObject::IsCollateralValid() reads the proposal fee tx out of the governance collateral
+        // index; without it no proposal can ever be accepted, orphan votes included.
+        SyncWithValidationInterfaceQueue();
+        m_node.gov_collateral_index = std::make_unique<GovCollateralIndex>(interfaces::MakeChain(m_node),
+                                                                           /*n_cache_size=*/0, /*f_memory=*/true);
+        BOOST_REQUIRE(m_node.gov_collateral_index->Start());
+        IndexWaitSynced(*m_node.gov_collateral_index);
 
         utxos = BuildSimpleUtxoMap(m_coinbase_txns);
 
@@ -131,9 +132,9 @@ struct GovernanceVoteSetup : public TestChainSetup {
         }
         BOOST_REQUIRE(m_node.mn_sync->IsSynced());
 
-        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman,
-                                                             *m_node.sbman, *m_node.dmnman,
-                                                             *m_node.mn_sync);
+        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.sbman,
+                                                             *m_node.dmnman, *m_node.mn_sync,
+                                                             m_node.gov_collateral_index.get());
         BOOST_REQUIRE(m_node.govman->LoadCache(/*load_cache=*/false));
 
         proposal_time = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
@@ -147,10 +148,10 @@ struct GovernanceVoteSetup : public TestChainSetup {
         // govman holds a reference to node.sbman, so it must go first (matches PrepareShutdown
         // ordering in init.cpp).
         m_node.govman.reset();
-        if (g_txindex) {
+        if (m_node.gov_collateral_index) {
             SyncWithValidationInterfaceQueue();
-            g_txindex->Stop();
-            g_txindex.reset();
+            m_node.gov_collateral_index->Stop();
+            m_node.gov_collateral_index.reset();
         }
     }
 
@@ -169,7 +170,7 @@ struct GovernanceVoteSetup : public TestChainSetup {
         BOOST_REQUIRE_EQUAL(tip->GetBlockHash(), block.GetHash());
         m_node.dmnman->UpdatedBlockTip(tip);
         SetMockTime(GetTime() + 1);
-        IndexWaitSynced(*g_txindex);
+        IndexWaitSynced(*m_node.gov_collateral_index);
     }
 
     void MineBlocks(int num_blocks)

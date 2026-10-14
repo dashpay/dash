@@ -82,8 +82,8 @@ class RpcMiscTest(BitcoinTestFramework):
 
         self.log.info("test getindexinfo")
         self.restart_node(0, ["-txindex=0", "-blockfilterindex=0", "-peerblockfilters=0"])
-        # Without any indices running the RPC returns an empty object
-        assert_equal(node.getindexinfo(), {})
+        # Without any optional indices running, only the governance collateral index is returned
+        assert_equal(list(node.getindexinfo()), ["govcollateralindex"])
 
         # Restart the node with indices and wait for them to sync
         self.restart_node(0, ["-txindex", "-blockfilterindex", "-coinstatsindex",
@@ -101,11 +101,12 @@ class RpcMiscTest(BitcoinTestFramework):
                 "addressindex": values,
                 "timestampindex": values,
                 "spentindex": values,
+                "govcollateralindex": values,
             }
         )
         # Specifying an index by name returns only the status of that index
         for i in {"txindex", "basic block filter index", "coinstatsindex",
-                  "addressindex", "timestampindex", "spentindex"}:
+                  "addressindex", "timestampindex", "spentindex", "govcollateralindex"}:
             assert_equal(node.getindexinfo(i), {i: values})
 
         # Specifying an unknown index name returns an empty result

@@ -14,10 +14,6 @@ from test_framework.blocktools import (
     create_block,
     create_coinbase,
 )
-from test_framework.governance import (
-    EXPECTED_STDERR_NO_GOV,
-    EXPECTED_STDERR_NO_GOV_PRUNE,
-)
 from test_framework.script import (
     CScript,
     OP_NOP,
@@ -92,10 +88,10 @@ class PruneTest(BitcoinTestFramework):
         self.extra_args = [
             self.full_node_default_args,
             self.full_node_default_args,
-            ["-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-prune=550"] + DEPLOYMENT_ARGS,
-            ["-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"] + DEPLOYMENT_ARGS,
-            ["-disablegovernance","-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"] + DEPLOYMENT_ARGS,
-            ["-disablegovernance","-txindex=0","-prune=550", "-blockfilterindex=1"] + DEPLOYMENT_ARGS,
+            ["-txindex=0","-maxreceivebuffer=20000","-prune=550"] + DEPLOYMENT_ARGS,
+            ["-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"] + DEPLOYMENT_ARGS,
+            ["-txindex=0","-maxreceivebuffer=20000","-blockmaxsize=999000"] + DEPLOYMENT_ARGS,
+            ["-txindex=0","-prune=550", "-blockfilterindex=1"] + DEPLOYMENT_ARGS,
         ]
         self.rpc_timeout = 120
 
@@ -128,10 +124,10 @@ class PruneTest(BitcoinTestFramework):
         self.sync_blocks(self.nodes[0:5])
 
     def test_invalid_command_line_options(self):
-        self.stop_node(0, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(
             expected_msg='Error: Prune cannot be configured with a negative value.',
-            extra_args=['-prune=-1', '-txindex=0', '-disablegovernance'],
+            extra_args=['-prune=-1', '-txindex=0'],
         )
         self.nodes[0].assert_start_raises_init_error(
             expected_msg='Error: Prune configured below the minimum of 550 MiB.  Please use a higher number.',
@@ -144,10 +140,6 @@ class PruneTest(BitcoinTestFramework):
         self.nodes[0].assert_start_raises_init_error(
             expected_msg='Error: Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.',
             extra_args=['-prune=550', '-reindex-chainstate'],
-        )
-        self.nodes[0].assert_start_raises_init_error(
-            expected_msg='Error: Prune mode is incompatible with -disablegovernance=false.',
-            extra_args=['-prune=550', '-disablegovernance=false'],
         )
 
     def test_rescan_blockchain(self):
@@ -286,13 +278,13 @@ class PruneTest(BitcoinTestFramework):
 
     def manual_test(self, node_number, use_timestamp):
         # at this point, node has 995 blocks and has not yet run in prune mode
-        self.start_node(node_number, extra_args=["-disablegovernance", "-txindex=0"] + DEPLOYMENT_ARGS)
+        self.start_node(node_number, extra_args=["-txindex=0"] + DEPLOYMENT_ARGS)
         node = self.nodes[node_number]
         assert_equal(node.getblockcount(), 995)
         assert_raises_rpc_error(-1, "Cannot prune blocks because node is not in prune mode", node.pruneblockchain, 500)
 
         # now re-start in manual pruning mode
-        self.restart_node(node_number, extra_args=["-disablegovernance", "-txindex=0", "-prune=1"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV)
+        self.restart_node(node_number, extra_args=["-txindex=0", "-prune=1"] + DEPLOYMENT_ARGS)
         node = self.nodes[node_number]
         assert_equal(node.getblockcount(), 995)
 
@@ -361,21 +353,21 @@ class PruneTest(BitcoinTestFramework):
         assert not has_block(3), "blk00003.dat is still there, should be pruned by now"
 
         # stop node, start back up with auto-prune at 550 MiB, make sure still runs
-        self.restart_node(node_number, extra_args=["-disablegovernance", "-txindex=0", "-prune=550"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_node(node_number, extra_args=["-txindex=0", "-prune=550"] + DEPLOYMENT_ARGS)
 
         self.log.info("Success")
 
     def test_wallet_rescan(self):
         # check that the pruning node's wallet is still in good shape
         self.log.info("Stop and start pruning node to trigger wallet rescan")
-        self.restart_node(2, extra_args=["-disablegovernance", "-txindex=0", "-prune=550"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_node(2, extra_args=["-txindex=0", "-prune=550"] + DEPLOYMENT_ARGS)
 
         self.wait_until(lambda: self.nodes[2].getwalletinfo()["scanning"] == False)
         self.wait_until(lambda: self.nodes[2].getwalletinfo()["lastprocessedblock"]["height"] == self.nodes[2].getblockcount())
 
         # check that wallet loads successfully when restarting a pruned node after IBD.
         # this was reported to fail in #7494.
-        self.restart_node(5, extra_args=["-disablegovernance", "-txindex=0", "-prune=550", "-blockfilterindex=1"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE) # restart to trigger rescan
+        self.restart_node(5, extra_args=["-txindex=0", "-prune=550", "-blockfilterindex=1"] + DEPLOYMENT_ARGS) # restart to trigger rescan
 
         self.wait_until(lambda: self.nodes[5].getwalletinfo()["scanning"] == False)
         self.wait_until(lambda: self.nodes[5].getwalletinfo()["lastprocessedblock"]["height"] == self.nodes[0].getblockcount())
@@ -395,8 +387,8 @@ class PruneTest(BitcoinTestFramework):
         # N0=N1=N2 **...*(995)
 
         # stop manual-pruning node with 995 blocks
-        self.stop_node(3, expected_stderr=EXPECTED_STDERR_NO_GOV)
-        self.stop_node(4, expected_stderr=EXPECTED_STDERR_NO_GOV)
+        self.stop_node(3)
+        self.stop_node(4)
 
         self.log.info("Check that we haven't started pruning yet because we're below PruneAfterHeight")
         self.test_height_min()
@@ -506,7 +498,7 @@ class PruneTest(BitcoinTestFramework):
         self.log.info("Stopping pruned nodes manually")
         for i in range(2, 6):
             self.log.info("Stopping pruned node%d" % i)
-            self.stop_node(i, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+            self.stop_node(i)
 
         self.log.info("Done")
 
