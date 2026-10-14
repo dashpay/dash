@@ -22,6 +22,7 @@
 #include <governance/superblock.h>
 #include <governance/vote.h>
 #include <index/blockfilterindex.h>
+#include <index/govcollateralindex.h>
 #include <init.h>
 #include <instantsend/instantsend.h>
 #include <interfaces/chain.h>
@@ -508,7 +509,8 @@ public:
         {
             LOCK(::cs_main);
             std::string strError;
-            if (!govobj.IsValidLocally(Assert(context().dmnman)->GetListAtChainTip(), chainman, strError, false)) {
+            if (!govobj.IsValidLocally(Assert(context().dmnman)->GetListAtChainTip(), chainman, /*collateral=*/nullptr,
+                                       strError, false)) {
                 error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
                 return std::nullopt;
             }
@@ -533,7 +535,9 @@ public:
         {
             LOCK2(cs_main, mempool.cs);
             std::string strError;
-            if (!govobj.IsValidLocally(mnList, *Assert(context().chainman), strError, fMissingConfirmations, true) && !fMissingConfirmations) {
+            if (!govobj.IsValidLocally(mnList, *Assert(context().chainman), context().gov_collateral_index.get(),
+                                       strError, fMissingConfirmations, true) &&
+                !fMissingConfirmations) {
                 error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
                 return false;
             }

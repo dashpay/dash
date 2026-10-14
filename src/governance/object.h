@@ -232,15 +232,18 @@ public:
 
     // CORE OBJECT FUNCTIONS
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool fCheckCollateral) const
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    /// `collateral` is where proposal collateral is looked up when `fCheckCollateral` is set
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                        const governance::CollateralSource* collateral, std::string& strError,
+                        bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                        const governance::CollateralSource* collateral, std::string& strError,
+                        bool& fMissingConfirmations, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /// Check the collateral transaction for the budget proposal/finalized budget
-    bool IsCollateralValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool IsCollateralValid(const governance::CollateralSource* collateral, const ChainstateManager& chainman,
+                           std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
