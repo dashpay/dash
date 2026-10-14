@@ -727,7 +727,7 @@ bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, 
             return false;
         }
         if (fCheckCollateral && !IsCollateralValid(collateral, chainman, strError, fMissingConfirmations)) {
-            strError = "Invalid proposal collateral";
+            strError = "Invalid proposal collateral: " + strError;
             return false;
         }
         return true;
