@@ -159,6 +159,10 @@ class DashGovernanceTest (DashTestFramework):
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 3)
         assert_equal(len(self.nodes[0].gobject("list")), 0)
 
+        self.log.info("A proposal whose collateral burns for another proposal is rejected with the reason")
+        assert_raises_rpc_error(-32603, "Invalid proposal collateral: Couldn't find opReturn", pruned_node.gobject, "submit", "0", 1,
+                                proposal_time, p0_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
+
         self.log.info("Submit objects")
         self.p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_collateral_prepare["hex"], p0_collateral_prepare["collateralHash"])
         self.p1_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p1_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
@@ -473,6 +477,9 @@ class DashGovernanceTest (DashTestFramework):
         shutil.rmtree(os.path.join(pruned_node.chain_path, "indexes", "govcollateralindex"))
         self.start_node(1)
         assert "govcollateralindex" not in pruned_node.getindexinfo()
+        assert_raises_rpc_error(-1, "Preparing a proposal now would burn its fee", pruned_node.gobject, "prepare",
+                                "0", 1, proposal["createdAt"], proposal["hex"])
+        assert_raises_rpc_error(-1, "Governance is disabled on this node", submit)
         self.stop_node(1, expected_stderr=EXPECTED_STDERR_GOV_PRUNED_TOO_FAR)
 
         self.log.info("A -reindex downloads the chain again, builds the index and turns governance back on")
