@@ -25,6 +25,7 @@ class DashGovernanceTest (DashTestFramework):
             "-budgetparams=10:10:10",
         ]] * 6)
         self.delay_v20_and_mn_rr(height=160)
+        self.fast_sync_polling = True
 
     def check_superblockbudget(self, v20_active):
         v20_state = self.nodes[0].getdeploymentinfo()["deployments"]["v20"]
