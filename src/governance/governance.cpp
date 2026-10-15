@@ -62,11 +62,72 @@ public:
 };
 } // anonymous namespace
 
+namespace governance {
+OrphanVoteCache::OrphanVoteCache(size_t max_total, size_t max_per_mn) :
+    m_max_per_mn{max_per_mn},
+    m_cache{static_cast<CacheMultiMap<uint256, OrphanVote>::size_type>(max_total)}
+{
+    assert(max_total > 0);
+}
+
+bool OrphanVoteCache::Insert(const uint256& parent_hash, const OrphanVote& orphan_vote)
+{
+    if (m_cache.Find(parent_hash, orphan_vote) != nullptr) return true;
+
+    const COutPoint& outpoint{orphan_vote.vote.GetMasternodeOutpoint()};
+    if (const auto it{m_count_per_mn.find(outpoint)}; it != m_count_per_mn.end() && it->second >= m_max_per_mn) {
+        return false;
+    }
+    // Evict before m_cache would prune by itself, so the evicted vote's masternode gets its share back.
+    if (m_cache.GetSize() >= m_cache.GetMaxSize()) {
+        const auto& oldest{m_cache.GetItemList().back()};
+        Erase(oldest.key, oldest.value);
+    }
+    m_cache.Insert(parent_hash, orphan_vote);
+    ++m_count_per_mn[outpoint];
+    return true;
+}
+
+void OrphanVoteCache::Erase(const uint256& parent_hash, const OrphanVote& orphan_vote)
+{
+    const OrphanVote* stored{m_cache.Find(parent_hash, orphan_vote)};
+    if (stored == nullptr) return;
+    // Release the share of the stored entry, which the argument only has to compare equal to. Read it
+    // first: erasing destroys it.
+    const COutPoint outpoint{stored->vote.GetMasternodeOutpoint()};
+    m_cache.Erase(parent_hash, orphan_vote);
+
+    const auto it{m_count_per_mn.find(outpoint)};
+    if (!Assume(it != m_count_per_mn.end())) return;
+    if (--it->second == 0) m_count_per_mn.erase(it);
+}
+
+void OrphanVoteCache::EraseExpired(NodeSeconds now)
+{
+    const auto& items{m_cache.GetItemList()};
+    for (auto it = items.begin(); it != items.end();) {
+        const auto& item{*it++};
+        if (item.value.expiration < now) Erase(item.key, item.value);
+    }
+}
+
+void OrphanVoteCache::GetAll(const uint256& parent_hash, std::vector<OrphanVote>& orphan_votes)
+{
+    m_cache.GetAll(parent_hash, orphan_votes);
+}
+
+void OrphanVoteCache::Clear()
+{
+    m_cache.Clear();
+    m_count_per_mn.clear();
+}
+} // namespace governance
+
 GovernanceStore::GovernanceStore() :
     cs_store(),
     mapObjects(),
     mapErasedGovernanceObjects(),
-    cmmapOrphanVotes(MAX_CACHE_SIZE),
+    m_orphan_votes(governance::MAX_ORPHAN_VOTES, governance::MAX_ORPHAN_VOTES_PER_MN),
     mapLastMasternodeObject(),
     lastMNListForVotingKeys(std::make_shared<CDeterministicMNList>())
 {
@@ -282,7 +343,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
 
     uint256 nHash = govobj.GetHash();
     std::vector<governance::OrphanVote> orphan_votes;
-    cmmapOrphanVotes.GetAll(nHash, orphan_votes);
+    m_orphan_votes.GetAll(nHash, orphan_votes);
 
     ScopedLockBool guard(cs_store, fRateChecksEnabled, false);
 
@@ -299,7 +360,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
             fRemove = true;
         }
         if (fRemove) {
-            cmmapOrphanVotes.Erase(nHash, orphan_vote);
+            m_orphan_votes.Erase(nHash, orphan_vote);
         }
     }
 }
@@ -406,16 +467,7 @@ void CGovernanceManager::CheckAndRemove()
 
     ScopedLockBool guard(cs_store, fRateChecksEnabled, false);
 
-    // Clean up expired orphan votes
-    const auto now{Now<NodeSeconds>()};
-    const vote_cmm_t::list_t& items = cmmapOrphanVotes.GetItemList();
-    for (auto it = items.begin(); it != items.end();) {
-        auto prevIt = it;
-        ++it;
-        if (prevIt->value.expiration < now) {
-            cmmapOrphanVotes.Erase(prevIt->key, prevIt->value);
-        }
-    }
+    m_orphan_votes.EraseExpired(Now<NodeSeconds>());
 
     // Clean up any expired or invalid triggers
     m_superblocks.Clean(nCachedBlockHeight);
@@ -848,10 +900,14 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
         // No penalty: the vote is signed by a masternode, it just arrived before its parent object,
         // which routinely happens during governance sync. Misbehaviour scores never decay.
         exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_WARNING);
-        cmmapOrphanVotes.Insert(nHashGovobj,
-                                governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME});
-        // Even if we already held this vote: every peer that relays it can serve the parent.
-        hashToRequest = nHashGovobj;
+        if (m_orphan_votes.Insert(nHashGovobj,
+                                  governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME})) {
+            // Even if we already held this vote: every peer that relays it can serve the parent.
+            hashToRequest = nHashGovobj;
+        } else {
+            LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- MN outpoint %s holds its share of orphan votes, dropping vote %s\n",
+                     __func__, vote.GetMasternodeOutpoint().ToStringShort(), nHashVote.ToString());
+        }
         LogPrint(BCLog::GOBJECT, "%s\n", msg);
         return false;
     }
@@ -1026,7 +1082,7 @@ void GovernanceStore::Clear()
     LOCK(cs_store);
     mapObjects.clear();
     mapErasedGovernanceObjects.clear();
-    cmmapOrphanVotes.Clear();
+    m_orphan_votes.Clear();
     mapLastMasternodeObject.clear();
     lastMNListForVotingKeys = std::make_shared<CDeterministicMNList>();
 }
@@ -1175,7 +1231,6 @@ void CGovernanceManager::RemoveInvalidVotes()
             }
             for (const auto& voteHash : removed) {
                 cmapVoteToObject.Erase(voteHash);
-                cmmapOrphanVotes.Erase(voteHash);
             }
         }
     }
