@@ -585,9 +585,10 @@ class CTransaction:
         return self.hash
 
     def calc_sha256(self):
+        h = hash256(self.serialize())
         if self.sha256 is None:
-            self.sha256 = uint256_from_str(hash256(self.serialize()))
-        self.hash = hash256(self.serialize())[::-1].hex()
+            self.sha256 = uint256_from_str(h)
+        self.hash = h[::-1].hex()
 
     def is_valid(self):
         self.calc_sha256()
