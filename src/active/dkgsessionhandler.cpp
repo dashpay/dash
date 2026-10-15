@@ -87,15 +87,22 @@ bool ActiveDKGSessionHandler::InitNewQuorum(gsl::not_null<const CBlockIndex*> pQ
         return false;
     }
 
-    curSession = std::make_unique<ActiveDKGSession>(m_bls_worker, m_dmnman, m_dkgdbgman, m_qdkgsman, m_mn_metaman,
-                                                    m_qsnapman, m_mn_activeman, m_chainman, m_sporkman,
-                                                    pQuorumBaseBlockIndex, params);
+    auto next_session = std::make_shared<ActiveDKGSession>(m_bls_worker, m_dmnman, m_dkgdbgman, m_qdkgsman,
+                                                           m_mn_metaman, m_qsnapman, m_mn_activeman, m_chainman,
+                                                           m_sporkman, pQuorumBaseBlockIndex, params);
 
-    if (!curSession->Init(m_mn_activeman.GetProTxHash(), quorumIndex)) {
+    {
+        std::shared_ptr<CDKGSession> previous_session;
+        WITH_LOCK(cs_session, previous_session.swap(curSession));
+    }
+
+    if (!next_session->Init(m_mn_activeman.GetProTxHash(), quorumIndex)) {
         LogPrintf("ActiveDKGSessionHandler::%s -- height[%d] quorum initialization failed for %s qi[%d]\n", __func__,
                   pQuorumBaseBlockIndex->nHeight, params.name, quorumIndex);
         return false;
     }
+
+    WITH_LOCK(cs_session, curSession = std::move(next_session));
 
     LogPrintf("ActiveDKGSessionHandler::%s -- height[%d] quorum initialization OK for %s qi[%d]\n", __func__, pQuorumBaseBlockIndex->nHeight, params.name, quorumIndex);
     return true;
@@ -166,7 +173,8 @@ void ActiveDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash) con
 void ActiveDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase, const uint256& expectedQuorumHash,
                                                double randomSleepFactor, const WhileWaitFunc& runWhileWaiting) const
 {
-    if (!curSession->AreWeMember()) {
+    const auto session = GetCurSession();
+    if (!session || !session->AreWeMember()) {
         // Non-members do not participate and do not create any network load, no need to sleep.
         return;
     }
@@ -187,7 +195,7 @@ void ActiveDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase, const uint2
     // Don't expect perfect block times and thus reduce the phase time to be on the secure side (caller chooses factor)
     double adjustedPhaseSleepTimePerMember = phaseSleepTimePerMember * randomSleepFactor;
 
-    int64_t sleepTime = static_cast<int64_t>(adjustedPhaseSleepTimePerMember * curSession->GetMyMemberIndex().value_or(0));
+    int64_t sleepTime = static_cast<int64_t>(adjustedPhaseSleepTimePerMember * session->GetMyMemberIndex().value_or(0));
     const auto endTime = SteadyClock::now() + std::chrono::milliseconds{sleepTime};
     int heightTmp{currentHeight.load()};
     int heightStart{heightTmp};
@@ -248,22 +256,31 @@ void ActiveDKGSessionHandler::HandlePhase(QuorumPhase curPhase, QuorumPhase next
 
 bool ActiveDKGSessionHandler::GetContribution(const uint256& hash, CDKGContribution& ret) const
 {
-    return curSession && curSession->GetContribution(hash, ret);
+    const auto session = GetCurSession();
+    return session && session->GetContribution(hash, ret);
 }
 
 bool ActiveDKGSessionHandler::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
 {
-    return curSession && curSession->GetComplaint(hash, ret);
+    const auto session = GetCurSession();
+    return session && session->GetComplaint(hash, ret);
 }
 
 bool ActiveDKGSessionHandler::GetJustification(const uint256& hash, CDKGJustification& ret) const
 {
-    return curSession && curSession->GetJustification(hash, ret);
+    const auto session = GetCurSession();
+    return session && session->GetJustification(hash, ret);
 }
 
 bool ActiveDKGSessionHandler::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
 {
-    return curSession && curSession->GetPrematureCommitment(hash, ret);
+    const auto session = GetCurSession();
+    return session && session->GetPrematureCommitment(hash, ret);
+}
+
+std::shared_ptr<CDKGSession> ActiveDKGSessionHandler::GetCurSession() const
+{
+    return WITH_LOCK(cs_session, return curSession);
 }
 
 QuorumPhase ActiveDKGSessionHandler::GetPhase() const

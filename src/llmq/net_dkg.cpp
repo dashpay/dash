@@ -851,7 +851,7 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
 
     active.dkgdbgman.MarkPhaseAdvanced(handler.params.type, handler.QuorumIndex(), QuorumPhase::Initialized);
 
-    auto* curSession = handler.GetCurSession();
+    const auto curSession = handler.GetCurSession();
     if (handler.params.is_single_member()) {
         auto finalCommitment = curSession->FinalizeSingleCommitment();
         if (!finalCommitment.IsNull()) { // it can be null only if we are not member
