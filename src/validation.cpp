@@ -3385,7 +3385,7 @@ void Chainstate::RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDe
     // list is too expensive to do on every connect.
     const auto base_blockhash = m_chainman.SnapshotBlockhash();
     if (!base_blockhash || *base_blockhash != pindex->GetBlockHash()) return;
-    m_evoDb.WriteBackgroundMNListHash(pindex->GetBlockHash(), ::SerializeHash(mn_list));
+    m_evoDb.WriteBackgroundMNListHash(pindex->GetBlockHash(), CanonicalDeterministicMNListHash(pindex, mn_list));
 }
 
 void Chainstate::PruneAndFlush()
