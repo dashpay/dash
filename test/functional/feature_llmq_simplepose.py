@@ -246,11 +246,12 @@ class LLMQSimplePoSeTest(DashTestFramework):
             self.log.info(f"Testing no PoSe banning in normal conditions {i + 1}/{iters}")
             self.mine_quorum(expected_connections=expected_connections)
 
-    def mine_quorum_less_checks(self, expected_good_nodes, mninfos_online):
+    def mine_quorum_less_checks(self, expected_good_nodes, mninfos_online, unreachable_mn):
         # Unlike in mine_quorum we skip most of the checks and only care about
         # nodes moving forward from phase to phase correctly and the fact that the quorum is actually mined.
         self.log.info("Mining a quorum with less checks")
         nodes = [self.nodes[0]] + [mn.get_node(self) for mn in mninfos_online]
+        attempts_before = self.get_outbound_attempt_counts(mninfos_online, unreachable_mn)
 
         # move forward to next DKG
         skip_count = 24 - (self.nodes[0].getblockcount() % 24)
@@ -262,11 +263,15 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.log.info("Expected quorum_hash: "+str(q))
         self.log.info("Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q, 1, expected_good_nodes, None, 0, mninfos_online)
+        judges = [mn for mn in mninfos_online if mn is not unreachable_mn]
+        self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, [q])
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_good_nodes, "receivedContributions", expected_good_nodes, mninfos_online)
         self.wait_for_dkg_messages(q, 2, mninfos_online)
+        session_hashes = [q, self.nodes[0].getblockhash(self.nodes[0].getblock(q)["height"] + 1)]
+        self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, session_hashes)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
@@ -310,7 +315,31 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["quorumIndex"], quorum_info["minedBlock"]))
 
+        # A session that was not initialized yet when phase 2 was checked has queued its probe by now
+        self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, session_hashes)
+
         return new_quorum
+
+    def get_outbound_attempt_counts(self, mninfos, target_mn):
+        return {mn.proTxHash: mn.get_node(self).protx('info', target_mn.proTxHash)['metaInfo']['outboundAttemptCount']
+                for mn in mninfos}
+
+    def wait_for_failed_probes(self, judges, unreachable_mn, attempts_before, session_hashes):
+        # A member queues a probe of every other member when one of its DKG sessions starts, and the probes
+        # of sessions that start at the same block merge. Wait until each judge made as many attempts to
+        # reach unreachable_mn as it has session start blocks (among session_hashes) shared with it. Probes
+        # that are still pending when the next ones are queued would merge with them and be lost, so that
+        # the PoSe penalty would accumulate at whatever pace the masternode connection threads happen to run.
+        def probe_rounds(mn):
+            return len({qs["status"]["quorumHash"] for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]
+                        if qs["status"]["quorumHash"] in session_hashes
+                        and unreachable_mn.proTxHash in qs["status"]["allMembers"]})
+
+        def check_attempts():
+            counts = self.get_outbound_attempt_counts(judges, unreachable_mn)
+            return all(counts[mn.proTxHash] >= attempts_before[mn.proTxHash] + probe_rounds(mn) for mn in judges)
+
+        self.wait_until(check_attempts)
 
     def test_banning(self, invalidate_proc, expected_connections=None):
         mninfos_online = self.mninfo.copy()
@@ -349,7 +378,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
                 for j in range(6):
                     self.log.info(f"Accumulating PoSe penalty {j + 1}/6")
                     self.reset_probe_timeouts()
-                    self.mine_quorum_less_checks(expected_contributors - 1, mninfos_online)
+                    self.mine_quorum_less_checks(expected_contributors - 1, mninfos_online, mn)
                     if check_banned(self.nodes[0], mn):
                         break
 
