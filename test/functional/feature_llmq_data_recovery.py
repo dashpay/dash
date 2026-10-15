@@ -155,7 +155,7 @@ class QuorumDataRecoveryTest(DashTestFramework):
             self.restart_mns(qdata_recovery_enabled=False)
             # If mode=0 i.e. "Sync always" all nodes should request the qvvec from new quorums
             if llmq_sync_mode == 0:
-                quorum_hash = self.mine_quorum()
+                quorum_hash = self.mine_quorum(required_llmq_types=(llmq_test_v17,))
                 member_mns = self.get_member_mns(llmq_type, quorum_hash)
                 # So far the only the quorum members of the quorum should have the quorum verification vector
                 self.test_mns(llmq_type, quorum_hash, valid_mns=member_mns, all_mns=self.mninfo,
@@ -175,7 +175,7 @@ class QuorumDataRecoveryTest(DashTestFramework):
                 member_mns_2 = []
                 while len(members_only_in_1) == 0 or len(members_only_in_2) == 0:
                     quorum_hash_1 = quorum_hash_2
-                    quorum_hash_2 = self.mine_quorum()
+                    quorum_hash_2 = self.mine_quorum(required_llmq_types=(llmq_test_v17,))
                     member_mns_1 = member_mns_2
                     member_mns_2 = self.get_member_mns(llmq_type, quorum_hash_2)
                     members_only_in_1 = self.get_subset_only_in_left(member_mns_1, member_mns_2)
@@ -204,7 +204,7 @@ class QuorumDataRecoveryTest(DashTestFramework):
         last_resort_v17: MasternodeInfo = None
         while True:
             # Mine the quorums used for the recovery test
-            quorum_hash_recover = self.mine_quorum()
+            quorum_hash_recover = self.mine_quorum(required_llmq_types=(llmq_test_v17,))
             # Get all their member masternodes
             member_mns_recover_test = self.get_member_mns(llmq_test, quorum_hash_recover)
             member_mns_recover_v17 = self.get_member_mns(llmq_test_v17, quorum_hash_recover)
