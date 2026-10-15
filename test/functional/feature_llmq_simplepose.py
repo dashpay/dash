@@ -181,6 +181,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, len(others), "receivedContributions", self.llmq_size, others)
+        self.wait_for_dkg_messages(q, 2, others + [mn])
 
         self.log.info("Replacing the connections to the masternode with stand-ins")
         mn.get_node(self).setnetworkactive(False)
@@ -196,16 +197,19 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, len(others), "receivedComplaints", expected_complaints, others)
+        self.wait_for_dkg_messages(q, 3, others)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, len(others), "receivedJustifications", 0, others)
+        self.wait_for_dkg_messages(q, 4, others)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, len(others), "receivedPrematureCommitments", len(others), others)
+        self.wait_for_dkg_messages(q, 5, others)
 
         self.move_blocks(nodes, 2)
 
@@ -261,18 +265,22 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_good_nodes, "receivedContributions", expected_good_nodes, mninfos_online)
+        self.wait_for_dkg_messages(q, 2, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_dkg_messages(q, 3, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_dkg_messages(q, 4, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, expected_good_nodes, "receivedPrematureCommitments", expected_good_nodes, mninfos_online)
+        self.wait_for_dkg_messages(q, 5, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
@@ -280,6 +288,9 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online)
+
+        self.log.info("Waiting final commitments on mining node")
+        self.wait_for_quorum_commitments_on_miner(q, mninfos_online)
 
         self.log.info("Mining final commitment")
         self.bump_mocktime(1, nodes=nodes)
