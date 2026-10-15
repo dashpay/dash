@@ -675,10 +675,35 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
     InvalidateSMLCache();
 }
 
+
+bool EncodedMNListsCanonicallyEqual(Span<const std::byte> a, Span<const std::byte> b)
+{
+    CDeterministicMNList list_a, list_b;
+    try {
+        CDataStream{a, SER_DISK, CLIENT_VERSION} >> list_a;
+        CDataStream{b, SER_DISK, CLIENT_VERSION} >> list_b;
+    } catch (const std::exception&) {
+        return false;
+    }
+    if (list_a.GetBlockHash() != list_b.GetBlockHash() || list_a.GetHeight() != list_b.GetHeight() ||
+        list_a.GetTotalRegisteredCount() != list_b.GetTotalRegisteredCount() ||
+        list_a.GetCounts().total() != list_b.GetCounts().total()) {
+        return false;
+    }
+    bool equal{true};
+    list_a.ForEachMNShared(/*onlyValid=*/false, [&](const CDeterministicMNCPtr& dmn) {
+        if (!equal) return;
+        const CDeterministicMNCPtr other{list_b.GetMN(dmn->proTxHash)};
+        equal = other && SerializeHash(*other, SER_DISK, CLIENT_VERSION) == SerializeHash(*dmn, SER_DISK, CLIENT_VERSION);
+    });
+    return equal;
+}
+
 CDeterministicMNManager::CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaMan& mn_metaman) :
     m_evoDb{evoDb},
     m_mn_metaman{mn_metaman}
 {
+    evoDb.SetMNListEquivalence(EncodedMNListsCanonicallyEqual);
 }
 
 CDeterministicMNManager::~CDeterministicMNManager() = default;
@@ -1030,6 +1055,8 @@ bool CDeterministicMNManager::IsMigrationRequired() const
 
     AssertLockHeld(::cs_main);
 
+    // NORMAL-only lifecycle operation: it uses the raw legacy keyspace and
+    // never sees snapshot-generation records.
     std::unique_ptr<CDBIterator> pcursor{m_evoDb.GetRawDB().NewIterator()};
     auto start{std::make_tuple(DB_LIST_DIFF_LEGACY, uint256{})};
     pcursor->Seek(start);
@@ -1061,6 +1088,8 @@ static void ReinterpretOperatorKey(CBLSLazyPublicKey& key, const BLSScheme from,
 
 bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_index)
 {
+    // NORMAL-only lifecycle operation: it uses the raw legacy keyspace and
+    // never sees snapshot-generation records.
     // CRITICAL: This migration converts ALL stored CDeterministicMNListDiff entries
     // from legacy database key (DB_LIST_DIFF_LEGACY) to new key (DB_LIST_DIFF) format
 
@@ -1530,6 +1559,8 @@ void CDeterministicMNManager::WriteRepairedDiffs(
         return;
     }
 
+    // NORMAL-only lifecycle operation: it uses the raw legacy keyspace and
+    // never sees snapshot-generation records.
     CDBBatch batch(m_evoDb.GetRawDB());
     const size_t BATCH_SIZE_THRESHOLD = 1 << 24; // 16MB
     size_t diffs_written = 0;

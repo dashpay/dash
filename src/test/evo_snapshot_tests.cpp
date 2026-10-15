@@ -323,6 +323,61 @@ BOOST_FIXTURE_TEST_CASE(populated_v3_golden_value, BasicTestingSetup)
                       "8a2883207069e92589ffcce1f9867736881ecdf04ccfc89b492570740e7d3f31");
 }
 
+BOOST_FIXTURE_TEST_CASE(promotion_compares_seeded_masternode_lists_canonically, BasicTestingSetup)
+{
+    // Three proTxHashes share their low 64 bits, so the two insertion orders
+    // lay the lists out, and encode them, differently.
+    const auto normal_list{MNList(H(90), 576, /*reverse=*/false)};
+    const auto encode = [](const CDeterministicMNList& list) {
+        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        stream << list;
+        return stream;
+    };
+    const auto normal_bytes{encode(normal_list)};
+    BOOST_REQUIRE(normal_bytes.str() != encode(MNList(H(90), 576, /*reverse=*/true)).str());
+    auto with_extra_mn{MNList(H(90), 576, /*reverse=*/true)};
+    with_extra_mn.AddMN(MN(9, 4, MnType::Regular, ProTxVersion::LegacyBLS, 9), /*fBumpTotalCount=*/false);
+
+    const auto key{std::make_pair(std::string{"dmn_S3"}, H(90))};
+    for (const auto& [seed, promotes] : std::vector<std::pair<CDeterministicMNList, bool>>{
+             {MNList(H(90), 576, /*reverse=*/true), true}, {with_extra_mn, false}}) {
+        const fs::path path{m_args.GetDataDirBase() / "evodb_seeded_mn_list"};
+        {
+            LOCK(::cs_main);
+            CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+            db.SetMNListEquivalence(EncodedMNListsCanonicallyEqual);
+            {
+                auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+                db.Write(key, normal_list);
+                db.WriteBestBlock(EvoDbIdentity::NORMAL, H(90));
+                tx->Commit();
+            }
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+            BOOST_REQUIRE(db.CreateSnapshotGeneration(H(90), 576));
+            {
+                auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+                db.WriteSeed(key, seed, EvoSeedPolicy::MN_LIST);
+                db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, H(91));
+                tx->Commit();
+            }
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+            BOOST_REQUIRE(db.PublishSnapshotGeneration(H(92), evo::CanonicalMNListHash(normal_list)));
+            BOOST_REQUIRE(db.PrepareSnapshotPromotion(H(91)));
+            BOOST_CHECK_EQUAL(db.PromoteSnapshotMarkers(H(91)), promotes);
+        }
+        if (!promotes) continue;
+        // NORMAL keeps its own encoding across a restart.
+        CEvoDB reopened{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+        BOOST_REQUIRE(reopened.LoadSnapshotGenerations(H(92)));
+        BOOST_CHECK(!reopened.GetSnapshotGeneration());
+        CDataStream stored{SER_DISK, CLIENT_VERSION};
+        DataStream raw_key{};
+        raw_key << key;
+        BOOST_REQUIRE(reopened.GetRawDB().ReadDataStream(raw_key, stored));
+        BOOST_CHECK(stored.str() == normal_bytes.str());
+    }
+}
+
 BOOST_FIXTURE_TEST_CASE(canonical_mn_reader_rejects_order_and_counter, BasicTestingSetup)
 {
     BOOST_CHECK(evo::CanonicalMNListHash(CDeterministicMNList{}) ==

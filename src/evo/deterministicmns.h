@@ -775,6 +775,10 @@ struct MNListUpdates
 inline constexpr std::string_view BLOCK_DATA_UNAVAILABLE_SUFFIX{
     "is not available (pruned or below an unvalidated snapshot base)"};
 
+//! Whether two encoded masternode lists hold the same masternodes, internal
+//! ids and registration counter, however their maps are laid out.
+bool EncodedMNListsCanonicallyEqual(Span<const std::byte> a, Span<const std::byte> b);
+
 class CDeterministicMNManager
 {
     static constexpr int DISK_SNAPSHOT_PERIOD = 576; // once per day
