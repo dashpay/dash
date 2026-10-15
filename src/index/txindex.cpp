@@ -4,6 +4,7 @@
 
 #include <index/txindex.h>
 
+#include <clientversion.h>
 #include <index/disktxpos.h>
 #include <node/blockstorage.h>
 #include <util/system.h>

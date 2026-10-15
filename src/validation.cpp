@@ -18,6 +18,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <checkqueue.h>
+#include <clientversion.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <consensus/merkle.h>

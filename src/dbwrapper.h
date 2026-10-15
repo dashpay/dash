@@ -199,7 +199,7 @@ public:
 
     template<typename V> bool GetValue(V& value) {
         try {
-            CDataStream ssValue{GetValueImpl(), SER_DISK, CLIENT_VERSION};
+            DataStream ssValue{GetValueImpl()};
             ssValue.Xor(dbwrapper_private::GetObfuscateKey(parent));
             ssValue >> value;
         } catch (const std::exception&) {

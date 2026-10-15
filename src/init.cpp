@@ -21,6 +21,7 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <clientversion.h>
 #include <context.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
