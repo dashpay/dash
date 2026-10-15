@@ -33,6 +33,25 @@ CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMe
 using node::GetTransaction;
 
 namespace instantsend {
+namespace {
+bool IsProviderTx(const CTransaction& tx)
+{
+    if (!tx.IsSpecialTxVersion()) return false;
+    switch (tx.nType) {
+    case TRANSACTION_PROVIDER_REGISTER:
+    case TRANSACTION_PROVIDER_UPDATE_SERVICE:
+    case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
+    case TRANSACTION_PROVIDER_UPDATE_REVOKE:
+    case TRANSACTION_PROVIDER_DISSOLVE:
+    case TRANSACTION_PROVIDER_UPDATE_SHARE:
+    case TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR:
+        return true;
+    default:
+        return false;
+    }
+}
+} // anonymous namespace
+
 InstantSendSigner::InstantSendSigner(const ChainstateManager& chainman, const chainlock::Chainlocks& chainlocks,
                                      llmq::CInstantSendManager& isman, llmq::CSigningManager& sigman,
                                      llmq::CSigSharesManager& shareman, llmq::CQuorumManager& qman,
@@ -172,6 +191,13 @@ bool InstantSendSigner::CheckCanLock(const CTransaction& tx, bool printDebug, co
 {
     if (tx.IsPlatformTransfer()) {
         return CheckCanLockAssetUnlock(tx, printDebug);
+    }
+    if (IsProviderTx(tx)) {
+        if (printDebug) {
+            LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: provider txs are not locked\n", __func__,
+                     tx.GetHash().ToString());
+        }
+        return false;
     }
     if (tx.vin.empty()) {
         // can't lock TXs without inputs (e.g. quorum commitments)
@@ -424,6 +450,8 @@ bool InstantSendSigner::TrySignInputLocks(const CTransaction& tx, bool fRetroact
 
 void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
 {
+    if (IsProviderTx(tx)) return;
+
     const auto llmqType = Params().GetConsensus().llmqTypeDIP0024InstantSend;
 
     InstantSendLock islock;
