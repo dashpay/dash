@@ -95,6 +95,9 @@ static constexpr size_t EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN{8};
 // LLMQ_60_75 index failing its DKG in a different cycle (262 lists) stays below
 // a million visits at 3,000 MNs.
 static constexpr size_t EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS{8'000'000};
+// The credit-pool window is CreditPoolPeriodBlocks() long: 576 on main, test
+// and devnet, 100 on regtest. A test pins every network to this bound.
+static constexpr size_t EVO_SNAPSHOT_MAX_CREDIT_HISTORY{576};
 // At most two bootstrap work entries per type: the cycle containing the base
 // and the next one.
 static constexpr size_t EVO_SNAPSHOT_MAX_BOOTSTRAP_WORK{2};
@@ -554,6 +557,8 @@ public:
     std::vector<HistoricalMNListDiff> historical_mn_list_diffs;
     std::vector<QuorumModifier> quorum_modifiers;
     CCreditPool credit_pool;
+    //! The window entries of the blocks ending at the base, oldest first.
+    std::vector<CreditHistoryEntry> credit_history;
     AbstractEHFManager::Signals mnhf_signals;
 
     template <typename Stream> void Serialize(Stream& s) const;
@@ -722,6 +727,7 @@ void EvoSnapshot::Serialize(Stream& s) const
     }
     s << sorted_modifiers;
     s << credit_pool.locked << credit_pool.currentLimit << credit_pool.latelyUnlocked << credit_pool.indexes;
+    s << credit_history;
     WriteCompactSize(s, mnhf_signals.size());
     for (const auto& signal : mnhf_signals) s << signal;
 }
@@ -738,6 +744,7 @@ void EvoSnapshot::Unserialize(Stream& s)
     quorums.clear();
     historical_mn_list_diffs.clear();
     quorum_modifiers.clear();
+    credit_history.clear();
     mnhf_signals.clear();
     mn_list = UnserializeCanonicalMNList(s);
     const size_t quorum_count{ReadBoundedCompactSize(s, Consensus::available_llmqs.size(), "quorum-type count")};
@@ -766,6 +773,10 @@ void EvoSnapshot::Unserialize(Stream& s)
     }
     s >> credit_pool.locked >> credit_pool.currentLimit >> credit_pool.latelyUnlocked;
     credit_pool.indexes.UnserializeBounded(s, EVO_SNAPSHOT_MAX_RANGES);
+    const size_t history_entries{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_CREDIT_HISTORY, "credit history")};
+    credit_history.resize(history_entries);
+    for (auto& entry : credit_history)
+        s >> entry;
     const size_t signal_count{ReadBoundedCompactSize(s, VERSIONBITS_NUM_BITS, "MNHF signals")};
     // The signal map normalizes iteration order, so wire order is observable
     // only here: require the strictly ascending bit order the serializer
