@@ -2354,6 +2354,19 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.wait_until(check_finalized, timeout=timeout)
 
+    def wait_for_offset_dkg_session(self, quorum_hash, phase, mninfos, wait_proc=None):
+        """With quorum rotation active, the index 1 session of a cycle is based on the block after quorum_hash
+        and runs one block behind the session of quorum_hash, i.e. it is in phase - 1 when that one has just been
+        waited for in phase (the callers mine two blocks per phase). Wait for its relay connections (phase 2) or
+        for its messages of the previous phase (phases 3-6), so that the blocks mined for the next phase do not
+        cross a boundary of this session while its messages are still in flight and make a member miss the phase.
+        A hash without a session passes at once."""
+        offset_hash = self.nodes[0].getblockhash(self.nodes[0].getblock(quorum_hash)["height"] + 1)
+        if phase == 2:
+            self.wait_for_dkg_relay_connections(offset_hash, mninfos, wait_proc=wait_proc or (lambda: self.bump_mocktime(1)))
+        else:
+            self.wait_for_dkg_messages(offset_hash, phase - 1, mninfos)
+
     def node_quorum_commitment_types(self, node, quorum_hash):
         s = node.quorum("dkgstatus")
         return {c["llmqType"] for c in s.get("minableCommitments", [])
@@ -2475,6 +2488,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name=llmq_type_name)
         if self.fast_sync_polling:
             self.wait_for_dkg_messages(q, 2, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 2, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
@@ -2482,6 +2496,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name=llmq_type_name)
         if self.fast_sync_polling:
             self.wait_for_dkg_messages(q, 3, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 3, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
@@ -2489,6 +2504,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name=llmq_type_name)
         if self.fast_sync_polling:
             self.wait_for_dkg_messages(q, 4, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 4, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
@@ -2496,6 +2512,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name=llmq_type_name)
         if self.fast_sync_polling:
             self.wait_for_dkg_messages(q, 5, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 5, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
@@ -2503,6 +2520,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
         if self.fast_sync_polling:
             self.wait_for_dkg_finalization(q, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 6, mninfos_online)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type)
@@ -2525,6 +2543,13 @@ class DashTestFramework(BitcoinTestFramework):
             self.verify_upcoming_dkg_predictions(predictions, quorum_info)
 
         if not skip_maturity:
+            if self.fast_sync_polling:
+                # With rotation active, the index 1 session of the cycle starts one block after q and finalizes
+                # one block after q's, i.e. with the final commitment block above. The maturity blocks cross the
+                # mining window, which needs its commitment.
+                q_1 = self.nodes[0].getblockhash(quorum_info["height"] + 1)
+                self.wait_for_dkg_finalization(q_1, mninfos_online)
+                self.wait_for_quorum_commitments_on_miner(q_1, mninfos_online)
             # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
             self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
 
