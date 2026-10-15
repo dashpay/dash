@@ -13,10 +13,12 @@
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 #include <llmq/snapshot.h>
+#include <primitives/transaction.h>
 #include <versionbits.h>
 
 #include <hash.h>
 #include <serialize.h>
+#include <streams.h>
 #include <uint256.h>
 #include <util/check.h>
 
@@ -35,8 +37,10 @@ class CBlockIndex;
 class CChainParams;
 class ChainstateManager;
 class CCbTx;
+class CBlock;
 class CCreditPoolManager;
 class CMNHFManager;
+class CSpecialTxProcessor;
 struct EvoViewToken;
 
 namespace llmq {
@@ -95,6 +99,11 @@ static constexpr size_t EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN{8};
 // LLMQ_60_75 index failing its DKG in a different cycle (262 lists) stays below
 // a million visits at 3,000 MNs.
 static constexpr size_t EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS{8'000'000};
+// The base coinbase is length-delimited and bounded before allocation; its
+// merkle branch proves it against the base header, so it is at most as deep as
+// a tree over 2^32 transactions.
+static constexpr size_t EVO_SNAPSHOT_MAX_COINBASE_BYTES{1'000'000};
+static constexpr size_t EVO_SNAPSHOT_MAX_COINBASE_BRANCH{32};
 // The credit-pool window is CreditPoolPeriodBlocks() long: 576 on main, test
 // and devnet, 100 on regtest. A test pins every network to this bound.
 static constexpr size_t EVO_SNAPSHOT_MAX_CREDIT_HISTORY{576};
@@ -553,6 +562,10 @@ public:
     uint16_t version{EVO_SNAPSHOT_VERSION};
     uint256 base_block_hash;
     CDeterministicMNList mn_list;
+    //! The base block's coinbase, null exactly when DIP3 is inactive at the base.
+    CTransactionRef base_coinbase;
+    //! Merkle branch of the coinbase (index 0) to the base header, leaf to root.
+    std::vector<uint256> base_coinbase_branch;
     std::vector<QuorumSnapshotData> quorums;
     std::vector<HistoricalMNListDiff> historical_mn_list_diffs;
     std::vector<QuorumModifier> quorum_modifiers;
@@ -719,6 +732,15 @@ void EvoSnapshot::Serialize(Stream& s) const
     const auto sorted_modifiers{CanonicallySortedCopy(quorum_modifiers)};
     s << version << base_block_hash;
     SerializeCanonicalMNList(s, mn_list);
+    if (base_coinbase) {
+        CDataStream coinbase{SER_NETWORK, PROTOCOL_VERSION};
+        coinbase << *base_coinbase;
+        WriteCompactSize(s, coinbase.size());
+        s.write(MakeByteSpan(coinbase));
+    } else {
+        WriteCompactSize(s, 0);
+    }
+    s << base_coinbase_branch;
     s << sorted_quorums;
     WriteCompactSize(s, sorted_history.size());
     for (const auto& entry : sorted_history) {
@@ -747,6 +769,25 @@ void EvoSnapshot::Unserialize(Stream& s)
     credit_history.clear();
     mnhf_signals.clear();
     mn_list = UnserializeCanonicalMNList(s);
+    base_coinbase.reset();
+    if (const size_t coinbase_size{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_COINBASE_BYTES, "base coinbase")}) {
+        std::vector<std::byte> bytes(coinbase_size);
+        s.read(bytes);
+        CDataStream coinbase{bytes, SER_NETWORK, PROTOCOL_VERSION};
+        CMutableTransaction tx;
+        coinbase >> tx;
+        if (!coinbase.empty()) throw std::ios_base::failure("trailing bytes after the evo snapshot base coinbase");
+        base_coinbase = MakeTransactionRef(std::move(tx));
+        CDataStream reencoded{SER_NETWORK, PROTOCOL_VERSION};
+        reencoded << *base_coinbase;
+        if (reencoded.size() != bytes.size() || !std::equal(bytes.begin(), bytes.end(), reencoded.begin())) {
+            throw std::ios_base::failure("noncanonical evo snapshot base coinbase");
+        }
+    }
+    const size_t branch_size{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_COINBASE_BRANCH, "coinbase branch")};
+    base_coinbase_branch.resize(branch_size);
+    for (auto& node : base_coinbase_branch)
+        s >> node;
     const size_t quorum_count{ReadBoundedCompactSize(s, Consensus::available_llmqs.size(), "quorum-type count")};
     quorums.reserve(quorum_count);
     for (size_t i{0}; i < quorum_count; ++i) {
@@ -850,12 +891,23 @@ bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const Chainsta
 /** Pure CbTx checks over already-built snapshot content. */
 bool VerifyEvoSnapshotCbTx(const EvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error);
 
+/** The merkle root a leaf at `index` reaches through `branch` (leaf to root). */
+uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint256>& branch, uint32_t index);
+/** The merkle branch of the transaction at `index` in `block`, leaf to root. */
+std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t index);
+
+/** Load-time anchor of the section to the base header: the carried coinbase
+ *  must hash through its branch to the header's merkle root, and its CbTx,
+ *  decoded with the BLS scheme in force at the base, must commit to the
+ *  carried MN list, active quorums and credit pool. */
+bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& base_index,
+                                const Consensus::Params& consensus, std::string& error);
+
 /** Seed the decoded snapshot's state into `view`, inside the caller's open
  *  EvoDB transaction for that view. */
-bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot, CDeterministicMNManager& dmnman,
-                          llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
-                          CCreditPoolManager& cpoolman, CMNHFManager& mnhfman, const node::BlockManager& blockman,
-                          const CBlockIndex* base_index, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot, CSpecialTxProcessor& special_tx,
+                          const node::BlockManager& blockman, const CBlockIndex* base_index, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 } // namespace evo
 

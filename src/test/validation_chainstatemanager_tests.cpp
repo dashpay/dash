@@ -1166,7 +1166,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, SnapshotTestSetup
         BlockValidationState cl_state;
         BOOST_CHECK_THROW(CheckCbTxBestChainlock(cbtx, snapshot_chainstate->m_chain[snapshot_base_height + 1],
                                                  consensus, snapshot_chainstate->m_chain, *m_node.llmq_ctx->qman,
-                                                 *m_node.chainlocks, cl_state),
+                                                 *m_node.chainlocks, *m_node.special_tx, cl_state),
                           BlockDataUnavailableError);
         // The quorum modifier of a work block at or below the base reads the
         // same coinbase through the same lookup.
