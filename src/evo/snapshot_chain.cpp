@@ -21,6 +21,7 @@
 #include <evo/specialtxman.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/options.h>
+#include <llmq/quorumsman.h>
 #include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <node/blockstorage.h>
@@ -177,7 +178,168 @@ bool CheckNextCycleContext(const ChainstateManager& chainman, const CBlockIndex*
     return true;
 }
 
+//! The carried records of `params`' type in the family its scans read, newest
+//! mined first: per quorum index with rotation, one sequence otherwise.
+std::vector<std::vector<std::pair<int, const CBlockIndex*>>> CarriedScanRecords(const EvoSnapshot& snapshot,
+                                                                                const ChainstateManager& chainman,
+                                                                                const Consensus::LLMQParams& params)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    std::vector<std::vector<std::pair<int, const CBlockIndex*>>> records(
+        params.useRotation ? static_cast<size_t>(params.signingActiveQuorumCount) : 1);
+    const auto data{std::ranges::find_if(snapshot.quorums, [&](const auto& q) { return q.llmq_type == params.type; })};
+    // Scans of a rotating type read the indexed family only. Without rotation
+    // at the base there is no indexed record at or below it.
+    if (data == snapshot.quorums.end() || data->rotation_enabled != params.useRotation) return records;
+    for (const auto* commitments : {&data->active_commitments, &data->safety_commitments}) {
+        for (const auto& entry : *commitments) {
+            const size_t sequence{params.useRotation ? static_cast<size_t>(entry.commitment.quorumIndex) : 0};
+            const CBlockIndex* mined{chainman.m_blockman.LookupBlockIndex(entry.mined_block_hash)};
+            const CBlockIndex* quorum{chainman.m_blockman.LookupBlockIndex(entry.quorum_base_block_hash)};
+            if (sequence < records.size() && mined != nullptr && quorum != nullptr) {
+                records[sequence].emplace_back(mined->nHeight, quorum);
+            }
+        }
+    }
+    for (auto& sequence : records) {
+        std::sort(sequence.begin(), sequence.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    }
+    return records;
+}
+
+//! Prove the scans the snapshot chainstate must answer from carried history
+//! alone: ChainLock verification for every height B + 1 may certify, and the
+//! asset-unlock quorum check of B + 1. With `full_index`, the exporter's
+//! complete commitment index, the proven vectors must also equal it.
+bool CheckScanCoverage(const EvoSnapshot& snapshot, const ChainstateManager& chainman, const CBlockIndex* base_index,
+                       const llmq::CQuorumBlockProcessor* full_index, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    const auto& consensus{chainman.GetConsensus()};
+    struct Request {
+        Consensus::LLMQType type{Consensus::LLMQType::LLMQ_NONE};
+        const CBlockIndex* start{nullptr};
+        size_t count{0};
+    };
+    std::vector<Request> requests;
+    // Without v20 at B + 1 its CbTx carries no ChainLock to verify.
+    const auto chainlocks{chainman.GetParams().GetLLMQ(consensus.llmqTypeChainLocks)};
+    if (chainlocks && DeploymentActiveAfter(base_index, consensus, Consensus::DEPLOYMENT_V20)) {
+        // B + 1 may certify any height from the base's certified one on; with
+        // no certificate at the base, any height at all.
+        int first_height{0};
+        const bool legacy{!DeploymentActiveAt(*base_index, consensus, Consensus::DEPLOYMENT_V19)};
+        if (const auto cbtx{snapshot.base_coinbase ? DecodeCbTxPayload(*snapshot.base_coinbase, legacy) : std::nullopt};
+            cbtx && cbtx->nVersion >= CCbTx::Version::CLSIG_AND_BALANCE && cbtx->bestCLSignature.IsValid() &&
+            cbtx->bestCLHeightDiff < static_cast<uint32_t>(base_index->nHeight)) {
+            first_height = base_index->nHeight - static_cast<int>(cbtx->bestCLHeightDiff) - 1;
+        }
+        // With a fixed type and count, coverage only grows with the cutoff,
+        // and the cutoff with the start. So only the first start of each
+        // context (enablement and whether the scan is empty by genesis) needs
+        // proving.
+        std::optional<std::pair<bool, bool>> context;
+        for (int height{std::max(first_height, llmq::SIGN_HEIGHT_OFFSET)}; height <= base_index->nHeight; ++height) {
+            const CBlockIndex* start{base_index->GetAncestor(height - llmq::SIGN_HEIGHT_OFFSET)};
+            const bool enabled{chainman.IsQuorumTypeEnabled(chainlocks->type, start)};
+            const std::pair<bool, bool> current{enabled, enabled && llmq::NormalizeScanStart(*chainlocks, start)};
+            if (context == current) continue;
+            context = current;
+            if (current.second) {
+                requests.push_back({chainlocks->type, start, static_cast<size_t>(chainlocks->signingActiveQuorumCount)});
+            }
+        }
+    }
+    if (const auto platform{chainman.GetParams().GetLLMQ(consensus.llmqTypePlatform)}) {
+        requests.push_back({platform->type, base_index, static_cast<size_t>(platform->signingActiveQuorumCount) + 1});
+    }
+
+    std::map<Consensus::LLMQType, std::vector<std::vector<std::pair<int, const CBlockIndex*>>>> carried;
+    std::set<std::tuple<Consensus::LLMQType, int, size_t>> checked;
+    for (const auto& request : requests) {
+        const auto params{*Assert(chainman.GetParams().GetLLMQ(request.type))};
+        if (!chainman.IsQuorumTypeEnabled(request.type, request.start)) continue;
+        const auto cutoff{llmq::NormalizeScanStart(params, request.start)};
+        if (!cutoff || !checked.emplace(request.type, (*cutoff)->nHeight, request.count).second) continue;
+        auto [it, inserted]{carried.try_emplace(request.type)};
+        if (inserted) it->second = CarriedScanRecords(snapshot, chainman, params);
+        const auto coverage{EvoSnapshotScanCoverage(snapshot, params)};
+        std::vector<llmq::ScanSequence> sequences;
+        for (size_t i{0}; i < it->second.size(); ++i) {
+            llmq::ScanSequence sequence{{}, coverage.End(i)};
+            for (const auto& [mined_height, quorum] : it->second[i]) {
+                if (mined_height <= (*cutoff)->nHeight) sequence.records.push_back(quorum);
+            }
+            sequences.push_back(std::move(sequence));
+        }
+        const auto proven{llmq::TraverseScanSequences(params.useRotation, sequences, request.count)};
+        if (!proven) {
+            error = strprintf("evo snapshot cannot prove the llmqType=%d scan of %d from height %d",
+                              static_cast<int>(request.type), request.count, (*cutoff)->nHeight);
+            return false;
+        }
+        if (full_index == nullptr) continue;
+        std::vector<llmq::ScanSequence> complete;
+        if (params.useRotation) {
+            for (int index{0}; index < params.signingActiveQuorumCount; ++index) {
+                complete.push_back(
+                    {full_index->GetMinedCommitmentsByQuorumIndexUntilBlock(request.type, *cutoff, index, request.count),
+                     llmq::ScanSequenceEnd::END});
+            }
+        } else {
+            complete.push_back({full_index->GetMinedCommitmentsUntilBlock(request.type, *cutoff, request.count),
+                                llmq::ScanSequenceEnd::END});
+        }
+        if (llmq::TraverseScanSequences(params.useRotation, complete, request.count) != proven) {
+            error = strprintf("evo snapshot llmqType=%d scan from height %d differs from the full index",
+                              static_cast<int>(request.type), (*cutoff)->nHeight);
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
+
+bool CheckEvoSnapshotScanCoverage(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
+                                  const CBlockIndex* base_index, std::string& error)
+{
+    AssertLockHeld(::cs_main);
+    return CheckScanCoverage(snapshot, chainman, base_index, /*full_index=*/nullptr, error);
+}
+
+llmq::ScanCoverageRecord EvoSnapshotScanCoverage(const EvoSnapshot& snapshot, const Consensus::LLMQParams& params)
+{
+    llmq::ScanCoverageRecord coverage;
+    const auto data{std::ranges::find_if(snapshot.quorums, [&](const auto& q) { return q.llmq_type == params.type; })};
+    const auto end_of = [](size_t carried, size_t selected) {
+        return static_cast<uint8_t>(carried < selected ? llmq::ScanSequenceEnd::END : llmq::ScanSequenceEnd::UNKNOWN);
+    };
+    if (params.useRotation) {
+        // The canonical selection carries the last two of every quorum index;
+        // fewer means none older exists. Without rotation at the base the
+        // indexed family is empty there.
+        std::vector<size_t> counts(static_cast<size_t>(params.signingActiveQuorumCount));
+        if (data != snapshot.quorums.end() && data->rotation_enabled) {
+            for (const auto* commitments : {&data->active_commitments, &data->safety_commitments}) {
+                for (const auto& entry : *commitments) {
+                    if (entry.commitment.quorumIndex >= 0 &&
+                        static_cast<size_t>(entry.commitment.quorumIndex) < counts.size()) {
+                        ++counts[entry.commitment.quorumIndex];
+                    }
+                }
+            }
+        }
+        for (const size_t count : counts)
+            coverage.ends.push_back(end_of(count, 2));
+    } else {
+        const size_t carried{data == snapshot.quorums.end()
+                                 ? size_t{0}
+                                 : data->active_commitments.size() + data->safety_commitments.size()};
+        coverage.ends.push_back(end_of(carried, SnapshotCommitmentCount(params, /*rotation_enabled=*/false)));
+    }
+    return coverage;
+}
 
 int EvoSnapshotWorkHeight(const Consensus::Params& consensus, const Consensus::LLMQParams& params,
                           bool rotation_enabled, int quorum_height)
@@ -439,6 +601,9 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
         error = e.what();
         return false;
     }
+    // Export and load apply the same coverage gate; the exporter also checks
+    // the proven scans against its complete index.
+    if (!CheckScanCoverage(result, chainman, base_index, &qblockman, error)) return false;
     snapshot = std::move(result);
     return true;
 }
@@ -629,7 +794,7 @@ bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const Chainsta
             return fail("invalid evo MNHF signal bit/height");
         }
     }
-    return true;
+    return CheckScanCoverage(snapshot, chainman, base_index, /*full_index=*/nullptr, error);
 }
 
 bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& base_index,
@@ -703,6 +868,11 @@ bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot,
     if (!mnhfman.SeedSignals(view, base_index, snapshot.mnhf_signals)) return fail("failed to seed the MNHF signals");
     if (snapshot.base_coinbase && !special_tx.SeedBaseCoinbase(view, base_index, *snapshot.base_coinbase)) {
         return fail("failed to seed the base coinbase");
+    }
+    for (const auto& params : special_tx.ConsensusParams().llmqs) {
+        if (!qblockman.SeedScanCoverage(view, params.type, EvoSnapshotScanCoverage(snapshot, params))) {
+            return fail("failed to seed quorum scan coverage");
+        }
     }
     return true;
 }

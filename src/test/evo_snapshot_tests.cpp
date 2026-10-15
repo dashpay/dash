@@ -9,6 +9,7 @@
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
 #include <crypto/sha256.h>
+#include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
 #include <evo/creditpool.h>
 #include <evo/evodb.h>
@@ -21,6 +22,7 @@
 #include <hash.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
+#include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/snapshot.h>
@@ -460,6 +462,8 @@ struct EvoSnapshotChainSetup : public TestChainSetup {
     Consensus::LLMQParams m_plain{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
     Consensus::LLMQParams m_rotated{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
     static constexpr int CYCLE_LENGTH{12};
+    //! The secret key of each mined quorum, so tests can sign as it.
+    std::map<std::pair<Consensus::LLMQType, int>, CBLSSecretKey> m_quorum_keys;
 
     EvoSnapshotChainSetup() :
         TestChainSetup{102,
@@ -473,7 +477,14 @@ struct EvoSnapshotChainSetup : public TestChainSetup {
             params->dkgMiningWindowStart = 2;
             params->dkgMiningWindowEnd = 6;
         }
-        m_restorer.Get().llmqs = {m_plain, m_rotated};
+        // ChainLocks and Platform run on a type that forms no quorum here:
+        // these chains have no ChainLocks, so a base certifies none and its
+        // ChainLock scans would reach back to genesis, and Platform quorums
+        // select only evonodes. The scan-coverage tests choose their own.
+        auto& consensus{m_restorer.Get()};
+        consensus.llmqs = {m_plain, m_rotated, evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_INSTANTSEND)};
+        consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_TEST_INSTANTSEND;
+        consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_TEST_INSTANTSEND;
     }
 
     const CBlockIndex* At(int height) { return WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain()[height]); }
@@ -517,6 +528,9 @@ struct EvoSnapshotChainSetup : public TestChainSetup {
             rotation, DeploymentActiveAfter(quorum, m_node.chainman->GetConsensus(), Consensus::DEPLOYMENT_V19));
         commitment.quorumIndex = rotation ? quorum_height % params.dkgInterval : 0;
         commitment.quorumVvecHash = SerializeHash(std::make_pair(params.type, quorum_height));
+        auto& key{m_quorum_keys[{params.type, quorum_height}]};
+        key.MakeNewKey();
+        commitment.quorumPublicKey = key.GetPublicKey();
         std::fill(commitment.signers.begin(), commitment.signers.end(), true);
         std::fill(commitment.validMembers.begin(), commitment.validMembers.end(), true);
         auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL)};
@@ -2915,6 +2929,385 @@ BOOST_FIXTURE_TEST_CASE(missing_quarters_in_the_snapshot_view, EvoSnapshotChainS
     const EvoViewScope scope{incomplete};
     BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(m_rotated.type, Util(At(24)), /*reset_cache=*/true),
                       BlockDataUnavailableError);
+}
+
+
+std::vector<uint256> QuorumHashes(const std::vector<llmq::CQuorumCPtr>& quorums)
+{
+    std::vector<uint256> hashes;
+    hashes.reserve(quorums.size());
+    for (const auto& quorum : quorums)
+        hashes.push_back(quorum->qc->quorumHash);
+    return hashes;
+}
+
+BOOST_FIXTURE_TEST_CASE(scan_coverage_gates_export_and_load, EvoSnapshotChainSetup)
+{
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    const auto snapshot{Build(base)};
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(Valid(snapshot, base, error), error);
+
+    // ChainLocks on a type with retained history. These chains carry no
+    // ChainLock, so B + 1 may certify any height and its verification scans
+    // reach below the three carried commitments: export and load refuse.
+    m_restorer.Get().llmqTypeChainLocks = m_plain.type;
+    evo::EvoSnapshot refused;
+    BOOST_CHECK(!TryBuild(base, refused, error));
+    BOOST_CHECK_MESSAGE(error.find("cannot prove") != std::string::npos, error);
+    BOOST_CHECK(!Valid(snapshot, base, error));
+    BOOST_CHECK_MESSAGE(error.find("cannot prove") != std::string::npos, error);
+
+    // A young chain's short history is complete, so it proves every scan.
+    const CBlockIndex* young{At(31)};
+    const auto young_snapshot{Build(young)};
+    BOOST_CHECK_MESSAGE(Valid(young_snapshot, young, error), error);
+
+    // The asset-unlock check of B + 1 scans the active quorums plus the
+    // previous one, which the three carried commitments cover.
+    m_restorer.Get().llmqTypeChainLocks = Consensus::LLMQType::LLMQ_TEST_INSTANTSEND;
+    m_restorer.Get().llmqTypePlatform = m_plain.type;
+    const auto platform_snapshot{Build(base)};
+    BOOST_CHECK_MESSAGE(Valid(platform_snapshot, base, error), error);
+    const EvoViewToken seeded{Seed(platform_snapshot, base)};
+    const size_t count{static_cast<size_t>(m_plain.signingActiveQuorumCount) + 1};
+    const auto prove = [&](const EvoViewToken& view) {
+        const EvoViewScope scope{view};
+        return Heights([&] {
+            std::vector<uint256> hashes;
+            for (const auto* index : m_node.llmq_ctx->qman->ProveScan(m_plain.type, base, count)) {
+                hashes.push_back(index->GetBlockHash());
+            }
+            return hashes;
+        }());
+    };
+    BOOST_CHECK(prove(seeded) == (std::set<int>{144, 156, 168}));
+    BOOST_CHECK(prove(seeded) == prove(Normal()));
+}
+
+BOOST_FIXTURE_TEST_CASE(scans_prove_their_prefix_in_the_snapshot_view, EvoSnapshotChainSetup)
+{
+    // Plain quorums at 144, 156 and 168 (mined at +2) are carried at B = 179;
+    // older ones exist only in NORMAL.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    const EvoViewToken seeded{Seed(Build(base), base)};
+    auto& qman{*m_node.llmq_ctx->qman};
+    const auto scan = [&](const EvoViewToken& view, int start, size_t count) {
+        const EvoViewScope scope{view};
+        return QuorumHashes(qman.ScanQuorums(m_plain.type, At(start), count));
+    };
+
+    // A covered request near the base selects what NORMAL selects, and a
+    // recovered signature verifies (or fails) identically.
+    BOOST_CHECK(scan(seeded, 171, 2) == scan(Normal(), 171, 2));
+    const uint256 id{H(1)};
+    const uint256 msg_hash{H(2)};
+    for (const int quorum_height : {144, 156, 168}) {
+        const auto& key{m_quorum_keys.at({m_plain.type, quorum_height})};
+        const llmq::SignHash sign_hash{m_plain.type, At(quorum_height)->GetBlockHash(), id, msg_hash};
+        const CBLSSignature signature{key.Sign(sign_hash.Get(), /*specificLegacyScheme=*/false)};
+        const auto verify = [&](const EvoViewToken& view) {
+            const EvoViewScope scope{view};
+            return llmq::VerifyRecoveredSig(m_plain.type, qman, At(171), id, msg_hash, signature);
+        };
+        BOOST_CHECK(verify(seeded) == verify(Normal()));
+    }
+
+    // At start 160 (cutoff 160, in cycle 156's window) two carried quorums are
+    // eligible. A request for them succeeds even though the usual warm-up
+    // scan of keepOldConnections (3) could not be proven; a request for three
+    // must prove three, and cannot.
+    BOOST_CHECK(scan(seeded, 160, 1) == scan(Normal(), 160, 1));
+    BOOST_CHECK(scan(seeded, 160, 2) == scan(Normal(), 160, 2));
+    {
+        const EvoViewScope scope{seeded};
+        BOOST_CHECK_THROW(qman.ScanQuorums(m_plain.type, At(160), 3), BlockDataUnavailableError);
+        BOOST_CHECK_THROW(qman.ScanCommitments(m_plain.type, At(160), 3), BlockDataUnavailableError);
+    }
+    // A smaller request cached first never truncates a larger one.
+    BOOST_CHECK(scan(seeded, 175, 1) == scan(Normal(), 175, 1));
+    BOOST_CHECK(scan(seeded, 175, 3) == scan(Normal(), 175, 3));
+    BOOST_CHECK_EQUAL(scan(seeded, 175, 3).size(), 3U);
+}
+
+BOOST_FIXTURE_TEST_CASE(rotating_scans_never_return_a_short_vector, EvoSnapshotChainSetup)
+{
+    // Quorum index 0 never forms, so index 1 alone carries [169, 157] at
+    // B = 179 and older index-1 quorums exist only in NORMAL. From start 170
+    // the newest (mined at 171) is not yet eligible: rank 0 yields 157, and
+    // rank 1 needs index 1's next record, which is not carried.
+    SyncNormal();
+    for (int cycle{12}; cycle <= 180; cycle += CYCLE_LENGTH) {
+        Mine(m_plain, cycle);
+        Mine(m_rotated, cycle + 1);
+    }
+    const CBlockIndex* base{At(179)};
+    const EvoViewToken seeded{Seed(Build(base), base)};
+    auto& qman{*m_node.llmq_ctx->qman};
+    const auto normal{[&] {
+        const EvoViewScope scope{Normal()};
+        return Heights(QuorumHashes(qman.ScanQuorums(m_rotated.type, At(170), 2)));
+    }()};
+    BOOST_REQUIRE(normal == (std::set<int>{145, 157}));
+    const EvoViewScope scope{seeded};
+    BOOST_CHECK_THROW(qman.ScanQuorums(m_rotated.type, At(170), 2), BlockDataUnavailableError);
+    BOOST_CHECK_THROW(qman.ScanCommitments(m_rotated.type, At(170), 2), BlockDataUnavailableError);
+    BOOST_CHECK(Heights(QuorumHashes(qman.ScanQuorums(m_rotated.type, At(170), 1))) == std::set<int>{157});
+}
+
+
+BOOST_FIXTURE_TEST_CASE(uncarried_quorums_are_unavailable_not_absent, EvoSnapshotChainSetup)
+{
+    // An MNHF signal may be signed by any historical quorum of its type, which
+    // block validation looks up by hash. At B = 179 the plain quorums 144, 156
+    // and 168 are carried; 120 exists only in NORMAL.
+    SyncNormal();
+    MineCycles(12, 180);
+    m_restorer.Get().llmqTypeMnhf = m_plain.type;
+    const CBlockIndex* base{At(179)};
+    const EvoViewToken seeded{Seed(Build(base), base)};
+    auto& qman{*m_node.llmq_ctx->qman};
+    const auto signal_tx = [&](int quorum_height) {
+        MNHFTxPayload payload;
+        payload.nVersion = 1;
+        payload.signal.versionBit = 5;
+        payload.signal.quorumHash = At(quorum_height)->GetBlockHash();
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_MNHF_SIGNAL;
+        SetTxPayload(tx, payload);
+        return CTransaction{tx};
+    };
+    {
+        const EvoViewScope scope{seeded};
+        BOOST_CHECK(qman.GetQuorum(m_plain.type, At(156)->GetBlockHash()) != nullptr);
+        // An older quorum is not carried: the snapshot view cannot tell, so the
+        // block must stall rather than be found invalid.
+        BOOST_CHECK_THROW(qman.GetQuorum(m_plain.type, At(120)->GetBlockHash()), BlockDataUnavailableError);
+        TxValidationState state;
+        BOOST_CHECK_THROW(CheckMNHFTx(m_node.chainman->m_blockman, qman, signal_tx(120), At(185), state),
+                          BlockDataUnavailableError);
+        // Headers alone prove there is no quorum at a non-quorum height.
+        BOOST_CHECK(qman.GetQuorum(m_plain.type, At(121)->GetBlockHash()) == nullptr);
+        BOOST_CHECK(!CheckMNHFTx(m_node.chainman->m_blockman, qman, signal_tx(121), At(185), state));
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-mnhf-missing-quorum");
+    }
+    const EvoViewScope normal{Normal()};
+    BOOST_CHECK(qman.GetQuorum(m_plain.type, At(120)->GetBlockHash()) != nullptr);
+}
+
+//! The quorum merkle root the CbTx of the block after `height` must commit
+//! to, as block validation computes it in `view`.
+uint256 QuorumRootAfter(node::NodeContext& node, const EvoViewToken& view, const CBlockIndex* prev)
+{
+    const EvoViewScope scope{view};
+    CBlock block;
+    block.vtx.push_back(SyntheticCoinbase(prev->nHeight + 1));
+    uint256 root;
+    BlockValidationState state;
+    BOOST_REQUIRE(CalcCbTxMerkleRootQuorums(block, prev, *node.llmq_ctx->quorum_block_processor, root, state));
+    return root;
+}
+
+BOOST_FIXTURE_TEST_CASE(carried_scans_answer_what_the_base_successor_reads, EvoSnapshotChainSetup)
+{
+    // The CbTx of B + 1 commits to the newest commitments of every configured
+    // type, read by scans that may end short. With the carried payload, or with
+    // none below DIP3, every short read is an answer:
+    //  - LLMQ_TEST_V17 is never enabled and has no history;
+    //  - LLMQ_TEST_INSTANTSEND retires at 100 with history (LLMQ_50_60's shape);
+    //  - rotated index 1 never forms a quorum;
+    //  - at B = 31 the plain type has fewer commitments than its selection.
+    // A need deeper than the payload carries still stalls. These views have no
+    // chainstate to connect blocks with; the root is what that check computes.
+    // ChainLocks and Platform move to the type that never forms a quorum.
+    auto& consensus{m_restorer.Get()};
+    consensus.llmqs.push_back(evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_V17));
+    consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_TEST_V17;
+    consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_TEST_V17;
+    consensus.DIP0024QuorumsHeight = 100;
+    const auto retired{consensus.llmqs[2]};
+    BOOST_REQUIRE(retired.type == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
+    SyncNormal();
+    MineCycles(12, 180, /*rotated_index_one=*/false);
+    for (int height{retired.dkgInterval}; height < consensus.DIP0024QuorumsHeight; height += retired.dkgInterval) {
+        Mine(retired, height);
+    }
+    auto& qblockman{*m_node.llmq_ctx->quorum_block_processor};
+    auto& qman{*m_node.llmq_ctx->qman};
+    const auto roots_match = [&](const EvoViewToken& view, int first, int last) {
+        for (int height{first}; height <= last; ++height) {
+            BOOST_CHECK_MESSAGE(QuorumRootAfter(m_node, view, At(height)) == QuorumRootAfter(m_node, Normal(), At(height)),
+                                strprintf("quorum root after block %d", height));
+        }
+    };
+    const auto scan = [&](const EvoViewToken& view, const Consensus::LLMQParams& params, int start, size_t count) {
+        const EvoViewScope scope{view};
+        return qman.ProveScan(params.type, At(start), count);
+    };
+    const size_t selection{evo::SnapshotCommitmentCount(m_plain, /*rotation_enabled=*/false)};
+
+    {
+        const CBlockIndex* base{At(179)};
+        const EvoViewToken seeded{Seed(Build(base), base)};
+        roots_match(seeded, 179, 181);
+        const EvoViewScope scope{seeded};
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(Consensus::LLMQType::LLMQ_TEST_V17, base, 3).empty());
+        BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(m_rotated.type, base, 1, 0).has_value());
+        BOOST_CHECK_EQUAL(qblockman.GetMinedCommitmentsUntilBlock(m_plain.type, base, selection).size(), selection);
+        BOOST_CHECK_THROW(qblockman.GetMinedCommitmentsUntilBlock(m_plain.type, base, selection + 1),
+                          BlockDataUnavailableError);
+        BOOST_CHECK_THROW(qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(m_rotated.type, base, 0, 2),
+                          BlockDataUnavailableError);
+    }
+    {
+        // Two plain quorums (12, 24) where the selection takes three.
+        const CBlockIndex* base{At(31)};
+        const EvoViewToken seeded{Seed(Build(base), base)};
+        roots_match(seeded, 31, 33);
+        BOOST_CHECK(scan(seeded, m_plain, 32, selection) == scan(Normal(), m_plain, 32, selection));
+        const EvoViewScope scope{seeded};
+        BOOST_CHECK_EQUAL(qblockman.GetMinedCommitmentsUntilBlock(m_plain.type, base, selection).size(), 2U);
+    }
+    {
+        // A base below DIP3 carries no evo section, so nothing is seeded; the
+        // commitments mined above it are this view's own.
+        const CBlockIndex* base{At(1)};
+        LOCK(::cs_main);
+        BOOST_REQUIRE(m_node.evodb->AbandonSnapshotGeneration());
+        BOOST_REQUIRE(m_node.evodb->CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+        const EvoViewToken unseeded{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        const std::vector<std::pair<Consensus::LLMQParams, int>> above_base{{m_plain, 12},
+                                                                            {m_plain, 24},
+                                                                            {m_rotated, 12},
+                                                                            {m_rotated, 24},
+                                                                            {retired, 24}};
+        for (const auto& [params, height] : above_base) {
+            const auto [commitment, mined]{[&] {
+                const EvoViewScope normal{Normal()};
+                return qblockman.GetMinedCommitment(params.type, At(height)->GetBlockHash());
+            }()};
+            auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            const uint256 quorum_hash{At(height)->GetBlockHash()};
+            BOOST_REQUIRE(qblockman.SeedMinedCommitment(unseeded, params.type, quorum_hash, commitment, mined));
+            tx->Commit();
+            BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        }
+        roots_match(unseeded, 30, 32);
+        BOOST_CHECK(scan(unseeded, m_plain, 32, selection) == scan(Normal(), m_plain, 32, selection));
+        BOOST_CHECK(scan(unseeded, m_rotated, 32, 4) == scan(Normal(), m_rotated, 32, 4));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(rotating_types_enabled_after_the_base_read_empty, EvoSnapshotChainSetup)
+{
+    // A rotating type is enabled exactly when rotation is at its cycle base, so
+    // it never writes the non-indexed family it is read through before then.
+    auto& consensus{m_restorer.Get()};
+    for (int activation{140}; activation <= 160; ++activation) {
+        consensus.DIP0024Height = activation;
+        for (int cycle{132}; cycle <= 168; cycle += CYCLE_LENGTH) {
+            const CBlockIndex* quorum{At(cycle)};
+            const bool enabled{
+                WITH_LOCK(::cs_main, return m_node.chainman->IsQuorumTypeEnabled(m_rotated.type, quorum->pprev))};
+            BOOST_CHECK_EQUAL(enabled, llmq::IsQuorumRotationEnabled(m_rotated, quorum));
+        }
+    }
+    // DIP0024 at 150: the rotated type forms quorums from cycle 156 on, so a base
+    // at 147 has none of it to need. B + 1 reads it non-indexed, 156 indexed.
+    consensus.DIP0024Height = 150;
+    consensus.DIP0024QuorumsHeight = 150;
+    SyncNormal();
+    for (int cycle{CYCLE_LENGTH}; cycle <= 180; cycle += CYCLE_LENGTH) {
+        Mine(m_plain, cycle);
+        if (cycle >= 156) {
+            Mine(m_rotated, cycle);
+            Mine(m_rotated, cycle + 1);
+        }
+    }
+    const CBlockIndex* base{At(147)};
+    const EvoViewToken seeded{Seed(Build(base), base)};
+    for (int height{147}; height <= 157; ++height) {
+        BOOST_CHECK_MESSAGE(QuorumRootAfter(m_node, seeded, At(height)) == QuorumRootAfter(m_node, Normal(), At(height)),
+                            strprintf("quorum root after block %d", height));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(chainlock_coverage_starts_at_the_certified_height, EvoSnapshotChainSetup)
+{
+    // ChainLocks on the plain type, whose carried quorums at B = 179 were
+    // mined at 146, 158 and 170. B + 1 may certify heights from
+    // L = B - diff - 1 on, verified from start L - SIGN_HEIGHT_OFFSET with
+    // a = 2 quorums. Two are eligible from cutoff 158 on, so start 158 is the
+    // first covered one: diff 12 (L = 166) is covered, diff 13 (L = 165) not.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    const auto snapshot{Build(base)};
+    m_restorer.Get().llmqTypeChainLocks = m_plain.type;
+    const auto certified = [&](uint32_t diff) {
+        auto carried{snapshot};
+        CCbTx cbtx{*Assert(DecodeCbTxPayload(*carried.base_coinbase, /*legacy_bls_scheme=*/false))};
+        CBLSSecretKey key;
+        key.MakeNewKey();
+        cbtx.bestCLSignature = key.Sign(H(3), /*specificLegacyScheme=*/false);
+        cbtx.bestCLHeightDiff = diff;
+        CMutableTransaction tx{*carried.base_coinbase};
+        SetTxPayload(tx, cbtx);
+        carried.base_coinbase = MakeTransactionRef(std::move(tx));
+        return carried;
+    };
+    std::string error;
+    BOOST_CHECK_MESSAGE(WITH_LOCK(::cs_main,
+                                  return evo::CheckEvoSnapshotScanCoverage(certified(12), *m_node.chainman, base, error)),
+                        error);
+    BOOST_CHECK(
+        !WITH_LOCK(::cs_main, return evo::CheckEvoSnapshotScanCoverage(certified(13), *m_node.chainman, base, error)));
+    BOOST_CHECK_MESSAGE(error.find("scan of 2 from height 150") != std::string::npos, error);
+}
+
+BOOST_FIXTURE_TEST_CASE(asset_unlocks_signed_by_the_previous_platform_quorum, EvoSnapshotChainSetup)
+{
+    // The asset-unlock check at B + 1 accepts the active Platform quorums plus
+    // the previous one: a + 1 = 3 scanned from B = 179, the carried 168, 156
+    // and 144. A signature by 144 verifies; one by 132 is too old; a forged
+    // one fails. Each outcome matches NORMAL.
+    SyncNormal();
+    MineCycles(12, 180);
+    m_restorer.Get().llmqTypePlatform = m_plain.type;
+    const CBlockIndex* base{At(179)};
+    const EvoViewToken seeded{Seed(Build(base), base)};
+    auto& qman{*m_node.llmq_ctx->qman};
+    const uint256 msg_hash{H(4)};
+    const auto verify = [&](const EvoViewToken& view, int quorum_height, const CBLSSecretKey& key) {
+        const uint64_t index{7};
+        const uint256 request_id{::SerializeHash(std::make_pair(ASSET_UNLOCK_REQUESTID_PREFIX, index))};
+        const uint256 quorum_hash{At(quorum_height)->GetBlockHash()};
+        const llmq::SignHash sign_hash{m_plain.type, quorum_hash, request_id, msg_hash};
+        const CAssetUnlockPayload payload{CAssetUnlockPayload::CURRENT_VERSION,
+                                          index,
+                                          0,
+                                          175,
+                                          quorum_hash,
+                                          key.Sign(sign_hash.Get(), /*specificLegacyScheme=*/false)};
+        const EvoViewScope scope{view};
+        TxValidationState state;
+        const bool valid{payload.VerifySig(qman, msg_hash, base, state)};
+        return valid ? std::string{"valid"} : state.GetRejectReason();
+    };
+    CBLSSecretKey forged;
+    forged.MakeNewKey();
+    BOOST_CHECK_EQUAL(verify(seeded, 144, m_quorum_keys.at({m_plain.type, 144})), "valid");
+    BOOST_CHECK_EQUAL(verify(seeded, 132, m_quorum_keys.at({m_plain.type, 132})), "bad-assetunlock-too-old-quorum");
+    BOOST_CHECK_EQUAL(verify(seeded, 144, forged), "bad-assetunlock-not-verified");
+    for (const int height : {144, 132}) {
+        const auto& key{m_quorum_keys.at({m_plain.type, height})};
+        BOOST_CHECK_EQUAL(verify(seeded, height, key), verify(Normal(), height, key));
+    }
 }
 
 
