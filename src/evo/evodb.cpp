@@ -9,10 +9,14 @@
 #include <uint256.h>
 #include <util/check.h>
 #include <util/strencodings.h>
+#include <util/time.h>
 #include <util/translation.h>
 
+#include <algorithm>
+#include <chrono>
 #include <limits>
 #include <tuple>
+#include <vector>
 
 CEvoDBScopedCommitter::CEvoDBScopedCommitter(CEvoDB& _evoDB, EvoDbIdentity identity) :
     evoDB{_evoDB},
@@ -141,10 +145,81 @@ const EvoViewToken* EvoViewScope::Innermost(const CEvoDB& db)
     return nullptr;
 }
 
+namespace {
+//! How long an operation's rounds must go without failing before it counts as
+//! recovered. One operation can stand for many tasks (every scheduler task is
+//! "scheduler"), and one of them failing between the others' successes is not
+//! a recovery.
+constexpr std::chrono::seconds EVO_ROUND_RECOVERY_QUIET{60};
+
+//! Causes logged per failing operation, beyond which the oldest are forgotten.
+constexpr size_t MAX_LOGGED_EVO_ROUND_CAUSES{32};
+
+struct FailingEvoRound {
+    //! The (view generation, reason) pairs logged, oldest first.
+    std::vector<std::pair<std::optional<uint32_t>, std::string>> causes;
+    std::chrono::seconds last_failure;
+};
+GlobalMutex g_evo_round_mutex;
+std::map<std::string, FailingEvoRound, std::less<>> g_failing_evo_rounds GUARDED_BY(g_evo_round_mutex);
+std::atomic<bool> g_evo_rounds_failing{false};
+} // namespace
+
+void LogEvoRoundFailure(std::string_view what, std::optional<uint32_t> generation, std::string_view reason)
+{
+    const auto now{GetTime<std::chrono::seconds>()};
+    LOCK(g_evo_round_mutex);
+    FailingEvoRound& failing{g_failing_evo_rounds[std::string{what}]};
+    failing.last_failure = now;
+    const std::pair<std::optional<uint32_t>, std::string> cause{generation, reason};
+    if (std::ranges::find(failing.causes, cause) != failing.causes.end()) return;
+    if (failing.causes.size() == MAX_LOGGED_EVO_ROUND_CAUSES) failing.causes.erase(failing.causes.begin());
+    failing.causes.push_back(cause);
+    g_evo_rounds_failing = true;
+    LogPrintf("ERROR: %s: Evo state unavailable: %s. Repeats are not logged until the cause changes or %s recovers.\n",
+              what, reason, what);
+}
+
+void LogEvoRoundRecovery(std::string_view what)
+{
+    if (!g_evo_rounds_failing.load(std::memory_order_relaxed)) return;
+    const auto now{GetTime<std::chrono::seconds>()};
+    LOCK(g_evo_round_mutex);
+    const auto it{g_failing_evo_rounds.find(what)};
+    if (it == g_failing_evo_rounds.end() || now - it->second.last_failure < EVO_ROUND_RECOVERY_QUIET) return;
+    g_failing_evo_rounds.erase(it);
+    g_evo_rounds_failing = !g_failing_evo_rounds.empty();
+    LogPrintf("%s: Evo state available again\n", what);
+}
+
 std::optional<EvoViewToken> EvoViewScope::InnermostAny()
 {
     if (g_innermost_scope == nullptr) return std::nullopt;
     return g_innermost_scope->m_token;
+}
+
+bool CEvoDB::IsBound() const
+{
+    LOCK(cs);
+    return HoldsTransaction() || EvoViewScope::Innermost(*this) != nullptr;
+}
+
+void CEvoDB::UpdateLiveGeneration()
+{
+    m_has_live_generation = m_snapshot_generation && (m_snapshot_generation->state == EvoGenerationState::PUBLISHED ||
+                                                      m_snapshot_generation->state == EvoGenerationState::PROMOTING);
+}
+
+EvoViewToken CEvoDB::ActiveView() const
+{
+    LOCK(cs);
+    return MakeView(m_default_identity);
+}
+
+bool CEvoDB::IsLive(const EvoViewToken& view) const
+{
+    LOCK(cs);
+    return IsLiveLocked(view);
 }
 
 bool CEvoDB::IsLiveLocked(const EvoViewToken& view) const
@@ -327,6 +402,7 @@ void CEvoDB::BindSnapshotGeneration(std::optional<EvoGenerationRecord> record)
         transaction_contexts.erase(it);
     }
     m_snapshot_generation = std::move(record);
+    UpdateLiveGeneration();
     if (!m_snapshot_generation) m_default_identity = EvoDbIdentity::NORMAL;
 }
 
@@ -396,6 +472,7 @@ bool CEvoDB::PublishSnapshotGeneration(const uint256& config_fingerprint, const 
     if (base_mn_list_hash) batch.Write(EVODB_SNAPSHOT_MNLIST_HASH, *base_mn_list_hash);
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     m_snapshot_generation = record;
+    UpdateLiveGeneration();
     return true;
 }
 
@@ -610,6 +687,7 @@ bool CEvoDB::PrepareSnapshotPromotion(const uint256& snapshot_tip)
     batch.Write(GenerationRecordKey(record.generation), record);
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     m_snapshot_generation = record;
+    UpdateLiveGeneration();
     return true;
 }
 

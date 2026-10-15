@@ -8,6 +8,7 @@
 #include <dbwrapper.h>
 #include <evo/snapshot_types.h>
 #include <kernel/cs_main.h>
+#include <logging.h>
 #include <serialize.h>
 #include <streams.h>
 #include <sync.h>
@@ -21,6 +22,8 @@
 #include <map>
 #include <optional>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <thread>
 
 namespace util {
@@ -392,6 +395,16 @@ public:
     EvoViewToken CurrentView() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     //! The current view of a chainstate with the given identity.
     EvoViewToken ViewFor(EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! Whether this thread already binds its accesses to this CEvoDB, through
+    //! an open transaction or an EvoViewScope.
+    bool IsBound() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! Whether a published snapshot generation is live, so that two views exist.
+    bool HasLiveGeneration() const { return m_has_live_generation.load(); }
+    //! The view of the active chainstate.
+    EvoViewToken ActiveView() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! Whether `view` still names a view of this CEvoDB: NORMAL, or the snapshot
+    //! generation bound now, whether or not it is published yet.
+    bool IsLive(const EvoViewToken& view) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     //! Raise EvoViewBindingError if this thread holds a transaction on this
     //! CEvoDB that disagrees with `token`.
     void CheckScopeAgainstTransaction(const EvoViewToken& token) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -649,6 +662,7 @@ private:
     }
 
     void BindSnapshotGeneration(std::optional<EvoGenerationRecord> record) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void UpdateLiveGeneration() EXCLUSIVE_LOCKS_REQUIRED(cs);
     //! Whether no transaction is open and every transaction tree is committed.
     bool TransactionsClean() const EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool CollectGeneration(uint32_t generation, bool erase_record) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -658,6 +672,7 @@ private:
     bool DiscardBoundGeneration() EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     static inline std::atomic<uint64_t> g_view_cache_epoch{0};
+    std::atomic<bool> m_has_live_generation{false};
 
     //! The live generation the SNAPSHOT identity reads and writes.
     std::optional<EvoGenerationRecord> m_snapshot_generation GUARDED_BY(cs);
@@ -665,5 +680,143 @@ private:
     MNListEquivalence m_mn_list_equivalence GUARDED_BY(cs);
     size_t m_merge_batch_size GUARDED_BY(cs){10000};
 };
+
+class CBlockIndex;
+
+/** Binds one active-chain dispatch turn (an RPC call, a P2P message handler
+ *  turn, an interfaces call, a service work round) to the active chainstate's
+ *  Evo view for its duration, unless the thread is already bound (a captured
+ *  background token, an open transaction). It binds with a single view too,
+ *  so a turn that a snapshot publication overtakes finishes in the view it
+ *  started in.
+ *
+ *  While a snapshot generation is live, the view is read under cs_main, where
+ *  the active chainstate and its view change together; with a single view
+ *  there is nothing to pair it with, so the turn does not wait for cs_main.
+ *  `active_tip`, if given, is always read under cs_main with the view, so
+ *  Tip() is the tip of the chainstate the bound view belongs to. Readers in
+ *  the turn that need the active tip use Tip(), not a later look at the
+ *  active chainstate. */
+class ActiveEvoViewScope
+{
+public:
+    explicit ActiveEvoViewScope(const CEvoDB* evodb)
+    {
+        if (evodb == nullptr || evodb->IsBound()) return;
+        if (!evodb->HasLiveGeneration()) {
+            m_scope.emplace(evodb->ActiveView());
+            return;
+        }
+        LOCK(::cs_main);
+        m_scope.emplace(evodb->ActiveView());
+    }
+
+    template <typename TipFn>
+    ActiveEvoViewScope(const CEvoDB* evodb, TipFn&& active_tip)
+    {
+        if (evodb == nullptr) return;
+        LOCK(::cs_main);
+        m_tip = active_tip();
+        if (!evodb->IsBound()) m_scope.emplace(evodb->ActiveView());
+    }
+
+    //! The active tip read with the bound view, if the scope was given a way
+    //! to read it.
+    const CBlockIndex* Tip() const { return m_tip; }
+
+private:
+    const CBlockIndex* m_tip{nullptr};
+    std::optional<EvoViewScope> m_scope;
+};
+
+//! Log a failed round of `what` unless a failure with the same view generation
+//! and reason was logged for it since it last recovered.
+void LogEvoRoundFailure(std::string_view what, std::optional<uint32_t> generation, std::string_view reason);
+//! Log that rounds of `what` succeed again, once they have not failed for a
+//! while after a logged failure.
+void LogEvoRoundRecovery(std::string_view what);
+
+//! Run one round of active-chain service work bound to the active view, and
+//! return whether it completed. A local Evo state error ends the round, never
+//! the thread.
+template <typename F>
+bool RunActiveEvoRound(const CEvoDB* evodb, std::string_view what, F&& round)
+{
+    std::optional<uint32_t> generation;
+    try {
+        const ActiveEvoViewScope evo_view{evodb};
+        if (const auto view{EvoViewScope::InnermostAny()}) generation = view->generation;
+        round();
+    } catch (const evo::LocalStateError& e) {
+        LogEvoRoundFailure(what, generation, e.what());
+        return false;
+    }
+    LogEvoRoundRecovery(what);
+    return true;
+}
+
+/** The Evo view binding of a task handed to another thread: captured from the
+ *  enqueuing thread's innermost scope and reinstalled when the task runs, so
+ *  the executing thread's own binding never replaces it. A task whose
+ *  snapshot generation was retired in between is dropped. */
+class EvoViewCapture
+{
+public:
+    EvoViewCapture() :
+        m_view{EvoViewScope::InnermostAny()}
+    {
+    }
+
+    enum class Outcome {
+        RAN,     //!< the task ran to completion
+        FAILED,  //!< the task started and ended in a local Evo state error
+        DROPPED, //!< the task never started
+    };
+
+    //! Run `task` under the captured binding. A task whose generation was
+    //! retired, or whose binding cannot be installed, is dropped.
+    template <typename F>
+    Outcome Run(F&& task) const
+    {
+        std::optional<EvoViewScope> scope;
+        if (m_view) {
+            if (!m_view->db->IsLive(*m_view)) {
+                LogPrint(BCLog::VALIDATION, "Dropping a task bound to retired snapshot generation %u\n",
+                         m_view->generation);
+                return Outcome::DROPPED;
+            }
+            try {
+                scope.emplace(*m_view);
+            } catch (const evo::LocalStateError& e) {
+                LogPrintf("ERROR: dropping a queued task: %s\n", e.what());
+                return Outcome::DROPPED;
+            }
+        }
+        try {
+            task();
+        } catch (const evo::LocalStateError& e) {
+            LogPrintf("ERROR: Evo state unavailable to a queued task: %s\n", e.what());
+            return Outcome::FAILED;
+        }
+        return Outcome::RAN;
+    }
+
+private:
+    std::optional<EvoViewToken> m_view;
+};
+
+//! Wrap `task` so that it runs under the calling thread's current Evo view
+//! binding wherever it is eventually executed. `on_drop` releases whatever
+//! the enqueuer claimed for the task when it is dropped without starting; a
+//! task that started releases its claims itself.
+template <typename F, typename D = void (*)()>
+auto WithCapturedEvoView(F task, D on_drop = [] {})
+{
+    return [task = std::move(task), on_drop = std::move(on_drop), evo_view = EvoViewCapture{}](auto&&... args) mutable {
+        if (evo_view.Run([&] { task(std::forward<decltype(args)>(args)...); }) == EvoViewCapture::Outcome::DROPPED) {
+            on_drop();
+        }
+    };
+}
 
 #endif // BITCOIN_EVO_EVODB_H

@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -384,6 +385,68 @@ BOOST_AUTO_TEST_CASE(open_transaction_does_not_capture_other_threads)
     BOOST_CHECK(other_thread == PayloadFor(30));
 }
 
+BOOST_AUTO_TEST_CASE(captured_tasks_release_their_claims_when_dropped)
+{
+    LOCK(::cs_main);
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_captured", .memory = true, .wipe = true}};
+    PublishGeneration(db);
+    EvoViewToken retired{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    ++retired.generation;
+
+    // A task bound to a retired generation never runs; what its enqueuer
+    // claimed for it is released instead.
+    for (const auto& [view, live] :
+         {std::make_pair(db.ViewFor(EvoDbIdentity::SNAPSHOT), true), std::make_pair(retired, false)}) {
+        int ran{0};
+        int released{0};
+        auto task{[&] {
+            EvoViewScope enqueuer{view};
+            return WithCapturedEvoView([&] { ++ran; }, [&] { ++released; });
+        }()};
+        task();
+        BOOST_CHECK_EQUAL(ran, live ? 1 : 0);
+        BOOST_CHECK_EQUAL(released, live ? 0 : 1);
+    }
+
+    // So is one whose binding cannot be installed where it runs: here, a
+    // thread holding a NORMAL transaction.
+    {
+        int ran{0};
+        int released{0};
+        auto task{[&] {
+            EvoViewScope enqueuer{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+            return WithCapturedEvoView([&] { ++ran; }, [&] { ++released; });
+        }()};
+        {
+            const auto normal_tx{db.BeginTransaction(EvoDbIdentity::NORMAL)};
+            task();
+        }
+        BOOST_CHECK_EQUAL(ran, 0);
+        BOOST_CHECK_EQUAL(released, 1);
+    }
+
+    // A task that started and failed releases its claims itself, as the quorum
+    // recovery workers do, so they are released exactly once.
+    {
+        int released{0};
+        auto task{[&] {
+            EvoViewScope enqueuer{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+            return WithCapturedEvoView(
+                [&] {
+                    try {
+                        throw BlockDataUnavailableError("unavailable");
+                    } catch (const evo::LocalStateError&) {
+                        ++released;
+                        throw;
+                    }
+                },
+                [&] { ++released; });
+        }()};
+        task();
+        BOOST_CHECK_EQUAL(released, 1);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
 {
     LOCK(::cs_main);
@@ -456,6 +519,105 @@ BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
     size_t partitions{0};
     cache.ForEach([&](int) { ++partitions; });
     BOOST_CHECK_EQUAL(partitions, 1U);
+}
+
+BOOST_AUTO_TEST_CASE(turn_overtaken_by_publication_keeps_its_view)
+{
+    LOCK(::cs_main);
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_turn_publication", .memory = true, .wipe = true}};
+    WritePayload(db, EvoDbIdentity::NORMAL, 1);
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+
+    const CBlockIndex active_tip;
+    const ActiveEvoViewScope turn{&db, [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return &active_tip; }};
+    BOOST_CHECK_EQUAL(turn.Tip(), &active_tip);
+    BOOST_CHECK(db.CurrentView() == db.ViewFor(EvoDbIdentity::NORMAL));
+
+    // A snapshot is published and activated while the turn runs: the turn
+    // keeps reading the view it started in.
+    PublishGeneration(db);
+    db.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    Payload value;
+    BOOST_CHECK_NO_THROW(BOOST_CHECK(db.Read(PayloadKey(1), value)));
+    BOOST_CHECK(value == PayloadFor(1));
+    BOOST_CHECK(db.CurrentView() == db.ViewFor(EvoDbIdentity::NORMAL));
+}
+
+// With a single view a dispatch turn binds without waiting for cs_main; while
+// a snapshot generation is live it binds under cs_main.
+BOOST_AUTO_TEST_CASE(single_view_turn_does_not_wait_for_cs_main)
+{
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_turn_cs_main", .memory = true, .wipe = true}};
+    const auto bind_while_cs_main_held{[&](std::chrono::milliseconds wait) {
+        std::promise<EvoViewToken> bound;
+        auto bound_view{bound.get_future()};
+        std::thread turn_thread;
+        bool bound_while_held;
+        {
+            LOCK(::cs_main);
+            turn_thread = std::thread{[&] {
+                const ActiveEvoViewScope turn{&db};
+                bound.set_value(db.CurrentView());
+            }};
+            bound_while_held = bound_view.wait_for(wait) == std::future_status::ready;
+        }
+        turn_thread.join();
+        return std::make_pair(bound_while_held, bound_view.get());
+    }};
+
+    const auto [single_bound_while_held, single_view]{bind_while_cs_main_held(30s)};
+    BOOST_CHECK(single_bound_while_held);
+    BOOST_CHECK(single_view == db.ViewFor(EvoDbIdentity::NORMAL));
+
+    PublishGeneration(db);
+    db.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    const auto [dual_bound_while_held, dual_view]{bind_while_cs_main_held(200ms)};
+    BOOST_CHECK(!dual_bound_while_held);
+    BOOST_CHECK(dual_view == db.ViewFor(EvoDbIdentity::SNAPSHOT));
+}
+
+// A service round that keeps failing is logged once per view generation and
+// reason, and its recovery once.
+BOOST_AUTO_TEST_CASE(failing_service_rounds_log_once_per_cause)
+{
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_round_logs", .memory = true, .wipe = true}};
+    std::vector<std::string> logged;
+    const auto callback{LogInstance().PushBackCallback([&](const std::string& line) {
+        if (line.find("test-round") != std::string::npos) logged.push_back(line);
+    })};
+    const auto run{[&](std::optional<std::string> failure) {
+        RunActiveEvoRound(&db, "test-round", [&] {
+            if (failure) throw BlockDataUnavailableError(*failure);
+        });
+    }};
+    SetMockTime(GetTime<std::chrono::seconds>());
+    // Two tasks that share an operation name and fail in turn.
+    for (int i{0}; i < 3; ++i) {
+        run("list unavailable");
+        run("quorum unavailable");
+    }
+    PublishGeneration(db);
+    db.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    run("quorum unavailable");
+    // A success between failures is no recovery yet: rounds succeed again
+    // once they have stopped failing for a minute.
+    run(std::nullopt);
+    run("quorum unavailable");
+    SetMockTime(GetMockTime() + 59s);
+    run(std::nullopt);
+    SetMockTime(GetMockTime() + 1s);
+    run(std::nullopt);
+    run(std::nullopt);
+    run("quorum unavailable");
+    LogInstance().DeleteCallback(callback);
+    SetMockTime(0s);
+
+    BOOST_REQUIRE_EQUAL(logged.size(), 5U);
+    BOOST_CHECK(logged[0].find("Evo state unavailable: list unavailable") != std::string::npos);
+    BOOST_CHECK(logged[1].find("Evo state unavailable: quorum unavailable") != std::string::npos);
+    BOOST_CHECK(logged[2].find("Evo state unavailable: quorum unavailable") != std::string::npos);
+    BOOST_CHECK(logged[3].find("Evo state available again") != std::string::npos);
+    BOOST_CHECK(logged[4].find("Evo state unavailable: quorum unavailable") != std::string::npos);
 }
 
 BOOST_AUTO_TEST_CASE(view_cache_lookup_excludes_retirement)

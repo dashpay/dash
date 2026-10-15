@@ -133,7 +133,12 @@ public:
     // Implements interface
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
-    bool ForceSignalDBUpdate(const CBlockIndex* tip) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+    //! Recompute and persist the signals at `tip` under `view`, the view of
+    //! the chainstate whose tip it is. Signals a snapshot view lacks the
+    //! history for are left to be rebuilt on demand; failing to rebuild them
+    //! for NORMAL, or to read a block body, fails.
+    bool ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
 
 private:
     void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);

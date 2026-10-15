@@ -8,8 +8,11 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <atomic>
 #include <functional>
+#include <future>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -213,5 +216,30 @@ BOOST_AUTO_TEST_CASE(mockforward)
     BOOST_CHECK(delta > 2*60 && delta < 3*60);
 }
 */
+
+BOOST_AUTO_TEST_CASE(wrapped_repeating_task_survives_a_handled_failure)
+{
+    // The task wrapper handles a round's failure; the repeating task must
+    // still be rescheduled for the next round.
+    CScheduler scheduler;
+    scheduler.SetTaskWrapper([](const CScheduler::Function& task) {
+        try {
+            task();
+        } catch (const std::runtime_error&) {
+        }
+    });
+    std::atomic<int> rounds{0};
+    std::promise<void> second_round;
+    scheduler.scheduleEvery(
+        [&] {
+            if (++rounds == 1) throw std::runtime_error{"the first round fails"};
+            if (rounds == 2) second_round.set_value();
+        },
+        std::chrono::milliseconds{1});
+    std::thread service{[&] { scheduler.serviceQueue(); }};
+    BOOST_CHECK(second_round.get_future().wait_for(std::chrono::seconds{10}) == std::future_status::ready);
+    scheduler.stop();
+    service.join();
+}
 
 BOOST_AUTO_TEST_SUITE_END()

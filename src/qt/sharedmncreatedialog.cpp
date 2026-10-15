@@ -185,7 +185,8 @@ QString ShareName(const MnShareSession& session, int index)
 }
 
 //! Why the network would refuse these service addresses because a registered
-//! masternode already uses one of them (empty = none is in use)
+//! masternode already uses one of them, or that this cannot be checked yet
+//! (empty = none is in use)
 QString ServiceInUseProblem(interfaces::Node& node, const QString& services)
 {
     interfaces::ProviderNetInfo net_info;
@@ -193,12 +194,15 @@ QString ServiceInUseProblem(interfaces::Node& node, const QString& services)
         net_info.core_p2p.push_back(entry.toStdString());
     }
     const auto capabilities{node.evo().getProviderTxCapabilities()};
-    const auto in_use{node.evo().findProviderNetInfoInUse(net_info, MnType::Regular, capabilities.version,
-                                                          capabilities.ipv4_optional)};
-    if (!in_use) return {};
+    if (!capabilities) return MasternodeWidgetUtil::masternodeStateUnavailableText();
+    const auto result{node.evo().findProviderNetInfoInUse(net_info, MnType::Regular, capabilities->version,
+                                                          capabilities->ipv4_optional)};
+    const auto* in_use{std::get_if<std::optional<std::string>>(&result)};
+    if (!in_use) return MasternodeWidgetUtil::masternodeStateUnavailableText();
+    if (!*in_use) return {};
     return SharedMnCreateDialog::tr("%1 is already the service address of a registered masternode. Every service "
                                     "address must be unique on the network.")
-        .arg(QString::fromStdString(*in_use));
+        .arg(QString::fromStdString(**in_use));
 }
 } // anonymous namespace
 
@@ -1271,8 +1275,8 @@ void SharedMnCreateDialog::enterPage(Page page)
         QString gate;
         if (m_wallet_model == nullptr) {
             gate = tr("No wallet is available.");
-        } else if (!m_v24_active) {
-            gate = SharedMnV24InactiveMessage();
+        } else if (!m_v24_active.value_or(false)) {
+            gate = SharedMnV24InactiveMessage(m_v24_active);
         } else if (!canSign()) {
             gate = tr("This wallet cannot sign. You can view, but not take part.");
         }
@@ -1380,9 +1384,11 @@ bool SharedMnCreateDialog::validatePage(Page page, QString& err)
         for (const QString& entry : MasternodeWidgetUtil::tokenizeEndpointList(m_service_edit->text())) {
             net_info.core_p2p.push_back(entry.toStdString());
         }
-        const auto capabilities{m_node.evo().getProviderTxCapabilities()};
-        if (const auto error{m_node.evo().validateProviderNetInfo(net_info, MnType::Regular, capabilities.version,
-                                                                  capabilities.ipv4_optional, /*optional=*/true)}) {
+        if (const auto capabilities{m_node.evo().getProviderTxCapabilities()}; !capabilities) {
+            err = MasternodeWidgetUtil::masternodeStateUnavailableText();
+        } else if (const auto error{m_node.evo().validateProviderNetInfo(net_info, MnType::Regular, capabilities->version,
+                                                                         capabilities->ipv4_optional,
+                                                                         /*optional=*/true)}) {
             err = QString::fromStdString(error->message.translated);
         } else {
             err = ServiceInUseProblem(m_node, m_service_edit->text());
@@ -2353,8 +2359,8 @@ void SharedMnCreateDialog::pushSessionToWidgets()
 
 void SharedMnCreateDialog::startSession()
 {
-    if (!m_v24_active) {
-        showError(SharedMnV24InactiveMessage());
+    if (!m_v24_active.value_or(false)) {
+        showError(SharedMnV24InactiveMessage(m_v24_active));
         return;
     }
     if (m_wallet_model == nullptr) {
