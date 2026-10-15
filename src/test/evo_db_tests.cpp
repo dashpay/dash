@@ -2,14 +2,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <arith_uint256.h>
 #include <evo/evodb.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
+#include <util/fs.h>
 #include <util/strencodings.h>
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
 #include <cstdint>
+#include <fstream>
+#include <functional>
+#include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -35,6 +42,29 @@ Payload PayloadFor(uint32_t height)
     return {static_cast<uint8_t>(height), static_cast<uint8_t>(height >> 8)};
 }
 
+// Flips a byte of the first occurrence of `needle` in a table file of the closed LevelDB at
+// `db_dir`, so that the table block holding it fails its checksum.
+bool CorruptTableBlock(const fs::path& db_dir, const std::vector<uint8_t>& needle)
+{
+    for (const auto& entry : fs::directory_iterator(db_dir)) {
+        if (entry.path().extension() != ".ldb") continue;
+        std::vector<char> bytes;
+        {
+            std::ifstream in{entry.path(), std::ios::binary};
+            bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        }
+        const auto pos{std::search(bytes.begin(), bytes.end(), needle.begin(), needle.end(),
+                                   [](char a, uint8_t b) { return static_cast<uint8_t>(a) == b; })};
+        if (pos == bytes.end()) continue;
+        *pos ^= 1;
+        std::ofstream out{entry.path(), std::ios::binary | std::ios::trunc};
+        out.write(bytes.data(), bytes.size());
+        out.close();
+        return !out.fail();
+    }
+    return false;
+}
+
 void WritePayload(CEvoDB& db, EvoDbIdentity identity, uint32_t height) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     auto tx = db.BeginTransaction(identity);
@@ -47,6 +77,55 @@ void WriteMarker(CEvoDB& db, EvoDbIdentity identity, const uint256& hash) EXCLUS
     auto tx = db.BeginTransaction(identity);
     db.WriteBestBlock(identity, hash);
     tx->Commit();
+}
+
+
+//! Bind the SNAPSHOT identity to a new published generation.
+void PublishGeneration(CEvoDB& db, uint32_t base_height = 0)
+{
+    BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(base_height), base_height));
+    BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+}
+
+//! Raw keys of the whole database, in order.
+std::vector<std::vector<std::byte>> RawKeys(CEvoDB& db)
+{
+    std::vector<std::vector<std::byte>> keys;
+    std::unique_ptr<CDBIterator> it{db.GetRawDB().NewIterator()};
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+        const DataStream key{it->GetKey()};
+        keys.emplace_back(key.begin(), key.end());
+    }
+    return keys;
+}
+
+//! Raw keys and values of the whole database, in order.
+std::vector<std::pair<std::string, std::string>> RawEntries(CEvoDB& db)
+{
+    std::vector<std::pair<std::string, std::string>> entries;
+    std::unique_ptr<CDBIterator> it{db.GetRawDB().NewIterator()};
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+        const DataStream key{it->GetKey()};
+        DataStream value{};
+        BOOST_REQUIRE(db.GetRawDB().ReadDataStream(key, value));
+        entries.emplace_back(key.str(), value.str());
+    }
+    return entries;
+}
+
+//! Heights of the test payloads one view's iterator yields.
+std::vector<uint32_t> IteratePayloads(CEvoDB& db, EvoDbIdentity identity) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    std::vector<uint32_t> heights;
+    auto tx = db.BeginTransaction(identity);
+    LOCK(db.cs);
+    auto it{db.GetCurTransaction().NewIteratorUniquePtr()};
+    for (it->Seek(PayloadKey(0)); it->Valid(); it->Next()) {
+        std::pair<std::string, uint256> key;
+        if (!it->GetKey(key) || key.first != PayloadKey(0).first) break;
+        heights.push_back(static_cast<uint32_t>(UintToArith256(key.second).GetLow64()));
+    }
+    return heights;
 }
 
 } // namespace
@@ -72,12 +151,6 @@ BOOST_AUTO_TEST_CASE(own_overlay_tombstone)
         Payload value;
         BOOST_CHECK(!db.Read(key, value));
     }
-    {
-        auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-        Payload value;
-        BOOST_REQUIRE(db.Read(key, value));
-        BOOST_CHECK(value == PayloadFor(1));
-    }
 }
 
 BOOST_AUTO_TEST_CASE(transaction_less_access_uses_default_identity)
@@ -85,6 +158,7 @@ BOOST_AUTO_TEST_CASE(transaction_less_access_uses_default_identity)
     LOCK(::cs_main);
     CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_default_identity", .memory = true, .wipe = true}};
     const auto key = PayloadKey(7);
+    PublishGeneration(db);
 
     // Committed to the SNAPSHOT overlay but not yet flushed to disk.
     WritePayload(db, EvoDbIdentity::SNAPSHOT, 7);
@@ -115,52 +189,113 @@ BOOST_AUTO_TEST_CASE(transaction_less_access_uses_default_identity)
     }
 }
 
-BOOST_AUTO_TEST_CASE(write_derived_verifies_other_unflushed_overlay)
+BOOST_AUTO_TEST_CASE(write_derived_compares_within_its_own_view)
 {
     LOCK(::cs_main);
-    const fs::path path = m_args.GetDataDirBase() / "evodb_derived_overlay";
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_derived_view", .memory = true, .wipe = true}};
+    PublishGeneration(db);
     const auto key = PayloadKey(2);
     const auto payload = PayloadFor(2);
-    Payload mismatch = payload;
-    mismatch.push_back(0xff);
+    Payload other = payload;
+    other.push_back(0xff);
 
     {
-        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
-        {
-            auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
-            BOOST_REQUIRE(db.WriteDerived(key, payload));
-            tx->Commit();
-        }
-        {
-            auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-            BOOST_CHECK(!db.WriteDerived(key, mismatch));
-            BOOST_REQUIRE(db.WriteDerived(key, payload));
-            tx->Commit();
-        }
-        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
-        // Destroying db drops NORMAL's unflushed context. The reopened value
-        // therefore proves SNAPSHOT's identical overlap did not suppress its write.
+        auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+        BOOST_REQUIRE(db.WriteDerived(key, payload));
+        // An identical rewrite is accepted, a differing one refused.
+        BOOST_CHECK(db.WriteDerived(key, payload));
+        BOOST_CHECK(!db.WriteDerived(key, other));
+        tx->Commit();
     }
-
-    CEvoDB reloaded{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
-    Payload value;
-    BOOST_REQUIRE(reloaded.Read(key, value));
-    BOOST_CHECK(value == payload);
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+    {
+        // The NORMAL record is invisible to the snapshot view: it neither
+        // conflicts with nor supplies the snapshot's own record.
+        auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        BOOST_REQUIRE(db.WriteDerived(key, other));
+        BOOST_CHECK(!db.WriteDerived(key, payload));
+        tx->Commit();
+    }
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    for (const auto& [identity, expected] :
+         {std::make_pair(EvoDbIdentity::NORMAL, payload), std::make_pair(EvoDbIdentity::SNAPSHOT, other)}) {
+        auto tx = db.BeginTransaction(identity);
+        Payload value;
+        BOOST_REQUIRE(db.Read(key, value));
+        BOOST_CHECK(value == expected);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(write_derived_rejects_disk_mismatch)
 {
     LOCK(::cs_main);
     CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_derived_mismatch", .memory = true, .wipe = true}};
+    PublishGeneration(db);
     const auto key = PayloadKey(3);
 
-    WritePayload(db, EvoDbIdentity::NORMAL, 3);
-    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+    WritePayload(db, EvoDbIdentity::SNAPSHOT, 3);
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
 
     auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
     Payload mismatch = PayloadFor(3);
     mismatch.push_back(0xff);
     BOOST_CHECK(!db.WriteDerived(key, mismatch));
+}
+
+BOOST_AUTO_TEST_CASE(generation_namespace_isolation)
+{
+    LOCK(::cs_main);
+    const fs::path path = m_args.GetDataDirBase() / "evodb_isolation";
+    const auto raw_keys_before_snapshot = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+        WritePayload(db, EvoDbIdentity::NORMAL, 1);
+        WritePayload(db, EvoDbIdentity::NORMAL, 3);
+        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+        return RawKeys(db);
+    }();
+
+    {
+        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+        BOOST_REQUIRE(db.LoadSnapshotGenerations());
+        PublishGeneration(db);
+        WritePayload(db, EvoDbIdentity::SNAPSHOT, 2);
+        WritePayload(db, EvoDbIdentity::SNAPSHOT, 3);
+        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    }
+
+    CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+    BOOST_REQUIRE(db.LoadSnapshotGenerations());
+    // Neither view reads the other's records, including a key both wrote.
+    Payload value;
+    {
+        auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+        BOOST_CHECK(db.Read(PayloadKey(1), value));
+        BOOST_CHECK(!db.Read(PayloadKey(2), value));
+    }
+    {
+        auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        BOOST_CHECK(!db.Read(PayloadKey(1), value));
+        BOOST_CHECK(db.Read(PayloadKey(2), value));
+    }
+    // Iterators stay inside their own keyspace.
+    BOOST_CHECK(IteratePayloads(db, EvoDbIdentity::NORMAL) == (std::vector<uint32_t>{1, 3}));
+    BOOST_CHECK(IteratePayloads(db, EvoDbIdentity::SNAPSHOT) == (std::vector<uint32_t>{2, 3}));
+
+    // Rejection keeps the namespace until the coins directory is invalidated;
+    // collecting it is idempotent.
+    BOOST_REQUIRE(db.DiscardSnapshotMarkers());
+    BOOST_CHECK(!db.GetSnapshotGeneration());
+    BOOST_REQUIRE(db.LoadSnapshotGenerations());
+    BOOST_CHECK(db.HasRejectedGeneration());
+    BOOST_REQUIRE(db.CollectRejectedGenerations());
+    BOOST_REQUIRE(db.CollectRejectedGenerations());
+    BOOST_CHECK(!db.HasRejectedGeneration());
+    auto raw_keys{RawKeys(db)};
+    // Only the generation counter remains of the snapshot.
+    DataStream counter_key{};
+    counter_key << EVODB_GENERATION_NEXT;
+    std::erase(raw_keys, std::vector<std::byte>(counter_key.begin(), counter_key.end()));
+    BOOST_CHECK(raw_keys == raw_keys_before_snapshot);
 }
 
 BOOST_AUTO_TEST_CASE(marker_flush_independence)
@@ -169,6 +304,7 @@ BOOST_AUTO_TEST_CASE(marker_flush_independence)
     const fs::path path = m_args.GetDataDirBase() / "evodb_markers";
     {
         CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+        PublishGeneration(db);
         WriteMarker(db, EvoDbIdentity::NORMAL, BlockHash(10));
         WriteMarker(db, EvoDbIdentity::SNAPSHOT, BlockHash(100));
         BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
@@ -180,6 +316,7 @@ BOOST_AUTO_TEST_CASE(marker_flush_independence)
     }
     {
         CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+        BOOST_REQUIRE(db.LoadSnapshotGenerations());
         BOOST_CHECK(db.VerifyBestBlock(EvoDbIdentity::NORMAL, BlockHash(11)));
         BOOST_CHECK(db.VerifyBestBlock(EvoDbIdentity::SNAPSHOT, BlockHash(100)));
 
@@ -189,6 +326,7 @@ BOOST_AUTO_TEST_CASE(marker_flush_independence)
     }
     {
         CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+        BOOST_REQUIRE(db.LoadSnapshotGenerations());
         BOOST_CHECK(db.VerifyBestBlock(EvoDbIdentity::NORMAL, BlockHash(11)));
         BOOST_CHECK(db.VerifyBestBlock(EvoDbIdentity::SNAPSHOT, BlockHash(102)));
     }
@@ -216,6 +354,7 @@ BOOST_AUTO_TEST_CASE(open_transaction_does_not_capture_other_threads)
 {
     LOCK(::cs_main);
     CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_tx_thread", .memory = true, .wipe = true}};
+    PublishGeneration(db);
     db.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
     WritePayload(db, EvoDbIdentity::SNAPSHOT, 30);
 
@@ -241,6 +380,7 @@ BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
 {
     LOCK(::cs_main);
     CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_view_scope", .memory = true, .wipe = true}};
+    PublishGeneration(db);
     const EvoViewToken normal{db.ViewFor(EvoDbIdentity::NORMAL)};
     const EvoViewToken snapshot{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
     WritePayload(db, EvoDbIdentity::SNAPSHOT, 50);
@@ -283,9 +423,31 @@ BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
     }
     tx->Commit();
 
+    // A scope of a retired generation never reaches the one bound after it.
+    CEvoDB replaced{
+        util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_view_scope_replaced", .memory = true, .wipe = true}};
+    PublishGeneration(replaced);
+    const EvoViewToken retired{replaced.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    BOOST_REQUIRE(replaced.DiscardSnapshotMarkers());
+    BOOST_REQUIRE(replaced.CollectRejectedGenerations());
+    PublishGeneration(replaced, /*base_height=*/1);
+    WritePayload(replaced, EvoDbIdentity::SNAPSHOT, 51);
+    {
+        EvoViewScope stale{retired};
+        BOOST_CHECK_THROW(replaced.CurrentView(), EvoViewBindingError);
+        BOOST_CHECK_THROW(replaced.Read(PayloadKey(51), value), EvoViewBindingError);
+        BOOST_CHECK_THROW(replaced.Write(PayloadKey(52), PayloadFor(52)), EvoViewBindingError);
+    }
+    {
+        EvoViewScope replacement{replaced.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK(replaced.Read(PayloadKey(51), value));
+        BOOST_CHECK(!replaced.Exists(PayloadKey(52)));
+    }
+
     // A scope binds only the CEvoDB its token names.
     CEvoDB other{
         util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_view_scope_other", .memory = true, .wipe = true}};
+    PublishGeneration(other);
     EvoViewScope other_scope{other.ViewFor(EvoDbIdentity::SNAPSHOT)};
     BOOST_CHECK(db.CurrentView() == normal);
     BOOST_CHECK(other.CurrentView() == other.ViewFor(EvoDbIdentity::SNAPSHOT));
@@ -297,31 +459,31 @@ BOOST_AUTO_TEST_CASE(snapshot_markers_can_be_discarded)
     const fs::path path = m_args.GetDataDirBase() / "evodb_marker_rollback";
     {
         CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+        BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(40), 40));
         WriteMarker(db, EvoDbIdentity::SNAPSHOT, BlockHash(40));
+        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        BOOST_REQUIRE(db.PublishSnapshotGeneration(BlockHash(4)));
         {
-            auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-            db.WriteSnapshotBaseMNListHash(BlockHash(4));
+            auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
             db.WriteBackgroundMNListHash(BlockHash(40), BlockHash(4));
-            db.WriteDualChainstateMarker();
             tx->Commit();
         }
-        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
         BOOST_REQUIRE(db.HasDualChainstateMarker());
+        // Unflushed snapshot writes are dropped with the generation.
+        WritePayload(db, EvoDbIdentity::SNAPSHOT, 41);
 
-        // Abandoning snapshot activation after the markers were committed must
-        // leave no trace: a stale dual-chainstate marker breaks legacy
+        // Abandoning snapshot activation after the generation was published
+        // must leave no trace: a stale dual-chainstate marker breaks legacy
         // bootstrapping and a stale best-block marker would revive a future
         // snapshot directory.
-        {
-            auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-            db.EraseSnapshotMarkers();
-            tx->Commit();
-        }
-        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        BOOST_REQUIRE(db.AbandonSnapshotGeneration());
     }
     CEvoDB reopened{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+    BOOST_REQUIRE(reopened.LoadSnapshotGenerations());
     uint256 hash;
     uint256 hash2;
+    BOOST_CHECK(!reopened.GetSnapshotGeneration());
     BOOST_CHECK(!reopened.ReadBestBlock(EvoDbIdentity::SNAPSHOT, hash));
     BOOST_CHECK(!reopened.ReadSnapshotBaseMNListHash(hash));
     BOOST_CHECK(!reopened.ReadBackgroundMNListHash(hash, hash2));
@@ -337,16 +499,32 @@ BOOST_AUTO_TEST_CASE(snapshot_marker_promotion_and_discard)
     const uint256 mn_list_hash = BlockHash(3);
 
     WriteMarker(db, EvoDbIdentity::NORMAL, normal_tip);
+    WritePayload(db, EvoDbIdentity::NORMAL, 30);
+    {
+        auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+        db.Write(EVODB_LLMQ_BEST_BLOCK, normal_tip);
+        tx->Commit();
+    }
+    BOOST_REQUIRE(db.CreateSnapshotGeneration(normal_tip, 30));
     {
         auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
         db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_tip);
-        db.WriteSnapshotBaseMNListHash(mn_list_hash);
-        db.WriteDualChainstateMarker();
+        // A seeded record NORMAL derived identically, one only the snapshot
+        // chainstate wrote, and the mutable singleton both views advance.
+        db.WriteSeed(PayloadKey(30), PayloadFor(30));
+        db.Write(PayloadKey(300), PayloadFor(300));
+        db.Write(EVODB_LLMQ_BEST_BLOCK, snapshot_tip);
         tx->Commit();
     }
     BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
     BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    BOOST_REQUIRE(db.PublishSnapshotGeneration(mn_list_hash));
 
+    // Promotion needs the journal written before the coins renames, at the tip
+    // the generation's Evo state was flushed at.
+    BOOST_CHECK(!db.PromoteSnapshotMarkers(snapshot_tip));
+    BOOST_CHECK(!db.PrepareSnapshotPromotion(BlockHash(299)));
+    BOOST_REQUIRE(db.PrepareSnapshotPromotion(snapshot_tip));
     BOOST_REQUIRE(db.PromoteSnapshotMarkers(snapshot_tip));
     // Promotion is idempotent across a restart after the synced batch lands.
     BOOST_REQUIRE(db.PromoteSnapshotMarkers(snapshot_tip));
@@ -355,15 +533,19 @@ BOOST_AUTO_TEST_CASE(snapshot_marker_promotion_and_discard)
     BOOST_CHECK(!db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, value));
     BOOST_CHECK(!db.ReadSnapshotBaseMNListHash(value));
     BOOST_CHECK(!db.HasDualChainstateMarker());
+    BOOST_CHECK(!db.ReadPromotionJournal());
+    // Snapshot-written records are now NORMAL state; the singleton takes the
+    // promoted value.
+    BOOST_CHECK(IteratePayloads(db, EvoDbIdentity::NORMAL) == (std::vector<uint32_t>{30, 300}));
+    uint256 llmq_best_block;
+    BOOST_REQUIRE(db.Read(EVODB_LLMQ_BEST_BLOCK, llmq_best_block));
+    BOOST_CHECK_EQUAL(llmq_best_block, snapshot_tip);
 
+    BOOST_REQUIRE(db.CreateSnapshotGeneration(snapshot_tip, 300));
     WriteMarker(db, EvoDbIdentity::SNAPSHOT, BlockHash(301));
-    {
-        auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-        db.WriteSnapshotBaseMNListHash(BlockHash(4));
-        db.WriteDualChainstateMarker();
-        tx->Commit();
-    }
+    WritePayload(db, EvoDbIdentity::SNAPSHOT, 301);
     BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    BOOST_REQUIRE(db.PublishSnapshotGeneration(BlockHash(4)));
     BOOST_REQUIRE(db.DiscardSnapshotMarkers());
     // Discard is likewise safe to retry.
     BOOST_REQUIRE(db.DiscardSnapshotMarkers());
@@ -371,6 +553,470 @@ BOOST_AUTO_TEST_CASE(snapshot_marker_promotion_and_discard)
     BOOST_CHECK(!db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, value));
     BOOST_CHECK(!db.ReadSnapshotBaseMNListHash(value));
     BOOST_CHECK(!db.HasDualChainstateMarker());
+    BOOST_CHECK(IteratePayloads(db, EvoDbIdentity::NORMAL) == (std::vector<uint32_t>{30, 300}));
+}
+
+BOOST_AUTO_TEST_CASE(promotion_refuses_conflicting_records)
+{
+    LOCK(::cs_main);
+    CEvoDB db{
+        util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_promotion_conflict", .memory = true, .wipe = true}};
+    WritePayload(db, EvoDbIdentity::NORMAL, 5);
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+    BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(5), 5));
+    {
+        auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, BlockHash(6));
+        db.Write(PayloadKey(5), PayloadFor(6));
+        tx->Commit();
+    }
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+    BOOST_REQUIRE(db.PrepareSnapshotPromotion(BlockHash(6)));
+    // An unseeded record NORMAL also holds was derived from a block below the
+    // base, which only NORMAL connects.
+    BOOST_CHECK(!db.PromoteSnapshotMarkers(BlockHash(6)));
+    // The conflict is in the first merge batch, so nothing was merged:
+    // NORMAL keeps its own record and tip. (Batches merged before a later
+    // conflict stay merged; startup then keeps failing closed.)
+    Payload value;
+    BOOST_REQUIRE(db.Read(PayloadKey(5), value));
+    BOOST_CHECK(value == PayloadFor(5));
+    BOOST_CHECK(db.HasDualChainstateMarker());
+}
+
+BOOST_AUTO_TEST_CASE(promotion_never_copies_seeded_keys)
+{
+    LOCK(::cs_main);
+    enum class Outcome { PROMOTED, FAILED };
+    struct Case {
+        std::string name;
+        std::function<void(CEvoDB&)> seed;
+        Outcome outcome;
+    };
+    // NORMAL holds payloads 10 and 11; the snapshot tip is 300.
+    const std::vector<Case> cases{
+        {"seeds are dropped, whatever NORMAL holds; the rest is merged",
+         [](CEvoDB& db) {
+             db.WriteSeed(PayloadKey(10), PayloadFor(10));
+             db.WriteSeed(PayloadKey(20), PayloadFor(20));
+             db.WriteSeed(PayloadKey(11), PayloadFor(99));
+             db.Write(PayloadKey(300), PayloadFor(300));
+         },
+         Outcome::PROMOTED},
+        {"an unseeded record NORMAL holds with the same bytes",
+         [](CEvoDB& db) {
+             db.Write(PayloadKey(10), PayloadFor(10));
+             db.Write(PayloadKey(300), PayloadFor(300));
+         },
+         Outcome::PROMOTED},
+        {"an unseeded record NORMAL holds with other bytes",
+         [](CEvoDB& db) { db.Write(PayloadKey(10), PayloadFor(99)); },
+         Outcome::FAILED},
+    };
+    using Failpoint = CEvoDB::PromotionFailpoint;
+    for (const auto& test : cases) {
+        for (const Failpoint failpoint : {Failpoint::NONE, Failpoint::MID_MERGE, Failpoint::AFTER_MERGE,
+                                          Failpoint::AFTER_COLLECT}) {
+            BOOST_TEST_MESSAGE(test.name);
+            CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_seeded_keys", .memory = true, .wipe = true}};
+            WriteMarker(db, EvoDbIdentity::NORMAL, BlockHash(30));
+            WritePayload(db, EvoDbIdentity::NORMAL, 10);
+            WritePayload(db, EvoDbIdentity::NORMAL, 11);
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+            BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(30), 30));
+            {
+                auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+                db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, BlockHash(300));
+                test.seed(db);
+                tx->Commit();
+            }
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+            BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+            BOOST_REQUIRE(db.PrepareSnapshotPromotion(BlockHash(300)));
+            // One record per merge batch, so a failpoint can stop between any two.
+            db.SetMergeBatchSizeForTesting(1);
+            db.SetPromotionFailpointForTesting(failpoint);
+            bool promoted{db.PromoteSnapshotMarkers(BlockHash(300))};
+            if (failpoint != Failpoint::NONE && test.outcome == Outcome::PROMOTED) {
+                BOOST_CHECK(!promoted);
+                db.SetPromotionFailpointForTesting(Failpoint::NONE);
+                promoted = db.PromoteSnapshotMarkers(BlockHash(300));
+            }
+            BOOST_CHECK_EQUAL(promoted, test.outcome == Outcome::PROMOTED);
+            if (!promoted) {
+                BOOST_CHECK(db.HasDualChainstateMarker());
+                continue;
+            }
+            BOOST_CHECK(IteratePayloads(db, EvoDbIdentity::NORMAL) == (std::vector<uint32_t>{10, 11, 300}));
+            const EvoViewScope normal{db.ViewFor(EvoDbIdentity::NORMAL)};
+            Payload value;
+            BOOST_REQUIRE(db.Read(PayloadKey(11), value));
+            BOOST_CHECK(value == PayloadFor(11));
+            DataStream manifest_tag{};
+            manifest_tag << EVODB_SEED_MANIFEST;
+            for (const auto& key : RawKeys(db)) {
+                BOOST_CHECK(!std::equal(manifest_tag.begin(), manifest_tag.end(), key.begin(),
+                                        key.begin() + std::min(key.size(), manifest_tag.size())));
+            }
+        }
+    }
+}
+
+// A table block that fails its checksum is skipped by the iterator, which
+// stays valid at the next one: promotion and collection must stop there
+// rather than finish without the records it held.
+BOOST_AUTO_TEST_CASE(generation_lifecycle_stops_at_an_unreadable_table_block)
+{
+    // Each payload outgrows a LevelDB table block, so the corrupted block
+    // holds exactly one of them.
+    const auto large_payload{[](uint32_t height) { return Payload(8192, static_cast<uint8_t>(height)); }};
+    const uint256 tip{BlockHash(300)};
+    const auto record_key{std::make_pair(EVODB_GENERATION_RECORD, uint32_t{1})};
+    for (const bool rejected : {false, true}) {
+        const fs::path path{m_args.GetDataDirBase() / "evodb_unreadable_generation"};
+        {
+            LOCK(::cs_main);
+            CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+            WriteMarker(db, EvoDbIdentity::NORMAL, BlockHash(30));
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+            BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(30), 30));
+            {
+                auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+                db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, tip);
+                for (const uint32_t height : {101U, 102U, 103U}) db.Write(PayloadKey(height), large_payload(height));
+                tx->Commit();
+            }
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true));
+            BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+            BOOST_REQUIRE(rejected ? db.DiscardSnapshotMarkers() : db.PrepareSnapshotPromotion(tip));
+            db.GetRawDB().CompactFull();
+        }
+        BOOST_REQUIRE(CorruptTableBlock(path / "evodb", Payload(512, 102)));
+
+        LOCK(::cs_main);
+        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+        BOOST_REQUIRE(db.LoadSnapshotGenerations());
+        if (rejected) {
+            BOOST_CHECK(!db.CollectRejectedGenerations());
+            BOOST_CHECK(db.HasRejectedGeneration());
+            BOOST_CHECK(db.GetRawDB().Exists(record_key));
+            continue;
+        }
+        BOOST_CHECK(!db.PromoteSnapshotMarkers(tip));
+        const auto journal{db.ReadPromotionJournal()};
+        BOOST_REQUIRE(journal);
+        BOOST_CHECK(journal->phase == EvoPromotionPhase::MERGING);
+        BOOST_CHECK(db.GetRawDB().Exists(record_key));
+        BOOST_CHECK(db.HasDualChainstateMarker());
+        BOOST_CHECK(!db.VerifyBestBlock(EvoDbIdentity::NORMAL, tip));
+    }
+}
+
+// A promotion interrupted after every merge batch, with the database reopened
+// each time, ends with what an uninterrupted one would have: merged payloads,
+// seeds settled by their policy, or a refusal at a late conflicting record.
+BOOST_AUTO_TEST_CASE(promotion_resumes_after_restarts_between_merge_batches)
+{
+    using Failpoint = CEvoDB::PromotionFailpoint;
+    const uint256 tip{BlockHash(300)};
+    const std::vector<uint32_t> merged{101, 102, 103, 104, 105, 106};
+    for (const bool late_conflict : {false, true}) {
+        for (const size_t batch_size : {1U, 2U, 3U}) {
+            BOOST_TEST_MESSAGE("batch size " << batch_size << (late_conflict ? ", late conflict" : ""));
+            const fs::path path{m_args.GetDataDirBase() / "evodb_promotion_restarts"};
+            {
+                LOCK(::cs_main);
+                CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+                WriteMarker(db, EvoDbIdentity::NORMAL, BlockHash(30));
+                for (const uint32_t height : {10U, 11U, 200U}) WritePayload(db, EvoDbIdentity::NORMAL, height);
+                BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+                BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(30), 30));
+                {
+                    auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+                    db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, tip);
+                    db.WriteSeed(PayloadKey(10), PayloadFor(10));
+                    db.WriteSeed(PayloadKey(20), PayloadFor(20));
+                    db.WriteSeed(PayloadKey(21), PayloadFor(21));
+                    for (const uint32_t height : merged) db.Write(PayloadKey(height), PayloadFor(height));
+                    // Ordered after every payload above.
+                    if (late_conflict) db.Write(PayloadKey(200), PayloadFor(201));
+                    tx->Commit();
+                }
+                BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true));
+                BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+                BOOST_REQUIRE(db.PrepareSnapshotPromotion(tip));
+            }
+
+            bool promoted{false};
+            bool resumed_after_a_merged_payload{false};
+            std::vector<uint8_t> last_cursor;
+            for (int run{0}; run < 32 && !promoted; ++run) {
+                LOCK(::cs_main);
+                CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+                BOOST_REQUIRE(db.LoadSnapshotGenerations());
+                db.SetMergeBatchSizeForTesting(batch_size);
+                db.SetPromotionFailpointForTesting(Failpoint::MID_MERGE);
+                promoted = db.PromoteSnapshotMarkers(tip);
+                if (promoted) break;
+                const auto journal{db.ReadPromotionJournal()};
+                BOOST_REQUIRE(journal);
+                // A refused merge makes no progress: it stays refused.
+                if (journal->cursor == last_cursor) break;
+                last_cursor = journal->cursor;
+                if (db.GetRawDB().Exists(PayloadKey(merged.front())) && !db.GetRawDB().Exists(PayloadKey(merged.back()))) {
+                    resumed_after_a_merged_payload = true;
+                }
+            }
+            BOOST_CHECK(resumed_after_a_merged_payload);
+            BOOST_CHECK_EQUAL(promoted, !late_conflict);
+
+            LOCK(::cs_main);
+            CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+            BOOST_REQUIRE(db.LoadSnapshotGenerations());
+            if (late_conflict) {
+                BOOST_CHECK(db.HasDualChainstateMarker());
+                BOOST_CHECK(db.ReadPromotionJournal());
+                BOOST_CHECK(!db.VerifyBestBlock(EvoDbIdentity::NORMAL, tip));
+                const EvoViewScope normal{db.ViewFor(EvoDbIdentity::NORMAL)};
+                Payload value;
+                BOOST_REQUIRE(db.Read(PayloadKey(200), value));
+                BOOST_CHECK(value == PayloadFor(200));
+                continue;
+            }
+            BOOST_CHECK(db.VerifyBestBlock(EvoDbIdentity::NORMAL, tip));
+            BOOST_CHECK(!db.ReadPromotionJournal());
+            std::vector<uint32_t> expected{10, 11};
+            expected.insert(expected.end(), merged.begin(), merged.end());
+            expected.push_back(200);
+            BOOST_CHECK(IteratePayloads(db, EvoDbIdentity::NORMAL) == expected);
+            DataStream manifest_tag{};
+            manifest_tag << EVODB_SEED_MANIFEST;
+            for (const auto& key : RawKeys(db)) {
+                BOOST_CHECK(!std::equal(manifest_tag.begin(), manifest_tag.end(), key.begin(),
+                                        key.begin() + std::min(key.size(), manifest_tag.size())));
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(only_an_unpublished_generation_records_seeds)
+{
+    LOCK(::cs_main);
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_seed_binding", .memory = true, .wipe = true}};
+    DataStream manifest_tag{};
+    manifest_tag << EVODB_SEED_MANIFEST;
+    const auto manifest_keys{[&] {
+        return std::ranges::count_if(RawKeys(db), [&](const auto& key) {
+            return key.size() >= manifest_tag.size() && std::equal(manifest_tag.begin(), manifest_tag.end(), key.begin());
+        });
+    }};
+    {
+        auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+        BOOST_CHECK(db.WriteSeed(PayloadKey(1), PayloadFor(1)));
+        BOOST_CHECK(!db.WriteSeed(PayloadKey(1), PayloadFor(2)));
+        tx->Commit();
+    }
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+    BOOST_CHECK_EQUAL(manifest_keys(), 0);
+    PublishGeneration(db);
+    auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+    BOOST_CHECK_THROW(db.WriteSeed(PayloadKey(1), PayloadFor(1)),
+                      EvoViewBindingError);
+}
+
+BOOST_AUTO_TEST_CASE(schema_version_refusal_changes_nothing)
+{
+    using Failpoint = CEvoDB::PromotionFailpoint;
+    for (const bool promoting : {false, true}) {
+        const fs::path path{m_args.GetDataDirBase() / "evodb_schema_refusal"};
+        {
+            LOCK(::cs_main);
+            CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+            WritePayload(db, EvoDbIdentity::NORMAL, 10);
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+            BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(40), 40));
+            {
+                auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+                db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, BlockHash(41));
+                db.Write(PayloadKey(41), PayloadFor(41));
+                db.Write(PayloadKey(42), PayloadFor(42));
+                tx->Commit();
+            }
+            BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true));
+            BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+            if (promoting) {
+                BOOST_REQUIRE(db.PrepareSnapshotPromotion(BlockHash(41)));
+                db.SetMergeBatchSizeForTesting(1);
+                db.SetPromotionFailpointForTesting(Failpoint::MID_MERGE);
+                BOOST_REQUIRE(!db.PromoteSnapshotMarkers(BlockHash(41)));
+            }
+            // A generation left unpublished by an interrupted load, which an
+            // accepted startup collects.
+            EvoGenerationRecord stale;
+            stale.generation = 7;
+            stale.base = BlockHash(50);
+            stale.base_height = 50;
+            BOOST_REQUIRE(db.GetRawDB().Write(std::make_pair(EVODB_GENERATION_RECORD, uint32_t{7}), stale));
+            DataStream stale_key{CEvoDBStore::GenerationPrefix(7)};
+            stale_key << PayloadKey(50);
+            CDBBatch batch{db.GetRawDB()};
+            batch.Write(stale_key, PayloadFor(50));
+            BOOST_REQUIRE(db.GetRawDB().WriteBatch(batch, /*fSync=*/true));
+        }
+
+        CEvoDB reopened{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+        const auto record_key{std::make_pair(EVODB_GENERATION_RECORD, uint32_t{1})};
+        EvoGenerationRecord record;
+        BOOST_REQUIRE(reopened.GetRawDB().Read(record_key, record));
+        EvoGenerationRecord newer{record};
+        ++newer.schema_version;
+        BOOST_REQUIRE(reopened.GetRawDB().Write(record_key, newer, /*fSync=*/true));
+        const auto before{RawEntries(reopened)};
+        const auto result{reopened.LoadSnapshotGenerations()};
+        BOOST_REQUIRE(!result);
+        const std::string error{util::ErrorString(result).original};
+        BOOST_CHECK(error.find("Restart with the version that loaded the snapshot") != std::string::npos);
+        BOOST_CHECK(error.find("-reindex-chainstate") != std::string::npos);
+        BOOST_CHECK(RawEntries(reopened) == before);
+        BOOST_CHECK(!reopened.GetSnapshotGeneration());
+        // The version that wrote it still resumes it.
+        BOOST_REQUIRE(reopened.GetRawDB().Write(record_key, record, /*fSync=*/true));
+        BOOST_CHECK(reopened.LoadSnapshotGenerations());
+        BOOST_REQUIRE(reopened.GetSnapshotGeneration());
+        BOOST_CHECK_EQUAL(reopened.GetSnapshotGeneration()->generation, 1U);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(promotion_journal_requires_its_promoting_record)
+{
+    using Failpoint = CEvoDB::PromotionFailpoint;
+    const std::string MISSING_MARKER_ERROR{"The Evo database holds live assumeutxo snapshot state, but its "
+                                           "dual-chainstate marker is missing. Restart with -reindex-chainstate to "
+                                           "discard it."};
+    enum class Tamper {
+        ERASED,
+        PUBLISHED,
+        OTHER_GENERATION,
+        OTHER_BASE,
+        OTHER_TIP,
+        JOURNAL_ERASED,
+        MARKER_ERASED
+    };
+    const uint256 tip{BlockHash(41)};
+    const auto record_key{[](uint32_t generation) { return std::make_pair(EVODB_GENERATION_RECORD, generation); }};
+    for (const Failpoint stop_at : {Failpoint::NONE, Failpoint::MID_MERGE, Failpoint::AFTER_COLLECT}) {
+        for (const Tamper tamper : {Tamper::ERASED, Tamper::PUBLISHED, Tamper::OTHER_GENERATION, Tamper::OTHER_BASE,
+                                    Tamper::OTHER_TIP, Tamper::JOURNAL_ERASED, Tamper::MARKER_ERASED}) {
+            const fs::path path{m_args.GetDataDirBase() / "evodb_journal_record"};
+            {
+                LOCK(::cs_main);
+                CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+                WriteMarker(db, EvoDbIdentity::NORMAL, BlockHash(40));
+                BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+                BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(40), 40));
+                {
+                    auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+                    db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, tip);
+                    db.Write(PayloadKey(41), PayloadFor(41));
+                    tx->Commit();
+                }
+                BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true));
+                BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+                BOOST_REQUIRE(db.PrepareSnapshotPromotion(tip));
+                if (stop_at != Failpoint::NONE) {
+                    db.SetMergeBatchSizeForTesting(1);
+                    db.SetPromotionFailpointForTesting(stop_at);
+                    BOOST_REQUIRE(!db.PromoteSnapshotMarkers(tip));
+                }
+            }
+
+            CEvoDB reopened{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+            EvoGenerationRecord record;
+            BOOST_REQUIRE(reopened.GetRawDB().Read(record_key(1), record));
+            BOOST_REQUIRE(record.state == EvoGenerationState::PROMOTING);
+            CDBBatch batch{reopened.GetRawDB()};
+            switch (tamper) {
+            case Tamper::ERASED: batch.Erase(record_key(1)); break;
+            case Tamper::PUBLISHED: record.state = EvoGenerationState::PUBLISHED; break;
+            case Tamper::OTHER_GENERATION:
+                batch.Erase(record_key(1));
+                record.generation = 2;
+                break;
+            case Tamper::OTHER_BASE: record.base = BlockHash(39); break;
+            case Tamper::OTHER_TIP: record.tip = BlockHash(42); break;
+            case Tamper::JOURNAL_ERASED: batch.Erase(EVODB_PROMOTION_JOURNAL); break;
+            case Tamper::MARKER_ERASED: batch.Erase(EVODB_DUAL_CHAINSTATE); break;
+            }
+            if (tamper != Tamper::ERASED) batch.Write(record_key(record.generation), record);
+            BOOST_REQUIRE(reopened.GetRawDB().WriteBatch(batch, /*fSync=*/true));
+
+            const auto before{RawEntries(reopened)};
+            const auto result{reopened.LoadSnapshotGenerations()};
+            BOOST_CHECK_MESSAGE(!result, "accepted a journal with tamper " << static_cast<int>(tamper) << " at failpoint "
+                                                                            << static_cast<int>(stop_at));
+            const bool journal_kept{tamper != Tamper::JOURNAL_ERASED};
+            if (tamper == Tamper::MARKER_ERASED) {
+                BOOST_CHECK_EQUAL(util::ErrorString(result).original, MISSING_MARKER_ERROR);
+            } else if (journal_kept) {
+                BOOST_CHECK(util::ErrorString(result).original.find("does not match its snapshot state") !=
+                            std::string::npos);
+            } else {
+                BOOST_CHECK_EQUAL(util::ErrorString(result).original,
+                                  "The Evo database holds assumeutxo snapshot state marked as being promoted, but "
+                                  "its promotion journal is missing. Restart with -reindex-chainstate to discard it.");
+            }
+            BOOST_CHECK(RawEntries(reopened) == before);
+            BOOST_CHECK_EQUAL(reopened.ReadPromotionJournal().has_value(), journal_kept);
+            BOOST_CHECK(!reopened.GetSnapshotGeneration());
+        }
+    }
+
+    // A published generation has no journal until its promotion is prepared.
+    const fs::path path{m_args.GetDataDirBase() / "evodb_published_without_journal"};
+    {
+        LOCK(::cs_main);
+        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+        BOOST_REQUIRE(db.CreateSnapshotGeneration(BlockHash(40), 40));
+        BOOST_REQUIRE(db.PublishSnapshotGeneration(std::nullopt));
+    }
+    CEvoDB reopened{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+    BOOST_REQUIRE(!reopened.ReadPromotionJournal());
+    BOOST_CHECK(reopened.LoadSnapshotGenerations());
+    BOOST_REQUIRE(reopened.GetSnapshotGeneration());
+    BOOST_CHECK(reopened.GetSnapshotGeneration()->state == EvoGenerationState::PUBLISHED);
+
+    // Without its dual-chainstate marker it is refused before an unpublished
+    // generation is collected.
+    EvoGenerationRecord stale;
+    stale.generation = 7;
+    stale.base = BlockHash(50);
+    stale.base_height = 50;
+    CDBBatch batch{reopened.GetRawDB()};
+    batch.Write(std::make_pair(EVODB_GENERATION_RECORD, uint32_t{7}), stale);
+    batch.Erase(EVODB_DUAL_CHAINSTATE);
+    BOOST_REQUIRE(reopened.GetRawDB().WriteBatch(batch, /*fSync=*/true));
+    const auto before{RawEntries(reopened)};
+    const auto result{reopened.LoadSnapshotGenerations()};
+    BOOST_REQUIRE(!result);
+    BOOST_CHECK_EQUAL(util::ErrorString(result).original, MISSING_MARKER_ERROR);
+    BOOST_CHECK(RawEntries(reopened) == before);
+    BOOST_CHECK(!reopened.GetSnapshotGeneration());
+}
+
+BOOST_AUTO_TEST_CASE(generation_ids_never_wrap)
+{
+    LOCK(::cs_main);
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_generation_ids", .memory = true, .wipe = true}};
+    // Generation 0 is the NORMAL keyspace: the last id is never handed out,
+    // so the counter can never wrap into it.
+    for (const uint32_t next : {std::numeric_limits<uint32_t>::max(), uint32_t{0}}) {
+        BOOST_REQUIRE(db.GetRawDB().Write(EVODB_GENERATION_NEXT, next));
+        BOOST_CHECK(!db.CreateSnapshotGeneration(BlockHash(1), 1));
+        BOOST_CHECK(!db.GetSnapshotGeneration());
+    }
+    BOOST_REQUIRE(db.GetRawDB().Write(EVODB_GENERATION_NEXT, std::numeric_limits<uint32_t>::max() - 1));
+    BOOST_CHECK(db.CreateSnapshotGeneration(BlockHash(1), 1));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
