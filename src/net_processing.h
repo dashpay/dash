@@ -109,6 +109,11 @@ public:
      *  turns true), so it is not requested from anyone anymore.
      *  Requires ::cs_main (see the PeerManagerImpl override). */
     virtual void PeerForgetObjectRequest(const CInv& inv) = 0;
+    /** Treat the inv as announced by this peer: unless we already have the object, register it with
+     *  the object request tracker under the same per-peer limits as a received INV, so it is fetched
+     *  from this peer or, failing that, from another peer that announced it.
+     *  Requires ::cs_main (see the PeerManagerImpl override). */
+    virtual void PeerAddObjectAnnouncement(const CNode& node, const CInv& inv) = 0;
     virtual void PeerPushInventory(NodeId nodeid, const CInv& inv) = 0;
     virtual void PeerRelayInv(const CInv& inv) = 0;
     virtual void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) = 0;
