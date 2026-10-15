@@ -2354,6 +2354,45 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.wait_until(check_finalized, timeout=timeout)
 
+    def get_required_dkg_sessions(self, mninfos):
+        """(proTxHash, quorumHeight, llmqType, quorumIndex) of every DKG session that a member of mninfos is
+        predicted by 'quorum dkginfo' to take part in. Only sessions whose work block is already mined are
+        predicted, so nothing is required of those whose members cannot be known yet."""
+        node = mninfos[0].get_node(self)
+        required = set()
+        for mn in mninfos:
+            for d in node.quorum("dkginfo", mn.proTxHash)["upcoming_dkgs"]:
+                if d["known"] and d["isMember"]:
+                    required.add((mn.proTxHash, d["quorumHeight"], d["llmqType"], d["quorumIndex"]))
+        return required
+
+    def wait_for_required_dkg_sessions(self, quorum_hash, required, mninfos, llmq_types, timeout=30):
+        """Wait until each member of mninfos that is predicted (see get_required_dkg_sessions) to take part in a
+        DKG session of one of llmq_types (numeric ids) based on quorum_hash reports it. A worker that has not
+        published its session by the time the next phase starts can stay unpublished for the whole cycle, and
+        nothing else waits for a session that no member has published yet. Only the types the caller depends on
+        are required, because a predicted session can legitimately never start, e.g. when a fixture has fewer
+        members than the type needs ("not enough members, aborting init")."""
+        height = self.nodes[0].getblock(quorum_hash)["height"]
+        pro_tx_hashes = {mn.proTxHash for mn in mninfos}
+        wanted = {(pro_tx_hash, llmq_type, quorum_index) for pro_tx_hash, h, llmq_type, quorum_index in required
+                  if h == height and pro_tx_hash in pro_tx_hashes and llmq_type in llmq_types}
+        published = set()
+
+        def check_published():
+            published.clear()
+            for mn in mninfos:
+                for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]:
+                    if qs["status"]["quorumHash"] == quorum_hash:
+                        published.add((mn.proTxHash, qs["status"]["llmqType"], qs["quorumIndex"]))
+            return wanted <= published
+
+        try:
+            self.wait_until(check_published, timeout=timeout)
+        except AssertionError:
+            self.log.error(f"DKG sessions predicted but not published (proTxHash, llmqType, quorumIndex): {sorted(wanted - published)}")
+            raise
+
     def wait_for_offset_dkg_session(self, quorum_hash, phase, mninfos, wait_proc=None):
         """With quorum rotation active, the index 1 session of a cycle is based on the block after quorum_hash
         and runs one block behind the session of quorum_hash, i.e. it is in phase - 1 when that one has just been
@@ -2435,7 +2474,7 @@ class DashTestFramework(BitcoinTestFramework):
             assert_equal(entry["workBlockHash"], self.nodes[0].getblockhash(work_height))
             assert_equal(entry["isMember"], proTxHash in members)
 
-    def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False):
+    def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False, required_llmq_types=()):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
@@ -2468,6 +2507,15 @@ class DashTestFramework(BitcoinTestFramework):
         if skip_count <= work_diff_depth:
             self.log.info(f"Capturing upcoming DKG membership predictions {skip_count} blocks ahead")
             predictions = self.get_upcoming_dkg_predictions(mninfos_online[0].get_node(self), llmq_type)
+        required_sessions = None
+        if self.fast_sync_polling:
+            # the sessions of every llmq type that start at the next DKG height, which only 'quorum dkginfo' knows
+            # once the work block is mined; the quorums formed while it is being mined are not affected
+            if skip_count > work_diff_depth:
+                self.bump_mocktime(1)
+                self.generate(self.nodes[0], skip_count - work_diff_depth, sync_fun=lambda: self.sync_blocks(nodes))
+                skip_count = work_diff_depth
+            required_sessions = self.get_required_dkg_sessions(mninfos_online)
         if skip_count != 0:
             self.bump_mocktime(1)
             self.generate(self.nodes[0], skip_count, sync_fun=lambda: self.sync_blocks(nodes))
@@ -2476,6 +2524,8 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Expected quorum_hash:"+str(q))
         self.log.info("Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_required_dkg_sessions(q, required_sessions, mninfos_online, {llmq_type, *required_llmq_types})
         self.wait_for_quorum_connections(q, expected_connections, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
         if spork23_active:
             self.wait_for_masternode_probes(q, mninfos_online, wait_proc=lambda: self.bump_mocktime(1))
