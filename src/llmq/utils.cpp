@@ -6,6 +6,7 @@
 
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
+#include <evo/snapshot_types.h>
 #include <evo/viewcache.h>
 #include <llmq/cache.h>
 #include <llmq/snapshot.h>
@@ -98,8 +99,9 @@ uint256 GetHashModifierFromWorkBlock(const Consensus::LLMQParams& llmqParams, co
     return ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
 }
 
-uint256 GetHashModifier(const Consensus::LLMQParams& llmqParams, const Consensus::Params& consensus_params,
-                        const node::BlockManager& blockman, gsl::not_null<const CBlockIndex*> pCycleQuorumBaseBlockIndex)
+uint256 CalculateHashModifier(const Consensus::LLMQParams& llmqParams, const Consensus::Params& consensus_params,
+                              const node::BlockManager& blockman,
+                              gsl::not_null<const CBlockIndex*> pCycleQuorumBaseBlockIndex)
 {
     ASSERT_IF_DEBUG(pCycleQuorumBaseBlockIndex->nHeight % llmqParams.dkgInterval == 0);
     const CBlockIndex* pWorkBlockIndex = pCycleQuorumBaseBlockIndex->GetAncestor(pCycleQuorumBaseBlockIndex->nHeight - llmq::WORK_DIFF_DEPTH);
@@ -114,6 +116,28 @@ uint256 GetHashModifier(const Consensus::LLMQParams& llmqParams, const Consensus
         return ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
     }
     return ::SerializeHash(std::make_pair(llmqParams.type, pCycleQuorumBaseBlockIndex->GetBlockHash()));
+}
+
+//! The modifier of a cycle. A modifier seeded for its work block is used when
+//! the work block's data is unavailable, and checked against it otherwise.
+uint256 GetHashModifier(const Consensus::LLMQParams& llmq_params, const Consensus::Params& consensus_params,
+                        const node::BlockManager& blockman, gsl::not_null<const CBlockIndex*> cycle_index,
+                        const llmq::CQuorumSnapshotManager& qsnapman)
+{
+    const CBlockIndex* work_index{cycle_index->GetAncestor(cycle_index->nHeight - llmq::WORK_DIFF_DEPTH)};
+    if (work_index != nullptr) {
+        if (const auto seeded{qsnapman.GetSeededQuorumModifier(llmq_params.type, work_index->GetBlockHash())}) {
+            if (WITH_LOCK(::cs_main, return (work_index->nStatus & BLOCK_HAVE_DATA) == 0;)) return *seeded;
+            const uint256 recomputed{CalculateHashModifier(llmq_params, consensus_params, blockman, cycle_index)};
+            if (recomputed != *seeded) {
+                throw evo::SnapshotStateMismatchError(
+                    strprintf("seeded quorum score modifier for work block %s differs",
+                              work_index->GetBlockHash().ToString()));
+            }
+            return recomputed;
+        }
+    }
+    return CalculateHashModifier(llmq_params, consensus_params, blockman, cycle_index);
 }
 
 std::vector<MasternodeScore> CalculateScoresForQuorum(QuorumMembers&& dmns, const uint256& modifier, const bool onlyEvoNodes)
@@ -189,6 +213,7 @@ QuorumMembers CalculateQuorum(List&& mn_list, const uint256& modifier, size_t ma
 
 std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LLMQParams& llmqParams,
                                                              CDeterministicMNManager& dmnman,
+                                                             const llmq::CQuorumSnapshotManager& qsnapman,
                                                              const Consensus::Params& consensus_params,
                                                              const node::BlockManager& blockman,
                                                              const CBlockIndex* pCycleQuorumBaseBlockIndex,
@@ -204,7 +229,7 @@ std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LL
         const CBlockIndex* pWorkBlockIndex = pCycleQuorumBaseBlockIndex->GetAncestor(
             pCycleQuorumBaseBlockIndex->nHeight - llmq::WORK_DIFF_DEPTH);
         auto mn_list = dmnman.GetListForBlock(pWorkBlockIndex);
-        const auto modifier = GetHashModifier(llmqParams, consensus_params, blockman, pCycleQuorumBaseBlockIndex);
+        const auto modifier = GetHashModifier(llmqParams, consensus_params, blockman, pCycleQuorumBaseBlockIndex, qsnapman);
         auto sortedAllMns = CalculateQuorum(mn_list, modifier);
 
         std::vector<CDeterministicMNCPtr> usedMNs;
@@ -292,7 +317,8 @@ std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LL
 }
 
 QuorumMembers ComputeQuorumMembers(Consensus::LLMQType llmqType, const CChainParams& chainparams, const node::BlockManager& blockman,
-                                   const CDeterministicMNList& mn_list, const CBlockIndex* pQuorumBaseBlockIndex)
+                                   const CDeterministicMNList& mn_list, const CBlockIndex* pQuorumBaseBlockIndex,
+                                   const llmq::CQuorumSnapshotManager& qsnapman)
 {
     bool EvoOnly = (chainparams.GetConsensus().llmqTypePlatform == llmqType) &&
                    DeploymentActiveAfter(pQuorumBaseBlockIndex, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V19);
@@ -303,14 +329,14 @@ QuorumMembers ComputeQuorumMembers(Consensus::LLMQType llmqType, const CChainPar
         return {};
     }
 
-    const auto modifier = GetHashModifier(llmq_params_opt.value(), chainparams.GetConsensus(), blockman, pQuorumBaseBlockIndex);
+    const auto modifier = GetHashModifier(llmq_params_opt.value(), chainparams.GetConsensus(), blockman, pQuorumBaseBlockIndex,
+                                          qsnapman);
     return CalculateQuorum(mn_list, modifier, llmq_params_opt->size, EvoOnly);
 }
 
-void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const Consensus::Params& consensus_params, const node::BlockManager& blockman,
-                         const CDeterministicMNList& allMns, const CDeterministicMNList& mnUsedAtH,
-                         llmq::CQuorumSnapshot& quorumSnapshot, std::vector<int>& skipList,
-                         const CBlockIndex* pCycleQuorumBaseBlockIndex)
+void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& allMns,
+                         const CDeterministicMNList& mnUsedAtH, llmq::CQuorumSnapshot& quorumSnapshot,
+                         std::vector<int>& skipList, const CBlockIndex* pCycleQuorumBaseBlockIndex, const uint256& modifier)
 {
     if (!llmqParams.useRotation || pCycleQuorumBaseBlockIndex->nHeight % llmqParams.dkgInterval != 0) {
         ASSERT_IF_DEBUG(false);
@@ -319,7 +345,6 @@ void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const Consensu
 
     const auto allMnsTotal = allMns.GetCounts().total();
     quorumSnapshot.activeQuorumMembers.resize(allMnsTotal);
-    const auto modifier = GetHashModifier(llmqParams, consensus_params, blockman, pCycleQuorumBaseBlockIndex);
     auto sortedAllMns = CalculateQuorum(allMns, modifier);
 
     LogPrint(BCLog::LLMQ, "BuildQuorumSnapshot h[%d] numMns[%d]\n", pCycleQuorumBaseBlockIndex->nHeight,
@@ -460,8 +485,9 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
 
     if (storeSnapshot) {
         llmq::CQuorumSnapshot quorumSnapshot{};
-        BuildQuorumSnapshot(llmqParams, util_params.m_chainman.GetConsensus(), util_params.m_chainman.m_blockman, allMns,
-                            MnsUsedAtH, quorumSnapshot, skipList, util_params.m_base_index);
+        // Index the bitset in member-selection order, including when the
+        // modifier came from a seeded value.
+        BuildQuorumSnapshot(llmqParams, allMns, MnsUsedAtH, quorumSnapshot, skipList, util_params.m_base_index, modifier);
         util_params.m_qsnapman.StoreSnapshotForBlock(llmqParams.type, util_params.m_base_index, quorumSnapshot);
     }
 
@@ -515,11 +541,11 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
             break;
         }
         prev_cycles[idx]->m_members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman,
+                                                                        util_params.m_qsnapman,
                                                                         util_params.m_chainman.GetConsensus(),
                                                                         util_params.m_chainman.m_blockman,
                                                                         prev_cycles[idx]->m_cycle_index,
-                                                                        prev_cycles[idx]->m_snap,
-                                                                        cycleBaseHeight);
+                                                                        prev_cycles[idx]->m_snap, cycleBaseHeight);
     }
 
     auto newQuarterMembers = BuildNewQuorumQuarterMembers(llmqParams, util_params, allMns, previousQuarters, modifier,
@@ -784,7 +810,8 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
         const CBlockIndex* pWorkBlockIndex = pCycleQuorumBaseBlockIndex->GetAncestor(cycleQuorumBaseHeight -
                                                                                      WORK_DIFF_DEPTH);
         const auto modifier = GetHashModifier(llmq_params, util_params.m_chainman.GetConsensus(),
-                                              util_params.m_chainman.m_blockman, pCycleQuorumBaseBlockIndex);
+                                              util_params.m_chainman.m_blockman, pCycleQuorumBaseBlockIndex,
+                                              util_params.m_qsnapman);
         auto q = ComputeQuorumMembersByQuarterRotation(llmq_params, util_params.replace_index(pCycleQuorumBaseBlockIndex),
                                                        pWorkBlockIndex, cycleQuorumBaseHeight, modifier,
                                                        /*predicting=*/false);
@@ -805,7 +832,7 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
                                                  : util_params.m_base_index.get();
         CDeterministicMNList mn_list = util_params.m_dmnman.GetListForBlock(pWorkBlockIndex);
         quorumMembers = ComputeQuorumMembers(llmqType, util_params.m_chainman.GetParams(), util_params.m_chainman.m_blockman,
-                                             mn_list, util_params.m_base_index);
+                                             mn_list, util_params.m_base_index, util_params.m_qsnapman);
     }
 
     LOCK(cs_members);
