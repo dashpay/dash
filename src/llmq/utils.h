@@ -6,6 +6,7 @@
 #define BITCOIN_LLMQ_UTILS_H
 
 #include <bls/bls.h>
+#include <evo/snapshot_types.h>
 #include <evo/types.h>
 #include <llmq/params.h>
 #include <saltedhasher.h>
@@ -21,6 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
+class CBlock;
 class CBlockIndex;
 class CDeterministicMNManager;
 class ChainstateManager;
@@ -28,6 +30,9 @@ class CSporkManager;
 namespace llmq {
 class CQuorumSnapshotManager;
 } // namespace llmq
+namespace node {
+class BlockManager;
+} // namespace node
 
 namespace llmq {
 struct UtilParameters {
@@ -54,6 +59,24 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuoru
     const ChainstateManager& chainman, gsl::not_null<const CBlockIndex*> pindex);
 
 namespace utils {
+//! The exact score modifier of a v20 work block is not known: nothing was
+//! seeded for it and this node does not have the block.
+class WorkBlockModifierUnavailableError : public BlockDataUnavailableError
+{
+public:
+    using BlockDataUnavailableError::BlockDataUnavailableError;
+};
+
+/** The exact score modifier of a v20 work block: its seeded value or the one
+ *  its coinbase ChainLock gives, checked against each other when both exist.
+ *  Without either it raises WorkBlockModifierUnavailableError in every view.
+ *  A work block this node has but cannot read raises BlockDataReadError. */
+uint256 GetQuorumModifierForWorkBlock(const Consensus::LLMQParams& llmq_params, const node::BlockManager& blockman,
+                                      gsl::not_null<const CBlockIndex*> work_index, const CQuorumSnapshotManager& qsnapman);
+/** The score modifier `block`, a v20 work block whose index is `work_index`,
+ *  gives from its coinbase ChainLock. */
+uint256 GetWorkBlockModifier(const Consensus::LLMQParams& llmq_params, const CBlock& block, const CBlockIndex& work_index);
+
 struct BlsCheck {
     CBLSSignature m_sig;
     std::vector<CBLSPublicKey> m_pubkeys;

@@ -89,9 +89,10 @@ bool IsApplicableRotationCycle(const ChainstateManager& chainman, const Consensu
 }
 
 //! The modifier of the cycle at `work.cycle_height`, from the work block's
-//! data or, when that is unreadable, from `seeded`. Mirrors the ordinary
-//! calculation (llmq/utils.cpp) without its block-hash fallback for an
-//! unreadable v20 work block, and without needing an unmined cycle's block.
+//! data or, when this node lacks the block, from `seeded`; a block it has but
+//! cannot read raises BlockDataReadError. Mirrors the ordinary calculation
+//! (llmq/utils.cpp), but reports a v20 work block it can neither read nor
+//! take from `seeded` through `error`, and needs no unmined cycle's block.
 std::optional<uint256> ExactWorkModifier(const Consensus::LLMQParams& params, const Consensus::Params& consensus,
                                          const node::BlockManager& blockman, const CBlockIndex* base_index,
                                          const EvoSnapshotWorkBlock& work,
@@ -104,15 +105,16 @@ std::optional<uint256> ExactWorkModifier(const Consensus::LLMQParams& params, co
         return std::nullopt;
     }
     if (DeploymentActiveAfter(modifier_work, consensus, Consensus::DEPLOYMENT_V20)) {
-        CBlock block;
-        if ((modifier_work->nStatus & BLOCK_HAVE_DATA) == 0 || !blockman.ReadBlockFromDisk(block, *modifier_work)) {
+        if ((modifier_work->nStatus & BLOCK_HAVE_DATA) == 0) {
             if (!seeded) error = "quorum work block data unavailable for its exact score modifier";
             return seeded;
         }
-        if (const auto chainlock{GetNonNullCoinbaseChainlock(block, *modifier_work)}) {
-            return ::SerializeHash(std::make_tuple(params.type, modifier_work->nHeight, chainlock->first));
+        CBlock block;
+        if (blockman.ReadBlockFromDisk(block, modifier_work->GetBlockPos()) != modifier_work->GetBlockHash()) {
+            throw BlockDataReadError(
+                strprintf("quorum work block %s cannot be read", modifier_work->GetBlockHash().ToString()));
         }
-        return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
+        return llmq::utils::GetWorkBlockModifier(params, block, *modifier_work);
     }
     if (params.useRotation) return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
     if (work.cycle_height > base_index->nHeight) {

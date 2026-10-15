@@ -240,6 +240,12 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataSt
             LogPrint(BCLog::LLMQ, "NetQuorum::%s -- %s: Quorum not found, from peer=%d\n", __func__, msg_type, pfrom.GetId());
             return;
         }
+        if (!pQuorum->HasMembers()) {
+            // Known by its key only: member data has nothing to attach to.
+            LogPrint(BCLog::LLMQ, "NetQuorum::%s -- %s: Quorum members unavailable, from peer=%d\n", __func__, msg_type,
+                     pfrom.GetId());
+            return;
+        }
 
         // Check if request has QUORUM_VERIFICATION_VECTOR data
         if (request.GetDataMask() & CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR) {
@@ -446,9 +452,18 @@ void NetQuorum::CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
 
     const bool watchOtherISQuorums = is_masternode &&
         llmqParams.type == Params().GetConsensus().llmqTypeDIP0024InstantSend &&
-        std::ranges::any_of(lastQuorums, [&proTxHash](const auto& old_quorum) { return old_quorum->IsMember(proTxHash); });
+        std::ranges::any_of(lastQuorums, [&proTxHash](const auto& old_quorum) {
+            return old_quorum->HasMembers() && old_quorum->IsMember(proTxHash);
+        });
 
     for (const auto& quorum : lastQuorums) {
+        if (!quorum->HasMembers()) {
+            LogPrint(BCLog::LLMQ, "NetQuorum::%s -- llmqType[%d] h[%d] no connections for quorum [%d:%s]: members unavailable\n",
+                     __func__, std23::to_underlying(llmqParams.type), pindexNew->nHeight,
+                     quorum->m_quorum_base_block_index->nHeight,
+                     quorum->m_quorum_base_block_index->GetBlockHash().ToString());
+            continue;
+        }
         if (EnsureQuorumConnections(llmqParams, m_connman, m_sporkman,
                                            {m_dmnman, m_qsnapman, m_chainman, quorum->m_quorum_base_block_index},
                                            m_dmnman.GetListAtChainTip(), proTxHash,
@@ -464,9 +479,9 @@ void NetQuorum::CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
             Uint256HashSet connections;
             const auto& cindexes = utils::CalcDeterministicWatchConnections(llmqParams.type,
                                                                              quorum->m_quorum_base_block_index,
-                                                                             quorum->members.size(), 1);
+                                                                             quorum->Members().size(), 1);
             for (auto idx : cindexes) {
-                connections.emplace(quorum->members[idx]->proTxHash);
+                connections.emplace(quorum->Members()[idx]->proTxHash);
             }
             if (!connections.empty()) {
                 if (!m_connman.HasMasternodeQuorumNodes(llmqParams.type, quorum->m_quorum_base_block_index->GetBlockHash())) {
@@ -507,6 +522,13 @@ void NetQuorum::TriggerQuorumDataRecoveryThreads(gsl::not_null<const CBlockIndex
 
     for (const auto& params : Params().GetConsensus().llmqs) {
         auto vecQuorums = m_qman.ScanQuorums(params.type, block_index, params.keepOldConnections);
+        std::erase_if(vecQuorums, [&](const auto& pQuorum) {
+            if (pQuorum->HasMembers()) return false;
+            LogPrint(BCLog::LLMQ,
+                     "NetQuorum::TriggerQuorumDataRecoveryThreads -- No recovery for (%d, %s): members unavailable\n",
+                     std23::to_underlying(pQuorum->qc->llmqType), pQuorum->qc->quorumHash.ToString());
+            return true;
+        });
         const bool fWeAreQuorumTypeMember = is_masternode && std::ranges::any_of(vecQuorums, [&proTxHash](const auto& pQuorum) {
             return pQuorum->IsValidMember(proTxHash);
         });
@@ -562,7 +584,7 @@ void NetQuorum::DataRecoveryThread(CQuorumCPtr pQuorum, uint16_t data_mask, cons
     }
 
     vecMemberHashes.reserve(pQuorum->qc->validMembers.size());
-    for (auto& member : pQuorum->members) {
+    for (auto& member : pQuorum->Members()) {
         if (pQuorum->IsValidMember(member->proTxHash) && member->proTxHash != protx_hash) {
             vecMemberHashes.push_back(member->proTxHash);
         }
@@ -765,6 +787,8 @@ void NetQuorum::StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*
                 pindex_loop = pindex_loop->pprev;
             }
             for (const auto& pQuorum : m_qman.ScanQuorums(params.type, pIndex, params.keepOldKeys - quorum_keys.size())) {
+                // A quorum known by its key only never reads stored contributions.
+                if (!pQuorum->HasMembers()) continue;
                 const uint256 quorum_key = MakeQuorumKey(*pQuorum);
                 quorum_keys.insert(quorum_key);
                 cache.insert(params.type, pQuorum->m_quorum_base_block_index->GetBlockHash(), quorum_key);
