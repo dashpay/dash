@@ -22,6 +22,7 @@
 #include <llmq/context.h>
 #include <llmq/params.h>
 #include <logging.h>
+#include <node/interface_ui.h>
 #include <script/standard.h>
 #include <spork.h>
 #include <streams.h>
@@ -48,6 +49,7 @@
 #include <variant>
 #include <vector>
 
+#include <boost/signals2/connection.hpp>
 #include <boost/test/unit_test.hpp>
 
 using interfaces::FoundBlock;
@@ -149,8 +151,9 @@ BOOST_AUTO_TEST_CASE(providerNetInfoValidationDoesNotWaitForChain)
 }
 
 // When this node cannot read its Evo state during dual operation, GUI-facing
-// operations report it through their own failure channel and the misc
-// warning; the error never reaches the caller.
+// operations report it through their own failure channel and a warning that
+// leaves other warnings in place and lasts until they succeed again; the
+// error never reaches the caller.
 BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
 {
     auto node{interfaces::MakeNode(m_node)};
@@ -171,7 +174,9 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
         consensus.DIP0003Height = dip3_height;
         BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Block data was pruned; restart with -reindex") !=
                     std::string::npos);
-        SetMiscWarning(Untranslated(""));
+        // Read again, the operation succeeds and lifts its warning.
+        node->evo().getListAtChainTip();
+        BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Block data was pruned") == std::string::npos);
     }
 
     BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
@@ -180,6 +185,12 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
 
     // With DIP3 counted from genesis the tip's masternode list must be read
     // from EvoDB, and that read fails as unavailable.
+    SetMiscWarning(Untranslated("unrelated warning"));
+    const auto warned = [](const std::string& text) {
+        return GetWarnings(/*verbose=*/true).original.find(text) != std::string::npos;
+    };
+    int alerts{0};
+    const boost::signals2::scoped_connection alert_connection{uiInterface.NotifyAlertChanged_connect([&] { ++alerts; })};
     const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
     Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(list_unavailable);
     interfaces::GOV::GovernanceInfo info;
@@ -187,15 +198,14 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
     BOOST_CHECK(!info.fundingthreshold.has_value());
     BOOST_CHECK_EQUAL(info.superblockcycle, Params().GetConsensus().nSuperblockCycle);
     BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
-    BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") != std::string::npos);
-    // Polling the same operation again does not raise the warning again.
-    SetMiscWarning(Untranslated(""));
-    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
-    BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") == std::string::npos);
+    BOOST_CHECK(warned("Snapshot state unavailable"));
+    // Polling the same failing operation keeps its warning, and notifies only once.
+    BOOST_CHECK_EQUAL(alerts, 1);
 
     std::optional<std::vector<COutPoint>> collaterals{std::vector<COutPoint>{}};
     BOOST_CHECK_NO_THROW(collaterals = m_node.chain->listMNCollaterials({}));
     BOOST_CHECK(!collaterals.has_value());
+    BOOST_CHECK(warned("unrelated warning"));
 
     // An endpoint the masternode list cannot be checked against is not reported free.
     const interfaces::ProviderNetInfo net_info{.core_p2p = {strprintf("1.2.3.4:%d", Params().GetDefaultPort())}, .platform_p2p = {}, .platform_https = {}};
@@ -224,6 +234,13 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
     in_use = find_in_use();
     BOOST_REQUIRE(std::holds_alternative<std::optional<std::string>>(in_use));
     BOOST_CHECK(!std::get<std::optional<std::string>>(in_use).has_value());
+    BOOST_CHECK(node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(warned("Snapshot state unavailable"));
+    BOOST_CHECK(m_node.chain->listMNCollaterials({}).has_value());
+    BOOST_CHECK(warned("Snapshot state unavailable"));
+    BOOST_CHECK(node->gov().getCurrentVotes(proposal.GetHash()).has_value());
+    BOOST_CHECK(!warned("Snapshot state unavailable"));
+    BOOST_CHECK(warned("unrelated warning"));
     SetMiscWarning(Untranslated(""));
 }
 
