@@ -23,7 +23,13 @@ public:
         m_connman(connman)
     {
     }
+    //! How many parents of orphan votes RequestOrphanParents() asks for at a time
+    static constexpr size_t MAX_ORPHAN_PARENT_REQUESTS{10};
+
     void Schedule(CScheduler& scheduler) override;
+    /** Ask one random peer for a few of the parents that orphan votes wait for, in case no peer that
+     *  relayed those votes is left to fetch them from */
+    void RequestOrphanParents();
 
     void ProcessMessage(CNode& peer, const std::string& msg_type, DataStream& vRecv) override;
 

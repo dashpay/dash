@@ -17,6 +17,7 @@
 #include <scheduler.h>
 #include <streams.h>
 
+#include <algorithm>
 #include <vector>
 
 class CConnman;
@@ -44,24 +45,9 @@ void NetGovernance::Schedule(CScheduler& scheduler)
         [this]() -> void {
             if (!m_node_sync.IsSynced()) return;
 
-            // Request governance objects for orphan votes
-            auto vecOrphanHashes = m_gov_manager.GetOrphanVoteObjectHashes();
-            if (!vecOrphanHashes.empty()) {
-                LogPrint(BCLog::GOBJECT, "NetGovernance::Schedule -- requesting %d orphan objects\n",
-                         vecOrphanHashes.size());
-                const CConnman::NodesSnapshot snap{m_connman, CConnman::FullyConnectedOnly};
-                for (const uint256& nHash : vecOrphanHashes) {
-                    for (CNode* pnode : snap.Nodes()) {
-                        if (!pnode->CanRelay()) continue;
-                        CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-                        CBloomFilter filter; // Empty filter - we want the object, not votes
-                        m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, nHash, filter));
-                    }
-                }
-            }
-
             // CHECK AND REMOVE - REPROCESS GOVERNANCE OBJECTS
             m_gov_manager.CheckAndRemove();
+            RequestOrphanParents();
         },
         std::chrono::minutes{5});
 
@@ -74,6 +60,22 @@ void NetGovernance::Schedule(CScheduler& scheduler)
         },
         // Tests need tighter timings to avoid timeouts, use more relaxed pacing otherwise
         Params().IsMockableChain() ? std::chrono::seconds{1} : std::chrono::seconds{5});
+}
+
+void NetGovernance::RequestOrphanParents()
+{
+    const auto parents{m_gov_manager.GetMissingOrphanParents(MAX_ORPHAN_PARENT_REQUESTS)};
+    if (parents.empty()) return;
+    const CConnman::NodesSnapshot snap{m_connman, CConnman::FullyConnectedOnly, /*shuffle=*/true};
+    const auto peer{std::ranges::find_if(snap.Nodes(),
+                                         [](const CNode* node) { return node->CanRelay() && !node->IsBlockOnlyConn(); })};
+    if (peer == snap.Nodes().end()) return;
+    LogPrint(BCLog::GOBJECT, "NetGovernance::%s -- asking peer=%d for %d orphan vote parents\n", __func__,
+             (*peer)->GetId(), parents.size());
+    LOCK(::cs_main);
+    for (const uint256& hash : parents) {
+        m_peer_manager->PeerAddObjectAnnouncement(**peer, CInv{MSG_GOVERNANCE_OBJECT, hash});
+    }
 }
 
 void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, DataStream& vRecv)
@@ -114,9 +116,9 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, Dat
         LogPrint(BCLog::GOBJECT, "MNGOVERNANCESYNC -- syncing governance objects to our peer %s\n", peer.GetLogString());
         const bool full_sync{nProp == uint256()};
         const bool object_fetch{!full_sync && IsEmptyBloomFilter(filter)};
-        // Nonzero govsync with an empty filter is used to retry missing-object
-        // fetches for orphan votes. Only full sync and actual known-object vote
-        // sync are fulfilled-request limited.
+        // Nonzero govsync with an empty filter is how older nodes fetch the
+        // parent object of an orphan vote. Only full sync and actual
+        // known-object vote sync are fulfilled-request limited.
         const bool track_request{full_sync || (!object_fetch && m_gov_manager.HaveSyncableObjectForHash(nProp))};
         const std::string fulfilled_request{full_sync ?
                                                 NetMsgType::MNGOVERNANCESYNC :
@@ -259,10 +261,10 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, Dat
         } else {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- Rejected vote, error = %s\n", exception.what());
             if (hashToRequest != uint256()) {
-                // Orphan vote - request the missing governance object
-                CNetMsgMaker msgMaker(peer.GetCommonVersion());
-                CBloomFilter filter; // Empty filter - we just want the object, not votes
-                m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, hashToRequest, filter));
+                // A node only relays a vote once it has the vote's parent object, so fetch the
+                // parent from this peer as if it had announced it.
+                WITH_LOCK(::cs_main,
+                          m_peer_manager->PeerAddObjectAnnouncement(peer, CInv{MSG_GOVERNANCE_OBJECT, hashToRequest}));
             }
             if ((exception.GetNodePenalty() != 0) && m_node_sync.IsSynced()) {
                 m_peer_manager->PeerMisbehaving(peer.GetId(), exception.GetNodePenalty());
@@ -294,7 +296,9 @@ bool NetGovernance::DeferAnnouncement(const CInv& inv)
 bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker)
 {
     if (inv.type == MSG_GOVERNANCE_OBJECT) {
-        if (!m_gov_manager.HaveObjectForHash(inv.hash)) return false;
+        // An object marked for deletion or expired is only kept for a grace period, so serving it would
+        // pass it on without the votes that ended it
+        if (!m_gov_manager.HaveObjectForFetch(inv.hash)) return false;
         DataStream ss{};
         ss.reserve(1000);
         if (!m_gov_manager.SerializeObjectForHash(inv.hash, ss)) return false;
