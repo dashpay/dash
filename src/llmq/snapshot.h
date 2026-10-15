@@ -257,6 +257,17 @@ public:
     //! Whether the calling operation reads the snapshot view and `pindex` is
     //! at or below its base, where only carried quarters exist.
     bool IsCarriedOnly(const CBlockIndex* pindex) const;
+
+    /** Seed a carried rotation quarter into `view`, inside the caller's open
+     *  EvoDB transaction for that view. */
+    bool SeedSnapshotForBlock(const EvoViewToken& view, Consensus::LLMQType llmqType, const CBlockIndex* pindex,
+                              const CQuorumSnapshot& snapshot);
+    /** Seed the exact score modifier of a work block into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedQuorumModifier(const EvoViewToken& view, Consensus::LLMQType llmq_type, const uint256& work_block_hash,
+                            const uint256& modifier);
+    //! The modifier seeded for a work block in the calling operation's view.
+    std::optional<uint256> GetSeededQuorumModifier(Consensus::LLMQType llmq_type, const uint256& work_block_hash) const;
 };
 } // namespace llmq
 

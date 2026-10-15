@@ -425,6 +425,8 @@ public:
         return transactionIt != transaction.writes.end() || parentIt->Valid();
     }
 
+    bool HasError() const { return parentIt->HasError(); }
+
     void Next() {
         if (transactionIt == transaction.writes.end() && !parentIt->Valid()) {
             return;
