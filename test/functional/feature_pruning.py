@@ -152,7 +152,7 @@ class PruneTest(BitcoinTestFramework):
         )
 
     def test_rescan_blockchain(self):
-        self.restart_node(0, ["-prune=550"])
+        self.restart_node(0, ["-prune=550"] + DEPLOYMENT_ARGS)
         assert_raises_rpc_error(-1, "Can't rescan beyond pruned data. Use RPC call getblockchaininfo to determine your pruned height.", self.nodes[0].rescanblockchain)
 
     def test_height_min(self):
