@@ -1099,6 +1099,71 @@ void CTxMemPool::removeProTxKeyChangedConflicts(const CTransaction &tx, const ui
     }
 }
 
+std::optional<uint256> CTxMemPool::GetKeyChangeTarget(const CTxMemPoolEntry& entry) const
+{
+    AssertLockHeld(cs);
+    const CTransaction& tx{entry.GetTx()};
+    uint256 proTxHash;
+    std::optional<CBLSLazyPublicKey> new_key;
+    if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
+        if (!opt_proTx) return std::nullopt;
+        proTxHash = opt_proTx->proTxHash;
+        new_key = opt_proTx->pubKeyOperator;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
+        if (!opt_proTx) return std::nullopt;
+        proTxHash = opt_proTx->proTxHash;
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
+        if (!opt_proTx) return std::nullopt;
+        proTxHash = opt_proTx->proTxHash;
+        new_key = opt_proTx->pubKeyOperator;
+    } else {
+        return std::nullopt;
+    }
+    const auto dmn = m_dmnman.GetListAtChainTip().GetMN(proTxHash);
+    if (!dmn) {
+        return std::nullopt;
+    }
+    const bool changes_key{new_key ? dmn->pdmnState->pubKeyOperator != *new_key
+                                   : dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()};
+    return changes_key ? std::make_optional(proTxHash) : std::nullopt;
+}
+
+bool CTxMemPool::IsUnorderableServiceUpdate(const CTransaction& tx, const setEntries& ancestors) const
+{
+    AssertLockHeld(cs);
+    return tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE &&
+           std::any_of(ancestors.begin(), ancestors.end(), [&](const txiter& it) EXCLUSIVE_LOCKS_REQUIRED(cs) {
+               AssertLockHeld(cs);
+               const CTransaction& ancestor{it->GetTx()};
+               return GetKeyChangeTarget(*it).has_value() ||
+                      (ancestor.IsSpecialTxVersion() &&
+                       (ancestor.nType == TRANSACTION_ASSET_LOCK || ancestor.nType == TRANSACTION_ASSET_UNLOCK ||
+                        ancestor.nType == TRANSACTION_MNHF_SIGNAL));
+           });
+}
+
+std::vector<CTxMemPool::txiter> CTxMemPool::GetServiceUpdatesBeforeKeyChange(txiter key_change) const
+{
+    AssertLockHeld(cs);
+    const auto proTxHash = GetKeyChangeTarget(*key_change);
+    if (!proTxHash) {
+        return {};
+    }
+    setEntries descendants;
+    CalculateDescendants(key_change, descendants);
+    std::vector<txiter> updates;
+    for (auto its = mapProTxRefs.equal_range(*proTxHash); its.first != its.second; ++its.first) {
+        const auto it = mapTx.find(its.first->second);
+        if (it != mapTx.end() && it->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_SERVICE && !descendants.count(it)) {
+            updates.push_back(it);
+        }
+    }
+    return updates;
+}
+
 void CTxMemPool::removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType)
 {
     const CTxDestination voting_dest{PKHash(keyIDVoting)};

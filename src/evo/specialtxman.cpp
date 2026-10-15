@@ -794,6 +794,8 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
     return true;
 }
 
+void CSpecialTxProcessor::UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex) { m_dmnman.UpdatedBlockTip(pindex); }
+
 bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const CChain& chain, const CBlock& block,
                                                    const CBlockIndex* pindex, SpecialTxRules rules,
                                                    const CCoinsViewCache& view, CAmount blockSubsidy, bool fJustCheck,

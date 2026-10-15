@@ -348,6 +348,38 @@ class MasternodeSharesTest(DashTestFramework):
             assert_equal(confirmed_address, voting)
             assert pending_txid not in node.getrawmempool()
 
+    def test_service_update_before_key_change(self, node, protx_hash, port):
+        self.log.info("A pending service update is mined before an operator key change of its masternode")
+
+        def mine():
+            self.bump_mocktime(10 * 60 + 1)
+            return self.generate(node, 1, sync_fun=self.no_op)[0]
+
+        def rotate(operator, fee):
+            prepared = node.protx("shared_update_registrar_prepare", protx_hash, operator, "", fee)
+            sigs = node.protx("shared_sign", prepared["tx"])["signatures"]
+            return node.protx("shared_combine", prepared["tx"], sigs, True)
+
+        fees = [node.getnewaddress() for _ in range(3)]
+        node.sendmany("", {address: 1 for address in fees})
+        mine()
+        old_key, new_key = node.bls("generate"), node.bls("generate")
+        # Start from an operator key this test controls
+        rotate(old_key["public"], fees.pop())
+        mine()
+
+        serv_txid = node.protx("update_service", protx_hash, [f"127.0.0.1:{p2p_port(port)}"], old_key["secret"], "",
+                               fees.pop())
+        rotation_txid = rotate(new_key["public"], fees.pop())
+        # By fee alone the rotation would go first, and the service update after it would restore the
+        # previous operator's service and revive the masternode the rotation bans
+        node.prioritisetransaction(rotation_txid, COIN)
+        block_txs = node.getblock(mine())["tx"]
+        assert_greater_than(block_txs.index(rotation_txid), block_txs.index(serv_txid))
+        state = node.protx("info", protx_hash)["state"]
+        assert_equal(state["pubKeyOperator"], new_key["public"])
+        assert_greater_than(state["PoSeBanHeight"], 0)
+
     def test_separate_participant_wallets(self):
         self.log.info("Eight separate wallets fund and authorize a shared masternode")
         node = self.nodes[0]
@@ -1214,6 +1246,7 @@ class MasternodeSharesTest(DashTestFramework):
 
         self.test_pending_registrar_update(node, protx_hash4)
         self.test_voting_payee_conflict_eviction(node, protx_hash4)
+        self.test_service_update_before_key_change(node, protx_hash4, port=5)
 
         self.log.info("Shared state survives a node restart")
         state_before_restart = node.protx("info", protx_hash4)["state"]

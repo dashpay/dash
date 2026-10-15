@@ -31,6 +31,7 @@
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
 #include <evo/mnhftx.h>
+#include <evo/providertx.h>
 #include <evo/deterministicmns.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtxman.h>
@@ -510,6 +511,16 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     // This map with signals is used only to find duplicates
     auto signals = m_chain_helper.ehf_manager->GetSignalsStage(pindexPrev);
     const SpecialTxRules special_tx_rules{GetSpecialTxRules(pindexPrev, m_chainstate.m_chainman)};
+    // Masternodes whose operator key a transaction already in the block changes or revokes. A
+    // ProUpServTx of theirs must not follow: one left out of the key change's package, whether it
+    // could not be put first, did not fit or did not pass TestPackageTransactions() then (which can
+    // change while the template is built), may come up later.
+    std::set<uint256> keyChangedMNs;
+    const auto serviceUpdateTarget = [](const CTransaction& tx) -> std::optional<uint256> {
+        if (tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE) return std::nullopt;
+        const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
+        return opt_proTx ? std::make_optional(opt_proTx->proTxHash) : std::nullopt;
+    };
 
     // mapModifiedTx will store sorted packages after they are modified
     // because some of their txs are already in the block
@@ -616,6 +627,50 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);
 
+        // A pending ProUpServTx signed with the operator key that a key change in this package
+        // replaces must not follow the key change in the block: it would restore the previous
+        // operator's service fields. Mine such updates first. One that cannot be in this block now,
+        // whose package block assembly could not reliably put first (the mempool rejects those on
+        // entry, but a reorg can return such ancestors later), or whose package has an update of a
+        // masternode whose key already changed in the block, is left out: keyChangedMNs keeps it out
+        // of the rest of the block. If those pulled in do not fit, they are all left out instead of
+        // holding the key change back, which pending updates could otherwise do forever.
+        CTxMemPool::setEntries serviceUpdates;
+        for (const auto& entry : ancestors) {
+            for (const auto& update : mempool.GetServiceUpdatesBeforeKeyChange(entry)) {
+                if (inBlock.count(update) || serviceUpdates.count(update)) {
+                    continue;
+                }
+                auto updatePackage{mempool.AssumeCalculateMemPoolAncestors(__func__, *update,
+                                                                           CTxMemPool::Limits::NoLimits(),
+                                                                           /*fSearchForParents=*/false)};
+                onlyUnconfirmed(updatePackage);
+                updatePackage.insert(update);
+                const bool followsKeyChange{std::any_of(updatePackage.begin(), updatePackage.end(),
+                                                        [&](const CTxMemPool::txiter& it) {
+                                                            const auto target{serviceUpdateTarget(it->GetTx())};
+                                                            return target && keyChangedMNs.count(*target);
+                                                        })};
+                if (!followsKeyChange && TestPackageTransactions(updatePackage) &&
+                    !mempool.IsUnorderableServiceUpdate(update->GetTx(), updatePackage)) {
+                    serviceUpdates.insert(updatePackage.begin(), updatePackage.end());
+                }
+            }
+        }
+        if (!serviceUpdates.empty()) {
+            uint64_t extraSize{0};
+            unsigned int extraSigOps{0};
+            for (const auto& entry : serviceUpdates) {
+                if (!ancestors.count(entry)) {
+                    extraSize += entry->GetTxSize();
+                    extraSigOps += entry->GetSigOpCount();
+                }
+            }
+            if (!TestPackage(packageSize + extraSize, packageSigOps + extraSigOps)) {
+                serviceUpdates.clear();
+            }
+        }
+
         // Test if all tx's are Final and safe
         if (!TestPackageTransactions(ancestors)) {
             if (fUsingModified) {
@@ -625,15 +680,38 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             continue;
         }
 
-        // Package can be added. Sort the entries in a valid order.
+        // Package can be added. Sort the entries in a valid order, the service updates first.
         std::vector<CTxMemPool::txiter> sortedEntries;
-        SortForBlock(ancestors, sortedEntries);
+        SortForBlock(serviceUpdates, sortedEntries);
+        CTxMemPool::setEntries rest;
+        for (const auto& entry : ancestors) {
+            if (!serviceUpdates.count(entry)) {
+                rest.insert(entry);
+            }
+        }
+        std::vector<CTxMemPool::txiter> sortedRest;
+        SortForBlock(rest, sortedRest);
+        sortedEntries.insert(sortedEntries.end(), sortedRest.begin(), sortedRest.end());
+        ancestors.insert(serviceUpdates.begin(), serviceUpdates.end());
 
         auto packageSignals = signals;
+        std::vector<uint256> packageKeyChangedMNs;
         std::vector<CTransactionRef> creditPoolTransactions;
         bool validPackage{true};
         for (const auto& entry : sortedEntries) {
             const auto& tx = entry->GetTx();
+            if (const auto target = serviceUpdateTarget(tx);
+                target && (keyChangedMNs.count(*target) ||
+                           std::find(packageKeyChangedMNs.begin(), packageKeyChangedMNs.end(), *target) !=
+                               packageKeyChangedMNs.end())) {
+                LogPrintf("%s: package tx %s skipped, it would follow a key change of masternode %s\n", __func__,
+                          tx.GetHash().ToString(), target->ToString());
+                validPackage = false;
+                break;
+            }
+            if (const auto target = mempool.GetKeyChangeTarget(*entry)) {
+                packageKeyChangedMNs.push_back(*target);
+            }
             if (std::optional<uint8_t> signal = extractEHFSignal(tx); signal != std::nullopt) {
                 if (!packageSignals.emplace(*signal, 0).second) {
                     LogPrintf("%s: package tx %s skipped due to duplicate EHF signal %d\n", __func__,
@@ -680,6 +758,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         // This transaction will make it in; reset the failed counter.
         nConsecutiveFailed = 0;
         signals = std::move(packageSignals);
+        keyChangedMNs.insert(packageKeyChangedMNs.begin(), packageKeyChangedMNs.end());
 
         for (size_t i = 0; i < sortedEntries.size(); ++i) {
             AddToBlock(sortedEntries[i]);
