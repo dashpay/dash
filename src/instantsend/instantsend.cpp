@@ -343,7 +343,7 @@ void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const
               islock.txid.ToString(), islockHash.ToString());
     const int tipHeight = GetTipHeight();
 
-    auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock.txid, tipHeight);
+    auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock, tipHeight);
     for (const auto& h : removedIslocks) {
         LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCK %s\n", __func__,
                   islock.txid.ToString(), islockHash.ToString(), h.ToString());
