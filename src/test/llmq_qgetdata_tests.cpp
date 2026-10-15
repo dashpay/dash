@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <arith_uint256.h>
+#include <evo/evodb.h>
 #include <llmq/context.h>
 #include <llmq/net_quorum.h>
 #include <llmq/options_args.h>
@@ -140,6 +141,7 @@ BOOST_AUTO_TEST_CASE(qgetdata_unknown_block_not_scored_not_tracked)
 // re-running it for free.
 BOOST_AUTO_TEST_CASE(qgetdata_active_non_quorum_unscored_once_then_rate_limited)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto peer{MakePeer(/*id=*/3)};

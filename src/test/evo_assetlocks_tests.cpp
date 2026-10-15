@@ -832,6 +832,7 @@ BOOST_FIXTURE_TEST_CASE(package_asset_unlock_preserves_indirect_dependencies, Te
 
 BOOST_FIXTURE_TEST_CASE(credit_pool_snapshot_persisted_after_transactionless_construction, TestChain100Setup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     // Block assembly asks for the tip's credit pool outside any block-scoped EvoDB transaction,
     // as mempool acceptance and RPCs do. At a snapshot height that constructs and caches the
     // pool without being able to write its disk snapshot. The next block connection hits the

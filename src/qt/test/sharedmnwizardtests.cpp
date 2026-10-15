@@ -22,6 +22,7 @@
 #include <consensus/amount.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <evo/dmn_types.h>
 #include <evo/netinfo.h>
 #include <evo/providertx.h>
@@ -1877,7 +1878,7 @@ void SharedMnWizardTests::serviceAddressInUseIsRefused()
     test.mineBlocks(2);
     m_node.setContext(&test.m_node);
     const CBlockIndex* const tip{WITH_LOCK(::cs_main, return test.m_node.chainman->ActiveChain().Tip())};
-    test.m_node.dmnman->UpdatedBlockTip(tip);
+    NotifyMNListTip(*test.m_node.dmnman, tip);
 
     const QString port{QString::number(Params().GetDefaultPort())};
     const QString in_use{QStringLiteral("1.2.3.4:") + port};
@@ -1893,7 +1894,10 @@ void SharedMnWizardTests::serviceAddressInUseIsRefused()
     registered->pdmnState = state;
     CDeterministicMNList mn_list{tip->GetBlockHash(), tip->nHeight, /*_totalRegisteredCount=*/0};
     mn_list.AddMN(registered);
-    test.m_node.dmnman->SetListForBlockForTesting(mn_list);
+    {
+        const ActiveEvoViewScope turn{test.m_node.evodb.get()};
+        test.m_node.dmnman->SetListForBlockForTesting(mn_list);
+    }
 
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
     dialog.m_role = SharedMnCreateDialog::Role::Coordinator;

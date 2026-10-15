@@ -242,12 +242,13 @@ static bool CheckTransactionSignature(const CMutableTransaction& tx, const Simpl
 
 void FuncDIP3Activation(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
     auto tip_height   = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
     auto tip_hash     = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()->GetBlockHash()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     CKey ownerKey;
@@ -285,11 +286,12 @@ void FuncDIP3Activation(TestChainSetup& setup)
 
 void FuncV19Activation(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
     auto tip_height   = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
 
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
 
@@ -419,10 +421,11 @@ void FuncV19Activation(TestChainSetup& setup)
 
 void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
@@ -516,10 +519,11 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
 
 void FuncProUpRegTxV3OnLegacyValid(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
@@ -580,10 +584,11 @@ void FuncProUpRegTxV3OnLegacyValid(TestChainSetup& setup)
 
 void FuncProUpRegTxV2CannotBypassV3PayoutCollateralReuse(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
     for (int i = 0; i < 2000 && !DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24); ++i) {
@@ -669,11 +674,12 @@ void FuncProUpRegTxV2CannotBypassV3PayoutCollateralReuse(TestChainSetup& setup)
 // MN, the max version eligible while v24 is still pending, kept across the boundary.
 void FuncMNPaymentMultiplicityV24Boundary(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
     auto tip_hash     = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()->GetBlockHash()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
     const auto& consensus = chainman.GetConsensus();
 
@@ -903,10 +909,11 @@ static CTransaction BuildExtNetInfoProRegTx(std::shared_ptr<NetInfoInterface> ne
 
 void FuncProRegTxRejectsInvalidDeserializedExtNetInfo(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
     for (int i = 0; i < 2000 && !DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24); ++i) {
@@ -951,11 +958,12 @@ void FuncProRegTxRejectsInvalidDeserializedExtNetInfo(TestChainSetup& setup)
 
 void FuncDIP3Protx(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
     auto tip_height   = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     // Snapshot kept for signature checks below, since FundTransaction() consumes utxos.
@@ -1152,10 +1160,11 @@ void FuncDIP3Protx(TestChainSetup& setup)
 // BuildNewListFromBlock rejected it, so a single relayed tx stalled CreateNewBlock/getblocktemplate.
 void FuncProUpServInvalidNType(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
@@ -1298,6 +1307,7 @@ void FuncProUpServInvalidNType(TestChainSetup& setup)
 
 void FuncTestMempoolReorg(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto tip_index  = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
     auto tip_height = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
@@ -1327,7 +1337,7 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
 
     auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_collateral}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    setup.m_node.dmnman->UpdatedBlockTip(tip_index());
+    NotifyMNListTip(*setup.m_node.dmnman, tip_index());
     BOOST_CHECK_EQUAL(tip_height(), nHeight + 1);
     BOOST_CHECK_EQUAL(block->GetHash(), tip_hash());
 
@@ -1367,6 +1377,7 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
 // Reachable from CTxMemPool::removeForBlock() (any block carrying such a ProTx).
 void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
@@ -1484,6 +1495,7 @@ static CTransaction CreateExtAddrProRegTx(MnType type, const MasternodePayoutSha
 
 void FuncTestMempoolDualProregtx(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
@@ -1611,11 +1623,12 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
 // CreateNewBlock/getblocktemplate. The mempool must treat them as conflicts.
 void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
     auto tip_height = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
 
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
     int nHeight = tip_height();
@@ -1786,6 +1799,7 @@ static std::map<uint256, size_t> TemplatePositions(TestChainSetup& setup,
 // assembly mines it first whatever the fees say.
 void FuncTestMinerServiceUpdateBeforeKeyChange(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
@@ -1805,7 +1819,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChange(TestChainSetup& setup)
     auto block = std::make_shared<CBlock>(
         setup.CreateBlock({tx_reg, tx_other_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
     BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(proTxHash));
 
     CBLSSecretKey newOperatorKey;
@@ -1853,6 +1867,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChange(TestChainSetup& setup)
 // spends such a transaction directly or through another one, and accepts an independent ProUpServTx.
 void FuncTestMempoolRejectsUnorderableServiceUpdate(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto& mempool = *Assert(setup.m_node.mempool.get());
@@ -1880,7 +1895,7 @@ void FuncTestMempoolRejectsUnorderableServiceUpdate(TestChainSetup& setup)
     auto block = std::make_shared<CBlock>(
         setup.CreateBlock({tx_reg, tx_other_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKey;
     CBLSSecretKey otherNewOperatorKey;
@@ -1940,6 +1955,7 @@ void FuncTestMempoolRejectsUnorderableServiceUpdate(TestChainSetup& setup)
 // masternode. A service update still goes in before it.
 void FuncTestMinerServiceUpdateBeforeReorgedKeyChange(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto& mempool = *Assert(setup.m_node.mempool.get());
@@ -1955,7 +1971,7 @@ void FuncTestMinerServiceUpdateBeforeReorgedKeyChange(TestChainSetup& setup)
     const uint256 proTxHash = tx_reg.GetHash();
     auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
@@ -1967,12 +1983,12 @@ void FuncTestMinerServiceUpdateBeforeReorgedKeyChange(TestChainSetup& setup)
                                           high_fee);
     block = std::make_shared<CBlock>(setup.CreateBlock({tx_key_change}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     BlockValidationState state;
     BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, tip_index()));
     BOOST_REQUIRE(WITH_LOCK(mempool.cs, return mempool.exists(tx_key_change.GetHash())));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey otherOperatorKey;
     otherOperatorKey.MakeNewKey();
@@ -1995,6 +2011,7 @@ void FuncTestMinerServiceUpdateBeforeReorgedKeyChange(TestChainSetup& setup)
 // restored by the reorg still goes in before it.
 void FuncTestMinerServiceUpdateBeforeKeyChangeSurvivingReorg(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto& mempool = *Assert(setup.m_node.mempool.get());
@@ -2010,7 +2027,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChangeSurvivingReorg(TestChainSetup& set
     const uint256 proTxHash = tx_reg.GetHash();
     auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
@@ -2022,7 +2039,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChangeSurvivingReorg(TestChainSetup& set
                                           high_fee);
     block = std::make_shared<CBlock>(setup.CreateBlock({tx_key_change}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     // Keeps the key the mined change set, so it enters the mempool as no key change
     auto tx_same_key = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, newOperatorKey.GetPublicKey(),
@@ -2032,7 +2049,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChangeSurvivingReorg(TestChainSetup& set
 
     BlockValidationState state;
     BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, tip_index()));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
     BOOST_REQUIRE(WITH_LOCK(mempool.cs, return mempool.exists(tx_same_key.GetHash())));
 
     auto tx_serv = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/2, CScript(), setup.coinbaseKey,
@@ -2047,6 +2064,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChangeSurvivingReorg(TestChainSetup& set
 // registrar update that keeps the operator key.
 void FuncTestMinerServiceUpdateNeverAfterKeyChange(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
@@ -2064,7 +2082,7 @@ void FuncTestMinerServiceUpdateNeverAfterKeyChange(TestChainSetup& setup)
     const uint256 proTxHash = tx_reg.GetHash();
     auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
@@ -2096,6 +2114,7 @@ void FuncTestMinerServiceUpdateNeverAfterKeyChange(TestChainSetup& setup)
 // masternode, and does not mine it after that key change either.
 void FuncTestMinerKeyChangeNotHeldBackAfterReorg(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto& mempool = *Assert(setup.m_node.mempool.get());
@@ -2119,7 +2138,7 @@ void FuncTestMinerKeyChangeNotHeldBackAfterReorg(TestChainSetup& setup)
     auto block = std::make_shared<CBlock>(
         setup.CreateBlock({tx_reg, tx_other_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKey;
     CBLSSecretKey otherNewOperatorKey;
@@ -2131,7 +2150,7 @@ void FuncTestMinerKeyChangeNotHeldBackAfterReorg(TestChainSetup& setup)
                                                 scriptPayout, setup.coinbaseKey, version, /*fee=*/0);
     block = std::make_shared<CBlock>(setup.CreateBlock({tx_other_key_change}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     // Spends the confirmed key change, so the mempool admits it
     SimpleUTXOMap other_key_change_coins{{COutPoint(tx_other_key_change.GetHash(), 0),
@@ -2146,7 +2165,7 @@ void FuncTestMinerKeyChangeNotHeldBackAfterReorg(TestChainSetup& setup)
 
     BlockValidationState state;
     BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, tip_index()));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
     {
         LOCK(mempool.cs);
         BOOST_REQUIRE(mempool.exists(tx_other_key_change.GetHash()));
@@ -2165,6 +2184,7 @@ void FuncTestMinerKeyChangeNotHeldBackAfterReorg(TestChainSetup& setup)
 // all three, the key change goes in without the update, and the template stays within its size limit.
 void FuncTestMinerServiceUpdateWithParentBeforeKeyChange(TestChainSetup& setup, bool limit_block_size)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
@@ -2180,7 +2200,7 @@ void FuncTestMinerServiceUpdateWithParentBeforeKeyChange(TestChainSetup& setup, 
     const uint256 proTxHash = tx_reg.GetHash();
     auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
@@ -2228,6 +2248,7 @@ void FuncTestMinerServiceUpdateWithParentBeforeKeyChange(TestChainSetup& setup, 
 // without them instead of holding it back, and does not mine them after it.
 void FuncTestMinerKeyChangeNotHeldBackByServiceUpdates(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
@@ -2242,7 +2263,7 @@ void FuncTestMinerKeyChangeNotHeldBackByServiceUpdates(TestChainSetup& setup)
     const uint256 proTxHash = tx_reg.GetHash();
     auto block = std::make_shared<CBlock>(setup.CreateBlock({tx_reg}, coinbase_pk, chainman.ActiveChainstate()));
     BOOST_REQUIRE(chainman.ProcessNewBlock(block, true, nullptr));
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
@@ -2276,6 +2297,7 @@ void FuncTestMinerKeyChangeNotHeldBackByServiceUpdates(TestChainSetup& setup)
 // either, and must not hold back B's key change.
 void FuncTestMinerKeyChangeNotHeldBackByOtherKeyChange(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
@@ -2298,7 +2320,7 @@ void FuncTestMinerKeyChangeNotHeldBackByOtherKeyChange(TestChainSetup& setup)
     for (int i = 0; i < 5; ++i) {
         setup.CreateAndProcessBlock({}, coinbase_pk);
     }
-    dmnman.UpdatedBlockTip(tip_index());
+    NotifyMNListTip(dmnman, tip_index());
 
     CBLSSecretKey newOperatorKeyA;
     CBLSSecretKey newOperatorKeyB;
@@ -2346,12 +2368,13 @@ void FuncTestMinerKeyChangeNotHeldBackByOtherKeyChange(TestChainSetup& setup)
 
 void FuncVerifyDB(TestChainSetup& setup, int blocks_after_revoke = 0)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
     auto tip_height   = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()); };
     auto tip_hash     = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()->GetBlockHash()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
 
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
     int nHeight = tip_height();
@@ -2572,13 +2595,14 @@ struct TestMNChainSetup : public TestChainSetup {
 
     bool IsV24Active() const
     {
+        const ActiveEvoViewScope turn{chainman.EvoDb()};
         return DeploymentActiveAfter(Tip(), chainman, Consensus::DEPLOYMENT_V24);
     }
 
     void ProcessBlock(const std::vector<CMutableTransaction>& txs = {})
     {
         CreateAndProcessBlock(txs, coinbase_pk);
-        dmnman.UpdatedBlockTip(Tip());
+        NotifyMNListTip(dmnman, Tip());
     }
 
     void MineToV19()
@@ -2634,6 +2658,7 @@ struct TestChainV24PendingSetup : public TestChainV24SignalBeforeV19Setup {
 BOOST_AUTO_TEST_CASE(list_cache_follows_processed_blocks_past_a_stale_tip)
 {
     TestChainDIP3Setup setup;
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman{*Assert(setup.m_node.chainman)};
     auto& dmnman{*Assert(setup.m_node.dmnman)};
     const CScript coinbase_script{GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey())};
@@ -2646,7 +2671,7 @@ BOOST_AUTO_TEST_CASE(list_cache_follows_processed_blocks_past_a_stale_tip)
     for (int i{0}; i < 4 * quorum_window; ++i) {
         setup.CreateAndProcessBlock({}, coinbase_script);
         SyncWithValidationInterfaceQueue();
-        dmnman.UpdatedBlockTip(stale_tip);
+        NotifyMNListTip(dmnman, stale_tip);
     }
     const int processed_height{WITH_LOCK(::cs_main, return chainman.ActiveHeight())};
     // Cleanup runs once the cache holds more than MAX_CACHED_LISTS (64) lists,
@@ -2694,6 +2719,7 @@ static void CheckListRoundTrips(CDeterministicMNManager& dmnman, const std::stri
 
 void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -2789,6 +2815,7 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
 
 void FuncProUpServTxMigratesLegacy(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -2857,6 +2884,7 @@ BOOST_AUTO_TEST_CASE(proupserv_migrates_legacy)
 // leading CService entry keeps the EvoNode reachable. Regular masternodes export nothing.
 void FuncPlatformHTTPSAddrsViaNodeInterface(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
     auto& utxos = setup.utxos;
@@ -3004,6 +3032,7 @@ BOOST_AUTO_TEST_CASE(platform_https_addrs_via_node_interface)
 static uint256 RegisterBasicEvoNode(TestChainV24SignalBeforeV19Setup& setup, const std::string& addr,
                                     uint16_t platform_http_port, const CKey& owner_key, const CBLSSecretKey& operator_key)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     CProRegTx pro_reg;
     pro_reg.nVersion = ProTxVersion::BasicBLS;
     pro_reg.nType = MnType::Evo;
@@ -3091,6 +3120,7 @@ static CMutableTransaction CreateEvoProUpServTx(TestChainV24SignalBeforeV19Setup
 // the Platform entries raises a BasicBLS EvoNode to ExtAddr.
 void FuncEvoNodeRaisedToExtAddrByServiceUpdateOnly(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3161,6 +3191,7 @@ BOOST_AUTO_TEST_CASE(evonode_raised_to_extaddr_by_service_update_only)
 // mempool it would otherwise be selected into every block template and make block assembly fail.
 void FuncEvoNodeRegistrarRaiseNotMined(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3208,6 +3239,7 @@ BOOST_AUTO_TEST_CASE(evonode_registrar_raise_not_mined)
 // collateral. Regular masternodes are not restricted.
 void FuncEvoNodeRegistrationNeedsEvoShares(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3264,6 +3296,7 @@ BOOST_AUTO_TEST_CASE(evonode_registration_needs_evo_shares)
 // rotates the operator key
 void FuncEvoNodePayoutUpdateNeedsEvoShares(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3321,6 +3354,7 @@ BOOST_AUTO_TEST_CASE(evonode_payout_update_needs_evo_shares)
 // and the list round-trips.
 void FuncSameMnSameBlockVersionCrossingKeyRotation(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3424,6 +3458,7 @@ void FuncSameMnSameBlockVersionCrossingKeyRotation(TestChainV24SignalBeforeV19Se
 // and yet still raises the version. That is bug A recreated from inside a single block.
 void FuncSameMnSameBlockMigrationConsistent(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3503,6 +3538,7 @@ void FuncSameMnSameBlockMigrationConsistent(TestChainV24SignalBeforeV19Setup& se
 // and that a template still builds afterwards.
 void FuncPreV24CrossSchemePairCannotBecomeResident(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
     const auto& coinbase_pk = setup.coinbase_pk;
@@ -3598,6 +3634,7 @@ void FuncPreV24CrossSchemePairCannotBecomeResident(TestChainV24SignalBeforeV19Se
 // must be rejected cleanly rather than by AddMN/UpdateMN throwing out of block assembly.
 void FuncSameBlockCrossSchemeKeyPairRejected(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3696,6 +3733,7 @@ void FuncSameBlockCrossSchemeKeyPairRejected(TestChainV24SignalBeforeV19Setup& s
 // a template whose block is invalid.
 void FuncMempoolRejectsCrossSchemeKeyRace(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3786,6 +3824,7 @@ void FuncMempoolRejectsCrossSchemeKeyRace(TestChainV24SignalBeforeV19Setup& setu
 // registrar updates, making an old squat more harmful rather than less.
 void FuncProUpRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3874,6 +3913,7 @@ void FuncProUpRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& 
 // masternode's key can be squatted for the price of a collateral.
 void FuncProRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -3967,6 +4007,7 @@ void FuncProRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& se
 // must exclude only the masternode asked about.
 void FuncHasOperatorKeyUnderAnyScheme(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
@@ -3978,7 +4019,7 @@ void FuncHasOperatorKeyUnderAnyScheme(TestChainSetup& setup)
                                  operator_key);
     const auto proTxHash = tx_reg.GetHash();
     setup.CreateAndProcessBlock({tx_reg}, coinbase_pk);
-    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+    NotifyMNListTip(dmnman, WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
 
     const auto list = dmnman.GetListAtChainTip();
     const auto dmn = list.GetMN(proTxHash);
@@ -4007,10 +4048,11 @@ void FuncHasOperatorKeyUnderAnyScheme(TestChainSetup& setup)
 // fix the gating rather than this test.
 void FuncPreV24BehaviourUnchanged(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     auto tip_index    = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
-    auto sync_dmn_tip = [&] { dmnman.UpdatedBlockTip(tip_index()); };
+    auto sync_dmn_tip = [&] { NotifyMNListTip(dmnman, tip_index()); };
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
@@ -4087,6 +4129,7 @@ void FuncPreV24BehaviourUnchanged(TestChainSetup& setup)
 // be rejected by peers, stalling an honest miner.
 void FuncStaleSpecialTxDoesNotPoisonTemplate(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
     const auto& coinbase_pk = setup.coinbase_pk;
@@ -4166,6 +4209,7 @@ void FuncStaleSpecialTxDoesNotPoisonTemplate(TestChainV24SignalBeforeV19Setup& s
 // owner key, or the same platformNodeID, into the mempool, which relay would not do.
 void FuncTemplateSkipsConflictingProviderPackage(TestChainSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& mempool = *Assert(setup.m_node.mempool.get());
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
@@ -4312,6 +4356,7 @@ void FuncTemplateSkipsConflictingProviderPackage(TestChainSetup& setup)
 // re-encodes the key and UpdateMN re-keys the unique-property map, so no key rotation is forced.
 void FuncProUpRegTxMigratesLegacySameKey(TestChainV24SignalBeforeV19Setup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
@@ -4537,10 +4582,11 @@ BOOST_AUTO_TEST_CASE(proupserv_mainnet_pre_v19_verifies_legacy_only)
 
 void FuncProUpServSignatureFollowsBlockHeight(TestChainV19BeforeActivationSetup& setup)
 {
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
-    auto sync_tip = [&] { dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip())); };
+    auto sync_tip = [&] { NotifyMNListTip(dmnman, WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip())); };
     auto v19_next = [&] {
         return WITH_LOCK(::cs_main, return DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(),
                                                                  Consensus::DEPLOYMENT_V19));
@@ -5288,6 +5334,7 @@ BOOST_AUTO_TEST_CASE(legacy_diff_operator_key_keeps_its_bytes)
 BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
 {
     TestMNChainSetup setup{100, {"-dip3params=109:500"}};
+    const ActiveEvoViewScope turn{setup.m_node.evodb.get()};
     for (int i = 0; i < 20; ++i)
         setup.ProcessBlock();
     auto& chainman = setup.chainman;

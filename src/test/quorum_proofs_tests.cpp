@@ -170,6 +170,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
 
     void CreateHistory()
     {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
         const auto& consensus = Params().GetConsensus();
         const auto params = *Params().GetLLMQ(consensus.llmqTypeChainLocks);
         auto& chainman = *m_node.chainman;
@@ -323,6 +324,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
 BOOST_FIXTURE_TEST_SUITE(quorum_proofs_tests, QuorumProofsRegtestSetup)
 BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProofGenerationSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     CreateHistory();
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
@@ -376,6 +378,7 @@ BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProo
 }
 BOOST_FIXTURE_TEST_CASE(rotating_commitment_scan_resumes_below_cached_cycles, QuorumProofGenerationSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     // A scan that finds only part of its request cached must continue below the
     // last cached quorum's base block. Resuming below its mined block would revisit
     // the commitments of that cycle mined before it.
@@ -429,6 +432,7 @@ BOOST_FIXTURE_TEST_CASE(rotating_commitment_scan_resumes_below_cached_cycles, Qu
 }
 BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGenerationSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     // A handoff must stay provable whatever shape the miner gave the mined
     // commitment, otherwise one block mined by custom software permanently
     // removes that quorum's key from every proof.

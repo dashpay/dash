@@ -14,6 +14,7 @@
 #include <core_io.h>
 #include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -552,12 +553,13 @@ struct CommitmentSchemeSetup : public TestChainSetup {
 
 BOOST_FIXTURE_TEST_CASE(commitment_signatures_follow_the_given_scheme, CommitmentSchemeSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     ChainstateManager& chainman = *Assert(m_node.chainman);
     auto& dmnman = *Assert(m_node.dmnman);
     const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
 
     mineBlocks(168 - WITH_LOCK(::cs_main, return chainman.ActiveHeight()));
-    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+    NotifyMNListTip(dmnman, WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
 
     const CBlockIndex* legacy_base{WITH_LOCK(::cs_main, return chainman.ActiveChain()[120])};
     const CBlockIndex* basic_base{WITH_LOCK(::cs_main, return chainman.ActiveChain()[168])};
@@ -606,6 +608,7 @@ BOOST_FIXTURE_TEST_CASE(commitment_signatures_follow_the_given_scheme, Commitmen
 
 BOOST_FIXTURE_TEST_CASE(mined_commitment_scheme_follows_the_block, CommitmentSchemeSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     ChainstateManager& chainman = *Assert(m_node.chainman);
     auto& dmnman = *Assert(m_node.dmnman);
     auto& qblockman = *Assert(m_node.llmq_ctx->quorum_block_processor);
@@ -615,7 +618,7 @@ BOOST_FIXTURE_TEST_CASE(mined_commitment_scheme_follows_the_block, CommitmentSch
     const auto tip_height = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveHeight()); };
     mineBlocks(129 - tip_height());
     BOOST_REQUIRE_EQUAL(tip_height(), 129);
-    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+    NotifyMNListTip(dmnman, WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
 
     // A size-1 quorum checks the member signature inline and returns before queueing the quorum
     // signature. ProcessBlock only fails the block from the queue, so the member signature is made
@@ -674,7 +677,7 @@ BOOST_FIXTURE_TEST_CASE(mined_commitment_scheme_follows_the_block, CommitmentSch
 
     mineBlocks(153 - tip_height());
     BOOST_REQUIRE_EQUAL(tip_height(), 153);
-    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+    NotifyMNListTip(dmnman, WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
     const CBlockIndex* base_144{WITH_LOCK(::cs_main, return chainman.ActiveChain()[144])};
     BOOST_REQUIRE(!DeploymentActiveAfter(base_144, consensus, Consensus::DEPLOYMENT_V19));
     BOOST_REQUIRE(BLSSchemeAfter(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), consensus) == BLSScheme::Basic);

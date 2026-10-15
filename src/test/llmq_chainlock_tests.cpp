@@ -9,6 +9,7 @@
 
 #include <chainparams.h>
 #include <evo/cbtx.h>
+#include <evo/evodb.h>
 #include <evo/specialtx.h>
 #include <hash.h>
 #include <masternode/meta.h>
@@ -530,6 +531,7 @@ BOOST_FIXTURE_TEST_CASE(can_build_only_on_best_chainlock_chain, RegTestingSetup)
 // and do that work again for every distinct signature blob, at no cost to the sender.
 BOOST_FIXTURE_TEST_CASE(unrequested_clsig_is_dropped_and_scored, TestChain100Setup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     // INV announcements for non-spork objects are only tracked outside IBD; the 100 mined blocks

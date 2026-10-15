@@ -12,6 +12,7 @@
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <evo/dmn_types.h>
+#include <evo/evodb.h>
 #include <evo/netinfo.h>
 #include <evo/providertx.h>
 #include <evo/specialtxman.h>
@@ -37,6 +38,7 @@ template <class T>
 void TestTxHelper(const CMutableTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                   const std::optional<std::string>& expected_error, const ChainstateManager& chainman)
 {
+    const ActiveEvoViewScope turn{chainman.EvoDb()};
     TxValidationState dummy_state;
     auto opt_payload = GetValidatedPayload<T>(CTransaction{tx}, pindexPrev, chainman.GetConsensus(),
                                               DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24),

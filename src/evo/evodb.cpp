@@ -88,8 +88,9 @@ void CEvoDBStore::Iterator::SkipForeign()
     m_it->Seek(after_tag);
 }
 
-CEvoDB::CEvoDB(const util::DbWrapperParams& db_params) :
-    db{util::MakeDbWrapper({db_params.path / "evodb", db_params.memory, db_params.wipe, /*cache_size=*/64 << 20, db_params.options})}
+CEvoDB::CEvoDB(const util::DbWrapperParams& db_params, bool check_binding) :
+    db{util::MakeDbWrapper({db_params.path / "evodb", db_params.memory, db_params.wipe, /*cache_size=*/64 << 20, db_params.options})},
+    m_check_binding{check_binding}
 {
     transaction_contexts.emplace(EvoDbIdentity::NORMAL, std::make_unique<TransactionContext>(*db, DataStream{}));
     ++g_view_cache_epoch;
@@ -243,9 +244,34 @@ EvoViewToken CEvoDB::MakeView(EvoDbIdentity identity) const
 
 EvoViewToken CEvoDB::ResolveView() const
 {
-    if (HoldsTransaction()) return MakeView(*active_transaction);
-    if (const EvoViewToken * scoped{EvoViewScope::Innermost(*this)}) return *scoped;
-    return MakeView(m_default_identity);
+    EvoViewToken view;
+    if (HoldsTransaction()) {
+        view = MakeView(*active_transaction);
+    } else if (const EvoViewToken * scoped{EvoViewScope::Innermost(*this)}) {
+        view = *scoped;
+    } else if (m_has_live_generation) {
+        // With two chainstates, an absent binding says nothing about which one
+        // the access serves; never guess.
+        throw EvoViewBindingError("unbound Evo access during dual-chainstate operation");
+    } else if (m_check_binding) {
+        throw EvoViewBindingError("unbound Evo access (-checkevobinding)");
+    } else {
+        return MakeView(m_default_identity);
+    }
+    if (view.identity == EvoDbIdentity::SNAPSHOT && view != MakeView(EvoDbIdentity::SNAPSHOT)) {
+        throw EvoViewBindingError(strprintf("Evo access bound to retired snapshot generation %u", view.generation));
+    }
+    return view;
+}
+
+bool CEvoDB::IsCurrentView(const EvoViewToken& view) const
+{
+    LOCK(cs);
+    try {
+        return ResolveView() == view;
+    } catch (const EvoViewBindingError&) {
+        return false;
+    }
 }
 
 EvoViewToken CEvoDB::CurrentView() const

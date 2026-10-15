@@ -283,8 +283,8 @@ QString MineTo(interfaces::Node& node, const CTxDestination& dest, int blocks)
     const QString error{RunRpc(node, "generatetoaddress", params, ignored)};
     SyncWithValidationInterfaceQueue();
     if (auto* const dmnman = node.context()->dmnman.get(); dmnman != nullptr) {
-        dmnman->UpdatedBlockTip(WITH_LOCK(node.context()->chainman->GetMutex(),
-                                          return node.context()->chainman->ActiveChain().Tip()));
+        NotifyMNListTip(*dmnman, WITH_LOCK(node.context()->chainman->GetMutex(),
+                                           return node.context()->chainman->ActiveChain().Tip()));
     }
     return error;
 }

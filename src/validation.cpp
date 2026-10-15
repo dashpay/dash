@@ -1934,6 +1934,10 @@ Chainstate::Chainstate(CTxMemPool* mempool,
 
 EvoViewToken Chainstate::EvoView() const { return m_evoDb.ViewFor(EvoDbIdentity()); }
 
+bool Chainstate::IsEvoViewBound() const { return m_evoDb.IsCurrentView(EvoView()); }
+
+bool IsEvoViewBound(const Chainstate& chainstate) { return chainstate.IsEvoViewBound(); }
+
 std::string Chainstate::EvoDbInconsistencyMessage()
 {
     if (m_chainman.GetAll().size() == 1 && m_evoDb.HasDualChainstateMarker()) {
@@ -2838,9 +2842,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     // MUST process special txes before updating UTXO to ensure consistency between mempool and block processing
     MNListUpdates mnlist_updates;
-    if (!m_special_tx.ProcessSpecialTxsInBlock(*this, m_chain, block, pindex, special_tx_rules, view,
-                                                              blockSubsidy, fJustCheck, fScriptChecks, state,
-                                                              mnlist_updates)) {
+    if (!m_special_tx.ProcessSpecialTxsInBlock(*this, m_chain, block, pindex, special_tx_rules, view, blockSubsidy,
+                                               fJustCheck, fScriptChecks, state, mnlist_updates)) {
         LogError("ConnectBlock(DASH): ProcessSpecialTxsInBlock for block %s failed with %s\n",
                      pindex->GetBlockHash().ToString(), state.ToString());
         return false;
@@ -5555,9 +5558,9 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
     const CAmount blockSubsidy = GetBlockSubsidy(pindex, m_chainman.GetConsensus());
     MNListUpdates mnlist_updates;
     if (!m_special_tx.ProcessSpecialTxsInBlock(*this, m_chain, block, pindex,
-                                                              GetSpecialTxRules(pindex->pprev, m_chainman), inputs,
-                                                              blockSubsidy, /*fJustCheck=*/false,
-                                                              /*fCheckCbTxMerkleRoots=*/false, state, mnlist_updates)) {
+                                               GetSpecialTxRules(pindex->pprev, m_chainman), inputs, blockSubsidy,
+                                               /*fJustCheck=*/false,
+                                               /*fCheckCbTxMerkleRoots=*/false, state, mnlist_updates)) {
         LogError("RollforwardBlock(DASH): ProcessSpecialTxsInBlock for block %s failed with %s\n",
             pindex->GetBlockHash().ToString(), state.ToString());
         return false;
@@ -6352,7 +6355,8 @@ Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool,
 std::shared_ptr<VersionBitsCache> EvoViewVersionBitsCache::ForCurrentView() const
 {
     const CEvoDB* evodb{WITH_LOCK(m_mutex, return m_evodb)};
-    const EvoViewToken view{evodb ? evodb->CurrentView() : EvoViewToken{}};
+    if (!evodb) throw EvoViewBindingError("versionbits: no EvoDB is set");
+    const EvoViewToken view{evodb->CurrentView()};
     LOCK(m_mutex);
     return m_parts.For(view);
 }

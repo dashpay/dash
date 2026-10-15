@@ -13,6 +13,7 @@
 #include <common/args.h>
 #include <common/system.h>
 #include <context.h>
+#include <evo/snapshot_types.h>
 #include <logging.h>
 #include <node/context.h>
 #include <validation.h>
@@ -574,6 +575,9 @@ static bool ExecuteCommand(const CRPCCommand& command, const JSONRPCRequest& req
         }
     } catch (const UniValue::type_error& e) {
         throw JSONRPCError(RPC_TYPE_ERROR, e.what());
+    } catch (const evo::LocalStateError& e) {
+        // This node's Evo state is unavailable or misbound, not the request.
+        throw JSONRPCError(RPC_INTERNAL_ERROR, e.what());
     } catch (const std::exception& e) {
         throw JSONRPCError(RPC_MISC_ERROR, e.what());
     }

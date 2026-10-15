@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <evo/evodb.h>
 #include <wallet/wallet.h>
 
 #include <algorithm>
@@ -2032,6 +2033,7 @@ BOOST_FIXTURE_TEST_CASE(MasternodeCollateralWithheldWhileListUnavailable, ListCo
 
 BOOST_FIXTURE_TEST_CASE(AbandonedSpendRestoresActiveMasternodeCollateralLock, ListCoinsTestingSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const CScript wallet_script{GetScriptForDestination(PKHash(coinbaseKey.GetPubKey()))};
     while (WITH_LOCK(m_node.chainman->GetMutex(), return m_node.chainman->ActiveChain().Height()) <
            Params().GetConsensus().DIP0003Height) {
@@ -2048,7 +2050,7 @@ BOOST_FIXTURE_TEST_CASE(AbandonedSpendRestoresActiveMasternodeCollateralLock, Li
     const CBlockIndex* tip{WITH_LOCK(m_node.chainman->GetMutex(), return m_node.chainman->ActiveChain().Tip())};
     {
         LOCK(::cs_main);
-        m_node.dmnman->UpdatedBlockTip(tip);
+        NotifyMNListTip(*m_node.dmnman, tip);
         BOOST_REQUIRE(m_node.dmnman->GetListAtChainTip().HasMN(pro_reg_tx->GetHash()));
     }
 

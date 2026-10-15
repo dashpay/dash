@@ -918,6 +918,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
 {
     AssertLockHeld(::cs_main);
 
+    if (!IsEvoViewBound(chainstate)) {
+        throw EvoViewBindingError(strprintf("%s: not bound to the chainstate's Evo view", __func__));
+    }
+
     try {
         static SteadyClock::duration nTimeLoop{};
         static SteadyClock::duration nTimeQuorum{};
@@ -1113,9 +1117,13 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
     return true;
 }
 
-bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, MNListUpdates& updatesRet)
+bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block,
+                                                const CBlockIndex* pindex, MNListUpdates& updatesRet)
 {
     AssertLockHeld(::cs_main);
+    if (!IsEvoViewBound(chainstate)) {
+        throw EvoViewBindingError(strprintf("%s: not bound to the chainstate's Evo view", __func__));
+    }
 
     try {
         if (!m_mnhfman->UndoBlock(block, pindex)) {
