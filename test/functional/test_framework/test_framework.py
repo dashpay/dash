@@ -2173,6 +2173,55 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.wait_until(check_dkg_session, timeout=timeout, sleep=sleep)
 
+    def wait_for_dkg_messages(self, quorum_hash, phase, mninfos, timeout=30):
+        """Wait until every DKG session based on quorum_hash, of any llmq type, whose members are all among
+        mninfos is in the given phase (2-5) on each member running it, and each of those holds the message of that
+        phase from every member that reports having sent it, including members that aborted afterwards. Members judge each other by the messages they hold when the
+        next phase starts, so mining the next phase earlier lets them judge differently, and a type the caller
+        is not waiting for can then fail its DKG or punish a member that did nothing wrong. Members outside
+        mninfos (offline, isolated) are not asked for their status, so their messages are not waited for, and in
+        a session that has one only the phase of the other members is awaited, not their messages: relays can
+        route through the absent member, so a message may never arrive. A member that does not run the session (a rotated quorum can include a PoSe-banned masternode) sends nothing.
+        Times out if a sent message never counts as received, e.g. a premature commitment that fails
+        verification, so do not use it while members lie on purpose (quorum dkgsimerror)."""
+        sent_flag, received = {
+            2: ("sentContributions", "receivedContributions"),
+            3: ("sentComplaint", "receivedComplaints"),
+            4: ("sentJustification", "receivedJustifications"),
+            5: ("sentPrematureCommitment", "receivedPrematureCommitments"),
+        }[phase]
+        pro_tx_hashes = {mn.proTxHash for mn in mninfos}
+        lagging = []
+
+        def check_received():
+            lagging.clear()
+            sessions = {}
+            for mn in mninfos:
+                for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]:
+                    if qs["status"]["quorumHash"] == quorum_hash:
+                        key = (qs["llmqType"], qs["quorumIndex"])
+                        sessions.setdefault(key, []).append((mn.proTxHash, qs["status"]))
+            for key, statuses in sessions.items():
+                # A member that aborted after sending still relayed its message, so it is awaited too
+                senders = {pro_tx_hash for pro_tx_hash, status in statuses if status[sent_flag]}
+                # With a member outside mninfos only the phase is awaited: relays can route through that member
+                # (a rotated quorum has few edges), so a message of a live member may never reach another one
+                complete = set(statuses[0][1]["allMembers"]) <= pro_tx_hashes
+                for pro_tx_hash, status in statuses:
+                    if status["aborted"]:
+                        continue
+                    if status["phase"] != phase:
+                        lagging.append((*key, f"phase {status['phase']}", pro_tx_hash))
+                    elif complete and not senders <= {m["proTxHash"] for m in status[received]}:
+                        lagging.append((*key, "missing messages from " + ",".join(sorted(s[:8] for s in senders - {m["proTxHash"] for m in status[received]})), pro_tx_hash))
+            return not lagging
+
+        try:
+            self.wait_until(check_received, timeout=timeout)
+        except AssertionError:
+            self.log.error(f"DKG messages of phase {phase} still missing (llmqType, quorumIndex, reason, member): {lagging}")
+            raise
+
     def node_quorum_commitment_types(self, node, quorum_hash):
         s = node.quorum("dkgstatus")
         return {c["llmqType"] for c in s.get("minableCommitments", [])
@@ -2290,21 +2339,29 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 2, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 3, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 4, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 5, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
@@ -2468,41 +2525,57 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.log.info("quorumIndex 0: Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q_0, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 2, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q_1, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 2, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q_0, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 3, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q_1, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 3, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q_0, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 4, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q_1, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 4, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q_0, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 5, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q_1, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 5, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
