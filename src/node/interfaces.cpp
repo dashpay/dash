@@ -146,9 +146,11 @@ ProviderTxError UnavailableProviderTxError()
 }
 
 //! Set the misc warning, and log `e` once per operation and active Evo view.
+std::string EvoStateWarningSource(std::string_view operation) { return strprintf("interfaces:%s", operation); }
+
 void ReportEvoStateUnavailable(const CEvoDB* evodb, std::string_view operation, const evo::LocalStateError& e)
 {
-    WarnLocalEvoStateUnavailable(strprintf("%s could not read it", operation));
+    WarnLocalEvoStateUnavailable(EvoStateWarningSource(operation), strprintf("%s could not read it", operation));
     static Mutex mutex;
     static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> logged;
     const EvoViewToken view{evodb ? evodb->ActiveView() : EvoViewToken{}};
@@ -167,7 +169,17 @@ std::invoke_result_t<Fn&> WithActiveEvoView(const CEvoDB* evodb, std::string_vie
 {
     try {
         const ActiveEvoViewScope evo_view{evodb};
-        return fn();
+        const auto read_again = [&] {
+            if (SetEvoStateWarning(EvoStateWarningSource(operation), std::nullopt)) uiInterface.NotifyAlertChanged();
+        };
+        if constexpr (std::is_void_v<std::invoke_result_t<Fn&>>) {
+            fn();
+            read_again();
+        } else {
+            auto result{fn()};
+            read_again();
+            return result;
+        }
     } catch (const evo::LocalStateError& e) {
         ReportEvoStateUnavailable(evodb, operation, e);
         return on_unavailable();
