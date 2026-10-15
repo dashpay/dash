@@ -166,6 +166,14 @@ public:
                                                   size_t nCountRequested) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps);
 
+    /** The quorum base blocks a scan of `count` from `start` returns, proven
+     *  in the calling view: ScanQuorums' normalization and index-family
+     *  dispatch over this view's commitment index, whose carried sequences
+     *  end as recorded when its snapshot was seeded. Throws
+     *  BlockDataUnavailableError when the prefix is not covered. */
+    std::vector<const CBlockIndex*> ProveScan(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> start,
+                                              size_t count) const;
+
     bool IsMasternode() const;
     bool IsWatching() const;
 
@@ -200,14 +208,18 @@ private:
                                          size_t nCountRequested, const CChain* chain) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
     //! Walks the mined commitments back from the DKG mining phase closest to pindexStart and builds an
-    //! element for each. resume_block maps the last cached element to the block to continue below.
+    //! element for each. resume_block maps the last cached element to the block to continue below. In a
+    //! snapshot view the requested prefix is proven from the carried history instead (ProveScanFromCutoff).
     template <typename T, typename ResumeFn, typename BuildFn>
     std::vector<T> ScanMined(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
                              size_t nCountRequested, bool use_cache, ResumeFn&& resume_block, BuildFn&& build) const
         EXCLUSIVE_LOCKS_REQUIRED(!m_cs_maps);
-    //! The scan cache of `view`'s partition; a reference is valid only until the next m_view_caches lookup.
+    //! The initialized scan cache of `view`'s partition; a reference is valid only until the next
+    //! m_view_caches lookup.
     template <typename T>
     PerLlmqTypeCache<std::vector<T>>& ScanCache(const EvoViewToken& view) const EXCLUSIVE_LOCKS_REQUIRED(m_cs_maps);
+    std::vector<const CBlockIndex*> ProveScanFromCutoff(Consensus::LLMQType llmqType,
+                                                        gsl::not_null<const CBlockIndex*> cutoff, size_t count) const;
     bool BuildQuorumContributions(const CFinalCommitmentPtr& fqc, const std::shared_ptr<CQuorum>& quorum) const;
 
     CQuorumPtr BuildQuorumFromCommitment(Consensus::LLMQType llmqType,
@@ -225,6 +237,12 @@ private:
     void CacheWarmingThreadMain() const EXCLUSIVE_LOCKS_REQUIRED(!m_cache_cs);
     void MigrateOldQuorumDB(CEvoDB& evoDb) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_db);
 };
+
+/** The block a scan from `start` reads up to: inside a DKG mining window the
+ *  start itself, past it the window's end, before it the previous cycle's
+ *  window end. nullopt when that precedes genesis. */
+std::optional<const CBlockIndex*> NormalizeScanStart(const Consensus::LLMQParams& llmq_params,
+                                                     gsl::not_null<const CBlockIndex*> start);
 
 // when selecting a quorum for signing and verification, we use CQuorumManager::SelectQuorum with this offset as
 // starting height for scanning. This is because otherwise the resulting signatures would not be verifiable by nodes

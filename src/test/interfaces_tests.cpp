@@ -17,6 +17,7 @@
 #include <instantsend/lock.h>
 #include <interfaces/chain.h>
 #include <interfaces/node.h>
+#include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/params.h>
@@ -811,6 +812,174 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorum_snapshot_view)
         CheckPlatformQuorum(llmq, "no Evo database", type, hashes.at(90), 100, UNAVAILABLE);
         m_node.evodb = std::move(evodb_owner);
     }
+    m_node.chainlocks->ResetChainlock();
+}
+
+namespace {
+//! A Platform quorum's commitment at `base`, mined one block later.
+struct PlatformCommitments {
+    node::NodeContext& m_node;
+    const Consensus::LLMQParams& params;
+    std::map<int, llmq::CFinalCommitment> qcs;
+
+    const llmq::CFinalCommitment& At(int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        const CChain& active{m_node.chainman->ActiveChain()};
+        return qcs.try_emplace(base, llmq::testutils::CreateValidCommitment(params, active[base]->GetBlockHash()))
+            .first->second;
+    }
+    const CBlockIndex* Mined(int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        return m_node.chainman->ActiveChain()[base + 1];
+    }
+    //! As the block connection of the view the caller binds writes it.
+    void Write(int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb, At(base), Mined(base)->GetBlockHash(), base + 1, base);
+    }
+    //! A snapshot generation based at `snapshot_base` that carries the
+    //! commitments at `carried` with `coverage`, as seeding a section does,
+    //! published and active.
+    void PublishGeneration(int snapshot_base, const std::vector<int>& carried, llmq::ScanSequenceEnd coverage)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        CEvoDB& evodb{*m_node.evodb};
+        auto& qbp{*m_node.llmq_ctx->quorum_block_processor};
+        const CBlockIndex* base_index{m_node.chainman->ActiveChain()[snapshot_base]};
+        BOOST_REQUIRE(evodb.CreateSnapshotGeneration(base_index->GetBlockHash(), base_index->nHeight));
+        const EvoViewToken view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        {
+            auto db_tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            for (const int base : carried) {
+                BOOST_REQUIRE(qbp.SeedMinedCommitment(view, params.type, At(base).quorumHash, At(base),
+                                                      Mined(base)->GetBlockHash()));
+            }
+            llmq::ScanCoverageRecord record;
+            record.ends = {static_cast<uint8_t>(coverage)};
+            BOOST_REQUIRE(qbp.SeedScanCoverage(view, params.type, record));
+            evodb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, base_index->GetBlockHash());
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        BOOST_REQUIRE(evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(),
+                                                      std::nullopt));
+        evodb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    }
+};
+} // namespace
+
+// A snapshot carries the newest Platform commitments at or below its base, as many as the
+// canonical selection takes (4 here, the eligible window too). Where a window is read in
+// full from them, and from what was mined above the base, an unmined hash is invalid and
+// a carried quorum that has left the window unavailable, as on NORMAL; where it reaches
+// past the oldest carried one, whose end is unknown, the window cannot be read in full, so
+// a carried quorum in it, a quorum NORMAL would find there and one nobody mined are all
+// unavailable, never invalid. After promotion NORMAL holds the whole history and decides
+// everywhere.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_carried_window)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    using enum PlatformQuorumStatus;
+    BOOST_REQUIRE_EQUAL(llmq::PlatformEligibleQuorumCount(params), 4);
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Dip3HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~Dip3HeightRestore() { params.DIP0003Height = height; }
+    } dip3_restore{consensus, std::exchange(consensus.DIP0003Height, 1)};
+
+    PlatformCommitments qcs{m_node, params, {}};
+    {
+        LOCK(::cs_main);
+        {
+            auto db_tx{evodb.BeginTransaction()};
+            for (const int base : {10, 20, 30, 40, 45}) qcs.Write(base);
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::NORMAL));
+        qcs.PublishGeneration(/*snapshot_base=*/50, {20, 30, 40, 45}, llmq::ScanSequenceEnd::UNKNOWN);
+    }
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+    RecordChainLock(*m_node.chainlocks, tip->nHeight, tip);
+    const uint256 unknown{InsecureRand256()};
+    const auto hash = [&](int base) { return qcs.qcs.at(base).quorumHash; };
+
+    CheckPlatformQuorum(llmq, "carried, newest", type, hash(45), 50, FOUND);
+    CheckPlatformQuorum(llmq, "carried, oldest in the window", type, hash(20), 50, FOUND);
+    CheckPlatformQuorum(llmq, "absent, window read from carried ones", type, unknown, 50, INVALID);
+    CheckPlatformQuorum(llmq, "carried, window past the carried floor", type, hash(30), 44, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "older than every carried one", type, hash(10), 44, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "absent, window past the carried floor", type, unknown, 44, UNAVAILABLE);
+
+    // One commitment mined above the base fills that window again.
+    {
+        LOCK(::cs_main);
+        {
+            auto db_tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            qcs.Write(60);
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    }
+    CheckPlatformQuorum(llmq, "mined above the base", type, hash(60), 62, FOUND);
+    CheckPlatformQuorum(llmq, "absent, window full again", type, unknown, 62, INVALID);
+    CheckPlatformQuorum(llmq, "carried, out of the window", type, hash(20), 62, UNAVAILABLE);
+
+    {
+        LOCK(::cs_main);
+        const uint256 snapshot_tip{m_node.chainman->ActiveChain()[50]->GetBlockHash()};
+        BOOST_REQUIRE(evodb.PrepareSnapshotPromotion(snapshot_tip));
+        BOOST_REQUIRE(evodb.PromoteSnapshotMarkers(snapshot_tip));
+        evodb.SetDefaultIdentity(EvoDbIdentity::NORMAL);
+    }
+    CheckPlatformQuorum(llmq, "promoted, older than every carried one", type, hash(10), 44, FOUND);
+    CheckPlatformQuorum(llmq, "promoted, absent", type, unknown, 44, INVALID);
+    CheckPlatformQuorum(llmq, "promoted, mined above the base", type, hash(60), 62, FOUND);
+    m_node.chainlocks->ResetChainlock();
+}
+
+// A Platform history shorter than the canonical selection is carried whole, and the section
+// records that it ends there: a window running out at the oldest carried commitment is read
+// in full, so an absent quorum is invalid at once, as on NORMAL.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_short_carried_history)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    using enum PlatformQuorumStatus;
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Dip3HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~Dip3HeightRestore() { params.DIP0003Height = height; }
+    } dip3_restore{consensus, std::exchange(consensus.DIP0003Height, 1)};
+
+    PlatformCommitments qcs{m_node, params, {}};
+    {
+        LOCK(::cs_main);
+        {
+            auto db_tx{evodb.BeginTransaction()};
+            for (const int base : {30, 40, 45}) qcs.Write(base);
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::NORMAL));
+        qcs.PublishGeneration(/*snapshot_base=*/50, {30, 40, 45}, llmq::ScanSequenceEnd::END);
+    }
+    const uint256 unknown{InsecureRand256()};
+    CheckPlatformQuorum(llmq, "absent, no ChainLock", type, unknown, 50, UNAVAILABLE);
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+    RecordChainLock(*m_node.chainlocks, tip->nHeight, tip);
+    CheckPlatformQuorum(llmq, "carried", type, qcs.qcs.at(30).quorumHash, 50, FOUND);
+    CheckPlatformQuorum(llmq, "absent, history ends", type, unknown, 50, INVALID);
+    CheckPlatformQuorum(llmq, "absent, earlier in the history", type, unknown, 44, INVALID);
     m_node.chainlocks->ResetChainlock();
 }
 
