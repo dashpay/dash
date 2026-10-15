@@ -2196,6 +2196,19 @@ class DashTestFramework(BitcoinTestFramework):
                     relay_members.add(members[idx])
         return relay_members
 
+    def dkg_unreported_members(self, mninfos, reports):
+        """Members of mninfos that must run a DKG session another member reports but do not report it yet.
+        reports maps (llmqType, quorumIndex) to (proTxHashes reporting the session, allMembers). A worker that has
+        not set up its session yet publishes nothing, so waiting only on the sessions seen would let a lagging
+        llmq type through. A PoSe-banned member does not run the session even if a rotated quorum lists it."""
+        pro_tx_hashes = {mn.proTxHash for mn in mninfos}
+        unreported = []
+        for (llmq_type_name, quorum_index), (reporting, members) in reports.items():
+            for pro_tx_hash in sorted((set(members) & pro_tx_hashes) - reporting):
+                if self.nodes[0].protx("info", pro_tx_hash)["state"]["PoSeBanHeight"] == -1:
+                    unreported.append((llmq_type_name, quorum_index, pro_tx_hash))
+        return unreported
+
     def wait_for_dkg_relay_connections(self, quorum_hash, mninfos, timeout=60, wait_proc=None):
         """Wait until, in every DKG session based on quorum_hash, of any llmq type, each member in mninfos that runs
         the session holds an authenticated connection to each of its relay members that runs it too. A member
@@ -2203,18 +2216,23 @@ class DashTestFramework(BitcoinTestFramework):
         moment (RelayInvToParticipants), so a contribution sent before these connections are up never reaches them.
         wait_for_quorum_connections counts connections in either direction, which inbound ones from members that
         dialed in first can satisfy while the member's own relay members are still being dialed. A member that does
-        not run the session (offline, or PoSe-banned in a rotated quorum) sends no MNAUTH and relays nothing."""
+        not run the session (offline, or PoSe-banned in a rotated quorum) sends no MNAUTH and relays nothing. A
+        member that is not PoSe-banned and has not reported a session another member reports holds this up too."""
         wait_proc = self.once_per_second(wait_proc)
         missing = []
 
         def check_relay_connections():
             missing.clear()
             sessions = {}
+            reports = {}
             for mn in mninfos:
                 s = mn.get_node(self).quorum("dkgstatus", 2)
                 for qs in s["session"]:
                     status = qs["status"]
-                    if status["quorumHash"] != quorum_hash or status["aborted"]:
+                    if status["quorumHash"] != quorum_hash:
+                        continue
+                    reports.setdefault((qs["llmqType"], qs["quorumIndex"]), (set(), status["allMembers"]))[0].add(mn.proTxHash)
+                    if status["aborted"]:
                         continue
                     connected = {c["proTxHash"]
                                  for qc in s["quorumConnections"]
@@ -2227,6 +2245,7 @@ class DashTestFramework(BitcoinTestFramework):
                 for pro_tx_hash, members, connected in runners:
                     for relay_member in sorted((self.dkg_relay_members(members, pro_tx_hash) & running) - connected):
                         missing.append((llmq_type_name, quorum_index, pro_tx_hash, relay_member))
+            missing.extend(self.dkg_unreported_members(mninfos, reports))
             if missing:
                 wait_proc()
                 return False
@@ -2271,7 +2290,8 @@ class DashTestFramework(BitcoinTestFramework):
         is not waiting for can then fail its DKG or punish a member that did nothing wrong. Members outside
         mninfos (offline, isolated) are not asked for their status, so their messages are not waited for, and in
         a session that has one only the phase of the other members is awaited, not their messages: relays can
-        route through the absent member, so a message may never arrive. A member that does not run the session (a rotated quorum can include a PoSe-banned masternode) sends nothing.
+        route through the absent member, so a message may never arrive. A member that does not run the session (a rotated quorum can include a PoSe-banned masternode) sends nothing; one that
+        is not PoSe-banned and has not reported a session another member reports holds this up.
         Times out if a sent message never counts as received, e.g. a premature commitment that fails
         verification, so do not use it while members lie on purpose (quorum dkgsimerror)."""
         sent_flag, received = {
@@ -2286,12 +2306,15 @@ class DashTestFramework(BitcoinTestFramework):
         def check_received():
             lagging.clear()
             sessions = {}
+            reports = {}
             for mn in mninfos:
                 for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]:
                     if qs["status"]["quorumHash"] == quorum_hash:
                         key = (qs["llmqType"], qs["quorumIndex"])
                         sessions.setdefault(key, []).append((mn.proTxHash, qs["status"]))
+                        reports.setdefault(key, (set(), qs["status"]["allMembers"]))[0].add(mn.proTxHash)
             for key, statuses in sessions.items():
+                lagging.extend((*key, "not reported", pro_tx_hash) for _, _, pro_tx_hash in self.dkg_unreported_members(mninfos, {key: reports[key]}))
                 # A member that aborted after sending still relayed its message, so it is awaited too
                 senders = {pro_tx_hash for pro_tx_hash, status in statuses if status[sent_flag]}
                 # With a member outside mninfos only the phase is awaited: relays can route through that member
