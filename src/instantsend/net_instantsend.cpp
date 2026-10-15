@@ -428,8 +428,9 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
 void NetInstantSend::WorkThreadMain()
 {
     while (!workInterrupt) {
-        bool fMoreWork = [&]() -> bool {
-            if (!m_is_manager.IsInstantSendEnabled()) return false;
+        bool fMoreWork{false};
+        RunActiveEvoRound(m_chainman.EvoDb(), "isman", [&] {
+            if (!m_is_manager.IsInstantSendEnabled()) return;
 
             auto [more_work, locks] = m_is_manager.FetchPendingLocks();
             if (!locks.empty()) {
@@ -439,8 +440,8 @@ void NetInstantSend::WorkThreadMain()
             if (m_signer) {
                 m_signer->ProcessPendingRetryLockTxs(m_is_manager.PrepareTxToRetry());
             }
-            return more_work;
-        }();
+            fMoreWork = more_work;
+        });
 
         if (!fMoreWork && !workInterrupt.sleep_for(WORK_THREAD_SLEEP_INTERVAL)) {
             return;

@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 #include <arith_uint256.h>
+#include <banman.h>
 #include <chainlock/chainlock.h>
 #include <chainlock/clsig.h>
 #include <chainlock/handler.h>
@@ -21,11 +22,16 @@
 #include <instantsend/net_instantsend.h>
 #include <kernel/disconnected_transactions.h>
 #include <logging.h>
+#include <masternode/meta.h>
+#include <net.h>
+#include <net_processing.h>
+#include <netmessagemaker.h>
 #include <node/chainstate.h>
 #include <node/interface_ui.h>
 #include <node/kernel_notifications.h>
 #include <node/utxo_snapshot.h>
 #include <pow.h>
+#include <protocol.h>
 #include <random.h>
 #include <rpc/blockchain.h>
 #include <shutdown.h>
@@ -33,10 +39,12 @@
 #include <sync.h>
 #include <test/util/chainstate.h>
 #include <test/util/logging.h>
+#include <test/util/net.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
 #include <uint256.h>
+#include <util/time.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -47,7 +55,9 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <llmq/net_signing.h>
 #include <llmq/quorumsman.h>
+#include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
@@ -56,6 +66,7 @@
 
 #include <tinyformat.h>
 
+#include <chrono>
 #include <optional>
 #include <type_traits>
 #include <vector>
@@ -1311,6 +1322,21 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, SnapshotTestSetup
         tip->nStatus = pruned_status;
     }
 
+    // An asset unlock checked against the credit pool at the tip, rebuilt from
+    // its pruned body, is not rejected either: its acceptance ends in an error.
+    {
+        CMutableTransaction unlock_tx;
+        unlock_tx.nVersion = CTransaction::SPECIAL_VERSION;
+        unlock_tx.nType = TRANSACTION_ASSET_UNLOCK;
+        unlock_tx.vout.emplace_back(COIN, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        SetTxPayload(unlock_tx, CAssetUnlockPayload{CAssetUnlockPayload::INITIAL_VERSION, /*index=*/1, /*fee=*/1000,
+                                                    static_cast<uint32_t>(tip->nHeight), uint256::ONE, CBLSSignature{}});
+        const MempoolAcceptResult result{
+            WITH_LOCK(::cs_main, return chainman.ProcessTransaction(MakeTransactionRef(std::move(unlock_tx))))};
+        BOOST_CHECK(result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
+        BOOST_CHECK(result.m_state.IsError());
+    }
+
     // The block above the snapshot base checks its coinbase ChainLock against
     // the base's, whose body a snapshot node does not have: it cannot tell a
     // missing ChainLock from an unreadable one.
@@ -1354,6 +1380,56 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, SnapshotTestSetup
         snapshot_base->nStatus = snapshot_base_status;
         // With the body there, the coinbase is read.
         BOOST_CHECK_NO_THROW(GetNonNullCoinbaseChainlock(m_node.chainman->m_blockman, snapshot_base));
+    }
+
+    // Mempool acceptance that needs the EHF signals at the tip, which the
+    // snapshot view lacks, ends in an error instead of throwing, and drops the
+    // coins it loaded like any failure.
+    {
+        const auto& funding{m_coinbase_txns[50]};
+        const CMutableTransaction spend{CreateValidMempoolTransaction(funding, 0, 51, coinbaseKey,
+                                                                      GetScriptForRawPubKey(coinbaseKey.GetPubKey()),
+                                                                      CAmount(1 * COIN), /*submit=*/false)};
+        const COutPoint input{funding->GetHash(), 0};
+        // Drop every cached deployment state and EHF signal, as a restart would.
+        {
+            const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+        }
+        LOCK(::cs_main);
+        chainman.m_versionbitscache.Clear();
+        snapshot_chainstate->CoinsTip().Uncache(input);
+        BOOST_REQUIRE(!snapshot_chainstate->CoinsTip().HaveCoinInCache(input));
+        std::optional<MempoolAcceptResult> result;
+        BOOST_CHECK_NO_THROW(result.emplace(AcceptToMemoryPool(*snapshot_chainstate, MakeTransactionRef(spend), GetTime(),
+                                                               /*bypass_limits=*/false, /*test_accept=*/false)));
+        BOOST_REQUIRE(result);
+        BOOST_CHECK(result->m_result_type == MempoolAcceptResult::ResultType::INVALID);
+        BOOST_CHECK(result->m_state.IsError());
+        BOOST_CHECK(!snapshot_chainstate->CoinsTip().HaveCoinInCache(input));
+    }
+
+    // Startup's EHF signal update at the active snapshot tip cannot rebuild them
+    // from its pruned body either: it leaves them unavailable, so loading can
+    // go on, and leaves the snapshot view clean for the next flush.
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK(m_node.special_tx->m_mnhfman->ForceSignalDBUpdate(snapshot_chainstate->EvoView(), tip));
+        BOOST_CHECK(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK(!m_node.evodb->Exists(std::make_pair(std::string{"mnhf_s2"}, tip->GetBlockHash())));
+    }
+    // NORMAL lacks block data only when it was pruned: startup fails, as it
+    // did before snapshots.
+    {
+        LOCK(::cs_main);
+        CBlockIndex* base{background_chainstate->m_chain.Tip()};
+        const uint32_t base_status{base->nStatus};
+        base->nStatus &= ~(BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
+        {
+            ASSERT_DEBUG_LOG("cannot rebuild the EHF signals at block " + base->GetBlockHash().ToString());
+            BOOST_CHECK(!m_node.special_tx->m_mnhfman->ForceSignalDBUpdate(background_chainstate->EvoView(), base));
+        }
+        base->nStatus = base_status;
     }
 
     // Checking a child's EHF signals never rebuilds those of the block it
@@ -1402,6 +1478,239 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, SnapshotTestSetup
         BOOST_CHECK(!m_node.evodb->Exists(signals_key));
     }
     SetMiscWarning(Untranslated(""));
+}
+
+//! A peer's turn in the message handler is bound to the active Evo view and
+//! contains this node's local Evo errors, starting with the GETDATA requests
+//! that backpressure left queued, which resume before any message is read.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_peer_turn_is_bound, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    // Dash message handlers run on every message the peer manager does not
+    // handle itself; recovered signatures are handled as the node does.
+    BOOST_REQUIRE(m_node.mn_metaman->LoadCache(/*load_cache=*/false));
+    m_node.peerman->AddExtraHandler(std::make_unique<llmq::NetSigning>(m_node.peerman.get(), *m_node.llmq_ctx->sigman,
+                                                                       /*shares_manager=*/nullptr, *m_node.sporkman));
+    auto& connman{static_cast<ConnmanTestMsg&>(*m_node.connman)};
+    PeerManager& peerman{*Assert(m_node.peerman)};
+    const CEvoDB& evodb{*m_node.evodb};
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+    in_addr peer_in_addr{};
+    peer_in_addr.s_addr = htonl(0x01020304);
+    CNode peer{/*id=*/0,
+               /*sock=*/nullptr,
+               CAddress{CService{peer_in_addr, Params().GetDefaultPort()}, NODE_NETWORK},
+               /*nKeyedNetGroupIn=*/0,
+               /*nLocalHostNonceIn=*/0,
+               CAddress{},
+               /*addrNameIn=*/"",
+               ConnectionType::OUTBOUND_FULL_RELAY,
+               /*inbound_onion=*/false};
+    {
+        // The helper reads messages outside the message handler.
+        const ActiveEvoViewScope evo_view{&evodb};
+        connman.Handshake(peer, /*successfully_connected=*/true, ServiceFlags(NODE_NETWORK), ServiceFlags(NODE_NETWORK),
+                          PROTOCOL_VERSION, /*relay_txs=*/true);
+    }
+    const auto sent{[&](const std::string& msg_type) {
+        LOCK(peer.cs_vSend);
+        return std::ranges::count_if(peer.vSendMsg, [&](const auto& msg) { return msg.m_type == msg_type; });
+    }};
+    const auto not_found{[&] {
+        LOCK(peer.cs_vSend);
+        std::vector<CInv> invs;
+        for (const auto& msg : peer.vSendMsg) {
+            if (msg.m_type != NetMsgType::NOTFOUND) continue;
+            CDataStream stream{msg.data, SER_NETWORK, PROTOCOL_VERSION};
+            std::vector<CInv> msg_invs;
+            stream >> msg_invs;
+            invs.insert(invs.end(), msg_invs.begin(), msg_invs.end());
+        }
+        return invs;
+    }};
+
+    // A recovered signature this node holds, requested while the send buffer
+    // is full.
+    const auto llmq_type{Consensus::LLMQType::LLMQ_TEST};
+    const uint256 quorum_hash{GetRandHash()};
+    const uint256 id{GetRandHash()};
+    const uint256 msg_hash{GetRandHash()};
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto rec_sig{
+        std::make_shared<const llmq::CRecoveredSig>(llmq_type, quorum_hash, id, msg_hash,
+                                                    key.Sign(llmq::SignHash{llmq_type, quorum_hash, id, msg_hash}.Get()))};
+    BOOST_REQUIRE(m_node.llmq_ctx->sigman->ProcessRecoveredSig(rec_sig));
+    const CInv rec_sig_inv{MSG_QUORUM_RECOVERED_SIG, rec_sig->GetHash()};
+    const auto request_while_paused{
+        [&](const std::vector<CInv>& invs) EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            CDataStream getdata{SER_NETWORK, PROTOCOL_VERSION};
+            getdata << invs;
+            std::atomic<bool> interrupt{false};
+            peer.fPauseSend = true;
+            peerman.ProcessMessage(peer, NetMsgType::GETDATA, getdata, GetTime<std::chrono::microseconds>(), interrupt);
+            peer.fPauseSend = false;
+        }};
+
+    // Resumed, the request is answered from the active view: its quorum is
+    // not active there.
+    request_while_paused({rec_sig_inv});
+    BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+    BOOST_CHECK(not_found() == std::vector<CInv>{rec_sig_inv});
+
+    // When the active view cannot answer, the turn ends with the request
+    // reported missing, like a missing transaction requested ahead of it;
+    // neither is served again. The requests after it, and then the peer's next
+    // message, are served on its next turn.
+    {
+        ScopedDIP3FromGenesis dip3_active;
+        const CInv missing_tx{MSG_TX, GetRandHash()};
+        const CInv later_tx{MSG_TX, GetRandHash()};
+        request_while_paused({missing_tx, rec_sig_inv, later_tx});
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, CNetMsgMaker{PROTOCOL_VERSION}.Make(NetMsgType::PING, uint64_t{1})));
+        BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+        BOOST_CHECK(not_found() == (std::vector<CInv>{rec_sig_inv, missing_tx, rec_sig_inv}));
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 0);
+        // Each turn's replies leave the send buffer before the next one.
+        for (const std::vector<CInv>& expected : {std::vector<CInv>{later_tx}, std::vector<CInv>{}}) {
+            connman.FlushSendBuffer(peer);
+            peer.fPauseSend = false;
+            BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+            BOOST_CHECK(not_found() == expected);
+        }
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 1);
+
+        // A message whose handler cannot read this node's Evo state is dropped
+        // like any other message that fails: the peer is not punished, and its
+        // next message is processed on its next turn.
+        const auto next_turn{[&]() EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            connman.FlushSendBuffer(peer);
+            peer.fPauseSend = false;
+            bool more_work{false};
+            BOOST_CHECK_NO_THROW(more_work = connman.ServicePeer(evodb, peer, /*send=*/true));
+            return more_work;
+        }};
+        const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, msg_maker.Make(NetMsgType::QSIGREC, *rec_sig)));
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, msg_maker.Make(NetMsgType::PING, uint64_t{2})));
+        {
+            ASSERT_DEBUG_LOG("ProcessMessages(qsigrec, 193 bytes): Exception 'GetMinedCommitmentsUntilBlock");
+            // The queued PING is still reported as work for this peer.
+            BOOST_CHECK(next_turn());
+        }
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 0);
+        next_turn();
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 1);
+        BOOST_CHECK(!m_node.banman->IsDiscouraged(peer.addr));
+
+        // A turn whose queued requests end early still sends: a peer due to be
+        // discouraged cannot keep its connection by queueing such requests.
+        peerman.UnitTestMisbehaving(peer.GetId(), DISCOURAGEMENT_THRESHOLD);
+        request_while_paused({rec_sig_inv});
+        next_turn();
+        BOOST_CHECK(m_node.banman->IsDiscouraged(peer.addr));
+    }
+    peerman.FinalizeNode(peer);
+
+    // A relayed transaction this node cannot judge is not remembered as
+    // rejected: announced again it is requested again, and a child spending it
+    // stays an orphan that fetches it.
+    {
+        Consensus::Params& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+        struct V20HeightRestore {
+            Consensus::Params& params;
+            const int height;
+            ~V20HeightRestore() { params.V20Height = height; }
+        } v20_restore{consensus, std::exchange(consensus.V20Height, 1)};
+        auto& chainman{static_cast<TestChainstateManager&>(*m_node.chainman)};
+        const bool was_in_ibd{chainman.IsInitialBlockDownload()};
+        if (was_in_ibd) chainman.JumpOutOfIbd();
+        in_addr relay_in_addr{};
+        relay_in_addr.s_addr = htonl(0x01020305);
+        CNode relay_peer{/*id=*/1,
+                         /*sock=*/nullptr,
+                         CAddress{CService{relay_in_addr, Params().GetDefaultPort()}, NODE_NETWORK},
+                         /*nKeyedNetGroupIn=*/1,
+                         /*nLocalHostNonceIn=*/0,
+                         CAddress{},
+                         /*addrNameIn=*/"",
+                         ConnectionType::OUTBOUND_FULL_RELAY,
+                         /*inbound_onion=*/false};
+        {
+            const ActiveEvoViewScope evo_view{&evodb};
+            connman.Handshake(relay_peer, /*successfully_connected=*/true, ServiceFlags(NODE_NETWORK),
+                              ServiceFlags(NODE_NETWORK), PROTOCOL_VERSION, /*relay_txs=*/true);
+        }
+        const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
+        const auto turn{[&](std::optional<CSerializedNetMsg> msg = std::nullopt)
+                            EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            connman.FlushSendBuffer(relay_peer);
+            relay_peer.fPauseSend = false;
+            if (msg) BOOST_CHECK(connman.ReceiveMsgFrom(relay_peer, std::move(*msg)));
+            BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, relay_peer, /*send=*/true));
+        }};
+        const auto announce{[&](const CMutableTransaction& tx) {
+            return msg_maker.Make(NetMsgType::INV, std::vector<CInv>{CInv{MSG_TX, tx.GetHash()}});
+        }};
+        const auto requested{[&] {
+            LOCK(relay_peer.cs_vSend);
+            std::vector<CInv> invs;
+            for (const auto& msg : relay_peer.vSendMsg) {
+                if (msg.m_type != NetMsgType::GETDATA) continue;
+                CDataStream stream{msg.data, SER_NETWORK, PROTOCOL_VERSION};
+                std::vector<CInv> msg_invs;
+                stream >> msg_invs;
+                invs.insert(invs.end(), msg_invs.begin(), msg_invs.end());
+            }
+            return invs;
+        }};
+        const auto in_mempool{[&](const CMutableTransaction& tx) { return m_node.mempool->exists(tx.GetHash()); }};
+        const auto spend_pair{[&](size_t coinbase_index) {
+            const CMutableTransaction parent{CreateValidMempoolTransaction(
+                m_coinbase_txns[coinbase_index], 0, coinbase_index + 1, coinbaseKey,
+                GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(10 * COIN), /*submit=*/false)};
+            const CMutableTransaction child{CreateValidMempoolTransaction(
+                MakeTransactionRef(parent), 0, WITH_LOCK(::cs_main, return chainman.ActiveHeight()) + 1, coinbaseKey,
+                GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(9 * COIN), /*submit=*/false)};
+            return std::make_pair(parent, child);
+        }};
+
+        // An orphan reconsidered once this node lost the EHF signals it needs.
+        const auto [judged_parent, unjudged_orphan]{spend_pair(54)};
+        turn(msg_maker.Make(NetMsgType::TX, unjudged_orphan));
+        turn(msg_maker.Make(NetMsgType::TX, judged_parent));
+        BOOST_REQUIRE(in_mempool(judged_parent));
+        {
+            // Opening an EvoDB drops every cached signal, as a restart would.
+            const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+        }
+        WITH_LOCK(::cs_main, chainman.m_versionbitscache.Clear());
+        {
+            ASSERT_DEBUG_LOG("evo-local-unavailable");
+            turn();
+        }
+        BOOST_CHECK(!in_mempool(unjudged_orphan));
+        turn(announce(unjudged_orphan));
+        BOOST_CHECK(requested() == std::vector<CInv>{CInv(MSG_TX, unjudged_orphan.GetHash())});
+
+        // A transaction it cannot judge on arrival, and a child spending it.
+        const auto [unjudged_parent, child]{spend_pair(56)};
+        {
+            ASSERT_DEBUG_LOG("evo-local-unavailable");
+            turn(msg_maker.Make(NetMsgType::TX, unjudged_parent));
+        }
+        BOOST_CHECK(!in_mempool(unjudged_parent));
+        turn(announce(unjudged_parent));
+        BOOST_CHECK(requested() == std::vector<CInv>{CInv(MSG_TX, unjudged_parent.GetHash())});
+        turn(msg_maker.Make(NetMsgType::TX, unjudged_parent));
+        BOOST_CHECK(!in_mempool(unjudged_parent));
+        turn(msg_maker.Make(NetMsgType::TX, child));
+        BOOST_CHECK(requested() == std::vector<CInv>{CInv(MSG_DSTX, unjudged_parent.GetHash())});
+
+        BOOST_CHECK(!m_node.banman->IsDiscouraged(relay_peer.addr));
+        peerman.FinalizeNode(relay_peer);
+        if (was_in_ibd) chainman.ResetIbd();
+    }
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_reconsider_block_candidates, SnapshotTestSetup)
