@@ -419,16 +419,34 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
     mnhfCache.For(view).insert(blockHash, signals);
 }
 
-bool CMNHFManager::ForceSignalDBUpdate(const CBlockIndex* tip)
+bool CMNHFManager::ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
 {
+    const EvoViewScope evo_view{view};
     // force ehf signals db update
-    auto dbTx = m_evoDb.BeginTransaction();
+    auto dbTx = m_evoDb.BeginTransaction(view.identity);
 
-    RebuildSignals(tip);
+    try {
+        RebuildSignals(tip);
+    } catch (const evo::LocalStateError& e) {
+        // History a snapshot view lacks must not keep startup from, say,
+        // promoting a validated snapshot, which is what makes it readable;
+        // until then, lookups report the signals it could not rebuild as
+        // unavailable. NORMAL lacks no history unless it was pruned, and no
+        // view can do without a body it has but cannot read.
+        if (view.identity == EvoDbIdentity::SNAPSHOT && !dynamic_cast<const BlockDataReadError*>(&e)) {
+            LogPrintf("CMNHFManager::%s -- skipping the EHF signal update: %s\n", __func__, e.what());
+            return true;
+        }
+        const bool missing_data{dynamic_cast<const BlockDataUnavailableError*>(&e) ||
+                                dynamic_cast<const BlockDataReadError*>(&e)};
+        LogPrintf("CMNHFManager::%s -- cannot rebuild the EHF signals at block %s: %s%s\n", __func__,
+                  tip->GetBlockHash().ToString(), e.what(), missing_data ? ". Restart with -reindex." : "");
+        return false;
+    }
 
     dbTx->Commit();
     // flush it to disk
-    if (!m_evoDb.CommitRootTransaction()) {
+    if (!m_evoDb.CommitRootTransaction(view.identity)) {
         LogPrintf("CMNHFManager::%s -- failed to commit to evoDB\n", __func__);
         return false;
     }

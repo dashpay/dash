@@ -141,7 +141,12 @@ public:
     // from outside must check that it is valid first.
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
-    bool ForceSignalDBUpdate(const CBlockIndex* tip) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+    //! Recompute and persist the signals at `tip` under `view`, the view of
+    //! the chainstate whose tip it is. Signals a snapshot view lacks the
+    //! history for are left unavailable; failing to rebuild them for NORMAL,
+    //! or to read a block body, fails.
+    bool ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
 
     /**
      * Recompute missing state from block data, walking back from pindex to the first block whose

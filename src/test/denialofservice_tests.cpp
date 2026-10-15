@@ -7,6 +7,9 @@
 #include <banman.h>
 #include <chainparams.h>
 #include <common/args.h>
+#include <evo/deterministicmns.h>
+#include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <net.h>
 #include <net_processing.h>
 #include <pubkey.h>
@@ -21,6 +24,7 @@
 
 #include <array>
 #include <stdint.h>
+#include <utility>
 
 #include <boost/test/unit_test.hpp>
 
@@ -436,6 +440,37 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
     BOOST_CHECK(!banman->IsDiscouraged(addr));
 
     peerLogic->FinalizeNode(dummyNode);
+}
+
+//! An automatic outbound round needs the tip masternode list only to skip the
+//! masternodes it is already connected to, so without such connections it can
+//! still find peers while that list cannot be read.
+BOOST_FIXTURE_TEST_CASE(outbound_round_reads_mn_list_only_for_connected_masternodes, TestChain100Setup)
+{
+    CDeterministicMNManager& dmnman{*Assert(m_node.dmnman)};
+    {
+        const ActiveEvoViewScope turn{&dmnman.EvoDb()};
+        dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
+    }
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Restore {
+        CDeterministicMNManager& dmnman;
+        int& dip3_height;
+        const int saved;
+        ~Restore()
+        {
+            dmnman.SetListSnapshotMissHookForTesting(nullptr);
+            dip3_height = saved;
+        }
+    } restore{dmnman, consensus.DIP0003Height, std::exchange(consensus.DIP0003Height, 1)};
+    // With DIP3 counted from genesis the tip list is read from EvoDB.
+    dmnman.SetListSnapshotMissHookForTesting(
+        [](const CBlockIndex*) { throw BlockDataUnavailableError("masternode list unavailable"); });
+
+    const auto without_masternodes{ConnmanTestMsg::ListForConnectedMasternodes(dmnman, {})};
+    BOOST_REQUIRE(without_masternodes);
+    BOOST_CHECK_EQUAL(without_masternodes->GetAllMNsCount(), 0U);
+    BOOST_CHECK(!ConnmanTestMsg::ListForConnectedMasternodes(dmnman, {GetRandHash()}));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

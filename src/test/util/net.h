@@ -77,6 +77,9 @@ struct ConnmanTestMsg : public CConnman {
         return m_msgproc->ProcessMessages(&node, flagInterruptMsgProc);
     }
 
+    using CConnman::ListForConnectedMasternodes;
+    using CConnman::ServicePeer;
+
     void NodeReceiveMsgBytes(CNode& node, Span<const uint8_t> msg_bytes, bool& complete) const;
 
     bool ReceiveMsgFrom(CNode& node, CSerializedNetMsg&& ser_msg) const;

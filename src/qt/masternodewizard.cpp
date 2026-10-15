@@ -63,10 +63,21 @@ using MasternodeWidgetUtil::makePageLayout;
 using MasternodeWidgetUtil::makePageTitle;
 using MasternodeWidgetUtil::makeValue;
 
-std::set<COutPoint> RegisteredCollaterals(interfaces::Wallet& wallet)
+//! Whether the provider transaction rules still have `version`. Rules this
+//! node cannot evaluate yet count as changed.
+bool CurrentProviderVersionIs(interfaces::Node& node, uint16_t version)
+{
+    const auto capabilities{node.evo().getProviderTxCapabilities()};
+    return capabilities && capabilities->version == version;
+}
+
+//! The wallet's coins registered as masternode collateral, or nullopt when the
+//! masternode list is not available
+std::optional<std::set<COutPoint>> RegisteredCollaterals(interfaces::Wallet& wallet)
 {
     const auto registered{wallet.listProTxCoins()};
-    return {registered.begin(), registered.end()};
+    if (!registered) return std::nullopt;
+    return std::set<COutPoint>{registered->begin(), registered->end()};
 }
 
 //! Formats collateral amounts, which are whole coins in every display unit, so
@@ -686,7 +697,8 @@ bool RegisterMasternodeWizard::isEvo() const
 
 bool RegisterMasternodeWizard::usesExtendedAddresses() const
 {
-    return m_node.evo().getProviderTxCapabilities().extended_addresses;
+    const auto capabilities{m_node.evo().getProviderTxCapabilities()};
+    return capabilities && capabilities->extended_addresses;
 }
 
 bool RegisterMasternodeWizard::isExternalCollateral() const
@@ -846,10 +858,13 @@ void RegisterMasternodeWizard::enterPage(Page page)
         }
         break;
     case PagePlatform: {
+        // Without the rules, no version is recorded and validating the page
+        // reports them unavailable.
         const auto capabilities{m_node.evo().getProviderTxCapabilities()};
-        const bool v3{capabilities.extended_addresses};
-        m_platform_provider_version = capabilities.version;
-        m_platform_ipv4_optional = capabilities.ipv4_optional;
+        if (!capabilities) showError(MasternodeWidgetUtil::masternodeStateUnavailableText());
+        const bool v3{capabilities && capabilities->extended_addresses};
+        m_platform_provider_version = capabilities ? capabilities->version : 0;
+        m_platform_ipv4_optional = capabilities && capabilities->ipv4_optional;
         m_platform_extended_addresses = v3;
         m_platform_addr_box->setVisible(v3);
         m_platform_port_box->setVisible(!v3);
@@ -919,7 +934,9 @@ bool RegisterMasternodeWizard::validatePage(Page page, QString& err)
         break;
     case PageService: {
         const QStringList list{MasternodeWidgetUtil::tokenizeEndpointList(m_service_edit->text())};
-        if (list.isEmpty() && isEvo() && !usesExtendedAddresses()) {
+        if (list.isEmpty() && isEvo() && !m_node.evo().getProviderTxCapabilities()) {
+            err = MasternodeWidgetUtil::masternodeStateUnavailableText();
+        } else if (list.isEmpty() && isEvo() && !usesExtendedAddresses()) {
             err = tr("EvoNodes need at least one service address to carry the Platform ports before v24 "
                      "activation.");
         } else if (!isEvo()) {
@@ -927,9 +944,12 @@ bool RegisterMasternodeWizard::validatePage(Page page, QString& err)
         } else if (!list.isEmpty()) {
             interfaces::ProviderNetInfo core_only;
             for (const QString& entry : list) core_only.core_p2p.push_back(entry.toStdString());
-            const auto capabilities{m_node.evo().getProviderTxCapabilities()};
-            if (const auto error{m_node.evo().validateProviderNetInfo(
-                    core_only, MnType::Regular, capabilities.version, capabilities.ipv4_optional, /*optional=*/true)}) {
+            if (const auto capabilities{m_node.evo().getProviderTxCapabilities()}; !capabilities) {
+                err = MasternodeWidgetUtil::masternodeStateUnavailableText();
+            } else if (const auto error{m_node.evo().validateProviderNetInfo(core_only, MnType::Regular,
+                                                                             capabilities->version,
+                                                                             capabilities->ipv4_optional,
+                                                                             /*optional=*/true)}) {
                 err = QString::fromStdString(error->message.translated);
             }
         }
@@ -1049,14 +1069,21 @@ interfaces::ProviderNetInfo RegisterMasternodeWizard::providerNetInfo() const
 bool RegisterMasternodeWizard::validateProviderNetInfo(bool optional, QString& err) const
 {
     // The Platform page pins the rules it was entered with, so typing there doesn't wait for cs_main
-    const interfaces::ProviderTxCapabilities pinned{.version = m_platform_provider_version,
-                                                    .extended_addresses = m_platform_extended_addresses,
-                                                    .ipv4_optional = m_platform_ipv4_optional};
-    const auto capabilities{isEvo() && m_platform_provider_version != 0 ? pinned
-                                                                        : m_node.evo().getProviderTxCapabilities()};
+    std::optional<interfaces::ProviderTxCapabilities> capabilities;
+    if (isEvo() && m_platform_provider_version != 0) {
+        capabilities = interfaces::ProviderTxCapabilities{.version = m_platform_provider_version,
+                                                          .extended_addresses = m_platform_extended_addresses,
+                                                          .ipv4_optional = m_platform_ipv4_optional};
+    } else {
+        capabilities = m_node.evo().getProviderTxCapabilities();
+    }
+    if (!capabilities) {
+        err = MasternodeWidgetUtil::masternodeStateUnavailableText();
+        return false;
+    }
     const MnType type{isEvo() ? MnType::Evo : MnType::Regular};
-    if (const auto error{m_node.evo().validateProviderNetInfo(providerNetInfo(), type, capabilities.version,
-                                                              capabilities.ipv4_optional, optional)}) {
+    if (const auto error{m_node.evo().validateProviderNetInfo(providerNetInfo(), type, capabilities->version,
+                                                              capabilities->ipv4_optional, optional)}) {
         err = QString::fromStdString(error->message.translated);
         return false;
     }
@@ -1186,7 +1213,14 @@ void RegisterMasternodeWizard::refreshCollateralCandidates()
         m_col_utxo_none->setVisible(true);
         return;
     }
-    refreshCollateralCandidates(RegisteredCollaterals(m_walletModel->wallet()));
+    const auto registered{RegisteredCollaterals(m_walletModel->wallet())};
+    if (!registered) {
+        // Keep the current candidates: a registered collateral cannot be told
+        // from a free one yet.
+        showError(MasternodeWidgetUtil::masternodeStateUnavailableText());
+        return;
+    }
+    refreshCollateralCandidates(*registered);
 }
 
 void RegisterMasternodeWizard::refreshCollateralCandidates(const std::set<COutPoint>& registered_collaterals)
@@ -1391,7 +1425,12 @@ std::optional<interfaces::ProviderRegistrationRequest> RegisterMasternodeWizard:
         const COutPoint outpoint{hash,
                                  static_cast<uint32_t>(
                                      m_col_utxo_combo->itemData(m_col_utxo_combo->currentIndex(), VOUT_ROLE).toInt())};
-        if (RegisteredCollaterals(m_walletModel->wallet()).count(outpoint) != 0) {
+        const auto registered{RegisteredCollaterals(m_walletModel->wallet())};
+        if (!registered) {
+            error = MasternodeWidgetUtil::masternodeStateUnavailableText();
+            return std::nullopt;
+        }
+        if (registered->count(outpoint) != 0) {
             error = tr("The selected collateral output is already used by another masternode.");
             return std::nullopt;
         }
@@ -1498,7 +1537,7 @@ void RegisterMasternodeWizard::startRegistration(bool skip_confirmation)
         goToPage(PageSecret);
         return;
     }
-    if (isEvo() && m_node.evo().getProviderTxCapabilities().version != m_platform_provider_version) {
+    if (isEvo() && !CurrentProviderVersionIs(m_node, m_platform_provider_version)) {
         goToPage(PagePlatform);
         showError(tr("The network's provider-transaction rules changed while this wizard was open. Review the "
                      "Platform services page again before registering."));
@@ -1541,7 +1580,7 @@ void RegisterMasternodeWizard::startRegistration(bool skip_confirmation)
 void RegisterMasternodeWizard::startSubmit(bool skip_confirmation)
 {
     if (m_walletModel == nullptr || !m_runner || !m_prepared_tx) return;
-    if (isEvo() && m_node.evo().getProviderTxCapabilities().version != m_platform_provider_version) {
+    if (isEvo() && !CurrentProviderVersionIs(m_node, m_platform_provider_version)) {
         showError(tr("The network's provider-transaction rules changed while the collateral signature was being "
                      "collected. Discard this prepared registration and review the Platform services page again."));
         return;
