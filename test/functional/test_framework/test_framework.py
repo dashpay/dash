@@ -2066,11 +2066,24 @@ class DashTestFramework(BitcoinTestFramework):
         self.bump_mocktime(6, update_schedulers=False)
         self.wait_until(check_sporks_same, timeout=timeout)
 
+    @staticmethod
+    def once_per_second(wait_proc):
+        """Wrap wait_proc so that polling faster than once per second does not call it more often"""
+        last_call = None
+
+        def throttled():
+            nonlocal last_call
+            if wait_proc is not None and (last_call is None or time.monotonic() - last_call >= 1):
+                last_call = time.monotonic()
+                wait_proc()
+        return throttled
+
     def wait_for_quorum_connections(self, quorum_hash, expected_connections, mninfos, llmq_type_name="llmq_test", timeout = 60, wait_proc=None):
+        wait_proc = self.once_per_second(wait_proc)
+
         def check_quorum_connections():
             def ret():
-                if wait_proc is not None:
-                    wait_proc()
+                wait_proc()
                 return False
 
             found_session = False
@@ -2108,13 +2121,14 @@ class DashTestFramework(BitcoinTestFramework):
             # no sessions at all - not ok
             return ret()
 
-        self.wait_until(check_quorum_connections, timeout=timeout, sleep=1)
+        self.wait_until(check_quorum_connections, timeout=timeout, sleep=0.1 if self.fast_sync_polling else 1)
 
     def wait_for_masternode_probes(self, quorum_hash, mninfos, timeout = 30, wait_proc=None, llmq_type_name="llmq_test"):
+        wait_proc = self.once_per_second(wait_proc)
+
         def check_probes():
             def ret():
-                if wait_proc is not None:
-                    wait_proc()
+                wait_proc()
                 return False
 
             for mn in mninfos:
@@ -2146,7 +2160,7 @@ class DashTestFramework(BitcoinTestFramework):
                                         return ret()
             return True
 
-        self.wait_until(check_probes, timeout=timeout, sleep=1)
+        self.wait_until(check_probes, timeout=timeout, sleep=0.1 if self.fast_sync_polling else 1)
 
     def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=None):
         if sleep is None:
