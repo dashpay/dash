@@ -10,11 +10,13 @@
 #include <compat/endian.h>
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
+#include <crypto/sha256.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot.h>
 #include <evo/snapshot_config.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
@@ -42,6 +44,7 @@
 #include <streams.h>
 #include <sync.h>
 #include <test/util/chainstate.h>
+#include <test/util/evo_snapshot.h>
 #include <test/util/logging.h>
 #include <test/util/masternode.h>
 #include <test/util/net.h>
@@ -128,6 +131,43 @@ CBlock MakeCbTxBlock(CBlock block, int height, CCbTx::Version version = CCbTx::V
     while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
         ++block.nNonce;
     return block;
+}
+
+// Simulate a restart of the node by optionally flushing all state to disk,
+// clearing the existing ChainstateManager, and unloading the block index.
+//
+// @returns a reference to the "restarted" ChainstateManager
+ChainstateManager& RestartChainstateManager(node::NodeContext& node, bool flush_chainstates)
+{
+    ChainstateManager& chainman = *Assert(node.chainman);
+
+    BOOST_TEST_MESSAGE("Simulating node restart");
+    {
+        if (flush_chainstates) {
+            for (Chainstate* cs : chainman.GetAll()) {
+                LOCK(::cs_main);
+                cs->ForceFlushStateToDisk();
+            }
+        }
+        // Process all callbacks referring to the old manager before wiping it.
+        SyncWithValidationInterfaceQueue();
+        LOCK(::cs_main);
+        node.special_tx.reset();
+        node.llmq_ctx.reset();
+        chainman.ResetChainstates();
+        BOOST_CHECK_EQUAL(chainman.GetAll().size(), 0);
+        const ChainstateManager::Options chainman_opts{
+            .chainparams = ::Params(),
+            .datadir = Assert(node.args)->GetDataDirNet(),
+            .superblock_status = [&sbman = *node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
+            .mn_sync = node.mn_sync.get(),
+        };
+        // For robustness, ensure the old manager is destroyed before creating a
+        // new one.
+        node.chainman.reset();
+        node.chainman.reset(new ChainstateManager(chainman_opts));
+    }
+    return *Assert(node.chainman);
 }
 
 //! Counts the masternode-list changes validation announces.
@@ -558,35 +598,7 @@ struct SnapshotTestSetup : TestChain100Setup {
     // @returns a reference to the "restarted" ChainstateManager
     ChainstateManager& SimulateNodeRestart(bool flush_chainstates = true)
     {
-        ChainstateManager& chainman = *Assert(m_node.chainman);
-
-        BOOST_TEST_MESSAGE("Simulating node restart");
-        {
-            if (flush_chainstates) {
-                for (Chainstate* cs : chainman.GetAll()) {
-                    LOCK(::cs_main);
-                    cs->ForceFlushStateToDisk();
-                }
-            }
-            // Process all callbacks referring to the old manager before wiping it.
-            SyncWithValidationInterfaceQueue();
-            LOCK(::cs_main);
-            m_node.special_tx.reset();
-            m_node.llmq_ctx.reset();
-            chainman.ResetChainstates();
-            BOOST_CHECK_EQUAL(chainman.GetAll().size(), 0);
-            const ChainstateManager::Options chainman_opts{
-                .chainparams = ::Params(),
-                .datadir = m_args.GetDataDirNet(),
-                .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
-                .mn_sync = m_node.mn_sync.get(),
-            };
-            // For robustness, ensure the old manager is destroyed before creating a
-            // new one.
-            m_node.chainman.reset();
-            m_node.chainman.reset(new ChainstateManager(chainman_opts));
-        }
-        return *Assert(m_node.chainman);
+        return RestartChainstateManager(m_node, flush_chainstates);
     }
 
     //! Execute an RPC command the way the RPC server dispatches it.
@@ -646,6 +658,174 @@ struct SnapshotTestSetup : TestChain100Setup {
         LOCK(::cs_main);
         return {protx.GetHash(), protx_block.GetHash(), chainman.ActiveChain()[period]->GetBlockHash(),
                 chainman.ActiveTip()->GetBlockHash()};
+    }
+};
+
+evo::QuorumSnapshotData& EvoSnapshotChainSetupType(evo::EvoSnapshot& snapshot, Consensus::LLMQType type)
+{
+    const auto it{std::ranges::find_if(snapshot.quorums, [type](const auto& data) { return data.llmq_type == type; })};
+    BOOST_REQUIRE(it != snapshot.quorums.end());
+    return *it;
+}
+
+//! Replaces the assumeutxo entry at a height for the lifetime of the guard.
+class ScopedAssumeutxoEntry
+{
+    MapAssumeutxo& m_map{const_cast<MapAssumeutxo&>(Params().Assumeutxo())};
+    const int m_height;
+    std::optional<AssumeutxoData> m_saved;
+
+public:
+    ScopedAssumeutxoEntry(int height, const AssumeutxoData& data) :
+        m_height{height}
+    {
+        if (const auto it{m_map.find(height)}; it != m_map.end()) {
+            m_saved.emplace(it->second);
+            m_map.erase(it);
+        }
+        m_map.emplace(height, data);
+    }
+    ~ScopedAssumeutxoEntry()
+    {
+        m_map.erase(m_height);
+        if (m_saved) m_map.emplace(m_height, *m_saved);
+    }
+};
+
+/**
+ * A chain with DIP3, v20 and MN_RR active from height 130 and four masternodes
+ * registered with fixed keys at height 131, so its blocks, and with them the
+ * UTXO and evo pins of the snapshot base, are the same in every run. The
+ * blocks before DIP3 fund the collaterals. No DKG runs, so every quorum type
+ * has an empty history; the rotating type stores a quarter for each cycle from
+ * 144 on, and the base at 219 needs those of 144 to 216.
+ */
+struct EvoSnapshotTestSetup : public TestChainSetup {
+    static constexpr int DIP3_HEIGHT{130};
+    static constexpr int BASE_HEIGHT{219};
+    static constexpr int MN_COUNT{4};
+    //! The pins of the base. The evo hash was derived from the NORMAL state of
+    //! a node that never loaded a snapshot, and checked against the SHA256 of
+    //! the dumped section bytes.
+    static constexpr const char* PINS{"-assumeutxodata=219:"
+                                      "0b8154835ac26c0a9b495bac7655dcad1cff6c6ca66adadb2168e842d3ee14e9:"
+                                      "d5900cd54a2d1321b2565aeb3313628c8dbbfd622615325b6fdbea8ac53b35a9:"
+                                      "368:"
+                                      "72b8059db75889556ab069c31b3c10e3d951771422176b4d02a05c8348a354c4"};
+
+    //! The operator key of every registered masternode, by ProRegTx hash.
+    std::map<uint256, CBLSSecretKey> m_operator_keys;
+    int m_dumps{0};
+
+    EvoSnapshotTestSetup() :
+        EvoSnapshotTestSetup{/*evo_count=*/0}
+    {
+        MineTo(BASE_HEIGHT);
+    }
+    virtual ~EvoSnapshotTestSetup() = default;
+
+protected:
+    //! Register MN_COUNT masternodes, the last `evo_count` of them evonodes.
+    explicit EvoSnapshotTestSetup(int evo_count) :
+        TestChainSetup{100,
+                       CBaseChainParams::REGTEST,
+                       {"-dip3params=130:130", "-testactivationheight=v20@130", "-testactivationheight=mn_rr@130", PINS},
+                       /*coins_db_in_memory=*/false,
+                       /*block_tree_db_in_memory=*/false,
+                       /*dash_dbs_in_memory=*/false}
+    {
+        MineTo(DIP3_HEIGHT);
+        auto utxos{BuildSimpleUtxoMap(m_coinbase_txns)};
+        std::vector<CMutableTransaction> registrations;
+        for (int i{0}; i < MN_COUNT; ++i) {
+            const auto key = [i](unsigned char role) {
+                std::array<unsigned char, 32> secret{};
+                secret[30] = role;
+                secret[31] = static_cast<unsigned char>(i + 1);
+                return secret;
+            };
+            CKey owner_key;
+            const auto owner_secret{key(1)};
+            owner_key.Set(owner_secret.begin(), owner_secret.end(), /*fCompressedIn=*/true);
+            CKey payout_key;
+            const auto payout_secret{key(2)};
+            payout_key.Set(payout_secret.begin(), payout_secret.end(), /*fCompressedIn=*/true);
+            const CBLSSecretKey operator_key{key(3)};
+            const MnType type{i < MN_COUNT - evo_count ? MnType::Regular : MnType::Evo};
+            registrations.push_back(CreateProRegTx(*m_node.chainman, utxos, /*port=*/1 + i,
+                                                   GetScriptForDestination(PKHash(payout_key.GetPubKey())), coinbaseKey,
+                                                   owner_key, operator_key, type));
+            m_operator_keys.emplace(registrations.back().GetHash(), operator_key);
+        }
+        CreateAndProcessBlock(registrations, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    }
+
+public:
+    virtual void MineOneBlock() { mineBlocks(1); }
+
+    void MineTo(int height)
+    {
+        while (WITH_LOCK(::cs_main, return m_node.chainman->ActiveHeight()) < height)
+            MineOneBlock();
+    }
+
+    std::optional<uint32_t> NextGeneration()
+    {
+        uint32_t next;
+        if (!m_node.evodb->GetRawDB().Read(EVODB_GENERATION_NEXT, next)) return std::nullopt;
+        return next;
+    }
+
+    //! Dump the active chainstate, apply `mutate` to its evo section (absent
+    //! for a UTXO-only file) and activate the result.
+    bool ActivateEvoSnapshot(const std::function<void(std::optional<evo::EvoSnapshot>&)>& mutate = nullptr)
+    {
+        return LoadEvoSnapshot(DumpEvoSnapshot(mutate));
+    }
+
+    bool LoadEvoSnapshot(const fs::path& path)
+    {
+        AutoFile in{fsbridge::fopen(path, "rb")};
+        node::SnapshotMetadata metadata;
+        in >> metadata;
+        return m_node.chainman->ActivateSnapshot(in, metadata, /*in_memory=*/false);
+    }
+
+    fs::path DumpEvoSnapshot(const std::function<void(std::optional<evo::EvoSnapshot>&)>& mutate = nullptr)
+    {
+        const fs::path dump_path{m_path_root / fs::u8path(strprintf("evo_snapshot.%d.dat", ++m_dumps))};
+        {
+            AutoFile out{fsbridge::fopen(dump_path, "wb")};
+            (void)CreateUTXOSnapshot(m_node, m_node.chainman->ActiveChainstate(), out, dump_path, dump_path);
+        }
+        node::SnapshotMetadata metadata;
+        std::vector<std::pair<COutPoint, Coin>> coins;
+        std::optional<evo::EvoSnapshot> evo_section;
+        {
+            AutoFile in{fsbridge::fopen(dump_path, "rb")};
+            in >> metadata;
+            for (uint64_t i{0}; i < metadata.m_coins_count; ++i) {
+                auto& [outpoint, coin]{coins.emplace_back()};
+                in >> outpoint >> coin;
+            }
+            uint64_t marker;
+            in >> marker;
+            BOOST_REQUIRE_EQUAL(marker, evo::EVO_SNAPSHOT_MARKER);
+            OverrideStream<AutoFile> evo_in{&in, SER_DISK, CLIENT_VERSION};
+            evo_in >> evo_section.emplace();
+        }
+        if (mutate) mutate(evo_section);
+        const fs::path load_path{fs::PathFromString(fs::PathToString(dump_path) + ".load")};
+        AutoFile out{fsbridge::fopen(load_path, "wb")};
+        out << metadata;
+        for (const auto& [outpoint, coin] : coins)
+            out << outpoint << coin;
+        if (evo_section) {
+            out << evo::EVO_SNAPSHOT_MARKER;
+            OverrideStream<AutoFile> evo_out{&out, SER_DISK, CLIENT_VERSION};
+            evo_out << *evo_section;
+        }
+        return load_path;
     }
 };
 
@@ -2763,6 +2943,88 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_hash_mismatch, Sna
         LOCK(::cs_main);
         BOOST_CHECK_EQUAL(chainman_restarted.ActiveHeight(), 220);
     }
+}
+
+//! The fixture's evo pin is the SHA256 of the section's wire bytes as an
+//! assembler that writes the format table field by field produces them, and
+//! the section holds what the fixture's construction implies.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_fixture_pin, EvoSnapshotTestSetup)
+{
+    std::optional<evo::EvoSnapshot> section;
+    (void)DumpEvoSnapshot([&](auto& evo_section) { section = evo_section; });
+    BOOST_REQUIRE(section);
+    const auto bytes{AssembleWireBytes(*section, evo::EVO_SNAPSHOT_VERSION)};
+    uint256 hash;
+    CSHA256().Write(bytes.data(), bytes.size()).Finalize(hash.begin());
+    BOOST_CHECK(EvoSnapshotHash{hash} == ExpectedAssumeutxo(BASE_HEIGHT, Params())->evo_hash);
+
+    std::set<uint256> registered;
+    for (const auto& [protx_hash, _] : m_operator_keys)
+        registered.insert(protx_hash);
+    std::set<uint256> carried;
+    section->mn_list.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) { carried.insert(dmn.proTxHash); });
+    BOOST_CHECK(carried == registered);
+    BOOST_CHECK_EQUAL(carried.size(), size_t{MN_COUNT});
+    std::set<int> cycles;
+    for (const auto& entry :
+         EvoSnapshotChainSetupType(*section, Consensus::LLMQType::LLMQ_TEST_DIP0024).rotation_snapshots) {
+        cycles.insert(WITH_LOCK(::cs_main,
+                                return m_node.chainman->m_blockman.LookupBlockIndex(entry.cycle_base_block_hash)->nHeight));
+    }
+    BOOST_CHECK(cycles == (std::set<int>{144, 168, 192, 216}));
+    const int window{Params().CreditPoolPeriodBlocks()};
+    BOOST_REQUIRE_EQUAL(section->credit_history.size(), size_t(window));
+    for (int i{0}; i < window; ++i) {
+        if (BASE_HEIGHT - window + 1 + i < DIP3_HEIGHT) BOOST_CHECK(section->credit_history[i] == CreditHistoryEntry{});
+    }
+    for (const auto& data : section->quorums) {
+        BOOST_CHECK(data.active_commitments.empty() && data.safety_commitments.empty());
+    }
+}
+
+//! A DIP3-active base needs its evo section and a reviewed, non-null pin that
+//! the section matches. Anything else is refused before any Evo state is
+//! written, so no generation is created.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_requires_its_pin, EvoSnapshotTestSetup)
+{
+    const auto refused_before_seeding = [&](const std::function<void(std::optional<evo::EvoSnapshot>&)>& mutate) {
+        const auto next_generation{NextGeneration()};
+        BOOST_CHECK(!ActivateEvoSnapshot(mutate));
+        BOOST_CHECK(NextGeneration() == next_generation);
+        BOOST_CHECK(!m_node.chainman->IsSnapshotActive());
+    };
+    {
+        const AssumeutxoData pinned{*ExpectedAssumeutxo(BASE_HEIGHT, Params())};
+        const ScopedAssumeutxoEntry null_pin{BASE_HEIGHT,
+                                             AssumeutxoData{pinned.hash_serialized, EvoSnapshotHash{uint256::ZERO},
+                                                            pinned.nChainTx, pinned.blockhash}};
+        refused_before_seeding(nullptr);
+    }
+    refused_before_seeding([](auto& evo_section) { evo_section.reset(); });
+    // Substitutions only the pin can catch: every later gate accepts them.
+    refused_before_seeding([](auto& evo_section) { evo_section->credit_pool.currentLimit -= 1; });
+    refused_before_seeding([](auto& evo_section) { evo_section->mnhf_signals.emplace(27, BASE_HEIGHT - 1); });
+    // Bytes after the section, or a partial marker after the coins.
+    for (const bool keep_section : {true, false}) {
+        const fs::path path{DumpEvoSnapshot([keep_section](auto& evo_section) {
+            if (!keep_section) evo_section.reset();
+        })};
+        {
+            AutoFile out{fsbridge::fopen(path, "ab")};
+            out << uint8_t{0};
+        }
+        const auto next_generation{NextGeneration()};
+        BOOST_CHECK(!LoadEvoSnapshot(path));
+        BOOST_CHECK(NextGeneration() == next_generation);
+    }
+
+    BOOST_CHECK(ActivateEvoSnapshot());
+    BOOST_CHECK(m_node.chainman->IsSnapshotActive());
+    // Background validation is already at the base, but nothing compares the
+    // evo section yet: the snapshot is not validated.
+    LOCK(::cs_main);
+    BOOST_CHECK(m_node.chainman->MaybeCompleteSnapshotValidation() == SnapshotCompletionResult::EVO_DATA_UNAVAILABLE);
+    BOOST_CHECK(!m_node.chainman->IsSnapshotValidated());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

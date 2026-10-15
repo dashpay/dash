@@ -6645,6 +6645,11 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     }
 
     const AssumeutxoData& au_data = *maybe_au_data;
+    if (!au_data.blockhash.IsNull() && au_data.blockhash != base_blockhash) {
+        LogPrintf("[snapshot] assumeutxo data at height %d is for block %s, not %s - refusing to load snapshot\n",
+                  base_height, au_data.blockhash.ToString(), base_blockhash.ToString());
+        return false;
+    }
 
     COutPoint outpoint;
     Coin coin;
@@ -6733,6 +6738,25 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         LogPrintf("[snapshot] bad snapshot - coins left over after deserializing %d coins, or a bad evo section: %s\n",
                   coins_count, e.what());
         return false;
+    }
+    // Once DIP3 is active the snapshot chainstate needs the carried Evo state,
+    // and only a reviewed, non-null pin may authorize it. The pin never comes
+    // from the file.
+    const bool dip3_base{DeploymentActiveAt(*snapshot_start_block, GetConsensus(), Consensus::DEPLOYMENT_DIP0003)};
+    if (dip3_base && (!evo_snapshot || au_data.evo_hash == EvoSnapshotHash{uint256::ZERO})) {
+        LogPrintf("[snapshot] refusing to load: a DIP3-active base needs an evo section and a pinned evo hash\n");
+        return false;
+    }
+    if (!evo_snapshot && au_data.evo_hash != EvoSnapshotHash{uint256::ZERO}) {
+        LogPrintf("[snapshot] the pinned evo section is missing - refusing to load snapshot\n");
+        return false;
+    }
+    if (evo_snapshot && (dip3_base || au_data.evo_hash != EvoSnapshotHash{uint256::ZERO})) {
+        if (const EvoSnapshotHash evo_hash{evo::GetEvoSnapshotHash(*evo_snapshot)}; evo_hash != au_data.evo_hash) {
+            LogPrintf("[snapshot] bad evo section hash: expected %s, got %s\n", au_data.evo_hash.ToString(),
+                      evo_hash.ToString());
+            return false;
+        }
     }
 
     LogPrintf("[snapshot] loaded %d (%.2f MB) coins from snapshot %s\n",
