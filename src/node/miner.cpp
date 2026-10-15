@@ -814,6 +814,8 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 std::string error;
                 try {
                     if (!package_mn_list->ApplyTx(tx, state)) error = state.ToString();
+                } catch (const evo::LocalStateError&) {
+                    throw;
                 } catch (const std::runtime_error& e) {
                     // AddMN()/UpdateMN() report a unique-property conflict by throwing
                     error = e.what();
