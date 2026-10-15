@@ -145,6 +145,10 @@ class EstimateFeeTest(BitcoinTestFramework):
         # Node2 is a stingy miner, that
         # produces too small blocks (room for only 55 or so transactions)
 
+    def sync_all_fast(self):
+        self.sync_blocks(wait=0.05)
+        self.sync_mempools()
+
     def transact_and_mine(self, numblocks, mining_node):
         min_fee = Decimal("0.0001")
         # We will now mine numblocks blocks generating on average 100 transactions between each block
@@ -171,7 +175,7 @@ class EstimateFeeTest(BitcoinTestFramework):
             for node in self.nodes:
                 node.batch(batch_sendtx_reqs)
             self.sync_mempools(wait=0.1)
-            mined = mining_node.getblock(self.generate(mining_node, 1)[0], True)["tx"]
+            mined = mining_node.getblock(self.generate(mining_node, 1, sync_fun=self.sync_all_fast)[0], True)["tx"]
             # update which txouts are confirmed
             newmem = []
             for utx in self.memutxo:
@@ -215,7 +219,7 @@ class EstimateFeeTest(BitcoinTestFramework):
 
         # Finish by mining a normal-sized block:
         while len(self.nodes[1].getrawmempool()) > 0:
-            self.generate(self.nodes[1], 1)
+            self.generate(self.nodes[1], 1, sync_fun=self.sync_all_fast)
 
         self.log.info("Final estimates after emptying mempools")
         check_estimates(self.nodes[1], self.fees_per_kb)
