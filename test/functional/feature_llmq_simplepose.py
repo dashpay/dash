@@ -10,8 +10,6 @@ Checks simple PoSe system based on LLMQ commitments
 
 '''
 
-import time
-
 from test_framework.masternodes import check_banned, check_punished
 from test_framework.messages import NODE_COMPACT_FILTERS
 from test_framework.p2p import P2P_SERVICES, P2PInterface
@@ -421,8 +419,6 @@ class LLMQSimplePoSeTest(DashTestFramework):
     def reset_probe_timeouts(self):
         # Make sure all masternodes will reconnect/re-probe
         self.bump_mocktime(10 * 60 + 1)
-        # Sleep a couple of seconds to let mn sync tick to happen
-        time.sleep(2)
 
 
 if __name__ == '__main__':
