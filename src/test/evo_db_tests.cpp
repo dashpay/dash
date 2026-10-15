@@ -112,40 +112,56 @@ BOOST_AUTO_TEST_CASE(own_overlay_tombstone)
     }
 }
 
-BOOST_AUTO_TEST_CASE(transaction_less_access_uses_default_identity)
+BOOST_AUTO_TEST_CASE(unbound_access_requires_a_single_view)
 {
     LOCK(::cs_main);
     CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_default_identity", .memory = true, .wipe = true}};
     const auto key = PayloadKey(7);
-    PublishGeneration(db);
 
+    // With a single view, transaction-less access uses the default identity.
+    WritePayload(db, EvoDbIdentity::NORMAL, 6);
+    Payload value;
+    BOOST_CHECK(db.Read(PayloadKey(6), value));
+
+    PublishGeneration(db);
     // Committed to the SNAPSHOT overlay but not yet flushed to disk.
     WritePayload(db, EvoDbIdentity::SNAPSHOT, 7);
 
-    // Transaction-less reads default to NORMAL and must not see it.
-    Payload value;
-    BOOST_CHECK(!db.Read(key, value));
-    BOOST_CHECK(!db.Exists(key));
-
-    // Once the snapshot chainstate is active, transaction-less consumers
-    // resolve against the SNAPSHOT overlay.
-    db.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
-    BOOST_REQUIRE(db.Read(key, value));
-    BOOST_CHECK(value == PayloadFor(7));
-    BOOST_CHECK(db.Exists(key));
-
-    // Transaction-less writes land in the default identity's overlay and stay
-    // invisible to the other identity.
-    const auto key2 = PayloadKey(8);
-    db.Write(key2, PayloadFor(8));
-    db.SetDefaultIdentity(EvoDbIdentity::NORMAL);
-    Payload value2;
-    BOOST_CHECK(!db.Read(key2, value2));
-    {
-        auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-        BOOST_REQUIRE(db.Read(key2, value2));
-        BOOST_CHECK(value2 == PayloadFor(8));
+    // While two views exist, an unbound read, write, existence check or
+    // iterator fails before touching state, whatever the default identity.
+    for (const auto identity : {EvoDbIdentity::NORMAL, EvoDbIdentity::SNAPSHOT}) {
+        db.SetDefaultIdentity(identity);
+        BOOST_CHECK_THROW(db.Read(key, value), EvoViewBindingError);
+        BOOST_CHECK_THROW(db.Exists(key), EvoViewBindingError);
+        BOOST_CHECK_THROW(db.Write(PayloadKey(8), PayloadFor(8)), EvoViewBindingError);
+        BOOST_CHECK_THROW(WITH_LOCK(db.cs, return db.GetCurTransaction().NewIteratorUniquePtr()), EvoViewBindingError);
     }
+    db.SetDefaultIdentity(EvoDbIdentity::NORMAL);
+
+    // Bound access resolves to its own view only.
+    {
+        EvoViewScope normal{db.ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_CHECK(!db.Read(key, value));
+    }
+    {
+        EvoViewScope snapshot{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_REQUIRE(db.Read(key, value));
+        BOOST_CHECK(value == PayloadFor(7));
+    }
+
+    // A binding to a retired generation is refused like an absent one.
+    EvoViewToken retired{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    ++retired.generation;
+    {
+        EvoViewScope stale{retired};
+        BOOST_CHECK_THROW(db.Read(key, value), EvoViewBindingError);
+    }
+
+    // Once the generation is gone, the single remaining view is the default
+    // again.
+    BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+    BOOST_REQUIRE(db.AbandonSnapshotGeneration());
+    BOOST_CHECK(db.Read(PayloadKey(6), value));
 }
 
 BOOST_AUTO_TEST_CASE(write_derived_compares_within_its_own_view)
@@ -314,24 +330,32 @@ BOOST_AUTO_TEST_CASE(open_transaction_does_not_capture_other_threads)
     LOCK(::cs_main);
     CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_tx_thread", .memory = true, .wipe = true}};
     PublishGeneration(db);
-    db.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
     WritePayload(db, EvoDbIdentity::SNAPSHOT, 30);
 
-    // A transaction is one validation execution context, not a process-wide
-    // mode: while the background chainstate holds a NORMAL transaction open,
-    // concurrent transaction-less readers must still see the active snapshot's
-    // overlay.
+    // A transaction binds only the thread that began it: while the background
+    // chainstate holds a NORMAL transaction open, another thread neither
+    // inherits it nor falls back to a default view.
     auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
     Payload same_thread;
     BOOST_CHECK(!db.Read(PayloadKey(30), same_thread));
 
     Payload other_thread;
-    bool other_thread_read{false};
-    std::thread reader{[&] { other_thread_read = db.Read(PayloadKey(30), other_thread); }};
+    bool unbound_refused{false};
+    bool bound_read{false};
+    std::thread reader{[&] {
+        try {
+            db.Read(PayloadKey(30), other_thread);
+        } catch (const EvoViewBindingError&) {
+            unbound_refused = true;
+        }
+        EvoViewScope snapshot{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        bound_read = db.Read(PayloadKey(30), other_thread);
+    }};
     reader.join();
     tx->Commit();
 
-    BOOST_REQUIRE(other_thread_read);
+    BOOST_CHECK(unbound_refused);
+    BOOST_REQUIRE(bound_read);
     BOOST_CHECK(other_thread == PayloadFor(30));
 }
 
@@ -396,8 +420,8 @@ BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
     const EvoViewToken snapshot{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
     WritePayload(db, EvoDbIdentity::SNAPSHOT, 50);
 
-    // Unbound access keeps resolving to the default identity.
-    BOOST_CHECK(db.CurrentView() == normal);
+    // With a live generation there is no default view.
+    BOOST_CHECK_THROW(db.CurrentView(), EvoViewBindingError);
     Payload value;
     {
         EvoViewScope outer{snapshot};
@@ -421,7 +445,7 @@ BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
         BOOST_CHECK_THROW(db.BeginTransaction(EvoDbIdentity::NORMAL), EvoViewBindingError);
         BOOST_CHECK(!db.HasActiveTransaction());
     }
-    BOOST_CHECK(db.CurrentView() == normal);
+    BOOST_CHECK_THROW(db.CurrentView(), EvoViewBindingError);
 
     // A scope opened inside a conflicting transaction is refused, and the
     // binding in force is left untouched.
@@ -439,7 +463,7 @@ BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
         util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_view_scope_other", .memory = true, .wipe = true}};
     PublishGeneration(other);
     EvoViewScope other_scope{other.ViewFor(EvoDbIdentity::SNAPSHOT)};
-    BOOST_CHECK(db.CurrentView() == normal);
+    BOOST_CHECK_THROW(db.CurrentView(), EvoViewBindingError);
     BOOST_CHECK(other.CurrentView() == other.ViewFor(EvoDbIdentity::SNAPSHOT));
 }
 
@@ -567,6 +591,7 @@ BOOST_AUTO_TEST_CASE(promotion_refuses_conflicting_records)
     // The conflict is in the first merge batch, so nothing was merged:
     // NORMAL keeps its own record and tip. (Batches merged before a later
     // conflict stay merged; startup then keeps failing closed.)
+    EvoViewScope normal{db.ViewFor(EvoDbIdentity::NORMAL)};
     Payload value;
     BOOST_REQUIRE(db.Read(PayloadKey(5), value));
     BOOST_CHECK(value == PayloadFor(5));

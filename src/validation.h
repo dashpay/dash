@@ -579,6 +579,10 @@ public:
     //! The Evo view this chainstate reads and writes. Every Chainstate method
     //! that touches Evo state binds it at entry.
     EvoViewToken EvoView() const;
+    //! Whether the calling thread is bound to this chainstate's Evo view.
+    //! Managers taking an explicit Chainstate check it, in release builds
+    //! too, before they touch Evo state.
+    bool IsEvoViewBound() const;
 
     std::string EvoDbInconsistencyMessage();
 
