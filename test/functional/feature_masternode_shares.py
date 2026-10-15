@@ -494,8 +494,52 @@ class MasternodeSharesTest(DashTestFramework):
         prepared_update = wallets[0].protx("shared_update_registrar_prepare", protx_hash,
                                            "", voting, change_addresses[0])
         signatures = [wallet.protx("shared_sign", prepared_update["tx"])["signatures"][0] for wallet in wallets]
-        assert_raises_rpc_error(-4, "transaction inputs could not be fully signed", wallets[1].protx,
-                                "shared_combine", prepared_update["tx"], signatures, True)
+        for submit in (True, False):
+            assert_raises_rpc_error(-4, "must be combined by the wallet that funded it", wallets[1].protx,
+                                    "shared_combine", prepared_update["tx"], signatures, submit)
+
+        self.log.info("An approved registrar update is not signed if it moves the funder's coins elsewhere")
+
+        def forge(script=None, value=None):
+            forged = tx_from_hex(prepared_update["tx"])
+            for output in forged.vout:
+                output.scriptPubKey = script or output.scriptPubKey
+                output.nValue = output.nValue if value is None else value
+            return forged.serialize().hex()
+
+        def script_of(wallet):
+            return bytes.fromhex(wallet.getaddressinfo(wallet.getnewaddress())["scriptPubKey"])
+        for owner in (miner, wallets[0]):
+            assert_raises_rpc_error(-4, "must spend from and return change to a single address", wallets[0].protx,
+                                    "shared_combine", forge(script=script_of(owner)), signatures, True)
+        # The co-owner who receives the coins cannot combine it and leave the funder only an input to sign
+        assert_raises_rpc_error(-4, "must be combined by the wallet that funded it", wallets[1].protx,
+                                "shared_combine", forge(script=script_of(wallets[1])), signatures, False)
+        assert_raises_rpc_error(-4, "exceeds this wallet's maximum fee", wallets[0].protx,
+                                "shared_combine", forge(value=1000), signatures, False)
+        # A locked coin, such as a masternode collateral, is never spent even back to its own address
+        fee_inputs = [{"txid": f"{txin.prevout.hash:064x}", "vout": txin.prevout.n}
+                      for txin in tx_from_hex(prepared_update["tx"]).vin]
+        assert wallets[0].lockunspent(False, fee_inputs)
+        assert_raises_rpc_error(-4, "must not spend a locked coin", wallets[0].protx,
+                                "shared_combine", prepared_update["tx"], signatures, False)
+        assert wallets[0].lockunspent(True, fee_inputs)
+
+        self.log.info("A registrar update funded without change keeps only the zero-valued marker output")
+        prepared_tx = tx_from_hex(prepared_update["tx"])
+        prepared_fee = sum(node.gettxout(f"{txin.prevout.hash:064x}", txin.prevout.n)["value"] * COIN
+                           for txin in prepared_tx.vin) - sum(out.nValue for out in prepared_tx.vout)
+        tiny_fee_source = wallets[0].getnewaddress()
+        # Enough for the same fee, leaving a remainder too small for a change output
+        miner.sendtoaddress(tiny_fee_source, (prepared_fee + 100) / COIN)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(node, 1, sync_fun=self.no_op)
+        no_change = wallets[0].protx("shared_update_registrar_prepare", protx_hash, "", "", tiny_fee_source)
+        assert_equal([(out.nValue, out.scriptPubKey) for out in tx_from_hex(no_change["tx"]).vout],
+                     [(0, CScript(b"\x6a"))])
+        no_change_sigs = [wallet.protx("shared_sign", no_change["tx"])["signatures"][0] for wallet in wallets]
+        no_change_tx = wallets[0].protx("shared_combine", no_change["tx"], no_change_sigs)
+        assert_equal(node.testmempoolaccept([no_change_tx])[0]["allowed"], True)
 
         self.log.info("Conflicting voting-key and share reward updates are consensus-invalid in both block orders")
         registrar = wallets[0].protx("shared_combine", prepared_update["tx"], signatures)

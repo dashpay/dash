@@ -1469,8 +1469,8 @@ static RPCHelpMan protx_shared_combine()
         "inputs still have to be signed (e.g. by passing the result around signrawtransactionwithwallet).\n"
         "For a ProDisTx or ProUpSharedRegTx the transaction can be submitted directly. Submit a\n"
         "ProUpSharedRegTx from the wallet that ran \"protx shared_update_registrar_prepare\": combining\n"
-        "re-signs its fee inputs, which only that wallet can do (with submit=false the returned hex can\n"
-        "be finished there with signrawtransactionwithwallet).\n",
+        "re-signs its fee inputs, and is refused unless they are unlocked coins of a single address of\n"
+        "this wallet, any change returns to that address, and the fee is within -maxtxfee.\n",
         {
             {"tx", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The serialized transaction in hex format."},
             {"signatures", RPCArg::Type::ARR, RPCArg::Optional::NO, "Signature entries collected from \"protx shared_sign\".",

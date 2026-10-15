@@ -866,8 +866,10 @@ void MasternodeMaintenanceTests::rotationSenderComesFromTheInputs()
     ours.preloadEnvelope(envelope);
     QVERIFY(ours.m_collector->hasTransaction());
     QVERIFY2(ours.preparedByThisWallet(), qPrintable(ours.m_status_label->text()));
-    // The editable form stays, and Send only waits for the other approvals
-    QVERIFY(ours.m_requested_change->isHidden());
+    // The editable form stays, the requested change is shown like on any other
+    // wallet, and Send only waits for the other approvals
+    QVERIFY(!ours.m_requested_change->isHidden());
+    QVERIFY(!ours.m_operator_edit->isHidden());
     QVERIFY(!ours.m_finish_banner->isHidden());
     QVERIFY(ours.m_reason_label->text().contains("approve"));
 
