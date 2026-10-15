@@ -67,6 +67,7 @@
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
+#include <evo/snapshot.h>
 #include <evo/snapshot_config.h>
 #include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
@@ -6714,16 +6715,24 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     // method.
     coins_cache.SetBestBlock(base_blockhash);
 
-    bool out_of_coins{false};
+    // The coins are followed by nothing (a UTXO-only file) or by the evo
+    // section: [marker][EvoSnapshot], with nothing after it.
+    std::optional<evo::EvoSnapshot> evo_snapshot;
     try {
-        coins_file >> outpoint;
-    } catch (const std::ios_base::failure&) {
-        // We expect an exception since we should be out of coins.
-        out_of_coins = true;
-    }
-    if (!out_of_coins) {
-        LogPrintf("[snapshot] bad snapshot - coins left over after deserializing %d coins\n",
-            coins_count);
+        if (coins_file.size() > 0) {
+            uint64_t evo_marker{0};
+            coins_file >> evo_marker;
+            if (evo_marker != evo::EVO_SNAPSHOT_MARKER) throw std::ios_base::failure("no evo section marker");
+            OverrideStream<AutoFile> evo_file{&coins_file, SER_DISK, CLIENT_VERSION};
+            evo_file >> evo_snapshot.emplace();
+            if (coins_file.size() > 0) {
+                LogPrintf("[snapshot] bad snapshot - data left over after the evo section\n");
+                return false;
+            }
+        }
+    } catch (const std::ios_base::failure& e) {
+        LogPrintf("[snapshot] bad snapshot - coins left over after deserializing %d coins, or a bad evo section: %s\n",
+                  coins_count, e.what());
         return false;
     }
 
@@ -7096,6 +7105,13 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         LogPrintf("[snapshot] EvoDB best-block markers do not match their chainstate tips\n");
         handle_invalid_snapshot();
         return SnapshotCompletionResult::EVO_STATE_MISMATCH;
+    }
+
+    // Until the full Evo comparison exists, a DIP3-active snapshot is never
+    // validated: it stays in use, unvalidated, and is never promoted.
+    if (DeploymentActiveAt(index_new, GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
+        LogPrintf("[snapshot] the evo section of the snapshot cannot be validated yet\n");
+        return SnapshotCompletionResult::EVO_DATA_UNAVAILABLE;
     }
 
     LogPrintf("[snapshot] snapshot beginning at %s has been fully validated\n",

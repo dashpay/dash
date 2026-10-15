@@ -909,6 +909,10 @@ enum class SnapshotCompletionResult {
     // Dash's derived Evo state or per-chainstate best-block markers did not
     // converge at the snapshot base block.
     EVO_STATE_MISMATCH,
+
+    // The background chainstate cannot compare the evo section yet, so the
+    // snapshot is neither validated nor rejected.
+    EVO_DATA_UNAVAILABLE,
 };
 
 /** VersionBitsCache partitioned by Evo view. EHF signals that gate deployment
