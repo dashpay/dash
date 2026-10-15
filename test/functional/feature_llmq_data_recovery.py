@@ -33,6 +33,7 @@ class QuorumDataRecoveryTest(DashTestFramework):
         extra_args = [["-vbparams=testdummy:0:999999999999:0:10:8:6:5:-1"] for _ in range(7)]
         self.set_dash_test_params(7, 6, extra_args=extra_args)
         self.set_dash_llmq_test_params(4, 3)
+        self.fast_sync_polling = True
 
     def restart_mns(self, mns=None, exclude=None, reindex=False, qvvec_sync=None, qdata_recovery_enabled=True):
         if qvvec_sync is None:
