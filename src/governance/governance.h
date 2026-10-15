@@ -329,8 +329,6 @@ public:
      *  running collateral or chain validation. */
     void AddGovernanceObjectForTesting(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    /** Test-only helper: caches a vote as an orphan of its parent without validating it. */
-    void AddOrphanVoteForTesting(const CGovernanceVote& vote) EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
     // Thread-safe accessors
     bool HaveObjectForHash(const uint256& nHash) const
@@ -357,13 +355,6 @@ public:
     // Used by NetGovernance
     std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
     void CheckAndRemove() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    /** Upper bound on the orphan parent hashes GetOrphanVoteObjectHashes() returns per call. Each one is
-     *  re-requested from every peer, and one masternode key can sign votes for any number of invented
-     *  parent hashes. */
-    static constexpr size_t MAX_ORPHAN_OBJECT_REQUESTS{100};
-    /** Get hashes of governance objects for which we have orphan votes, at most
-     *  MAX_ORPHAN_OBJECT_REQUESTS of them chosen at random. Also cleans up expired orphans. */
-    [[nodiscard]] std::vector<uint256> GetOrphanVoteObjectHashes() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     std::pair<std::vector<uint256>, std::vector<uint256>> FetchGovernanceObjectVotes(
         size_t peers_per_hash_max, int64_t now, std::map<uint256, std::map<CService, int64_t>>& map_asked_recently) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
