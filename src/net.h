@@ -56,6 +56,7 @@ class BanMan;
 class CConnman;
 class CDeterministicMNList;
 class CDeterministicMNManager;
+class CEvoDB;
 class CMasternodeMetaMan;
 class CMasternodeSync;
 class CNode;
@@ -1619,7 +1620,14 @@ private:
     void ThreadOpenConnections(const std::vector<std::string> connect, CDeterministicMNManager& dmnman)
         EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_added_nodes_mutex, !m_nodes_mutex, !m_reconnections_mutex,
                                  !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
-    void ThreadMessageHandler() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
+    void ThreadMessageHandler(const CEvoDB& evodb) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
+    /** One message-handler turn for a peer: receive (its queued requests,
+     *  orphans to reconsider, then its next message) and, if `send`, send.
+     *  Both halves are bound to the active Evo view. A local Evo state error
+     *  ends the half it occurs in, never the thread, and the sends still run
+     *  after receiving stopped early. Returns whether the peer has more work. */
+    bool ServicePeer(const CEvoDB& evodb, CNode& node, bool send)
+        EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex, !m_nodes_mutex, !mutexMsgProc);
     void ThreadI2PAcceptIncoming(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);
     void AcceptConnection(const ListenSocket& hListenSocket, CMasternodeSync& mn_sync)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);

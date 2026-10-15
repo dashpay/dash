@@ -9,6 +9,7 @@
 #include <interfaces/node.h>
 #include <saltedhasher.h>
 #include <uint256.h>
+#include <util/check.h>
 
 #include <qt/bitcoinunits.h>
 
@@ -47,7 +48,6 @@ private:
     int m_block_height{0};
     int m_collateral_confs{0};
     interfaces::GOV::GovernanceInfo m_gov_info;
-    interfaces::GOV::Votes m_votes;
     std::map<COutPoint, CGovernanceVote> m_current_votes;
     QDateTime m_date_collateral{};
     QDateTime m_endDate{};
@@ -61,6 +61,14 @@ private:
     QString m_url{};
     std::optional<int> m_funded_height{};
     uint256 m_objHash{};
+    //! Nullopt when the masternode list to count votes against is not available
+    std::optional<interfaces::GOV::Votes> m_votes;
+
+    interfaces::GOV::Votes votes() const
+    {
+        Assume(m_votes.has_value());
+        return m_votes.value_or(interfaces::GOV::Votes{});
+    }
 
 public:
     explicit Proposal(ClientModel& client_model, const CGovernanceObject& _govObj,
@@ -75,10 +83,13 @@ public:
     int collateralConfs() const;
     int paymentsRequested() const;
     int requiredConfs() const;
-    int32_t getAbsoluteYesCount() const { return m_votes.m_yes - m_votes.m_no; }
-    int32_t getAbstainCount() const { return m_votes.m_abs; }
-    int32_t getNoCount() const { return m_votes.m_no; }
-    int32_t getYesCount() const { return m_votes.m_yes; }
+    //! Whether the vote counts are known. Only proposals with known counts are
+    //! listed, so the counts below are read only for those.
+    bool hasVotes() const { return m_votes.has_value(); }
+    int32_t getAbsoluteYesCount() const { return votes().m_yes - votes().m_no; }
+    int32_t getAbstainCount() const { return votes().m_abs; }
+    int32_t getNoCount() const { return votes().m_no; }
+    int32_t getYesCount() const { return votes().m_yes; }
     ProposalStatus status(bool is_fundable) const;
     QDateTime collateralDate() const { return m_date_collateral; }
     QDateTime endDate() const { return m_endDate; }

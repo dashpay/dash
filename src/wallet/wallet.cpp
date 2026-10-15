@@ -1575,12 +1575,20 @@ void CWallet::blockConnected(const interfaces::BlockInfo& block)
     m_last_block_processed_height = block.height;
     m_last_block_processed = block.hash;
 
+    WalletBatch batch(GetDatabase());
+    // Classify the unspent outputs the masternode list was not available for.
+    // They stay recorded until LockProTxCoins() releases them, which also
+    // invalidates the CoinJoin tallies that left them out.
+    std::erase_if(m_unclassified_protx_coins, [&](const COutPoint& output) { return setWalletUTXO.count(output) == 0; });
+    if (!m_unclassified_protx_coins.empty()) {
+        LockProTxCoins(std::set<COutPoint>{m_unclassified_protx_coins}, &batch);
+    }
+
     // No need to scan block if it was created before the wallet birthday.
     // Uses chain max time and twice the grace period to adjust time for block time variability.
     if (block.chain_time_max < m_birth_time.load() - (TIMESTAMP_WINDOW * 2)) return;
 
     // Scan block
-    WalletBatch batch(GetDatabase());
     for (size_t index = 0; index < block.data->vtx.size(); index++) {
         SyncTransaction(block.data->vtx[index], TxStateConfirmed{block.hash, block.height, static_cast<int>(index)}, batch);
         transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK);
@@ -2906,6 +2914,12 @@ bool CWallet::UnlockAllCoins()
     return success;
 }
 
+bool CWallet::IsUnclassifiedProTxCoin(const COutPoint& output) const
+{
+    AssertLockHeld(cs_wallet);
+    return m_unclassified_protx_coins.count(output) > 0;
+}
+
 bool CWallet::IsLockedCoin(const COutPoint& output) const
 {
     AssertLockHeld(cs_wallet);
@@ -2918,9 +2932,9 @@ const std::set<COutPoint>& CWallet::ListLockedCoins() const
     return setLockedCoins;
 }
 
-std::vector<COutPoint> CWallet::ListProTxCoins() const { return ListProTxCoins(setWalletUTXO); }
+std::optional<std::vector<COutPoint>> CWallet::ListProTxCoins() const { return ListProTxCoins(setWalletUTXO); }
 
-std::vector<COutPoint> CWallet::ListProTxCoins(const std::set<COutPoint>& utxos) const
+std::optional<std::vector<COutPoint>> CWallet::ListProTxCoins(const std::set<COutPoint>& utxos) const
 {
     AssertLockHeld(cs_wallet);
 
@@ -2939,7 +2953,19 @@ std::vector<COutPoint> CWallet::ListProTxCoins(const std::set<COutPoint>& utxos)
 void CWallet::LockProTxCoins(const std::set<COutPoint>& utxos, WalletBatch* batch)
 {
     AssertLockHeld(cs_wallet);
-    for (const auto& utxo : ListProTxCoins(utxos)) {
+    const auto protx_coins{ListProTxCoins(utxos)};
+    if (!protx_coins) {
+        WalletLogPrintf("Masternode list not available, withholding %d outputs from automatic spending until it is\n",
+                        utxos.size());
+        for (const auto& utxo : utxos) {
+            if (m_unclassified_protx_coins.insert(utxo).second) RecalculateMixedCredit(utxo.hash);
+        }
+        return;
+    }
+    for (const auto& utxo : utxos) {
+        if (m_unclassified_protx_coins.erase(utxo)) RecalculateMixedCredit(utxo.hash);
+    }
+    for (const auto& utxo : *protx_coins) {
         LockCoin(utxo, batch);
     }
 }

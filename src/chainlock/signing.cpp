@@ -37,6 +37,9 @@ ChainLockSigner::ChainLockSigner(const ChainstateManager& chainman, const chainl
     m_scheduler_thread{
         std::make_unique<std::thread>(std::thread(util::TraceThread, "cls-schdlr", [&] { m_scheduler->serviceQueue(); }))}
 {
+    // Tasks are scheduled only from Start(), after this is set.
+    m_scheduler->SetTaskWrapper(
+        [this](const CScheduler::Function& task) { RunActiveEvoRound(m_chainman.EvoDb(), "cls-schdlr", task); });
 }
 
 ChainLockSigner::~ChainLockSigner() { Stop(); }

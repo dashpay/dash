@@ -40,6 +40,7 @@
 #include <util/translation.h>
 
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <stats/client.h>
@@ -59,6 +60,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <unordered_map>
 
 #include <math.h>
@@ -3150,7 +3152,12 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect, CDe
 
         addrman.ResolveCollisions();
 
-        auto mnList = dmnman.GetListAtChainTip();
+        // Without the masternode list, connected masternodes cannot be
+        // skipped below; try again next round.
+        std::optional<CDeterministicMNList> tip_list;
+        RunActiveEvoRound(&dmnman.EvoDb(), "opencon", [&] { tip_list = dmnman.GetListAtChainTip(); });
+        if (!tip_list) continue;
+        const auto& mnList{*tip_list};
 
         const auto current_time{NodeClock::now()};
         int nTries = 0;
@@ -3427,7 +3434,10 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
             }
         });
 
-        auto mnList = dmnman.GetListAtChainTip();
+        std::optional<CDeterministicMNList> tip_list;
+        RunActiveEvoRound(&dmnman.EvoDb(), "mncon", [&] { tip_list = dmnman.GetListAtChainTip(); });
+        if (!tip_list) continue;
+        const auto& mnList{*tip_list};
 
         if (interruptNet)
             return;
@@ -3674,7 +3684,28 @@ void CConnman::OpenMasternodeConnection(const CAddress &addrConnect, bool use_v2
 
 Mutex NetEventsInterface::g_msgproc_mutex;
 
-void CConnman::ThreadMessageHandler()
+bool CConnman::ServicePeer(const CEvoDB& evodb, CNode& node, bool send)
+{
+    bool more_work{false};
+    try {
+        const ActiveEvoViewScope evo_view{&evodb};
+        more_work = m_msgproc->ProcessMessages(&node, flagInterruptMsgProc);
+    } catch (const evo::LocalStateError& e) {
+        LogPrint(BCLog::NET, "peer=%d: Evo state unavailable: %s\n", node.GetId(), e.what());
+    }
+    // Sends run even when receiving stopped early: they include the peer's
+    // discouragement and ping timeout.
+    if (!send || flagInterruptMsgProc) return more_work;
+    try {
+        const ActiveEvoViewScope evo_view{&evodb};
+        m_msgproc->SendMessages(&node);
+    } catch (const evo::LocalStateError& e) {
+        LogPrint(BCLog::NET, "peer=%d: Evo state unavailable: %s\n", node.GetId(), e.what());
+    }
+    return more_work;
+}
+
+void CConnman::ThreadMessageHandler(const CEvoDB& evodb)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
@@ -3700,16 +3731,9 @@ void CConnman::ThreadMessageHandler()
             if (pnode->fDisconnect)
                 continue;
 
-            // Receive messages
-            bool fMoreNodeWork = m_msgproc->ProcessMessages(pnode, flagInterruptMsgProc);
+            const bool send{!fSkipSendMessagesForMasternodes || !pnode->m_masternode_connection};
+            const bool fMoreNodeWork{ServicePeer(evodb, *pnode, send)};
             fMoreWork |= (fMoreNodeWork && !pnode->fPauseSend);
-            if (flagInterruptMsgProc)
-                return;
-            // Send messages
-            if (!fSkipSendMessagesForMasternodes || !pnode->m_masternode_connection) {
-                m_msgproc->SendMessages(pnode);
-            }
-
             if (flagInterruptMsgProc)
                 return;
         }
@@ -4101,7 +4125,8 @@ bool CConnman::Start(CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_met
     }
 
     // Process messages
-    threadMessageHandler = std::thread(&util::TraceThread, "msghand", [this] { ThreadMessageHandler(); });
+    threadMessageHandler = std::thread(&util::TraceThread, "msghand",
+                                       [this, &evodb = dmnman.EvoDb()] { ThreadMessageHandler(evodb); });
 
     if (m_i2p_sam_session) {
         threadI2PAcceptIncoming =

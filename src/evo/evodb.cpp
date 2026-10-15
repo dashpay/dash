@@ -147,6 +147,30 @@ std::optional<EvoViewToken> EvoViewScope::InnermostAny()
     return g_innermost_scope->m_token;
 }
 
+bool CEvoDB::IsBound() const
+{
+    LOCK(cs);
+    return HoldsTransaction() || EvoViewScope::Innermost(*this) != nullptr;
+}
+
+void CEvoDB::UpdateLiveGeneration()
+{
+    m_has_live_generation = m_snapshot_generation && (m_snapshot_generation->state == EvoGenerationState::PUBLISHED ||
+                                                      m_snapshot_generation->state == EvoGenerationState::PROMOTING);
+}
+
+EvoViewToken CEvoDB::ActiveView() const
+{
+    LOCK(cs);
+    return MakeView(m_default_identity);
+}
+
+bool CEvoDB::IsLive(const EvoViewToken& view) const
+{
+    LOCK(cs);
+    return IsLiveLocked(view);
+}
+
 bool CEvoDB::IsLiveLocked(const EvoViewToken& view) const
 {
     if (view.db != this) return false;
@@ -327,6 +351,7 @@ void CEvoDB::BindSnapshotGeneration(std::optional<EvoGenerationRecord> record)
         transaction_contexts.erase(it);
     }
     m_snapshot_generation = std::move(record);
+    UpdateLiveGeneration();
     if (!m_snapshot_generation) m_default_identity = EvoDbIdentity::NORMAL;
 }
 
@@ -385,6 +410,7 @@ bool CEvoDB::PublishSnapshotGeneration(const uint256& config_fingerprint, const 
     if (base_mn_list_hash) batch.Write(EVODB_SNAPSHOT_MNLIST_HASH, *base_mn_list_hash);
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     m_snapshot_generation = record;
+    UpdateLiveGeneration();
     return true;
 }
 
@@ -578,6 +604,7 @@ bool CEvoDB::PrepareSnapshotPromotion(const uint256& snapshot_tip)
     batch.Write(GenerationRecordKey(record.generation), record);
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     m_snapshot_generation = record;
+    UpdateLiveGeneration();
     return true;
 }
 

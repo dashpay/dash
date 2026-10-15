@@ -7,6 +7,7 @@
 #include <active/dkgsessionhandler.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <hash.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -28,6 +29,7 @@
 #include <unordered_lru_cache.h>
 #include <util/std23.h>
 #include <util/thread.h>
+#include <util/time.h>
 #include <validation.h>
 
 namespace llmq {
@@ -773,6 +775,7 @@ void NetDKG::PhaseHandlerThread(ActiveDKGSessionHandler& handler)
 {
     while (!handler.IsStopRequested()) {
         try {
+            const ActiveEvoViewScope evo_view{m_chainman.EvoDb()};
             LogPrint(BCLog::LLMQ_DKG, "NetDKG::%s -- %s qi[%d] - starting HandleDKGRound\n", __func__,
                      handler.params.name, handler.QuorumIndex());
             HandleDKGRound(handler);
@@ -780,6 +783,13 @@ void NetDKG::PhaseHandlerThread(ActiveDKGSessionHandler& handler)
             m_active->dkgdbgman.MarkAborted(handler.params.type, handler.QuorumIndex());
             LogPrint(BCLog::LLMQ_DKG, "NetDKG::%s -- %s qi[%d] - aborted current DKG session\n", __func__,
                      handler.params.name, handler.QuorumIndex());
+        } catch (const evo::LocalStateError& e) {
+            LogPrintf("NetDKG::%s -- %s qi[%d] - Evo state unavailable: %s\n", __func__, handler.params.name,
+                      handler.QuorumIndex(), e.what());
+            // Retry after a second, unless asked to stop meanwhile.
+            for (int i{0}; i < 10 && !handler.IsStopRequested(); ++i) {
+                UninterruptibleSleep(std::chrono::milliseconds{100});
+            }
         }
     }
 }

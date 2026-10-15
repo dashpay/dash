@@ -406,8 +406,8 @@ void UpdateShareDialog::validate()
 
     if (!m_is_shared) {
         showError(tr("This masternode is not shared and has no share table."));
-    } else if (!m_v24_active) {
-        showError(SharedMnV24InactiveMessage());
+    } else if (!m_v24_active.value_or(false)) {
+        showError(SharedMnV24InactiveMessage(m_v24_active));
     } else if (m_share_combo->count() == 0) {
         showError(NoShareKeysMessage());
     } else if (!m_reward_edit->text().trimmed().isEmpty() && !problem.isEmpty()) {
@@ -418,7 +418,7 @@ void UpdateShareDialog::validate()
         clearError();
     }
 
-    setOkValid(m_v24_active && m_is_shared && has_share && problem.isEmpty() &&
+    setOkValid(m_v24_active.value_or(false) && m_is_shared && has_share && problem.isEmpty() &&
                !m_fee_source->selectedAddress().isEmpty());
 }
 
@@ -889,9 +889,9 @@ bool SharedMnDialog::gateButton(QPushButton* button) const
         button->setToolTip(tr("This wallet is watch-only and cannot sign."));
         return false;
     }
-    if (!m_v24_active) {
+    if (!m_v24_active.value_or(false)) {
         button->setEnabled(false);
-        button->setToolTip(SharedMnV24InactiveMessage());
+        button->setToolTip(SharedMnV24InactiveMessage(m_v24_active));
         return false;
     }
     return true;

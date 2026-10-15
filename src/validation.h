@@ -543,9 +543,10 @@ protected:
     //! IsLocalEvoStateError). Trying one again cannot succeed until that state
     //! changes, so ConnectTip and DisconnectTip refuse it at once instead of
     //! revalidating it, and candidate selection passes over the branches that
-    //! need it. Cleared on restart; snapshot completion keeps them and asks
-    //! for a restart.
+    //! need it. Cleared on restart and ignored once the chainstate's Evo view
+    //! changes; snapshot completion keeps them and asks for a restart.
     struct EvoStall {
+        EvoViewToken view;
         LocalEvoStateResult result;
         std::string reject_reason;
     };
@@ -577,6 +578,9 @@ public:
 
     //! Return the stable EvoDB identity corresponding to this chainstate's coins DB.
     ::EvoDbIdentity EvoDbIdentity() const;
+    //! The Evo view this chainstate reads and writes. Every Chainstate method
+    //! that touches Evo state binds it at entry.
+    EvoViewToken EvoView() const;
 
     std::string EvoDbInconsistencyMessage();
 
@@ -1206,6 +1210,8 @@ public:
 
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;
+    //! The EvoDB shared by the chainstates, once one is initialized.
+    const CEvoDB* EvoDb() const { return m_evodb.load(); }
     CChain& ActiveChain() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) { return ActiveChainstate().m_chain; }
     int ActiveHeight() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) { return ActiveChain().Height(); }
     CBlockIndex* ActiveTip() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) { return ActiveChain().Tip(); }
@@ -1226,6 +1232,7 @@ public:
      * the cache is partitioned by the calling operation's Evo view.
      */
     mutable EvoViewVersionBitsCache m_versionbitscache;
+    std::atomic<const CEvoDB*> m_evodb{nullptr};
 
     //! @returns true if a snapshot-based chainstate is in use. Also implies
     //!          that a background validation chainstate is also in use.

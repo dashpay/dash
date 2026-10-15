@@ -10,6 +10,10 @@
 
 #include <rpc/server.h>
 
+#include <context.h>
+#include <node/context.h>
+#include <validation.h>
+
 #include <rpc/util.h>
 #include <shutdown.h>
 #include <sync.h>
@@ -518,6 +522,8 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
     if (it != mapCommands.end()) {
         UniValue result;
         const JSONRPCRequest new_request{subcommand.empty() ? request : request.squashed() };
+        const auto* node{GetContext<node::NodeContext>(request.context)};
+        const ActiveEvoViewScope evo_view{node ? node->evodb.get() : nullptr};
         if (ExecuteCommands(it->second, new_request, result)) {
             return result;
         }

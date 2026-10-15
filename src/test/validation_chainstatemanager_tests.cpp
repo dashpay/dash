@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 #include <arith_uint256.h>
+#include <banman.h>
 #include <bls/bls.h>
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
@@ -20,15 +21,21 @@
 #include <instantsend/net_instantsend.h>
 #include <kernel/disconnected_transactions.h>
 #include <logging.h>
+#include <masternode/meta.h>
+#include <net.h>
+#include <net_processing.h>
+#include <netmessagemaker.h>
 #include <node/chainstate.h>
 #include <node/utxo_snapshot.h>
 #include <pow.h>
+#include <protocol.h>
 #include <random.h>
 #include <rpc/blockchain.h>
 #include <shutdown.h>
 #include <sync.h>
 #include <test/util/chainstate.h>
 #include <test/util/logging.h>
+#include <test/util/net.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <timedata.h>
@@ -42,7 +49,9 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <llmq/net_signing.h>
 #include <llmq/quorumsman.h>
+#include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
@@ -920,6 +929,21 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, SnapshotTestSetup
         BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), tip);
     }
 
+    // An asset unlock checked against the credit pool at the tip, rebuilt from
+    // its pruned body, is not rejected either: its acceptance ends in an error.
+    {
+        CMutableTransaction unlock_tx;
+        unlock_tx.nVersion = CTransaction::SPECIAL_VERSION;
+        unlock_tx.nType = TRANSACTION_ASSET_UNLOCK;
+        unlock_tx.vout.emplace_back(COIN, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        SetTxPayload(unlock_tx, CAssetUnlockPayload{CAssetUnlockPayload::INITIAL_VERSION, /*index=*/1, /*fee=*/1000,
+                                                    static_cast<uint32_t>(tip->nHeight), uint256::ONE, CBLSSignature{}});
+        const MempoolAcceptResult result{
+            WITH_LOCK(::cs_main, return chainman.ProcessTransaction(MakeTransactionRef(std::move(unlock_tx))))};
+        BOOST_CHECK(result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
+        BOOST_CHECK(result.m_state.IsError());
+    }
+
     // The block above the snapshot base checks its coinbase ChainLock against
     // the base's, whose body a snapshot node does not have: it cannot tell a
     // missing ChainLock from an unreadable one.
@@ -962,6 +986,43 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, SnapshotTestSetup
         snapshot_base->nStatus = snapshot_base_status;
         // With the body there, the coinbase is read.
         BOOST_CHECK_NO_THROW(GetNonNullCoinbaseChainlock(snapshot_base));
+    }
+
+    // Mempool acceptance that needs the EHF signals at the tip, rebuilt from its
+    // pruned body, ends in an error instead of throwing, and drops the coins it
+    // loaded like any failure.
+    {
+        const auto& funding{m_coinbase_txns[50]};
+        const CMutableTransaction spend{CreateValidMempoolTransaction(funding, 0, 51, coinbaseKey,
+                                                                      GetScriptForRawPubKey(coinbaseKey.GetPubKey()),
+                                                                      CAmount(1 * COIN), /*submit=*/false)};
+        const COutPoint input{funding->GetHash(), 0};
+        // Drop every cached deployment state and EHF signal, as a restart would.
+        {
+            const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+        }
+        LOCK(::cs_main);
+        chainman.m_versionbitscache.Clear();
+        snapshot_chainstate->CoinsTip().Uncache(input);
+        BOOST_REQUIRE(!snapshot_chainstate->CoinsTip().HaveCoinInCache(input));
+        std::optional<MempoolAcceptResult> result;
+        BOOST_CHECK_NO_THROW(result.emplace(AcceptToMemoryPool(*snapshot_chainstate, MakeTransactionRef(spend), GetTime(),
+                                                               /*bypass_limits=*/false, /*test_accept=*/false)));
+        BOOST_REQUIRE(result);
+        BOOST_CHECK(result->m_result_type == MempoolAcceptResult::ResultType::INVALID);
+        BOOST_CHECK(result->m_state.IsError());
+        BOOST_CHECK(!snapshot_chainstate->CoinsTip().HaveCoinInCache(input));
+    }
+
+    // Startup's EHF signal update at the active snapshot tip cannot rebuild them
+    // from its pruned body either: it leaves them to be rebuilt on demand, so
+    // loading can go on, and leaves the snapshot view clean for the next flush.
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK(m_node.special_tx->m_mnhfman->ForceSignalDBUpdate(snapshot_chainstate->EvoView(), tip));
+        BOOST_CHECK(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK(!m_node.evodb->Exists(std::make_pair(std::string{"mnhf_s2"}, tip->GetBlockHash())));
     }
 
     // Checking a child's EHF signals rebuilds those of the block it extends
@@ -1013,6 +1074,136 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, SnapshotTestSetup
         BOOST_CHECK(m_node.evodb->Exists(signals_key));
     }
     SetMiscWarning(Untranslated(""));
+}
+
+//! A peer's turn in the message handler is bound to the active Evo view and
+//! contains this node's local Evo errors, starting with the GETDATA requests
+//! that backpressure left queued, which resume before any message is read.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_peer_turn_is_bound, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    // Dash message handlers run on every message the peer manager does not
+    // handle itself; recovered signatures are handled as the node does.
+    BOOST_REQUIRE(m_node.mn_metaman->LoadCache(/*load_cache=*/false));
+    m_node.peerman->AddExtraHandler(std::make_unique<llmq::NetSigning>(m_node.peerman.get(), *m_node.llmq_ctx->sigman,
+                                                                       /*shares_manager=*/nullptr, *m_node.sporkman));
+    auto& connman{static_cast<ConnmanTestMsg&>(*m_node.connman)};
+    PeerManager& peerman{*Assert(m_node.peerman)};
+    const CEvoDB& evodb{*m_node.evodb};
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+    in_addr peer_in_addr{};
+    peer_in_addr.s_addr = htonl(0x01020304);
+    CNode peer{/*id=*/0,
+               /*sock=*/nullptr,
+               CAddress{CService{peer_in_addr, Params().GetDefaultPort()}, NODE_NETWORK},
+               /*nKeyedNetGroupIn=*/0,
+               /*nLocalHostNonceIn=*/0,
+               CAddress{},
+               /*addrNameIn=*/"",
+               ConnectionType::OUTBOUND_FULL_RELAY,
+               /*inbound_onion=*/false};
+    {
+        // The helper reads messages outside the message handler.
+        const ActiveEvoViewScope evo_view{&evodb};
+        connman.Handshake(peer, /*successfully_connected=*/true, ServiceFlags(NODE_NETWORK), ServiceFlags(NODE_NETWORK),
+                          PROTOCOL_VERSION, /*relay_txs=*/true);
+    }
+    TestOnlyResetTimeData();
+    const auto sent{[&](const std::string& msg_type) {
+        LOCK(peer.cs_vSend);
+        return std::ranges::count_if(peer.vSendMsg, [&](const auto& msg) { return msg.m_type == msg_type; });
+    }};
+    const auto not_found{[&] {
+        LOCK(peer.cs_vSend);
+        std::vector<CInv> invs;
+        for (const auto& msg : peer.vSendMsg) {
+            if (msg.m_type != NetMsgType::NOTFOUND) continue;
+            CDataStream stream{msg.data, SER_NETWORK, PROTOCOL_VERSION};
+            std::vector<CInv> msg_invs;
+            stream >> msg_invs;
+            invs.insert(invs.end(), msg_invs.begin(), msg_invs.end());
+        }
+        return invs;
+    }};
+
+    // A recovered signature this node holds, requested while the send buffer
+    // is full.
+    const auto llmq_type{Consensus::LLMQType::LLMQ_TEST};
+    const uint256 quorum_hash{GetRandHash()};
+    const uint256 id{GetRandHash()};
+    const uint256 msg_hash{GetRandHash()};
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto rec_sig{
+        std::make_shared<const llmq::CRecoveredSig>(llmq_type, quorum_hash, id, msg_hash,
+                                                    key.Sign(llmq::SignHash{llmq_type, quorum_hash, id, msg_hash}.Get(),
+                                                             bls::bls_legacy_scheme.load()))};
+    BOOST_REQUIRE(m_node.llmq_ctx->sigman->ProcessRecoveredSig(rec_sig));
+    const CInv rec_sig_inv{MSG_QUORUM_RECOVERED_SIG, rec_sig->GetHash()};
+    const auto request_while_paused{
+        [&](const std::vector<CInv>& invs) EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            CDataStream getdata{SER_NETWORK, PROTOCOL_VERSION};
+            getdata << invs;
+            std::atomic<bool> interrupt{false};
+            peer.fPauseSend = true;
+            peerman.ProcessMessage(peer, NetMsgType::GETDATA, getdata, GetTime<std::chrono::microseconds>(), interrupt);
+            peer.fPauseSend = false;
+        }};
+
+    // Resumed, the request is answered from the active view: its quorum is
+    // not active there.
+    request_while_paused({rec_sig_inv});
+    BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+    BOOST_CHECK(not_found() == std::vector<CInv>{rec_sig_inv});
+
+    // When the active view cannot answer, the turn ends without the request:
+    // it is neither served again nor reported missing, a missing transaction
+    // requested ahead of it still is, and the peer's next message is processed.
+    {
+        ScopedDIP3FromGenesis dip3_active;
+        const CInv missing_tx{MSG_TX, GetRandHash()};
+        request_while_paused({missing_tx, rec_sig_inv});
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, CNetMsgMaker{PROTOCOL_VERSION}.Make(NetMsgType::PING, uint64_t{1})));
+        BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+        BOOST_CHECK(not_found() == (std::vector<CInv>{rec_sig_inv, missing_tx}));
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 0);
+        // The replies leave the send buffer.
+        connman.FlushSendBuffer(peer);
+        peer.fPauseSend = false;
+        BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 1);
+
+        // A message whose handler cannot read this node's Evo state is dropped
+        // like any other message that fails: the peer is not punished, and its
+        // next message is processed on its next turn.
+        const auto next_turn{[&]() EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            connman.FlushSendBuffer(peer);
+            peer.fPauseSend = false;
+            bool more_work{false};
+            BOOST_CHECK_NO_THROW(more_work = connman.ServicePeer(evodb, peer, /*send=*/true));
+            return more_work;
+        }};
+        const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, msg_maker.Make(NetMsgType::QSIGREC, *rec_sig)));
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, msg_maker.Make(NetMsgType::PING, uint64_t{2})));
+        {
+            ASSERT_DEBUG_LOG("ProcessMessages(qsigrec, 193 bytes): Exception 'GetMinedCommitmentsUntilBlock");
+            // The queued PING is still reported as work for this peer.
+            BOOST_CHECK(next_turn());
+        }
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 0);
+        next_turn();
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 1);
+        BOOST_CHECK(!m_node.banman->IsDiscouraged(peer.addr));
+
+        // A turn whose queued requests end early still sends: a peer due to be
+        // discouraged cannot keep its connection by queueing such requests.
+        peerman.UnitTestMisbehaving(peer.GetId(), DISCOURAGEMENT_THRESHOLD);
+        request_while_paused({rec_sig_inv});
+        next_turn();
+        BOOST_CHECK(m_node.banman->IsDiscouraged(peer.addr));
+    }
+    peerman.FinalizeNode(peer);
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_reconsider_block_candidates, SnapshotTestSetup)
