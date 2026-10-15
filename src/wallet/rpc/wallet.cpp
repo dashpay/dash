@@ -22,6 +22,7 @@
 #include <util/fees.h>
 #include <util/translation.h>
 #include <util/vector.h>
+#include <wallet/bip39.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
@@ -378,6 +379,16 @@ static RPCHelpMan upgradetohd()
 
         if (pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Private keys are disabled for this wallet");
+        }
+
+        const bool allow_long{
+            EnsureWalletContext(request.context).args->GetBoolArg("-allow-deprecated-long-mnemonics", false)};
+        const size_t max_bytes{allow_long ? CMnemonic::MAX_DEPRECATED_PASSPHRASE_BYTES : CMnemonic::MAX_PASSPHRASE_BYTES};
+        if (mnemonic_passphrase.size() > max_bytes) {
+            throw JSONRPCError(
+                RPC_INVALID_PARAMETER,
+                strprintf("Mnemonic passphrase is too long, must be at most %d bytes.%s", max_bytes,
+                          allow_long ? "" : " Use -allow-deprecated-long-mnemonics only to recover an existing wallet."));
         }
 
         pwallet->WalletLogPrintf("Upgrading wallet to HD\n");

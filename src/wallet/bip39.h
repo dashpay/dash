@@ -26,13 +26,19 @@
 
 #include <support/allocators/secure.h>
 
+#include <cstddef>
+
 class CMnemonic
 {
 public:
+    //! ToSeed caps the salt ("mnemonic" + passphrase) at 256 bytes, so passphrase bytes past this limit are ignored
+    static constexpr size_t MAX_PASSPHRASE_BYTES{248};
+    //! Longest passphrase accepted with -allow-deprecated-long-mnemonics, the most CHDChain::SetMnemonic stores
+    static constexpr size_t MAX_DEPRECATED_PASSPHRASE_BYTES{256};
+
     static SecureString Generate(int strength);    // strength in bits
     static SecureString FromData(const SecureVector& data, int len);
     static bool Check(const SecureString& mnemonic);
-    // passphrase must be at most 256 characters otherwise it would be truncated
     static void ToSeed(const SecureString& mnemonic, const SecureString& passphrase, SecureVector& seedRet);
 };
 

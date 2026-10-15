@@ -61,6 +61,7 @@ void DummyWalletInit::AddWalletOptions(ArgsManager& argsman) const
         "-mintxfee=<amt>",
         "-paytxfee=<amt>",
         "-txconfirmtarget=<n>",
+        "-allow-deprecated-long-mnemonics",
         "-hdseed=<hex>",
         "-mnemonic=<text>",
         "-mnemonicpassphrase=<text>",

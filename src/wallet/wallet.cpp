@@ -414,6 +414,17 @@ std::shared_ptr<CWallet> CreateWallet(WalletContext& context, const std::string&
         return nullptr;
     }
 
+    if (!(wallet_creation_flags & (WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_BLANK_WALLET))) {
+        const bool allow_long{args.GetBoolArg("-allow-deprecated-long-mnemonics", false)};
+        const size_t max_bytes{allow_long ? CMnemonic::MAX_DEPRECATED_PASSPHRASE_BYTES : CMnemonic::MAX_PASSPHRASE_BYTES};
+        if (args.GetArg("-mnemonicpassphrase", "").size() > max_bytes) {
+            error = Untranslated(strprintf("Mnemonic passphrase is too long, must be at most %d bytes.%s", max_bytes,
+                                           allow_long ? "" : " Use -allow-deprecated-long-mnemonics only to recover an existing wallet."));
+            status = DatabaseStatus::FAILED_CREATE;
+            return nullptr;
+        }
+    }
+
     // Wallet::Verify will check if we're trying to create a wallet with a duplicate name.
     std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(name, options, status, error);
     if (!database) {
