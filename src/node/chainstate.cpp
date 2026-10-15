@@ -197,6 +197,9 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         if (options.check_interrupt && options.check_interrupt()) return {ChainstateLoadStatus::INTERRUPTED, {}};
         return {ChainstateLoadStatus::FAILURE, _("Error loading block database")};
     }
+    // The snapshot base is resolvable now: keep the bodies its evo inputs
+    // still need.
+    chainman.UpdateSnapshotPruneLock();
 
     if (!chainman.BlockIndex().empty() &&
             !chainman.m_blockman.LookupBlockIndex(chainman.GetConsensus().hashGenesisBlock)) {
@@ -379,6 +382,12 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
             return {ChainstateLoadStatus::FAILURE, util::ErrorString(result)};
         }
     }
+    // Evo inputs captured for a snapshot that never got published, e.g. after
+    // a crash, are of no use.
+    if (!evodb.GetSnapshotGeneration() && !evo::EraseAllEvoSnapshotCaptures(evodb)) {
+        return {ChainstateLoadStatus::FAILURE,
+                _("Error removing stale assumeutxo snapshot state from the Evo database")};
+    }
     if (!options.dash_dbs_in_memory && !options.reindex && !options.reindex_chainstate) {
         bilingual_str recovery_error;
         if (!RecoverSnapshotCleanup(evodb, options.data_dir, recovery_error)) {
@@ -419,6 +428,10 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
                     _("Snapshot EvoDB state has no snapshot chainstate. Reindex is required.")};
         }
         LogPrintf("[snapshot] discarded a snapshot EvoDB generation that never activated\n");
+        if (!evo::EraseAllEvoSnapshotCaptures(evodb)) {
+            return {ChainstateLoadStatus::FAILURE,
+                    _("Error removing stale assumeutxo snapshot state from the Evo database")};
+        }
     }
 
     auto [init_status, init_error] = CompleteChainstateInitialization(chainman, cache_sizes, options, evodb, dmnman,

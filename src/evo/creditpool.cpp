@@ -63,7 +63,27 @@ struct CreditPoolDataPerBlock {
     CAmount unlocked{0};
     std::unordered_set<uint64_t> indexes;
 };
+
+//! What each block body contributes, as parsed from the body.
+struct BlockDataCache {
+    Mutex mutex;
+    Uint256LruHashMap<CreditPoolDataPerBlock> blocks GUARDED_BY(mutex){
+        static_cast<size_t>(Params().CreditPoolPeriodBlocks()) * 2};
+};
+
+BlockDataCache& GetBlockDataCache()
+{
+    static BlockDataCache cache;
+    return cache;
+}
 } // anonymous namespace
+
+void CCreditPoolManager::ClearBlockDataCacheForTesting()
+{
+    auto& cache{GetBlockDataCache()};
+    LOCK(cache.mutex);
+    cache.blocks.clear();
+}
 
 static std::optional<CreditPoolDataPerBlock> ParseCreditData(const CBlock& block, int height);
 
@@ -78,10 +98,8 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
 
     CreditPoolDataPerBlock blockData;
 
-    static Mutex cache_mutex;
-    static Uint256LruHashMap<CreditPoolDataPerBlock> block_data_cache GUARDED_BY(cache_mutex){
-        static_cast<size_t>(Params().CreditPoolPeriodBlocks()) * 2};
-    if (LOCK(cache_mutex); block_data_cache.get(block_index->GetBlockHash(), blockData)) {
+    auto& cache{GetBlockDataCache()};
+    if (LOCK(cache.mutex); cache.blocks.get(block_index->GetBlockHash(), blockData)) {
         return blockData;
     }
 
@@ -98,8 +116,8 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
     if (!parsed) return std::nullopt;
     blockData = std::move(*parsed);
 
-    LOCK(cache_mutex);
-    block_data_cache.insert(block_index->GetBlockHash(), blockData);
+    LOCK(cache.mutex);
+    cache.blocks.insert(block_index->GetBlockHash(), blockData);
     return blockData;
 }
 

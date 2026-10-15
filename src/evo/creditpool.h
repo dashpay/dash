@@ -199,6 +199,9 @@ public:
                                                               const Consensus::Params& consensus_params,
                                                               std::string& error);
 
+    /** Forget the block bodies parsed so far, as a restart would. */
+    static void ClearBlockDataCacheForTesting();
+
 private:
     std::optional<CCreditPool> GetFromCache(const CBlockIndex& block_index) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
     void AddToCache(const uint256& block_hash, int height, const CCreditPool& pool) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);

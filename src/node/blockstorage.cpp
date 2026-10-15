@@ -251,6 +251,20 @@ void BlockManager::UpdatePruneLock(const std::string& name, const PruneLockInfo&
     m_prune_locks[name] = lock_info;
 }
 
+bool BlockManager::DeletePruneLock(const std::string& name)
+{
+    AssertLockHeld(::cs_main);
+    return m_prune_locks.erase(name) > 0;
+}
+
+std::optional<PruneLockInfo> BlockManager::GetPruneLock(const std::string& name) const
+{
+    AssertLockHeld(::cs_main);
+    const auto it{m_prune_locks.find(name)};
+    if (it == m_prune_locks.end()) return std::nullopt;
+    return it->second;
+}
+
 CBlockIndex* BlockManager::InsertBlockIndex(const uint256& hash)
 {
     AssertLockHeld(cs_main);
