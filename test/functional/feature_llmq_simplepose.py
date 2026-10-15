@@ -252,6 +252,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
         # nodes moving forward from phase to phase correctly and the fact that the quorum is actually mined.
         self.log.info("Mining a quorum with less checks")
         nodes = [self.nodes[0]] + [mn.get_node(self) for mn in mninfos_online]
+        judges = [mn for mn in mninfos_online if mn is not unreachable_mn]
         attempts_before = self.get_outbound_attempt_counts(mninfos_online, unreachable_mn)
 
         # move forward to next DKG
@@ -263,35 +264,34 @@ class LLMQSimplePoSeTest(DashTestFramework):
         q = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_hash: "+str(q))
         self.log.info("Waiting for phase 1 (init)")
-        self.wait_for_quorum_phase(q, 1, expected_good_nodes, None, 0, mninfos_online)
-        judges = [mn for mn in mninfos_online if mn is not unreachable_mn]
+        self.wait_for_quorum_phase(q, 1, expected_good_nodes, None, 0, judges)
         self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, [q])
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 2 (contribute)")
-        self.wait_for_quorum_phase(q, 2, expected_good_nodes, "receivedContributions", expected_good_nodes, mninfos_online)
+        self.wait_for_quorum_phase(q, 2, expected_good_nodes, "receivedContributions", expected_good_nodes, judges)
         self.wait_for_dkg_messages(q, 2, mninfos_online)
         session_hashes = [q, self.nodes[0].getblockhash(self.nodes[0].getblock(q)["height"] + 1)]
         self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, session_hashes)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
-        self.wait_for_quorum_phase(q, 3, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q, 3, expected_good_nodes, None, 0, judges)
         self.wait_for_dkg_messages(q, 3, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
-        self.wait_for_quorum_phase(q, 4, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q, 4, expected_good_nodes, None, 0, judges)
         self.wait_for_dkg_messages(q, 4, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
-        self.wait_for_quorum_phase(q, 5, expected_good_nodes, "receivedPrematureCommitments", expected_good_nodes, mninfos_online)
+        self.wait_for_quorum_phase(q, 5, expected_good_nodes, "receivedPrematureCommitments", expected_good_nodes, judges)
         self.wait_for_dkg_messages(q, 5, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
-        self.wait_for_quorum_phase(q, 6, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q, 6, expected_good_nodes, None, 0, judges)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online)
