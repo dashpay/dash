@@ -49,6 +49,7 @@ CDataStream Serialized(const CFinalCommitment& qc)
 // keep it honest.
 BOOST_FIXTURE_TEST_CASE(unrequested_qfcommit_is_dropped_and_scored, TestChain100Setup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     // INV announcements for non-spork objects are only tracked outside IBD; the 100 mined blocks
@@ -140,6 +141,7 @@ BOOST_FIXTURE_TEST_CASE(unrequested_qfcommit_is_dropped_and_scored, TestChain100
 // verifying, and relaying, when it has more signers than ours.
 BOOST_FIXTURE_TEST_CASE(qfcommit_with_more_signers_replaces_stored_one, TestChain100Setup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
     BOOST_REQUIRE(!m_node.chainman->IsInitialBlockDownload());
     BOOST_REQUIRE(m_node.mn_metaman->LoadCache(/*load_cache=*/false));
@@ -213,6 +215,7 @@ struct PreV19Setup : public TestChain100Setup {
 // verifying it. A stale one still costs the peer, as it would after v19.
 BOOST_FIXTURE_TEST_CASE(pre_v19_qfcommit_is_ignored_unless_stale, PreV19Setup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
     BOOST_REQUIRE(!m_node.chainman->IsInitialBlockDownload());
     BOOST_REQUIRE(m_node.mn_metaman->LoadCache(/*load_cache=*/false));

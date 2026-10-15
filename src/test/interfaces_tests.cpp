@@ -20,9 +20,11 @@
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/params.h>
+#include <logging.h>
 #include <script/standard.h>
 #include <spork.h>
 #include <streams.h>
+#include <sync.h>
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
@@ -100,6 +102,7 @@ BOOST_AUTO_TEST_CASE(providerTxCapabilities)
 {
     auto node{interfaces::MakeNode(m_node)};
     const auto capabilities{node->evo().getProviderTxCapabilities().value()};
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const uint16_t expected_version{
         WITH_LOCK(::cs_main, return DeploymentToProtxVersion(Assert(m_node.chainman)->ActiveChain().Tip(),
                                                              *Assert(m_node.chainman)))};
@@ -152,7 +155,7 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
     auto node{interfaces::MakeNode(m_node)};
     CEvoDB& evodb{*Assert(m_node.evodb)};
     const CBlockIndex* tip{WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain().Tip())};
-    Assert(m_node.dmnman)->UpdatedBlockTip(tip);
+    NotifyMNListTip(*Assert(m_node.dmnman), tip);
     BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
     BOOST_REQUIRE(
         evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
@@ -202,6 +205,102 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
     in_use = find_in_use();
     BOOST_REQUIRE(std::holds_alternative<std::optional<std::string>>(in_use));
     BOOST_CHECK(!std::get<std::optional<std::string>>(in_use).has_value());
+    SetMiscWarning(Untranslated(""));
+}
+
+// Every interfaces call that reads Evo state binds the view it serves: called
+// from a thread that binds nothing, under -checkevobinding, none of them fails
+// with, or reports, an unbound access, with one view or with two.
+BOOST_AUTO_TEST_CASE(evo_reads_bind_from_an_unbound_thread)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain().Tip())};
+    NotifyMNListTip(*Assert(m_node.dmnman), tip);
+    m_node.govman = std::make_unique<CGovernanceManager>(m_args.GetDataDirNet(), *m_node.mn_metaman, *m_node.chainman,
+                                                         *m_node.sbman, *m_node.dmnman, *m_node.mn_sync,
+                                                         /*collateral=*/nullptr);
+    const CGovernanceObject proposal{uint256(), /*nRevisionIn=*/1, GetTime(), GetRandHash(), /*strDataHexIn=*/{}};
+    m_node.govman->AddGovernanceObjectForTesting(proposal);
+    const interfaces::ProviderNetInfo net_info{.core_p2p = {strprintf("1.2.3.4:%d", Params().GetDefaultPort())}, .platform_p2p = {}, .platform_https = {}};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto platform_qc{llmq::testutils::CreateValidCommitment(llmq::testutils::GetLLMQParams(platform_type),
+                                                                  tip->pprev->GetBlockHash())};
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction()};
+        llmq::testutils::WriteMinedCommitment(evodb, platform_qc, tip->GetBlockHash(), /*mined_height=*/tip->nHeight,
+                                              /*quorum_height=*/tip->nHeight - 1);
+        db_tx->Commit();
+    }
+
+    Mutex log_mutex;
+    std::vector<std::string> unbound_logged;
+    const auto log_callback{LogInstance().PushBackCallback([&](const std::string& line) {
+        if (line.find("unbound Evo access") != std::string::npos) WITH_LOCK(log_mutex, unbound_logged.push_back(line));
+    })};
+
+    // Returns the calls that threw, and, with `expect_state`, those that
+    // reported the Evo state unavailable.
+    const auto sweep = [&](bool expect_state) {
+        std::vector<std::string> failed;
+        std::thread{[&] {
+            const auto call = [&](const char* name, auto&& fn) {
+                try {
+                    if (!fn() && expect_state) failed.emplace_back(strprintf("%s: unavailable", name));
+                } catch (const std::exception& e) {
+                    failed.emplace_back(strprintf("%s: %s", name, e.what()));
+                }
+            };
+            call("getListAtChainTip", [&] { node->evo().getListAtChainTip(); return true; });
+            call("getProviderTxCapabilities", [&] { return node->evo().getProviderTxCapabilities().has_value(); });
+            call("findProviderNetInfoInUse", [&] {
+                return std::holds_alternative<std::optional<std::string>>(node->evo().findProviderNetInfoInUse(
+                    net_info, MnType::Regular, ProTxVersion::BasicBLS, /*ipv4_optional=*/false));
+            });
+            call("getAllNewerThan", [&] {
+                std::vector<CGovernanceObject> objs;
+                node->gov().getAllNewerThan(objs, 0);
+                return true;
+            });
+            call("getObjVotes", [&] { return node->gov().getObjVotes(proposal, VOTE_SIGNAL_FUNDING).has_value(); });
+            call("getObjUniqueVoters",
+                 [&] { return node->gov().getObjUniqueVoters(proposal, VOTE_SIGNAL_FUNDING).has_value(); });
+            call("getCurrentVotes", [&] { return node->gov().getCurrentVotes(proposal.GetHash()).has_value(); });
+            call("getGovernanceInfo", [&] { return node->gov().getGovernanceInfo().fundingthreshold.has_value(); });
+            call("getProposalFundedHeight", [&] { node->gov().getProposalFundedHeight(proposal.GetHash()); return true; });
+            call("getFundableProposalHashes", [&] { return node->gov().getFundableProposalHashes().has_value(); });
+            call("getBestChainLock", [&] { node->llmq().getBestChainLock(); return true; });
+            call("getCreditPoolCounts", [&] { return node->llmq().getCreditPoolCounts().has_value(); });
+            call("getInstantSendCounts", [&] { node->llmq().getInstantSendCounts(); return true; });
+            call("getPendingAssetUnlocks", [&] { node->llmq().getPendingAssetUnlocks(); return true; });
+            call("getQuorumStats", [&] { return node->llmq().getQuorumStats().has_value(); });
+            call("getPlatformQuorum", [&] {
+                return node->llmq()
+                           .getPlatformQuorum(std23::to_underlying(platform_type), platform_qc.quorumHash, tip->nHeight)
+                           .status == interfaces::LLMQ::PlatformQuorumStatus::FOUND;
+            });
+            call("getInstantSendLock", [&] { node->llmq().getInstantSendLock(GetRandHash()); return true; });
+            call("node isV24Active", [&] { return node->isV24Active().has_value(); });
+            call("masternodeSync", [&] { node->masternodeSync().isSynced(); return true; });
+            call("listMNCollaterials", [&] { return m_node.chain->listMNCollaterials({}).has_value(); });
+            call("chain isV24Active", [&] { return m_node.chain->isV24Active().has_value(); });
+        }}.join();
+        return failed;
+    };
+
+    for (const auto& failure : sweep(/*expect_state=*/true)) BOOST_ERROR("single view: " + failure);
+
+    BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+    evodb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    // The snapshot view holds no state, so its reads may report it
+    // unavailable; none may fail.
+    for (const auto& failure : sweep(/*expect_state=*/false)) BOOST_ERROR("dual views: " + failure);
+
+    LogInstance().DeleteCallback(log_callback);
+    for (const auto& line : WITH_LOCK(log_mutex, return unbound_logged)) BOOST_ERROR("unbound access: " + line);
     SetMiscWarning(Untranslated(""));
 }
 
