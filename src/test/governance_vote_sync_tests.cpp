@@ -40,8 +40,8 @@ BOOST_FIXTURE_TEST_SUITE(governance_vote_sync_tests, BasicTestingSetup)
 // It is tempting to strip the port: peer.addr carries the remote ephemeral source
 // port for inbound peers, so the govsync quota is per-connection and an attacker
 // resets it by reconnecting. But this map is shared with SyncManager's per-peer
-// outbound bookkeeping ("full-sync", "governance-sync", "spork-sync",
-// "mempool-sync") and the govsync quota is coupled to PeerMisbehaving(20).
+// outbound bookkeeping ("full-sync", "governance-sync", "mempool-sync") and the
+// govsync quota is coupled to PeerMisbehaving(20).
 // Several honest nodes legitimately share one address (NAT, colocation, CI), and
 // collapsing them onto one key makes the second honest peer look like a repeat
 // offender -- the ban score escalates to discouragement, and mnsync breaks
