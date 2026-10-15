@@ -6,6 +6,7 @@
 #include <deploymentstatus.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
@@ -254,6 +255,8 @@ std::optional<CMNHFManager::Signals> CMNHFManager::ProcessBlock(const CBlock& bl
         // M_ERROR so the block is not marked invalid.
         state.Error(e.what());
         return std::nullopt;
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CMNHFManager::ProcessBlock -- failed: %s\n", e.what());
         state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-proc-mnhf-inblock");
@@ -299,9 +302,17 @@ CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
         if (pindex_top->nHeight % 1000 == 0) {
             LogPrintf("re-index EHF signals at block %d\n", pindex_top->nHeight);
         }
+        // A body this node does not have (pruned, or below an unvalidated
+        // snapshot base), or has but cannot read, is a local state error,
+        // never the block's fault.
+        const auto [have_data, block_pos]{WITH_LOCK(::cs_main, return std::make_pair(
+            (pindex_top->nStatus & BLOCK_HAVE_DATA) != 0, pindex_top->GetBlockPos()))};
+        if (!have_data) {
+            throw BlockDataUnavailableError("failed-getehfforblock-read");
+        }
         CBlock block;
-        if (!m_blockman.ReadBlockFromDisk(block, *pindex_top)) {
-            throw std::runtime_error("failed-getehfforblock-read");
+        if (m_blockman.ReadBlockFromDisk(block, block_pos) != pindex_top->GetBlockHash()) {
+            throw BlockDataReadError("failed-getehfforblock-read");
         }
         BlockValidationState state;
         signalsTmp = ProcessBlock(block, pindex_top, false, state);

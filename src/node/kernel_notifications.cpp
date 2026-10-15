@@ -77,4 +77,9 @@ void KernelNotifications::masternodeListChanged(const CDeterministicMNList& list
     uiInterface.NotifyMasternodeListChanged(list, index);
 }
 
+void KernelNotifications::evoStateWarningChanged()
+{
+    uiInterface.NotifyAlertChanged();
+}
+
 } // namespace node
