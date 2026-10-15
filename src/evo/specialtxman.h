@@ -139,6 +139,7 @@ public:
      *  the caller's open EvoDB transaction for that view. */
     bool SeedBaseCoinbase(const EvoViewToken& view, const CBlockIndex* base, const CTransaction& coinbase);
 
+    const Consensus::Params& ConsensusParams() const { return m_consensus_params; }
     CDeterministicMNManager& DeterministicMNManager() { return m_dmnman; }
     llmq::CQuorumBlockProcessor& QuorumBlockProcessor() { return m_qblockman; }
     llmq::CQuorumSnapshotManager& QuorumSnapshotManager() { return m_qsnapman; }
