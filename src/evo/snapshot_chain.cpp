@@ -109,10 +109,7 @@ std::optional<uint256> ExactWorkModifier(const Consensus::LLMQParams& params, co
             if (!seeded) error = "quorum work block data unavailable for its exact score modifier";
             return seeded;
         }
-        if (const auto chainlock{GetNonNullCoinbaseChainlock(block, *modifier_work, consensus)}) {
-            return ::SerializeHash(std::make_tuple(params.type, modifier_work->nHeight, chainlock->first));
-        }
-        return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
+        return llmq::utils::GetWorkBlockModifier(params, consensus, block, *modifier_work);
     }
     if (params.useRotation) return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
     if (work.cycle_height > base_index->nHeight) {
