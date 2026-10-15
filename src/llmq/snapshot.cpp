@@ -13,6 +13,7 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <node/blockstorage.h>
+#include <util/check.h>
 #include <validation.h>
 
 #include <univalue.h>
@@ -23,6 +24,7 @@ using node::CBlockIndexHeightOnlyComparator;
 
 namespace {
 constexpr std::string_view DB_QUORUM_SNAPSHOT{"llmq_S"};
+constexpr std::string_view DB_QUORUM_MODIFIER{"llmq_M3"};
 
 bool CheckBlockDataAvailable(gsl::not_null<const CBlockIndex*> pindex, std::string& error)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -355,5 +357,33 @@ void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llm
     LOCK(snapshotCacheCs);
     m_evoDb.WriteDurable(key, snapshot);
     quorumSnapshotCache.For(view).insert(snapshotHash, snapshot);
+}
+
+bool CQuorumSnapshotManager::SeedSnapshotForBlock(const EvoViewToken& view, const Consensus::LLMQType llmqType,
+                                                  const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)
+{
+    if (!Assume(pindex != nullptr) || !Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    const auto snapshot_hash{::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()))};
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_QUORUM_SNAPSHOT, snapshot_hash), snapshot)) return false;
+    LOCK(snapshotCacheCs);
+    quorumSnapshotCache.For(view).erase(snapshot_hash);
+    return true;
+}
+
+bool CQuorumSnapshotManager::SeedQuorumModifier(const EvoViewToken& view, Consensus::LLMQType llmq_type,
+                                                const uint256& work_block_hash, const uint256& modifier)
+{
+    if (!Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    return m_evoDb.WriteDerived(std::make_tuple(DB_QUORUM_MODIFIER, llmq_type, work_block_hash), modifier);
+}
+
+std::optional<uint256> CQuorumSnapshotManager::GetSeededQuorumModifier(Consensus::LLMQType llmq_type,
+                                                                       const uint256& work_block_hash) const
+{
+    uint256 modifier;
+    if (!m_evoDb.Read(std::make_tuple(DB_QUORUM_MODIFIER, llmq_type, work_block_hash), modifier)) return std::nullopt;
+    return modifier;
 }
 } // namespace llmq

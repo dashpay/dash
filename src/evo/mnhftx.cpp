@@ -13,6 +13,7 @@
 #include <llmq/signhash.h>
 #include <node/blockstorage.h>
 #include <shutdown.h>
+#include <util/check.h>
 #include <util/std23.h>
 
 #include <chain.h>
@@ -396,6 +397,16 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
     const EvoViewToken view{m_evoDb.CurrentView()};
     LOCK(cs_cache);
     mnhfCache.For(view).insert(pindex->GetBlockHash(), signals);
+}
+
+bool CMNHFManager::SeedSignals(const EvoViewToken& view, const CBlockIndex* pindex, const Signals& signals)
+{
+    if (!Assume(pindex != nullptr) || !Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, pindex->GetBlockHash()), signals)) return false;
+    LOCK(cs_cache);
+    mnhfCache.For(view).erase(pindex->GetBlockHash());
+    return true;
 }
 
 bool CMNHFManager::ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)

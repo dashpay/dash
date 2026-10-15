@@ -125,28 +125,6 @@ void ValidateCanonicalMNInvariants(const CDeterministicMNList& list)
 
 } // namespace
 
-std::vector<QuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
-    int base_height, const std::vector<Consensus::LLMQParams>& enabled_llmqs)
-{
-    if (base_height < 0) throw std::invalid_argument("invalid reconstruction base height");
-    std::vector<QuorumReconstructionHeight> heights;
-    for (const auto& params : enabled_llmqs) {
-        if (params.dkgInterval <= 0 || params.signingActiveQuorumCount <= 0) {
-            throw std::invalid_argument("invalid reconstruction LLMQ parameters");
-        }
-        const int h{base_height - base_height % params.dkgInterval};
-        const size_t count{params.useRotation ? EVO_SNAPSHOT_ROTATION_CYCLES
-                                              : SnapshotCommitmentCount(params, /*rotation_enabled=*/false)};
-        const size_t first{params.useRotation ? 1U : 0U};
-        for (size_t i{first}; i < first + count; ++i) {
-            const int quorum_height{h - static_cast<int>(i) * params.dkgInterval};
-            heights.push_back({params.type, params.useRotation, quorum_height,
-                               quorum_height - llmq::WORK_DIFF_DEPTH});
-        }
-    }
-    return heights;
-}
-
 uint256 CanonicalMNListHash(const CDeterministicMNList& list)
 {
     CHashWriter writer{SER_DISK, CLIENT_VERSION};
@@ -279,13 +257,11 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
         }
         const size_t active_count{static_cast<size_t>(params.signingActiveQuorumCount)};
         const size_t total_count{SnapshotCommitmentCount(params, data.rotation_enabled)};
-        // Parameter-derived counts are maxima, not exact requirements: a young
-        // chain carries however much quorum history exists. The chain-aware
-        // validation and the completion-time CbTx quorum merkle root establish
-        // that nothing available was withheld.
-        if (data.active_commitments.size() > active_count ||
-            data.safety_commitments.size() > total_count - active_count ||
-            data.rotation_snapshots.size() > (data.rotation_enabled ? EVO_SNAPSHOT_ROTATION_CYCLES : size_t{0})) {
+        // Parameter-derived counts are maxima here. The chain-aware validation
+        // requires the exact sets the dependency planner derives.
+        if (data.active_commitments.size() > active_count || data.safety_commitments.size() > total_count - active_count ||
+            data.rotation_snapshots.size() > (data.rotation_enabled ? EvoSnapshotMaxRotationSnapshots(params) : size_t{0}) ||
+            data.bootstrap_work.size() > EVO_SNAPSHOT_MAX_BOOTSTRAP_WORK) {
             throw std::ios_base::failure("invalid params-derived evo per-type quorum counts");
         }
         std::set<uint256> quorum_hashes;
@@ -304,7 +280,7 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
         for (const auto& entry : data.rotation_snapshots) {
             if (entry.cycle_base_block_hash.IsNull() || entry.work_block_hash.IsNull() ||
                 !cycle_hashes.insert(entry.cycle_base_block_hash).second ||
-                !historical_hashes.contains(entry.work_block_hash) ||
+                (!historical_hashes.contains(entry.work_block_hash) && entry.work_block_hash != base_block_hash) ||
                 entry.snapshot.mnSkipListMode < SnapshotSkipMode::MODE_NO_SKIPPING ||
                 entry.snapshot.mnSkipListMode > SnapshotSkipMode::MODE_ALL_SKIPPED ||
                 entry.snapshot.activeQuorumMembers.size() > EVO_SNAPSHOT_MAX_MNS ||
@@ -319,7 +295,22 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
             required_work_hashes.insert(entry.work_block_hash);
             required_modifiers.emplace(data.llmq_type, entry.work_block_hash);
         }
+        if (require_canonical_order && !IsCanonicallySorted(data.bootstrap_work)) {
+            throw std::ios_base::failure("noncanonical evo bootstrap work order");
+        }
+        std::set<int32_t> bootstrap_heights;
+        for (const auto& entry : data.bootstrap_work) {
+            if (entry.cycle_base_height < 0 || entry.work_block_hash.IsNull() ||
+                !bootstrap_heights.insert(entry.cycle_base_height).second) {
+                throw std::ios_base::failure("invalid evo bootstrap work entry");
+            }
+            required_work_hashes.insert(entry.work_block_hash);
+            required_modifiers.emplace(data.llmq_type, entry.work_block_hash);
+        }
     }
+    // The base list is the work list for a work block equal to the base, so
+    // it has no historical diff of its own.
+    required_work_hashes.erase(base_block_hash);
     if (historical_hashes != required_work_hashes) {
         throw std::ios_base::failure("missing or extra historical MN-list diff target");
     }

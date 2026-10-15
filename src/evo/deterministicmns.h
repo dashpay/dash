@@ -796,6 +796,10 @@ public:
         return GetListForBlockInternal(pindex, View());
     };
     CDeterministicMNList GetListAtChainTip() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    /** Seed a canonical full list into `view`, inside the caller's open EvoDB
+     *  transaction for that view. */
+    bool SeedListForBlock(const EvoViewToken& view, const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs);
     //! The EvoDB this manager reads, for callers that bind an Evo view.
     const CEvoDB& EvoDb() const { return m_evoDb; }
 

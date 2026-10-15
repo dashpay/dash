@@ -18,6 +18,7 @@
 #include <masternode/payments.h>
 #include <node/blockstorage.h>
 #include <shutdown.h>
+#include <util/check.h>
 #include <util/overflow.h>
 #include <validation.h>
 
@@ -140,7 +141,9 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
         MaybeWriteSnapshot(block_hash, block_index.nHeight, pool);
         return pool;
     }
-    if (block_index.nHeight % DISK_SNAPSHOT_PERIOD == 0) {
+    // A snapshot base carries its full pool at whatever height the base has.
+    if (block_index.nHeight % DISK_SNAPSHOT_PERIOD == 0 ||
+        (view.identity == EvoDbIdentity::SNAPSHOT && block_index.nHeight == view.base_height)) {
         if (evoDb.Read(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
             LOCK(cache_mutex);
             creditPoolCache.For(view).insert(block_hash, pool);
@@ -176,6 +179,16 @@ void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const
     const EvoViewToken view{evoDb.CurrentView()};
     LOCK(cache_mutex);
     creditPoolCache.For(view).insert(block_hash, pool);
+}
+
+bool CCreditPoolManager::SeedSnapshot(const EvoViewToken& view, const CBlockIndex* block, const CCreditPool& pool)
+{
+    if (!Assume(block != nullptr) || !Assume(evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    if (!evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block->GetBlockHash()), pool)) return false;
+    LOCK(cache_mutex);
+    creditPoolCache.For(view).erase(block->GetBlockHash());
+    return true;
 }
 
 CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CBlockIndex*> block_index, CCreditPool prev)

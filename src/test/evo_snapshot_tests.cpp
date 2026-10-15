@@ -7,12 +7,14 @@
 #include <clientversion.h>
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
+#include <crypto/sha256.h>
 #include <evo/cbtx.h>
 #include <evo/creditpool.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
 #include <evo/netinfo.h>
 #include <evo/snapshot.h>
+#include <evo/specialtxman.h>
 #include <hash.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
@@ -124,7 +126,7 @@ evo::MinedQuorumCommitment Commitment(Consensus::LLMQType type, uint8_t quorum, 
     return {H(quorum), H(quorum + 120), std::move(commitment), H(mined)};
 }
 
-evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
+evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false, bool with_bootstrap = true)
 {
     evo::EvoSnapshot snapshot;
     snapshot.base_block_hash = H(42);
@@ -160,11 +162,12 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
                                   Commitment(rotated.llmq_type, 32, 72, true, 1)};
     rotated.safety_commitments = {Commitment(rotated.llmq_type, 21, 61, true, 0),
                                   Commitment(rotated.llmq_type, 22, 62, true, 1)};
-    for (uint8_t i{1}; i <= evo::EVO_SNAPSHOT_ROTATION_CYCLES; ++i) {
+    for (uint8_t i{1}; i <= 4; ++i) {
         const auto mode{i == 2 ? SnapshotSkipMode::MODE_SKIPPING_ENTRIES : SnapshotSkipMode::MODE_NO_SKIPPING};
         rotated.rotation_snapshots.push_back(
             {H(40 + i), H(100 + i), llmq::CQuorumSnapshot{{true, false, true, false}, mode, i == 2 ? std::vector<int>{1} : std::vector<int>{}}});
     }
+    if (with_bootstrap) rotated.bootstrap_work = {{48, H(141)}, {72, H(142)}};
 
     snapshot.quorums = {std::move(plain), std::move(rotated)};
     std::set<uint256> work_hashes;
@@ -177,6 +180,10 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
             }
         }
         for (const auto& entry : data.rotation_snapshots) {
+            work_hashes.insert(entry.work_block_hash);
+            modifier_keys.emplace(data.llmq_type, entry.work_block_hash);
+        }
+        for (const auto& entry : data.bootstrap_work) {
             work_hashes.insert(entry.work_block_hash);
             modifier_keys.emplace(data.llmq_type, entry.work_block_hash);
         }
@@ -203,9 +210,62 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
             std::reverse(data.active_commitments.begin(), data.active_commitments.end());
             std::reverse(data.safety_commitments.begin(), data.safety_commitments.end());
             std::reverse(data.rotation_snapshots.begin(), data.rotation_snapshots.end());
+            std::reverse(data.bootstrap_work.begin(), data.bootstrap_work.end());
         }
     }
     return snapshot;
+}
+
+//! The wire bytes of a canonically ordered snapshot, assembled field by field
+//! in the order of the format table rather than through EvoSnapshot's own
+//! serializer, so a pinned hash of them is independent of the codec under
+//! test. Version 3 omits every field v4 added.
+std::vector<unsigned char> AssembleWireBytes(const evo::EvoSnapshot& snapshot, uint16_t version)
+{
+    CDataStream s{SER_DISK, CLIENT_VERSION};
+    s << version << snapshot.base_block_hash;
+    evo::SerializeCanonicalMNList(s, snapshot.mn_list);
+    WriteCompactSize(s, snapshot.quorums.size());
+    for (const auto& data : snapshot.quorums) {
+        s << static_cast<uint8_t>(data.llmq_type) << uint8_t{data.rotation_enabled};
+        for (const auto* commitments : {&data.active_commitments, &data.safety_commitments}) {
+            WriteCompactSize(s, commitments->size());
+            for (const auto& entry : *commitments) {
+                s << entry.quorum_base_block_hash << entry.work_block_hash << entry.commitment << entry.mined_block_hash;
+            }
+        }
+        WriteCompactSize(s, data.rotation_snapshots.size());
+        for (const auto& entry : data.rotation_snapshots)
+            evo::WriteRotationSnapshot(s, entry);
+        if (version >= 4) {
+            WriteCompactSize(s, data.bootstrap_work.size());
+            for (const auto& entry : data.bootstrap_work)
+                s << int32_t{entry.cycle_base_height} << entry.work_block_hash;
+        }
+    }
+    WriteCompactSize(s, snapshot.historical_mn_list_diffs.size());
+    for (const auto& entry : snapshot.historical_mn_list_diffs) {
+        s << entry.previous_block_hash << entry.block_hash << int32_t{entry.height} << entry.total_registered_count
+          << entry.canonical_list_hash;
+        evo::SerializeCanonicalMNListDiff(s, entry.diff);
+    }
+    WriteCompactSize(s, snapshot.quorum_modifiers.size());
+    for (const auto& entry : snapshot.quorum_modifiers) {
+        s << static_cast<uint8_t>(entry.llmq_type) << entry.work_block_hash << entry.modifier;
+    }
+    s << snapshot.credit_pool.locked << snapshot.credit_pool.currentLimit << snapshot.credit_pool.latelyUnlocked
+      << snapshot.credit_pool.indexes;
+    WriteCompactSize(s, snapshot.mnhf_signals.size());
+    for (const auto& [bit, height] : snapshot.mnhf_signals)
+        s << bit << int32_t{height};
+    return {UCharCast(s.data()), UCharCast(s.data() + s.size())};
+}
+
+std::string Sha256Hex(const std::vector<unsigned char>& bytes)
+{
+    uint256 hash;
+    CSHA256().Write(bytes.data(), bytes.size()).Finalize(hash.begin());
+    return hash.ToString();
 }
 
 CDataStream SerializeSnapshot(const evo::EvoSnapshot& snapshot)
@@ -222,7 +282,277 @@ void CheckInvalid(evo::EvoSnapshot snapshot) { BOOST_CHECK_THROW(snapshot.Valida
 // bucket.
 static_assert(std::is_same_v<decltype(CDeterministicMNListDiff::updatedMNs)::hasher, StaticSaltedHasher>);
 
+//! Restores consensus params mutated through const_cast when the test case
+//! leaves scope, including through a failed BOOST_REQUIRE, so mutated state
+//! cannot leak into cases running later in the same process.
+class [[nodiscard]] ConsensusParamsRestorer
+{
+    Consensus::Params& m_params;
+    const Consensus::Params m_saved;
+
+public:
+    explicit ConsensusParamsRestorer(const Consensus::Params& params) :
+        m_params{const_cast<Consensus::Params&>(params)},
+        m_saved{params}
+    {
+    }
+    ~ConsensusParamsRestorer() { m_params = m_saved; }
+    Consensus::Params& Get() { return m_params; }
+};
+
+//! A masternode whose hashes have uniform 64-bit prefixes, so lists of any
+//! size stay inside the snapshot's collision-run bound.
+CDeterministicMNCPtr ChainMN(uint64_t id)
+{
+    const auto tagged = [id](const char* tag) { return SerializeHash(std::make_pair(std::string{tag}, id)); };
+    auto state{std::make_shared<CDeterministicMNState>()};
+    state->nVersion = ProTxVersion::LegacyBLS;
+    state->nRegisteredHeight = 1;
+    state->keyIDOwner = CKeyID{uint160{Span{tagged("owner").begin(), 20}}};
+    state->keyIDVoting = CKeyID{uint160{Span{tagged("voting").begin(), 20}}};
+    state->scriptPayout = CScript{} << OP_RETURN << ToByteVector(tagged("payout"));
+    state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+    BOOST_REQUIRE_EQUAL(state->netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.2.%d.%d:%d", id / 250, 1 + id % 250,
+                                                                                     Params().GetDefaultPort())),
+                        NetInfoStatus::Success);
+    auto dmn{std::make_shared<CDeterministicMN>(id, MnType::Regular)};
+    dmn->proTxHash = tagged("protx");
+    dmn->collateralOutpoint = COutPoint(tagged("collateral"), 0);
+    state->UpdateConfirmedHash(dmn->proTxHash, tagged("confirmed"));
+    dmn->pdmnState = std::move(state);
+    return dmn;
+}
+
+//! The synthetic population the chain fixture records at `index`: it grows
+//! over time, so consecutive work blocks have different lists.
+CDeterministicMNList ChainList(const CBlockIndex* index, bool empty = false)
+{
+    const uint32_t count{static_cast<uint32_t>(6 + index->nHeight / 8)};
+    CDeterministicMNList list{index->GetBlockHash(), index->nHeight, count};
+    if (empty) return list;
+    for (uint64_t id{0}; id < count; ++id)
+        list.AddMN(ChainMN(id), /*fBumpTotalCount=*/false);
+    return list;
+}
+
+std::vector<uint256> MemberHashes(const std::vector<CDeterministicMNCPtr>& members)
+{
+    std::vector<uint256> hashes;
+    hashes.reserve(members.size());
+    for (const auto& member : members)
+        hashes.push_back(member->proTxHash);
+    return hashes;
+}
+
 } // namespace
+
+//! A chain whose activation heights are in force while it is mined, so every
+//! coinbase is the CbTx that v20-era code paths are entitled to assume.
+struct SnapshotActivationChainSetup : public TestChainSetup {
+    SnapshotActivationChainSetup() :
+        TestChainSetup{102,
+                       CBaseChainParams::REGTEST,
+                       {"-dip3params=2:2", "-testactivationheight=v20@2", "-testactivationheight=mn_rr@2"}}
+    {
+    }
+};
+
+/**
+ * A 200-block regtest chain with DIP3 and v20 from height 2, a non-rotating
+ * (LLMQ_TEST) and a rotating (LLMQ_TEST_DIP0024) type, both with 12-block
+ * cycles. NORMAL is the fully synced oracle: it holds a list for every block,
+ * the quarter of every cycle, built in order, and the commitments a scenario
+ * mines. The snapshot view of a generation holds only what is seeded into it.
+ */
+struct EvoSnapshotChainSetup : public TestChainSetup {
+    ConsensusParamsRestorer m_restorer{Params().GetConsensus()};
+    Consensus::LLMQParams m_plain{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+    Consensus::LLMQParams m_rotated{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
+    static constexpr int CYCLE_LENGTH{12};
+
+    EvoSnapshotChainSetup() :
+        TestChainSetup{102,
+                       CBaseChainParams::REGTEST,
+                       {"-dip3params=2:2", "-testactivationheight=v20@2", "-testactivationheight=mn_rr@2"}}
+    {
+        mineBlocks(98);
+        BOOST_REQUIRE(&Params().GetConsensus() == &m_node.chainman->GetConsensus());
+        for (auto* params : {&m_plain, &m_rotated}) {
+            params->dkgInterval = CYCLE_LENGTH;
+            params->dkgMiningWindowStart = 2;
+            params->dkgMiningWindowEnd = 6;
+        }
+        m_restorer.Get().llmqs = {m_plain, m_rotated};
+    }
+
+    const CBlockIndex* At(int height) { return WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain()[height]); }
+    EvoViewToken Normal() const { return m_node.evodb->ViewFor(EvoDbIdentity::NORMAL); }
+    llmq::UtilParameters Util(const CBlockIndex* index)
+    {
+        return {*m_node.dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, index};
+    }
+
+    //! Record the synthetic lists in NORMAL, then build every cycle's quarter
+    //! in order, as a node that validated each cycle would have.
+    void SyncNormal(const std::set<int>& empty_heights = {})
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* tip{m_node.chainman->ActiveTip()};
+        {
+            auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL)};
+            for (int height{2}; height <= tip->nHeight; ++height) {
+                const CBlockIndex* index{tip->GetAncestor(height)};
+                m_node.evodb->Erase(std::make_pair(std::string{"dmn_S3"}, index->GetBlockHash()));
+                BOOST_REQUIRE(m_node.dmnman->SeedListForBlock(Normal(), ChainList(index, empty_heights.contains(height))));
+            }
+            tx->Commit();
+        }
+        BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::NORMAL));
+        const EvoViewScope normal{Normal()};
+        for (int cycle{CYCLE_LENGTH}; cycle <= tip->nHeight; cycle += CYCLE_LENGTH) {
+            (void)llmq::utils::GetAllQuorumMembers(m_rotated.type, Util(tip->GetAncestor(cycle)), /*reset_cache=*/true);
+        }
+    }
+
+    //! Record a commitment for the quorum at `quorum_height`, mined two blocks
+    //! after it, as block connection would.
+    void Mine(const Consensus::LLMQParams& params, int quorum_height)
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* quorum{At(quorum_height)};
+        const bool rotation{params.useRotation};
+        llmq::CFinalCommitment commitment{params, quorum->GetBlockHash()};
+        commitment.nVersion = llmq::CFinalCommitment::GetVersion(
+            rotation, DeploymentActiveAfter(quorum, m_node.chainman->GetConsensus(), Consensus::DEPLOYMENT_V19));
+        commitment.quorumIndex = rotation ? quorum_height % params.dkgInterval : 0;
+        commitment.quorumVvecHash = SerializeHash(std::make_pair(params.type, quorum_height));
+        std::fill(commitment.signers.begin(), commitment.signers.end(), true);
+        std::fill(commitment.validMembers.begin(), commitment.validMembers.end(), true);
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL)};
+        BOOST_REQUIRE(m_node.llmq_ctx->quorum_block_processor->SeedMinedCommitment(Normal(), params.type,
+                                                                                   quorum->GetBlockHash(), commitment,
+                                                                                   At(quorum_height + 2)->GetBlockHash()));
+        tx->Commit();
+        BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::NORMAL));
+    }
+
+    //! Mine every quorum of each cycle in [first, last]: the non-rotating one
+    //! and rotating index 0, plus index 1 unless its DKG keeps failing.
+    void MineCycles(int first, int last, bool rotated_index_one = true)
+    {
+        for (int cycle{first}; cycle <= last; cycle += CYCLE_LENGTH) {
+            Mine(m_plain, cycle);
+            Mine(m_rotated, cycle);
+            if (rotated_index_one) Mine(m_rotated, cycle + 1);
+        }
+    }
+
+    bool TryBuild(const CBlockIndex* base, evo::EvoSnapshot& snapshot, std::string& error)
+    {
+        LOCK(::cs_main);
+        const EvoViewScope normal{Normal()};
+        return evo::BuildEvoSnapshot(Params(), *m_node.chainman, *m_node.dmnman, *m_node.llmq_ctx->quorum_block_processor,
+                                     *m_node.llmq_ctx->qsnapman, *m_node.special_tx->m_cpoolman,
+                                     *m_node.special_tx->m_mnhfman, base, snapshot, error);
+    }
+
+    evo::EvoSnapshot Build(const CBlockIndex* base)
+    {
+        evo::EvoSnapshot snapshot;
+        std::string error;
+        BOOST_REQUIRE_MESSAGE(TryBuild(base, snapshot, error), error);
+        return snapshot;
+    }
+
+    bool Valid(const evo::EvoSnapshot& snapshot, const CBlockIndex* base, std::string& error)
+    {
+        return WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(snapshot, *m_node.chainman, base, error));
+    }
+
+    //! Seed `snapshot` into a fresh unpublished generation and return its view.
+    EvoViewToken Seed(const evo::EvoSnapshot& snapshot, const CBlockIndex* base)
+    {
+        LOCK(::cs_main);
+        if (m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT).generation != 0) {
+            BOOST_REQUIRE(m_node.evodb->AbandonSnapshotGeneration());
+        }
+        BOOST_REQUIRE(m_node.evodb->CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+        const EvoViewToken view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        {
+            auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            std::string error;
+            BOOST_REQUIRE_MESSAGE(evo::SeedEvoSnapshotState(view, snapshot, *m_node.dmnman,
+                                                            *m_node.llmq_ctx->quorum_block_processor,
+                                                            *m_node.llmq_ctx->qsnapman, *m_node.special_tx->m_cpoolman,
+                                                            *m_node.special_tx->m_mnhfman, m_node.chainman->m_blockman,
+                                                            base, error),
+                                  error);
+            tx->Commit();
+        }
+        BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        return view;
+    }
+
+    std::vector<uint256> Members(const EvoViewToken& view, const Consensus::LLMQParams& params, int quorum_height)
+    {
+        const EvoViewScope scope{view};
+        return MemberHashes(llmq::utils::GetAllQuorumMembers(params.type, Util(At(quorum_height)), /*reset_cache=*/true));
+    }
+
+    //! Members of a quorum under `view` match the synced oracle's, and the
+    //! quorum is not trivially empty.
+    void CheckMembers(const EvoViewToken& view, const Consensus::LLMQParams& params, int quorum_height)
+    {
+        const auto expected{Members(Normal(), params, quorum_height)};
+        BOOST_CHECK_MESSAGE(!expected.empty(), strprintf("empty oracle quorum at %d", quorum_height));
+        BOOST_CHECK_MESSAGE(Members(view, params, quorum_height) == expected,
+                            strprintf("type %d quorum at %d", static_cast<int>(params.type), quorum_height));
+    }
+
+    std::optional<std::vector<uint256>> Predicted(const EvoViewToken& view, const Consensus::LLMQParams& params,
+                                                  int quorum_height)
+    {
+        const EvoViewScope scope{view};
+        const CBlockIndex* work{At(quorum_height - quorum_height % params.dkgInterval - llmq::WORK_DIFF_DEPTH)};
+        const auto members{llmq::utils::ComputeQuorumMembersFromWorkBlock(params.type, Util(work), work, quorum_height)};
+        if (!members) return std::nullopt;
+        return MemberHashes(*members);
+    }
+
+    static const evo::QuorumSnapshotData& Type(const evo::EvoSnapshot& snapshot, Consensus::LLMQType type)
+    {
+        const auto it{std::ranges::find_if(snapshot.quorums, [type](const auto& data) { return data.llmq_type == type; })};
+        BOOST_REQUIRE(it != snapshot.quorums.end());
+        return *it;
+    }
+
+    std::set<int> Heights(const std::vector<uint256>& hashes)
+    {
+        std::set<int> heights;
+        LOCK(::cs_main);
+        for (const auto& hash : hashes)
+            heights.insert(m_node.chainman->m_blockman.LookupBlockIndex(hash)->nHeight);
+        return heights;
+    }
+
+    std::set<int> RotationHeights(const evo::EvoSnapshot& snapshot)
+    {
+        std::vector<uint256> hashes;
+        for (const auto& entry : Type(snapshot, m_rotated.type).rotation_snapshots) {
+            hashes.push_back(entry.cycle_base_block_hash);
+        }
+        return Heights(hashes);
+    }
+
+    std::set<int> ModifierHeights(const evo::EvoSnapshot& snapshot, Consensus::LLMQType type)
+    {
+        std::vector<uint256> hashes;
+        for (const auto& entry : snapshot.quorum_modifiers) {
+            if (entry.llmq_type == type) hashes.push_back(entry.work_block_hash);
+        }
+        return Heights(hashes);
+    }
+};
 
 BOOST_AUTO_TEST_SUITE(evo_snapshot_tests)
 
@@ -271,30 +601,6 @@ BOOST_FIXTURE_TEST_CASE(populated_roundtrip_and_representation_independence, Bas
     }
 }
 
-BOOST_AUTO_TEST_CASE(reconstruction_horizon_height_enumeration)
-{
-    const auto rotated{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
-    const auto plain{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
-    const int base_height{20 * rotated.dkgInterval + 7};
-    const auto heights{evo::EvoSnapshotReconstructionHeights(base_height, {rotated, plain})};
-    BOOST_REQUIRE_EQUAL(heights.size(), evo::EVO_SNAPSHOT_ROTATION_CYCLES +
-                                             evo::SnapshotCommitmentCount(plain, false));
-    const int rotated_h{base_height - base_height % rotated.dkgInterval};
-    for (size_t i{0}; i < evo::EVO_SNAPSHOT_ROTATION_CYCLES; ++i) {
-        const int expected_cycle{rotated_h - static_cast<int>(i + 1) * rotated.dkgInterval};
-        BOOST_CHECK(heights[i].rotation);
-        BOOST_CHECK_EQUAL(heights[i].quorum_height, expected_cycle);
-        BOOST_CHECK_EQUAL(heights[i].work_height, expected_cycle - llmq::WORK_DIFF_DEPTH);
-    }
-    const int plain_h{base_height - base_height % plain.dkgInterval};
-    for (size_t i{0}; i < evo::SnapshotCommitmentCount(plain, false); ++i) {
-        const auto& height{heights[evo::EVO_SNAPSHOT_ROTATION_CYCLES + i]};
-        BOOST_CHECK(!height.rotation);
-        BOOST_CHECK_EQUAL(height.quorum_height, plain_h - static_cast<int>(i) * plain.dkgInterval);
-        BOOST_CHECK_EQUAL(height.work_height, height.quorum_height - llmq::WORK_DIFF_DEPTH);
-    }
-}
-
 BOOST_AUTO_TEST_CASE(rotation_bitset_larger_than_quorum_roundtrips)
 {
     const auto& params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
@@ -313,10 +619,23 @@ BOOST_AUTO_TEST_CASE(rotation_bitset_larger_than_quorum_roundtrips)
     BOOST_CHECK(decoded.snapshot.activeQuorumMembers[params.size + 1]);
 }
 
-BOOST_FIXTURE_TEST_CASE(populated_v3_golden_value, BasicTestingSetup)
+BOOST_FIXTURE_TEST_CASE(populated_v4_golden_value, BasicTestingSetup)
 {
-    BOOST_CHECK_EQUAL(GetEvoSnapshotHash(SyntheticSnapshot()).ToString(),
+    // The assembler reproduces the v3 bytes whose hash this test pinned before
+    // the format changed, so it encodes the shared fields independently of the
+    // codec. The v4 pin is its v4 output.
+    const auto v3_content{SyntheticSnapshot(/*reverse_representation=*/false, /*with_bootstrap=*/false)};
+    BOOST_CHECK_EQUAL(Sha256Hex(AssembleWireBytes(v3_content, 3)),
                       "5b5d496a66d93775a6a6d1badf2ea2d5bbb25b58031fe0dd2c3c670674c6908d");
+
+    const auto snapshot{SyntheticSnapshot()};
+    BOOST_REQUIRE_NO_THROW(snapshot.Validate(/*require_canonical_order=*/true));
+    const auto assembled{AssembleWireBytes(snapshot, 4)};
+    const auto encoded{SerializeSnapshot(snapshot)};
+    BOOST_CHECK_EQUAL_COLLECTIONS(assembled.begin(), assembled.end(), UCharCast(encoded.data()),
+                                  UCharCast(encoded.data() + encoded.size()));
+    BOOST_CHECK_EQUAL(Sha256Hex(assembled), "04e635f89f9054464f30ad4f054e81dda3e127de452cbc5ae93408e3d88ab827");
+    BOOST_CHECK_EQUAL(GetEvoSnapshotHash(snapshot).ToString(), Sha256Hex(assembled));
 }
 
 BOOST_FIXTURE_TEST_CASE(canonical_mn_reader_rejects_order_and_counter, BasicTestingSetup)
@@ -825,8 +1144,34 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     rotations << Consensus::LLMQType::LLMQ_TEST_DIP0024 << true;
     WriteCompactSize(rotations, 0);
     WriteCompactSize(rotations, 0);
-    WriteCompactSize(rotations, evo::EVO_SNAPSHOT_ROTATION_CYCLES + 1);
+    WriteCompactSize(rotations,
+                     evo::EvoSnapshotMaxRotationSnapshots(evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)) +
+                         1);
     BOOST_CHECK_THROW(decode_quorum(rotations), std::ios_base::failure);
+    // A type without rotation carries no quarters at all.
+    CDataStream plain_rotations{SER_DISK, CLIENT_VERSION};
+    plain_rotations << Consensus::LLMQType::LLMQ_TEST_DIP0024 << false;
+    WriteCompactSize(plain_rotations, 0);
+    WriteCompactSize(plain_rotations, 0);
+    WriteCompactSize(plain_rotations, 1);
+    BOOST_CHECK_THROW(decode_quorum(plain_rotations), std::ios_base::failure);
+    CDataStream bootstrap{SER_DISK, CLIENT_VERSION};
+    bootstrap << Consensus::LLMQType::LLMQ_TEST_DIP0024 << true;
+    WriteCompactSize(bootstrap, 0);
+    WriteCompactSize(bootstrap, 0);
+    WriteCompactSize(bootstrap, 0);
+    WriteCompactSize(bootstrap, evo::EVO_SNAPSHOT_MAX_BOOTSTRAP_WORK + 1);
+    BOOST_CHECK_THROW(decode_quorum(bootstrap), std::ios_base::failure);
+    CDataStream bootstrap_order{SER_DISK, CLIENT_VERSION};
+    bootstrap_order << Consensus::LLMQType::LLMQ_TEST_DIP0024 << true;
+    WriteCompactSize(bootstrap_order, 0);
+    WriteCompactSize(bootstrap_order, 0);
+    WriteCompactSize(bootstrap_order, 0);
+    WriteCompactSize(bootstrap_order, 2);
+    bootstrap_order << evo::BootstrapWork{48, H(1)} << evo::BootstrapWork{48, H(2)};
+    BOOST_CHECK_EXCEPTION(decode_quorum(bootstrap_order), std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("bootstrap work order") != std::string::npos;
+    });
 
     const auto& rotated_params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
     CDataStream bitset{SER_DISK, CLIENT_VERSION};
@@ -986,7 +1331,8 @@ BOOST_FIXTURE_TEST_CASE(rotation_flag_wire_encoding_is_canonical, BasicTestingSe
     for (const uint8_t flag : {0, 1, 2, 255}) {
         CDataStream input{SER_DISK, CLIENT_VERSION};
         input << Consensus::LLMQType::LLMQ_TEST_DIP0024 << flag;
-        for (int i{0}; i < 3; ++i) WriteCompactSize(input, 0);
+        for (int i{0}; i < 4; ++i)
+            WriteCompactSize(input, 0);
         evo::QuorumSnapshotData decoded;
         if (flag <= 1) {
             BOOST_CHECK_NO_THROW(input >> decoded);
@@ -1304,14 +1650,18 @@ BOOST_FIXTURE_TEST_CASE(validation_enforces_the_decode_operation_budget, BasicTe
     // by EVO_SNAPSHOT_MAX_MNS, so spread them over entries until the
     // cumulative ceiling is passed by exactly one. Ids start above anything
     // BuildDiff() produced so every insertion counts.
+    // The budget check precedes the chain checks, so placeholder entries can
+    // carry the overflow once the real ones are full.
     uint64_t next_id{1'000'000};
-    for (auto& entry : snapshot.historical_mn_list_diffs) {
+    for (size_t i{0}; operations <= budget; ++i) {
+        if (i == snapshot.historical_mn_list_diffs.size()) snapshot.historical_mn_list_diffs.emplace_back();
+        auto& entry{snapshot.historical_mn_list_diffs[i]};
         while (operations <= budget && entry.diff.removedMns.size() < evo::EVO_SNAPSHOT_MAX_MNS) {
             entry.diff.removedMns.emplace(next_id++);
             ++operations;
         }
-        if (operations > budget) break;
     }
+    BOOST_REQUIRE(snapshot.historical_mn_list_diffs.size() <= evo::EvoSnapshotMaxHistoricalMNLists());
     BOOST_REQUIRE_EQUAL(operations, budget + 1);
     BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, [](const auto& e) {
         return std::string{e.what()}.find("operation budget") != std::string::npos;
@@ -1408,9 +1758,442 @@ BOOST_FIXTURE_TEST_CASE(cbtx_cross_checks, BasicTestingSetup)
 BOOST_FIXTURE_TEST_CASE(rejects_unknown_wire_version, BasicTestingSetup)
 {
     auto bytes{SerializeSnapshot(SyntheticSnapshot())};
-    bytes.data()[0] = std::byte{4};
+    BOOST_REQUIRE_EQUAL(std::to_integer<uint8_t>(bytes.data()[0]), 4);
+    // v3 is rejected outright: no network ever pinned a v3 Evo section.
+    bytes.data()[0] = std::byte{3};
     evo::EvoSnapshot decoded;
     BOOST_CHECK_THROW(bytes >> decoded, std::ios_base::failure);
 }
+
+//! Recompute the historical lists and modifiers a context-free valid snapshot
+//! needs from what its commitments, quarters and bootstrap entries reference,
+//! so that a tampered set reaches the chain validator's planner comparison.
+void RewireDependencies(EvoSnapshotChainSetup& setup, evo::EvoSnapshot& snapshot)
+{
+    std::map<std::pair<Consensus::LLMQType, uint256>, uint256> old_modifiers;
+    for (const auto& entry : snapshot.quorum_modifiers) {
+        old_modifiers.emplace(std::make_pair(entry.llmq_type, entry.work_block_hash), entry.modifier);
+    }
+    std::set<std::pair<Consensus::LLMQType, uint256>> keys;
+    std::set<uint256> work_hashes;
+    for (const auto& data : snapshot.quorums) {
+        const auto add = [&](const uint256& hash) {
+            keys.emplace(data.llmq_type, hash);
+            if (hash != snapshot.base_block_hash) work_hashes.insert(hash);
+        };
+        for (const auto* commitments : {&data.active_commitments, &data.safety_commitments}) {
+            for (const auto& entry : *commitments)
+                add(entry.work_block_hash);
+        }
+        for (const auto& entry : data.rotation_snapshots)
+            add(entry.work_block_hash);
+        for (const auto& entry : data.bootstrap_work)
+            add(entry.work_block_hash);
+    }
+    snapshot.quorum_modifiers.clear();
+    for (const auto& key : keys) {
+        const auto old{old_modifiers.find(key)};
+        snapshot.quorum_modifiers.push_back(
+            {key.first, key.second, old != old_modifiers.end() ? old->second : SerializeHash(key)});
+    }
+    std::vector<const CBlockIndex*> work;
+    {
+        LOCK(::cs_main);
+        for (const auto& hash : work_hashes)
+            work.push_back(setup.m_node.chainman->m_blockman.LookupBlockIndex(hash));
+    }
+    std::sort(work.begin(), work.end(), [](const auto* a, const auto* b) { return a->nHeight > b->nHeight; });
+    snapshot.historical_mn_list_diffs.clear();
+    CDeterministicMNList previous{snapshot.mn_list};
+    uint256 previous_hash{snapshot.base_block_hash};
+    const EvoViewScope normal{setup.Normal()};
+    for (const CBlockIndex* index : work) {
+        const auto list{setup.m_node.dmnman->GetListForBlock(index)};
+        snapshot.historical_mn_list_diffs.push_back({previous_hash, index->GetBlockHash(), index->nHeight,
+                                                     list.GetTotalRegisteredCount(), evo::CanonicalMNListHash(list),
+                                                     previous.BuildDiff(list)});
+        previous_hash = index->GetBlockHash();
+        previous = list;
+    }
+    snapshot.quorums = evo::CanonicallySortedCopy(std::move(snapshot.quorums));
+    for (auto& data : snapshot.quorums) {
+        data.rotation_snapshots = evo::CanonicallySortedCopy(std::move(data.rotation_snapshots));
+        data.bootstrap_work = evo::CanonicallySortedCopy(std::move(data.bootstrap_work));
+    }
+    snapshot.quorum_modifiers = evo::CanonicallySortedCopy(std::move(snapshot.quorum_modifiers));
+    BOOST_REQUIRE_NO_THROW(snapshot.Validate(/*require_canonical_order=*/true));
+}
+
+BOOST_FIXTURE_TEST_CASE(planner_carries_every_quarter_a_carried_safety_quorum_reads, EvoSnapshotChainSetup)
+{
+    // h = 156 and B = h + 1, before h's mining window: the active cycle is
+    // h - C and the safety cycle h - 2C, whose members read h - 3C .. h - 5C.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(157)};
+    const auto snapshot{Build(base)};
+    std::string error;
+    BOOST_CHECK_MESSAGE(Valid(snapshot, base, error), error);
+    BOOST_CHECK(RotationHeights(snapshot) == (std::set<int>{96, 108, 120, 132, 144, 156}));
+    // A_T = {132, 144, 156, 168}: each quarter's work block, and each cycle's.
+    // N's work block 160 is above the base.
+    BOOST_CHECK(ModifierHeights(snapshot, m_rotated.type) == (std::set<int>{88, 100, 112, 124, 136, 148}));
+    BOOST_CHECK(Type(snapshot, m_rotated.type).bootstrap_work.empty());
+    // Non-rotating: the three retained quorums 144, 132, 120 plus h; N's work
+    // block is above the base.
+    BOOST_CHECK(ModifierHeights(snapshot, m_plain.type) == (std::set<int>{112, 124, 136, 148}));
+    BOOST_REQUIRE_EQUAL(Type(snapshot, m_plain.type).bootstrap_work.size(), 1U);
+    BOOST_CHECK_EQUAL(Type(snapshot, m_plain.type).bootstrap_work[0].cycle_base_height, 156);
+
+    const EvoViewToken seeded{Seed(snapshot, base)};
+    for (const int quorum : {132, 133, 144, 145, 156, 157}) {
+        CheckMembers(seeded, m_rotated, quorum);
+    }
+    for (const int quorum : {120, 132, 144, 156}) {
+        CheckMembers(seeded, m_plain, quorum);
+    }
+
+    // Lists outside the carried set are unavailable in the snapshot view, not
+    // reconstructed from (absent) diffs or guessed empty.
+    size_t misses{0};
+    m_node.dmnman->SetListSnapshotMissHookForTesting([&](const CBlockIndex*) { ++misses; });
+    {
+        const EvoViewScope scope{seeded};
+        BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(At(150)), BlockDataUnavailableError);
+    }
+    m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    BOOST_CHECK_EQUAL(misses, 1U);
+}
+
+BOOST_FIXTURE_TEST_CASE(planner_carries_the_quarter_of_the_base_cycle, EvoSnapshotChainSetup)
+{
+    // B = h + 7, after h = 156 is fully mined: the next cycle N = 168 reads
+    // the quarter of h itself.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(163)};
+    const auto snapshot{Build(base)};
+    std::string error;
+    BOOST_CHECK_MESSAGE(Valid(snapshot, base, error), error);
+    BOOST_CHECK(RotationHeights(snapshot).contains(156));
+
+    const EvoViewToken seeded{Seed(snapshot, base)};
+    {
+        const EvoViewScope scope{seeded};
+        const auto carried{m_node.llmq_ctx->qsnapman->GetSnapshotForBlock(m_rotated.type, At(156))};
+        BOOST_REQUIRE(carried.has_value());
+        const EvoViewScope normal{Normal()};
+        const auto synced{m_node.llmq_ctx->qsnapman->GetSnapshotForBlock(m_rotated.type, At(156))};
+        BOOST_REQUIRE(synced.has_value());
+        BOOST_CHECK(SerializeHash(*carried) == SerializeHash(*synced));
+    }
+    for (const int quorum : {168, 169}) {
+        CheckMembers(seeded, m_rotated, quorum);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(planner_follows_an_isolated_failed_dkg_index, EvoSnapshotChainSetup)
+{
+    // Index 1's DKG has failed since cycle 60, so at B = 190 (h = 180) its
+    // carried commitments sit at h - 10C and h - 11C. Their members read the
+    // quarters of h - 11C .. h - 13C, not the quarter of h - 10C.
+    SyncNormal();
+    MineCycles(12, 60);
+    MineCycles(72, 180, /*rotated_index_one=*/false);
+    const CBlockIndex* base{At(190)};
+    auto snapshot{Build(base)};
+    std::string error;
+    BOOST_CHECK_MESSAGE(Valid(snapshot, base, error), error);
+    const auto quarters{RotationHeights(snapshot)};
+    BOOST_CHECK(quarters == (std::set<int>{12, 24, 36, 48, 132, 144, 156, 168, 180}));
+    BOOST_CHECK(!quarters.contains(60));
+
+    const EvoViewToken seeded{Seed(snapshot, base)};
+    for (const int quorum : {49, 61, 168, 180}) {
+        CheckMembers(seeded, m_rotated, quorum);
+    }
+    {
+        // The quarter of h - 10C was a reconstruction output: neither stored
+        // nor reported unavailable.
+        const EvoViewScope scope{seeded};
+        BOOST_CHECK(!m_node.llmq_ctx->qsnapman->GetSnapshotForBlock(m_rotated.type, At(60)).has_value());
+    }
+
+    auto& rotated{const_cast<evo::QuorumSnapshotData&>(Type(snapshot, m_rotated.type))};
+    std::erase_if(rotated.rotation_snapshots,
+                  [&](const auto& entry) { return entry.cycle_base_block_hash == At(24)->GetBlockHash(); });
+    const EvoViewToken incomplete{Seed(snapshot, base)};
+    {
+        const EvoViewScope scope{incomplete};
+        BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(m_rotated.type, Util(At(61)), /*reset_cache=*/true),
+                          BlockDataUnavailableError);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(planner_bootstraps_the_next_cycle_from_the_base_cycle, EvoSnapshotChainSetup)
+{
+    // B = N - 1 = 179 (h = 168): N's work block 172 is at or below the base,
+    // and nothing carried references it.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    const auto snapshot{Build(base)};
+    std::string error;
+    BOOST_CHECK_MESSAGE(Valid(snapshot, base, error), error);
+    for (const auto* params : {&m_rotated, &m_plain}) {
+        const auto& bootstrap{Type(snapshot, params->type).bootstrap_work};
+        BOOST_REQUIRE_EQUAL(bootstrap.size(), 1U);
+        BOOST_CHECK_EQUAL(bootstrap[0].cycle_base_height, 180);
+        BOOST_CHECK(bootstrap[0].work_block_hash == At(172)->GetBlockHash());
+    }
+
+    const EvoViewToken seeded{Seed(snapshot, base)};
+    for (const int quorum : {168, 169, 180, 181}) {
+        CheckMembers(seeded, m_rotated, quorum);
+        const auto predicted{Predicted(seeded, m_rotated, quorum)};
+        BOOST_REQUIRE(predicted.has_value());
+        BOOST_CHECK(*predicted == Members(Normal(), m_rotated, quorum));
+    }
+    for (const int quorum : {168, 180}) {
+        CheckMembers(seeded, m_plain, quorum);
+        const auto predicted{Predicted(seeded, m_plain, quorum)};
+        BOOST_REQUIRE(predicted.has_value());
+        BOOST_CHECK(*predicted == Members(Normal(), m_plain, quorum));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(planner_defers_a_next_cycle_whose_work_block_is_above_the_base, EvoSnapshotChainSetup)
+{
+    // With 12-block cycles N's work block is h + 4, so B = h + 3 = 171 places
+    // it above the base (the 24-block regtest equivalent is B = h + 5).
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(171)};
+    const auto snapshot{Build(base)};
+    std::string error;
+    BOOST_CHECK_MESSAGE(Valid(snapshot, base, error), error);
+    const auto work{ModifierHeights(snapshot, m_rotated.type)};
+    BOOST_CHECK(work.contains(160));
+    BOOST_CHECK(!work.contains(172));
+    const auto quarters{RotationHeights(snapshot)};
+    for (const int quarter : {168, 156, 144})
+        BOOST_CHECK(quarters.contains(quarter));
+    BOOST_CHECK(Type(snapshot, m_rotated.type).bootstrap_work.empty());
+    BOOST_CHECK(!ModifierHeights(snapshot, m_plain.type).contains(172));
+}
+
+BOOST_FIXTURE_TEST_CASE(chain_validation_requires_the_exact_planned_sets, EvoSnapshotChainSetup)
+{
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    const auto snapshot{Build(base)};
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(Valid(snapshot, base, error), error);
+
+    const auto rotated_of = [&](evo::EvoSnapshot& s) -> evo::QuorumSnapshotData& {
+        return const_cast<evo::QuorumSnapshotData&>(Type(s, m_rotated.type));
+    };
+    const auto rejected = [&](evo::EvoSnapshot tampered, const std::string& reason) {
+        RewireDependencies(*this, tampered);
+        BOOST_CHECK(!Valid(tampered, base, error));
+        BOOST_CHECK_MESSAGE(error.find(reason) != std::string::npos, error);
+    };
+
+    auto dropped_quarter{snapshot};
+    rotated_of(dropped_quarter).rotation_snapshots.pop_back();
+    rejected(dropped_quarter, "rotation cycles differ");
+
+    auto added_quarter{snapshot};
+    {
+        const auto extra{
+            WITH_LOCK(::cs_main, return m_node.llmq_ctx->qsnapman->GetSnapshotForBlock(m_rotated.type, At(84)))};
+        BOOST_REQUIRE(extra.has_value());
+        BOOST_REQUIRE(!RotationHeights(snapshot).contains(84));
+        rotated_of(added_quarter).rotation_snapshots.push_back({At(84)->GetBlockHash(), At(76)->GetBlockHash(), *extra});
+    }
+    rejected(added_quarter, "rotation cycles differ");
+
+    auto dropped_bootstrap{snapshot};
+    rotated_of(dropped_bootstrap).bootstrap_work.clear();
+    rejected(dropped_bootstrap, "bootstrap work differs");
+
+    auto added_bootstrap{snapshot};
+    rotated_of(added_bootstrap).bootstrap_work.push_back({168, At(160)->GetBlockHash()});
+    rejected(added_bootstrap, "bootstrap work differs");
+
+    auto moved_bootstrap{snapshot};
+    rotated_of(moved_bootstrap).bootstrap_work[0].work_block_hash = At(171)->GetBlockHash();
+    rejected(moved_bootstrap, "bootstrap work differs");
+
+    // Modifiers and historical lists are pinned by the context-free layer to
+    // what the sets reference, and by the planner to the planned work blocks.
+    auto dropped_modifier{snapshot};
+    dropped_modifier.quorum_modifiers.pop_back();
+    BOOST_CHECK(!Valid(dropped_modifier, base, error));
+    auto extra_modifier{snapshot};
+    extra_modifier.quorum_modifiers.push_back({m_plain.type, At(150)->GetBlockHash(), H(9)});
+    extra_modifier.quorum_modifiers = evo::CanonicallySortedCopy(std::move(extra_modifier.quorum_modifiers));
+    BOOST_CHECK(!Valid(extra_modifier, base, error));
+    auto wrong_modifier{snapshot};
+    wrong_modifier.quorum_modifiers[0].modifier = H(9);
+    BOOST_CHECK(!Valid(wrong_modifier, base, error));
+    BOOST_CHECK_MESSAGE(error.find("modifier mismatch") != std::string::npos, error);
+}
+
+BOOST_FIXTURE_TEST_CASE(a_cycle_without_a_quarter_makes_the_base_unsupported, EvoSnapshotChainSetup)
+{
+    // The work block of cycle 108 has no masternodes, so the ordinary
+    // computation stores no quarter for it. B = 157 needs that quarter.
+    SyncNormal(/*empty_heights=*/{100});
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(157)};
+    evo::EvoSnapshot snapshot;
+    std::string error;
+    BOOST_CHECK(!TryBuild(base, snapshot, error));
+    BOOST_CHECK_MESSAGE(error.find("rotation quarter for applicable cycle 108") != std::string::npos, error);
+
+    // A candidate cannot help: without the quarter the planned set is
+    // incomplete, and with an invented one the cycle cannot have one.
+    {
+        LOCK(::cs_main);
+        const EvoViewScope normal{Normal()};
+        m_node.llmq_ctx->qsnapman->StoreSnapshotForBlock(m_rotated.type, At(108),
+                                                         llmq::CQuorumSnapshot{{}, SnapshotSkipMode::MODE_NO_SKIPPING, {}});
+    }
+    const auto invented{Build(base)};
+    BOOST_CHECK(!Valid(invented, base, error));
+    BOOST_CHECK_MESSAGE(error.find("leaves without one") != std::string::npos, error);
+    auto missing{invented};
+    auto& rotated{const_cast<evo::QuorumSnapshotData&>(Type(missing, m_rotated.type))};
+    std::erase_if(rotated.rotation_snapshots,
+                  [&](const auto& entry) { return entry.cycle_base_block_hash == At(108)->GetBlockHash(); });
+    RewireDependencies(*this, missing);
+    BOOST_CHECK(!Valid(missing, base, error));
+    BOOST_CHECK_MESSAGE(error.find("rotation cycles differ") != std::string::npos, error);
+}
+
+BOOST_FIXTURE_TEST_CASE(a_type_enabled_before_the_next_cycle_makes_the_base_unsupported, EvoSnapshotChainSetup)
+{
+    // DIP0024 enables the rotating type at N = 180. At B = 175 that type is
+    // disabled, so nothing of it is carried, yet N's members read its work
+    // block 172 (at or below B) and its exact modifier there.
+    SyncNormal();
+    for (int cycle{12}; cycle <= 168; cycle += CYCLE_LENGTH)
+        Mine(m_plain, cycle);
+    const CBlockIndex* base{At(175)};
+    m_restorer.Get().DIP0024Height = 1000;
+    const auto snapshot{Build(base)};
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(Valid(snapshot, base, error), error);
+
+    m_restorer.Get().DIP0024Height = 180;
+    BOOST_CHECK(!Valid(snapshot, base, error));
+    BOOST_CHECK_MESSAGE(error.find("undecidable activation context") != std::string::npos, error);
+    evo::EvoSnapshot refused;
+    BOOST_CHECK(!TryBuild(base, refused, error));
+    BOOST_CHECK_MESSAGE(error.find("undecidable activation context") != std::string::npos, error);
+
+    // With N's work block above the base, or N - 1 the base itself, N's
+    // context is decidable and the base is supported.
+    for (const int height : {171, 179}) {
+        const CBlockIndex* supported{At(height)};
+        const auto supported_snapshot{Build(supported)};
+        BOOST_CHECK_MESSAGE(Valid(supported_snapshot, supported, error), error);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(builder_never_exports_a_fallback_modifier, EvoSnapshotChainSetup)
+{
+    // A v20 modifier commits to the work block's coinbase ChainLock. Without
+    // the work block's data the builder exports a seeded exact modifier or
+    // fails, never the ordinary block-hash fallback.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    auto* work{const_cast<CBlockIndex*>(At(172))};
+    const uint32_t saved_status{WITH_LOCK(::cs_main, return work->nStatus)};
+    WITH_LOCK(::cs_main, work->nStatus &= ~BLOCK_HAVE_DATA);
+    evo::EvoSnapshot snapshot;
+    std::string error;
+    BOOST_CHECK(!TryBuild(base, snapshot, error));
+    BOOST_CHECK_MESSAGE(error.find("exact score modifier") != std::string::npos, error);
+
+    const uint256 seeded_modifier{H(77)};
+    {
+        LOCK(::cs_main);
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL)};
+        for (const auto* params : {&m_plain, &m_rotated}) {
+            BOOST_REQUIRE(m_node.llmq_ctx->qsnapman->SeedQuorumModifier(Normal(), params->type, work->GetBlockHash(),
+                                                                        seeded_modifier));
+        }
+        tx->Commit();
+        BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::NORMAL));
+    }
+    const bool built{TryBuild(base, snapshot, error)};
+    WITH_LOCK(::cs_main, work->nStatus = saved_status);
+    BOOST_REQUIRE_MESSAGE(built, error);
+    for (const auto& entry : snapshot.quorum_modifiers) {
+        if (entry.work_block_hash == work->GetBlockHash()) BOOST_CHECK(entry.modifier == seeded_modifier);
+    }
+    // With the block readable again, the chain validator recomputes it.
+    BOOST_CHECK(!Valid(snapshot, base, error));
+}
+
+BOOST_FIXTURE_TEST_CASE(young_chains_without_masternodes, SnapshotActivationChainSetup)
+{
+    // No masternodes exist and no DKGs have run. A rotating type then has
+    // applicable cycles without quarters, so the base is unsupported; without
+    // rotating types only the work blocks of h and N are carried.
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(base != nullptr);
+    const auto build = [&](evo::EvoSnapshot& snapshot, std::string& error) {
+        return WITH_LOCK(::cs_main, return evo::BuildEvoSnapshot(Params(), *m_node.chainman, *m_node.dmnman,
+                                                                 *m_node.llmq_ctx->quorum_block_processor,
+                                                                 *m_node.llmq_ctx->qsnapman, *m_node.special_tx->m_cpoolman,
+                                                                 *m_node.special_tx->m_mnhfman, base, snapshot, error));
+    };
+    evo::EvoSnapshot snapshot;
+    std::string error;
+    BOOST_CHECK(!build(snapshot, error));
+    BOOST_CHECK_MESSAGE(error.find("rotation quarter for applicable cycle") != std::string::npos, error);
+
+    ConsensusParamsRestorer restorer{Params().GetConsensus()};
+    std::erase_if(restorer.Get().llmqs, [](const auto& params) { return params.useRotation; });
+    BOOST_REQUIRE_MESSAGE(build(snapshot, error), error);
+    for (const auto& data : snapshot.quorums) {
+        BOOST_CHECK(data.active_commitments.empty());
+        BOOST_CHECK(data.safety_commitments.empty());
+        BOOST_CHECK(!data.bootstrap_work.empty());
+    }
+    const bool valid{
+        WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(snapshot, *m_node.chainman, base, error))};
+    BOOST_CHECK_MESSAGE(valid, error);
+}
+
+BOOST_FIXTURE_TEST_CASE(chain_validation_pre_dip3_matrix, TestChain100Setup)
+{
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+    BOOST_REQUIRE(base != nullptr);
+    evo::EvoSnapshot snapshot;
+    snapshot.base_block_hash = base->GetBlockHash();
+    snapshot.mn_list = CDeterministicMNList{base->GetBlockHash(), base->nHeight, 0};
+    std::string error;
+    BOOST_CHECK(WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(snapshot, *m_node.chainman, base, error)));
+
+    auto wrong_base{snapshot};
+    wrong_base.base_block_hash = H(99);
+    BOOST_CHECK(
+        !WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(wrong_base, *m_node.chainman, base, error)));
+    auto nonempty{snapshot};
+    nonempty.credit_pool.locked = 1;
+    BOOST_CHECK(
+        !WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(nonempty, *m_node.chainman, base, error)));
+    auto counted{snapshot};
+    counted.mn_list = CDeterministicMNList{base->GetBlockHash(), base->nHeight, 1};
+    BOOST_CHECK(!WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(counted, *m_node.chainman, base, error)));
+    BOOST_CHECK_EQUAL(error, "nonempty pre-DIP3 evo snapshot");
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

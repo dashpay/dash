@@ -128,6 +128,11 @@ public:
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, const CChain& chain) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs);
     std::pair<CFinalCommitment, uint256> GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
+    /** Seed a mined commitment and its height index into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedMinedCommitment(const EvoViewToken& view, Consensus::LLMQType llmqType, const uint256& quorum_hash,
+                             const CFinalCommitment& commitment, const uint256& mined_block_hash)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs, !m_qc_hashes_cache_mutex);
 
     /**
      * Serialized hashes of the commitments mined for the quorums active as of pindexPrev.

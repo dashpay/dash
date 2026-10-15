@@ -2157,7 +2157,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
     BOOST_REQUIRE(base_index);
     const CDeterministicMNList incorrect_base_list{
         base_index->GetBlockHash(), base_index->nHeight, /*totalRegisteredCount=*/1};
-    const uint256 incorrect_hash{SerializeHash(incorrect_base_list)};
+    const uint256 incorrect_hash{CanonicalDeterministicMNListHash(base_index, incorrect_base_list)};
     uint256 captured_block;
     uint256 captured_hash;
     BOOST_REQUIRE(m_node.evodb->ReadBackgroundMNListHash(captured_block, captured_hash));
