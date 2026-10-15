@@ -899,6 +899,15 @@ std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t index);
  *  must commit to the carried MN list, active quorums and credit pool. */
 bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& base_index, std::string& error);
 
+/** The chain checks export and load share: ValidateEvoSnapshotAgainstChain()
+ *  and, once DIP3 is active at the base, VerifyEvoSnapshotBaseBlock(). They
+ *  read headers, the section and the calling thread's Evo view: the exporter
+ *  runs them on NORMAL, the loader in the unpublished generation it seeded the
+ *  section into, so deployment state at or below the base comes from the
+ *  carried signal record and never from history the loading node lacks. */
+bool PreflightEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
+                          const CBlockIndex* base_index, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 /** The scan-coverage gate of ValidateEvoSnapshotAgainstChain on its own:
  *  every ChainLock verification scan B + 1 may make and the asset-unlock scan
  *  of B + 1 must be proven from the section. */

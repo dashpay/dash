@@ -822,6 +822,15 @@ bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& 
     return VerifyEvoSnapshotCbTx(snapshot, *cbtx, error);
 }
 
+bool PreflightEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
+                          const CBlockIndex* base_index, std::string& error)
+{
+    AssertLockHeld(::cs_main);
+    if (!ValidateEvoSnapshotAgainstChain(snapshot, chainman, base_index, error)) return false;
+    return !DeploymentActiveAt(*base_index, chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003) ||
+           VerifyEvoSnapshotBaseBlock(snapshot, *base_index, error);
+}
+
 bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot, CSpecialTxProcessor& special_tx,
                           const node::BlockManager& blockman, const CBlockIndex* base_index, std::string& error)
 {
