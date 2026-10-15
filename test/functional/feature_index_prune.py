@@ -53,11 +53,15 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.connect_nodes(0,3)
         self.connect_nodes(0,4)
 
+    def sync_all_fast(self):
+        self.sync_blocks(wait=0.05)
+        self.sync_mempools()
+
     def mine_batches(self, blocks):
         n = blocks // 250
         for _ in range(n):
-            self.generate(self.nodes[0], 250)
-        self.generate(self.nodes[0], blocks % 250)
+            self.generate(self.nodes[0], 250, sync_fun=self.sync_all_fast)
+        self.generate(self.nodes[0], blocks % 250, sync_fun=self.sync_all_fast)
 
     def stop_pruned_nodes(self):
         for node in self.nodes[:4]:
@@ -129,7 +133,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
             assert node.gettxoutsetinfo(hash_type="muhash", hash_or_height=height_hash)['muhash']
 
         # mine and sync index up to a height that will later be the pruneheight
-        self.generate(self.nodes[0], 51)
+        self.generate(self.nodes[0], 51, sync_fun=self.sync_all_fast)
         self.sync_index(height=751)
 
         self.restart_without_indices()
@@ -177,7 +181,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
             # The nodes need to be reconnected to the non-pruning node upon restart, otherwise they will be stuck
             self.connect_nodes(i, 4)
 
-        self.sync_blocks(timeout=300)
+        self.sync_blocks(wait=0.05, timeout=300)
         self.sync_index(height=2500)
 
         for node in [self.nodes[0], self.nodes[1], self.nodes[3]]:
@@ -188,7 +192,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.log.info("ensure that prune locks don't prevent indices from failing in a reorg scenario")
         with self.nodes[0].assert_debug_log(['basic block filter index prune lock moved back to 2480']):
             self.nodes[4].invalidateblock(self.nodes[0].getblockhash(2480))
-            self.generate(self.nodes[4], 30)
+            self.generate(self.nodes[4], 30, sync_fun=self.sync_all_fast)
 
         self.nodes[4].stop_node(wait_until_stopped=False)
         self.stop_pruned_nodes()
