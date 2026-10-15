@@ -218,6 +218,10 @@ bool CQuorumBlockProcessor::ProcessBlock(Chainstate& chainstate, const CBlock& b
 {
     AssertLockHeld(::cs_main);
 
+    if (!chainstate.IsEvoViewBound()) {
+        throw EvoViewBindingError(strprintf("%s: not bound to the Evo view of %s", __func__, chainstate.ToString()));
+    }
+
     const auto blockHash = pindex->GetBlockHash();
 
     if (!DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
@@ -524,6 +528,9 @@ std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::Get
 bool CQuorumBlockProcessor::UndoBlock(const Chainstate& chainstate, const CBlock& block, gsl::not_null<const CBlockIndex*> pindex)
 {
     AssertLockHeld(::cs_main);
+    if (!chainstate.IsEvoViewBound()) {
+        throw EvoViewBindingError(strprintf("%s: not bound to the chainstate's Evo view", __func__));
+    }
 
     PreComputeQuorumMembers(m_dmnman, m_qsnapman, m_chainman, pindex, /*reset_cache=*/true);
 

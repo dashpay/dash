@@ -620,6 +620,7 @@ CBlock TestChainSetup::CreateBlock(
     // Manually update CbTx as we modified the block here
     if (block.vtx[0]->nType == TRANSACTION_COINBASE) {
         LOCK(cs_main);
+        const EvoViewScope evo_view{chainstate.EvoView()};
         auto cbTx = GetTxPayload<CCbTx>(*block.vtx[0]);
         Assert(cbTx.has_value());
         BlockValidationState state;

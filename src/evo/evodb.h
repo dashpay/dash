@@ -354,8 +354,14 @@ public:
     static uint64_t ViewCacheEpoch() { return g_view_cache_epoch.load(); }
 
     //! The view this thread's Evo accesses resolve to: its open transaction,
-    //! else its innermost EvoViewScope, else the default identity.
+    //! else its innermost EvoViewScope, else the default identity. While a
+    //! published snapshot generation is live there is no default: an unbound access, or
+    //! one bound to a retired generation, raises EvoViewBindingError before it
+    //! touches any state. So does every read, write, iterator and cache lookup
+    //! that resolves its view through here.
     EvoViewToken CurrentView() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! Whether this thread's accesses currently resolve to exactly `view`.
+    bool IsCurrentView(const EvoViewToken& view) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     //! The current view of a chainstate with the given identity.
     EvoViewToken ViewFor(EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     //! Whether this thread already binds its accesses to this CEvoDB, through
