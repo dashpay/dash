@@ -107,6 +107,9 @@ public:
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const;
 
+    void ResetPlatformBans(const CBlock& block, const CBlockIndex& index) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void DiscardDeterministicMNBlock(const uint256& block_hash);
+
 private:
     bool CheckSpecialTxInner(const CChain* chain, const CTransaction& tx, const CBlockIndex* pindexPrev,
                              SpecialTxRules rules, const CCoinsViewCache& view, const std::optional<CRangesSet>& indexes,

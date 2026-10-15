@@ -819,6 +819,14 @@ uint256 CSpecialTxProcessor::GetDeterministicMNListHash(gsl::not_null<const CBlo
     return SerializeHash(m_dmnman.GetListForBlock(pindex));
 }
 
+void CSpecialTxProcessor::ResetPlatformBans(const CBlock& block, const CBlockIndex& index)
+{
+    AssertLockHeld(::cs_main);
+    m_dmnman.ResetPlatformBans(block, index);
+}
+
+void CSpecialTxProcessor::DiscardDeterministicMNBlock(const uint256& block_hash) { m_dmnman.DiscardBlock(block_hash); }
+
 bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const CChain& chain, const CBlock& block,
                                                    const CBlockIndex* pindex, SpecialTxRules rules,
                                                    const CCoinsViewCache& view, CAmount blockSubsidy, bool fJustCheck,
@@ -938,7 +946,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
             mn_list.SetBlockHash(pindex->GetBlockHash());
 
-            if (!fJustCheck && !m_dmnman.ProcessBlock(block, pindex, state, mn_list, updatesRet)) {
+            if (!fJustCheck && !m_dmnman.ProcessBlock(pindex, state, mn_list, updatesRet)) {
                 // pass the state returned by the function above
                 return false;
             }
