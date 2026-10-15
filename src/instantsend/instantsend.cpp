@@ -459,12 +459,14 @@ std::optional<std::pair</*islock_hash=*/uint256, /*txid=*/uint256>> CInstantSend
     return std::make_pair(::SerializeHash(*islock), islock->txid);
 }
 
-bool CInstantSendManager::RemoveConflictingISLockByTx(const CTransaction& tx)
+void CInstantSendManager::RemoveConflictingISLocksByTx(const CTransaction& tx)
 {
-    const auto islock = GetConflictingLock(tx);
-    if (!islock) return false;
-    RemoveConflictingLock(::SerializeHash(*islock), *islock);
-    return true;
+    for (const auto& outpoint : instantsend::GetLockInputs(tx)) {
+        const auto islock = db.GetInstantSendLockByInput(outpoint);
+        if (islock && islock->txid != tx.GetHash()) {
+            RemoveConflictingLock(::SerializeHash(*islock), *islock);
+        }
+    }
 }
 
 size_t CInstantSendManager::GetInstantSendLockCount() const
