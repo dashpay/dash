@@ -7,6 +7,7 @@
 
 #include <evo/dmn_types.h>
 #include <evo/dmnstate.h>
+#include <evo/snapshot_types.h>
 #include <evo/types.h>
 
 #include <arith_uint256.h>
@@ -737,19 +738,6 @@ struct MNListUpdates
  *  this constant is what keeps such requests from penalizing the peer. */
 inline constexpr std::string_view BLOCK_DATA_UNAVAILABLE_SUFFIX{
     "is not available (pruned or below an unvalidated snapshot base)"};
-
-/** Thrown when the masternode list for a block cannot be reconstructed because
- *  the data is not on this node yet (pruned, or below an unvalidated snapshot
- *  base, or pending in another chainstate's unflushed EvoDB overlay). Distinct
- *  from the plain std::runtime_error that CDeterministicMNList::ApplyDiff
- *  raises for genuine local corruption, which must never be swallowed.
- *  The message carries BLOCK_DATA_UNAVAILABLE_SUFFIX, matched by
- *  IsBlockDataUnavailableError(). */
-class BlockDataUnavailableError : public std::runtime_error
-{
-public:
-    using std::runtime_error::runtime_error;
-};
 
 class CDeterministicMNManager
 {
