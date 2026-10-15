@@ -46,6 +46,7 @@ struct EvoViewToken;
 namespace llmq {
 class CQuorumBlockProcessor;
 class CQuorumSnapshotManager;
+struct ScanCoverageRecord;
 } // namespace llmq
 namespace node {
 class BlockManager;
@@ -902,6 +903,24 @@ std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t index);
  *  carried MN list, active quorums and credit pool. */
 bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& base_index,
                                 const Consensus::Params& consensus, std::string& error);
+
+/** The scan-coverage gate of ValidateEvoSnapshotAgainstChain on its own:
+ *  every ChainLock verification scan B + 1 may make and the asset-unlock scan
+ *  of B + 1 must be proven from the section. */
+bool CheckEvoSnapshotScanCoverage(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
+                                  const CBlockIndex* base_index, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** How the scan sequences of `params`' type end in the section: END where the
+ *  canonical commitment selection carries fewer records than it takes, so no
+ *  older one exists; UNKNOWN otherwise. Local-only, recorded at seeding.
+ *
+ *  END rests on the carried counts alone. The CbTx quorum root binds only the
+ *  active set and headers say nothing about how many older commitments exist,
+ *  so validation bounds the safety commitments from above only: a section
+ *  omitting one would turn UNKNOWN into END and a short scan into a wrong
+ *  answer. Only the mandatory evo-hash pin binds the counts, so no section may
+ *  be seeded without it. */
+llmq::ScanCoverageRecord EvoSnapshotScanCoverage(const EvoSnapshot& snapshot, const Consensus::LLMQParams& params);
 
 /** Seed the decoded snapshot's state into `view`, inside the caller's open
  *  EvoDB transaction for that view. */

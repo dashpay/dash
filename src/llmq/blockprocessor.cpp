@@ -50,6 +50,8 @@ static const std::string DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT = "q_mcih";
 static const std::string DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED = "q_mcihi";
 
 static const std::string DB_BEST_BLOCK_UPGRADE = "q_bbu2";
+// Written only into a snapshot generation.
+static const std::string DB_SCAN_COVERAGE = "q_scov";
 
 bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chainstate,
                                         gsl::not_null<const CBlockIndex*> pindex,
@@ -663,12 +665,29 @@ static bool LacksQuorumHistory(const EvoViewToken& view, const Consensus::Params
     return view.identity == EvoDbIdentity::SNAPSHOT && view.base_height >= consensus.DIP0003Height;
 }
 
-//! A height-index scan such a view cannot satisfy would need the missing
-//! history, so its result is unknown, not short.
-static void RequireSatisfiedScan(const EvoViewToken& view, const Consensus::Params& consensus, const char* func,
-                                 Consensus::LLMQType llmqType)
+ScanSequenceEnd CQuorumBlockProcessor::SequenceEnd(Consensus::LLMQType llmqType, bool indexed, size_t sequence) const
 {
-    if (!LacksQuorumHistory(view, consensus)) return;
+    AssertLockNotHeld(m_evoDb.cs);
+    // A full view, or a snapshot view of a base no quorum can precede, holds
+    // every commitment mined on its chain.
+    if (!LacksQuorumHistory(m_evoDb.CurrentView(), m_chainman.GetConsensus())) return ScanSequenceEnd::END;
+    const auto llmq_params{m_chainman.GetParams().GetLLMQ(llmqType)};
+    if (!llmq_params) return ScanSequenceEnd::UNKNOWN;
+    // A family the type never writes is empty: a type is indexed exactly when
+    // it rotates, and a rotating type is enabled exactly when rotation is
+    // (both follow DIP0024 at the cycle base).
+    if (llmq_params->useRotation != indexed) return ScanSequenceEnd::END;
+    const auto coverage{GetScanCoverage(llmqType)};
+    return coverage ? coverage->End(sequence) : ScanSequenceEnd::UNKNOWN;
+}
+
+void CQuorumBlockProcessor::RequireSatisfiedScan(Consensus::LLMQType llmqType, bool indexed, size_t sequence,
+                                                 const char* func) const
+{
+    // A scan running out where its sequence ends has found everything mined;
+    // anywhere else it would need history the view lacks, so its result is
+    // unknown, not short.
+    if (SequenceEnd(llmqType, indexed, sequence) == ScanSequenceEnd::END) return;
     throw BlockDataUnavailableError(
         strprintf("%s: commitments of LLMQ type %d at or below the snapshot base are not available", func,
                   std23::to_underlying(llmqType)));
@@ -700,10 +719,12 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
             LOCK(minableCommitmentsCs);
             mapMinedCommitmentBlockCache.For(view).insert(llmqType, quorumHash, mined_block_hash);
         } else if (LacksQuorumHistory(view, m_chainman.GetConsensus())) {
-            // A quorum based at or below the base may have been mined there, in
-            // history the view lacks: the miss does not mean it never was.
+            // The snapshot view holds every commitment for a quorum above its
+            // base, but of the history at or below it only the newest: a miss
+            // there means "never mined" only where that can be proven.
             const CBlockIndex* quorum_base{m_chainman.m_blockman.LookupBlockIndex(quorumHash)};
-            if (quorum_base != nullptr && quorum_base->nHeight <= view.base_height) {
+            if (quorum_base != nullptr && quorum_base->nHeight <= view.base_height &&
+                !ProvenNeverMined(llmqType, quorum_base, view)) {
                 throw BlockDataUnavailableError(
                     strprintf("%s: commitment for quorum %s at or below the snapshot base is not available", __func__,
                               quorumHash.ToString()));
@@ -713,6 +734,38 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
 
     const CBlockIndex* mined_block = m_chainman.m_blockman.LookupBlockIndex(mined_block_hash);
     return mined_block != nullptr && chain.Contains(mined_block);
+}
+
+bool CQuorumBlockProcessor::ProvenNeverMined(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> quorum_index,
+                                             const EvoViewToken& view) const
+{
+    AssertLockHeld(::cs_main);
+    const auto llmq_params_opt{m_chainman.GetParams().GetLLMQ(llmqType)};
+    if (!llmq_params_opt) return true;
+    const auto& llmq_params{*llmq_params_opt};
+    // Only this view's chain can have mined it, only at a quorum height of an
+    // enabled type.
+    const CBlockIndex* base{m_chainman.m_blockman.LookupBlockIndex(view.base)};
+    if (base == nullptr) return false;
+    if (base->GetAncestor(quorum_index->nHeight) != quorum_index) return true;
+    const int offset{quorum_index->nHeight % llmq_params.dkgInterval};
+    const bool rotation{IsQuorumRotationEnabled(llmq_params, quorum_index)};
+    if (offset >= (rotation ? llmq_params.signingActiveQuorumCount : 1) ||
+        !m_chainman.IsQuorumTypeEnabled(llmqType, quorum_index->pprev)) {
+        return true;
+    }
+    // The carried commitments are the newest of their sequence, so a quorum no
+    // older than the oldest of them would be among them, and a sequence that
+    // ends proves there is nothing older either. A family the scans do not
+    // read is not carried at all.
+    if (rotation != llmq_params.useRotation) return false;
+    const size_t sequence{rotation ? static_cast<size_t>(offset) : 0};
+    if (SequenceEnd(llmqType, rotation, sequence) == ScanSequenceEnd::END) return true;
+    const auto carried{rotation ? GetMinedCommitmentsByQuorumIndexUntilBlock(llmqType, base, offset, 2)
+                                : GetMinedCommitmentsUntilBlock(llmqType, base,
+                                                                std::max(llmq_params.signingActiveQuorumCount + 1,
+                                                                         llmq_params.keepOldConnections))};
+    return !carried.empty() && quorum_index->nHeight >= carried.back()->nHeight;
 }
 
 bool CQuorumBlockProcessor::SeedMinedCommitment(const EvoViewToken& view, Consensus::LLMQType llmqType,
@@ -743,6 +796,24 @@ bool CQuorumBlockProcessor::SeedMinedCommitment(const EvoViewToken& view, Consen
     return true;
 }
 
+bool CQuorumBlockProcessor::SeedScanCoverage(const EvoViewToken& view, Consensus::LLMQType llmqType,
+                                             const ScanCoverageRecord& coverage)
+{
+    if (!Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    return m_evoDb.WriteDerived(std::make_pair(DB_SCAN_COVERAGE, llmqType), coverage);
+}
+
+std::optional<ScanCoverageRecord> CQuorumBlockProcessor::GetScanCoverage(Consensus::LLMQType llmqType) const
+{
+    ScanCoverageRecord coverage;
+    if (!m_evoDb.Read(std::make_pair(DB_SCAN_COVERAGE, llmqType), coverage) ||
+        coverage.schema_version != ScanCoverageRecord::SCHEMA_VERSION) {
+        return std::nullopt;
+    }
+    return coverage;
+}
+
 std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(Consensus::LLMQType llmqType,
                                                                                const uint256& quorumHash) const
 {
@@ -758,8 +829,7 @@ std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(C
 std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const
 {
     AssertLockNotHeld(m_evoDb.cs);
-    const EvoViewToken view{m_evoDb.CurrentView()};
-    LOCK(m_evoDb.cs);
+    WAIT_LOCK(m_evoDb.cs, evodb_lock);
 
     auto dbIt = m_evoDb.GetCurTransaction().NewIteratorUniquePtr();
 
@@ -797,21 +867,27 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilB
         dbIt->Next();
     }
 
-    if (ret.size() < maxCount) RequireSatisfiedScan(view, m_chainman.GetConsensus(), __func__, llmqType);
+    if (ret.size() < maxCount) {
+        dbIt.reset();
+        REVERSE_LOCK(evodb_lock);
+        RequireSatisfiedScan(llmqType, /*indexed=*/false, /*sequence=*/0, __func__);
+    }
     return ret;
 }
 
 std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const
 {
     AssertLockNotHeld(m_evoDb.cs);
-    const EvoViewToken view{m_evoDb.CurrentView()};
-    const auto not_found{[&]() -> std::optional<const CBlockIndex*> {
-        RequireSatisfiedScan(view, m_chainman.GetConsensus(), "GetLastMinedCommitmentsByQuorumIndexUntilBlock", llmqType);
-        return std::nullopt;
-    }};
-    LOCK(m_evoDb.cs);
+    WAIT_LOCK(m_evoDb.cs, evodb_lock);
 
     auto dbIt = m_evoDb.GetCurTransaction().NewIteratorUniquePtr();
+    const auto not_found{[&]() -> std::optional<const CBlockIndex*> {
+        dbIt.reset();
+        REVERSE_LOCK(evodb_lock);
+        RequireSatisfiedScan(llmqType, /*indexed=*/true, static_cast<size_t>(quorumIndex),
+                             "GetLastMinedCommitmentsByQuorumIndexUntilBlock");
+        return std::nullopt;
+    }};
 
     auto firstKey = BuildInversedHeightKeyIndexed(llmqType, pindex->nHeight, quorumIndex);
     auto lastKey = BuildInversedHeightKeyIndexed(llmqType, 0, quorumIndex);
@@ -852,6 +928,37 @@ std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitments
     }
 
     return not_found();
+}
+
+std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsByQuorumIndexUntilBlock(
+    Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t maxCount) const
+{
+    AssertLockNotHeld(m_evoDb.cs);
+    LOCK(m_evoDb.cs);
+
+    auto dbIt = m_evoDb.GetCurTransaction().NewIteratorUniquePtr();
+    auto firstKey = BuildInversedHeightKeyIndexed(llmqType, pindex->nHeight, quorumIndex);
+    auto lastKey = BuildInversedHeightKeyIndexed(llmqType, 0, quorumIndex);
+    dbIt->Seek(firstKey);
+
+    std::vector<const CBlockIndex*> ret;
+    while (dbIt->Valid() && ret.size() < maxCount) {
+        decltype(firstKey) curKey;
+        int quorumHeight;
+        if (!dbIt->GetKey(curKey) || curKey >= lastKey ||
+            std::get<0>(curKey) != DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED ||
+            std::get<1>(curKey) != llmqType || std::get<2>(curKey) != quorumIndex) {
+            break;
+        }
+        if (std::numeric_limits<uint32_t>::max() - be32toh_internal(std::get<3>(curKey)) >
+            static_cast<uint32_t>(pindex->nHeight)) {
+            break;
+        }
+        if (!dbIt->GetValue(quorumHeight)) break;
+        ret.emplace_back(Assert(pindex->GetAncestor(quorumHeight)));
+        dbIt->Next();
+    }
+    return ret;
 }
 
 std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitmentsPerQuorumIndexUntilBlock(
@@ -906,6 +1013,38 @@ std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> CQuorumBlockProce
         }
     }
 
+    return ret;
+}
+
+std::optional<std::vector<const CBlockIndex*>> TraverseScanSequences(bool indexed,
+                                                                     const std::vector<ScanSequence>& sequences,
+                                                                     size_t count)
+{
+    std::vector<const CBlockIndex*> ret;
+    if (!indexed) {
+        if (sequences.empty()) return ret;
+        const auto& sequence{sequences.front()};
+        if (sequence.records.size() >= count)
+            return std::vector<const CBlockIndex*>{sequence.records.begin(), sequence.records.begin() + count};
+        if (sequence.end == ScanSequenceEnd::UNKNOWN) return std::nullopt;
+        return sequence.records;
+    }
+    // GetMinedCommitmentsIndexedUntilBlock: rank by rank, each quorum index in
+    // ascending order, skipping exhausted indexes, until `count` or a rank at
+    // which every index is exhausted.
+    for (size_t rank{0}; ret.size() < count; ++rank) {
+        bool any{false};
+        for (const auto& sequence : sequences) {
+            if (rank < sequence.records.size()) {
+                any = true;
+                ret.push_back(sequence.records[rank]);
+                if (ret.size() == count) return ret;
+            } else if (sequence.end == ScanSequenceEnd::UNKNOWN) {
+                return std::nullopt;
+            }
+        }
+        if (!any) break;
+    }
     return ret;
 }
 
