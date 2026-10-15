@@ -36,6 +36,7 @@
 #include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
+#include <logging.h>
 #include <mapport.h>
 #include <masternode/sync.h>
 #include <net.h>

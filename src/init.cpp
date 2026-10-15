@@ -41,6 +41,7 @@
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <kernel/coinstats.h>
+#include <logging.h>
 #include <mapport.h>
 #include <net.h>
 #include <net_permissions.h>
