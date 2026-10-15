@@ -532,6 +532,8 @@ TestChainSetup::TestChainSetup(
             {  101, uint256S("0x585dcb063a3dc1b9bc6f8224814b5b12d3c5eb28bc27372c6b524c45409828aa") },
             /*SnapshotActivationChainSetup=*/
             {  102, uint256S("0x37876f3493ac152f9a0bdf0049d85969fe3ba82745733a81c8e1afeefa16ab3b") },
+            /*CreditWindowLateV20Setup=*/
+            {  104, uint256S("0x7da687196d19e677f76e812032881eaac5d7e3453542de561c90e9e6c5f9110c") },
             /*TestChainV19BeforeActivationSetup=*/
             {  103, uint256S("0x13adad9565d0ca558f5675c50e3828f4354d26b64de044ebc88686056f30faab") },
             /*TestChainDIP3BeforeActivationSetup=*/
