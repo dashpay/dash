@@ -2073,6 +2073,7 @@ class DashTestFramework(BitcoinTestFramework):
                     wait_proc()
                 return False
 
+            found_session = False
             for mn in mninfos:
                 s = mn.get_node(self).quorum("dkgstatus")
                 for qs in s["session"]:
@@ -2095,11 +2096,15 @@ class DashTestFramework(BitcoinTestFramework):
                                 cnt += 1
                         if cnt < expected_connections:
                             return ret()
-                        return True
-                    # a session with no matching connections - not ok
-                    return ret()
+                        found_session = True
+                        break
+                    else:
+                        # a session with no matching connections - not ok
+                        return ret()
+                    break
                 # a node with no sessions - ok
-                pass
+            if found_session:
+                return True
             # no sessions at all - not ok
             return ret()
 
