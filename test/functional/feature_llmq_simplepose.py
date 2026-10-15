@@ -217,6 +217,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, len(others), None, 0, others)
+        self.wait_for_dkg_finalization(q, others)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, others)
@@ -292,6 +293,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_good_nodes, None, 0, judges)
+        self.wait_for_dkg_finalization(q, mninfos_online)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online)
