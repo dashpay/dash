@@ -497,6 +497,15 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
             opt_snap.has_value()) {
             prev_cycles[idx]->m_snap = opt_snap.value();
         } else {
+            // Below a snapshot base only carried quarters exist. Computing or
+            // predicting from fewer quarters, or reporting them as not yet
+            // available, would misstate the result, so report the input as
+            // unavailable instead.
+            if (util_params.m_qsnapman.IsCarriedOnly(prev_cycles[idx]->m_cycle_index)) {
+                throw BlockDataUnavailableError(strprintf("Quorum snapshot for block %s %s",
+                                                          prev_cycles[idx]->m_cycle_index->GetBlockHash().ToString(),
+                                                          BLOCK_DATA_UNAVAILABLE_SUFFIX));
+            }
             if (predicting) return {};
             // TODO: Check if it is triggered from outside (P2P, block validation) and maybe throw an exception
             // assert(false);

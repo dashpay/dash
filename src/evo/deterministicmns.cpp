@@ -1018,6 +1018,8 @@ bool CDeterministicMNManager::IsMigrationRequired() const
 
     AssertLockHeld(::cs_main);
 
+    // NORMAL-only lifecycle operation: it uses the raw legacy keyspace and
+    // never sees snapshot-generation records.
     std::unique_ptr<CDBIterator> pcursor{m_evoDb.GetRawDB().NewIterator()};
     auto start{std::make_tuple(DB_LIST_DIFF_LEGACY, uint256{})};
     pcursor->Seek(start);
@@ -1039,6 +1041,8 @@ bool CDeterministicMNManager::IsMigrationRequired() const
 
 bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_index)
 {
+    // NORMAL-only lifecycle operation: it uses the raw legacy keyspace and
+    // never sees snapshot-generation records.
     // CRITICAL: This migration converts ALL stored CDeterministicMNListDiff entries
     // from legacy database key (DB_LIST_DIFF_LEGACY) to new key (DB_LIST_DIFF) format
 
@@ -1486,6 +1490,8 @@ void CDeterministicMNManager::WriteRepairedDiffs(
         return;
     }
 
+    // NORMAL-only lifecycle operation: it uses the raw legacy keyspace and
+    // never sees snapshot-generation records.
     CDBBatch batch(m_evoDb.GetRawDB());
     const size_t BATCH_SIZE_THRESHOLD = 1 << 24; // 16MB
     size_t diffs_written = 0;
