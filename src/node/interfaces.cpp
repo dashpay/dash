@@ -831,7 +831,8 @@ public:
                         context().llmq_ctx->qman->ScanQuorums(type, pindex, llmq_params->signingActiveQuorumCount)};
                     double health{0.0};
                     for (const auto& q : quorums) {
-                        size_t numMembers = q->members.size();
+                        // A quorum known by its key only counts its commitment's member slots.
+                        const size_t numMembers{q->HasMembers() ? q->Members().size() : q->qc->validMembers.size()};
                         size_t numValidMembers = q->qc->CountValidMembers();
                         health += (numMembers > 0) ? (double(numValidMembers) / double(numMembers)) : 0.0;
                     }

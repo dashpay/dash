@@ -3189,4 +3189,155 @@ BOOST_FIXTURE_TEST_CASE(constant_ehf_deployments_never_read_signals, MnhfSnapsho
 }
 
 
+BOOST_FIXTURE_TEST_CASE(work_block_modifiers_are_exact_in_the_snapshot_view, EvoSnapshotChainSetup)
+{
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    auto snapshot{Build(base)};
+    // Unit-test chains have no ChainLocks, so carry the modifier that a
+    // ChainLock in the coinbase of N's work block (172) would give. The key is
+    // fixed: whether a modifier selects members other than NORMAL's is chance,
+    // so the scenario pins one that does.
+    std::array<uint8_t, CBLSSecretKey::SerSize> secret{};
+    secret.back() = 9;
+    const CBLSSecretKey key{secret};
+    BOOST_REQUIRE(key.IsValid());
+    const CBLSSignature signature{key.Sign(H(9))};
+    const uint256 certified{SerializeHash(std::make_tuple(m_rotated.type, 172, signature))};
+    for (auto& entry : snapshot.quorum_modifiers) {
+        if (entry.llmq_type == m_rotated.type && entry.work_block_hash == At(172)->GetBlockHash()) {
+            entry.modifier = certified;
+        }
+    }
+    const EvoViewToken seeded{Seed(snapshot, base)};
+    const auto modifier_at = [&](const EvoViewToken& view, int height) {
+        const EvoViewScope scope{view};
+        return llmq::utils::GetQuorumModifierForWorkBlock(m_rotated, m_node.chainman->m_blockman, At(height),
+                                                          *m_node.llmq_ctx->qsnapman);
+    };
+    // With the work block readable, the carried value must match it.
+    BOOST_CHECK_THROW(modifier_at(seeded, 172), evo::SnapshotStateMismatchError);
+    // Read from a block without a coinbase ChainLock, the block-hash modifier
+    // is the exact rule.
+    const uint256 hash_modifier{SerializeHash(std::make_pair(m_rotated.type, At(172)->GetBlockHash()))};
+    BOOST_CHECK(modifier_at(Normal(), 172) == hash_modifier);
+    {
+        // A block this node has but cannot read is a read error in any view.
+        auto* work{const_cast<CBlockIndex*>(At(172))};
+        const int file{WITH_LOCK(::cs_main, return std::exchange(work->nFile, 99999))};
+        BOOST_CHECK_THROW(modifier_at(Normal(), 172), BlockDataReadError);
+        BOOST_CHECK_THROW(modifier_at(seeded, 172), BlockDataReadError);
+        WITH_LOCK(::cs_main, work->nFile = file);
+    }
+    std::optional<std::vector<uint256>> predicted;
+    {
+        const AbsentBodies absent{m_node, 160, 172};
+        BOOST_CHECK(modifier_at(seeded, 172) == certified);
+        // NORMAL cannot read the block either and does not guess.
+        BOOST_CHECK_THROW(modifier_at(Normal(), 172), BlockDataUnavailableError);
+        // Nothing is carried for block 165, so the snapshot view cannot tell.
+        BOOST_CHECK_THROW(modifier_at(seeded, 165), BlockDataUnavailableError);
+
+        // The prediction path and the ordinary member computation of N use the
+        // same exact modifier, which differs from the block-hash rule that
+        // NORMAL reads from the block's own data.
+        predicted = Predicted(seeded, m_rotated, 180);
+        BOOST_REQUIRE(predicted.has_value());
+        BOOST_CHECK(*predicted == Members(seeded, m_rotated, 180));
+    }
+    BOOST_CHECK(*predicted != *Predicted(Normal(), m_rotated, 180));
+}
+
+//! Without a quorum's work block NORMAL cannot compute its members, but the
+//! mined commitment still proves the quorum and its key: it serves the key and
+//! no guessed members.
+BOOST_FIXTURE_TEST_CASE(pruned_work_block_leaves_a_key_only_quorum, EvoSnapshotChainSetup)
+{
+    SyncNormal();
+    MineCycles(12, 180);
+    auto& qman{*m_node.llmq_ctx->qman};
+    const CBlockIndex* quorum_base{At(120)};
+
+    LOCK(::cs_main);
+    const EvoViewScope normal{Normal()};
+    const auto mined_key{m_node.llmq_ctx->quorum_block_processor
+                             ->GetMinedCommitment(m_plain.type, quorum_base->GetBlockHash())
+                             .first.quorumPublicKey};
+    BOOST_REQUIRE(qman.GetQuorum(m_plain.type, quorum_base->GetBlockHash())->HasMembers());
+    // Opening an EvoDB starts a new view-cache epoch: forget the quorum.
+    CEvoDB epoch{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "quorum_epoch", .memory = true, .wipe = true}};
+    const AbsentBodies absent{m_node, 112, 112};
+    BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(m_plain.type, Util(quorum_base), /*reset_cache=*/true),
+                      BlockDataUnavailableError);
+    const auto quorum{qman.GetQuorum(m_plain.type, quorum_base->GetBlockHash())};
+    BOOST_REQUIRE(quorum);
+    BOOST_CHECK(quorum->qc->quorumPublicKey == mined_key);
+    BOOST_CHECK(!quorum->HasMembers());
+    BOOST_CHECK_THROW(quorum->Members(), BlockDataUnavailableError);
+    BOOST_CHECK_THROW(quorum->IsMember(uint256::ONE), BlockDataUnavailableError);
+}
+
+BOOST_FIXTURE_TEST_CASE(work_block_modifiers_hash_the_mined_signature, BasicTestingSetup)
+{
+    // The modifier of a v20 work block hashes its coinbase ChainLock as mined.
+    const int v19{Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+    const auto& params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const CBLSSignature signature{key.Sign(H(5))};
+    for (const int height : {v19, v19 + 1}) {
+        CMutableTransaction coinbase{*SyntheticCoinbase(height)};
+        CCbTx cbtx{*Assert(DecodeCbTxPayload(CTransaction{coinbase}))};
+        cbtx.bestCLSignature.Set(signature);
+        cbtx.bestCLHeightDiff = 2;
+        SetTxPayload(coinbase, cbtx);
+
+        // The expected modifier hashes the signature bytes as mined: the 96
+        // bytes before the trailing credit pool balance.
+        const auto& payload{coinbase.vExtraPayload};
+        const std::vector<uint8_t> mined(payload.end() - sizeof(CAmount) - CBLSSignature::SerSize,
+                                         payload.end() - sizeof(CAmount));
+        BOOST_REQUIRE(mined == signature.ToByteVector());
+        CHashWriter hasher{SER_GETHASH, PROTOCOL_VERSION};
+        hasher << static_cast<uint8_t>(params.type) << height;
+        hasher.write(MakeByteSpan(mined));
+        const uint256 expected{hasher.GetHash()};
+
+        CBlock block;
+        block.vtx.push_back(MakeTransactionRef(std::move(coinbase)));
+        const uint256 block_hash{H(151)};
+        CBlockIndex work;
+        work.nHeight = height;
+        work.phashBlock = &block_hash;
+        BOOST_CHECK_MESSAGE(llmq::utils::GetWorkBlockModifier(params, block, work) == expected,
+                            strprintf("height %d", height));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(missing_quarters_in_the_snapshot_view, EvoSnapshotChainSetup)
+{
+    // B = 31 (h = 24) carries the quarters of 12 and 24. Cycle 24's members
+    // read the quarters of 12 and of genesis, which no cycle ever has.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(31)};
+    auto snapshot{Build(base)};
+    BOOST_REQUIRE(RotationHeights(snapshot) == (std::set<int>{12, 24}));
+    const EvoViewToken seeded{Seed(snapshot, base)};
+    // An inapplicable quarter keeps the legacy break, as NORMAL does.
+    CheckMembers(seeded, m_rotated, 24);
+    CheckMembers(seeded, m_rotated, 25);
+
+    // An applicable one raises unavailable rather than different members.
+    auto& rotated{const_cast<evo::QuorumSnapshotData&>(Type(snapshot, m_rotated.type))};
+    std::erase_if(rotated.rotation_snapshots,
+                  [&](const auto& entry) { return entry.cycle_base_block_hash == At(12)->GetBlockHash(); });
+    const EvoViewToken incomplete{Seed(snapshot, base)};
+    const EvoViewScope scope{incomplete};
+    BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(m_rotated.type, Util(At(24)), /*reset_cache=*/true),
+                      BlockDataUnavailableError);
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()

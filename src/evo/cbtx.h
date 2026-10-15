@@ -95,7 +95,6 @@ std::optional<CCbTx> DecodeCbTxPayload(const CTransaction& tx);
  *  none, except at or below the base in a snapshot view, where it raises
  *  BlockDataUnavailableError. */
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const node::BlockManager& blockman, const CBlockIndex* pindex);
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, int32_t height);
 /** The non-null ChainLock in `block`'s coinbase, decoded strictly, where
  *  `index` is the block's own index. */
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, const CBlockIndex& index);

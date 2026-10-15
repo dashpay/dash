@@ -85,13 +85,26 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
 
     const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
-    auto members = utils::GetAllQuorumMembers(qc.llmqType, {m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex});
-
-    auto quorum = std::make_shared<CQuorum>(llmq_params_opt.value(), blsWorker,
-        std::make_unique<CFinalCommitment>(std::move(qc)), pQuorumBaseBlockIndex, minedBlockHash, members);
-
     const EvoViewToken view{m_evoDb.CurrentView()};
-    if (populate_cache && llmq_params_opt->size == 1) {
+    std::optional<std::vector<CDeterministicMNCPtr>> members;
+    try {
+        members = utils::GetAllQuorumMembers(qc.llmqType, {m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex});
+    } catch (const utils::WorkBlockModifierUnavailableError& e) {
+        // NORMAL cannot compute the members without the work block that fixes
+        // their score modifier, which it pruned. The mined commitment still
+        // proves the quorum and its key.
+        if (view.identity != EvoDbIdentity::NORMAL) throw;
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] quorumHash[%s] without members: %s\n", __func__,
+                 std23::to_underlying(llmqType), quorumHash.ToString(), e.what());
+    }
+
+    auto commitment{std::make_unique<CFinalCommitment>(std::move(qc))};
+    auto quorum = members ? std::make_shared<CQuorum>(llmq_params_opt.value(), blsWorker, std::move(commitment),
+                                                      pQuorumBaseBlockIndex, minedBlockHash, *members)
+                          : std::make_shared<CQuorum>(llmq_params_opt.value(), blsWorker, std::move(commitment),
+                                                      pQuorumBaseBlockIndex, minedBlockHash);
+
+    if (!members || (populate_cache && llmq_params_opt->size == 1)) {
         WITH_LOCK(m_cs_maps, m_view_caches.For(view).mapQuorumsCache.insert(llmqType, quorumHash, quorum));
 
         return quorum;
@@ -614,7 +627,7 @@ void CQuorumManager::CacheWarmingThreadMain() const
                  pQuorum->m_quorum_base_block_index->GetBlockHash().ToString());
 
         // when then later some other thread tries to get keys, it will be much faster
-        for (const auto i : util::irange(pQuorum->members.size())) {
+        for (const auto i : util::irange(pQuorum->Members().size())) {
             if (m_cache_interrupt) {
                 break;
             }
@@ -631,7 +644,7 @@ void CQuorumManager::CacheWarmingThreadMain() const
 
 void CQuorumManager::QueueQuorumForWarming(CQuorumCPtr pQuorum) const
 {
-    if (pQuorum->HasVerificationVector()) {
+    if (pQuorum->HasMembers() && pQuorum->HasVerificationVector()) {
         LOCK(m_cache_cs);
         m_cache_queue.push_back(std::move(pQuorum));
     }

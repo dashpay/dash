@@ -240,6 +240,12 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
             LogPrint(BCLog::LLMQ, "NetQuorum::%s -- %s: Quorum not found, from peer=%d\n", __func__, msg_type, pfrom.GetId());
             return;
         }
+        if (!pQuorum->HasMembers()) {
+            // Known by its key only: member data has nothing to attach to.
+            LogPrint(BCLog::LLMQ, "NetQuorum::%s -- %s: Quorum members unavailable, from peer=%d\n", __func__, msg_type,
+                     pfrom.GetId());
+            return;
+        }
 
         // Check if request has QUORUM_VERIFICATION_VECTOR data
         if (request.GetDataMask() & CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR) {
@@ -465,9 +471,9 @@ void NetQuorum::CheckQuorumConnections(const Consensus::LLMQParams& llmqParams,
             Uint256HashSet connections;
             const auto& cindexes = utils::CalcDeterministicWatchConnections(llmqParams.type,
                                                                              quorum->m_quorum_base_block_index,
-                                                                             quorum->members.size(), 1);
+                                                                             quorum->Members().size(), 1);
             for (auto idx : cindexes) {
-                connections.emplace(quorum->members[idx]->proTxHash);
+                connections.emplace(quorum->Members()[idx]->proTxHash);
             }
             if (!connections.empty()) {
                 if (!m_connman.HasMasternodeQuorumNodes(llmqParams.type, quorum->m_quorum_base_block_index->GetBlockHash())) {
@@ -563,7 +569,7 @@ void NetQuorum::DataRecoveryThread(CQuorumCPtr pQuorum, uint16_t data_mask, cons
     }
 
     vecMemberHashes.reserve(pQuorum->qc->validMembers.size());
-    for (auto& member : pQuorum->members) {
+    for (auto& member : pQuorum->Members()) {
         if (pQuorum->IsValidMember(member->proTxHash) && member->proTxHash != protx_hash) {
             vecMemberHashes.push_back(member->proTxHash);
         }
@@ -766,6 +772,8 @@ void NetQuorum::StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*
                 pindex_loop = pindex_loop->pprev;
             }
             for (const auto& pQuorum : m_qman.ScanQuorums(params.type, pIndex, params.keepOldKeys - quorum_keys.size())) {
+                // A quorum known by its key only never reads stored contributions.
+                if (!pQuorum->HasMembers()) continue;
                 const uint256 quorum_key = MakeQuorumKey(*pQuorum);
                 quorum_keys.insert(quorum_key);
                 cache.insert(params.type, pQuorum->m_quorum_base_block_index->GetBlockHash(), quorum_key);

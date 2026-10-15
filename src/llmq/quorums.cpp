@@ -22,7 +22,7 @@ uint256 MakeQuorumKey(const CQuorum& q)
     CHashWriter hw(SER_NETWORK, 0);
     hw << q.params.type;
     hw << q.qc->quorumHash;
-    for (const auto& dmn : q.members) {
+    for (const auto& dmn : q.Members()) {
         hw << dmn->proTxHash;
     }
     return hw.GetHash();
@@ -107,11 +107,32 @@ CQuorum::CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker,
     qc{std::move(_qc)},
     m_quorum_base_block_index{_pQuorumBaseBlockIndex},
     minedBlockHash{_minedBlockHash},
-    members{_members.begin(), _members.end()},
+    m_members{std::in_place, _members.begin(), _members.end()},
     blsCache{_blsWorker}
 {
     assert(qc != nullptr);
     assert(m_quorum_base_block_index != nullptr);
+}
+
+CQuorum::CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CFinalCommitmentPtr _qc,
+                 const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash) :
+    params{_params},
+    qc{std::move(_qc)},
+    m_quorum_base_block_index{_pQuorumBaseBlockIndex},
+    minedBlockHash{_minedBlockHash},
+    blsCache{_blsWorker}
+{
+    assert(qc != nullptr);
+    assert(m_quorum_base_block_index != nullptr);
+}
+
+const std::vector<CDeterministicMNCPtr>& CQuorum::Members() const
+{
+    if (!m_members) {
+        throw BlockDataUnavailableError(strprintf("members of quorum %s %s", qc->quorumHash.ToString(),
+                                                  BLOCK_DATA_UNAVAILABLE_SUFFIX));
+    }
+    return *m_members;
 }
 
 CQuorum::~CQuorum() = default;
@@ -140,11 +161,12 @@ bool CQuorum::SetSecretKeyShare(const CBLSSecretKey& secretKeyShare, const uint2
 
 bool CQuorum::IsMember(const uint256& proTxHash) const
 {
-    return std::ranges::any_of(members, [&proTxHash](const auto& dmn) { return dmn->proTxHash == proTxHash; });
+    return std::ranges::any_of(Members(), [&proTxHash](const auto& dmn) { return dmn->proTxHash == proTxHash; });
 }
 
 bool CQuorum::IsValidMember(const uint256& proTxHash) const
 {
+    const auto& members{Members()};
     for (const auto i : util::irange(members.size())) {
         // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == proTxHash) {
@@ -157,10 +179,10 @@ bool CQuorum::IsValidMember(const uint256& proTxHash) const
 CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
 {
     LOCK(cs_vvec_shShare);
-    if (!HasVerificationVectorInternal() || memberIdx >= members.size() || !qc->validMembers[memberIdx]) {
+    if (!HasVerificationVectorInternal() || memberIdx >= Members().size() || !qc->validMembers[memberIdx]) {
         return CBLSPublicKey();
     }
-    const auto& m = members[memberIdx];
+    const auto& m = Members()[memberIdx];
     return blsCache.BuildPubKeyShare(m->proTxHash, quorumVvec, CBLSId(m->proTxHash));
 }
 
@@ -182,6 +204,7 @@ CBLSSecretKey CQuorum::GetSkShare() const
 
 int CQuorum::GetMemberIndex(const uint256& proTxHash) const
 {
+    const auto& members{Members()};
     for (const auto i : util::irange(members.size())) {
         // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == proTxHash) {
