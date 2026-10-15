@@ -853,16 +853,24 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             "".join("\n  {!r}".format(b) for b in best_hash),
         ))
 
-    def sync_mempools(self, nodes=None, wait=1, timeout=60, flush_scheduler=True, wait_func=None):
+    def sync_mempools(self, nodes=None, wait=None, timeout=60, flush_scheduler=True, wait_func=None):
         """
         Wait until everybody has the same transactions in their memory
         pools
+
+        wait_func (by default a 3s mocktime bump) runs after a failed check at most once per
+        `wait` seconds; with fast_sync_polling (and no explicit wait) the mempools are compared
+        every 0.1s in between, so mocktime advances on the same schedule as without it.
         """
+        poll = wait if wait is not None else (0.1 if self.fast_sync_polling else 1)
+        if wait is None:
+            wait = 1
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
         stop_time = time.time() + timeout
         if self.mocktime != 0 and wait_func is None:
             wait_func = lambda: self.bump_mocktime(3, nodes=nodes)
+        next_wait_func = 0
         while time.time() <= stop_time:
             pool = [set(r.getrawmempool()) for r in rpc_connections]
             if pool.count(pool[0]) == len(rpc_connections):
@@ -873,9 +881,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 return
             # Check that each peer has at least one connection
             assert (all([len(x.getpeerinfo()) for x in rpc_connections]))
-            if wait_func is not None:
+            if wait_func is not None and (poll >= wait or time.monotonic() >= next_wait_func):
                 wait_func()
-            time.sleep(wait)
+                next_wait_func = time.monotonic() + wait
+            time.sleep(poll)
         raise AssertionError("Mempool sync timed out after {}s:{}".format(
             timeout,
             "".join("\n  {!r}".format(m) for m in pool),
@@ -2703,13 +2712,21 @@ class DashTestFramework(BitcoinTestFramework):
         return (quorum_info_0, quorum_info_1)
 
     def wait_for_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, timeout=10):
+        # Mocktime advances by 1s per second of waiting either way; with fast_sync_polling the
+        # nodes are just asked more often in between.
+        fast = self.fast_sync_polling
+        next_bump = 0
+
         def check_recovered_sig():
-            self.bump_mocktime(1)
+            nonlocal next_bump
+            if not fast or time.monotonic() >= next_bump:
+                self.bump_mocktime(1)
+                next_bump = time.monotonic() + 1
             for mn in self.mninfo: # type: MasternodeInfo
                 if not mn.get_node(self).quorum("hasrecsig", llmq_type, rec_sig_id, rec_sig_msg_hash):
                     return False
             return True
-        self.wait_until(check_recovered_sig, timeout=timeout, sleep=1)
+        self.wait_until(check_recovered_sig, timeout=timeout, sleep=0.1 if fast else 1)
 
     def get_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, use_platformsign=False):
         # Note: recsigs aren't relayed to regular nodes by default,
