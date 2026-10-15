@@ -5,6 +5,7 @@
 #include <evo/evodb.h>
 
 #include <uint256.h>
+#include <util/check.h>
 
 #include <tuple>
 
@@ -58,12 +59,60 @@ const CEvoDB::TransactionContext& CEvoDB::GetContext(EvoDbIdentity identity) con
     return *transaction_contexts.at(identity);
 }
 
-EvoDbIdentity CEvoDB::GetCurrentIdentity() const
+namespace {
+thread_local const EvoViewScope* g_innermost_scope{nullptr};
+} // namespace
+
+EvoViewScope::EvoViewScope(const EvoViewToken& token) :
+    m_token{token},
+    m_outer{g_innermost_scope}
 {
-    if (active_transaction.has_value() && active_transaction_thread == std::this_thread::get_id()) {
-        return *active_transaction;
+    if (m_token.db == nullptr) throw EvoViewBindingError("EvoViewScope: token names no EvoDB");
+    m_token.db->CheckScopeAgainstTransaction(m_token);
+    g_innermost_scope = this;
+}
+
+EvoViewScope::~EvoViewScope()
+{
+    Assume(g_innermost_scope == this);
+    g_innermost_scope = m_outer;
+}
+
+const EvoViewToken* EvoViewScope::Innermost(const CEvoDB& db)
+{
+    for (const EvoViewScope* scope{g_innermost_scope}; scope != nullptr; scope = scope->m_outer) {
+        if (scope->m_token.db == &db) return &scope->m_token;
     }
-    return m_default_identity;
+    return nullptr;
+}
+
+EvoViewToken CEvoDB::MakeView(EvoDbIdentity identity) const { return EvoViewToken{.db = this, .identity = identity}; }
+
+EvoViewToken CEvoDB::ResolveView() const
+{
+    if (HoldsTransaction()) return MakeView(*active_transaction);
+    if (const EvoViewToken * scoped{EvoViewScope::Innermost(*this)}) return *scoped;
+    return MakeView(m_default_identity);
+}
+
+EvoViewToken CEvoDB::CurrentView() const
+{
+    LOCK(cs);
+    return ResolveView();
+}
+
+EvoViewToken CEvoDB::ViewFor(EvoDbIdentity identity) const
+{
+    LOCK(cs);
+    return MakeView(identity);
+}
+
+void CEvoDB::CheckScopeAgainstTransaction(const EvoViewToken& token) const
+{
+    LOCK(cs);
+    if (HoldsTransaction() && MakeView(*active_transaction) != token) {
+        throw EvoViewBindingError("EvoViewScope conflicts with this thread's open EvoDB transaction");
+    }
 }
 
 std::unique_ptr<CEvoDBScopedCommitter> CEvoDB::BeginTransaction(EvoDbIdentity identity)
@@ -71,6 +120,9 @@ std::unique_ptr<CEvoDBScopedCommitter> CEvoDB::BeginTransaction(EvoDbIdentity id
     AssertLockHeld(::cs_main);
     LOCK(cs);
     assert(!active_transaction.has_value());
+    if (const EvoViewToken * scoped{EvoViewScope::Innermost(*this)}; scoped && *scoped != MakeView(identity)) {
+        throw EvoViewBindingError("EvoDB transaction conflicts with this thread's EvoViewScope");
+    }
     active_transaction = identity;
     active_transaction_thread = std::this_thread::get_id();
     GetContext(identity);
