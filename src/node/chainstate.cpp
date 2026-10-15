@@ -389,8 +389,9 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     // too risky to do in the middle of normal runtime.
     const auto snapshot_completion = chainman.MaybeCompleteSnapshotValidation();
 
-    if (snapshot_completion == SnapshotCompletionResult::SKIPPED) {
-        // Do nothing; expected case.
+    if (snapshot_completion == SnapshotCompletionResult::SKIPPED ||
+        snapshot_completion == SnapshotCompletionResult::EVO_DATA_UNAVAILABLE) {
+        // Do nothing; expected case, or completion is retried once the data is there.
     } else if (snapshot_completion == SnapshotCompletionResult::SUCCESS) {
         LogPrintf("[snapshot] cleaning up unneeded background chainstate, then reinitializing\n");
         if (!chainman.ValidatedSnapshotCleanup()) {
