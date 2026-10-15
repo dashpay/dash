@@ -3,8 +3,11 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+from contextlib import ExitStack
+import struct
 import time
 from typing import List, Optional
+from test_framework.messages import hash256, ser_string
 from test_framework.p2p import logger
 from test_framework.test_framework import (
     DashTestFramework,
@@ -23,6 +26,9 @@ Tests automated recovery of DKG data and the related command line parameters:
 llmq_test = 100
 llmq_test_v17 = 102
 llmq_type_strings = {llmq_test: 'llmq_test', llmq_test_v17: 'llmq_test_v17'}
+
+# Logged by every block's recovery trigger, unless -llmq-data-recovery=0 turns it into a no-op
+RECOVERY_TRIGGER_LOG = "TriggerQuorumDataRecoveryThreads -- Process block"
 
 
 class QuorumDataRecoveryTest(DashTestFramework):
@@ -57,7 +63,11 @@ class QuorumDataRecoveryTest(DashTestFramework):
 
         if qdata_recovery_enabled:
             # trigger recovery threads and wait for them to start
-            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+            restarted = [mn for mn in (self.mninfo if mns is None else mns) if mn not in (exclude or [])]
+            log_positions = self.debug_log_positions(restarted)
+            block_hash = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
+            # The negative check in run_test relies on this message, so make sure it is the one the trigger logs
+            self.wait_for_log_line(restarted, log_positions, f"{RECOVERY_TRIGGER_LOG} {block_hash}")
 
             self.bump_mocktime(self.quorum_data_thread_request_timeout_seconds + 1)
             time.sleep(1)
@@ -75,6 +85,24 @@ class QuorumDataRecoveryTest(DashTestFramework):
             if mn not in valid_mns:
                 assert not self.test_mn_quorum_data(mn, quorum_type_in, quorum_hash_in, test_secret, False)
         self.wait_for_quorum_data(valid_mns, quorum_type_in, quorum_hash_in, test_secret, expect_secret, recover, timeout)
+
+    def debug_log_positions(self, mns):
+        return {mn.proTxHash: mn.get_node(self).debug_log_size(encoding="utf-8") for mn in mns}
+
+    def wait_for_log_line(self, mns, log_positions, *parts):
+        """Wait until every one of mns logged a line containing all parts since log_positions was taken"""
+        def has_line(mn):
+            with open(mn.get_node(self).debug_log_path, encoding="utf-8", errors="replace") as debug_log:
+                debug_log.seek(log_positions[mn.proTxHash])
+                return any(all(part in line for part in parts) for line in debug_log)
+
+        self.wait_until(lambda: all(has_line(mn) for mn in mns))
+
+    def sync_validation(self):
+        """Every node has the same tip and has run its validation callbacks for it"""
+        self.sync_blocks()
+        for node in self.nodes:
+            node.syncwithvalidationinterfacequeue()
 
     def get_mn(self, protx_hash) -> Optional[MasternodeInfo]:
         for mn in self.mninfo: # type: MasternodeInfo
@@ -95,6 +123,27 @@ class QuorumDataRecoveryTest(DashTestFramework):
         for mn in list(set(quorum_members_left) & set(quorum_members_right)):
             quorum_members_subset.remove(mn)
         return quorum_members_subset
+
+    def test_no_chainlock(self, node):
+        """Mine a block and show that the quorum that has to sign it can not: every masternode tried to sign it,
+        fewer members of the signing quorum than the signing threshold hold their secret key share, each of
+        those has signed the block, and no ChainLock formed"""
+        height = node.getblockcount() + 1
+        request_id = hash256(ser_string(b"clsig") + struct.pack("<I", height))[::-1].hex()
+        log_positions = self.debug_log_positions(self.mninfo)
+        block_hash = self.generate(node, 1, sync_fun=self.sync_validation)[0]
+        # Logged before the InstantSend safety gate: a block with a transaction that is neither islocked nor old
+        # enough would not be signed, and the wait for the sig shares below would time out
+        self.wait_for_log_line(self.mninfo, log_positions, f"trying to sign {block_hash}")
+
+        signing_quorum = node.quorum("selectquorum", llmq_test, request_id)["quorumHash"]
+        signers = [mn for mn in self.mninfo if self.test_mn_quorum_data(mn, llmq_test, signing_quorum)]
+        self.log.info(f"{len(signers)} members of signing quorum {signing_quorum} hold their secret key share")
+        assert len(signers) < self.llmq_threshold
+        self.wait_for_log_line(signers, log_positions, "created sigShare", f"id={request_id}, msgHash={block_hash}")
+        self.sync_validation()
+        for n in self.nodes:
+            assert not n.getblock(block_hash)["chainlock"]
 
     def test_llmq_qvvec_sync(self, llmq_sync_entries):
         self.log.info("Test with %d -llmq-qvvec-sync option(s)" % len(llmq_sync_entries))
@@ -179,16 +228,25 @@ class QuorumDataRecoveryTest(DashTestFramework):
         # Validate all but one are invalid members now
         self.test_mns(llmq_test, quorum_hash_recover, valid_mns=[last_resort_test], all_mns=member_mns_recover_test)
         self.test_mns(llmq_test_v17, quorum_hash_recover, valid_mns=[last_resort_v17], all_mns=member_mns_recover_v17)
-        # If recovery would be enabled it would trigger after the mocktime bump / mined block
+        # If recovery would be enabled it would trigger after the mocktime bump / mined block. Recovery threads are
+        # only ever started from that trigger, which runs in the block's validation callback and logs before it
+        # starts any (restart_mns checks that it does when recovery is enabled).
         self.bump_mocktime(self.quorum_data_request_expiration_timeout + 1)
-        self.generate(node, 1, sync_fun=self.no_op)
-        time.sleep(10)
+        recovery_disabled_mns = [mn for mn in self.mninfo if mn not in exclude_members]
+        # NetQuorum::UpdatedBlockTip logs these just before it calls the trigger, so they show that the callback got
+        # that far for both blocks mined below
+        tip_height = node.getblockcount()
+        reached_trigger = [f"llmqType[{llmq_test}] h[{tip_height + i}] keeping mn quorum connections" for i in (1, 2)]
+        with ExitStack() as stack:
+            for mn in recovery_disabled_mns:
+                stack.enter_context(mn.get_node(self).assert_debug_log(reached_trigger, unexpected_msgs=[RECOVERY_TRIGGER_LOG]))
+            self.generate(node, 1, sync_fun=self.sync_validation)
+            # Mining a block should not result in a chainlock now because the responsible quorum shouldn't have
+            # enough valid members.
+            self.test_no_chainlock(node)
         # Make sure they are still invalid
         self.test_mns(llmq_test, quorum_hash_recover, valid_mns=[last_resort_test], all_mns=member_mns_recover_test)
         self.test_mns(llmq_test_v17, quorum_hash_recover, valid_mns=[last_resort_v17], all_mns=member_mns_recover_v17)
-        # Mining a block should not result in a chainlock now because the responsible quorum shouldn't have enough
-        # valid members.
-        self.wait_for_chainlocked_block(node, self.generate(node, 1, sync_fun=self.no_op)[0], False, 5)
         # Now restart with recovery enabled
         self.restart_mns(mns=recover_members, exclude=exclude_members, reindex=True, qdata_recovery_enabled=True)
         # Validate that all invalid members recover. Note: recover=True leads to mocktime bumps and mining while waiting
