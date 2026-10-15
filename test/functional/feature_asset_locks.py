@@ -81,6 +81,7 @@ class AssetLocksTest(DashTestFramework):
                 "-acceptnonstdtxn=1",
         ]] * 2, evo_count=2)
         self.mn_rr_height = 560
+        self.fast_sync_polling = True
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
