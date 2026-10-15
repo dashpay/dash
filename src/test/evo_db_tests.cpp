@@ -335,6 +335,58 @@ BOOST_AUTO_TEST_CASE(open_transaction_does_not_capture_other_threads)
     BOOST_CHECK(other_thread == PayloadFor(30));
 }
 
+BOOST_AUTO_TEST_CASE(captured_tasks_release_their_claims_when_dropped)
+{
+    LOCK(::cs_main);
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_captured", .memory = true, .wipe = true}};
+    PublishGeneration(db);
+    EvoViewToken retired{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    ++retired.generation;
+
+    // A task bound to a retired generation never runs; what its enqueuer
+    // claimed for it is released instead.
+    for (const auto& [view, live] :
+         {std::make_pair(db.ViewFor(EvoDbIdentity::SNAPSHOT), true), std::make_pair(retired, false)}) {
+        int ran{0};
+        int released{0};
+        auto task{[&] {
+            EvoViewScope enqueuer{view};
+            return WithCapturedEvoView([&] { ++ran; }, [&] { ++released; });
+        }()};
+        task();
+        BOOST_CHECK_EQUAL(ran, live ? 1 : 0);
+        BOOST_CHECK_EQUAL(released, live ? 0 : 1);
+    }
+
+    // So is one whose binding cannot be installed where it runs: here, a
+    // thread holding a NORMAL transaction.
+    {
+        int ran{0};
+        int released{0};
+        auto task{[&] {
+            EvoViewScope enqueuer{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+            return WithCapturedEvoView([&] { ++ran; }, [&] { ++released; });
+        }()};
+        {
+            const auto normal_tx{db.BeginTransaction(EvoDbIdentity::NORMAL)};
+            task();
+        }
+        BOOST_CHECK_EQUAL(ran, 0);
+        BOOST_CHECK_EQUAL(released, 1);
+    }
+
+    // A task that started and failed released its claims itself.
+    {
+        int released{0};
+        auto task{[&] {
+            EvoViewScope enqueuer{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+            return WithCapturedEvoView([] { throw BlockDataUnavailableError("unavailable"); }, [&] { ++released; });
+        }()};
+        task();
+        BOOST_CHECK_EQUAL(released, 0);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
 {
     LOCK(::cs_main);

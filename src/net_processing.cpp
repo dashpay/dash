@@ -1107,6 +1107,11 @@ private:
     void ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc)
         EXCLUSIVE_LOCKS_REQUIRED(!m_most_recent_block_mutex, peer.m_getdata_requests_mutex, NetEventsInterface::g_msgproc_mutex)
         LOCKS_EXCLUDED(::cs_main);
+    /** Serve the requests at the front of the peer's GETDATA queue, collecting
+     *  the ones not found in vNotFound. */
+    void ServeGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc, std::vector<CInv>& vNotFound)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_most_recent_block_mutex, peer.m_getdata_requests_mutex,
+                                 NetEventsInterface::g_msgproc_mutex) LOCKS_EXCLUDED(::cs_main);
 
     /** Process a new block. Perform any post-processing housekeeping */
     void ProcessBlock(CNode& from, const std::shared_ptr<const CBlock>& pblock, bool force_processing);
@@ -2953,14 +2958,14 @@ CTransactionRef PeerManagerImpl::FindTxForGetData(const Peer& peer, const uint25
     return {};
 }
 
-void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc)
+void PeerManagerImpl::ServeGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc,
+                                   std::vector<CInv>& vNotFound)
 {
     AssertLockNotHeld(cs_main);
 
     auto tx_relay = peer.GetTxRelay();
 
     std::deque<CInv>::iterator it = peer.m_getdata_requests.begin();
-    std::vector<CInv> vNotFound;
     const CNetMsgMaker msgMaker(pfrom.GetCommonVersion());
 
     const auto now{GetTime<std::chrono::seconds>()};
@@ -2979,12 +2984,14 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         if (pfrom.fPauseSend)
             break;
 
-        const CInv &inv = *it;
+        const CInv inv{*it};
 
         if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK) {
             break;
         }
-        ++it;
+        // Dequeued before it is served: a lookup that throws leaves neither
+        // this request nor the ones served before it queued.
+        it = peer.m_getdata_requests.erase(it);
 
         if (tx_relay == nullptr && NetMessageViolatesBlocksOnly(inv.GetCommand())) {
             // Note that if we receive a getdata for non-block messages
@@ -3101,15 +3108,28 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
     // Only process one BLOCK item per call, since they're uncommon and can be
     // expensive to process.
     if (it != peer.m_getdata_requests.end() && !pfrom.fPauseSend) {
-        const CInv &inv = *it++;
+        const CInv inv{*it};
+        it = peer.m_getdata_requests.erase(it);
         if (inv.IsGenBlkMsg()) {
             ProcessGetBlockData(pfrom, peer, inv);
         }
         // else: If the first item on the queue is an unknown type, we erase it
         // and continue processing the queue on the next call.
     }
+}
 
-    peer.m_getdata_requests.erase(peer.m_getdata_requests.begin(), it);
+void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc)
+{
+    std::vector<CInv> vNotFound;
+    // A lookup this node's Evo state cannot answer ends the batch. The
+    // requests found missing before it have left the queue, so they are still
+    // answered; the one that failed is not reported missing.
+    std::exception_ptr local_error;
+    try {
+        ServeGetData(pfrom, peer, interruptMsgProc, vNotFound);
+    } catch (const evo::LocalStateError&) {
+        local_error = std::current_exception();
+    }
 
     if (!vNotFound.empty()) {
         // Let the peer know that we didn't find what it asked for, so it doesn't
@@ -3126,8 +3146,9 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         // In normal operation, we often send NOTFOUND messages for parents of
         // transactions that we relay; if a peer is missing a parent, they may
         // assume we have them and request the parents from us.
-        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::NOTFOUND, vNotFound));
+        m_connman.PushMessage(&pfrom, CNetMsgMaker{pfrom.GetCommonVersion()}.Make(NetMsgType::NOTFOUND, vNotFound));
     }
+    if (local_error) std::rethrow_exception(local_error);
 }
 
 void PeerManagerImpl::SendBlockTransactions(CNode& pfrom, Peer& peer, const CBlock& block, const BlockTransactionsRequest& req) {

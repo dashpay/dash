@@ -238,6 +238,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
     // block tree into BlockIndex()!
 
     for (Chainstate* chainstate : chainman.GetAll()) {
+        const EvoViewScope evo_view{chainstate->EvoView()};
         LogPrintf("Initializing chainstate %s\n", chainstate->ToString());
 
         chainstate->InitCoinsDB(
@@ -288,7 +289,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         }
     }
 
-    if (!special_tx.m_mnhfman->ForceSignalDBUpdate(chainman.ActiveTip())) {
+    if (!special_tx.m_mnhfman->ForceSignalDBUpdate(chainman.ActiveChainstate().EvoView(), chainman.ActiveTip())) {
         return {ChainstateLoadStatus::FAILURE, _("Error upgrading evo database for EHF")};
     }
 
@@ -440,6 +441,7 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
     LOCK(cs_main);
 
     for (Chainstate* chainstate : chainman.GetAll()) {
+        const EvoViewScope evo_view{chainstate->EvoView()};
         if (!is_coinsview_empty(chainstate)) {
             const CBlockIndex* tip = chainstate->m_chain.Tip();
             if (tip && tip->nTime > GetTime() + MAX_FUTURE_BLOCK_TIME) {

@@ -174,7 +174,9 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
             }
 
             COutPoint target_outpoint(outpoint.hash, i);
-            if (IsSpent(target_outpoint) || IsLockedCoin(target_outpoint)) continue;
+            if (IsSpent(target_outpoint) || IsLockedCoin(target_outpoint) || IsUnclassifiedProTxCoin(target_outpoint)) {
+                continue;
+            }
 
             if (fSkipDenominated && CoinJoin::IsDenominatedAmount(wtx.tx->vout[i].nValue)) continue;
 
@@ -437,7 +439,7 @@ CoinJoinDenomCounts CWallet::GetDenominationCounts() const
         const auto it{mapWallet.find(outpoint.hash)};
         if (it == mapWallet.end()) continue;
 
-        if (IsSpent(outpoint) || IsLockedCoin(outpoint)) continue;
+        if (IsSpent(outpoint) || IsLockedCoin(outpoint) || IsUnclassifiedProTxCoin(outpoint)) continue;
 
         const CAmount nValue = it->second.tx->vout[outpoint.n].nValue;
         const auto denom_it = std::find(denoms.begin(), denoms.end(), nValue);

@@ -52,6 +52,9 @@ ChainlockHandler::ChainlockHandler(chainlock::Chainlocks& chainlocks, Chainstate
         std::make_unique<std::thread>(std::thread(util::TraceThread, "cl-schdlr", [&] { scheduler->serviceQueue(); }))},
     seenChainLocks{SEEN_CHAINLOCKS_CUTOFF_SIZE, SEEN_CHAINLOCKS_MAX_SIZE}
 {
+    // Tasks are scheduled only from Start(), after this is set.
+    scheduler->SetTaskWrapper(
+        [this](const CScheduler::Function& task) { RunActiveEvoRound(m_chainman.EvoDb(), "cl-schdlr", task); });
 }
 
 ChainlockHandler::~ChainlockHandler()
@@ -168,12 +171,11 @@ MessageProcessingResult ChainlockHandler::ProcessNewChainLock(const NodeId from,
     if (!m_chainlocks.UpdateBestChainlock(hash, clsig, pindex)) return {};
 
     if (pindex) {
-        scheduler->scheduleFromNow(
-            [&]() {
-                CheckActiveState();
-                EnforceBestChainLock();
-            },
-            std::chrono::seconds{0});
+        scheduler->scheduleFromNow(WithCapturedEvoView([&]() {
+                                       CheckActiveState();
+                                       EnforceBestChainLock();
+                                   }),
+                                   std::chrono::seconds{0});
 
         LogPrint(BCLog::CHAINLOCKS, "ChainlockHandler::%s -- processed new CLSIG (%s), peer=%d\n", __func__,
                  clsig.ToString(), from);
@@ -195,14 +197,19 @@ void ChainlockHandler::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBloc
     // atomic[If tryLockChainTipScheduled is false, do (set it to true] and schedule signing).
 
     if (bool expected = false; tryLockChainTipScheduled.compare_exchange_strong(expected, true)) {
-        scheduler->scheduleFromNow(
-            [&]() {
-                CheckActiveState();
-                EnforceBestChainLock();
-                Cleanup();
-                tryLockChainTipScheduled = false;
-            },
-            std::chrono::seconds{0});
+        const auto unschedule{[this] { tryLockChainTipScheduled = false; }};
+        scheduler->scheduleFromNow(WithCapturedEvoView(
+                                       [&, unschedule]() {
+                                           const struct Unschedule {
+                                               decltype(unschedule) f;
+                                               ~Unschedule() { f(); }
+                                           } done{unschedule};
+                                           CheckActiveState();
+                                           EnforceBestChainLock();
+                                           Cleanup();
+                                       },
+                                       unschedule),
+                                   std::chrono::seconds{0});
     }
 }
 
