@@ -6,16 +6,18 @@
 #define BITCOIN_EVO_EVODB_H
 
 #include <dbwrapper.h>
+#include <evo/snapshot_types.h>
 #include <kernel/cs_main.h>
 #include <sync.h>
+#include <uint256.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <stdexcept>
 #include <thread>
 
-class uint256;
 namespace util {
 struct DbWrapperParams;
 } // namespace util
@@ -49,6 +51,38 @@ public:
 };
 
 class CEvoDB;
+
+/** Names the Evo state one operation reads and writes: the NORMAL view, or
+ *  one generation of the SNAPSHOT view, whose snapshot starts at `base`. */
+struct EvoViewToken {
+    const CEvoDB* db{nullptr};
+    EvoDbIdentity identity{EvoDbIdentity::NORMAL};
+    uint32_t generation{0};
+    uint256 base{};
+
+    bool operator==(const EvoViewToken&) const = default;
+};
+
+/** Binds the calling thread's Evo accesses on `token.db` to `token` until
+ *  destruction, which restores the enclosing binding. Scopes nest; the
+ *  innermost one for a CEvoDB wins. A scope must agree with a transaction the
+ *  same thread holds open on that CEvoDB, or construction raises
+ *  EvoViewBindingError. */
+class EvoViewScope
+{
+public:
+    explicit EvoViewScope(const EvoViewToken& token);
+    ~EvoViewScope();
+    EvoViewScope(const EvoViewScope&) = delete;
+    EvoViewScope& operator=(const EvoViewScope&) = delete;
+
+    //! The innermost token this thread bound for `db`, if any.
+    static const EvoViewToken* Innermost(const CEvoDB& db);
+
+private:
+    const EvoViewToken m_token;
+    const EvoViewScope* const m_outer;
+};
 
 class CEvoDBScopedCommitter
 {
@@ -105,7 +139,13 @@ private:
 
     TransactionContext& GetContext(EvoDbIdentity identity) EXCLUSIVE_LOCKS_REQUIRED(cs);
     const TransactionContext& GetContext(EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(cs);
-    EvoDbIdentity GetCurrentIdentity() const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    EvoDbIdentity GetCurrentIdentity() const EXCLUSIVE_LOCKS_REQUIRED(cs) { return ResolveView().identity; }
+    EvoViewToken MakeView(EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    EvoViewToken ResolveView() const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool HoldsTransaction() const EXCLUSIVE_LOCKS_REQUIRED(cs)
+    {
+        return active_transaction.has_value() && active_transaction_thread == std::this_thread::get_id();
+    }
 
 public:
     CEvoDB() = delete;
@@ -124,8 +164,17 @@ public:
     bool HasActiveTransaction() const EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         LOCK(cs);
-        return active_transaction.has_value() && active_transaction_thread == std::this_thread::get_id();
+        return HoldsTransaction();
     }
+
+    //! The view this thread's Evo accesses resolve to: its open transaction,
+    //! else its innermost EvoViewScope, else the default identity.
+    EvoViewToken CurrentView() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! The current view of a chainstate with the given identity.
+    EvoViewToken ViewFor(EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! Raise EvoViewBindingError if this thread holds a transaction on this
+    //! CEvoDB that disagrees with `token`.
+    void CheckScopeAgainstTransaction(const EvoViewToken& token) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     CurTransaction& GetCurTransaction() EXCLUSIVE_LOCKS_REQUIRED(cs)
     {
