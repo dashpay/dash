@@ -928,6 +928,13 @@ bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot,
                           const node::BlockManager& blockman, const CBlockIndex* base_index, std::string& error)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+/** Compute, in the calling thread's (seeded) view, the members of every
+ *  carried quorum, of the base's cycle, and of the next cycle when its work
+ *  block is at or below the base. Seeded state that cannot support them is an
+ *  error. */
+bool DryRunEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman, CSpecialTxProcessor& special_tx,
+                       const CBlockIndex* base_index, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 } // namespace evo
 
 #endif // BITCOIN_EVO_SNAPSHOT_H

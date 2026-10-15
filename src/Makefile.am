@@ -1302,6 +1302,7 @@ libdashkernel_la_SOURCES = \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
   evo/snapshot.cpp \
+  evo/snapshot_chain.cpp \
   evo/snapshot_config.cpp \
   evo/specialtx.cpp \
   evo/specialtx_filter.cpp \

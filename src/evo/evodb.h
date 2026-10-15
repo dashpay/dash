@@ -39,6 +39,8 @@ static const std::string EVODB_BEST_BLOCK = "b_b4";
 static const std::string EVODB_DUAL_CHAINSTATE = "b_dcs";
 static const std::string EVODB_SNAPSHOT_MNLIST_HASH = "b_dcs_mn";
 static const std::string EVODB_BACKGROUND_MNLIST_HASH = "b_dcs_bg_mn";
+//! The evo section the live snapshot generation was seeded from.
+static const std::string EVODB_SNAPSHOT_EVO_SECTION = "b_dcs_evo";
 // Snapshot-identity lifecycle metadata. It lives in the legacy keyspace and is
 // never part of a generation namespace.
 static const std::string EVODB_GENERATION_RECORD = "b_evo_gen";
@@ -502,10 +504,13 @@ public:
      *  generation is already live. */
     bool CreateSnapshotGeneration(const uint256& base, int base_height) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    /** Publish the bound generation together with the dual-chainstate markers
-     *  and the consensus-configuration fingerprint it is valid for. */
-    bool PublishSnapshotGeneration(const uint256& config_fingerprint, const std::optional<uint256>& base_mn_list_hash)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    /** Publish the bound generation together with the dual-chainstate markers,
+     *  the consensus-configuration fingerprint it is valid for and the encoded
+     *  evo section it was seeded from (empty for a UTXO-only snapshot). */
+    bool PublishSnapshotGeneration(const uint256& config_fingerprint, const std::optional<uint256>& base_mn_list_hash,
+                                   const std::vector<uint8_t>& evo_section = {}) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! The evo section the live generation was published with, if any.
+    std::optional<std::vector<uint8_t>> ReadRetainedEvoSection() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /** Startup: collect unpublished and rejected generations, then bind the
      *  live one. Fails closed if the live generation was published under a

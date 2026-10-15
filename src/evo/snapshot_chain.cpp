@@ -18,6 +18,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtxman.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/options.h>
@@ -873,6 +874,54 @@ bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot,
         if (!qblockman.SeedScanCoverage(view, params.type, EvoSnapshotScanCoverage(snapshot, params))) {
             return fail("failed to seed quorum scan coverage");
         }
+    }
+    return true;
+}
+
+bool DryRunEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman, CSpecialTxProcessor& special_tx,
+                       const CBlockIndex* base_index, std::string& error)
+{
+    AssertLockHeld(::cs_main);
+    const auto& consensus{chainman.GetConsensus()};
+    const llmq::UtilParameters util{special_tx.DeterministicMNManager(), special_tx.QuorumSnapshotManager(), chainman,
+                                    Assert(base_index)};
+    try {
+        for (const auto& data : snapshot.quorums) {
+            const auto& params{SnapshotLLMQParams(data.llmq_type)};
+            for (const auto* commitments : {&data.active_commitments, &data.safety_commitments}) {
+                for (const auto& entry : *commitments) {
+                    const CBlockIndex* quorum{chainman.m_blockman.LookupBlockIndex(entry.quorum_base_block_hash)};
+                    if (quorum == nullptr) {
+                        error = "evo snapshot dry run: unknown carried quorum";
+                        return false;
+                    }
+                    (void)llmq::utils::GetAllQuorumMembers(data.llmq_type, util.replace_index(quorum),
+                                                           /*reset_cache=*/true);
+                }
+            }
+            if (!chainman.IsQuorumTypeEnabled(data.llmq_type, base_index)) continue;
+            const int h{base_index->nHeight - base_index->nHeight % params.dkgInterval};
+            if (h > 0) {
+                (void)llmq::utils::GetAllQuorumMembers(data.llmq_type, util.replace_index(base_index->GetAncestor(h)),
+                                                       /*reset_cache=*/true);
+            }
+            // The next cycle has no header yet; its members are computable
+            // from the section only when its work block is at or below the base.
+            const int next{h + params.dkgInterval};
+            const int work_height{EvoSnapshotWorkHeight(consensus, params, data.rotation_enabled, next)};
+            if (work_height >= 0 && work_height <= base_index->nHeight) {
+                const CBlockIndex* work{base_index->GetAncestor(work_height)};
+                // Before v20 the modifier needs the next cycle's own block hash.
+                if (!llmq::utils::ComputeQuorumMembersFromWorkBlock(data.llmq_type, util.replace_index(work), work, next) &&
+                    DeploymentActiveAfter(work, consensus, Consensus::DEPLOYMENT_V20)) {
+                    error = "evo snapshot dry run: the members of the next cycle are not computable";
+                    return false;
+                }
+            }
+        }
+    } catch (const LocalStateError& e) {
+        error = strprintf("evo snapshot dry run: %s", e.what());
+        return false;
     }
     return true;
 }
