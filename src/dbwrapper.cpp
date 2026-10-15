@@ -217,6 +217,16 @@ struct LevelDBContext {
 
     //! the database itself
     leveldb::DB* pdb;
+
+    //! Also frees what a constructor that threw had allocated.
+    ~LevelDBContext()
+    {
+        delete pdb;
+        delete options.filter_policy;
+        delete options.info_log;
+        delete options.block_cache;
+        delete penv;
+    }
 };
 
 CDBWrapper::CDBWrapper(const DBParams& params)
@@ -275,19 +285,7 @@ CDBWrapper::CDBWrapper(const DBParams& params)
     LogPrintf("Using obfuscation key for %s: %s\n", fs::PathToString(params.path), HexStr(obfuscate_key));
 }
 
-CDBWrapper::~CDBWrapper()
-{
-    delete DBContext().pdb;
-    DBContext().pdb = nullptr;
-    delete DBContext().options.filter_policy;
-    DBContext().options.filter_policy = nullptr;
-    delete DBContext().options.info_log;
-    DBContext().options.info_log = nullptr;
-    delete DBContext().options.block_cache;
-    DBContext().options.block_cache = nullptr;
-    delete DBContext().penv;
-    DBContext().options.env = nullptr;
-}
+CDBWrapper::~CDBWrapper() = default;
 
 bool CDBWrapper::WriteBatch(CDBBatch& batch, bool fSync)
 {

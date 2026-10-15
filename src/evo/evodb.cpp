@@ -474,7 +474,8 @@ bool CEvoDB::CreateSnapshotGeneration(const uint256& base, int base_height)
     return true;
 }
 
-bool CEvoDB::PublishSnapshotGeneration(const std::optional<uint256>& base_mn_list_hash)
+bool CEvoDB::PublishSnapshotGeneration(const std::optional<uint256>& base_mn_list_hash,
+                                       const std::vector<uint8_t>& evo_section)
 {
     LOCK(cs);
     if (!m_snapshot_generation || m_snapshot_generation->state != EvoGenerationState::UNPUBLISHED) return false;
@@ -484,10 +485,20 @@ bool CEvoDB::PublishSnapshotGeneration(const std::optional<uint256>& base_mn_lis
     batch.Write(GenerationRecordKey(record.generation), record);
     batch.Write(EVODB_DUAL_CHAINSTATE, uint8_t{1});
     if (base_mn_list_hash) batch.Write(EVODB_SNAPSHOT_MNLIST_HASH, *base_mn_list_hash);
+    // Raw: a length-prefixed vector reads back only up to MAX_SIZE.
+    if (!evo_section.empty()) batch.Write(EVODB_SNAPSHOT_EVO_SECTION, Span{evo_section});
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     m_snapshot_generation = record;
     UpdateLiveGeneration();
     return true;
+}
+
+std::optional<std::vector<uint8_t>> CEvoDB::ReadRetainedEvoSection() const
+{
+    LOCK(cs);
+    DataStream evo_section;
+    if (!db->ReadDataStream(EVODB_SNAPSHOT_EVO_SECTION, evo_section)) return std::nullopt;
+    return std::vector<uint8_t>{UCharCast(evo_section.data()), UCharCast(evo_section.data() + evo_section.size())};
 }
 
 util::Result<void> CEvoDB::LoadSnapshotGenerations()
@@ -569,6 +580,52 @@ util::Result<void> CEvoDB::LoadSnapshotGenerations()
     return {};
 }
 
+namespace {
+//! The innermost active-chain turn this thread holds, on any CEvoDB. Turns are
+//! scoped objects, so they end in the reverse order they started.
+thread_local const ActiveEvoViewScope* g_innermost_turn{nullptr};
+} // namespace
+
+void CEvoDB::EnterActiveTurn(ActiveEvoViewScope& turn) const
+{
+    turn.m_outer_turn = g_innermost_turn;
+    g_innermost_turn = &turn;
+    ++m_active_turns;
+}
+
+void CEvoDB::LeaveActiveTurn(const ActiveEvoViewScope& turn) const
+{
+    Assume(g_innermost_turn == &turn);
+    g_innermost_turn = turn.m_outer_turn;
+    --m_active_turns;
+    // A waiter counts itself before it reads the turns under the mutex.
+    // Taking the mutex here orders this decrement before that read, or after
+    // the waiter went to sleep, so the notification wakes it.
+    if (m_turn_waiters.load() == 0) return;
+    {
+        LOCK(m_turns_mutex);
+    }
+    m_turns_cv.notify_all();
+}
+
+int CEvoDB::WaitForOtherActiveTurns(std::chrono::milliseconds timeout) const
+{
+    AssertLockNotHeld(::cs_main);
+    int own{0};
+    for (const ActiveEvoViewScope* turn{g_innermost_turn}; turn != nullptr; turn = turn->m_outer_turn) {
+        if (turn->m_turn_db == this) ++own;
+    }
+    ++m_turn_waiters;
+    int others;
+    {
+        WAIT_LOCK(m_turns_mutex, lock);
+        m_turns_cv.wait_for(lock, timeout, [&] { return m_active_turns.load() <= own; });
+        others = m_active_turns.load() - own;
+    }
+    --m_turn_waiters;
+    return others;
+}
+
 bool CEvoDB::HasRejectedGeneration() const
 {
     LOCK(cs);
@@ -635,6 +692,7 @@ bool CEvoDB::DiscardBoundGeneration()
     CDBBatch batch{*db};
     batch.Erase(EVODB_SNAPSHOT_MNLIST_HASH);
     batch.Erase(EVODB_BACKGROUND_MNLIST_HASH);
+    batch.Erase(EVODB_SNAPSHOT_EVO_SECTION);
     batch.Erase(EVODB_DUAL_CHAINSTATE);
     batch.Erase(EVODB_PROMOTION_JOURNAL);
     if (m_snapshot_generation) {
@@ -844,6 +902,7 @@ bool CEvoDB::PromoteSnapshotMarkers(const uint256& expected_snapshot_tip)
     batch.Write(EVODB_BEST_BLOCK, journal.tip);
     batch.Erase(EVODB_SNAPSHOT_MNLIST_HASH);
     batch.Erase(EVODB_BACKGROUND_MNLIST_HASH);
+    batch.Erase(EVODB_SNAPSHOT_EVO_SECTION);
     batch.Erase(EVODB_DUAL_CHAINSTATE);
     batch.Erase(EVODB_PROMOTION_JOURNAL);
     batch.Erase(GenerationRecordKey(journal.generation));

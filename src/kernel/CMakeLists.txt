@@ -45,6 +45,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../evo/simplifiedmns.cpp
   ../evo/smldiff.cpp
   ../evo/snapshot.cpp
+  ../evo/snapshot_chain.cpp
   ../evo/specialtx.cpp
   ../evo/specialtx_filter.cpp
   ../evo/specialtxman.cpp

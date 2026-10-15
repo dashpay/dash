@@ -53,6 +53,7 @@
 #include <wallet/test/util.h>
 #include <wallet/test/wallet_test_fixture.h>
 #include <wallet/walletdb.h>
+#include <warnings.h>
 
 #include <boost/test/unit_test.hpp>
 #include <univalue.h>
@@ -2200,12 +2201,22 @@ BOOST_FIXTURE_TEST_CASE(MasternodeCollateralWithheldWhileListUnavailable, ListCo
         context.chain = m_node.chain.get();
         const auto wallet_iface{
             interfaces::MakeWallet(context, std::shared_ptr<CWallet>(wallet.get(), [](CWallet*) {}))};
-        const auto submitted{
-            interfaces::MakeNode(m_node)->evo().submitMasternodeRegistration(*wallet_iface, pro_reg_tx, {})};
+        const auto node{interfaces::MakeNode(m_node)};
+        const auto submitted{node->evo().submitMasternodeRegistration(*wallet_iface, pro_reg_tx, {})};
         const auto* error{std::get_if<interfaces::ProviderTxError>(&submitted)};
         BOOST_REQUIRE(error);
         BOOST_CHECK_MESSAGE(error->code == interfaces::ProviderTxErrorCode::INTERNAL_ERROR, error->message.original);
         BOOST_CHECK_EQUAL(error->message.original, "Masternode state is not available yet. See debug.log for details.");
+        const auto submit_warned{[] {
+            return std::ranges::any_of(GetWarnings(), [](const bilingual_str& warning) {
+                return warning.original.find("submitMasternodeRegistration could not read it") != std::string::npos;
+            });
+        }};
+        BOOST_CHECK(submit_warned());
+        // A later call that completes, even with an error of its own, lifts the operation's warning.
+        BOOST_CHECK(std::holds_alternative<interfaces::ProviderTxError>(
+            node->evo().submitMasternodeRegistration(*wallet_iface, nullptr, {})));
+        BOOST_CHECK(!submit_warned());
     }
     m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
     consensus.DIP0003Height = dip3_height;

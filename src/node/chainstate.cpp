@@ -6,13 +6,15 @@
 
 #include <arith_uint256.h>
 #include <chain.h>
-#include <coins.h>
 #include <chainparamsbase.h>
+#include <clientversion.h>
+#include <coins.h>
 #include <consensus/params.h>
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
 #include <node/utxo_snapshot.h>
+#include <streams.h>
 #include <sync.h>
 #include <threadsafety.h>
 #include <tinyformat.h>
@@ -27,6 +29,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot.h>
 #include <evo/specialtxman.h>
 #include <gsl/pointers.h>
 
@@ -359,6 +362,46 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
     return {ChainstateLoadStatus::SUCCESS, {}};
 }
 
+//! The live generation's retained evo section must still match the pin its
+//! base is authorized by: the seeded state is only as good as that match.
+static util::Result<void> RevalidateRetainedEvoSection(const ChainstateManager& chainman, const CEvoDB& evodb)
+{
+    const auto generation{evodb.GetSnapshotGeneration()};
+    if (!generation) return {};
+    const auto refuse = [](const std::string& reason) -> util::Result<void> {
+        LogPrintf("[snapshot] %s\n", reason);
+        return util::Error{_("The assumeutxo snapshot's Evo state no longer matches its authorization. Restart with "
+                             "-reindex-chainstate to discard the snapshot.")};
+    };
+    const AssumeutxoData* au_data{ExpectedAssumeutxo(generation->base_height, chainman.GetParams())};
+    if (!au_data || (!au_data->blockhash.IsNull() && au_data->blockhash != generation->base)) {
+        return refuse("no assumeutxo authorization for the snapshot base");
+    }
+    const bool dip3_base{generation->base_height >=
+                         chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
+    const auto retained{evodb.ReadRetainedEvoSection()};
+    if (!retained) {
+        if (dip3_base || au_data->evo_hash != EvoSnapshotHash{uint256::ZERO}) {
+            return refuse("the retained evo section is missing");
+        }
+        return {};
+    }
+    evo::EvoSnapshot snapshot;
+    try {
+        DataStream stream{*retained};
+        stream >> snapshot;
+        if (!stream.empty()) return refuse("trailing data after the retained evo section");
+    } catch (const std::ios_base::failure& e) {
+        return refuse(strprintf("the retained evo section does not decode: %s", e.what()));
+    }
+    if (snapshot.base_block_hash != generation->base) return refuse("the retained evo section is for another base");
+    if ((dip3_base || au_data->evo_hash != EvoSnapshotHash{uint256::ZERO}) &&
+        EvoSnapshotHash{evo::GetEvoSnapshotHash(snapshot)} != au_data->evo_hash) {
+        return refuse("the retained evo section does not match its pin");
+    }
+    return {};
+}
+
 ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSizes& cache_sizes,
                                     const ChainstateLoadOptions& options, CEvoDB& evodb,
                                     CDeterministicMNManager& dmnman, CSpecialTxProcessor& special_tx)
@@ -415,6 +458,11 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     if (!chainman.DetectSnapshotChainstate(options.mempool, snapshot_error)) {
         return {ChainstateLoadStatus::FAILURE, snapshot_error};
     }
+    if (chainman.IsSnapshotActive()) {
+        if (auto result{RevalidateRetainedEvoSection(chainman, evodb)}; !result) {
+            return {ChainstateLoadStatus::FAILURE, util::ErrorString(result)};
+        }
+    }
     // A crash between publishing a generation and persisting the snapshot
     // directory's base block leaves a generation that no chainstate uses.
     if (evodb.GetSnapshotGeneration() && !chainman.IsSnapshotActive() && !promotion_pending) {
@@ -423,6 +471,14 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
                     _("Snapshot EvoDB state has no snapshot chainstate. Reindex is required.")};
         }
         LogPrintf("[snapshot] discarded a snapshot EvoDB generation that never activated\n");
+    }
+    // Nor does any chainstate use the coins of a load that never recorded its
+    // base block: a later load would open them and add its own.
+    if (const auto snapshot_dir{FindSnapshotChainstateDir(chainman.m_options.datadir)};
+        snapshot_dir && !chainman.IsSnapshotActive() && !fs::exists(*snapshot_dir / SNAPSHOT_BLOCKHASH_FILENAME) &&
+        !DeleteSnapshotChainstateFromDisk(chainman.m_options.datadir)) {
+        return {ChainstateLoadStatus::FAILURE,
+                _("Failed to remove an unused snapshot chainstate directory. Remove it manually before restarting.")};
     }
 
     auto [init_status, init_error] = CompleteChainstateInitialization(chainman, cache_sizes, options, evodb, dmnman,
