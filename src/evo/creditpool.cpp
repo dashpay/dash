@@ -7,6 +7,7 @@
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 
 #include <chain.h>
@@ -80,6 +81,11 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
 
     CBlock block;
     if (!ReadBlockFromDisk(block, block_index, consensusParams)) {
+        // A body this node does not have (pruned, or below an unvalidated
+        // snapshot base) is a local state error, never the block's fault.
+        if (!WITH_LOCK(::cs_main, return block_index->nStatus & BLOCK_HAVE_DATA)) {
+            throw BlockDataUnavailableError("failed-getcbforblock-read");
+        }
         throw std::runtime_error("failed-getcbforblock-read");
     }
 
@@ -418,6 +424,8 @@ std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpo
         // M_ERROR so the block is not marked invalid.
         state.Error(e.what());
         return std::nullopt;
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
         state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-getcreditpooldiff");

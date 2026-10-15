@@ -751,6 +751,8 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
         diff.nHeight = pindex->nHeight;
         mnListDiffsCache.emplace(pindex->GetBlockHash(), diff);
         mnListsCache.insert_or_assign(newList.GetBlockHash(), newList);
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CDeterministicMNManager::%s -- internal error: %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-dmn-block");

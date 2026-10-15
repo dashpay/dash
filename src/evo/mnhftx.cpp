@@ -6,6 +6,7 @@
 #include <deploymentstatus.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
@@ -254,6 +255,8 @@ std::optional<CMNHFManager::Signals> CMNHFManager::ProcessBlock(const CBlock& bl
         // M_ERROR so the block is not marked invalid.
         state.Error(e.what());
         return std::nullopt;
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CMNHFManager::ProcessBlock -- failed: %s\n", e.what());
         state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-proc-mnhf-inblock");
@@ -301,6 +304,11 @@ CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
         }
         CBlock block;
         if (!ReadBlockFromDisk(block, pindex_top, m_consensus_params)) {
+            // A body this node does not have (pruned, or below an unvalidated
+            // snapshot base) is a local state error, never the block's fault.
+            if (!WITH_LOCK(::cs_main, return pindex_top->nStatus & BLOCK_HAVE_DATA)) {
+                throw BlockDataUnavailableError("failed-getehfforblock-read");
+            }
             throw std::runtime_error("failed-getehfforblock-read");
         }
         BlockValidationState state;
