@@ -126,8 +126,12 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.extra_args = None
         self.network_thread = None
         self.mocktime = 0
-        # Poll sync_blocks() and wait_for_quorum_phase() every 0.1s instead of every 1s / 0.5s. They wait
-        # for the same condition either way and only notice sooner that it holds.
+        # Poll sync_blocks(), sync_mempools(), wait_for_quorum_phase() and friends every 0.1s instead of
+        # every 1s / 0.5s. They wait for the same condition either way and only notice sooner that it holds.
+        # Opting in ALSO makes mine_quorum() and mine_cycle_quorum() wait for the DKG relay connections and
+        # for every sent DKG message before mining the next phase, because the faster polling otherwise
+        # races ahead of them. Those waits time out under `quorum dkgsimerror`, so tests that inject DKG
+        # errors must not opt in.
         self.fast_sync_polling = False
         self.rpc_timeout = 60  # Wait for up to 60 seconds for the RPC server to respond
         self.supports_cli = True
