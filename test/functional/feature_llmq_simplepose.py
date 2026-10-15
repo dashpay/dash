@@ -389,16 +389,16 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
     def repair_masternodes(self, restart):
         self.log.info("Repairing all banned and punished masternodes")
-        for mn in self.mninfo: # type: MasternodeInfo
-            if check_banned(self.nodes[0], mn) or check_punished(self.nodes[0], mn):
-                addr = self.nodes[0].getnewaddress()
-                self.nodes[0].sendtoaddress(addr, 0.1)
-                mn.update_service(self.nodes[0], submit=True, fundsAddr=addr)
-                if restart:
-                    self.stop_node(mn.nodeIdx)
-                    self.start_masternode(mn)
-                else:
-                    mn.get_node(self).setnetworkactive(True)
+        repaired = [mn for mn in self.mninfo if check_banned(self.nodes[0], mn) or check_punished(self.nodes[0], mn)]
+        for mn in repaired:
+            addr = self.nodes[0].getnewaddress()
+            self.nodes[0].sendtoaddress(addr, 0.1)
+            mn.update_service(self.nodes[0], submit=True, fundsAddr=addr)
+        if restart:
+            self.restart_masternodes(mns=repaired)
+        else:
+            for mn in repaired:
+                mn.get_node(self).setnetworkactive(True)
                 self.connect_nodes(mn.nodeIdx, 0)
 
         # syncing blocks only since node 0 has txes waiting to be mined
