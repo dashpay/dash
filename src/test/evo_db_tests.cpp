@@ -237,6 +237,60 @@ BOOST_AUTO_TEST_CASE(open_transaction_does_not_capture_other_threads)
     BOOST_CHECK(other_thread == PayloadFor(30));
 }
 
+BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
+{
+    LOCK(::cs_main);
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_view_scope", .memory = true, .wipe = true}};
+    const EvoViewToken normal{db.ViewFor(EvoDbIdentity::NORMAL)};
+    const EvoViewToken snapshot{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    WritePayload(db, EvoDbIdentity::SNAPSHOT, 50);
+
+    // Unbound access keeps resolving to the default identity.
+    BOOST_CHECK(db.CurrentView() == normal);
+    Payload value;
+    {
+        EvoViewScope outer{snapshot};
+        BOOST_CHECK(db.CurrentView() == snapshot);
+        BOOST_CHECK(db.Read(PayloadKey(50), value));
+        {
+            EvoViewScope inner{normal};
+            BOOST_CHECK(db.CurrentView() == normal);
+            BOOST_CHECK(!db.Read(PayloadKey(50), value));
+            // A transaction matching the innermost scope is accepted and
+            // names the same view.
+            auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+            BOOST_CHECK(db.CurrentView() == normal);
+            tx->Commit();
+        }
+        // Leaving the inner scope restores the outer binding.
+        BOOST_CHECK(db.CurrentView() == snapshot);
+        BOOST_CHECK(db.Read(PayloadKey(50), value));
+
+        // A transaction for the other identity conflicts with the scope.
+        BOOST_CHECK_THROW(db.BeginTransaction(EvoDbIdentity::NORMAL), EvoViewBindingError);
+        BOOST_CHECK(!db.HasActiveTransaction());
+    }
+    BOOST_CHECK(db.CurrentView() == normal);
+
+    // A scope opened inside a conflicting transaction is refused, and the
+    // binding in force is left untouched.
+    auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+    BOOST_CHECK_THROW(EvoViewScope{normal}, EvoViewBindingError);
+    BOOST_CHECK(db.CurrentView() == snapshot);
+    {
+        EvoViewScope agreeing{snapshot};
+        BOOST_CHECK(db.CurrentView() == snapshot);
+    }
+    tx->Commit();
+
+    // A scope binds only the CEvoDB its token names.
+    CEvoDB other{
+        util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_view_scope_other", .memory = true, .wipe = true}};
+    EvoViewScope other_scope{other.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    BOOST_CHECK(db.CurrentView() == normal);
+    BOOST_CHECK(other.CurrentView() == other.ViewFor(EvoDbIdentity::SNAPSHOT));
+}
+
 BOOST_AUTO_TEST_CASE(snapshot_markers_can_be_discarded)
 {
     LOCK(::cs_main);
