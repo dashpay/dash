@@ -3468,23 +3468,29 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
     }
 
     bilingual_str warning_messages;
-    if (!this->IsInitialBlockDownload())
-    {
-        const CBlockIndex* pindex = pindexNew;
-        for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
-            WarningBitsConditionChecker checker(m_chainman, bit);
-            ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(),
-                                                       m_chainman.m_warningcache.For(m_evoDb.CurrentView()).at(bit));
-            if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
-                const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
-                if (state == ThresholdState::ACTIVE) {
-                    DoWarning(warning);
-                } else {
-                    AppendWarning(warning_messages, warning);
+    if (!this->IsInitialBlockDownload()) try {
+            const CBlockIndex* pindex = pindexNew;
+            for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
+                WarningBitsConditionChecker checker(m_chainman, bit);
+                ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(),
+                                                           m_chainman.m_warningcache.For(m_evoDb.CurrentView()).at(bit));
+                if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
+                    const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
+                    if (state == ThresholdState::ACTIVE) {
+                        DoWarning(warning);
+                    } else {
+                        AppendWarning(warning_messages, warning);
+                    }
                 }
             }
+        } catch (const BlockDataUnavailableError& e) {
+            // A snapshot chainstate cannot compute the versions expected of the
+            // blocks at or below its base, and every later period depends on
+            // them. The warning is only advisory, so this chainstate goes
+            // without it (and any bit after the failing one) until promotion,
+            // re-trying the walk at each tip.
+            LogPrint(BCLog::VALIDATION, "%s: skipping the unknown-version warning check: %s\n", __func__, e.what());
         }
-    }
     UpdateTipLog(coins_tip, pindexNew, params, m_evoDb, __func__, "", warning_messages.original);
 }
 
@@ -3508,10 +3514,17 @@ static bool LocalEvoStateError(ChainstateManager& chainman, const evo::LocalStat
     return state.LocalEvoStateError(LocalEvoStateResult::UNAVAILABLE, "evo-local-unavailable");
 }
 
-void WarnLocalEvoStateUnavailable(const std::string& detail)
+void WarnLocalEvoStateUnavailable(const std::string& source, const std::string& detail)
 {
-    SetMiscWarning(strprintf(_("Snapshot state unavailable: %s. See debug.log for details."), detail));
+    SetEvoStateWarning(source, strprintf(_("Snapshot state unavailable: %s. See debug.log for details."), detail));
     uiInterface.NotifyAlertChanged();
+}
+
+std::string Chainstate::EvoStallWarningSource() const { return strprintf("stall:%p", static_cast<const void*>(this)); }
+
+Chainstate::~Chainstate()
+{
+    if (m_evo_stall_warned) SetEvoStateWarning(EvoStallWarningSource(), std::nullopt);
 }
 
 const Chainstate::EvoStall* Chainstate::FindEvoStall(const CBlockIndex* pindex) const
@@ -3557,7 +3570,7 @@ void Chainstate::RecordEvoStall(const CBlockIndex* pindex, const BlockValidation
     const std::string detail{strprintf("%s stalled at block %s (height %d), %s", ToString(),
                                        pindex->GetBlockHash().ToString(), pindex->nHeight, state.GetRejectReason())};
     LogPrintf("ERROR: %s; it will not retry this block before restart\n", detail);
-    WarnLocalEvoStateUnavailable(detail);
+    WarnLocalEvoStateUnavailable(EvoStallWarningSource(), detail);
 }
 
 /** Disconnect m_chain's tip.
@@ -6514,6 +6527,8 @@ bool ChainstateManager::ActivateSnapshot(
     bool snapshot_ok;
     try {
         snapshot_ok = this->PopulateAndValidateSnapshot(*snapshot_chainstate, coins_file, metadata);
+        // As if the process died around publication: no cleanup.
+        if (m_stop_before_evo_publication_for_testing || m_stop_after_evo_publication_for_testing) return false;
     } catch (...) {
         // Never leave a generation bound to a snapshot that did not activate.
         WITH_LOCK(::cs_main, this->ActiveChainstate().m_evoDb.AbandonSnapshotGeneration());
@@ -6758,6 +6773,16 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
             return false;
         }
     }
+    if (evo_snapshot) {
+        LOCK(::cs_main);
+        std::string evo_error;
+        if (!evo::ValidateEvoSnapshotAgainstChain(*evo_snapshot, *this, snapshot_start_block, evo_error) ||
+            (dip3_base &&
+             !evo::VerifyEvoSnapshotBaseBlock(*evo_snapshot, *snapshot_start_block, GetConsensus(), evo_error))) {
+            LogPrintf("[snapshot] bad evo section for the chain: %s\n", evo_error);
+            return false;
+        }
+    }
 
     LogPrintf("[snapshot] loaded %d (%.2f MB) coins from snapshot %s\n",
         coins_count,
@@ -6837,22 +6862,20 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     index->nChainTx = au_data.nChainTx;
     snapshot_chainstate.setBlockIndexCandidates.insert(snapshot_start_block);
 
-    // Until the loadtxoutset milestone the snapshot carries no Dash payload,
-    // so the base MN list is only derivable when this node's own background
-    // chainstate has already validated the base block. On a cold start
-    // (background tip below the base) it is not derivable at all: attempting
-    // the lookup would take GetListForBlockInternal's legacy bootstrap branch
-    // (the dual-chainstate marker is not durable yet at this point), fabricate
-    // an empty "initial snapshot" list for the base block, and poison the
-    // shared list cache that the background chainstate later derives base+1
-    // from. Capture the lifecycle hashes only when the base state genuinely
-    // exists; completion skips the comparison when the markers are absent.
-    // The background chainstate never re-connects a base block it has already
-    // validated, so RecordBackgroundMNListHash cannot fire for it either --
-    // this capture stands in for it.
-    // TODO(assumeutxo, loadtxoutset): once the snapshot payload carries the
-    // base MN list, derive the SNAPSHOT-side marker from the payload so it is
-    // always present and independent of local state.
+    // Once DIP3 is active the SNAPSHOT-side base MN-list marker is the carried
+    // list's. Before DIP3 the snapshot carries no list, so the marker is only
+    // derivable when this node's own background chainstate has already
+    // validated the base block. On a cold start (background tip below the
+    // base) it is not derivable at all: attempting the lookup would take
+    // GetListForBlockInternal's legacy bootstrap branch (the dual-chainstate
+    // marker is not durable yet at this point), fabricate an empty "initial
+    // snapshot" list for the base block, and poison the shared list cache that
+    // the background chainstate later derives base+1 from. Capture the
+    // lifecycle hashes only when the base state genuinely exists; completion
+    // skips the comparison when the markers are absent. The background
+    // chainstate never re-connects a base block it has already validated, so
+    // RecordBackgroundMNListHash cannot fire for it either -- this capture
+    // stands in for it.
     std::optional<uint256> base_mn_list_hash;
     if (const CBlockIndex* ibd_tip = m_ibd_chainstate->m_chain.Tip();
         ibd_tip != nullptr && ibd_tip->GetBlockHash() == base_blockhash) {
@@ -6863,6 +6886,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         snapshot_chainstate.m_evoDb.WriteBackgroundMNListHash(base_blockhash, *base_mn_list_hash);
         db_tx->Commit();
     }
+    if (evo_snapshot && dip3_base) base_mn_list_hash = evo::CanonicalMNListHash(evo_snapshot->mn_list);
 
     // Snapshot lifecycle recovery depends on the background chainstate's
     // independently captured MN-list hash. Make all preceding NORMAL writes
@@ -6877,18 +6901,47 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         LogPrintf("[snapshot] failed to create the snapshot EvoDB generation\n");
         return false;
     }
+    const EvoViewScope snapshot_view{snapshot_chainstate.EvoView()};
     {
-        const EvoViewScope snapshot_view{snapshot_chainstate.EvoView()};
         auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        if (evo_snapshot) {
+            std::string evo_error;
+            if (!evo::SeedEvoSnapshotState(snapshot_chainstate.EvoView(), *evo_snapshot, snapshot_chainstate.m_special_tx,
+                                           m_blockman, snapshot_start_block, evo_error)) {
+                LogPrintf("[snapshot] failed to seed the evo section: %s\n", evo_error);
+                return false;
+            }
+        }
         snapshot_chainstate.m_evoDb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, base_blockhash);
         db_tx->Commit();
     }
-    if (!snapshot_chainstate.m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true) ||
-        !snapshot_chainstate.m_evoDb.PublishSnapshotGeneration(
-            EvoSnapshotConsensusConfig::FromParams(GetParams()).Fingerprint(), base_mn_list_hash)) {
+    if (!snapshot_chainstate.m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)) {
+        LogPrintf("[snapshot] failed to commit the seeded snapshot EvoDB generation\n");
+        return false;
+    }
+    // Before publishing, compute from the seeded state alone every quorum the
+    // snapshot chainstate may need at or right after the base.
+    std::vector<uint8_t> retained_section;
+    if (evo_snapshot && dip3_base) {
+        std::string evo_error;
+        if (!evo::DryRunEvoSnapshot(*evo_snapshot, *this, snapshot_chainstate.m_special_tx, snapshot_start_block,
+                                    evo_error)) {
+            LogPrintf("[snapshot] %s\n", evo_error);
+            return false;
+        }
+    }
+    if (evo_snapshot) {
+        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        stream << *evo_snapshot;
+        retained_section.assign(UCharCast(stream.data()), UCharCast(stream.data() + stream.size()));
+    }
+    if (m_stop_before_evo_publication_for_testing) return false;
+    if (!snapshot_chainstate.m_evoDb.PublishSnapshotGeneration(
+            EvoSnapshotConsensusConfig::FromParams(GetParams()).Fingerprint(), base_mn_list_hash, retained_section)) {
         LogPrintf("[snapshot] failed to publish the snapshot EvoDB generation\n");
         return false;
     }
+    if (m_stop_after_evo_publication_for_testing) return false;
 
     LogPrintf("[snapshot] validated snapshot (%.2f MB)\n",
         coins_cache.DynamicMemoryUsage() / (1000 * 1000));
@@ -7144,12 +7197,13 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     // What background validation derived reaches the snapshot chainstate only
     // when the next startup promotes it: until then the snapshot chainstate
     // reads its own generation, and a block it stalled on stays out of reach.
+    // Its stall warning says so instead, until the chainstate goes.
     if (std::ranges::any_of(m_snapshot_chainstate->m_evo_stalls, [&](const auto& stall) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
             return m_snapshot_chainstate->FindEvoStall(stall.first) != nullptr;
         })) {
         const std::string detail{"snapshot validation completed; restart to resume from the validated chain"};
         LogPrintf("WARNING: %s\n", detail);
-        WarnLocalEvoStateUnavailable(detail);
+        WarnLocalEvoStateUnavailable(m_snapshot_chainstate->EvoStallWarningSource(), detail);
     }
     this->MaybeRebalanceCaches();
 

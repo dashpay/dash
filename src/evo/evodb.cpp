@@ -420,7 +420,8 @@ bool CEvoDB::CreateSnapshotGeneration(const uint256& base, int base_height)
     return true;
 }
 
-bool CEvoDB::PublishSnapshotGeneration(const uint256& config_fingerprint, const std::optional<uint256>& base_mn_list_hash)
+bool CEvoDB::PublishSnapshotGeneration(const uint256& config_fingerprint, const std::optional<uint256>& base_mn_list_hash,
+                                       const std::vector<uint8_t>& evo_section)
 {
     LOCK(cs);
     if (!m_snapshot_generation || m_snapshot_generation->state != EvoGenerationState::UNPUBLISHED) return false;
@@ -431,10 +432,19 @@ bool CEvoDB::PublishSnapshotGeneration(const uint256& config_fingerprint, const 
     batch.Write(GenerationRecordKey(record.generation), record);
     batch.Write(EVODB_DUAL_CHAINSTATE, uint8_t{1});
     if (base_mn_list_hash) batch.Write(EVODB_SNAPSHOT_MNLIST_HASH, *base_mn_list_hash);
+    if (!evo_section.empty()) batch.Write(EVODB_SNAPSHOT_EVO_SECTION, evo_section);
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     m_snapshot_generation = record;
     UpdateLiveGeneration();
     return true;
+}
+
+std::optional<std::vector<uint8_t>> CEvoDB::ReadRetainedEvoSection() const
+{
+    LOCK(cs);
+    std::vector<uint8_t> evo_section;
+    if (!db->Read(EVODB_SNAPSHOT_EVO_SECTION, evo_section)) return std::nullopt;
+    return evo_section;
 }
 
 util::Result<void> CEvoDB::LoadSnapshotGenerations(const uint256& config_fingerprint)
@@ -556,6 +566,7 @@ bool CEvoDB::DiscardBoundGeneration()
     CDBBatch batch{*db};
     batch.Erase(EVODB_SNAPSHOT_MNLIST_HASH);
     batch.Erase(EVODB_BACKGROUND_MNLIST_HASH);
+    batch.Erase(EVODB_SNAPSHOT_EVO_SECTION);
     batch.Erase(EVODB_DUAL_CHAINSTATE);
     batch.Erase(EVODB_PROMOTION_JOURNAL);
     if (m_snapshot_generation) {
@@ -727,6 +738,7 @@ bool CEvoDB::PromoteSnapshotMarkers(const uint256& expected_snapshot_tip)
     batch.Write(EVODB_BEST_BLOCK, journal.tip);
     batch.Erase(EVODB_SNAPSHOT_MNLIST_HASH);
     batch.Erase(EVODB_BACKGROUND_MNLIST_HASH);
+    batch.Erase(EVODB_SNAPSHOT_EVO_SECTION);
     batch.Erase(EVODB_DUAL_CHAINSTATE);
     batch.Erase(EVODB_PROMOTION_JOURNAL);
     batch.Erase(GenerationRecordKey(journal.generation));
