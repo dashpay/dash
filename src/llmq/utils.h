@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <vector>
 
+class CBlock;
 class CBlockIndex;
 class CDeterministicMNManager;
 class ChainstateManager;
@@ -43,6 +44,19 @@ public:
 };
 
 namespace utils {
+/** The exact score modifier of a v20 work block: its seeded value or the one
+ *  its coinbase ChainLock gives, checked against each other when both exist.
+ *  Without either, the snapshot view raises BlockDataUnavailableError where
+ *  NORMAL falls back to the block-hash modifier. */
+uint256 GetQuorumModifierForWorkBlock(const Consensus::LLMQParams& llmq_params, const Consensus::Params& consensus_params,
+                                      gsl::not_null<const CBlockIndex*> work_index,
+                                      const CQuorumSnapshotManager& qsnapman);
+/** The score modifier `block`, a v20 work block whose index is `work_index`,
+ *  gives from its coinbase ChainLock, decoded with the block's own BLS scheme
+ *  rather than the one the node is in. */
+uint256 GetWorkBlockModifier(const Consensus::LLMQParams& llmq_params, const Consensus::Params& consensus_params,
+                             const CBlock& block, const CBlockIndex& work_index);
+
 struct BlsCheck {
     CBLSSignature m_sig;
     std::vector<CBLSPublicKey> m_pubkeys;
