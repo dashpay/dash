@@ -6,6 +6,7 @@
 #define BITCOIN_EVO_CREDITPOOL_H
 
 #include <consensus/amount.h>
+#include <evo/viewcache.h>
 #include <primitives/transaction.h>
 #include <saltedhasher.h>
 #include <serialize.h>
@@ -118,7 +119,8 @@ class CCreditPoolManager
 private:
     static constexpr size_t CreditPoolCacheSize = 1000;
     Mutex cache_mutex;
-    Uint256LruHashMap<CCreditPool> creditPoolCache GUARDED_BY(cache_mutex){CreditPoolCacheSize};
+    EvoViewCache<Uint256LruHashMap<CCreditPool>> creditPoolCache GUARDED_BY(cache_mutex){
+        [] { return Uint256LruHashMap<CCreditPool>{CreditPoolCacheSize}; }};
 
     CEvoDB& evoDb;
     const ChainstateManager& m_chainman;

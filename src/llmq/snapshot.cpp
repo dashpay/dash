@@ -304,7 +304,7 @@ std::vector<CycleData*> CQuorumRotationInfo::GetCycles()
 
 CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& evoDb) :
     m_evoDb{evoDb},
-    quorumSnapshotCache{32}
+    quorumSnapshotCache{[] { return Uint256LruHashMap<CQuorumSnapshot>{32}; }}
 {
 }
 
@@ -315,14 +315,16 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
     CQuorumSnapshot snapshot = {};
 
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
+    const EvoViewToken view{m_evoDb.CurrentView()};
 
     LOCK(snapshotCacheCs);
+    auto& cache{quorumSnapshotCache.For(view)};
     // try using cache before reading from disk
-    if (quorumSnapshotCache.get(snapshotHash, snapshot)) {
+    if (cache.get(snapshotHash, snapshot)) {
         return snapshot;
     }
     if (m_evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
-        quorumSnapshotCache.insert(snapshotHash, snapshot);
+        cache.insert(snapshotHash, snapshot);
         return snapshot;
     }
 
@@ -352,6 +354,6 @@ void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llm
 
     LOCK(snapshotCacheCs);
     m_evoDb.WriteDurable(key, snapshot);
-    quorumSnapshotCache.insert(snapshotHash, snapshot);
+    quorumSnapshotCache.For(view).insert(snapshotHash, snapshot);
 }
 } // namespace llmq

@@ -15,6 +15,7 @@
 #include <util/result.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -251,6 +252,8 @@ public:
 
     //! The innermost token this thread bound for `db`, if any.
     static const EvoViewToken* Innermost(const CEvoDB& db);
+    //! The innermost token this thread bound for any CEvoDB, if any.
+    static std::optional<EvoViewToken> InnermostAny();
 
 private:
     const EvoViewToken m_token;
@@ -343,6 +346,11 @@ public:
         LOCK(cs);
         return HoldsTransaction();
     }
+
+    //! Changes whenever cached Evo-derived state of any view may have gone
+    //! stale: a CEvoDB was opened, or a snapshot generation was rejected or
+    //! promoted. EvoViewCache drops every partition when it changes.
+    static uint64_t ViewCacheEpoch() { return g_view_cache_epoch.load(); }
 
     //! The view this thread's Evo accesses resolve to: its open transaction,
     //! else its innermost EvoViewScope, else the default identity.
@@ -560,6 +568,8 @@ private:
     std::vector<uint32_t> RejectedGenerations() const EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool MergeGeneration(EvoPromotionJournal& journal) EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool DiscardBoundGeneration() EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    static inline std::atomic<uint64_t> g_view_cache_epoch{0};
 
     //! The live generation the SNAPSHOT identity reads and writes.
     std::optional<EvoGenerationRecord> m_snapshot_generation GUARDED_BY(cs);

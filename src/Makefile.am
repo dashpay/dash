@@ -250,6 +250,7 @@ BITCOIN_CORE_H = \
   evo/specialtx_filter.h \
   evo/specialtxman.h \
   evo/types.h \
+  evo/viewcache.h \
   external_signer.h \
   flat-database.h \
   flatfile.h \
