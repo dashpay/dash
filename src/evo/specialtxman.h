@@ -5,6 +5,7 @@
 #ifndef BITCOIN_EVO_SPECIALTXMAN_H
 #define BITCOIN_EVO_SPECIALTXMAN_H
 
+#include <bls/bls.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
 #include <gsl/pointers.h>
@@ -32,6 +33,7 @@ class Chainstate;
 class CMNHFManager;
 class TxValidationState;
 class uint256;
+struct EvoViewToken;
 struct MNListUpdates;
 
 //! Whether the calling thread is bound to `chainstate`'s Evo view (defined in
@@ -59,6 +61,21 @@ struct SpecialTxRules {
     bool evo_shares{false};
 };
 
+/** The ChainLock a block's coinbase certifies, as far as this node can tell. */
+struct CoinbaseChainlock {
+    enum class Status {
+        //! The coinbase carries a non-null ChainLock.
+        CERTIFIED,
+        //! The coinbase is known to carry none (or there is no CbTx ChainLock yet).
+        NONE,
+        //! This node cannot tell: the block's data is not available to its view.
+        UNAVAILABLE,
+    };
+    Status status{Status::NONE};
+    CBLSSignature signature{};
+    uint32_t height_diff{0};
+};
+
 class CSpecialTxProcessor
 {
 public:
@@ -68,6 +85,7 @@ public:
     const std::unique_ptr<CMNHFManager> m_mnhfman;
 
 private:
+    CEvoDB& m_evodb;
     CDeterministicMNManager& m_dmnman;
     llmq::CQuorumBlockProcessor& m_qblockman;
     llmq::CQuorumSnapshotManager& m_qsnapman;
@@ -110,6 +128,15 @@ public:
 
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const;
+    /** The ChainLock certified by `pindex`'s coinbase. At a snapshot base, in
+     *  the snapshot view, it comes from the carried coinbase. Without the
+     *  block's data the snapshot view answers UNAVAILABLE; NORMAL keeps the
+     *  legacy answer NONE. */
+    CoinbaseChainlock GetCoinbaseChainlock(const CBlockIndex* pindex) const;
+    /** Seed the header-proven coinbase of a snapshot base into `view`, inside
+     *  the caller's open EvoDB transaction for that view. */
+    bool SeedBaseCoinbase(const EvoViewToken& view, const CBlockIndex* base, const CTransaction& coinbase);
+
     CDeterministicMNManager& DeterministicMNManager() { return m_dmnman; }
     llmq::CQuorumBlockProcessor& QuorumBlockProcessor() { return m_qblockman; }
     llmq::CQuorumSnapshotManager& QuorumSnapshotManager() { return m_qsnapman; }
@@ -186,8 +213,8 @@ std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<c
 
 /** Validates the bestCLSignature / bestCLHeightDiff fields embedded in a CbTx payload. */
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                            const CChain& chain, const llmq::CQuorumManager& qman,
-                            const chainlock::Chainlocks& chainlocks, BlockValidationState& state);
+                            const CChain& chain, const llmq::CQuorumManager& qman, const chainlock::Chainlocks& chainlocks,
+                            const CSpecialTxProcessor& special_tx, BlockValidationState& state);
 
 bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                    const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,

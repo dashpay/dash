@@ -14,7 +14,9 @@
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
 #include <evo/netinfo.h>
+#include <evo/smldiff.h>
 #include <evo/snapshot.h>
+#include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <hash.h>
 #include <llmq/blockprocessor.h>
@@ -127,6 +129,22 @@ evo::MinedQuorumCommitment Commitment(Consensus::LLMQType type, uint8_t quorum, 
     return {H(quorum), H(quorum + 120), std::move(commitment), H(mined)};
 }
 
+CTransactionRef SyntheticCoinbase(int height)
+{
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_COINBASE;
+    tx.vin.resize(1);
+    tx.vin[0].prevout.SetNull();
+    tx.vin[0].scriptSig = CScript{} << height << OP_0;
+    tx.vout.emplace_back(50 * COIN, CScript{} << OP_TRUE);
+    CCbTx cbtx;
+    cbtx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
+    cbtx.nHeight = height;
+    SetTxPayload(tx, cbtx);
+    return MakeTransactionRef(std::move(tx));
+}
+
 evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false, bool with_bootstrap = true)
 {
     evo::EvoSnapshot snapshot;
@@ -136,6 +154,8 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false, bool wit
     snapshot.credit_pool.currentLimit = 700;
     snapshot.credit_pool.latelyUnlocked = 11;
     snapshot.credit_history = {{100'000, 0}, {123'000, 5}, {123'456, 6}};
+    snapshot.base_coinbase = SyntheticCoinbase(500);
+    snapshot.base_coinbase_branch = {H(201), H(202)};
     if (reverse_representation) {
         BOOST_REQUIRE(snapshot.credit_pool.indexes.Add(15));
         BOOST_REQUIRE(snapshot.credit_pool.indexes.Add(8));
@@ -218,6 +238,13 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false, bool wit
     return snapshot;
 }
 
+std::vector<unsigned char> SerializeTransactionForTest(const CTransaction& tx)
+{
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    stream << tx;
+    return {UCharCast(stream.data()), UCharCast(stream.data() + stream.size())};
+}
+
 //! The wire bytes of a canonically ordered snapshot, assembled field by field
 //! in the order of the format table rather than through EvoSnapshot's own
 //! serializer, so a pinned hash of them is independent of the codec under
@@ -227,6 +254,18 @@ std::vector<unsigned char> AssembleWireBytes(const evo::EvoSnapshot& snapshot, u
     CDataStream s{SER_DISK, CLIENT_VERSION};
     s << version << snapshot.base_block_hash;
     evo::SerializeCanonicalMNList(s, snapshot.mn_list);
+    if (version >= 4) {
+        if (snapshot.base_coinbase) {
+            const auto coinbase{SerializeTransactionForTest(*snapshot.base_coinbase)};
+            WriteCompactSize(s, coinbase.size());
+            s.write(MakeByteSpan(coinbase));
+        } else {
+            WriteCompactSize(s, 0);
+        }
+        WriteCompactSize(s, snapshot.base_coinbase_branch.size());
+        for (const auto& node : snapshot.base_coinbase_branch)
+            s << node;
+    }
     WriteCompactSize(s, snapshot.quorums.size());
     for (const auto& data : snapshot.quorums) {
         s << static_cast<uint8_t>(data.llmq_type) << uint8_t{data.rotation_enabled};
@@ -387,10 +426,8 @@ EvoViewToken SeedGeneration(node::NodeContext& node, const evo::EvoSnapshot& sna
     {
         auto tx{node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
         std::string error;
-        BOOST_REQUIRE_MESSAGE(evo::SeedEvoSnapshotState(view, snapshot, *node.dmnman,
-                                                        *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman,
-                                                        *node.special_tx->m_cpoolman, *node.special_tx->m_mnhfman,
-                                                        node.chainman->m_blockman, base, error),
+        BOOST_REQUIRE_MESSAGE(evo::SeedEvoSnapshotState(view, snapshot, *node.special_tx, node.chainman->m_blockman,
+                                                        base, error),
                               error);
         tx->Commit();
     }
@@ -656,7 +693,7 @@ BOOST_FIXTURE_TEST_CASE(populated_v4_golden_value, BasicTestingSetup)
     const auto encoded{SerializeSnapshot(snapshot)};
     BOOST_CHECK_EQUAL_COLLECTIONS(assembled.begin(), assembled.end(), UCharCast(encoded.data()),
                                   UCharCast(encoded.data() + encoded.size()));
-    BOOST_CHECK_EQUAL(Sha256Hex(assembled), "8cb32f046edec159005e36b20e9c82b8d577b6811108210b306a6328323fe073");
+    BOOST_CHECK_EQUAL(Sha256Hex(assembled), "31be7fa4afc67c3a0ca288e1ed991d488f8d64d755f9d65c35c0ff5a1326e652");
     BOOST_CHECK_EQUAL(GetEvoSnapshotHash(snapshot).ToString(), Sha256Hex(assembled));
 }
 
@@ -726,6 +763,7 @@ BOOST_FIXTURE_TEST_CASE(inactive_mn_roundtrip, BasicTestingSetup)
         evo::EvoSnapshot snapshot;
         snapshot.base_block_hash = H(42);
         snapshot.mn_list = CDeterministicMNList{snapshot.base_block_hash, 500, 10};
+        snapshot.base_coinbase = SyntheticCoinbase(500);
         snapshot.mn_list.AddMN(inactive, /*fBumpTotalCount=*/false);
         BOOST_CHECK_NO_THROW(snapshot.Validate());
         auto bytes{SerializeSnapshot(snapshot)};
@@ -909,6 +947,7 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
         evo::EvoSnapshot snapshot;
         snapshot.base_block_hash = H(42);
         snapshot.mn_list = CDeterministicMNList{snapshot.base_block_hash, 500, 10};
+        snapshot.base_coinbase = SyntheticCoinbase(500);
         snapshot.mn_list.AddMN(unread, /*fBumpTotalCount=*/false);
         BOOST_CHECK_EXCEPTION(snapshot.Validate(), std::ios_base::failure, noncanonical);
         BOOST_CHECK_THROW(GetEvoSnapshotHash(snapshot), std::ios_base::failure);
@@ -1260,6 +1299,8 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     const auto snapshot_prefix = [](CDataStream& stream) {
         stream << evo::EVO_SNAPSHOT_VERSION << H(42);
         evo::SerializeCanonicalMNList(stream, CDeterministicMNList{H(42), 1, 0});
+        WriteCompactSize(stream, 0); // no base coinbase
+        WriteCompactSize(stream, 0); // and no branch
     };
     CDataStream quorum_types{SER_DISK, CLIENT_VERSION};
     snapshot_prefix(quorum_types);
@@ -1279,6 +1320,7 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     WriteCompactSize(signals, 0);
     WriteCompactSize(signals, 0);
     signals << CCreditPool{};
+    WriteCompactSize(signals, 0);
     WriteCompactSize(signals, VERSIONBITS_NUM_BITS + 1);
     BOOST_CHECK_THROW(signals >> decoded, std::ios_base::failure);
 
@@ -1483,6 +1525,7 @@ BOOST_FIXTURE_TEST_CASE(validation_enforces_nested_mn_decode_budget, BasicTestin
     evo::EvoSnapshot snapshot;
     snapshot.base_block_hash = H(42);
     snapshot.mn_list = CDeterministicMNList{snapshot.base_block_hash, 42, 10};
+    snapshot.base_coinbase = SyntheticCoinbase(42);
     snapshot.mn_list.AddMN(mn, /*fBumpTotalCount=*/false);
     BOOST_CHECK_NO_THROW(snapshot.Validate());
     auto bytes{SerializeSnapshot(snapshot)};
@@ -2439,6 +2482,221 @@ BOOST_FIXTURE_TEST_CASE(credit_window_validation, CreditWindowSetup)
     BOOST_CHECK_EQUAL(young_snapshot.credit_history.size(), 41U);
     BOOST_CHECK(young_snapshot.credit_history.front() == CreditHistoryEntry{});
     BOOST_CHECK_MESSAGE(ValidAgainstChain(m_node, young_snapshot, young, error), error);
+}
+
+
+BOOST_FIXTURE_TEST_CASE(base_coinbase_codec_bounds, BasicTestingSetup)
+{
+    const auto snapshot{SyntheticSnapshot()};
+    BOOST_REQUIRE_NO_THROW(snapshot.Validate());
+
+    auto wrong_height{snapshot};
+    wrong_height.base_coinbase = SyntheticCoinbase(499);
+    BOOST_CHECK_EXCEPTION(wrong_height.Validate(), std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("coinbase height") != std::string::npos;
+    });
+    auto not_coinbase{snapshot};
+    {
+        CMutableTransaction tx{*snapshot.base_coinbase};
+        tx.vin[0].prevout = COutPoint{H(1), 0};
+        not_coinbase.base_coinbase = MakeTransactionRef(std::move(tx));
+    }
+    CheckInvalid(not_coinbase);
+    auto wrong_type{snapshot};
+    {
+        CMutableTransaction tx{*snapshot.base_coinbase};
+        tx.nType = TRANSACTION_NORMAL;
+        wrong_type.base_coinbase = MakeTransactionRef(std::move(tx));
+    }
+    CheckInvalid(wrong_type);
+    // A 64-byte transaction could pass for an inner merkle node.
+    auto sixty_four{snapshot};
+    {
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_COINBASE;
+        tx.vin.resize(1);
+        tx.vin[0].prevout.SetNull();
+        tx.vin[0].scriptSig = CScript{} << OP_1 << OP_1;
+        tx.vout.emplace_back(0, CScript{});
+        tx.vExtraPayload = {0x01};
+        BOOST_REQUIRE_EQUAL(::GetSerializeSize(CTransaction{tx}, PROTOCOL_VERSION), 64U);
+        sixty_four.base_coinbase = MakeTransactionRef(std::move(tx));
+    }
+    CheckInvalid(sixty_four);
+    auto long_branch{snapshot};
+    long_branch.base_coinbase_branch.resize(evo::EVO_SNAPSHOT_MAX_COINBASE_BRANCH + 1);
+    CheckInvalid(long_branch);
+    // Validate (and so hashing and emission) applies the decoder's length cap.
+    auto oversized_coinbase{snapshot};
+    {
+        CMutableTransaction tx{*snapshot.base_coinbase};
+        tx.vout[0].scriptPubKey.assign(evo::EVO_SNAPSHOT_MAX_COINBASE_BYTES, OP_TRUE);
+        BOOST_REQUIRE_GT(::GetSerializeSize(CTransaction{tx}, PROTOCOL_VERSION), evo::EVO_SNAPSHOT_MAX_COINBASE_BYTES);
+        oversized_coinbase.base_coinbase = MakeTransactionRef(std::move(tx));
+    }
+    CheckInvalid(oversized_coinbase);
+    BOOST_CHECK_THROW(GetEvoSnapshotHash(oversized_coinbase), std::ios_base::failure);
+    // Without a CbTx at the base there can be no MN or quorum state.
+    auto missing{snapshot};
+    missing.base_coinbase.reset();
+    missing.base_coinbase_branch.clear();
+    CheckInvalid(missing);
+
+    // Decoding bounds the length before allocating and wants exactly one
+    // canonical transaction.
+    const auto prefix = [](CDataStream& stream) {
+        stream << evo::EVO_SNAPSHOT_VERSION << H(42);
+        evo::SerializeCanonicalMNList(stream, CDeterministicMNList{H(42), 500, 0});
+    };
+    evo::EvoSnapshot decoded;
+    CDataStream oversized{SER_DISK, CLIENT_VERSION};
+    prefix(oversized);
+    WriteCompactSize(oversized, evo::EVO_SNAPSHOT_MAX_COINBASE_BYTES + 1);
+    BOOST_CHECK_EXCEPTION(oversized >> decoded, std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("oversized evo snapshot base coinbase") != std::string::npos;
+    });
+    const auto coinbase_bytes{SerializeTransactionForTest(*snapshot.base_coinbase)};
+    CDataStream trailing{SER_DISK, CLIENT_VERSION};
+    prefix(trailing);
+    WriteCompactSize(trailing, coinbase_bytes.size() + 1);
+    trailing.write(MakeByteSpan(coinbase_bytes));
+    trailing << uint8_t{0};
+    BOOST_CHECK_EXCEPTION(trailing >> decoded, std::ios_base::failure, [](const auto& e) {
+        return std::string{e.what()}.find("trailing bytes") != std::string::npos;
+    });
+    CDataStream truncated{SER_DISK, CLIENT_VERSION};
+    prefix(truncated);
+    WriteCompactSize(truncated, coinbase_bytes.size() - 1);
+    truncated.write(MakeByteSpan(coinbase_bytes).first(coinbase_bytes.size() - 1));
+    BOOST_CHECK_THROW(truncated >> decoded, std::ios_base::failure);
+}
+
+BOOST_FIXTURE_TEST_CASE(base_coinbase_is_proven_against_the_base_header, CreditWindowSetup)
+{
+    const CBlockIndex* base{Ancestor(m_node, 110)};
+    const auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    BOOST_REQUIRE(snapshot.base_coinbase);
+    std::string error;
+    BOOST_CHECK_MESSAGE(evo::VerifyEvoSnapshotBaseBlock(snapshot, *base, Params().GetConsensus(), error), error);
+    BOOST_CHECK_MESSAGE(ValidAgainstChain(m_node, snapshot, base, error), error);
+
+    // Another header: its merkle root does not commit to this coinbase.
+    BOOST_CHECK(!evo::VerifyEvoSnapshotBaseBlock(snapshot, *base->pprev, Params().GetConsensus(), error));
+    auto tampered_branch{snapshot};
+    if (tampered_branch.base_coinbase_branch.empty()) {
+        tampered_branch.base_coinbase_branch.push_back(H(1));
+    } else {
+        tampered_branch.base_coinbase_branch[0] = H(1);
+    }
+    BOOST_CHECK(!evo::VerifyEvoSnapshotBaseBlock(tampered_branch, *base, Params().GetConsensus(), error));
+    BOOST_CHECK(!ValidAgainstChain(m_node, tampered_branch, base, error));
+    BOOST_CHECK_MESSAGE(error.find("not proven by the base header") != std::string::npos, error);
+    auto tampered_coinbase{snapshot};
+    {
+        CMutableTransaction tx{*snapshot.base_coinbase};
+        tx.vout[0].nValue -= 1;
+        tampered_coinbase.base_coinbase = MakeTransactionRef(std::move(tx));
+    }
+    BOOST_CHECK(!evo::VerifyEvoSnapshotBaseBlock(tampered_coinbase, *base, Params().GetConsensus(), error));
+    BOOST_CHECK(!ValidAgainstChain(m_node, tampered_coinbase, base, error));
+    // A proven coinbase whose CbTx commits to other state is rejected too.
+    auto other_pool{snapshot};
+    other_pool.credit_pool.locked += 1;
+    other_pool.credit_history.back().credit_pool += 1;
+    BOOST_CHECK(!evo::VerifyEvoSnapshotBaseBlock(other_pool, *base, Params().GetConsensus(), error));
+    BOOST_CHECK_MESSAGE(error.find("credit pool balance") != std::string::npos, error);
+    // DIP3 is active at the base, so the coinbase is required.
+    auto missing{snapshot};
+    missing.base_coinbase.reset();
+    missing.base_coinbase_branch.clear();
+    BOOST_CHECK(!ValidAgainstChain(m_node, missing, base, error));
+
+    // The branch reproduces the root for every position of larger trees.
+    CBlock block;
+    for (int i{0}; i < 7; ++i) {
+        CMutableTransaction tx;
+        tx.vin.resize(1);
+        tx.vin[0].prevout = COutPoint{H(static_cast<uint8_t>(i)), 0};
+        block.vtx.push_back(MakeTransactionRef(std::move(tx)));
+    }
+    for (uint32_t i{0}; i < block.vtx.size(); ++i) {
+        BOOST_CHECK(evo::ComputeMerkleRootFromBranch(block.vtx[i]->GetHash(), evo::BlockMerkleBranch(block, i), i) ==
+                    BlockMerkleRoot(block));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(served_quorum_chainlocks_are_never_guessed_null, EvoSnapshotChainSetup)
+{
+    // A mnlistdiff serving the carried quorum 168 reports the ChainLock its
+    // work block's coinbase (160) certifies. Without that body the snapshot
+    // view cannot tell, so it must report unavailable, never a null signature.
+    SyncNormal();
+    MineCycles(12, 180);
+    const CBlockIndex* base{At(179)};
+    const EvoViewToken seeded{Seed(Build(base), base)};
+    LOCK(::cs_main);
+    const auto commitment{
+        m_node.llmq_ctx->quorum_block_processor->GetMinedCommitment(m_plain.type, At(168)->GetBlockHash()).first};
+    const auto serve = [&](const EvoViewToken& view, std::string& error) {
+        const EvoViewScope scope{view};
+        CSimplifiedMNListDiff diff;
+        diff.newQuorums = {commitment};
+        return diff.BuildQuorumChainlockInfo(*m_node.llmq_ctx->qman, base, error);
+    };
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(serve(seeded, error), error);
+    {
+        // An indexed body that does not read back is no answer either.
+        auto* work{const_cast<CBlockIndex*>(At(160))};
+        const auto saved{std::make_pair(work->nFile, work->nDataPos)};
+        std::tie(work->nFile, work->nDataPos) = std::make_pair(At(159)->nFile, At(159)->nDataPos);
+        const bool served{serve(seeded, error)};
+        std::tie(work->nFile, work->nDataPos) = saved;
+        BOOST_CHECK(!served);
+        BOOST_CHECK_MESSAGE(IsBlockDataUnavailableError(error), error);
+    }
+    const AbsentBodies absent{m_node, 160, 160};
+    BOOST_CHECK(!serve(seeded, error));
+    BOOST_CHECK_MESSAGE(IsBlockDataUnavailableError(error), error);
+    // NORMAL keeps answering from what it has.
+    BOOST_CHECK_MESSAGE(serve(Normal(), error), error);
+}
+
+BOOST_FIXTURE_TEST_CASE(base_coinbase_serves_the_base_chainlock, CreditWindowSetup)
+{
+    // Unit-test chains have no ChainLocks, so carry a coinbase whose CbTx
+    // certifies one; seeding does not prove it, only the load gates do.
+    const CBlockIndex* base{Ancestor(m_node, 110)};
+    auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const CBLSSignature signature{key.Sign(H(7), /*specificLegacyScheme=*/false)};
+    {
+        auto cbtx{*Assert(DecodeCbTxPayload(*snapshot.base_coinbase, /*legacy_bls_scheme=*/false))};
+        cbtx.bestCLSignature = signature;
+        cbtx.bestCLHeightDiff = 3;
+        CMutableTransaction tx{*snapshot.base_coinbase};
+        SetTxPayload(tx, cbtx);
+        snapshot.base_coinbase = MakeTransactionRef(std::move(tx));
+    }
+    const EvoViewToken seeded{SeedGeneration(m_node, snapshot, base)};
+    const AbsentBodies absent{m_node, base->nHeight - 1, base->nHeight};
+    // Without the block, the ordinary reader cannot tell a ChainLock from none.
+    BOOST_CHECK(!GetNonNullCoinbaseChainlock(base).has_value());
+
+    LOCK(::cs_main);
+    {
+        const EvoViewScope scope{seeded};
+        const auto carried{m_node.special_tx->GetCoinbaseChainlock(base)};
+        BOOST_REQUIRE(carried.status == CoinbaseChainlock::Status::CERTIFIED);
+        BOOST_CHECK(carried.signature == signature);
+        BOOST_CHECK_EQUAL(carried.height_diff, 3U);
+        // Below the base nothing is carried: unavailable, never "no ChainLock".
+        BOOST_CHECK(m_node.special_tx->GetCoinbaseChainlock(base->pprev).status == CoinbaseChainlock::Status::UNAVAILABLE);
+    }
+    const EvoViewScope normal{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+    BOOST_CHECK(m_node.special_tx->GetCoinbaseChainlock(base->pprev).status == CoinbaseChainlock::Status::NONE);
 }
 
 

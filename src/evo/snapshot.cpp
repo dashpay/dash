@@ -6,6 +6,7 @@
 
 #include <clientversion.h>
 #include <consensus/amount.h>
+#include <consensus/consensus.h>
 #include <consensus/merkle.h>
 #include <crypto/common.h>
 #include <crypto/sha256.h>
@@ -206,6 +207,30 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
     }
     ValidateCanonicalMNInvariants(mn_list);
     mn_list.ForEachMN(/*onlyValid=*/false, [](const auto& dmn) { ValidateMNEncoding(dmn); });
+    if (base_coinbase) {
+        const CTransaction& coinbase{*base_coinbase};
+        // A 64-byte transaction could pass for an inner merkle node.
+        if (!coinbase.IsCoinBase() || coinbase.nType != TRANSACTION_COINBASE ||
+            coinbase.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD || ::GetSerializeSize(coinbase, PROTOCOL_VERSION) <= 64 ||
+            ::GetSerializeSize(coinbase, PROTOCOL_VERSION) > EVO_SNAPSHOT_MAX_COINBASE_BYTES) {
+            throw std::ios_base::failure("invalid evo snapshot base coinbase");
+        }
+        // The CbTx header precedes its scheme-dependent fields, so the height
+        // is readable without knowing the base's BLS scheme.
+        CDataStream payload{coinbase.vExtraPayload, SER_NETWORK, PROTOCOL_VERSION};
+        uint16_t cbtx_version;
+        int32_t cbtx_height;
+        payload >> cbtx_version >> cbtx_height;
+        if (cbtx_height != mn_list.GetHeightForSnapshotCodec()) {
+            throw std::ios_base::failure("evo snapshot base coinbase height mismatch");
+        }
+        if (base_coinbase_branch.size() > EVO_SNAPSHOT_MAX_COINBASE_BRANCH) {
+            throw std::ios_base::failure("oversized evo snapshot base coinbase branch");
+        }
+    } else if (!base_coinbase_branch.empty() || mn_list.GetCounts().total() != 0 || !quorums.empty()) {
+        // Without a CbTx at the base there can be no MN or quorum state.
+        throw std::ios_base::failure("evo snapshot state without a base coinbase");
+    }
     if (quorums.size() > Consensus::available_llmqs.size() ||
         historical_mn_list_diffs.size() > EvoSnapshotMaxHistoricalMNLists() ||
         quorum_modifiers.size() > EVO_SNAPSHOT_MAX_MODIFIERS ||
@@ -353,6 +378,37 @@ uint256 GetEvoSnapshotHash(const EvoSnapshot& snapshot)
     uint256 hash;
     CSHA256().Write(UCharCast(stream.data()), stream.size()).Finalize(hash.begin());
     return hash;
+}
+
+uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint256>& branch, uint32_t index)
+{
+    uint256 hash{leaf};
+    for (const uint256& node : branch) {
+        hash = (index & 1) ? Hash(node, hash) : Hash(hash, node);
+        index >>= 1;
+    }
+    return hash;
+}
+
+std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t index)
+{
+    std::vector<uint256> level;
+    level.reserve(block.vtx.size());
+    for (const auto& tx : block.vtx)
+        level.push_back(tx->GetHash());
+    std::vector<uint256> branch;
+    while (level.size() > 1) {
+        // ComputeMerkleRoot pairs an odd last node with itself.
+        const size_t sibling{(index ^ 1) < level.size() ? (index ^ 1) : index};
+        branch.push_back(level[sibling]);
+        std::vector<uint256> next;
+        for (size_t i{0}; i < level.size(); i += 2) {
+            next.push_back(Hash(level[i], level[std::min(i + 1, level.size() - 1)]));
+        }
+        level = std::move(next);
+        index >>= 1;
+    }
+    return branch;
 }
 
 bool VerifyEvoSnapshotCbTx(const EvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error)

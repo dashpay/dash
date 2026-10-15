@@ -18,6 +18,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/specialtxman.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/options.h>
 #include <llmq/snapshot.h>
@@ -108,7 +109,7 @@ std::optional<uint256> ExactWorkModifier(const Consensus::LLMQParams& params, co
             if (!seeded) error = "quorum work block data unavailable for its exact score modifier";
             return seeded;
         }
-        if (const auto chainlock{GetNonNullCoinbaseChainlock(block, modifier_work->nHeight)}) {
+        if (const auto chainlock{GetNonNullCoinbaseChainlock(block, *modifier_work, consensus)}) {
             return ::SerializeHash(std::make_tuple(params.type, modifier_work->nHeight, chainlock->first));
         }
         return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
@@ -298,6 +299,15 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
     }
     if (!CheckNextCycleContext(chainman, base_index, error)) return false;
     result.mn_list = dmnman.GetListForBlock(base_index);
+    {
+        CBlock base_block;
+        if (!node::ReadBlockFromDisk(base_block, base_index, consensus) || base_block.vtx.empty()) {
+            error = "evo snapshot base block is unreadable";
+            return false;
+        }
+        result.base_coinbase = base_block.vtx[0];
+        result.base_coinbase_branch = BlockMerkleBranch(base_block, 0);
+    }
     std::map<uint256, const CBlockIndex*> historical;
 
     for (const auto& params : consensus.llmqs) {
@@ -456,16 +466,23 @@ bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const Chainsta
 
     const auto& consensus{chainman.GetConsensus()};
     if (!DeploymentActiveAt(*base_index, consensus, Consensus::DEPLOYMENT_DIP0003)) {
-        if (!snapshot.quorums.empty() || !snapshot.historical_mn_list_diffs.empty() || !snapshot.quorum_modifiers.empty() ||
-            snapshot.mn_list.GetCounts().total() != 0 || snapshot.mn_list.GetTotalRegisteredCount() != 0 ||
-            snapshot.credit_pool.locked != 0 || snapshot.credit_pool.currentLimit != 0 ||
-            snapshot.credit_pool.latelyUnlocked != 0 || !snapshot.credit_pool.indexes.IsEmpty() ||
-            !snapshot.credit_history.empty() || !snapshot.mnhf_signals.empty()) {
+        if (!snapshot.quorums.empty() || !snapshot.historical_mn_list_diffs.empty() ||
+            !snapshot.quorum_modifiers.empty() || snapshot.mn_list.GetCounts().total() != 0 ||
+            snapshot.mn_list.GetTotalRegisteredCount() != 0 || snapshot.credit_pool.locked != 0 ||
+            snapshot.credit_pool.currentLimit != 0 || snapshot.credit_pool.latelyUnlocked != 0 ||
+            !snapshot.credit_pool.indexes.IsEmpty() || !snapshot.credit_history.empty() ||
+            !snapshot.mnhf_signals.empty() || snapshot.base_coinbase || !snapshot.base_coinbase_branch.empty()) {
             return fail("nonempty pre-DIP3 evo snapshot");
         }
         return true;
     }
     if (!CheckNextCycleContext(chainman, base_index, error)) return false;
+    // Anchor the section to the base header.
+    if (!snapshot.base_coinbase ||
+        ComputeMerkleRootFromBranch(snapshot.base_coinbase->GetHash(), snapshot.base_coinbase_branch, 0) !=
+            base_index->hashMerkleRoot) {
+        return fail("evo snapshot base coinbase is not proven by the base header");
+    }
 
     // The credit-pool window: one entry per block of the window ending at the
     // base, zero wherever the pool did not exist yet.
@@ -616,11 +633,35 @@ bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const Chainsta
     return true;
 }
 
-bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot, CDeterministicMNManager& dmnman,
-                          llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
-                          CCreditPoolManager& cpoolman, CMNHFManager& mnhfman, const node::BlockManager& blockman,
-                          const CBlockIndex* base_index, std::string& error)
+bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& base_index,
+                                const Consensus::Params& consensus, std::string& error)
 {
+    if (!snapshot.base_coinbase) {
+        error = "evo snapshot without a base coinbase";
+        return false;
+    }
+    if (ComputeMerkleRootFromBranch(snapshot.base_coinbase->GetHash(), snapshot.base_coinbase_branch, 0) !=
+        base_index.hashMerkleRoot) {
+        error = "evo snapshot base coinbase is not proven by the base header";
+        return false;
+    }
+    const bool legacy{!DeploymentActiveAt(base_index, consensus, Consensus::DEPLOYMENT_V19)};
+    const auto cbtx{DecodeCbTxPayload(*snapshot.base_coinbase, legacy)};
+    if (!cbtx) {
+        error = "evo snapshot base coinbase has no valid CbTx payload";
+        return false;
+    }
+    return VerifyEvoSnapshotCbTx(snapshot, *cbtx, error);
+}
+
+bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot, CSpecialTxProcessor& special_tx,
+                          const node::BlockManager& blockman, const CBlockIndex* base_index, std::string& error)
+{
+    auto& dmnman{special_tx.DeterministicMNManager()};
+    auto& qblockman{special_tx.QuorumBlockProcessor()};
+    auto& qsnapman{special_tx.QuorumSnapshotManager()};
+    auto& cpoolman{*special_tx.m_cpoolman};
+    auto& mnhfman{*special_tx.m_mnhfman};
     AssertLockHeld(::cs_main);
     const auto fail = [&](const std::string& message) {
         error = message;
@@ -661,6 +702,9 @@ bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot,
         return fail("failed to seed the credit pool");
     }
     if (!mnhfman.SeedSignals(view, base_index, snapshot.mnhf_signals)) return fail("failed to seed the MNHF signals");
+    if (snapshot.base_coinbase && !special_tx.SeedBaseCoinbase(view, base_index, *snapshot.base_coinbase)) {
+        return fail("failed to seed the base coinbase");
+    }
     return true;
 }
 
