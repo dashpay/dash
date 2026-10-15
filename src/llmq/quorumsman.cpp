@@ -655,6 +655,8 @@ void CQuorumManager::MigrateOldQuorumDB(CEvoDB& evoDb) const
 
     LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- start\n", __func__);
 
+    // NORMAL-only lifecycle operation: it uses the raw legacy keyspace and
+    // never sees snapshot-generation records.
     CDBBatch batch(*db);
     std::unique_ptr<CDBIterator> pcursor(evoDb.GetRawDB().NewIterator());
 

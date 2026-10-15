@@ -248,6 +248,9 @@ public:
 
     std::optional<CQuorumSnapshot> GetSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
     void StoreSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot);
+    //! Whether the calling operation reads the snapshot view and `pindex` is
+    //! at or below its base, where only carried quarters exist.
+    bool IsCarriedOnly(const CBlockIndex* pindex) const;
 };
 } // namespace llmq
 
