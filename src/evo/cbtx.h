@@ -90,7 +90,6 @@ uint256 CalcCbTxMerkleRootAssetUnlocks(const CBlock& block);
  *  ChainLock signature, independent of the scheme the node is in. */
 std::optional<CCbTx> DecodeCbTxPayload(const CTransaction& tx, bool legacy_bls_scheme);
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, int32_t height);
 /** The non-null ChainLock in `block`'s coinbase, decoded with the BLS scheme in
  *  force at `index`, the block's own index. */
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, const CBlockIndex& index,
