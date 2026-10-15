@@ -219,6 +219,7 @@ void BlockAssembler::FillBlockPayments(CMutableTransaction& txNew, const CBlockI
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    const EvoViewScope evo_view{m_chainstate.EvoView()};
     const auto time_start{SteadyClock::now()};
 
     resetBlock();

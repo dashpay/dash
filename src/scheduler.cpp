@@ -57,7 +57,7 @@ void CScheduler::serviceQueue()
                 // Unlock before calling f, so it can reschedule itself or another task
                 // without deadlocking:
                 REVERSE_LOCK(lock);
-                f();
+                RunTask(f);
             }
         } catch (...) {
             --nThreadsServicingQueue;
@@ -101,7 +101,9 @@ void CScheduler::MockForward(std::chrono::seconds delta_seconds)
 
 static void Repeat(CScheduler& s, CScheduler::Function f, std::chrono::milliseconds delta)
 {
-    f();
+    // Wrap the round itself, so a failure the wrapper handles does not cancel
+    // the next one.
+    s.RunTask(f);
     s.scheduleFromNow([=, &s] { Repeat(s, f, delta); }, delta);
 }
 

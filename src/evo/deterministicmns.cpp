@@ -1201,6 +1201,8 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
 CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateAndRepairDiffs(
     const CBlockIndex* start_index, const CBlockIndex* stop_index, BuildListFromBlockFunc build_list_func, bool repair)
 {
+    // Verification and repair are NORMAL-only lifecycle operations.
+    const EvoViewScope evo_view{m_evoDb.ViewFor(EvoDbIdentity::NORMAL)};
     RecalcDiffsResult result;
     result.start_height = start_index->nHeight;
     result.stop_height = stop_index->nHeight;
@@ -1309,11 +1311,18 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
     return result;
 }
 
-bool CDeterministicMNManager::IsRepaired() const { return m_evoDb.Exists(DB_LIST_REPAIRED); }
+bool CDeterministicMNManager::IsRepaired() const
+{
+    // Repair is a NORMAL-only lifecycle operation.
+    const EvoViewScope evo_view{m_evoDb.ViewFor(EvoDbIdentity::NORMAL)};
+    return m_evoDb.Exists(DB_LIST_REPAIRED);
+}
 
 void CDeterministicMNManager::CompleteRepair()
 {
     AssertLockHeld(::cs_main);
+    // Repair is a NORMAL-only lifecycle operation.
+    const EvoViewScope evo_view{m_evoDb.ViewFor(EvoDbIdentity::NORMAL)};
     auto dbTx = m_evoDb.BeginTransaction();
     m_evoDb.Write(DB_LIST_REPAIRED, 1);
     dbTx->Commit();

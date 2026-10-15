@@ -45,7 +45,7 @@ BitcoinUnits::Unit SharedMnDisplayUnit(const WalletModel* wallet_model);
 bool SharedMnWalletOwnsShare(const WalletModel* wallet_model, const interfaces::MnShare& share);
 
 //! The one wording for the v24 activation gate
-QString SharedMnV24InactiveMessage();
+QString SharedMnV24InactiveMessage(std::optional<bool> v24_active);
 
 //! Broadcast a fully signed transaction under the same fee cap "sendrawtransaction"
 //! applies. Returns why it was rejected, ready to show to the user, or an empty

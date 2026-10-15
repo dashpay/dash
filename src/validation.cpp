@@ -1743,6 +1743,7 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
+    const EvoViewScope evo_view{active_chainstate.EvoView()};
     const CChainParams& chainparams{active_chainstate.m_chainman.GetParams()};
     assert(active_chainstate.GetMempool() != nullptr);
     CTxMemPool& pool{*active_chainstate.GetMempool()};
@@ -1783,6 +1784,7 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
                                              const Package& package, bool test_accept)
 {
     AssertLockHeld(cs_main);
+    const EvoViewScope evo_view{active_chainstate.EvoView()};
     assert(!package.empty());
     assert(std::all_of(package.cbegin(), package.cend(), [](const auto& tx){return tx != nullptr;}));
 
@@ -1973,6 +1975,8 @@ Chainstate::Chainstate(CTxMemPool* mempool,
 {
     return m_from_snapshot_blockhash ? ::EvoDbIdentity::SNAPSHOT : ::EvoDbIdentity::NORMAL;
 }
+
+EvoViewToken Chainstate::EvoView() const { return m_evoDb.ViewFor(EvoDbIdentity()); }
 
 std::string Chainstate::EvoDbInconsistencyMessage()
 {
@@ -3209,6 +3213,7 @@ bool Chainstate::FlushStateToDisk(
     FlushStateMode mode,
     int nManualPruneHeight)
 {
+    const EvoViewScope evo_view{EvoView()};
     LOCK(cs_main);
     assert(this->CanFlushToDisk());
     std::set<int> setFilesToPrune;
@@ -3509,7 +3514,7 @@ const Chainstate::EvoStall* Chainstate::FindEvoStall(const CBlockIndex* pindex) 
 {
     AssertLockHeld(::cs_main);
     const auto it{m_evo_stalls.find(pindex)};
-    return it != m_evo_stalls.end() ? &it->second : nullptr;
+    return it != m_evo_stalls.end() && it->second.view == EvoView() ? &it->second : nullptr;
 }
 
 bool Chainstate::RefuseStalledBlock(const CBlockIndex* pindex, BlockValidationState& state) const
@@ -3540,7 +3545,7 @@ void Chainstate::RecordEvoStall(const CBlockIndex* pindex, const BlockValidation
     if (!IsLocalEvoStateError(state)) return;
     std::erase_if(m_evo_stalls,
                   [&](const auto& entry) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return !FindEvoStall(entry.first); });
-    m_evo_stalls.insert_or_assign(pindex, EvoStall{state.GetLocalEvoStateResult(), state.GetRejectReason()});
+    m_evo_stalls.insert_or_assign(pindex, EvoStall{EvoView(), state.GetLocalEvoStateResult(), state.GetRejectReason()});
     if (m_evo_stalls.size() > MANY_EVO_STALLS && !std::exchange(m_many_evo_stalls_warned, true)) {
         LogPrintf("WARNING: %s has stalled on more than %d blocks\n", ToString(), MANY_EVO_STALLS);
     }
@@ -3563,6 +3568,7 @@ void Chainstate::RecordEvoStall(const CBlockIndex* pindex, const BlockValidation
   */
 bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
@@ -3714,6 +3720,7 @@ public:
  */
 bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
@@ -4064,6 +4071,7 @@ static void LimitValidationInterfaceQueue() LOCKS_EXCLUDED(cs_main) {
 
 bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockNotHeld(m_chainstate_mutex);
 
     // Note that while we're often called here from ProcessNewBlock, this is
@@ -4243,6 +4251,7 @@ bool Chainstate::PreciousBlock(BlockValidationState& state, CBlockIndex* pindex)
 
 bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pindex)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockNotHeld(m_chainstate_mutex);
     AssertLockNotHeld(::cs_main);
 
@@ -4414,6 +4423,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
 void Chainstate::EnforceBlock(BlockValidationState& state, const CBlockIndex *pindex)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockNotHeld(m_chainstate_mutex);
     AssertLockNotHeld(::cs_main);
 
@@ -5314,6 +5324,7 @@ bool TestBlockValidity(BlockValidationState& state,
                        bool fCheckPOW,
                        bool fCheckMerkleRoot)
 try {
+    const EvoViewScope evo_view{chainstate.EvoView()};
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == chainstate.m_chain.Tip());
 
@@ -5377,6 +5388,7 @@ void Chainstate::LoadMempool(const fs::path& load_path, FopenFn mockable_fopen_f
 
 bool Chainstate::LoadChainTip()
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
     const CCoinsViewCache& coins_cache = CoinsTip();
     assert(!coins_cache.GetBestBlock().IsNull()); // Never called when the coins view is empty
@@ -5420,6 +5432,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
     CEvoDB& evoDb,
     int nCheckLevel, int nCheckDepth)
 {
+    const EvoViewScope evo_view{chainstate.EvoView()};
     AssertLockHeld(cs_main);
 
     if (chainstate.m_chain.Tip() == nullptr || chainstate.m_chain.Tip()->pprev == nullptr) {
@@ -5565,6 +5578,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
 /** Apply the effects of a block on the utxo cache, ignoring that it may already have been applied. */
 bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& inputs)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
 
     // TODO: merge with ConnectBlock
@@ -5608,6 +5622,7 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
 
 bool Chainstate::ReplayBlocks()
 {
+    const EvoViewScope evo_view{EvoView()};
     LOCK(cs_main);
 
     CCoinsView& db = this->CoinsDB();
@@ -6350,6 +6365,7 @@ Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool,
         mempool, m_blockman, *this, evoDb, special_tx, chainlocks, isman);
     m_active_chainstate = m_ibd_chainstate.get();
     m_versionbitscache.SetEvoDb(&evoDb);
+    m_evodb = &evoDb;
     return *m_active_chainstate;
 }
 
@@ -6802,6 +6818,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     std::optional<uint256> base_mn_list_hash;
     if (const CBlockIndex* ibd_tip = m_ibd_chainstate->m_chain.Tip();
         ibd_tip != nullptr && ibd_tip->GetBlockHash() == base_blockhash) {
+        const EvoViewScope background_view{m_ibd_chainstate->EvoView()};
         base_mn_list_hash =
             snapshot_chainstate.m_special_tx.GetDeterministicMNListHash(snapshot_start_block);
         auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(::EvoDbIdentity::NORMAL);
@@ -6823,6 +6840,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         return false;
     }
     {
+        const EvoViewScope snapshot_view{snapshot_chainstate.EvoView()};
         auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
         snapshot_chainstate.m_evoDb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, base_blockhash);
         db_tx->Commit();

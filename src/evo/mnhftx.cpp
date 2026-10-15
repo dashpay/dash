@@ -398,19 +398,32 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
     mnhfCache.For(view).insert(pindex->GetBlockHash(), signals);
 }
 
-bool CMNHFManager::ForceSignalDBUpdate(const CBlockIndex* tip)
+bool CMNHFManager::ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
 {
+    const EvoViewScope evo_view{view};
     // force ehf signals db update
-    auto dbTx = m_evoDb.BeginTransaction();
+    auto dbTx = m_evoDb.BeginTransaction(view.identity);
 
     const bool last_legacy = bls::bls_legacy_scheme.load();
     bls::bls_legacy_scheme.store(false);
-    GetSignalsStage(tip);
+    try {
+        GetSignalsStage(tip);
+    } catch (const evo::LocalStateError& e) {
+        // The signals are rebuilt on demand anyway. History this view lacks
+        // must not keep startup from, say, promoting a validated snapshot,
+        // which is what makes it readable.
+        bls::bls_legacy_scheme.store(last_legacy);
+        LogPrintf("CMNHFManager::%s -- skipping the EHF signal update: %s\n", __func__, e.what());
+        return true;
+    } catch (...) {
+        bls::bls_legacy_scheme.store(last_legacy);
+        throw;
+    }
     bls::bls_legacy_scheme.store(last_legacy);
 
     dbTx->Commit();
     // flush it to disk
-    if (!m_evoDb.CommitRootTransaction()) {
+    if (!m_evoDb.CommitRootTransaction(view.identity)) {
         LogPrintf("CMNHFManager::%s -- failed to commit to evoDB\n", __func__);
         return false;
     }

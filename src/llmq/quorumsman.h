@@ -135,6 +135,8 @@ public:
 
     //! The Evo view the calling operation reads.
     EvoViewToken CurrentView() const { return m_evoDb.CurrentView(); }
+    //! The EvoDB this manager reads, for callers that bind an Evo view.
+    const CEvoDB& EvoDb() const { return m_evoDb; }
 
     // all these methods will lock cs_main for a short period of time
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const

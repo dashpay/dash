@@ -1863,7 +1863,9 @@ void BitcoinGUI::updateGovernanceCycleIcon()
             ? tr("~%1 (%2 blocks) left for superblock").arg(remaining_str).arg(remaining_blocks)
             : tr("~%1 (%2 blocks) left for voting").arg(voting_str).arg(voting_remaining))};
     const auto tooltip2{[&]() {
-        const auto allocated_budget{m_node.gov().getFundableProposalHashes().allocated};
+        const auto fundable{m_node.gov().getFundableProposalHashes()};
+        if (!fundable) return tr("Budget commitment is not available yet");
+        const auto allocated_budget{fundable->allocated};
         const auto budget_pct{gov_info.governancebudget > 0
             ? static_cast<int>(static_cast<double>(allocated_budget) / static_cast<double>(gov_info.governancebudget) * 100.0)
             : 0};
