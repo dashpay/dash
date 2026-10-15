@@ -75,7 +75,7 @@ std::unique_ptr<WalletDatabase> DuplicateMockDatabase(WalletDatabase& database, 
         DatabaseCursor::Status status = cursor->Next(key, value);
         assert(status != DatabaseCursor::Status::FAIL);
         if (status == DatabaseCursor::Status::DONE) break;
-        new_batch->Write(key, value);
+        new_batch->Write(Span{key}, Span{value});
     }
 
     return new_database;

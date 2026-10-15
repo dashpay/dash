@@ -59,7 +59,7 @@ private:
 
         // Write and commit header, data
         try {
-            fileout << ssObj;
+            fileout << Span{ssObj};
         }
         catch (std::exception &e) {
             LogError("%s: Serialize or I/O error - %s\n", __func__, e.what());
