@@ -126,6 +126,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.extra_args = None
         self.network_thread = None
         self.mocktime = 0
+        # Poll sync_blocks() and wait_for_quorum_phase() every 0.1s instead of every 1s / 0.5s. They wait
+        # for the same condition either way and only notice sooner that it holds.
+        self.fast_sync_polling = False
         self.rpc_timeout = 60  # Wait for up to 60 seconds for the RPC server to respond
         self.supports_cli = True
         self.bind_to_localhost_only = True
@@ -826,13 +829,15 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         sync_fun() if sync_fun else self.sync_all()
         return blocks
 
-    def sync_blocks(self, nodes=None, wait=1, timeout=60):
+    def sync_blocks(self, nodes=None, wait=None, timeout=60):
         """
         Wait until everybody has the same tip.
         sync_blocks needs to be called with an rpc_connections set that has least
         one node already synced to the latest, stable tip, otherwise there's a
         chance it might return before all nodes are stably synced.
         """
+        if wait is None:
+            wait = 0.1 if self.fast_sync_polling else 1
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
         stop_time = time.time() + timeout
@@ -2138,7 +2143,10 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.wait_until(check_probes, timeout=timeout, sleep=1)
 
-    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=0.5):
+    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=None):
+        if sleep is None:
+            sleep = 0.1 if self.fast_sync_polling else 0.5
+
         def check_dkg_session():
             member_count = 0
             for mn in mninfos:
