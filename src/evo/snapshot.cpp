@@ -17,6 +17,7 @@
 #include <streams.h>
 #include <tinyformat.h>
 #include <util/check.h>
+#include <util/overflow.h>
 
 #include <algorithm>
 #include <ios>
@@ -225,6 +226,23 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
     }
     if (credit_pool.indexes.RangeCount() > EVO_SNAPSHOT_MAX_RANGES) {
         throw std::ios_base::failure("oversized CRangesSet range count");
+    }
+    // The window entries sum to the pool's lately unlocked amount and end at
+    // the base, whose recorded balance is the pool's.
+    if (credit_history.size() > EVO_SNAPSHOT_MAX_CREDIT_HISTORY) {
+        throw std::ios_base::failure("oversized evo snapshot credit history");
+    }
+    CAmount window_unlocked{0};
+    for (const auto& entry : credit_history) {
+        const auto sum{CheckedAdd(window_unlocked, entry.unlocked)};
+        if (!MoneyRange(entry.credit_pool) || !MoneyRange(entry.unlocked) || !sum || !MoneyRange(*sum)) {
+            throw std::ios_base::failure("invalid evo snapshot credit history amount");
+        }
+        window_unlocked = *sum;
+    }
+    if (window_unlocked != credit_pool.latelyUnlocked ||
+        (!credit_history.empty() && credit_history.back().credit_pool != credit_pool.locked)) {
+        throw std::ios_base::failure("evo snapshot credit history disagrees with the credit pool");
     }
     // Consensus admits MNHF signals only for bits below VERSIONBITS_NUM_BITS
     // and records the mined height, which cannot exceed the base height.

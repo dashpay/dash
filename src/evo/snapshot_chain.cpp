@@ -414,6 +414,12 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
         previous_list = list;
     }
     result.credit_pool = cpoolman.GetCreditPool(base_index);
+    const int window{chainparams.CreditPoolPeriodBlocks()};
+    for (int height{std::max(0, base_index->nHeight - window + 1)}; height <= base_index->nHeight; ++height) {
+        const auto entry{CCreditPoolManager::ReadHistoryEntry(base_index->GetAncestor(height), consensus, error)};
+        if (!entry) return false;
+        result.credit_history.push_back(*entry);
+    }
     result.mnhf_signals = mnhfman.GetSignalsStage(base_index);
     result.quorums = CanonicallySortedCopy(std::move(result.quorums));
     result.historical_mn_list_diffs = CanonicallySortedCopy(std::move(result.historical_mn_list_diffs));
@@ -450,16 +456,36 @@ bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const Chainsta
 
     const auto& consensus{chainman.GetConsensus()};
     if (!DeploymentActiveAt(*base_index, consensus, Consensus::DEPLOYMENT_DIP0003)) {
-        if (!snapshot.quorums.empty() || !snapshot.historical_mn_list_diffs.empty() ||
-            !snapshot.quorum_modifiers.empty() || snapshot.mn_list.GetCounts().total() != 0 ||
-            snapshot.mn_list.GetTotalRegisteredCount() != 0 || snapshot.credit_pool.locked != 0 ||
-            snapshot.credit_pool.currentLimit != 0 || snapshot.credit_pool.latelyUnlocked != 0 ||
-            !snapshot.credit_pool.indexes.IsEmpty() || !snapshot.mnhf_signals.empty()) {
+        if (!snapshot.quorums.empty() || !snapshot.historical_mn_list_diffs.empty() || !snapshot.quorum_modifiers.empty() ||
+            snapshot.mn_list.GetCounts().total() != 0 || snapshot.mn_list.GetTotalRegisteredCount() != 0 ||
+            snapshot.credit_pool.locked != 0 || snapshot.credit_pool.currentLimit != 0 ||
+            snapshot.credit_pool.latelyUnlocked != 0 || !snapshot.credit_pool.indexes.IsEmpty() ||
+            !snapshot.credit_history.empty() || !snapshot.mnhf_signals.empty()) {
             return fail("nonempty pre-DIP3 evo snapshot");
         }
         return true;
     }
     if (!CheckNextCycleContext(chainman, base_index, error)) return false;
+
+    // The credit-pool window: one entry per block of the window ending at the
+    // base, zero wherever the pool did not exist yet.
+    const int window{chainman.GetParams().CreditPoolPeriodBlocks()};
+    if (window <= 0 || static_cast<size_t>(window) > EVO_SNAPSHOT_MAX_CREDIT_HISTORY ||
+        snapshot.credit_history.size() != static_cast<size_t>(std::min(window, base_index->nHeight + 1))) {
+        return fail("evo credit history does not cover the credit-pool window");
+    }
+    const int first_height{base_index->nHeight - static_cast<int>(snapshot.credit_history.size()) + 1};
+    for (size_t i{0}; i < snapshot.credit_history.size(); ++i) {
+        if (first_height + static_cast<int>(i) < consensus.DeploymentHeight(Consensus::DEPLOYMENT_V20) &&
+            snapshot.credit_history[i] != CreditHistoryEntry{}) {
+            return fail("evo credit history before v20 is not empty");
+        }
+    }
+    if (!DeploymentActiveAt(*base_index, consensus, Consensus::DEPLOYMENT_V20) &&
+        (snapshot.credit_pool.locked != 0 || snapshot.credit_pool.currentLimit != 0 ||
+         snapshot.credit_pool.latelyUnlocked != 0 || !snapshot.credit_pool.indexes.IsEmpty())) {
+        return fail("evo credit pool before v20 is not empty");
+    }
 
     std::map<uint256, CDeterministicMNList> historical_lists;
     if (!ReconstructHistoricalMNLists(snapshot, historical_lists, error)) return false;
@@ -630,7 +656,10 @@ bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot,
             }
         }
     }
-    if (!cpoolman.SeedSnapshot(view, base_index, snapshot.credit_pool)) return fail("failed to seed the credit pool");
+    if (!cpoolman.SeedSnapshot(view, base_index, snapshot.credit_pool) ||
+        !cpoolman.SeedHistory(view, base_index, snapshot.credit_history)) {
+        return fail("failed to seed the credit pool");
+    }
     if (!mnhfman.SeedSignals(view, base_index, snapshot.mnhf_signals)) return fail("failed to seed the MNHF signals");
     return true;
 }

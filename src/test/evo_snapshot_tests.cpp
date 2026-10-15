@@ -4,6 +4,7 @@
 
 #include <test/util/setup_common.h>
 
+#include <chainparams.h>
 #include <clientversion.h>
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
@@ -134,6 +135,7 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false, bool wit
     snapshot.credit_pool.locked = 123456;
     snapshot.credit_pool.currentLimit = 700;
     snapshot.credit_pool.latelyUnlocked = 11;
+    snapshot.credit_history = {{100'000, 0}, {123'000, 5}, {123'456, 6}};
     if (reverse_representation) {
         BOOST_REQUIRE(snapshot.credit_pool.indexes.Add(15));
         BOOST_REQUIRE(snapshot.credit_pool.indexes.Add(8));
@@ -255,6 +257,11 @@ std::vector<unsigned char> AssembleWireBytes(const evo::EvoSnapshot& snapshot, u
     }
     s << snapshot.credit_pool.locked << snapshot.credit_pool.currentLimit << snapshot.credit_pool.latelyUnlocked
       << snapshot.credit_pool.indexes;
+    if (version >= 4) {
+        WriteCompactSize(s, snapshot.credit_history.size());
+        for (const auto& entry : snapshot.credit_history)
+            s << entry.credit_pool << entry.unlocked;
+    }
     WriteCompactSize(s, snapshot.mnhf_signals.size());
     for (const auto& [bit, height] : snapshot.mnhf_signals)
         s << bit << int32_t{height};
@@ -342,6 +349,53 @@ std::vector<uint256> MemberHashes(const std::vector<CDeterministicMNCPtr>& membe
     for (const auto& member : members)
         hashes.push_back(member->proTxHash);
     return hashes;
+}
+
+//! Build the Evo section at `base` from the synced NORMAL view.
+bool TryBuildEvoSnapshot(node::NodeContext& node, const CBlockIndex* base, evo::EvoSnapshot& snapshot, std::string& error)
+{
+    LOCK(::cs_main);
+    const EvoViewScope normal{node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+    return evo::BuildEvoSnapshot(Params(), *node.chainman, *node.dmnman, *node.llmq_ctx->quorum_block_processor,
+                                 *node.llmq_ctx->qsnapman, *node.special_tx->m_cpoolman, *node.special_tx->m_mnhfman,
+                                 base, snapshot, error);
+}
+
+evo::EvoSnapshot BuildEvoSnapshotAt(node::NodeContext& node, const CBlockIndex* base)
+{
+    evo::EvoSnapshot snapshot;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(TryBuildEvoSnapshot(node, base, snapshot, error), error);
+    return snapshot;
+}
+
+bool ValidAgainstChain(const node::NodeContext& node, const evo::EvoSnapshot& snapshot, const CBlockIndex* base,
+                       std::string& error)
+{
+    return WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(snapshot, *node.chainman, base, error));
+}
+
+//! Seed `snapshot` into a fresh unpublished generation and return its view.
+EvoViewToken SeedGeneration(node::NodeContext& node, const evo::EvoSnapshot& snapshot, const CBlockIndex* base)
+{
+    LOCK(::cs_main);
+    if (node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT).generation != 0) {
+        BOOST_REQUIRE(node.evodb->AbandonSnapshotGeneration());
+    }
+    BOOST_REQUIRE(node.evodb->CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+    const EvoViewToken view{node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+    {
+        auto tx{node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        std::string error;
+        BOOST_REQUIRE_MESSAGE(evo::SeedEvoSnapshotState(view, snapshot, *node.dmnman,
+                                                        *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman,
+                                                        *node.special_tx->m_cpoolman, *node.special_tx->m_mnhfman,
+                                                        node.chainman->m_blockman, base, error),
+                              error);
+        tx->Commit();
+    }
+    BOOST_REQUIRE(node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    return view;
 }
 
 } // namespace
@@ -449,48 +503,16 @@ struct EvoSnapshotChainSetup : public TestChainSetup {
 
     bool TryBuild(const CBlockIndex* base, evo::EvoSnapshot& snapshot, std::string& error)
     {
-        LOCK(::cs_main);
-        const EvoViewScope normal{Normal()};
-        return evo::BuildEvoSnapshot(Params(), *m_node.chainman, *m_node.dmnman, *m_node.llmq_ctx->quorum_block_processor,
-                                     *m_node.llmq_ctx->qsnapman, *m_node.special_tx->m_cpoolman,
-                                     *m_node.special_tx->m_mnhfman, base, snapshot, error);
+        return TryBuildEvoSnapshot(m_node, base, snapshot, error);
     }
-
-    evo::EvoSnapshot Build(const CBlockIndex* base)
-    {
-        evo::EvoSnapshot snapshot;
-        std::string error;
-        BOOST_REQUIRE_MESSAGE(TryBuild(base, snapshot, error), error);
-        return snapshot;
-    }
-
+    evo::EvoSnapshot Build(const CBlockIndex* base) { return BuildEvoSnapshotAt(m_node, base); }
     bool Valid(const evo::EvoSnapshot& snapshot, const CBlockIndex* base, std::string& error)
     {
-        return WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(snapshot, *m_node.chainman, base, error));
+        return ValidAgainstChain(m_node, snapshot, base, error);
     }
-
-    //! Seed `snapshot` into a fresh unpublished generation and return its view.
     EvoViewToken Seed(const evo::EvoSnapshot& snapshot, const CBlockIndex* base)
     {
-        LOCK(::cs_main);
-        if (m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT).generation != 0) {
-            BOOST_REQUIRE(m_node.evodb->AbandonSnapshotGeneration());
-        }
-        BOOST_REQUIRE(m_node.evodb->CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
-        const EvoViewToken view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
-        {
-            auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
-            std::string error;
-            BOOST_REQUIRE_MESSAGE(evo::SeedEvoSnapshotState(view, snapshot, *m_node.dmnman,
-                                                            *m_node.llmq_ctx->quorum_block_processor,
-                                                            *m_node.llmq_ctx->qsnapman, *m_node.special_tx->m_cpoolman,
-                                                            *m_node.special_tx->m_mnhfman, m_node.chainman->m_blockman,
-                                                            base, error),
-                                  error);
-            tx->Commit();
-        }
-        BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
-        return view;
+        return SeedGeneration(m_node, snapshot, base);
     }
 
     std::vector<uint256> Members(const EvoViewToken& view, const Consensus::LLMQParams& params, int quorum_height)
@@ -634,7 +656,7 @@ BOOST_FIXTURE_TEST_CASE(populated_v4_golden_value, BasicTestingSetup)
     const auto encoded{SerializeSnapshot(snapshot)};
     BOOST_CHECK_EQUAL_COLLECTIONS(assembled.begin(), assembled.end(), UCharCast(encoded.data()),
                                   UCharCast(encoded.data() + encoded.size()));
-    BOOST_CHECK_EQUAL(Sha256Hex(assembled), "04e635f89f9054464f30ad4f054e81dda3e127de452cbc5ae93408e3d88ab827");
+    BOOST_CHECK_EQUAL(Sha256Hex(assembled), "8cb32f046edec159005e36b20e9c82b8d577b6811108210b306a6328323fe073");
     BOOST_CHECK_EQUAL(GetEvoSnapshotHash(snapshot).ToString(), Sha256Hex(assembled));
 }
 
@@ -2106,11 +2128,14 @@ BOOST_FIXTURE_TEST_CASE(builder_never_exports_a_fallback_modifier, EvoSnapshotCh
 {
     // A v20 modifier commits to the work block's coinbase ChainLock. Without
     // the work block's data the builder exports a seeded exact modifier or
-    // fails, never the ordinary block-hash fallback.
+    // fails, never the ordinary block-hash fallback. Work block 40 serves the
+    // carried quarter of cycle 48 and lies below the credit-pool window.
     SyncNormal();
-    MineCycles(12, 180);
-    const CBlockIndex* base{At(179)};
-    auto* work{const_cast<CBlockIndex*>(At(172))};
+    MineCycles(12, 60);
+    MineCycles(72, 180, /*rotated_index_one=*/false);
+    const CBlockIndex* base{At(190)};
+    BOOST_REQUIRE(RotationHeights(Build(base)).contains(48));
+    auto* work{const_cast<CBlockIndex*>(At(40))};
     const uint32_t saved_status{WITH_LOCK(::cs_main, return work->nStatus)};
     WITH_LOCK(::cs_main, work->nStatus &= ~BLOCK_HAVE_DATA);
     evo::EvoSnapshot snapshot;
@@ -2192,6 +2217,228 @@ BOOST_FIXTURE_TEST_CASE(chain_validation_pre_dip3_matrix, TestChain100Setup)
     counted.mn_list = CDeterministicMNList{base->GetBlockHash(), base->nHeight, 1};
     BOOST_CHECK(!WITH_LOCK(::cs_main, return evo::ValidateEvoSnapshotAgainstChain(counted, *m_node.chainman, base, error)));
     BOOST_CHECK_EQUAL(error, "nonempty pre-DIP3 evo snapshot");
+}
+
+
+/**
+ * 530 blocks with v20 and MN_RR from height 2, so every block's CbTx records
+ * a different pool balance (the platform share). Regtest's credit window is
+ * P = 100 blocks; the chain is long enough to push any window out of the
+ * parsed-body cache (4P entries before it truncates). Only the non-rotating
+ * LLMQ_TEST type is configured, so the base needs no quorum history.
+ */
+struct CreditWindowSetup : public SnapshotActivationChainSetup {
+    ConsensusParamsRestorer m_restorer{Params().GetConsensus()};
+    static constexpr int WINDOW{100};
+
+    CreditWindowSetup()
+    {
+        BOOST_REQUIRE_EQUAL(Params().CreditPoolPeriodBlocks(), WINDOW);
+        mineBlocks(428);
+        m_restorer.Get().llmqs = {evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+    }
+};
+
+//! The same chain shape with v20 and MN_RR only from height 150.
+struct CreditWindowLateV20Setup : public TestChainSetup {
+    ConsensusParamsRestorer m_restorer{Params().GetConsensus()};
+
+    CreditWindowLateV20Setup() :
+        TestChainSetup{104,
+                       CBaseChainParams::REGTEST,
+                       {"-dip3params=2:2", "-testactivationheight=v20@150", "-testactivationheight=mn_rr@150"}}
+    {
+        mineBlocks(226);
+        m_restorer.Get().llmqs = {evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+    }
+};
+
+const CBlockIndex* Ancestor(node::NodeContext& node, int height)
+{
+    return WITH_LOCK(::cs_main, return node.chainman->ActiveChain()[height]);
+}
+
+//! Make the bodies of the blocks in [first, last] unreadable, as on a node
+//! that never downloaded them, until destruction. Also evicts the cache of
+//! entries parsed from real bodies, so nothing serves them from memory.
+class [[nodiscard]] AbsentBodies
+{
+    std::map<CBlockIndex*, uint32_t> m_saved;
+
+public:
+    AbsentBodies(const node::NodeContext& node, int first, int last)
+    {
+        LOCK(::cs_main);
+        for (int height{first}; height <= last; ++height) {
+            auto* index{const_cast<CBlockIndex*>(node.chainman->ActiveChain()[height])};
+            m_saved.emplace(index, index->nStatus);
+            index->nStatus &= ~BLOCK_HAVE_DATA;
+        }
+        // Push the bodies out of the parsed-body cache by reading every other
+        // block's.
+        const CBlockIndex* tip{node.chainman->ActiveTip()};
+        for (int height{tip->nHeight}; height >= 0; --height) {
+            if (height < first || height > last) {
+                (void)CCreditPoolManager::GetBalanceAt(tip->GetAncestor(height), Params().GetConsensus());
+            }
+        }
+    }
+    ~AbsentBodies()
+    {
+        LOCK(::cs_main);
+        for (const auto& [index, status] : m_saved)
+            index->nStatus = status;
+    }
+};
+
+std::vector<CCreditPool> PoolsAfter(node::NodeContext& node, const EvoViewToken& view, int base, int count)
+{
+    // Block connection constructs pools under cs_main, which the versionbits
+    // and MNHF lookups they make take in that order.
+    LOCK(::cs_main);
+    const EvoViewScope scope{view};
+    std::vector<CCreditPool> pools;
+    for (int k{1}; k <= count; ++k)
+        pools.push_back(node.special_tx->m_cpoolman->GetCreditPool(Ancestor(node, base + k)));
+    return pools;
+}
+
+void CheckSamePools(const std::vector<CCreditPool>& actual, const std::vector<CCreditPool>& expected)
+{
+    BOOST_REQUIRE_EQUAL(actual.size(), expected.size());
+    for (size_t i{0}; i < actual.size(); ++i) {
+        BOOST_CHECK_MESSAGE(SerializeHash(actual[i]) == SerializeHash(expected[i]),
+                            strprintf("pool at base + %d: %s vs %s", i + 1, actual[i].ToString(), expected[i].ToString()));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(credit_window_is_carried_and_consumed, CreditWindowSetup)
+{
+    // B = 110: the window is [11, 110], and pools up to B + P + 2 read the
+    // carried entries until B + P + 1 reaches the first block above the base.
+    const int base_height{110};
+    const CBlockIndex* base{Ancestor(m_node, base_height)};
+    const auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    BOOST_REQUIRE_EQUAL(snapshot.credit_history.size(), static_cast<size_t>(WINDOW));
+    BOOST_CHECK(snapshot.credit_history.back().credit_pool == snapshot.credit_pool.locked);
+    BOOST_CHECK(snapshot.credit_history.front().credit_pool < snapshot.credit_history.back().credit_pool);
+    std::string error;
+    BOOST_CHECK_MESSAGE(ValidAgainstChain(m_node, snapshot, base, error), error);
+
+    const auto oracle{PoolsAfter(m_node, m_node.evodb->ViewFor(EvoDbIdentity::NORMAL), base_height, WINDOW + 2)};
+    const EvoViewToken seeded{SeedGeneration(m_node, snapshot, base)};
+    {
+        const AbsentBodies absent{m_node, base_height - WINDOW + 1, base_height};
+        CheckSamePools(PoolsAfter(m_node, seeded, base_height, WINDOW + 2), oracle);
+    }
+
+    // A carried entry for a block this node also has must match its body.
+    auto tampered{snapshot};
+    tampered.credit_history[5].credit_pool += 1;
+    const EvoViewToken mismatched{SeedGeneration(m_node, tampered, base)};
+    BOOST_CHECK_THROW(PoolsAfter(m_node, mismatched, base_height, WINDOW), evo::SnapshotStateMismatchError);
+
+    // A missing entry is unavailable, never a guessed zero.
+    auto short_history{snapshot};
+    short_history.credit_history.erase(short_history.credit_history.begin());
+    const EvoViewToken incomplete{SeedGeneration(m_node, short_history, base)};
+    {
+        const AbsentBodies absent{m_node, base_height - WINDOW + 1, base_height};
+        BOOST_CHECK_THROW(PoolsAfter(m_node, incomplete, base_height, 1), BlockDataUnavailableError);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(credit_window_expires_carried_unlocks_at_both_edges, CreditWindowSetup)
+{
+    // No unit-test chain can mine an asset unlock (it needs a quorum
+    // signature), so carry unlocked amounts at the window's first and last
+    // block and check the sliding sum they leave as they expire.
+    const int base_height{110};
+    const CBlockIndex* base{Ancestor(m_node, base_height)};
+    auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    snapshot.credit_history.front().unlocked = 7 * COIN;
+    snapshot.credit_history.back().unlocked = 9 * COIN;
+    snapshot.credit_pool.latelyUnlocked = 16 * COIN;
+    BOOST_REQUIRE_NO_THROW(snapshot.Validate());
+    const EvoViewToken seeded{SeedGeneration(m_node, snapshot, base)};
+    const AbsentBodies absent{m_node, base_height - WINDOW + 1, base_height};
+    const auto pools{PoolsAfter(m_node, seeded, base_height, WINDOW + 1)};
+    BOOST_CHECK_EQUAL(pools[0].latelyUnlocked, 9 * COIN);          // B + 1 expires the first entry
+    BOOST_CHECK_EQUAL(pools[WINDOW - 2].latelyUnlocked, 9 * COIN); // B + P - 1 still holds the last
+    BOOST_CHECK_EQUAL(pools[WINDOW - 1].latelyUnlocked, 0);        // B + P expires it
+    BOOST_CHECK_EQUAL(pools[WINDOW].latelyUnlocked, 0);
+}
+
+BOOST_FIXTURE_TEST_CASE(credit_window_spans_v20_activation, CreditWindowLateV20Setup)
+{
+    // B = 110 precedes v20 (150), which activates inside (B, B + P].
+    const int base_height{110};
+    const CBlockIndex* base{Ancestor(m_node, base_height)};
+    const auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    BOOST_REQUIRE_EQUAL(snapshot.credit_history.size(), 100U);
+    for (const auto& entry : snapshot.credit_history)
+        BOOST_CHECK(entry == CreditHistoryEntry{});
+    BOOST_CHECK_EQUAL(snapshot.credit_pool.locked, 0);
+    std::string error;
+    BOOST_CHECK_MESSAGE(ValidAgainstChain(m_node, snapshot, base, error), error);
+
+    const auto oracle{PoolsAfter(m_node, m_node.evodb->ViewFor(EvoDbIdentity::NORMAL), base_height, 102)};
+    BOOST_REQUIRE(oracle.back().locked > 0);
+    const EvoViewToken seeded{SeedGeneration(m_node, snapshot, base)};
+    const AbsentBodies absent{m_node, base_height - 99, base_height};
+    CheckSamePools(PoolsAfter(m_node, seeded, base_height, 102), oracle);
+
+    // Before v20 there is no pool, so neither the window nor the base pool
+    // may claim one.
+    auto early_entry{snapshot};
+    early_entry.credit_history[3].credit_pool = 1;
+    early_entry.credit_history.back().credit_pool = 1;
+    early_entry.credit_pool.locked = 1;
+    BOOST_CHECK(!ValidAgainstChain(m_node, early_entry, base, error));
+    BOOST_CHECK_MESSAGE(error.find("before v20") != std::string::npos, error);
+}
+
+BOOST_FIXTURE_TEST_CASE(credit_window_validation, CreditWindowSetup)
+{
+    for (const auto& chain :
+         {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::DEVNET, CBaseChainParams::REGTEST}) {
+        const auto params{CreateChainParams(*m_node.args, chain)};
+        BOOST_CHECK_LE(static_cast<size_t>(params->CreditPoolPeriodBlocks()), evo::EVO_SNAPSHOT_MAX_CREDIT_HISTORY);
+    }
+
+    const CBlockIndex* base{Ancestor(m_node, 110)};
+    const auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(ValidAgainstChain(m_node, snapshot, base, error), error);
+
+    auto short_count{snapshot};
+    short_count.credit_history.erase(short_count.credit_history.begin());
+    BOOST_CHECK(!ValidAgainstChain(m_node, short_count, base, error));
+    BOOST_CHECK_MESSAGE(error.find("credit-pool window") != std::string::npos, error);
+    auto long_count{snapshot};
+    long_count.credit_history.insert(long_count.credit_history.begin(), CreditHistoryEntry{});
+    BOOST_CHECK(!ValidAgainstChain(m_node, long_count, base, error));
+
+    auto wrong_sum{snapshot};
+    wrong_sum.credit_history[10].unlocked = 1;
+    BOOST_CHECK_THROW(wrong_sum.Validate(), std::ios_base::failure);
+    auto wrong_end{snapshot};
+    wrong_end.credit_history.back().credit_pool -= 1;
+    BOOST_CHECK_THROW(wrong_end.Validate(), std::ios_base::failure);
+    auto out_of_range{snapshot};
+    out_of_range.credit_history[0].credit_pool = MAX_MONEY + 1;
+    BOOST_CHECK_THROW(out_of_range.Validate(), std::ios_base::failure);
+    auto oversized{snapshot};
+    oversized.credit_history.resize(evo::EVO_SNAPSHOT_MAX_CREDIT_HISTORY + 1);
+    oversized.credit_history.back().credit_pool = oversized.credit_pool.locked;
+    BOOST_CHECK_THROW(oversized.Validate(), std::ios_base::failure);
+
+    // Young chain: the window is the whole chain, genesis included.
+    const CBlockIndex* young{Ancestor(m_node, 40)};
+    const auto young_snapshot{BuildEvoSnapshotAt(m_node, young)};
+    BOOST_CHECK_EQUAL(young_snapshot.credit_history.size(), 41U);
+    BOOST_CHECK(young_snapshot.credit_history.front() == CreditHistoryEntry{});
+    BOOST_CHECK_MESSAGE(ValidAgainstChain(m_node, young_snapshot, young, error), error);
 }
 
 
