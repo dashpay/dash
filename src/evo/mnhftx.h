@@ -139,6 +139,10 @@ public:
     //! for NORMAL, or to read a block body, fails.
     bool ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+    /** Seed the signal record of a snapshot base into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedSignals(const EvoViewToken& view, const CBlockIndex* pindex, const Signals& signals)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
 private:
     void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);

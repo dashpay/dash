@@ -766,6 +766,35 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
     return mined_block != nullptr && chain.Contains(mined_block);
 }
 
+bool CQuorumBlockProcessor::SeedMinedCommitment(const EvoViewToken& view, Consensus::LLMQType llmqType,
+                                                const uint256& quorum_hash, const CFinalCommitment& commitment,
+                                                const uint256& mined_block_hash)
+{
+    AssertLockHeld(::cs_main);
+    if (!Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    const auto llmq_params{m_chainman.GetParams().GetLLMQ(llmqType)};
+    const CBlockIndex* mined_index{m_chainman.m_blockman.LookupBlockIndex(mined_block_hash)};
+    const CBlockIndex* quorum_base_index{m_chainman.m_blockman.LookupBlockIndex(quorum_hash)};
+    if (!llmq_params || mined_index == nullptr || quorum_base_index == nullptr) return false;
+    if (!m_evoDb.WriteSeed(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorum_hash)),
+                           std::make_pair(commitment, mined_block_hash), EvoSeedPolicy::BYTE_DETERMINISTIC)) {
+        return false;
+    }
+    // Replay ProcessCommitment's height index exactly: it drives the scans and
+    // the first post-base CbTx quorum merkle root.
+    const bool indexed{
+        IsQuorumRotationEnabled(*llmq_params, quorum_base_index)
+            ? m_evoDb.WriteSeed(BuildInversedHeightKeyIndexed(llmqType, mined_index->nHeight, int{commitment.quorumIndex}),
+                                quorum_base_index->nHeight, EvoSeedPolicy::BYTE_DETERMINISTIC)
+            : m_evoDb.WriteSeed(BuildInversedHeightKey(llmqType, mined_index->nHeight), quorum_base_index->nHeight,
+                                EvoSeedPolicy::BYTE_DETERMINISTIC)};
+    if (!indexed) return false;
+    DropQcHashesCache();
+    WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.For(view).erase(llmqType, quorum_hash));
+    return true;
+}
+
 std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(Consensus::LLMQType llmqType,
                                                                                const uint256& quorumHash) const
 {
