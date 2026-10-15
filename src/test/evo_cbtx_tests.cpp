@@ -73,13 +73,15 @@ BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff,
     // bestCLHeightDiff == nHeight: lower boundary of the rejected range.
     cbTx.bestCLHeightDiff = static_cast<uint32_t>(pindex.nHeight);
     BlockValidationState state;
-    BOOST_CHECK(!CheckCbTxBestChainlock(cbTx, &pindex, consensus_params, chain, qman, chainlocks, state));
+    BOOST_CHECK(
+        !CheckCbTxBestChainlock(cbTx, &pindex, consensus_params, chain, qman, chainlocks, *m_node.special_tx, state));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-cbtx-cldiff");
 
     // Upper boundary: uint32_t max.
     cbTx.bestCLHeightDiff = std::numeric_limits<uint32_t>::max();
     BlockValidationState state_big;
-    BOOST_CHECK(!CheckCbTxBestChainlock(cbTx, &pindex, consensus_params, chain, qman, chainlocks, state_big));
+    BOOST_CHECK(!CheckCbTxBestChainlock(cbTx, &pindex, consensus_params, chain, qman, chainlocks, *m_node.special_tx,
+                                        state_big));
     BOOST_CHECK_EQUAL(state_big.GetRejectReason(), "bad-cbtx-cldiff");
 
     // The signature is deserialized lazily, so the payload parser accepts any bytes in its

@@ -21,8 +21,10 @@
 
 using node::ReadBlockFromDisk;
 
-// Forward declaration
+// Forward declarations
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, const CBlockIndex& index,
+                                                                              const Consensus::Params& consensus);
 
 CSimplifiedMNListDiff::CSimplifiedMNListDiff() = default;
 
@@ -66,7 +68,8 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
     return true;
 }
 
-bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex)
+bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex,
+                                                     std::string& error)
 {
     // Group quorums (indexes corresponding to entries of newQuorums) per CBlockIndex containing the expected CL
     // signature in CbTx. We want to avoid to load CbTx now, as more than one quorum will target the same block: hence
@@ -95,7 +98,22 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager&
     for (auto it = workBaseBlockIndexMap.begin(); it != workBaseBlockIndexMap.end();) {
         // Process each key (CBlockIndex containing the expected CL signature in CbTx) of the std::multimap once
         const CBlockIndex* pWorkBaseBlockIndex = it->first;
-        const auto cbcl = GetNonNullCoinbaseChainlock(pWorkBaseBlockIndex);
+        std::optional<std::pair<CBLSSignature, uint32_t>> cbcl;
+        if (qman.CurrentView().identity == EvoDbIdentity::SNAPSHOT) {
+            // Without the work block's body the snapshot view cannot tell a
+            // certificate from none; never serve a guessed null signature.
+            const auto& consensus{Params().GetConsensus()};
+            CBlock block;
+            if (WITH_LOCK(::cs_main, return (pWorkBaseBlockIndex->nStatus & BLOCK_HAVE_DATA) == 0) ||
+                !ReadBlockFromDisk(block, pWorkBaseBlockIndex, consensus)) {
+                error = strprintf("coinbase ChainLock of block %s %s", pWorkBaseBlockIndex->GetBlockHash().ToString(),
+                                  BLOCK_DATA_UNAVAILABLE_SUFFIX);
+                return false;
+            }
+            cbcl = GetNonNullCoinbaseChainlock(block, *pWorkBaseBlockIndex, consensus);
+        } else {
+            cbcl = GetNonNullCoinbaseChainlock(pWorkBaseBlockIndex);
+        }
         CBLSSignature sig;
         if (cbcl.has_value()) {
             sig = cbcl.value().first;
@@ -219,8 +237,16 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
     }
 
     if (DeploymentActiveAfter(blockIndex, chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) {
-        if (!mnListDiffRet.BuildQuorumChainlockInfo(qman, blockIndex)) {
-            errorRet = strprintf("failed to build quorum chainlock info");
+        std::string chainlock_error;
+        try {
+            if (!mnListDiffRet.BuildQuorumChainlockInfo(qman, blockIndex, chainlock_error)) {
+                errorRet = chainlock_error.empty() ? "failed to build quorum chainlock info" : chainlock_error;
+                return false;
+            }
+        } catch (const BlockDataUnavailableError& e) {
+            // Unavailable snapshot-view state; the sentinel keeps the requesting
+            // peer from being penalized.
+            errorRet = strprintf("%s %s", e.what(), BLOCK_DATA_UNAVAILABLE_SUFFIX);
             return false;
         }
     }
