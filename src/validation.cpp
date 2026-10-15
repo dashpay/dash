@@ -67,6 +67,7 @@
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_config.h>
 #include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
@@ -6478,8 +6479,14 @@ bool ChainstateManager::ActivateSnapshot(
             static_cast<size_t>(current_coinstip_cache_size * SNAPSHOT_CACHE_PERC));
     }
 
-    bool snapshot_ok = this->PopulateAndValidateSnapshot(
-        *snapshot_chainstate, coins_file, metadata);
+    bool snapshot_ok;
+    try {
+        snapshot_ok = this->PopulateAndValidateSnapshot(*snapshot_chainstate, coins_file, metadata);
+    } catch (...) {
+        // Never leave a generation bound to a snapshot that did not activate.
+        WITH_LOCK(::cs_main, this->ActiveChainstate().m_evoDb.AbandonSnapshotGeneration());
+        throw;
+    }
 
     // If not in-memory, persist the base blockhash for use during subsequent
     // initialization.
@@ -6493,19 +6500,13 @@ bool ChainstateManager::ActivateSnapshot(
         LOCK(::cs_main);
         this->MaybeRebalanceCaches();
 
-        // PopulateAndValidateSnapshot commits the snapshot best-block and
-        // dual-chainstate markers as its last step, so a later failure (e.g.
-        // WriteSnapshotBaseBlockhash on an unwritable datadir) would leave them
-        // behind on a node that is back to a single chainstate. Erasing them is
-        // a no-op when they were never written.
-        CEvoDB& evo_db = this->ActiveChainstate().m_evoDb;
-        {
-            auto db_tx = evo_db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-            evo_db.EraseSnapshotMarkers();
-            db_tx->Commit();
-        }
-        if (!evo_db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT)) {
-            AbortNode("Failed to roll back the snapshot EvoDB markers");
+        // PopulateAndValidateSnapshot publishes the snapshot generation and
+        // its dual-chainstate markers as its last step, so a later failure
+        // (e.g. WriteSnapshotBaseBlockhash on an unwritable datadir) would
+        // leave them behind on a node that is back to a single chainstate.
+        // Abandoning is a no-op when no generation was created.
+        if (!this->ActiveChainstate().m_evoDb.AbandonSnapshotGeneration()) {
+            AbortNode("Failed to roll back the snapshot EvoDB generation");
         }
 
         // PopulateAndValidateSnapshot can return (in error) before the leveldb datadir
@@ -6520,6 +6521,9 @@ bool ChainstateManager::ActivateSnapshot(
                 AbortNode(strprintf("Failed to remove snapshot chainstate dir (%s). "
                     "Manually remove it before restarting.\n", fs::PathToString(*snapshot_datadir)));
             }
+        }
+        if (!this->ActiveChainstate().m_evoDb.CollectRejectedGenerations()) {
+            LogPrintf("[snapshot] failed to remove the abandoned snapshot EvoDB generation; retrying at startup\n");
         }
         return false;
     }
@@ -6802,17 +6806,21 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         LogPrintf("[snapshot] failed to sync background EvoDB state\n");
         return false;
     }
+    // Everything the snapshot chainstate writes lives in its own generation
+    // namespace, so a rejected snapshot can never leak into NORMAL state.
+    if (!snapshot_chainstate.m_evoDb.CreateSnapshotGeneration(base_blockhash, base_height)) {
+        LogPrintf("[snapshot] failed to create the snapshot EvoDB generation\n");
+        return false;
+    }
     {
         auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
         snapshot_chainstate.m_evoDb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, base_blockhash);
-        if (base_mn_list_hash.has_value()) {
-            snapshot_chainstate.m_evoDb.WriteSnapshotBaseMNListHash(*base_mn_list_hash);
-        }
-        snapshot_chainstate.m_evoDb.WriteDualChainstateMarker();
         db_tx->Commit();
     }
-    if (!snapshot_chainstate.m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)) {
-        LogPrintf("[snapshot] failed to commit snapshot EvoDB marker\n");
+    if (!snapshot_chainstate.m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true) ||
+        !snapshot_chainstate.m_evoDb.PublishSnapshotGeneration(
+            EvoSnapshotConsensusConfig::FromParams(GetParams()).Fingerprint(), base_mn_list_hash)) {
+        LogPrintf("[snapshot] failed to publish the snapshot EvoDB generation\n");
         return false;
     }
 
@@ -6870,12 +6878,18 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
     assert(!IsUsable(m_snapshot_chainstate.get()));
     assert(IsUsable(m_ibd_chainstate.get()));
 
+    // Record the rejection before restoring NORMAL: a snapshot directory left
+    // behind without its generation can no longer be activated. If the
+    // rejection does not persist, startup recovery finishes it for the renamed
+    // directory.
+    if (!evodb_synced || !m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
+        LogPrintf("[snapshot] failed to record the snapshot rejection in EvoDB\n");
+    }
     auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
     if (!rename_result) {
         user_error += Untranslated("\n") + util::ErrorString(rename_result);
-    } else if (!evodb_synced || !m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
-        // Startup recovery completes the discard for the renamed directory.
-        LogPrintf("[snapshot] failed to remove invalid snapshot EvoDB markers\n");
+    } else if (!m_ibd_chainstate->m_evoDb.CollectRejectedGenerations()) {
+        LogPrintf("[snapshot] failed to remove the rejected snapshot EvoDB generation; retrying at startup\n");
     }
 
     shutdown_fnc(user_error);
@@ -7270,7 +7284,9 @@ Chainstate* ChainstateManager::ActivateExistingSnapshot(CTxMemPool* mempool, uin
     assert(!m_snapshot_chainstate);
     CEvoDB& evo_db = this->ActiveChainstate().m_evoDb;
     uint256 snapshot_evo_tip;
-    if (!evo_db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_evo_tip)) {
+    const auto generation{evo_db.GetSnapshotGeneration()};
+    if (!generation || generation->base != base_blockhash ||
+        !evo_db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_evo_tip)) {
         LogPrintf("[snapshot] snapshot EvoDB marker is missing for base block %s\n",
                   base_blockhash.ToString());
         return nullptr;
@@ -7382,6 +7398,13 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     // The caller of this method will be responsible for reinitializing chainstates
     // if they want to continue operation.
     this->ResetChainstates();
+
+    // Journal the promotion before the first rename, so recovery can tell a
+    // promotion from an interrupted invalid-snapshot cleanup.
+    if (!evo_db.PrepareSnapshotPromotion(snapshot_tip)) {
+        LogPrintf("[snapshot] failed to journal the snapshot EvoDB promotion\n");
+        return false;
+    }
 
     // No chainstates should be considered usable.
     assert(this->GetAll().size() == 0);

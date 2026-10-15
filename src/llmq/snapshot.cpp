@@ -9,6 +9,7 @@
 #include <evo/evodb.h>
 #include <evo/simplifiedmns.h>
 #include <evo/smldiff.h>
+#include <evo/snapshot_types.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <node/blockstorage.h>
@@ -58,6 +59,11 @@ std::optional<llmq::CycleData> ConstructCycle(llmq::CQuorumSnapshotManager& qsna
             ret.m_snap = opt_snap.value();
         } else {
             error = "Cannot find quorum snapshot";
+            // Locally missing below a snapshot base, not the requester's fault.
+            if (qsnapman.IsCarriedOnly(ret.m_cycle_index)) {
+                error = strprintf("Quorum snapshot for block %s %s", ret.m_cycle_index->GetBlockHash().ToString(),
+                                  BLOCK_DATA_UNAVAILABLE_SUFFIX);
+            }
             return std::nullopt;
         }
     }
@@ -74,6 +80,12 @@ void InsertBaseBlockSorted(std::vector<const CBlockIndex*>& baseBlockIndexes, co
 } // anonymous namespace
 
 namespace llmq {
+bool CQuorumSnapshotManager::IsCarriedOnly(const CBlockIndex* pindex) const
+{
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    return view.identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view.base_height;
+}
+
 bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                              const ChainstateManager& chainman, const CQuorumManager& qman,
                              const CQuorumBlockProcessor& qblockman, const CGetQuorumRotationInfo& request,
@@ -320,11 +332,26 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
 void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)
 {
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
+    const auto key{std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash)};
 
-    // LOCK(::cs_main);
     AssertLockNotHeld(m_evoDb.cs);
-    LOCK2(snapshotCacheCs, m_evoDb.cs);
-    m_evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    if (view.identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view.base_height) {
+        // At or below the snapshot base the snapshot view holds only carried
+        // state. A carried quarter must match the one just computed from
+        // complete inputs. An uncarried one is a reconstruction output, never a
+        // required input, so it is neither persisted nor cached.
+        CQuorumSnapshot carried;
+        if (m_evoDb.Read(key, carried) && ::SerializeHash(carried) != ::SerializeHash(snapshot)) {
+            throw evo::SnapshotStateMismatchError(
+                strprintf("carried quorum snapshot for %s at height %d differs from the computed one",
+                          pindex->GetBlockHash().ToString(), pindex->nHeight));
+        }
+        return;
+    }
+
+    LOCK(snapshotCacheCs);
+    m_evoDb.WriteDurable(key, snapshot);
     quorumSnapshotCache.insert(snapshotHash, snapshot);
 }
 } // namespace llmq
