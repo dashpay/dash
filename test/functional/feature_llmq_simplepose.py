@@ -21,6 +21,9 @@ from test_framework.util import assert_equal, force_finish_mnsync
 
 # See version.h
 MIN_MASTERNODE_PROTO_VERSION = 70242
+# A member complains about a masternode it failed to reach more than 5 times (MASTERNODE_MAX_FAILED_OUTBOUND_ATTEMPTS)
+# and probes it at least once per DKG; two failed DKGs in a row (66% penalty each) ban it
+DKGS_TO_BAN_UNREACHABLE = 7
 
 
 class MasternodePeer(P2PInterface):
@@ -239,7 +242,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
     def test_no_banning(self, invalidate_proc, expected_connections=None):
         [_, instant_ban] = invalidate_proc(self.mninfo[0])
-        iters = 2 if instant_ban else 6
+        iters = 2 if instant_ban else DKGS_TO_BAN_UNREACHABLE
         for i in range(iters):
             self.log.info(f"Testing no PoSe banning in normal conditions {i + 1}/{iters}")
             self.mine_quorum(expected_connections=expected_connections)
@@ -371,10 +374,9 @@ class LLMQSimplePoSeTest(DashTestFramework):
                     self.mine_quorum(expected_connections=expected_connections, expected_members=expected_contributors, expected_contributions=expected_contributors, expected_complaints=expected_complaints, expected_commitments=expected_contributors, mninfos_online=mninfos_online, mninfos_valid=mninfos_valid)
             else:
                 # It's ok to miss probes/quorum connections up to 5 times.
-                # 6th time is when it should be banned for sure.
                 assert expected_connections is None
-                for j in range(6):
-                    self.log.info(f"Accumulating PoSe penalty {j + 1}/6")
+                for j in range(DKGS_TO_BAN_UNREACHABLE):
+                    self.log.info(f"Accumulating PoSe penalty {j + 1}/{DKGS_TO_BAN_UNREACHABLE}")
                     self.reset_probe_timeouts()
                     self.mine_quorum_less_checks(expected_contributors - 1, mninfos_online, mn)
                     if check_banned(self.nodes[0], mn):
