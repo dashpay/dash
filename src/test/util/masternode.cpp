@@ -19,6 +19,8 @@
 #include <util/std23.h>
 #include <validation.h>
 
+#include <utility>
+
 namespace {
 
 SimpleUTXOMap SelectUTXOs(const CChain& active_chain, SimpleUTXOMap& utxos, CAmount amount, CAmount& change_ret)
@@ -100,21 +102,34 @@ CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXO
 {
     owner_key_ret.MakeNewKey(true);
     operator_key_ret.MakeNewKey();
+    return CreateProRegTx(chainman, utxos, port, script_payout, coinbase_key, std::as_const(owner_key_ret),
+                          std::as_const(operator_key_ret));
+}
 
+CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port,
+                                   const CScript& script_payout, const CKey& coinbase_key, const CKey& owner_key,
+                                   const CBLSSecretKey& operator_key, MnType type)
+{
     CProRegTx pro_tx;
     pro_tx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    pro_tx.nType = type;
+    if (type == MnType::Evo) {
+        pro_tx.platformNodeID = uint160{Span{SerializeHash(std::make_pair(std::string{"platform"}, port)).begin(), 20}};
+        pro_tx.platformP2PPort = 20000 + 2 * port;
+        pro_tx.platformHTTPPort = 20001 + 2 * port;
+    }
     pro_tx.netInfo = NetInfoInterface::MakeNetInfo(pro_tx.nVersion);
     pro_tx.collateralOutpoint.n = 0;
     Assert(pro_tx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)) == NetInfoStatus::Success);
-    pro_tx.keyIDOwner = owner_key_ret.GetPubKey().GetID();
-    pro_tx.pubKeyOperator.Set(operator_key_ret.GetPublicKey(), bls::bls_legacy_scheme.load());
-    pro_tx.keyIDVoting = owner_key_ret.GetPubKey().GetID();
+    pro_tx.keyIDOwner = owner_key.GetPubKey().GetID();
+    pro_tx.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    pro_tx.keyIDVoting = owner_key.GetPubKey().GetID();
     pro_tx.scriptPayout = script_payout;
 
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
-    const auto spent = FundTransaction(chainman, tx, utxos, script_payout, dmn_types::Regular.collat_amount);
+    const auto spent = FundTransaction(chainman, tx, utxos, script_payout, GetMnType(type).collat_amount);
     pro_tx.inputsHash = CalcTxInputsHash(CTransaction(tx));
     SetTxPayload(tx, pro_tx);
     SignTransaction(tx, spent, coinbase_key);

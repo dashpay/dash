@@ -195,6 +195,31 @@ static void ReadRegTestLLMQInstantSendDIP0024Args(const ArgsManager& args, CChai
     options.llmq_dip0024_instantsend = args.GetArg("-llmqtestinstantsenddip0024", "");
 }
 
+static void ReadRegTestAssumeutxoArgs(const ArgsManager& args, CChainParams::RegTestOptions& options)
+{
+    for (const std::string& arg : args.GetArgs("-assumeutxodata")) {
+        const std::vector<std::string> fields{SplitString(arg, ':')};
+        const auto valid_hash = [](const std::string& value) {
+            return value.size() == uint256::size() * 2 && IsHex(value) && !uint256S(value).IsNull();
+        };
+        int32_t height;
+        uint32_t n_chain_tx;
+        if (fields.size() != 5 || !ParseInt32(fields[0], &height) || height <= 0 || !valid_hash(fields[1]) ||
+            !valid_hash(fields[2]) || !ParseUInt32(fields[3], &n_chain_tx) || n_chain_tx == 0 ||
+            !valid_hash(fields[4])) {
+            throw std::runtime_error(strprintf(
+                "Invalid value (%s) for -assumeutxodata=<height>:<hash_serialized>:<evo_hash>:<nchaintx>:<blockhash>",
+                arg));
+        }
+        options.assumeutxo_data.emplace_back(height, AssumeutxoData{
+                                                         .hash_serialized = AssumeutxoHash{uint256S(fields[1])},
+                                                         .evo_hash = EvoSnapshotHash{uint256S(fields[2])},
+                                                         .nChainTx = n_chain_tx,
+                                                         .blockhash = uint256S(fields[4]),
+                                                     });
+    }
+}
+
 void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& options)
 {
     if (auto value = args.GetBoolArg("-fastprune")) options.fastprune = *value;
@@ -206,6 +231,7 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
     ReadRegTestLLMQTestArgs(args, options, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
     ReadRegTestLLMQTestArgs(args, options, Consensus::LLMQType::LLMQ_TEST_PLATFORM);
     ReadRegTestLLMQInstantSendDIP0024Args(args, options);
+    ReadRegTestAssumeutxoArgs(args, options);
 }
 
 static void ReadDevNetSubsidyAndDiffArgs(const ArgsManager& args, CChainParams::DevNetOptions& options)
@@ -323,6 +349,7 @@ void SetupChainParamsOptions(ArgsManager& argsman)
 {
     SetupChainParamsBaseOptions(argsman);
 
+    argsman.AddArg("-assumeutxodata=<height>:<hash_serialized>:<evo_hash>:<nchaintx>:<blockhash>", "Add an exact AssumeUTXO snapshot authorization (regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-budgetparams=<masternode>:<budget>:<superblock>", "Override masternode, budget and superblock start heights (regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-dip3params=<activation>:<enforcement>", "Override DIP3 activation and enforcement heights (regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-highsubsidyblocks=<n>", "The number of blocks with a higher than normal subsidy to mine at the start of a chain. Block after that height will have fixed subsidy base. (default: 0, devnet-only)", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
