@@ -38,10 +38,17 @@ CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CDeterministicMNManager& 
     quorumBlockProcessor{_quorumBlockProcessor},
     m_qsnapman{qsnapman},
     m_chainman{chainman},
-    db{util::MakeDbWrapper({db_params.path / "llmq" / "quorumdb", db_params.memory, db_params.wipe, /*cache_size=*/1 << 20, db_params.options})}
+    m_evoDb{_evoDb},
+    db{util::MakeDbWrapper({db_params.path / "llmq" / "quorumdb", db_params.memory, db_params.wipe,
+                            /*cache_size=*/1 << 20, db_params.options})},
+    m_view_caches{[&consensus = chainman.GetConsensus()] {
+        ViewCaches caches;
+        caches.mapQuorumsCache.Init(consensus, /*limit_by_connections=*/false);
+        return caches;
+    }}
 {
     AssertLockHeld(::cs_main);
-    mapQuorumsCache.Init(m_chainman.GetConsensus(), /*limit_by_connections=*/false);
+    m_view_caches.SetOwner(_evoDb);
     MigrateOldQuorumDB(_evoDb);
     m_cache_interrupt.reset();
     m_cache_thread = std::thread(&util::TraceThread, "q-cache", [this] { CacheWarmingThreadMain(); });
@@ -83,8 +90,9 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     auto quorum = std::make_shared<CQuorum>(llmq_params_opt.value(), blsWorker,
         std::make_unique<CFinalCommitment>(std::move(qc)), pQuorumBaseBlockIndex, minedBlockHash, members);
 
+    const EvoViewToken view{m_evoDb.CurrentView()};
     if (populate_cache && llmq_params_opt->size == 1) {
-        WITH_LOCK(m_cs_maps, mapQuorumsCache.insert(llmqType, quorumHash, quorum));
+        WITH_LOCK(m_cs_maps, m_view_caches.For(view).mapQuorumsCache.insert(llmqType, quorumHash, quorum));
 
         return quorum;
     }
@@ -108,7 +116,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         QueueQuorumForWarming(quorum);
     }
 
-    WITH_LOCK(m_cs_maps, mapQuorumsCache.insert(llmqType, quorumHash, quorum));
+    WITH_LOCK(m_cs_maps, m_view_caches.For(view).mapQuorumsCache.insert(llmqType, quorumHash, quorum));
 
     return quorum;
 }
@@ -178,13 +186,15 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 }
 
 template <typename T>
-PerLlmqTypeCache<std::vector<T>>& CQuorumManager::ScanCache() const
+PerLlmqTypeCache<std::vector<T>>& CQuorumManager::ScanCache(const EvoViewToken& view) const
 {
+    // cppcheck-suppress constVariableReference
+    auto& caches{m_view_caches.For(view)};
     if constexpr (std::is_same_v<T, CQuorumCPtr>) {
-        return scanQuorumsCache;
+        return caches.scanQuorumsCache;
     } else {
         static_assert(std::is_same_v<T, CFinalCommitment>);
-        return scanCommitmentsCache;
+        return caches.scanCommitmentsCache;
     }
 }
 
@@ -223,9 +233,10 @@ std::vector<T> CQuorumManager::ScanMined(Consensus::LLMQType llmqType, gsl::not_
     std::vector<T> vecResult;
     bool resume{false};
 
+    const EvoViewToken view{m_evoDb.CurrentView()};
     if (use_cache) {
         LOCK(m_cs_maps);
-        auto& cache = ScanCache<T>();
+        auto& cache = ScanCache<T>(view);
         if (!cache.IsInitialized()) {
             // NOTE: We store it for each block hash in the DKG mining phase here
             // and not for a single quorum hash per quorum like we do for other caches.
@@ -298,7 +309,7 @@ std::vector<T> CQuorumManager::ScanMined(Consensus::LLMQType llmqType, gsl::not_
         // because signing by old quorums requires the exact quorum hash
         // to be specified and quorum scanning isn't needed there.
         const size_t nCacheEndIndex = std::min(nCountResult, static_cast<size_t>(llmq_params_opt->keepOldConnections));
-        ScanCache<T>().emplace(llmqType, pindexStore->GetBlockHash(), {vecResult.begin(), vecResult.begin() + nCacheEndIndex});
+        ScanCache<T>(view).emplace(llmqType, pindexStore->GetBlockHash(), {vecResult.begin(), vecResult.begin() + nCacheEndIndex});
     }
     // Don't return more than nCountRequested elements
     const size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
@@ -484,8 +495,9 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, gsl::not_nul
 
     CQuorumPtr pQuorum;
     {
+        const EvoViewToken view{m_evoDb.CurrentView()};
         LOCK(m_cs_maps);
-        if (mapQuorumsCache.get(llmqType, quorumHash, pQuorum)) {
+        if (m_view_caches.For(view).mapQuorumsCache.get(llmqType, quorumHash, pQuorum)) {
             return pQuorum;
         }
     }
@@ -505,7 +517,8 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType,
     }
 
     CQuorumPtr pQuorum;
-    if (LOCK(m_cs_maps); mapQuorumsCache.get(llmqType, quorumHash, pQuorum)) {
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    if (LOCK(m_cs_maps); m_view_caches.For(view).mapQuorumsCache.get(llmqType, quorumHash, pQuorum)) {
         return pQuorum;
     }
 
@@ -566,8 +579,9 @@ CQuorumManager::DataResponseValidation CQuorumManager::ValidateDataResponse(
 CQuorumPtr CQuorumManager::GetCachedMutableQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
     CQuorumPtr pQuorum;
+    const EvoViewToken view{m_evoDb.CurrentView()};
     LOCK(m_cs_maps);
-    mapQuorumsCache.get(llmqType, quorumHash, pQuorum);
+    m_view_caches.For(view).mapQuorumsCache.get(llmqType, quorumHash, pQuorum);
     return pQuorum;
 }
 
