@@ -15,6 +15,7 @@
 #include <util/result.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -251,6 +252,8 @@ public:
 
     //! The innermost token this thread bound for `db`, if any.
     static const EvoViewToken* Innermost(const CEvoDB& db);
+    //! The innermost token this thread bound for any CEvoDB, if any.
+    static std::optional<EvoViewToken> InnermostAny();
 
 private:
     const EvoViewToken m_token;
@@ -318,6 +321,7 @@ private:
     const TransactionContext& GetContext(EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(cs);
     EvoDbIdentity GetCurrentIdentity() const EXCLUSIVE_LOCKS_REQUIRED(cs) { return ResolveView().identity; }
     EvoViewToken MakeView(EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool IsLiveLocked(const EvoViewToken& view) const EXCLUSIVE_LOCKS_REQUIRED(cs);
     EvoViewToken ResolveView() const EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool HoldsTransaction() const EXCLUSIVE_LOCKS_REQUIRED(cs)
     {
@@ -342,6 +346,30 @@ public:
     {
         LOCK(cs);
         return HoldsTransaction();
+    }
+
+    //! Changes whenever cached Evo-derived state of any view may have gone
+    //! stale: a CEvoDB was opened, or a snapshot generation was rejected or
+    //! promoted. EvoViewCache drops every partition when it changes.
+    static uint64_t ViewCacheEpoch() { return g_view_cache_epoch.load(); }
+    //! Run `f(ViewCacheEpoch())` if `view` is a live view of this CEvoDB (NORMAL,
+    //! or the snapshot generation bound now, published or not), and return
+    //! whether it ran. A snapshot view is checked and `f` run under the lock
+    //! that retires generations, so this CEvoDB cannot retire the generation
+    //! before `f` returns. `f` must not call back into this CEvoDB.
+    template <typename F>
+    bool WithLiveView(const EvoViewToken& view, F&& f) const EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        if (view.db != this) return false;
+        // NORMAL never retires, so its views need no lock.
+        if (view.identity == EvoDbIdentity::NORMAL) {
+            f(g_view_cache_epoch.load());
+            return true;
+        }
+        LOCK(cs);
+        if (!IsLiveLocked(view)) return false;
+        f(g_view_cache_epoch.load());
+        return true;
     }
 
     //! The view this thread's Evo accesses resolve to: its open transaction,
@@ -560,6 +588,8 @@ private:
     std::vector<uint32_t> RejectedGenerations() const EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool MergeGeneration(EvoPromotionJournal& journal) EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool DiscardBoundGeneration() EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    static inline std::atomic<uint64_t> g_view_cache_epoch{0};
 
     //! The live generation the SNAPSHOT identity reads and writes.
     std::optional<EvoGenerationRecord> m_snapshot_generation GUARDED_BY(cs);

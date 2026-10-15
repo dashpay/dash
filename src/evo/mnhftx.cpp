@@ -49,6 +49,7 @@ CMNHFManager::CMNHFManager(CEvoDB& evoDb, const Consensus::Params& consensus_par
     m_evoDb(evoDb),
     m_consensus_params{consensus_params}
 {
+    mnhfCache.SetOwner(evoDb);
     assert(globalInstance == nullptr);
     globalInstance = this;
 }
@@ -340,54 +341,62 @@ std::optional<CMNHFManager::Signals> CMNHFManager::GetFromCache(const CBlockInde
 
 
     const uint256& blockHash = pindex->GetBlockHash();
-    {
-        LOCK(cs_cache);
-        if (mnhfCache.get(blockHash, signals)) {
-            return signals;
-        }
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    if (WITH_LOCK(cs_cache, return mnhfCache.For(view).get(blockHash, signals))) {
+        MaybePersist(signals, pindex);
+        return signals;
     }
     {
         LOCK(cs_cache);
         if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) {
-            mnhfCache.insert(blockHash, signals);
+            mnhfCache.For(view).insert(blockHash, signals);
             return signals;
         }
     }
     if (m_evoDb.Read(std::make_pair(DB_SIGNALS_v2, blockHash), signals)) {
         LOCK(cs_cache);
-        mnhfCache.insert(blockHash, signals);
+        mnhfCache.For(view).insert(blockHash, signals);
         return signals;
     }
     if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_MN_RR)) {
         // before mn_rr activation we are safe
         if (m_evoDb.Read(std::make_pair(DB_SIGNALS, blockHash), signals)) {
             LOCK(cs_cache);
-            mnhfCache.insert(blockHash, signals);
+            mnhfCache.For(view).insert(blockHash, signals);
             return signals;
         }
     }
     return std::nullopt;
 }
 
-void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const pindex)
+void CMNHFManager::MaybePersist(const Signals& signals, const CBlockIndex* const pindex)
 {
-    assert(pindex != nullptr);
-    const uint256& blockHash = pindex->GetBlockHash();
-    if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20) &&
-        !m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, blockHash), signals)) {
+    // Outside a block-scoped transaction (mempool acceptance, mining, RPC) a
+    // write would never be committed and trip the clean-transaction assertion
+    // at the next root commit. The signals stay cached; GetFromCache persists
+    // them from the next transaction-scoped lookup.
+    if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20) || !m_evoDb.HasActiveTransaction()) {
+        return;
+    }
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, pindex->GetBlockHash()), signals)) {
         // A mismatch is local EvoDB corruption, not a statement about the
         // block. Abort here: some callers (miner, RPC) never pass through a
         // validation-state catch, and the block-connect catches must not
         // translate this into a consensus rejection.
-        const std::string msg = strprintf("CMNHFManager::%s -- EvoDB MNHF state mismatch for block %s",
-                                          __func__, blockHash.ToString());
+        const std::string msg = strprintf("CMNHFManager::%s -- EvoDB MNHF state mismatch for block %s", __func__,
+                                          pindex->GetBlockHash().ToString());
         AbortNode(msg);
         throw EvoDbInconsistencyError(msg);
     }
-    {
-        LOCK(cs_cache);
-        mnhfCache.insert(blockHash, signals);
-    }
+}
+
+void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const pindex)
+{
+    assert(pindex != nullptr);
+    MaybePersist(signals, pindex);
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    LOCK(cs_cache);
+    mnhfCache.For(view).insert(pindex->GetBlockHash(), signals);
 }
 
 bool CMNHFManager::ForceSignalDBUpdate(const CBlockIndex* tip)

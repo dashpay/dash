@@ -9,6 +9,7 @@
 #include <evo/dmnstate.h>
 #include <evo/snapshot_types.h>
 #include <evo/types.h>
+#include <evo/viewcache.h>
 
 #include <arith_uint256.h>
 #include <clientversion.h>
@@ -22,6 +23,7 @@
 #include <immer/map.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
@@ -764,10 +766,22 @@ private:
     CEvoDB& m_evoDb;
     CMasternodeMetaMan& m_mn_metaman;
 
-    Uint256HashMap<CDeterministicMNList> mnListsCache GUARDED_BY(cs);
-    Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache GUARDED_BY(cs);
-    const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
-    const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
+    //! Lists and diffs derived under one Evo view, with the view's own tip and
+    //! initial-snapshot anchor.
+    struct ViewState {
+        Uint256HashMap<CDeterministicMNList> mnListsCache;
+        Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache;
+        const CBlockIndex* tipIndex{nullptr};
+        const CBlockIndex* m_initial_snapshot_index{nullptr};
+        //! Highest block this view connected. Bounds the cache of a view that
+        //! is not active, and so never learns a tip from UpdatedBlockTip.
+        int processed_height{-1};
+    };
+    EvoViewCache<ViewState> m_views GUARDED_BY(cs);
+    std::function<void(const CBlockIndex*)> m_list_snapshot_miss_hook GUARDED_BY(cs);
+
+    //! The partition of the calling operation's Evo view.
+    ViewState& View() EXCLUSIVE_LOCKS_REQUIRED(cs) { return m_views.For(m_evoDb.CurrentView()); }
 
 public:
     CDeterministicMNManager() = delete;
@@ -785,14 +799,35 @@ public:
 
     CDeterministicMNList GetListForBlock(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs) {
         LOCK(cs);
-        return GetListForBlockInternal(pindex);
+        return GetListForBlockInternal(pindex, View());
     };
     CDeterministicMNList GetListAtChainTip() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! The EvoDB this manager reads, for callers that bind an Evo view.
+    const CEvoDB& EvoDb() const { return m_evoDb; }
 
     void SetListForBlockForTesting(const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         LOCK(cs);
-        mnListsCache.insert_or_assign(list.GetBlockHash(), list);
+        View().mnListsCache.insert_or_assign(list.GetBlockHash(), list);
+    }
+
+    /** Test-only hook invoked whenever a list lookup misses both the cache and
+     *  the stored full lists, before diff-chain reconstruction. */
+    void SetListSnapshotMissHookForTesting(std::function<void(const CBlockIndex*)> hook) EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        m_list_snapshot_miss_hook = std::move(hook);
+    }
+
+    //! Heights of the lists cached for the current view.
+    std::vector<int> CachedListHeightsForTesting() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        std::vector<int> heights;
+        for (const auto& [_, list] : View().mnListsCache) {
+            heights.push_back(list.GetHeight());
+        }
+        return heights;
     }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
@@ -830,8 +865,9 @@ public:
     [[nodiscard]] bool MigrateLegacyDiffs(const CBlockIndex* const tip_index) EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
 
 private:
-    void CleanupCache(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    static void CleanupCache(ViewState& view, int nHeight);
+    CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex, ViewState& view)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     // Helper methods for RecalculateAndRepairDiffs
     static std::vector<const CBlockIndex*> CollectSnapshotBlocks(const CBlockIndex* start_index,

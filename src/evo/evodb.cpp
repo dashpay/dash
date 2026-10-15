@@ -88,6 +88,7 @@ CEvoDB::CEvoDB(const util::DbWrapperParams& db_params) :
     db{util::MakeDbWrapper({db_params.path / "evodb", db_params.memory, db_params.wipe, /*cache_size=*/64 << 20, db_params.options})}
 {
     transaction_contexts.emplace(EvoDbIdentity::NORMAL, std::make_unique<TransactionContext>(*db, DataStream{}));
+    ++g_view_cache_epoch;
 }
 
 CEvoDB::~CEvoDB() = default;
@@ -138,6 +139,19 @@ const EvoViewToken* EvoViewScope::Innermost(const CEvoDB& db)
         if (scope->m_token.db == &db) return &scope->m_token;
     }
     return nullptr;
+}
+
+std::optional<EvoViewToken> EvoViewScope::InnermostAny()
+{
+    if (g_innermost_scope == nullptr) return std::nullopt;
+    return g_innermost_scope->m_token;
+}
+
+bool CEvoDB::IsLiveLocked(const EvoViewToken& view) const
+{
+    if (view.db != this) return false;
+    if (view.identity == EvoDbIdentity::NORMAL) return true;
+    return m_snapshot_generation && MakeView(EvoDbIdentity::SNAPSHOT) == view;
 }
 
 EvoViewToken CEvoDB::MakeView(EvoDbIdentity identity) const
@@ -507,6 +521,7 @@ bool CEvoDB::DiscardBoundGeneration()
     // still finish the invalidation.
     if (!db->WriteBatch(batch, /*fSync=*/true)) return false;
     BindSnapshotGeneration(std::nullopt);
+    ++g_view_cache_epoch;
     return true;
 }
 
@@ -669,5 +684,6 @@ bool CEvoDB::PromoteSnapshotMarkers(const uint256& expected_snapshot_tip)
     // The dual-chainstate run is over: the promoted state is the NORMAL
     // identity, so transaction-less access must resolve there again.
     m_default_identity = EvoDbIdentity::NORMAL;
+    ++g_view_cache_epoch;
     return true;
 }

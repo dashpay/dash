@@ -4,12 +4,16 @@
 
 #include <arith_uint256.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_types.h>
+#include <evo/viewcache.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 
 #include <boost/test/unit_test.hpp>
 
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -389,6 +393,45 @@ BOOST_AUTO_TEST_CASE(view_scopes_nest_and_bind_transactions)
     EvoViewScope other_scope{other.ViewFor(EvoDbIdentity::SNAPSHOT)};
     BOOST_CHECK(db.CurrentView() == normal);
     BOOST_CHECK(other.CurrentView() == other.ViewFor(EvoDbIdentity::SNAPSHOT));
+
+    // A cache of state derived from one CEvoDB serves only that CEvoDB's live
+    // views: neither another CEvoDB's view nor a retained token of a retired
+    // generation gets a partition.
+    EvoViewCache<int> cache;
+    cache.SetOwner(db);
+    cache.For(normal) = 1;
+    cache.For(snapshot) = 2;
+    BOOST_CHECK_THROW(cache.For(other.ViewFor(EvoDbIdentity::NORMAL)), EvoViewBindingError);
+    BOOST_REQUIRE(db.AbandonSnapshotGeneration());
+    BOOST_CHECK_THROW(cache.For(snapshot), EvoViewBindingError);
+    // With no generation bound the snapshot identity names no view at all.
+    BOOST_CHECK_THROW(cache.For(db.ViewFor(EvoDbIdentity::SNAPSHOT)), EvoViewBindingError);
+    BOOST_CHECK_EQUAL(cache.For(normal), 0);
+}
+
+BOOST_AUTO_TEST_CASE(view_cache_lookup_excludes_retirement)
+{
+    CEvoDB db{
+        util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_cache_retirement", .memory = true, .wipe = true}};
+    PublishGeneration(db);
+    const EvoViewToken snapshot{db.ViewFor(EvoDbIdentity::SNAPSHOT)};
+
+    // A generation cannot retire between a cache's liveness check and its
+    // partition lookup: a retirement started meanwhile waits for the lookup,
+    // and the view is refused once it completes.
+    std::atomic<bool> discarded{false};
+    std::thread discard;
+    EvoViewCache<int> cache{[&] {
+        discard = std::thread{[&] { discarded = db.DiscardSnapshotMarkers(); }};
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        BOOST_CHECK(!discarded);
+        return 1;
+    }};
+    cache.SetOwner(db);
+    BOOST_CHECK_EQUAL(cache.For(snapshot), 1);
+    discard.join();
+    BOOST_CHECK(discarded);
+    BOOST_CHECK_THROW(cache.For(snapshot), EvoViewBindingError);
 }
 
 BOOST_AUTO_TEST_CASE(snapshot_markers_can_be_discarded)
