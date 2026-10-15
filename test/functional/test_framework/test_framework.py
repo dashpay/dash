@@ -129,8 +129,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         # Poll sync_blocks(), sync_mempools(), wait_for_quorum_phase() and friends every 0.1s instead of
         # every 1s / 0.5s. They wait for the same condition either way and only notice sooner that it holds.
         # Opting in ALSO makes mine_quorum() and mine_cycle_quorum() wait for the DKG relay connections and
-        # for every sent DKG message before mining the next phase, because the faster polling otherwise
-        # races ahead of them. Those waits time out under `quorum dkgsimerror`, so tests that inject DKG
+        # for every sent DKG message before mining the next phase, and to wait for every llmq type to finalize
+        # before mining the final commitments, because the faster polling otherwise races ahead of them. Those waits time out under `quorum dkgsimerror`, so tests that inject DKG
         # errors must not opt in.
         self.fast_sync_polling = False
         self.rpc_timeout = 60  # Wait for up to 60 seconds for the RPC server to respond
@@ -2335,6 +2335,25 @@ class DashTestFramework(BitcoinTestFramework):
             self.log.error(f"DKG messages of phase {phase} still missing (llmqType, quorumIndex, reason, member): {lagging}")
             raise
 
+    def wait_for_dkg_finalization(self, quorum_hash, mninfos, timeout=30):
+        """Wait until every DKG session based on quorum_hash, of any llmq type, is in phase 6 on each member of
+        mninfos that runs it. A member reports phase 6 only after FinalizeCommitments() has made its final
+        commitments mineable, so a type the caller does not wait for cannot be mined as a null commitment because
+        its commitment was still being built. Aborted sessions are skipped."""
+        def check_finalized():
+            reports = {}
+            for mn in mninfos:
+                for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]:
+                    status = qs["status"]
+                    if status["quorumHash"] != quorum_hash:
+                        continue
+                    reports.setdefault((qs["llmqType"], qs["quorumIndex"]), (set(), status["allMembers"]))[0].add(mn.proTxHash)
+                    if not status["aborted"] and status["phase"] != 6:
+                        return False
+            return not self.dkg_unreported_members(mninfos, reports)
+
+        self.wait_until(check_finalized, timeout=timeout)
+
     def node_quorum_commitment_types(self, node, quorum_hash):
         s = node.quorum("dkgstatus")
         return {c["llmqType"] for c in s.get("minableCommitments", [])
@@ -2482,6 +2501,8 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_finalization(q, mninfos_online)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type)
@@ -2705,6 +2726,11 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.log.info("quorumIndex 1: Waiting for phase 6 (finalization)")
         self.wait_for_quorum_phase(q_1, 6, expected_members, None, 0, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_finalization(q_0, mninfos_online)
+            self.wait_for_dkg_finalization(q_1, mninfos_online)
+            self.wait_for_quorum_commitments_on_miner(q_0, mninfos_online)
+            self.wait_for_quorum_commitments_on_miner(q_1, mninfos_online)
         self.log.info("Mining final commitments")
         self.bump_mocktime(1)
         self.nodes[0].getblocktemplate() # this calls CreateNewBlock
