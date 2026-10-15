@@ -17,6 +17,7 @@
 #include <llmq/signing.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
+#include <spork.h>
 #include <streams.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
@@ -28,6 +29,44 @@
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(evo_islock_tests)
+
+BOOST_FIXTURE_TEST_CASE(chainlocked_conflict_overrides_confirmed_locks, TestChain100Setup)
+{
+    constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
+    BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+    BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 0).has_value());
+
+    // Confirming a lock keeps it only in the db caches; a ChainLocked transaction that later
+    // overrides such locks must leave neither a conflict nor their transactions reported as locked
+    auto& isman = *m_node.isman;
+    CMutableTransaction conflict;
+    conflict.vin.emplace_back(COutPoint{GetRandHash(), 0});
+    conflict.vin.emplace_back(COutPoint{GetRandHash(), 1});
+    conflict.vout.emplace_back(COIN, CScript{});
+    const CTransaction conflict_tx{conflict};
+
+    const auto* tip = WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Tip());
+    std::vector<uint256> locked_txids;
+    for (const auto& in : conflict_tx.vin) {
+        auto islock = std::make_shared<instantsend::InstantSendLock>();
+        islock->txid = GetRandHash();
+        islock->inputs.push_back(in.prevout);
+        isman.WriteNewISLock(::SerializeHash(*islock), islock, tip->nHeight);
+        locked_txids.push_back(islock->txid);
+    }
+    isman.RemoveConfirmedInstantSendLocks(tip);
+    for (const auto& txid : locked_txids) {
+        BOOST_REQUIRE(isman.IsLocked(txid));
+    }
+    BOOST_REQUIRE(isman.ConflictingISLockIfAny(conflict_tx));
+
+    isman.RemoveConflictingISLocksByTx(conflict_tx);
+    BOOST_CHECK(!isman.ConflictingISLockIfAny(conflict_tx));
+    for (const auto& txid : locked_txids) {
+        BOOST_CHECK(!isman.IsLocked(txid));
+    }
+}
 
 uint256 CalculateRequestId(const std::vector<COutPoint>& inputs)
 {
