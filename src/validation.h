@@ -50,6 +50,9 @@
 class Chainstate;
 class CChainParams;
 class CEvoDB;
+namespace evo {
+struct EvoSnapshotCapturePlan;
+} // namespace evo
 class CTxMemPool;
 class TxValidationState;
 class CSpecialTxProcessor;
@@ -715,6 +718,11 @@ public:
      *  the snapshot base block. No-op on any other block or chainstate, so
      *  ordinary block connection never pays for hashing the full list. */
     void RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDeterministicMNList& mn_list);
+    /** Record what the background chainstate's connection of `block` gives
+     *  the snapshot's body-derived evo inputs. No-op on any other chainstate
+     *  or block. */
+    bool CaptureSnapshotInputs(const CBlock& block, const CBlockIndex* pindex, BlockValidationState& state)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Prune blockfiles from the disk if necessary and then flush chainstate changes
     //! if we pruned.
@@ -914,8 +922,8 @@ enum class SnapshotCompletionResult {
     // converge at the snapshot base block.
     EVO_STATE_MISMATCH,
 
-    // The background chainstate cannot compare the evo section yet, so the
-    // snapshot is neither validated nor rejected.
+    // The background chainstate lacks data it needs to rebuild the evo
+    // section, so the snapshot is neither validated nor rejected yet.
     EVO_DATA_UNAVAILABLE,
 };
 
@@ -1165,12 +1173,27 @@ public:
     //! coins caches. This will be split somehow across chainstates.
     int64_t m_total_coinstip_cache{0};
 
+private:
+    std::unique_ptr<evo::EvoSnapshotCapturePlan> m_evo_capture_plan GUARDED_BY(::cs_main);
+    bool m_evo_capture_plan_loaded GUARDED_BY(::cs_main){false};
+
+public:
     //! Make snapshot activation stop right before it publishes the seeded Evo
     //! generation, without cleaning up, as if the process died there.
     bool m_stop_before_evo_publication_for_testing{false};
     //! Likewise, right after publication, before the snapshot directory
     //! records its base block.
     bool m_stop_after_evo_publication_for_testing{false};
+
+    //! The body-derived inputs of the live snapshot's evo section, from the
+    //! retained section; null without one, or while its base is unknown.
+    const evo::EvoSnapshotCapturePlan* EvoCapturePlan() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Keep the bodies of the snapshot base and of every block above the
+    //! background chainstate's tip, whose evo inputs it has yet to capture.
+    void UpdateSnapshotPruneLock() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void ReleaseSnapshotPruneLock() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Erase the evo inputs captured for the snapshot and drop their plan.
+    void ForgetEvoCaptures() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     //
     //! The total number of bytes available for us to use across all leveldb
     //! coins databases. This will be split somehow across chainstates.
