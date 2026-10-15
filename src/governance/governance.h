@@ -61,6 +61,58 @@ inline bool operator<(const OrphanVote& lhs, const OrphanVote& rhs)
 {
     return lhs.vote < rhs.vote;
 }
+
+// Orphan votes are not scarce: one masternode key can sign any number of votes naming parents that
+// do not exist. Each masternode is therefore limited to its own share of the cache, and the cache as
+// a whole holds about 40 MB at most (roughly 800 bytes per entry). Filling it takes the keys of 500
+// masternodes, because only recently signed votes are held (see ProcessVote).
+static constexpr size_t MAX_ORPHAN_VOTES{50'000};
+static constexpr size_t MAX_ORPHAN_VOTES_PER_MN{100};
+
+/** Votes waiting for their parent object, keyed by parent hash, with the oldest evicted once the
+ *  cache is full and each masternode limited to a share of it. */
+class OrphanVoteCache
+{
+public:
+    explicit OrphanVoteCache(size_t max_total, size_t max_per_mn);
+
+    /** Returns whether the vote is held, either newly or because it already was. A new vote is
+     *  dropped if its masternode already holds max_per_mn orphan votes. */
+    [[nodiscard]] bool Insert(const uint256& parent_hash, const OrphanVote& orphan_vote);
+    void Erase(const uint256& parent_hash, const OrphanVote& orphan_vote);
+    void EraseExpired(NodeSeconds now);
+    void GetAll(const uint256& parent_hash, std::vector<OrphanVote>& orphan_votes);
+    void Clear();
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        s << m_cache;
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        // Re-insert rather than adopt the stored cache: the file carries the capacity of whichever
+        // version wrote it, and not the per-masternode counts. Oldest first, to keep the order.
+        // Skip expired entries, which earlier versions kept while unsynced, so they cannot take up a
+        // masternode's share ahead of its live votes.
+        CacheMultiMap<uint256, OrphanVote> stored;
+        s >> stored;
+        Clear();
+        const auto now{Now<NodeSeconds>()};
+        const auto& items = stored.GetItemList();
+        for (auto it = items.rbegin(); it != items.rend(); ++it) {
+            if (it->value.expiration < now) continue;
+            (void)Insert(it->key, it->value);
+        }
+    }
+
+private:
+    const size_t m_max_per_mn;
+    CacheMultiMap<uint256, OrphanVote> m_cache;
+    std::map<COutPoint, size_t> m_count_per_mn;
+};
 } // namespace governance
 
 static constexpr int RATE_BUFFER_SIZE = 5;
@@ -176,7 +228,6 @@ protected:
     };
 
     using txout_m_t = std::map<COutPoint, last_object_rec>;
-    using vote_cmm_t = CacheMultiMap<uint256, governance::OrphanVote>;
 
 protected:
     static constexpr int MAX_CACHE_SIZE = 1000000;
@@ -192,7 +243,7 @@ protected:
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
     std::map<uint256, int64_t> mapErasedGovernanceObjects GUARDED_BY(cs_store);
-    vote_cmm_t cmmapOrphanVotes GUARDED_BY(cs_store);
+    governance::OrphanVoteCache m_orphan_votes GUARDED_BY(cs_store);
     txout_m_t mapLastMasternodeObject GUARDED_BY(cs_store);
     // used to check for changed voting keys
     std::shared_ptr<CDeterministicMNList> lastMNListForVotingKeys GUARDED_BY(cs_store);
@@ -207,7 +258,7 @@ public:
         LOCK(cs_store);
         s   << SERIALIZATION_VERSION_STRING
             << mapErasedGovernanceObjects
-            << cmmapOrphanVotes
+            << m_orphan_votes
             << mapObjects
             << mapLastMasternodeObject
             << *lastMNListForVotingKeys;
@@ -226,7 +277,7 @@ public:
         }
 
         s   >> mapErasedGovernanceObjects
-            >> cmmapOrphanVotes
+            >> m_orphan_votes
             >> mapObjects
             >> mapLastMasternodeObject
             >> *lastMNListForVotingKeys;
@@ -378,7 +429,8 @@ public:
 
     CDeterministicMNManager& GetMNManager();
     /** Process a governance vote. Returns true on success.
-     *  If the vote is for an unknown object (orphan), hashToRequest is set to the object hash. */
+     *  If the vote is for an unknown object (orphan) and is held until that object arrives,
+     *  hashToRequest is set to the object hash. */
     bool ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception, uint256& hashToRequest)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
