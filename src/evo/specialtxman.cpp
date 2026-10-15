@@ -15,6 +15,7 @@
 #include <evo/netinfo.h>
 #include <evo/sharedcollateral.h>
 #include <evo/simplifiedmns.h>
+#include <evo/snapshot.h>
 #include <evo/snapshot_types.h>
 #include <evo/viewcache.h>
 #include <llmq/blockprocessor.h>
@@ -911,9 +912,17 @@ bool CMNListBuilder::Finish(const CBlock& block, BlockValidationState& state, CD
                                            mnListRet);
 }
 
+uint256 CanonicalDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNList& list)
+{
+    if (list.GetBlockHash().IsNull()) {
+        return evo::CanonicalMNListHash(CDeterministicMNList{pindex->GetBlockHash(), pindex->nHeight, 0});
+    }
+    return evo::CanonicalMNListHash(list);
+}
+
 uint256 CSpecialTxProcessor::GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const
 {
-    return SerializeHash(m_dmnman.GetListForBlock(pindex));
+    return CanonicalDeterministicMNListHash(pindex, m_dmnman.GetListForBlock(pindex));
 }
 
 void CSpecialTxProcessor::UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex) { m_dmnman.UpdatedBlockTip(pindex); }

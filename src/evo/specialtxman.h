@@ -112,6 +112,9 @@ public:
 
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const;
+    CDeterministicMNManager& DeterministicMNManager() { return m_dmnman; }
+    llmq::CQuorumBlockProcessor& QuorumBlockProcessor() { return m_qblockman; }
+    llmq::CQuorumSnapshotManager& QuorumSnapshotManager() { return m_qsnapman; }
 
     /** Passthrough to CDeterministicMNManager::UpdatedBlockTip */
     void UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex);
@@ -137,6 +140,10 @@ private:
     bool CheckCreditPoolDiffForBlock(const CBlock& block, const CBlockIndex* pindex, const CCbTx& cbTx,
                                      CAmount blockSubsidy, BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
+
+/** Canonical hash of a block's deterministic MN list. An unbound list (none is
+ *  built before DIP3) hashes as the empty list bound to the block. */
+uint256 CanonicalDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNList& list);
 
 /**
  * Builds the masternode list for a block one transaction at a time, with the same result as

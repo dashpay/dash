@@ -20,6 +20,7 @@
 #include <shutdown.h>
 #include <stats/client.h>
 #include <uint256.h>
+#include <util/check.h>
 #include <util/helpers.h>
 
 #include <immer/algorithm.hpp>
@@ -679,6 +680,17 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaM
 
 CDeterministicMNManager::~CDeterministicMNManager() = default;
 
+bool CDeterministicMNManager::SeedListForBlock(const EvoViewToken& view, const CDeterministicMNList& list)
+{
+    if (!Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_LIST_SNAPSHOT, list.GetBlockHash()), list)) return false;
+    LOCK(cs);
+    View().mnListsCache.erase(list.GetBlockHash());
+    View().mnListDiffsCache.erase(list.GetBlockHash());
+    return true;
+}
+
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex,
                                            BlockValidationState& state, const CDeterministicMNList& oldList,
                                            const CDeterministicMNList& newList, MNListUpdates& updatesRet)
@@ -856,6 +868,15 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
             break;
         }
         if (m_list_snapshot_miss_hook) m_list_snapshot_miss_hook(pindex);
+        // At or below a snapshot base the snapshot view carries full lists
+        // only. A missing one is outside the carried set: never reconstruct it
+        // from diffs that do not exist there, and never guess an empty list.
+        if (const EvoViewToken current{m_evoDb.CurrentView()};
+            current.identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= current.base_height) {
+            throw BlockDataUnavailableError(strprintf("CDeterministicMNManager::%s -- masternode list for block %s %s",
+                                                      __func__, pindex->GetBlockHash().ToString(),
+                                                      BLOCK_DATA_UNAVAILABLE_SUFFIX));
+        }
 
         // no snapshot found yet, check diffs
         auto itDiffs = view.mnListDiffsCache.find(pindex->GetBlockHash());

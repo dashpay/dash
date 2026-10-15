@@ -9,6 +9,7 @@
 #include <crypto/common.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
+#include <kernel/cs_main.h>
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 #include <llmq/snapshot.h>
@@ -30,16 +31,27 @@
 #include <tuple>
 #include <vector>
 
+class CBlockIndex;
+class CChainParams;
+class ChainstateManager;
 class CCbTx;
+class CCreditPoolManager;
+class CMNHFManager;
+struct EvoViewToken;
+
+namespace llmq {
+class CQuorumBlockProcessor;
+class CQuorumSnapshotManager;
+} // namespace llmq
+namespace node {
+class BlockManager;
+} // namespace node
 
 namespace evo {
 
-static constexpr uint16_t EVO_SNAPSHOT_VERSION{3};
+static constexpr uint16_t EVO_SNAPSHOT_VERSION{4};
 /** Serialized little-endian bytes are "DASHEVO\0". */
 static constexpr uint64_t EVO_SNAPSHOT_MARKER{0x004f564548534144ULL};
-// ComputeQuorumMembersByQuarterRotation consumes H-C, H-2C and H-3C. To
-// reconstruct both H and the safety cycle H-C, the union is H-C..H-4C.
-static constexpr size_t EVO_SNAPSHOT_ROTATION_CYCLES{4};
 // A hard allocation bound, not a network population target. 100,000 full MN
 // records is already far beyond today's list while limiting hostile snapshots
 // to a tractable decode. Changes above this require a format-version review.
@@ -55,7 +67,6 @@ static constexpr size_t EVO_SNAPSHOT_MAX_PAYOUT_SHARES{8};
 // each MN a cumulative budget so nested counts cannot multiply decode work.
 // This comfortably covers protocol-valid scripts and network information.
 static constexpr size_t EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS{10'000};
-static constexpr size_t EVO_SNAPSHOT_MAX_MODIFIERS{4'096};
 // A cycle's skip list accumulates across every quorum index and the build can
 // wrap the combined MN list more than once, so a single quorum's size does not
 // bound its legitimate length. This is a decode ceiling on claimed sizes only,
@@ -76,15 +87,65 @@ static constexpr size_t EVO_SNAPSHOT_MAX_QUORUM_SIZE{10'000};
 static constexpr size_t EVO_SNAPSHOT_MAX_HASH_PREFIX_RUN{8};
 // Every historical entry costs a full traversal, sort, and canonical hash of
 // the reconstructed list, so a few hundred bytes of zero-operation diffs could
-// otherwise drag a maximum-size list across the whole table-wide history
-// horizon (~19M record visits). The horizon that sums every table entry is
-// unreachable on a real chain: no network enables more than a fraction of the
-// LLMQ table at once, so even a ceiling-sized list on a fully loaded mainnet
-// configuration stays well below half of this cumulative record budget.
+// otherwise drag a maximum-size list across every planned work block: the
+// table-wide bound is 436 lists (330 for the mainnet table), ~44M record visits
+// at the 100,000-MN ceiling, so this budget refuses such inputs. An honest base
+// plans only the work blocks its commitments and h/N name: tens of lists at
+// today's populations of a few thousand MNs, and even the worst case of every
+// LLMQ_60_75 index failing its DKG in a different cycle (262 lists) stays below
+// a million visits at 3,000 MNs.
 static constexpr size_t EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS{8'000'000};
+// At most two bootstrap work entries per type: the cycle containing the base
+// and the next one.
+static constexpr size_t EVO_SNAPSHOT_MAX_BOOTSTRAP_WORK{2};
 static_assert(std::ranges::all_of(Consensus::available_llmqs, [](const auto& params) {
     return !params.useRotation || params.keepOldConnections <= 2 * params.signingActiveQuorumCount;
 }), "rotated LLMQ retention exceeds the two serialized cycles");
+// Bootstrap work entries are ordered by cycle height, and a cycle's work block
+// precedes it. Both need every cycle to be longer than the work depth.
+static_assert(std::ranges::all_of(Consensus::available_llmqs,
+                                  [](const auto& params) { return params.dkgInterval > llmq::WORK_DIFF_DEPTH; }),
+              "an LLMQ cycle must be longer than the quorum work depth");
+
+/** Commitments carried for one type: max(a + 1, keepOld) without rotation, 2a with it. */
+constexpr size_t SnapshotCommitmentCountFor(const Consensus::LLMQParams& params, bool rotation_enabled)
+{
+    return rotation_enabled
+               ? 2 * static_cast<size_t>(params.signingActiveQuorumCount)
+               : static_cast<size_t>(std::max(params.signingActiveQuorumCount + 1, params.keepOldConnections));
+}
+
+/** Rotation quarters a rotating type can need: three per commitment cycle, plus h..h-3C. */
+constexpr size_t EvoSnapshotMaxRotationSnapshots(const Consensus::LLMQParams& params)
+{
+    return 3 * SnapshotCommitmentCountFor(params, /*rotation_enabled=*/true) + 4;
+}
+
+/** Work blocks one type can need, over every mode the type can run in. */
+constexpr size_t EvoSnapshotMaxWorkBlocks(const Consensus::LLMQParams& params)
+{
+    const size_t plain{SnapshotCommitmentCountFor(params, /*rotation_enabled=*/false) + 2};
+    if (!params.useRotation) return plain;
+    return std::max(plain, 4 * SnapshotCommitmentCountFor(params, /*rotation_enabled=*/true) + 6);
+}
+
+/**
+ * Maximum number of distinct historical work-block lists a snapshot can need.
+ * The serialized set is deduplicated, so summing every type's bound over the
+ * static table is conservative.
+ */
+constexpr size_t EvoSnapshotMaxHistoricalMNLists()
+{
+    size_t count{0};
+    for (const auto& params : Consensus::available_llmqs)
+        count += EvoSnapshotMaxWorkBlocks(params);
+    return count;
+}
+static constexpr size_t EVO_SNAPSHOT_MAX_MODIFIERS{4'096};
+// Modifiers are one per (type, work block), so they number at most the sum of
+// the per-type work-block bounds.
+static_assert(EvoSnapshotMaxHistoricalMNLists() <= EVO_SNAPSHOT_MAX_MODIFIERS,
+              "one modifier per (type, work block) must fit the modifier bound");
 
 template <typename Stream>
 size_t ReadBoundedCompactSize(Stream& s, size_t limit, const char* field)
@@ -111,32 +172,12 @@ inline const Consensus::LLMQParams& SnapshotLLMQParams(Consensus::LLMQType type)
 
 inline size_t SnapshotCommitmentCount(const Consensus::LLMQParams& params, bool rotation_enabled)
 {
-    if (!rotation_enabled) {
-        return static_cast<size_t>(std::max(params.signingActiveQuorumCount + 1, params.keepOldConnections));
-    }
-    const size_t active{static_cast<size_t>(params.signingActiveQuorumCount)};
-    const size_t retained{static_cast<size_t>(params.keepOldConnections)};
     // Rotation seeding promises the active and previous complete cycles. A
     // future parameter set retaining more must extend the serialized cycles.
-    if (retained > 2 * active) throw std::ios_base::failure("rotated LLMQ retention exceeds two cycles");
-    return 2 * active;
-}
-
-/**
- * Maximum number of distinct historical work-block lists a snapshot can need.
- * The serialized set is deduplicated, so summing every enabled-type horizon is
- * conservative: two retained commitment cycles plus H-C..H-4C for rotated
- * types, or the retained commitment horizon for non-rotated types.
- */
-inline size_t EvoSnapshotMaxHistoricalMNLists()
-{
-    size_t count{0};
-    for (const auto& params : Consensus::available_llmqs) {
-        count += params.useRotation
-                     ? SnapshotCommitmentCount(params, /*rotation_enabled=*/true) + EVO_SNAPSHOT_ROTATION_CYCLES
-                     : SnapshotCommitmentCount(params, /*rotation_enabled=*/false);
+    if (rotation_enabled && params.keepOldConnections > 2 * params.signingActiveQuorumCount) {
+        throw std::ios_base::failure("rotated LLMQ retention exceeds two cycles");
     }
-    return count;
+    return SnapshotCommitmentCountFor(params, rotation_enabled);
 }
 
 /**
@@ -476,12 +517,27 @@ struct QuorumModifier {
     SERIALIZE_METHODS(QuorumModifier, obj) { READWRITE(obj.llmq_type, obj.work_block_hash, obj.modifier); }
 };
 
+/**
+ * A work block the snapshot carries for the cycle containing the base (h) or
+ * the next one (N) that no carried commitment or rotation quarter references.
+ * The cycle need not be mined: only its height and the work block are named.
+ */
+struct BootstrapWork {
+    int32_t cycle_base_height{-1};
+    uint256 work_block_hash;
+
+    bool operator==(const BootstrapWork&) const = default;
+    SERIALIZE_METHODS(BootstrapWork, obj) { READWRITE(obj.cycle_base_height, obj.work_block_hash); }
+};
+
 struct QuorumSnapshotData {
     Consensus::LLMQType llmq_type{Consensus::LLMQType::LLMQ_NONE};
     bool rotation_enabled{false};
     std::vector<MinedQuorumCommitment> active_commitments;
     std::vector<MinedQuorumCommitment> safety_commitments;
     std::vector<QuorumSnapshotEntry> rotation_snapshots;
+    //! Strictly ascending by cycle height.
+    std::vector<BootstrapWork> bootstrap_work;
 
     template <typename Stream> void Serialize(Stream& s) const;
     template <typename Stream> void Unserialize(Stream& s);
@@ -532,6 +588,11 @@ inline bool IsCanonicallyBefore(const HistoricalMNListDiff& a, const HistoricalM
 inline bool IsCanonicallyBefore(const QuorumModifier& a, const QuorumModifier& b)
 {
     return std::tie(a.llmq_type, a.work_block_hash) < std::tie(b.llmq_type, b.work_block_hash);
+}
+
+inline bool IsCanonicallyBefore(const BootstrapWork& a, const BootstrapWork& b)
+{
+    return a.cycle_base_height < b.cycle_base_height;
 }
 
 inline bool IsCanonicallyBefore(const QuorumSnapshotData& a, const QuorumSnapshotData& b)
@@ -599,6 +660,7 @@ void QuorumSnapshotData::Serialize(Stream& s) const
     const auto snapshots{CanonicallySortedCopy(rotation_snapshots)};
     s << llmq_type << rotation_enabled << active << safety;
     WriteSnapshotVector(s, snapshots, [&](const auto& entry) { WriteRotationSnapshot(s, entry); });
+    s << CanonicallySortedCopy(bootstrap_work);
 }
 
 template <typename Stream>
@@ -614,6 +676,7 @@ void QuorumSnapshotData::Unserialize(Stream& s)
     active_commitments.clear();
     safety_commitments.clear();
     rotation_snapshots.clear();
+    bootstrap_work.clear();
     const auto& params{SnapshotLLMQParams(llmq_type)};
     const size_t total_count{SnapshotCommitmentCount(params, rotation_enabled)};
     const size_t expected_active{static_cast<size_t>(params.signingActiveQuorumCount)};
@@ -627,9 +690,20 @@ void QuorumSnapshotData::Unserialize(Stream& s)
     for (size_t i{0}; i < safety_count; ++i) {
         safety_commitments.emplace_back(ReadMinedQuorumCommitment(s));
     }
-    const size_t snapshot_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_ROTATION_CYCLES, "rotation snapshots")};
+    const size_t snapshot_count{
+        ReadBoundedCompactSize(s, rotation_enabled ? EvoSnapshotMaxRotationSnapshots(params) : size_t{0},
+                               "rotation snapshots")};
     rotation_snapshots.reserve(snapshot_count);
     for (size_t i{0}; i < snapshot_count; ++i) rotation_snapshots.emplace_back(ReadRotationSnapshot(s, params));
+    const size_t bootstrap_count{ReadBoundedCompactSize(s, EVO_SNAPSHOT_MAX_BOOTSTRAP_WORK, "bootstrap work")};
+    for (size_t i{0}; i < bootstrap_count; ++i) {
+        BootstrapWork entry;
+        s >> entry;
+        if (!bootstrap_work.empty() && bootstrap_work.back().cycle_base_height >= entry.cycle_base_height) {
+            throw std::ios_base::failure("noncanonical evo bootstrap work order");
+        }
+        bootstrap_work.emplace_back(entry);
+    }
 }
 
 template <typename Stream>
@@ -712,23 +786,65 @@ void EvoSnapshot::Unserialize(Stream& s)
 /** Single SHA256 of the canonical SER_DISK/CLIENT_VERSION encoding. */
 uint256 GetEvoSnapshotHash(const EvoSnapshot& snapshot);
 
-struct QuorumReconstructionHeight {
-    Consensus::LLMQType llmq_type;
-    bool rotation;
-    int quorum_height;
-    int work_height;
+/** A work block the snapshot carries for one type, and the cycle (or, without
+ *  rotation, the quorum) whose score modifier it carries. */
+struct EvoSnapshotWorkBlock {
+    const CBlockIndex* work_index{nullptr};
+    int cycle_height{-1};
 };
 
-/** Pure conservative reconstruction horizon for the supplied enabled types. */
-std::vector<QuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
-    int base_height, const std::vector<Consensus::LLMQParams>& enabled_llmqs);
+/** The Evo state one LLMQ type needs at a snapshot base: every quorum member
+ *  computation the snapshot chainstate makes at or below the base reads only
+ *  these, plus the carried commitments. */
+struct EvoSnapshotDependencyPlan {
+    Consensus::LLMQType llmq_type{Consensus::LLMQType::LLMQ_NONE};
+    bool rotation_enabled{false};
+    //! S_T: cycles whose rotation quarters are carried, ascending.
+    std::vector<const CBlockIndex*> rotation_cycles;
+    //! W_T: work blocks whose lists and modifiers are carried, ascending.
+    std::vector<EvoSnapshotWorkBlock> work_blocks;
+    //! The entries of W_T for h and N that nothing else references.
+    std::vector<BootstrapWork> bootstrap_work;
+};
+
+/** The work block a quorum's members are computed from: the cycle's work block
+ *  with rotation, otherwise the quorum's own block before v20 and its work
+ *  block after. */
+int EvoSnapshotWorkHeight(const Consensus::Params& consensus, const Consensus::LLMQParams& params,
+                          bool rotation_enabled, int quorum_height);
+
+/** Derive the exact dependency sets of `llmq_type` at `base_index` from the
+ *  carried commitments' quorum blocks. The builder, the chain validator and
+ *  the completion rebuild all use it. */
+bool PlanEvoSnapshotDependencies(const ChainstateManager& chainman, const CBlockIndex* base_index,
+                                 Consensus::LLMQType llmq_type, const std::vector<const CBlockIndex*>& commitments,
+                                 EvoSnapshotDependencyPlan& plan, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** Build the Evo section at `base_index` from the calling thread's Evo view. */
+bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& chainman, CDeterministicMNManager& dmnman,
+                      const llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
+                      CCreditPoolManager& cpoolman, CMNHFManager& mnhfman, const CBlockIndex* base_index,
+                      EvoSnapshot& snapshot, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 /** Apply the complete diff chain and return lists keyed by target block hash. */
 bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256, CDeterministicMNList>& lists,
                                   std::string& error, size_t max_records = EVO_SNAPSHOT_MAX_RECONSTRUCTION_RECORDS);
 
+/** Validate all snapshot invariants requiring the block index or deployments,
+ *  including exact equality with the planned dependency sets. */
+bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
+                                     const CBlockIndex* base_index, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 /** Pure CbTx checks over already-built snapshot content. */
 bool VerifyEvoSnapshotCbTx(const EvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error);
+
+/** Seed the decoded snapshot's state into `view`, inside the caller's open
+ *  EvoDB transaction for that view. */
+bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot, CDeterministicMNManager& dmnman,
+                          llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
+                          CCreditPoolManager& cpoolman, CMNHFManager& mnhfman, const node::BlockManager& blockman,
+                          const CBlockIndex* base_index, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 } // namespace evo
 

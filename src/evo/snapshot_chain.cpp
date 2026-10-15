@@ -1,0 +1,638 @@
+// Copyright (c) 2026 The Dash Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+// Chain-aware companions to evo/snapshot.cpp, deliberately header-less: these
+// implementations are declared in evo/snapshot.h but need validation.h and
+// llmq internals, so they live in their own compilation unit to keep the
+// snapshot codec free of an evo/snapshot -> validation -> evo/snapshot cycle.
+
+#include <evo/snapshot.h>
+
+#include <chain.h>
+#include <chainparams.h>
+#include <consensus/amount.h>
+#include <deploymentstatus.h>
+#include <evo/cbtx.h>
+#include <evo/creditpool.h>
+#include <evo/deterministicmns.h>
+#include <evo/evodb.h>
+#include <evo/mnhftx.h>
+#include <llmq/blockprocessor.h>
+#include <llmq/options.h>
+#include <llmq/snapshot.h>
+#include <llmq/utils.h>
+#include <node/blockstorage.h>
+#include <primitives/block.h>
+#include <tinyformat.h>
+#include <uint256.h>
+#include <util/check.h>
+#include <validation.h>
+#include <versionbits.h>
+
+#include <algorithm>
+#include <map>
+#include <optional>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+namespace evo {
+namespace {
+
+//! V20 is buried, so its state after a height is known even for a cycle that
+//! is not mined yet.
+bool V20ActiveAfterHeight(const Consensus::Params& consensus, int height)
+{
+    return height + 1 >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_V20);
+}
+
+bool ValidateCommitmentAgainstChain(const MinedQuorumCommitment& entry, const ChainstateManager& chainman,
+                                    const CBlockIndex* base_index, const Consensus::LLMQParams& params,
+                                    bool rotation_enabled) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    const CBlockIndex* quorum_index{chainman.m_blockman.LookupBlockIndex(entry.quorum_base_block_hash)};
+    const CBlockIndex* mined_index{chainman.m_blockman.LookupBlockIndex(entry.mined_block_hash)};
+    if (quorum_index == nullptr || mined_index == nullptr ||
+        base_index->GetAncestor(quorum_index->nHeight) != quorum_index ||
+        base_index->GetAncestor(mined_index->nHeight) != mined_index)
+        return false;
+    const int cycle_height{quorum_index->nHeight - quorum_index->nHeight % params.dkgInterval};
+    if (rotation_enabled) {
+        if (entry.commitment.quorumIndex != quorum_index->nHeight % params.dkgInterval ||
+            entry.commitment.quorumIndex < 0 || entry.commitment.quorumIndex >= params.signingActiveQuorumCount)
+            return false;
+    } else if (quorum_index->nHeight != cycle_height || entry.commitment.quorumIndex != 0) {
+        return false;
+    }
+    const int mined_cycle{mined_index->nHeight - mined_index->nHeight % params.dkgInterval};
+    if (mined_cycle != cycle_height || mined_index->nHeight % params.dkgInterval < params.dkgMiningWindowStart ||
+        mined_index->nHeight % params.dkgInterval > params.dkgMiningWindowEnd)
+        return false;
+    const uint16_t expected_version{
+        llmq::CFinalCommitment::GetVersion(rotation_enabled, DeploymentActiveAfter(quorum_index, chainman.GetConsensus(),
+                                                                                   Consensus::DEPLOYMENT_V19))};
+    return entry.commitment.nVersion == expected_version && entry.commitment.VerifySizes(params);
+}
+
+//! Applicable(Y): a rotation cycle at or below the base whose quarter the
+//! ordinary computation builds and later reads.
+bool IsApplicableRotationCycle(const ChainstateManager& chainman, const Consensus::LLMQParams& params,
+                               const CBlockIndex* base_index, int cycle_height) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    if (cycle_height < 0 || cycle_height > base_index->nHeight || cycle_height % params.dkgInterval != 0) return false;
+    const CBlockIndex* cycle{base_index->GetAncestor(cycle_height)};
+    return cycle != nullptr && llmq::IsQuorumRotationEnabled(params, cycle) &&
+           chainman.IsQuorumTypeEnabled(params.type, cycle->pprev);
+}
+
+//! The modifier of the cycle at `work.cycle_height`, from the work block's
+//! data or, when that is unreadable, from `seeded`. Mirrors the ordinary
+//! calculation (llmq/utils.cpp) without its block-hash fallback for an
+//! unreadable v20 work block, and without needing an unmined cycle's block.
+std::optional<uint256> ExactWorkModifier(const Consensus::LLMQParams& params, const Consensus::Params& consensus,
+                                         const CBlockIndex* base_index, const EvoSnapshotWorkBlock& work,
+                                         const std::optional<uint256>& seeded, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    const CBlockIndex* modifier_work{base_index->GetAncestor(work.cycle_height - llmq::WORK_DIFF_DEPTH)};
+    if (modifier_work == nullptr) {
+        error = "evo quorum modifier work block is not an ancestor of the base";
+        return std::nullopt;
+    }
+    if (DeploymentActiveAfter(modifier_work, consensus, Consensus::DEPLOYMENT_V20)) {
+        CBlock block;
+        if ((modifier_work->nStatus & BLOCK_HAVE_DATA) == 0 || !node::ReadBlockFromDisk(block, modifier_work, consensus)) {
+            if (!seeded) error = "quorum work block data unavailable for its exact score modifier";
+            return seeded;
+        }
+        if (const auto chainlock{GetNonNullCoinbaseChainlock(block, modifier_work->nHeight)}) {
+            return ::SerializeHash(std::make_tuple(params.type, modifier_work->nHeight, chainlock->first));
+        }
+        return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
+    }
+    if (params.useRotation) return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
+    if (work.cycle_height > base_index->nHeight) {
+        error = "pre-v20 modifier of a cycle above the base is undecidable";
+        return std::nullopt;
+    }
+    return ::SerializeHash(std::make_pair(params.type, base_index->GetAncestor(work.cycle_height)->GetBlockHash()));
+}
+
+//! A carried list for the snapshot: an unbound pre-DIP3 list is the empty list
+//! bound to its block, which is what the snapshot view reads there.
+CDeterministicMNList BoundList(const CDeterministicMNList& list, const CBlockIndex* index)
+{
+    if (list.GetBlockHash().IsNull()) return CDeterministicMNList{index->GetBlockHash(), index->nHeight, 0};
+    return list;
+}
+
+//! Whether every activation input of a quorum type is the same for the block
+//! after `target_height` as for the block after the base: no buried deployment
+//! or DIP0024 quorum height switches in between, and no versionbits deployment
+//! that is not yet active crosses a period boundary.
+bool ContextUnchangedUntil(const ChainstateManager& chainman, const CBlockIndex* base_index, int64_t target_height)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    const auto& consensus{chainman.GetConsensus()};
+    const int64_t base_height{base_index->nHeight};
+    for (int16_t dep{Consensus::DEPLOYMENT_HEIGHTINCB};
+         Consensus::ValidDeployment(static_cast<Consensus::BuriedDeployment>(dep)); ++dep) {
+        const int64_t height{consensus.DeploymentHeight(static_cast<Consensus::BuriedDeployment>(dep))};
+        if ((base_height + 1 >= height) != (target_height + 1 >= height)) return false;
+    }
+    if ((base_height >= consensus.DIP0024QuorumsHeight) != (target_height >= consensus.DIP0024QuorumsHeight)) {
+        return false;
+    }
+    for (int pos{0}; pos < Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++pos) {
+        const auto dep{static_cast<Consensus::DeploymentPos>(pos)};
+        if (DeploymentActiveAfter(base_index, chainman, dep)) continue;
+        const auto& deployment{consensus.vDeployments[dep]};
+        const int64_t period{deployment.nWindowSize ? deployment.nWindowSize : int64_t{consensus.nMinerConfirmationWindow}};
+        // A state is constant within a period: blocks base+1 .. target+1 share
+        // one unless one of them starts a new period.
+        if (period > 0 && (target_height + 1) / period != (base_height + 1) / period) return false;
+    }
+    return true;
+}
+
+//! I6 for the next cycle N: its members read work data at or below the base
+//! once N - D <= B, and the planner derives h and N from the context at B.
+//! A type enabled, or switching rotation, between B and N would need inputs
+//! nothing carries, so such a base is refused at export and load alike.
+bool CheckNextCycleContext(const ChainstateManager& chainman, const CBlockIndex* base_index, std::string& error)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    for (const auto& params : chainman.GetConsensus().llmqs) {
+        const int64_t base_height{base_index->nHeight};
+        const int64_t next{base_height - base_height % params.dkgInterval + params.dkgInterval};
+        // N - 1 == B makes N's context the base's own.
+        if (next - llmq::WORK_DIFF_DEPTH > base_height || next - 1 == base_height) continue;
+        if (!ContextUnchangedUntil(chainman, base_index, next - 1)) {
+            error = strprintf("evo snapshot base precedes an undecidable activation context at the next %s cycle %d",
+                              params.name, next);
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+int EvoSnapshotWorkHeight(const Consensus::Params& consensus, const Consensus::LLMQParams& params,
+                          bool rotation_enabled, int quorum_height)
+{
+    if (rotation_enabled) return quorum_height - quorum_height % params.dkgInterval - llmq::WORK_DIFF_DEPTH;
+    return V20ActiveAfterHeight(consensus, quorum_height) ? quorum_height - llmq::WORK_DIFF_DEPTH : quorum_height;
+}
+
+bool PlanEvoSnapshotDependencies(const ChainstateManager& chainman, const CBlockIndex* base_index,
+                                 Consensus::LLMQType llmq_type, const std::vector<const CBlockIndex*>& commitments,
+                                 EvoSnapshotDependencyPlan& plan, std::string& error)
+{
+    AssertLockHeld(::cs_main);
+    plan = EvoSnapshotDependencyPlan{};
+    plan.llmq_type = llmq_type;
+    const auto params_opt{chainman.GetParams().GetLLMQ(llmq_type)};
+    if (base_index == nullptr || !params_opt) {
+        error = "evo snapshot dependency plan without a base or LLMQ parameters";
+        return false;
+    }
+    const auto& params{*params_opt};
+    const auto& consensus{chainman.GetConsensus()};
+    const int base_height{base_index->nHeight};
+    const int interval{params.dkgInterval};
+    const int h{base_height - base_height % interval};
+    const int next{h + interval};
+    plan.rotation_enabled = llmq::IsQuorumRotationEnabled(params, base_index);
+
+    // A_T for a rotating type (cycle heights), or the quorum heights K_T ∪ {h, N}.
+    std::set<int> cycles;
+    for (const CBlockIndex* quorum : commitments) {
+        if (quorum == nullptr || base_index->GetAncestor(quorum->nHeight) != quorum) {
+            error = "evo snapshot commitment is not an ancestor of the base";
+            return false;
+        }
+        cycles.insert(plan.rotation_enabled ? quorum->nHeight - quorum->nHeight % interval : quorum->nHeight);
+    }
+    // A type that forms no quorum at the base is carried only for its retained
+    // commitments, so it needs no members for h or N.
+    const bool enabled{chainman.IsQuorumTypeEnabled(llmq_type, base_index)};
+    if (enabled) {
+        cycles.insert(h);
+        cycles.insert(next);
+    }
+
+    std::map<int, int> work_cycles; // work height -> the cycle whose modifier it carries
+    const auto add_work = [&](int work_height, int cycle_height) {
+        if (work_height < 0 || work_height > base_height) return;
+        work_cycles.emplace(work_height, cycle_height);
+    };
+    std::set<int> referenced_work;
+    for (const CBlockIndex* quorum : commitments) {
+        referenced_work.insert(EvoSnapshotWorkHeight(consensus, params, plan.rotation_enabled, quorum->nHeight));
+    }
+
+    if (plan.rotation_enabled) {
+        std::set<int> quarters;
+        for (const int cycle : cycles) {
+            for (int k{1}; k <= 3; ++k) {
+                if (IsApplicableRotationCycle(chainman, params, base_index, cycle - k * interval)) {
+                    quarters.insert(cycle - k * interval);
+                }
+            }
+        }
+        for (const int quarter : quarters) {
+            plan.rotation_cycles.push_back(base_index->GetAncestor(quarter));
+            add_work(quarter - llmq::WORK_DIFF_DEPTH, quarter);
+            referenced_work.insert(quarter - llmq::WORK_DIFF_DEPTH);
+        }
+        for (const int cycle : cycles)
+            add_work(cycle - llmq::WORK_DIFF_DEPTH, cycle);
+    } else {
+        for (const int quorum : cycles) {
+            add_work(EvoSnapshotWorkHeight(consensus, params, /*rotation_enabled=*/false, quorum), quorum);
+        }
+    }
+
+    for (const auto& [work_height, cycle_height] : work_cycles) {
+        plan.work_blocks.push_back({base_index->GetAncestor(work_height), cycle_height});
+    }
+    if (enabled) {
+        for (const int cycle : {h, next}) {
+            const int work_height{EvoSnapshotWorkHeight(consensus, params, plan.rotation_enabled, cycle)};
+            if (!work_cycles.contains(work_height) || referenced_work.contains(work_height)) continue;
+            plan.bootstrap_work.push_back({cycle, base_index->GetAncestor(work_height)->GetBlockHash()});
+        }
+    }
+    return true;
+}
+
+bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& chainman,
+                      CDeterministicMNManager& dmnman, const llmq::CQuorumBlockProcessor& qblockman,
+                      llmq::CQuorumSnapshotManager& qsnapman, CCreditPoolManager& cpoolman, CMNHFManager& mnhfman,
+                      const CBlockIndex* base_index, EvoSnapshot& snapshot, std::string& error)
+{
+    AssertLockHeld(::cs_main);
+    error.clear();
+    if (base_index == nullptr) {
+        error = "evo snapshot base block is null";
+        return false;
+    }
+    const auto& consensus{chainparams.GetConsensus()};
+
+    EvoSnapshot result;
+    result.base_block_hash = base_index->GetBlockHash();
+    if (!DeploymentActiveAt(*base_index, consensus, Consensus::DEPLOYMENT_DIP0003)) {
+        result.mn_list = CDeterministicMNList{base_index->GetBlockHash(), base_index->nHeight, 0};
+        try {
+            result.Validate();
+        } catch (const std::exception& e) {
+            error = e.what();
+            return false;
+        }
+        snapshot = std::move(result);
+        return true;
+    }
+    if (!CheckNextCycleContext(chainman, base_index, error)) return false;
+    result.mn_list = dmnman.GetListForBlock(base_index);
+    std::map<uint256, const CBlockIndex*> historical;
+
+    for (const auto& params : consensus.llmqs) {
+        QuorumSnapshotData data;
+        data.llmq_type = params.type;
+        data.rotation_enabled = llmq::IsQuorumRotationEnabled(params, base_index);
+
+        const size_t active_count{static_cast<size_t>(params.signingActiveQuorumCount)};
+        const size_t total_count{SnapshotCommitmentCount(params, data.rotation_enabled)};
+        std::vector<const CBlockIndex*> active;
+        std::vector<const CBlockIndex*> safety;
+        if (data.rotation_enabled) {
+            active = qblockman.GetLastMinedCommitmentsPerQuorumIndexUntilBlock(params.type, base_index, 0);
+            safety = qblockman.GetLastMinedCommitmentsPerQuorumIndexUntilBlock(params.type, base_index, 1);
+        } else {
+            active = qblockman.GetMinedCommitmentsUntilBlock(params.type, base_index, total_count);
+            const size_t emit_active{std::min(active.size(), active_count)};
+            safety.assign(active.begin() + emit_active, active.end());
+            active.resize(emit_active);
+        }
+        if (active.size() > active_count) active.resize(active_count);
+        if (safety.size() > total_count - active_count) safety.resize(total_count - active_count);
+        // A type that can no longer form quorums (e.g. LLMQ_50_60 after DIP24
+        // on mainnet) still contributes its retained commitments to the CbTx
+        // quorum merkle root, so it is carried whenever it has any.
+        if (active.empty() && safety.empty() && !chainman.IsQuorumTypeEnabled(params.type, base_index)) continue;
+
+        std::vector<const CBlockIndex*> carried{active};
+        carried.insert(carried.end(), safety.begin(), safety.end());
+        EvoSnapshotDependencyPlan plan;
+        if (!PlanEvoSnapshotDependencies(chainman, base_index, params.type, carried, plan, error)) return false;
+
+        const auto read_commitment = [&](const CBlockIndex* quorum) -> std::optional<MinedQuorumCommitment> {
+            auto [commitment, mined_hash] = qblockman.GetMinedCommitment(params.type, quorum->GetBlockHash());
+            if (mined_hash.IsNull()) {
+                error = "mined quorum commitment not found for " + quorum->GetBlockHash().ToString();
+                return std::nullopt;
+            }
+            const int work_height{EvoSnapshotWorkHeight(consensus, params, data.rotation_enabled, quorum->nHeight)};
+            if (work_height < 0) {
+                error = "mined quorum commitment below its work depth";
+                return std::nullopt;
+            }
+            return MinedQuorumCommitment{quorum->GetBlockHash(), base_index->GetAncestor(work_height)->GetBlockHash(),
+                                         std::move(commitment), mined_hash};
+        };
+        for (const CBlockIndex* quorum : active) {
+            auto entry{read_commitment(quorum)};
+            if (!entry) return false;
+            data.active_commitments.emplace_back(std::move(*entry));
+        }
+        for (const CBlockIndex* quorum : safety) {
+            auto entry{read_commitment(quorum)};
+            if (!entry) return false;
+            data.safety_commitments.emplace_back(std::move(*entry));
+        }
+
+        for (const CBlockIndex* cycle : plan.rotation_cycles) {
+            auto stored{qsnapman.GetSnapshotForBlock(params.type, cycle)};
+            const auto inputs_complete = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+                for (int k{1}; k <= 3; ++k) {
+                    const int previous{cycle->nHeight - k * params.dkgInterval};
+                    if (IsApplicableRotationCycle(chainman, params, base_index, previous) &&
+                        !qsnapman.GetSnapshotForBlock(params.type, base_index->GetAncestor(previous))) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+            if (!stored && inputs_complete()) {
+                // Block connection stores every applicable quarter when its
+                // cycle connects (PreComputeQuorumMembers), so this only
+                // restores a lost one, from complete inputs, the same way.
+                (void)llmq::utils::GetAllQuorumMembers(params.type, {dmnman, qsnapman, chainman, cycle});
+                stored = qsnapman.GetSnapshotForBlock(params.type, cycle);
+            }
+            if (!stored) {
+                error = strprintf("rotation quarter for applicable cycle %d is unavailable", cycle->nHeight);
+                return false;
+            }
+            const CBlockIndex* work{cycle->GetAncestor(cycle->nHeight - llmq::WORK_DIFF_DEPTH)};
+            data.rotation_snapshots.push_back({cycle->GetBlockHash(), work->GetBlockHash(), *stored});
+        }
+        for (const auto& work : plan.work_blocks) {
+            const auto modifier{
+                ExactWorkModifier(params, consensus, base_index, work,
+                                  qsnapman.GetSeededQuorumModifier(params.type, work.work_index->GetBlockHash()), error)};
+            if (!modifier) return false;
+            result.quorum_modifiers.push_back({params.type, work.work_index->GetBlockHash(), *modifier});
+            if (work.work_index != base_index) historical.emplace(work.work_index->GetBlockHash(), work.work_index);
+        }
+        data.bootstrap_work = plan.bootstrap_work;
+        data.active_commitments = CanonicallySortedCopy(std::move(data.active_commitments));
+        data.safety_commitments = CanonicallySortedCopy(std::move(data.safety_commitments));
+        data.rotation_snapshots = CanonicallySortedCopy(std::move(data.rotation_snapshots));
+        result.quorums.emplace_back(std::move(data));
+    }
+
+    std::vector<const CBlockIndex*> ordered_history;
+    ordered_history.reserve(historical.size());
+    for (const auto& [_, index] : historical)
+        ordered_history.push_back(index);
+    std::sort(ordered_history.begin(), ordered_history.end(), [](const auto* a, const auto* b) {
+        return std::make_tuple(a->nHeight, a->GetBlockHash()) > std::make_tuple(b->nHeight, b->GetBlockHash());
+    });
+    CDeterministicMNList previous_list{result.mn_list};
+    uint256 previous_hash{result.base_block_hash};
+    for (const CBlockIndex* index : ordered_history) {
+        const CDeterministicMNList list{BoundList(dmnman.GetListForBlock(index), index)};
+        result.historical_mn_list_diffs.push_back({previous_hash, index->GetBlockHash(), index->nHeight,
+                                                   list.GetTotalRegisteredCount(), CanonicalMNListHash(list),
+                                                   previous_list.BuildDiff(list)});
+        previous_hash = index->GetBlockHash();
+        previous_list = list;
+    }
+    result.credit_pool = cpoolman.GetCreditPool(base_index);
+    result.mnhf_signals = mnhfman.GetSignalsStage(base_index);
+    result.quorums = CanonicallySortedCopy(std::move(result.quorums));
+    result.historical_mn_list_diffs = CanonicallySortedCopy(std::move(result.historical_mn_list_diffs));
+    result.quorum_modifiers = CanonicallySortedCopy(std::move(result.quorum_modifiers));
+    try {
+        result.Validate();
+    } catch (const std::exception& e) {
+        error = e.what();
+        return false;
+    }
+    snapshot = std::move(result);
+    return true;
+}
+
+bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
+                                     const CBlockIndex* base_index, std::string& error)
+{
+    AssertLockHeld(::cs_main);
+    error.clear();
+    const auto fail = [&](const std::string& message) {
+        error = message;
+        return false;
+    };
+    if (base_index == nullptr || snapshot.base_block_hash != base_index->GetBlockHash() ||
+        snapshot.mn_list.GetBlockHash() != base_index->GetBlockHash() ||
+        snapshot.mn_list.GetHeightForSnapshotCodec() != base_index->nHeight) {
+        return fail("evo snapshot base block/height mismatch");
+    }
+    try {
+        snapshot.Validate(/*require_canonical_order=*/true);
+    } catch (const std::exception& e) {
+        return fail(e.what());
+    }
+
+    const auto& consensus{chainman.GetConsensus()};
+    if (!DeploymentActiveAt(*base_index, consensus, Consensus::DEPLOYMENT_DIP0003)) {
+        if (!snapshot.quorums.empty() || !snapshot.historical_mn_list_diffs.empty() ||
+            !snapshot.quorum_modifiers.empty() || snapshot.mn_list.GetCounts().total() != 0 ||
+            snapshot.mn_list.GetTotalRegisteredCount() != 0 || snapshot.credit_pool.locked != 0 ||
+            snapshot.credit_pool.currentLimit != 0 || snapshot.credit_pool.latelyUnlocked != 0 ||
+            !snapshot.credit_pool.indexes.IsEmpty() || !snapshot.mnhf_signals.empty()) {
+            return fail("nonempty pre-DIP3 evo snapshot");
+        }
+        return true;
+    }
+    if (!CheckNextCycleContext(chainman, base_index, error)) return false;
+
+    std::map<uint256, CDeterministicMNList> historical_lists;
+    if (!ReconstructHistoricalMNLists(snapshot, historical_lists, error)) return false;
+    historical_lists.emplace(snapshot.base_block_hash, snapshot.mn_list);
+    for (const auto& entry : snapshot.historical_mn_list_diffs) {
+        const CBlockIndex* index{chainman.m_blockman.LookupBlockIndex(entry.block_hash)};
+        if (index == nullptr || base_index->GetAncestor(index->nHeight) != index || entry.height != index->nHeight) {
+            return fail("invalid historical evo MN list chain data");
+        }
+    }
+
+    std::map<std::pair<Consensus::LLMQType, uint256>, uint256> carried_modifiers;
+    for (const auto& entry : snapshot.quorum_modifiers) {
+        carried_modifiers.emplace(std::make_pair(entry.llmq_type, entry.work_block_hash), entry.modifier);
+    }
+    std::map<Consensus::LLMQType, const QuorumSnapshotData*> actual;
+    for (const auto& data : snapshot.quorums)
+        actual.emplace(data.llmq_type, &data);
+    size_t known_count{0};
+    std::set<uint256> required_work_hashes;
+    std::set<std::pair<Consensus::LLMQType, uint256>> required_modifiers;
+    for (const auto& params : consensus.llmqs) {
+        const bool enabled{chainman.IsQuorumTypeEnabled(params.type, base_index)};
+        const auto it{actual.find(params.type)};
+        if (it == actual.end()) {
+            if (enabled) return fail("missing enabled evo quorum type");
+            continue;
+        }
+        ++known_count;
+        const auto& data{*it->second};
+        // A disabled type is carried only for the retained commitments it
+        // still contributes to the CbTx quorum merkle root.
+        if (!enabled && data.active_commitments.empty()) return fail("empty disabled evo quorum type");
+        const bool rotation_enabled{llmq::IsQuorumRotationEnabled(params, base_index)};
+        const size_t active_count{static_cast<size_t>(params.signingActiveQuorumCount)};
+        const size_t total_count{SnapshotCommitmentCount(params, rotation_enabled)};
+        if (data.rotation_enabled != rotation_enabled || data.active_commitments.size() > active_count ||
+            data.safety_commitments.size() > total_count - active_count) {
+            return fail("evo quorum params/count mismatch");
+        }
+
+        std::set<int16_t> active_indexes;
+        std::vector<const CBlockIndex*> carried;
+        const auto check_commitment = [&](const MinedQuorumCommitment& entry) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+            if (!ValidateCommitmentAgainstChain(entry, chainman, base_index, params, rotation_enabled)) return false;
+            const CBlockIndex* quorum{chainman.m_blockman.LookupBlockIndex(entry.quorum_base_block_hash)};
+            const CBlockIndex* work{
+                base_index->GetAncestor(EvoSnapshotWorkHeight(consensus, params, rotation_enabled, quorum->nHeight))};
+            if (work == nullptr || entry.work_block_hash != work->GetBlockHash()) return false;
+            carried.push_back(quorum);
+            return true;
+        };
+        for (const auto& entry : data.active_commitments) {
+            if (!check_commitment(entry) ||
+                (rotation_enabled && !active_indexes.insert(entry.commitment.quorumIndex).second)) {
+                return fail("invalid active evo quorum commitment chain data");
+            }
+        }
+        for (const auto& entry : data.safety_commitments) {
+            if (!check_commitment(entry)) return fail("invalid safety evo quorum commitment chain data");
+        }
+
+        EvoSnapshotDependencyPlan plan;
+        if (!PlanEvoSnapshotDependencies(chainman, base_index, params.type, carried, plan, error)) return false;
+
+        std::set<uint256> expected_cycles;
+        for (const CBlockIndex* cycle : plan.rotation_cycles)
+            expected_cycles.insert(cycle->GetBlockHash());
+        std::set<uint256> actual_cycles;
+        for (const auto& entry : data.rotation_snapshots)
+            actual_cycles.insert(entry.cycle_base_block_hash);
+        if (actual_cycles != expected_cycles) return fail("evo rotation cycles differ from the planned set");
+        for (const auto& entry : data.rotation_snapshots) {
+            // A planned cycle: a known ancestor of the base, above the work depth.
+            const CBlockIndex* cycle{Assert(chainman.m_blockman.LookupBlockIndex(entry.cycle_base_block_hash))};
+            const CBlockIndex* work{Assert(cycle->GetAncestor(cycle->nHeight - llmq::WORK_DIFF_DEPTH))};
+            if (entry.work_block_hash != work->GetBlockHash()) return fail("evo rotation cycle/work ancestor mismatch");
+            const auto historical{historical_lists.find(work->GetBlockHash())};
+            if (historical == historical_lists.end() ||
+                entry.snapshot.activeQuorumMembers.size() != historical->second.GetCounts().total()) {
+                return fail("evo rotation bitset/work-block MN count mismatch");
+            }
+            // The ordinary computation stores no quarter for a cycle with too
+            // few masternodes, so later cycles read without one, and a base
+            // that needs such a cycle is unsupported. This catches the first
+            // no-store path only; the pin covers the other (no member added).
+            if (historical->second.GetCounts().enabled() < static_cast<size_t>(params.size / 4)) {
+                return fail("evo rotation quarter carried for a cycle the ordinary computation leaves without one");
+            }
+        }
+        if (data.bootstrap_work != plan.bootstrap_work) return fail("evo bootstrap work differs from the planned set");
+
+        for (const auto& work : plan.work_blocks) {
+            const uint256& work_hash{work.work_index->GetBlockHash()};
+            required_work_hashes.insert(work_hash);
+            required_modifiers.emplace(params.type, work_hash);
+            const auto carried_modifier{carried_modifiers.find(std::make_pair(params.type, work_hash))};
+            if (carried_modifier == carried_modifiers.end()) return fail("missing planned evo quorum modifier");
+            // Recompute wherever the chain allows; only an unreadable v20 work
+            // block leaves the carried value to the pin.
+            std::string modifier_error;
+            const auto expected{
+                ExactWorkModifier(params, consensus, base_index, work, carried_modifier->second, modifier_error)};
+            if (!expected) return fail(modifier_error);
+            if (*expected != carried_modifier->second) return fail("evo carried quorum modifier mismatch");
+        }
+    }
+    if (actual.size() != known_count) return fail("unknown evo quorum type");
+
+    std::set<uint256> historical_hashes;
+    for (const auto& entry : snapshot.historical_mn_list_diffs)
+        historical_hashes.insert(entry.block_hash);
+    required_work_hashes.erase(base_index->GetBlockHash());
+    if (historical_hashes != required_work_hashes) return fail("historical evo MN lists differ from the planned set");
+    std::set<std::pair<Consensus::LLMQType, uint256>> actual_modifiers;
+    for (const auto& [key, _] : carried_modifiers)
+        actual_modifiers.insert(key);
+    if (actual_modifiers != required_modifiers) return fail("evo quorum modifiers differ from the planned set");
+
+    if (!MoneyRange(snapshot.credit_pool.locked) || !MoneyRange(snapshot.credit_pool.currentLimit) ||
+        !MoneyRange(snapshot.credit_pool.latelyUnlocked))
+        return fail("invalid evo credit pool monetary value");
+    for (const auto& [bit, height] : snapshot.mnhf_signals) {
+        if (bit >= VERSIONBITS_NUM_BITS || height < 0 || height > base_index->nHeight) {
+            return fail("invalid evo MNHF signal bit/height");
+        }
+    }
+    return true;
+}
+
+bool SeedEvoSnapshotState(const EvoViewToken& view, const EvoSnapshot& snapshot, CDeterministicMNManager& dmnman,
+                          llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
+                          CCreditPoolManager& cpoolman, CMNHFManager& mnhfman, const node::BlockManager& blockman,
+                          const CBlockIndex* base_index, std::string& error)
+{
+    AssertLockHeld(::cs_main);
+    const auto fail = [&](const std::string& message) {
+        error = message;
+        return false;
+    };
+    if (base_index == nullptr || base_index->GetBlockHash() != snapshot.base_block_hash) {
+        return fail("evo snapshot seeding base mismatch");
+    }
+    std::map<uint256, CDeterministicMNList> historical_lists;
+    if (!ReconstructHistoricalMNLists(snapshot, historical_lists, error)) return false;
+    if (!dmnman.SeedListForBlock(view, snapshot.mn_list)) return fail("failed to seed the base MN list");
+    for (const auto& [_, list] : historical_lists) {
+        if (!dmnman.SeedListForBlock(view, list)) return fail("failed to seed a historical MN list");
+    }
+    for (const auto& modifier : snapshot.quorum_modifiers) {
+        if (!qsnapman.SeedQuorumModifier(view, modifier.llmq_type, modifier.work_block_hash, modifier.modifier)) {
+            return fail("failed to seed a quorum score modifier");
+        }
+    }
+    for (const auto& data : snapshot.quorums) {
+        for (const auto* commitments : {&data.active_commitments, &data.safety_commitments}) {
+            for (const auto& entry : *commitments) {
+                if (!qblockman.SeedMinedCommitment(view, data.llmq_type, entry.quorum_base_block_hash, entry.commitment,
+                                                   entry.mined_block_hash)) {
+                    return fail("failed to seed a mined quorum commitment");
+                }
+            }
+        }
+        for (const auto& rotation : data.rotation_snapshots) {
+            const CBlockIndex* cycle{blockman.LookupBlockIndex(rotation.cycle_base_block_hash)};
+            if (cycle == nullptr || !qsnapman.SeedSnapshotForBlock(view, data.llmq_type, cycle, rotation.snapshot)) {
+                return fail("failed to seed a rotation quarter");
+            }
+        }
+    }
+    if (!cpoolman.SeedSnapshot(view, base_index, snapshot.credit_pool)) return fail("failed to seed the credit pool");
+    if (!mnhfman.SeedSignals(view, base_index, snapshot.mnhf_signals)) return fail("failed to seed the MNHF signals");
+    return true;
+}
+
+} // namespace evo
