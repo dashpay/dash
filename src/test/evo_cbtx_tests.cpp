@@ -49,6 +49,7 @@ BOOST_AUTO_TEST_SUITE(evo_cbtx_tests)
 // would trip GetAncestor()'s `assert(pprev)` while walking, not return nullptr.
 BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff, RegTestingSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const auto& consensus_params = Params().GetConsensus();
     const auto& chain = *WITH_LOCK(::cs_main, return &m_node.chainman->ActiveChain());
     auto& qman = *Assert(m_node.llmq_ctx)->qman;
@@ -163,6 +164,7 @@ struct Dip3ActiveSetup : public RegTestingSetup {
 // that keys the caches is unchanged across the swap.
 BOOST_FIXTURE_TEST_CASE(qc_hash_cache_invalidated_by_undoblock, Dip3ActiveSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& evoDb = *Assert(m_node.evodb);
     auto& qblockman = *Assert(m_node.llmq_ctx)->quorum_block_processor;
     const auto& params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST);

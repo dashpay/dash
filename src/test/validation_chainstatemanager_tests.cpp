@@ -11,38 +11,54 @@
 #include <consensus/validation.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
+#include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/mnhftx.h>
+#include <evo/netinfo.h>
+#include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <governance/superblock.h>
+#include <init.h>
+#include <interfaces/mining.h>
 #include <kernel/context.h>
 #include <kernel/disconnected_transactions.h>
+#include <key.h>
 #include <logging.h>
 #include <masternode/meta.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <node/chainstate.h>
+#include <node/interface_ui.h>
 #include <node/kernel_notifications.h>
 #include <node/utxo_snapshot.h>
 #include <pow.h>
 #include <protocol.h>
 #include <random.h>
 #include <rpc/blockchain.h>
+#include <rpc/protocol.h>
+#include <rpc/server.h>
+#include <rpc/server_util.h>
+#include <streams.h>
 #include <sync.h>
+#include <test/util/bls.h>
 #include <test/util/chainstate.h>
 #include <test/util/llmq_tests.h>
 #include <test/util/logging.h>
+#include <test/util/masternode.h>
 #include <test/util/net.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
 #include <uint256.h>
+#include <util/strencodings.h>
+#include <util/string.h>
 #include <util/time.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <versionbits.h>
 #include <warnings.h>
 
 #include <bls/bls.h>
@@ -69,6 +85,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <boost/signals2/connection.hpp>
 #include <boost/test/unit_test.hpp>
 
 using node::BlockManager;
@@ -122,6 +139,19 @@ CBlock MakeCbTxBlock(CBlock block, int height, CCbTx::Version version = CCbTx::V
         ++block.nNonce;
     return block;
 }
+
+//! Counts the masternode-list changes validation announces.
+class MnListChangeCounter final : public CValidationInterface
+{
+public:
+    int changes{0};
+
+protected:
+    void NotifyMasternodeListChanged(bool, const CDeterministicMNList&, const CDeterministicMNListDiff&) override
+    {
+        ++changes;
+    }
+};
 
 //! The validation result announced for one block.
 class BlockCheckedCatcher final : public CValidationInterface
@@ -559,6 +589,17 @@ struct SnapshotTestSetup : TestChain100Setup {
         return *Assert(m_node.chainman);
     }
 
+    //! Execute an RPC command the way the RPC server dispatches it.
+    UniValue CallRPC(const std::string& method, const UniValue& params = UniValue{UniValue::VARR})
+    {
+        JSONRPCRequest request;
+        request.context = CoreContext{m_node};
+        request.strMethod = method;
+        request.params = params;
+        if (RPCIsInWarmup(nullptr)) SetRPCWarmupFinished();
+        return tableRPC.execute(request);
+    }
+
     //! Load the chainstates like startup does, reporting failure instead of
     //! asserting success.
     node::ChainstateLoadResult TryLoadChainstate()
@@ -566,6 +607,68 @@ struct SnapshotTestSetup : TestChain100Setup {
         MakeDashChainContexts(/*llmq_dbs_wipe=*/false);
         return node::LoadChainstate(*Assert(m_node.chainman), m_cache_sizes, ChainstateLoadOptionsForTest(),
                                     *m_node.evodb, *m_node.dmnman, *m_node.special_tx);
+    }
+
+    //! What the snapshot chainstate built past DIP3 activation, by hash: the
+    //! block index is reloaded across restarts.
+    struct SnapshotChainPastDip3 {
+        uint256 protx_hash;
+        uint256 protx_block;
+        uint256 period_block; //!< at a multiple of DISK_SNAPSHOT_PERIOD
+        uint256 tip;
+    };
+
+    //! Extend the active snapshot chain past DIP3 and V20 activation (432) and
+    //! the first disk-snapshot period (576), registering a masternode on the
+    //! way. Block connection then writes real MN-list diffs (dmn_D4), a full
+    //! list and a credit pool (dmn_S3, cpm_S) under the snapshot generation.
+    SnapshotChainPastDip3 MineSnapshotChainPastDip3()
+    {
+        ChainstateManager& chainman{*Assert(m_node.chainman)};
+        const auto mine_to{[&](int height) {
+            while (WITH_LOCK(::cs_main, return chainman.ActiveHeight()) < height)
+                mineBlocks(1);
+        }};
+        const int dip3_height{Params().GetConsensus().DIP0003Height};
+        mine_to(dip3_height);
+
+        auto utxos{BuildSimpleUtxoMap(m_coinbase_txns)};
+        CKey owner_key;
+        CBLSSecretKey operator_key;
+        const auto protx{
+            CreateProRegTx(chainman, utxos, /*port=*/1, GenerateRandomAddress(), coinbaseKey, owner_key, operator_key)};
+        const CBlock protx_block{CreateAndProcessBlock({protx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()))};
+        BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()->GetBlockHash()), protx_block.GetHash());
+
+        // DISK_SNAPSHOT_PERIOD of both the MN-list and credit-pool managers.
+        constexpr int period{576};
+        mine_to(period + 1);
+        LOCK(::cs_main);
+        return {protx.GetHash(), protx_block.GetHash(), chainman.ActiveChain()[period]->GetBlockHash(),
+                chainman.ActiveTip()->GetBlockHash()};
+    }
+
+    //! Both evodb RPCs refuse a range whose stop block the background chain,
+    //! which owns the NORMAL records, does not hold yet, whether the active
+    //! block is named by its height or by its hash.
+    void CheckEvoDbRefusesStopAboveBackground(int stop_height)
+    {
+        const uint256 active_hash{
+            WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain()[stop_height]->GetBlockHash())};
+        for (const char* mode : {"verify", "repair"}) {
+            const auto refuses{[&](const UniValue& stop, int code, const std::string& message) {
+                UniValue params{UniValue::VARR};
+                params.push_back(mode);
+                params.push_back(1);
+                params.push_back(stop);
+                BOOST_CHECK_EXCEPTION(CallRPC("evodb", params), UniValue, [&](const UniValue& error) {
+                    return error["code"].getInt<int>() == code && error["message"].get_str() == message;
+                });
+            }};
+            refuses(stop_height, RPC_MISC_ERROR,
+                    strprintf("stopBlock must be a block hash or chain height and not %d", stop_height));
+            refuses(active_hash.GetHex(), RPC_INVALID_PARAMETER, "Stop block not found in background validation chain");
+        }
     }
 };
 
@@ -625,6 +728,169 @@ struct SnapshotViewRecords {
     }
 };
 
+//! The snapshot chainstate's own Evo state, built by real block connection
+//! past DIP3, stays in its generation: NORMAL never reads it, through EvoDB or
+//! any partitioned cache, and rebuilds everything itself once the snapshot is
+//! rejected.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_evo_state_past_dip3, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager* chainman{Assert(m_node.chainman.get())};
+
+    // Positive control for the background-suppression checks elsewhere: the
+    // active chainstate announces the list change its ProRegTx block makes.
+    MnListChangeCounter events;
+    RegisterValidationInterface(&events);
+    int ui_mn_list_changed{0};
+    auto ui_connection{uiInterface.NotifyMasternodeListChanged_connect(
+        [&](const CDeterministicMNList&, const CBlockIndex*) { ++ui_mn_list_changed; })};
+    const auto chain{MineSnapshotChainPastDip3()};
+    SyncWithValidationInterfaceQueue();
+    ui_connection.disconnect();
+    UnregisterValidationInterface(&events);
+    BOOST_CHECK_GE(events.changes, 1);
+    BOOST_CHECK_GE(ui_mn_list_changed, 1);
+
+    // These keys mirror DB_LIST_DIFF and DB_LIST_SNAPSHOT in
+    // evo/deterministicmns.cpp, DB_CREDITPOOL_SNAPSHOT in evo/creditpool.cpp
+    // and DB_SIGNALS_v2 in evo/mnhftx.cpp (file-local there).
+    const auto diff_key{std::make_pair(std::string{"dmn_D4"}, chain.protx_block)};
+    const auto list_key{std::make_pair(std::string{"dmn_S3"}, chain.period_block)};
+    const auto pool_key{std::make_pair(std::string{"cpm_S"}, chain.period_block)};
+    const auto signals_key{std::make_pair(std::string{"mnhf_s2"}, chain.tip)};
+
+    CEvoDB& evodb{*m_node.evodb};
+    CCreditPool snapshot_pool;
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        CDeterministicMNListDiff diff;
+        CDeterministicMNList list;
+        BOOST_CHECK(evodb.Read(diff_key, diff));
+        BOOST_REQUIRE(evodb.Read(list_key, list));
+        BOOST_CHECK(list.HasMN(chain.protx_hash));
+        BOOST_CHECK(evodb.Read(pool_key, snapshot_pool));
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CDeterministicMNListDiff diff;
+        CDeterministicMNList list;
+        CCreditPool pool;
+        BOOST_CHECK(!evodb.Read(diff_key, diff));
+        BOOST_CHECK(!evodb.Read(list_key, list));
+        BOOST_CHECK(!evodb.Read(pool_key, pool));
+    }
+    CheckEvoDbRefusesStopAboveBackground(576);
+
+    // Snapshot-only state that NORMAL must not see even once the snapshot
+    // view has warmed its caches with it: a credit pool and a V24 EHF signal
+    // the blocks never carried. A deployment window short enough for the
+    // signal to start V24 by the tip makes the signal observable through
+    // versionbits.
+    CCreditPool tampered_pool{snapshot_pool};
+    tampered_pool.locked += COIN;
+    {
+        LOCK(::cs_main);
+        auto tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        evodb.Write(pool_key, tampered_pool);
+        evodb.Write(signals_key,
+                    CMNHFManager::Signals{{Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_V24].bit, 500}});
+        tx->Commit();
+    }
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)));
+    auto& v24{const_cast<Consensus::Params&>(Params().GetConsensus()).vDeployments[Consensus::DEPLOYMENT_V24]};
+    struct V24Restore {
+        Consensus::BIP9Deployment& deployment;
+        const Consensus::BIP9Deployment saved{deployment};
+        ~V24Restore() { deployment = saved; }
+    } v24_restore{v24};
+    v24.nWindowSize = 10;
+    v24.nThresholdStart = v24.nThresholdMin = 1;
+    // Drop every partition of every view cache, as a restart would, so the
+    // snapshot view reads the records back.
+    {
+        const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+    }
+
+    CCreditPoolManager& cpoolman{*m_node.special_tx->m_cpoolman};
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* period_block{chainman->m_blockman.LookupBlockIndex(chain.period_block)};
+        const CBlockIndex* protx_block{chainman->m_blockman.LookupBlockIndex(chain.protx_block)};
+        const CBlockIndex* tip{chainman->m_blockman.LookupBlockIndex(chain.tip)};
+        const auto v24_state{[&] {
+            return chainman->m_versionbitscache.State(tip, chainman->GetConsensus(), Consensus::DEPLOYMENT_V24);
+        }};
+        {
+            EvoViewScope snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+            BOOST_CHECK(m_node.dmnman->GetListForBlock(protx_block).HasMN(chain.protx_hash));
+            BOOST_CHECK_EQUAL(cpoolman.GetCreditPool(period_block).locked, tampered_pool.locked);
+            BOOST_CHECK(v24_state() == ThresholdState::STARTED);
+        }
+        EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        // NORMAL has no MN-list history above the base yet: it cannot use the
+        // snapshot's and fails as unavailable.
+        BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(protx_block), BlockDataUnavailableError);
+        // EHF signals come only from connecting a block, which NORMAL has not
+        // done here, so it can derive neither them nor the credit pool that
+        // depends on them: both are missing, never the snapshot's. Whatever it
+        // derives before that is discarded.
+        const auto discard{evodb.BeginTransaction(EvoDbIdentity::NORMAL)};
+        BOOST_CHECK_THROW(cpoolman.GetCreditPool(period_block), EvoDbMissingStateError);
+        BOOST_CHECK_THROW(v24_state(), EvoDbMissingStateError);
+    }
+
+    // Reject the snapshot and restart on the background chainstate alone. It
+    // connects the blocks the snapshot chainstate connected, building its own
+    // MN list, diffs and credit pool, without reading or tripping over any of
+    // the snapshot generation's records.
+    m_node.notifications->m_shutdown_on_fatal_error = false;
+    BOOST_REQUIRE(chainman->HandleSnapshotStateMismatch("test rejection"));
+    BOOST_CHECK(!evodb.GetSnapshotGeneration());
+    chainman = &this->SimulateNodeRestart();
+    BOOST_REQUIRE(std::get<0>(this->TryLoadChainstate()) == node::ChainstateLoadStatus::SUCCESS);
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return !chainman->IsSnapshotActive()));
+    BlockValidationState state;
+    BOOST_REQUIRE(chainman->ActiveChainstate().ActivateBestChain(state));
+    BOOST_CHECK(!m_node.kernel->interrupt);
+    {
+        LOCK(::cs_main);
+        BOOST_REQUIRE_EQUAL(chainman->ActiveTip()->GetBlockHash(), chain.tip);
+        EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CDeterministicMNListDiff diff;
+        CDeterministicMNList list;
+        CCreditPool pool;
+        BOOST_CHECK(evodb.Read(diff_key, diff));
+        BOOST_REQUIRE(evodb.Read(list_key, list));
+        BOOST_CHECK(list.HasMN(chain.protx_hash));
+        BOOST_REQUIRE(evodb.Read(pool_key, pool));
+        BOOST_CHECK_EQUAL(pool.locked, snapshot_pool.locked);
+        BOOST_CHECK(chainman->m_versionbitscache.State(chainman->ActiveTip(), chainman->GetConsensus(),
+                                                       Consensus::DEPLOYMENT_V24) == ThresholdState::DEFINED);
+    }
+}
+
+//! Completing background validation leaves the NORMAL records at the base
+//! until promotion, so the startup repair and the evodb RPCs stay on the
+//! disabled background chain rather than the snapshot chain above it.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_repair_after_completion, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager& chainman{*Assert(m_node.chainman)};
+    MineSnapshotChainPastDip3();
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation()),
+                        SnapshotCompletionResult::SUCCESS);
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.GetAll().size()), 1U);
+
+    CheckEvoDbRefusesStopAboveBackground(576);
+
+    m_args.ForceSetArg("-forceevodbrepair", "1");
+    BOOST_CHECK_NO_THROW(FinishImportedStartup(m_node, m_args, /*skip_evodb_repair_on_reindex=*/false));
+    BOOST_CHECK(!m_node.kernel->interrupt);
+    m_node.kernel->interrupt.reset();
+}
+
 //! Test basic snapshot activation.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
 {
@@ -643,7 +909,6 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
         const llmq::UtilParameters util_params{*m_node.dmnman, *m_node.llmq_ctx->qsnapman, chainman, quorum_base};
         auto& qblockman{*m_node.llmq_ctx->quorum_block_processor};
         const uint256 quorum_hash{GetRandHash()};
-        std::shared_ptr<VersionBitsCache> snapshot_versionbits;
         {
             EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
             m_node.dmnman->SetListForBlockForTesting(
@@ -659,10 +924,6 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
                 tx->Commit();
             }
             BOOST_REQUIRE(qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
-            // A query above the base walks period boundaries at or below it.
-            chainman.m_versionbitscache.State(snapshot_chainstate->m_chain.Tip(), chainman.GetConsensus(),
-                                              Consensus::DEPLOYMENT_V24);
-            snapshot_versionbits = chainman.m_versionbitscache.ForCurrentView();
         }
 
         EvoViewScope normal_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
@@ -675,7 +936,6 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
         BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(llmq_type, util_params), BlockDataUnavailableError);
         BOOST_CHECK(list_misses == (std::vector<const CBlockIndex*>{list_block, quorum_base}));
         BOOST_CHECK(!qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
-        BOOST_CHECK(chainman.m_versionbitscache.ForCurrentView() != snapshot_versionbits);
         m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
     }
 }
@@ -855,10 +1115,19 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, EvoStallTestSetup
     } v20_restore{consensus, std::exchange(consensus.V20Height, 1)};
     const auto block{std::make_shared<const CBlock>(
         MakeCbTxBlock(template_block, tip->nHeight + 1, CCbTx::Version::CLSIG_AND_BALANCE))};
-    // Connecting it announces the stall as a local error, which blames no peer.
+    // Submitting it announces the stall as a local error, which submitblock
+    // reports instead of an inconclusive result, and blames no peer.
     const auto checked{std::make_shared<BlockCheckedCatcher>(block->GetHash())};
     RegisterSharedValidationInterface(checked);
-    BOOST_CHECK(!chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr));
+    DataStream block_stream{};
+    block_stream << *block;
+    UniValue submit_params{UniValue::VARR};
+    submit_params.push_back(HexStr(block_stream));
+    m_node.mining = interfaces::MakeMining(m_node);
+    BOOST_CHECK_EXCEPTION(CallRPC("submitblock", submit_params), UniValue, [](const UniValue& error) {
+        return error["code"].getValStr() == ToString(RPC_VERIFY_ERROR) &&
+               error["message"].get_str() == "evo-local-unavailable";
+    });
     UnregisterSharedValidationInterface(checked);
     BOOST_REQUIRE(checked->state);
     BOOST_CHECK(IsLocalEvoStateError(*checked->state));
@@ -975,6 +1244,59 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, EvoStallTestSetup
         BOOST_CHECK_NO_THROW(GetNonNullCoinbaseChainlock(m_node.chainman->m_blockman, snapshot_base));
     }
 
+    // A provider transaction whose own check cannot read the tip's masternode
+    // list, while the deployment state is readable, is refused with the same
+    // local error, alone or in a package.
+    {
+        const auto& funding{m_coinbase_txns[1]};
+        CProUpServTx payload;
+        payload.nVersion = ProTxVersionForNextBlock(chainman);
+        payload.netInfo = NetInfoInterface::MakeNetInfo(payload.nVersion);
+        payload.proTxHash = uint256::ONE;
+        BOOST_REQUIRE_EQUAL(payload.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:42"), NetInfoStatus::Success);
+        CMutableTransaction parent;
+        parent.nVersion = CTransaction::SPECIAL_VERSION;
+        parent.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+        parent.vin.emplace_back(funding->GetHash(), 0);
+        parent.vout.emplace_back(10 * COIN, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        payload.inputsHash = CalcTxInputsHash(CTransaction{parent});
+        SetTxPayload(parent, payload);
+        SignTransaction(parent, {{parent.vin[0].prevout, Coin{funding->vout[0], /*nHeightIn=*/2, /*fCoinBaseIn=*/true}}},
+                        coinbaseKey);
+        const CMutableTransaction child{CreateValidMempoolTransaction(
+            MakeTransactionRef(parent), 0, tip->nHeight + 1, coinbaseKey,
+            GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(9 * COIN), /*submit=*/false)};
+
+        UniValue single{UniValue::VARR};
+        single.push_back(EncodeHexTx(CTransaction{parent}));
+        UniValue single_params{UniValue::VARR};
+        single_params.push_back(single);
+        const UniValue tested_single{CallRPC("testmempoolaccept", single_params)};
+        BOOST_REQUIRE_EQUAL(tested_single.size(), 1U);
+        BOOST_CHECK(!tested_single[0]["allowed"].get_bool());
+        const std::string reason{tested_single[0]["reject-reason"].get_str()};
+        BOOST_CHECK_MESSAGE(reason.starts_with("evo-local-unavailable: ") &&
+                                reason.find("masternode list") != std::string::npos,
+                            reason);
+
+        UniValue rawtxs{UniValue::VARR};
+        rawtxs.push_back(EncodeHexTx(CTransaction{parent}));
+        rawtxs.push_back(EncodeHexTx(CTransaction{child}));
+        UniValue package_params{UniValue::VARR};
+        package_params.push_back(rawtxs);
+        const UniValue tested{CallRPC("testmempoolaccept", package_params)};
+        BOOST_REQUIRE_EQUAL(tested.size(), 2U);
+        for (const UniValue& tx_result : tested.getValues()) {
+            BOOST_CHECK_EQUAL(tx_result["package-error"].getValStr(), "evo-local-unavailable");
+            BOOST_CHECK(tx_result["allowed"].isNull());
+        }
+        BOOST_CHECK_EXCEPTION(CallRPC("submitpackage", package_params), UniValue, [](const UniValue& error) {
+            return error["code"].getInt<int>() == RPC_TRANSACTION_ERROR &&
+                   error["message"].get_str() == "evo-local-unavailable";
+        });
+        BOOST_CHECK_EQUAL(WITH_LOCK(m_node.mempool->cs, return m_node.mempool->size()), 0U);
+    }
+
     // Mempool acceptance that needs the EHF signals at the tip, which the
     // snapshot view lacks, ends in an error instead of throwing, and drops the
     // coins it loaded like any failure.
@@ -999,6 +1321,41 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, EvoStallTestSetup
         BOOST_CHECK(result->m_result_type == MempoolAcceptResult::ResultType::INVALID);
         BOOST_CHECK(result->m_state.IsError());
         BOOST_CHECK(!snapshot_chainstate->CoinsTip().HaveCoinInCache(input));
+    }
+
+    // A package this node cannot judge either is refused with a mempool error,
+    // which testmempoolaccept and submitpackage both report.
+    {
+        const CMutableTransaction parent{CreateValidMempoolTransaction(
+            m_coinbase_txns[52], 0, 53, coinbaseKey, GetScriptForRawPubKey(coinbaseKey.GetPubKey()),
+            CAmount(10 * COIN), /*submit=*/false)};
+        const CMutableTransaction child{CreateValidMempoolTransaction(
+            MakeTransactionRef(parent), 0, tip->nHeight + 1, coinbaseKey,
+            GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(9 * COIN), /*submit=*/false)};
+        const auto drop_cached_signals{[&] {
+            { const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}}; }
+            WITH_LOCK(::cs_main, chainman.m_versionbitscache.Clear());
+        }};
+        UniValue rawtxs{UniValue::VARR};
+        rawtxs.push_back(EncodeHexTx(CTransaction{parent}));
+        rawtxs.push_back(EncodeHexTx(CTransaction{child}));
+        UniValue package_params{UniValue::VARR};
+        package_params.push_back(rawtxs);
+
+        drop_cached_signals();
+        const UniValue tested{CallRPC("testmempoolaccept", package_params)};
+        BOOST_REQUIRE_EQUAL(tested.size(), 2U);
+        for (const UniValue& tx_result : tested.getValues()) {
+            BOOST_CHECK_EQUAL(tx_result["package-error"].get_str(), "evo-local-unavailable");
+            BOOST_CHECK(tx_result["allowed"].isNull());
+        }
+
+        drop_cached_signals();
+        BOOST_CHECK_EXCEPTION(CallRPC("submitpackage", package_params), UniValue, [](const UniValue& error) {
+            return error["code"].getInt<int>() == RPC_TRANSACTION_ERROR &&
+                   error["message"].get_str() == "evo-local-unavailable";
+        });
+        BOOST_CHECK_EQUAL(WITH_LOCK(m_node.mempool->cs, return m_node.mempool->size()), 0U);
     }
 
     // Startup's EHF signal update at the active snapshot tip cannot rebuild them
@@ -1601,6 +1958,40 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
         BOOST_CHECK_EQUAL(chainman_restarted.ActiveHeight(), 210);
     }
 
+    // The startup tail that follows the block import runs on its own thread:
+    // it must announce the restarted tip, warm caches and check EvoDB repair
+    // bound to the active view, not abort on unbound Evo reads.
+    {
+        class StartupTipReader final : public CValidationInterface
+        {
+        public:
+            explicit StartupTipReader(CDeterministicMNManager& dmnman) :
+                m_dmnman{dmnman}
+            {
+            }
+            void InitializeCurrentBlockTip(const CBlockIndex* tip, bool) override
+            {
+                m_dmnman.UpdatedBlockTip(tip);
+                ++announced;
+            }
+            int announced{0};
+
+        private:
+            CDeterministicMNManager& m_dmnman;
+        } tip_reader{*m_node.dmnman};
+        RegisterValidationInterface(&tip_reader);
+        BOOST_CHECK(!m_node.evodb->IsBound());
+        BOOST_CHECK_NO_THROW(FinishImportedStartup(m_node, m_args, /*skip_evodb_repair_on_reindex=*/false));
+        UnregisterValidationInterface(&tip_reader);
+        BOOST_CHECK_EQUAL(tip_reader.announced, 1);
+    }
+
+    // Active-chain reads through the RPC dispatcher bind the active view.
+    BOOST_CHECK_NO_THROW(this->CallRPC("getblockchaininfo"));
+    UniValue count_params{UniValue::VARR};
+    count_params.push_back("count");
+    BOOST_CHECK_NO_THROW(this->CallRPC("masternode", count_params));
+
     BOOST_TEST_MESSAGE(
         "Ensure we can mine blocks on top of the initialized snapshot chainstate");
     mineBlocks(10);
@@ -1704,6 +2095,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
     auto& qman = *Assert(m_node.llmq_ctx)->qman;
     {
         LOCK(::cs_main);
+        // The seeded record lives in the snapshot view.
+        EvoViewScope snapshot_view{snapshot_chainstate->EvoView()};
         BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash));
         BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
         BOOST_CHECK(!qblockman.HasMinedCommitment(llmq_type, quorum_hash, background_chainstate->m_chain));
@@ -1730,6 +2123,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
         CBlock block;
         BOOST_REQUIRE(m_node.chainman->m_blockman.ReadBlockFromDisk(block, *snapshot_mined_block));
         BlockValidationState state;
+        EvoViewScope background_view{background_chainstate->EvoView()};
         BOOST_CHECK(qblockman.ProcessBlock(*background_chainstate, block, snapshot_mined_block, state,
                                            /*fJustCheck=*/true, /*fBLSChecks=*/false));
     }
@@ -2146,7 +2540,10 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
     BOOST_REQUIRE(m_node.evodb->ReadBackgroundMNListHash(captured_block, captured_hash));
     BOOST_CHECK_EQUAL(captured_block, base_index->GetBlockHash());
     BOOST_CHECK_NE(captured_hash, incorrect_hash);
-    m_node.dmnman->SetListForBlockForTesting(incorrect_base_list);
+    {
+        EvoViewScope background_view{validation_chainstate->EvoView()};
+        m_node.dmnman->SetListForBlockForTesting(incorrect_base_list);
+    }
 
     // The regtest assumeutxo fixture predates DIP3. Temporarily make DIP3 active
     // so the legacy completion lookup would consume the poisoned shared cache.
