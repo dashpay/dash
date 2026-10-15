@@ -192,9 +192,32 @@ EvoViewToken CEvoDB::MakeView(EvoDbIdentity identity) const
 
 EvoViewToken CEvoDB::ResolveView() const
 {
-    if (HoldsTransaction()) return MakeView(*active_transaction);
-    if (const EvoViewToken * scoped{EvoViewScope::Innermost(*this)}) return *scoped;
-    return MakeView(m_default_identity);
+    EvoViewToken view;
+    if (HoldsTransaction()) {
+        view = MakeView(*active_transaction);
+    } else if (const EvoViewToken * scoped{EvoViewScope::Innermost(*this)}) {
+        view = *scoped;
+    } else if (m_has_live_generation) {
+        // With two chainstates, an absent binding says nothing about which one
+        // the access serves; never guess.
+        throw EvoViewBindingError("unbound Evo access during dual-chainstate operation");
+    } else {
+        return MakeView(m_default_identity);
+    }
+    if (view.identity == EvoDbIdentity::SNAPSHOT && view != MakeView(EvoDbIdentity::SNAPSHOT)) {
+        throw EvoViewBindingError(strprintf("Evo access bound to retired snapshot generation %u", view.generation));
+    }
+    return view;
+}
+
+bool CEvoDB::IsCurrentView(const EvoViewToken& view) const
+{
+    LOCK(cs);
+    try {
+        return ResolveView() == view;
+    } catch (const EvoViewBindingError&) {
+        return false;
+    }
 }
 
 EvoViewToken CEvoDB::CurrentView() const

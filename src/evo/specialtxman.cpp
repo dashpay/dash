@@ -926,6 +926,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
 {
     AssertLockHeld(::cs_main);
 
+    if (!IsEvoViewBound(chainstate)) {
+        throw EvoViewBindingError(strprintf("%s: not bound to the chainstate's Evo view", __func__));
+    }
+
     try {
         static int64_t nTimeLoop = 0;
         static int64_t nTimeQuorum = 0;
@@ -1128,9 +1132,13 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
     return true;
 }
 
-bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, MNListUpdates& updatesRet)
+bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block,
+                                                const CBlockIndex* pindex, MNListUpdates& updatesRet)
 {
     AssertLockHeld(::cs_main);
+    if (!IsEvoViewBound(chainstate)) {
+        throw EvoViewBindingError(strprintf("%s: not bound to the chainstate's Evo view", __func__));
+    }
 
     auto bls_legacy_scheme = bls::bls_legacy_scheme.load();
 

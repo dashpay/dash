@@ -11,6 +11,9 @@
 #include <evo/specialtxman.h>
 #include <index/txindex.h>
 #include <init.h>
+#include <llmq/blockprocessor.h>
+#include <llmq/context.h>
+#include <node/blockstorage.h>
 #include <node/interface_ui.h>
 #include <random.h>
 #include <rpc/blockchain.h>
@@ -263,6 +266,40 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
         BOOST_CHECK(StoredInGeneration(evodb, snapshot_view.generation, snapshot_key));
         BOOST_CHECK(!evodb.GetRawDB().Exists(normal_key));
         BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::NORMAL));
+    }
+
+    // During dual operation an unbound Evo read is a typed local error, never
+    // a silent pick of either view: for the background chainstate's state and
+    // for the active one's alike. The check is not an Assume, so it fires in
+    // every build.
+    BOOST_CHECK(!evodb.IsBound());
+    BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(WITH_LOCK(::cs_main, return background_cs.m_chain.Tip())),
+                      EvoViewBindingError);
+    BOOST_CHECK_THROW(m_node.dmnman->GetListAtChainTip(), EvoViewBindingError);
+
+    // A connect-path entry point taking an explicit chainstate refuses to run
+    // under another chainstate's view with the same typed binding error as the
+    // undo path, which every chainstate boundary classifies as a local stall.
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_bound{chainman.ActiveChainstate().EvoView()};
+        const CBlockIndex* background_tip{background_cs.m_chain.Tip()};
+        CBlock block;
+        BOOST_REQUIRE(node::ReadBlockFromDisk(block, background_tip, chainman.GetConsensus()));
+        BlockValidationState wrong_view_state;
+        BOOST_CHECK_THROW(m_node.llmq_ctx->quorum_block_processor->ProcessBlock(background_cs, block, background_tip,
+                                                                                wrong_view_state, /*fJustCheck=*/true,
+                                                                                /*fBLSChecks=*/false),
+                          EvoViewBindingError);
+        CCoinsViewCache coins{&background_cs.CoinsTip()};
+        MNListUpdates updates;
+        BOOST_CHECK_THROW(m_node.special_tx->ProcessSpecialTxsInBlock(
+                              background_cs, background_cs.m_chain, block, background_tip,
+                              GetSpecialTxRules(background_tip->pprev, chainman), coins,
+                              GetBlockSubsidy(background_tip, chainman.GetConsensus()), /*fJustCheck=*/true,
+                              /*fCheckCbTxMerkleRoots=*/false, wrong_view_state, updates),
+                          EvoViewBindingError);
+        BOOST_CHECK(wrong_view_state.IsValid());
     }
 }
 
