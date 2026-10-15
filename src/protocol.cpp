@@ -96,7 +96,7 @@ MAKE_MSG(PLATFORMBAN, "platformban");
 /** All known message types. Keep this in the same order as the list of
  * messages above and in protocol.h.
  */
-const static std::string allNetMessageTypes[] = {
+const static std::vector<std::string> g_all_net_message_types{
     NetMsgType::VERSION,
     NetMsgType::VERACK,
     NetMsgType::ADDR,
@@ -174,7 +174,6 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::QUORUMROTATIONINFO,
     NetMsgType::PLATFORMBAN,
 };
-const static std::vector<std::string> allNetMessageTypesVec(std::begin(allNetMessageTypes), std::end(allNetMessageTypes));
 
 /** Message types that are not allowed by blocks-relay-only policy.
  *  We do not want most of CoinJoin, DKG or LLMQ signing messages to be relayed
@@ -329,7 +328,7 @@ std::string CInv::ToString() const
 
 const std::vector<std::string> &getAllNetMessageTypes()
 {
-    return allNetMessageTypesVec;
+    return g_all_net_message_types;
 }
 
 bool NetMessageViolatesBlocksOnly(const std::string& msg_type)
