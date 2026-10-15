@@ -16,6 +16,7 @@
 #include <evo/sharedcollateral.h>
 #include <evo/simplifiedmns.h>
 #include <evo/snapshot_types.h>
+#include <evo/viewcache.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
@@ -165,23 +166,27 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
         return true;
     }
 
+    // The previous block's coinbase ChainLock, remembered per Evo view.
+    struct CachedChainlock {
+        const CBlockIndex* pindex{nullptr};
+        std::optional<std::pair<CBLSSignature, uint32_t>> chainlock;
+    };
     static Mutex cached_mutex;
-    static const CBlockIndex* cached_pindex GUARDED_BY(cached_mutex){nullptr};
-    static std::optional<std::pair<CBLSSignature, uint32_t>> cached_chainlock GUARDED_BY(cached_mutex){std::nullopt};
+    static EvoViewCache<CachedChainlock> cached_by_view GUARDED_BY(cached_mutex);
+    const EvoViewToken view{qman.CurrentView()};
 
     auto best_clsig = chainlocks.GetBestChainLock();
     if (best_clsig.getHeight() == pindex->nHeight - 1 && cbTx.bestCLHeightDiff == 0 &&
         cbTx.bestCLSignature == best_clsig.getSig()) {
         // matches our best clsig which still hold values for the previous block
         LOCK(cached_mutex);
-        cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
-        cached_pindex = pindex;
+        cached_by_view.For(view) = {pindex, std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff)};
         return true;
     }
 
     std::optional<std::pair<CBLSSignature, uint32_t>> prevBlockCoinbaseChainlock{std::nullopt};
-    if (LOCK(cached_mutex); cached_pindex == pindex->pprev) {
-        prevBlockCoinbaseChainlock = cached_chainlock;
+    if (LOCK(cached_mutex); cached_by_view.For(view).pindex == pindex->pprev) {
+        prevBlockCoinbaseChainlock = cached_by_view.For(view).chainlock;
     }
     if (!prevBlockCoinbaseChainlock.has_value()) {
         prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindex->pprev);
@@ -208,8 +213,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
         if (best_clsig.getHeight() == curBlockCoinbaseCLHeight && best_clsig.getSig() == cbTx.bestCLSignature) {
             // matches our best (but outdated) clsig, no need to verify it again
             LOCK(cached_mutex);
-            cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
-            cached_pindex = pindex;
+            cached_by_view.For(view) = {pindex, std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff)};
             return true;
         }
         const CBlockIndex* pAncestor = pindex->GetAncestor(curBlockCoinbaseCLHeight);
@@ -225,8 +229,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-invalid-clsig");
         }
         LOCK(cached_mutex);
-        cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
-        cached_pindex = pindex;
+        cached_by_view.For(view) = {pindex, std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff)};
     } else if (cbTx.bestCLHeightDiff != 0) {
         // Null bestCLSignature is allowed only with bestCLHeightDiff = 0
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
