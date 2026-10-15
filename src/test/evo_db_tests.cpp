@@ -625,6 +625,36 @@ BOOST_AUTO_TEST_CASE(single_view_turn_does_not_wait_for_cs_main)
     BOOST_CHECK(dual_view == db.ViewFor(EvoDbIdentity::SNAPSHOT));
 }
 
+// The switch to a snapshot waits, up to a bound, for the dispatch turns other
+// threads have bound; the waiting thread's own turn, and a turn nested in it,
+// do not count.
+BOOST_AUTO_TEST_CASE(snapshot_switch_waits_for_other_threads_turns)
+{
+    CEvoDB db{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "evodb_turn_handoff", .memory = true, .wipe = true}};
+    BOOST_CHECK_EQUAL(db.WaitForOtherActiveTurns(0ms), 0);
+    {
+        const ActiveEvoViewScope own{&db};
+        const ActiveEvoViewScope nested{&db};
+        BOOST_CHECK_EQUAL(db.WaitForOtherActiveTurns(0ms), 0);
+    }
+    std::promise<void> bound;
+    std::promise<void> release;
+    std::thread other{[&] {
+        const ActiveEvoViewScope turn{&db};
+        bound.set_value();
+        release.get_future().wait();
+    }};
+    bound.get_future().wait();
+    BOOST_CHECK_EQUAL(db.WaitForOtherActiveTurns(50ms), 1);
+    std::thread releaser{[&] {
+        std::this_thread::sleep_for(100ms);
+        release.set_value();
+    }};
+    BOOST_CHECK_EQUAL(db.WaitForOtherActiveTurns(30s), 0);
+    other.join();
+    releaser.join();
+}
+
 // A service round that keeps failing is logged once per view generation and
 // reason, and its recovery once.
 BOOST_AUTO_TEST_CASE(failing_service_rounds_log_once_per_cause)

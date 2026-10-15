@@ -149,19 +149,24 @@ ProviderTxError UnavailableProviderTxError()
     return {.code = interfaces::ProviderTxErrorCode::INTERNAL_ERROR, .message = EvoStateUnavailableMessage()};
 }
 
-//! Set the misc warning and log `e`, once per operation and active Evo view:
-//! GUI models poll these operations, and each warning notifies the GUI.
+std::string EvoStateWarningSource(std::string_view operation) { return strprintf("interfaces:%s", operation); }
+
+//! Set the operation's warning, which notifies the GUI only when it changes,
+//! and log `e` once per operation and active Evo view: GUI models poll these
+//! operations.
 void ReportEvoStateUnavailable(const CEvoDB* evodb, std::string_view operation, const evo::LocalStateError& e)
 {
-    static Mutex mutex;
-    static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> reported;
-    const EvoViewToken view{evodb ? evodb->ActiveView() : EvoViewToken{}};
-    if (WITH_LOCK(mutex, return reported.emplace(operation, view.db, view.identity, view.generation).second)) {
-        // Without a snapshot, only pruning removes the block data Evo state is
-        // derived from.
-        const bool pruned{evodb && !evodb->HasLiveGeneration() && dynamic_cast<const BlockDataUnavailableError*>(&e)};
-        WarnLocalEvoStateUnavailable(strprintf("%s could not read it", operation), pruned);
+    // Without a snapshot, only pruning removes the block data Evo state is
+    // derived from.
+    const bool pruned{evodb && !evodb->HasLiveGeneration() && dynamic_cast<const BlockDataUnavailableError*>(&e)};
+    if (WarnLocalEvoStateUnavailable(EvoStateWarningSource(operation), strprintf("%s could not read it", operation),
+                                     pruned)) {
         uiInterface.NotifyAlertChanged();
+    }
+    static Mutex mutex;
+    static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> logged;
+    const EvoViewToken view{evodb ? evodb->ActiveView() : EvoViewToken{}};
+    if (WITH_LOCK(mutex, return logged.emplace(operation, view.db, view.identity, view.generation).second)) {
         LogPrintf("ERROR: %s: Evo state unavailable: %s\n", operation, e.what());
     }
 }
@@ -176,7 +181,17 @@ std::invoke_result_t<Fn&> WithActiveEvoView(const CEvoDB* evodb, std::string_vie
 {
     try {
         const ActiveEvoViewScope evo_view{evodb};
-        return fn();
+        const auto read_again = [&] {
+            if (SetEvoStateWarning(EvoStateWarningSource(operation), std::nullopt)) uiInterface.NotifyAlertChanged();
+        };
+        if constexpr (std::is_void_v<std::invoke_result_t<Fn&>>) {
+            fn();
+            read_again();
+        } else {
+            auto result{fn()};
+            read_again();
+            return result;
+        }
     } catch (const evo::LocalStateError& e) {
         ReportEvoStateUnavailable(evodb, operation, e);
         return on_unavailable();

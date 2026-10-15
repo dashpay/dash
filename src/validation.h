@@ -37,6 +37,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -395,10 +396,12 @@ inline bool IsLocalEvoStateError(const BlockValidationState& state)
 }
 
 /** Tell the user, through the misc warning, that some snapshot state cannot be
- *  used yet. `detail` says what is affected. `pruned` says that the state is
- *  missing on a node without a snapshot, where only pruning removes the block
- *  data it is derived from. Sets the warning; the caller notifies. */
-void WarnLocalEvoStateUnavailable(const std::string& detail, bool pruned = false);
+ *  used yet. `source` keys the warning and `detail` says what is affected.
+ *  `pruned` says that the state is missing on a node without a snapshot,
+ *  where only pruning removes the block data it is derived from. Sets the
+ *  warning and returns whether it changed; the caller notifies. */
+[[nodiscard]] bool WarnLocalEvoStateUnavailable(const std::string& source, const std::string& detail,
+                                                bool pruned = false);
 
 enum class VerifyDBResult {
     SUCCESS,
@@ -571,6 +574,8 @@ public:
                          const chainlock::Chainlocks& chainlocks,
                          llmq::CInstantSendManager* isman,
                          std::optional<uint256> from_snapshot_blockhash = std::nullopt);
+    //! A chainstate that goes away takes the warning of its stalls along.
+    ~Chainstate();
 
     //! Return the stable EvoDB identity corresponding to this chainstate's coins DB.
     ::EvoDbIdentity EvoDbIdentity() const;
@@ -706,10 +711,15 @@ public:
     //! Unconditionally flush all changes to disk.
     void ForceFlushStateToDisk();
 
+    //! Flush the coins, checked, then sync this chainstate's Evo records, so
+    //! that they never reach disk ahead of its coins.
+    bool FlushCoinsThenSyncEvo() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
     /** Persist the hash of the MN list this chainstate derived when connecting
      *  the snapshot base block. No-op on any other block or chainstate, so
      *  ordinary block connection never pays for hashing the full list. */
-    void RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDeterministicMNList& mn_list);
+    void RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDeterministicMNList& mn_list)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Prune blockfiles from the disk if necessary and then flush chainstate changes
     //! if we pruned.
@@ -837,6 +847,7 @@ private:
     //! setBlockIndexCandidates, as a chain rewound below its best candidates
     //! needs them.
     void RestoreBlockIndexCandidates() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    std::string EvoStallWarningSource() const;
 
     void InvalidBlockFound(CBlockIndex* pindex, const BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     //! The best candidate no local Evo stall obstructs. Sets
@@ -1042,11 +1053,30 @@ private:
 
     CBlockIndex* m_best_invalid GUARDED_BY(::cs_main){nullptr};
 
-    //! Internal helper for ActivateSnapshot().
+    //! What ActivateSnapshot() publishes with the seeded generation.
+    struct EvoPublication {
+        std::optional<uint256> base_mn_list_hash;
+        std::vector<uint8_t> retained_section;
+    };
+
+    //! Internal helper for ActivateSnapshot(): load and check the coins, then
+    //! seed, check and dry-run the evo section into an unpublished generation.
+    //! Publishing it is left to the switch.
     [[nodiscard]] bool PopulateAndValidateSnapshot(
         Chainstate& snapshot_chainstate,
         AutoFile& coins_file,
-        const node::SnapshotMetadata& metadata);
+        const node::SnapshotMetadata& metadata,
+        EvoPublication& publication);
+
+    //! Why the chainstate cannot switch to a snapshot based at `base` now, if
+    //! it cannot: the conditions activation relies on, checked again at the
+    //! switch since the active chainstate kept running while it prepared.
+    std::optional<std::string> SnapshotSwitchRefusal(const CBlockIndex& base) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! The base of a snapshot being activated, from the moment its evo state
+    //! starts being recorded until the switch: the active chainstate records
+    //! the base's MN list as it would in the background.
+    std::optional<uint256> m_activating_snapshot_base GUARDED_BY(::cs_main);
 
     /**
      * If a block header hasn't already been seen, call CheckBlockHeader on it, ensure
@@ -1173,6 +1203,24 @@ public:
     //! The total number of bytes available for us to use across all in-memory
     //! coins caches. This will be split somehow across chainstates.
     int64_t m_total_coinstip_cache{0};
+
+    //! Make snapshot activation stop right before it publishes the seeded Evo
+    //! generation, without cleaning up, as if the process died there.
+    bool m_stop_before_evo_publication_for_testing{false};
+    //! Likewise, right after publication, before the snapshot directory
+    //! records its base block.
+    bool m_stop_after_evo_publication_for_testing{false};
+    //! Make the evo dry run fail after it ran, as for seeded state it cannot
+    //! compute quorum members from.
+    bool m_fail_evo_dry_run_for_testing{false};
+    //! Called by snapshot activation without cs_main, while the active
+    //! chainstate may still advance: once the coins are loaded, and between
+    //! preparing and switching.
+    std::function<void()> m_after_snapshot_coins_loaded_for_testing;
+    std::function<void()> m_before_snapshot_switch_for_testing;
+    //! How long the switch to a snapshot waits for active-chain turns still
+    //! running in the previous view to end.
+    std::chrono::milliseconds m_snapshot_turn_handoff_timeout{std::chrono::seconds{5}};
     //
     //! The total number of bytes available for us to use across all leveldb
     //! coins databases. This will be split somehow across chainstates.
@@ -1205,8 +1253,12 @@ public:
     //!   faking nTx* block index data along the way.
     //! - Move the new chainstate to `m_snapshot_chainstate` and make it our
     //!   ChainstateActive().
+    //!
+    //! The caller must not hold cs_main: before the switch this waits for
+    //! other threads' active-chain turns, which may need it.
     [[nodiscard]] bool ActivateSnapshot(
-        AutoFile& coins_file, const node::SnapshotMetadata& metadata, bool in_memory);
+        AutoFile& coins_file, const node::SnapshotMetadata& metadata, bool in_memory)
+        LOCKS_EXCLUDED(::cs_main);
 
     //! Once the background validation chainstate has reached the height which
     //! is the base of the UTXO snapshot in use, compare its coins to ensure

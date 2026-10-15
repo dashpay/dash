@@ -17,6 +17,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -42,6 +44,8 @@ static const std::string EVODB_BEST_BLOCK = "b_b4";
 static const std::string EVODB_DUAL_CHAINSTATE = "b_dcs";
 static const std::string EVODB_SNAPSHOT_MNLIST_HASH = "b_dcs_mn";
 static const std::string EVODB_BACKGROUND_MNLIST_HASH = "b_dcs_bg_mn";
+//! The evo section the live snapshot generation was seeded from.
+static const std::string EVODB_SNAPSHOT_EVO_SECTION = "b_dcs_evo";
 // Snapshot-identity lifecycle metadata. It lives in the legacy keyspace and is
 // never part of a generation namespace.
 static const std::string EVODB_GENERATION_RECORD = "b_evo_gen";
@@ -409,6 +413,12 @@ public:
     bool IsBound() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     //! Whether a published snapshot generation is live, so that two views exist.
     bool HasLiveGeneration() const { return m_has_live_generation.load(); }
+    //! Wait up to `timeout` for the active-chain turns (ActiveEvoViewScope) of
+    //! other threads to end. Returns how many were still running when it
+    //! stopped waiting. Those turns may need cs_main, so the caller must not
+    //! hold it.
+    int WaitForOtherActiveTurns(std::chrono::milliseconds timeout) const
+        EXCLUSIVE_LOCKS_REQUIRED(!m_turns_mutex) LOCKS_EXCLUDED(::cs_main);
     //! The view of the active chainstate.
     EvoViewToken ActiveView() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     //! Whether `view` still names a view of this CEvoDB: NORMAL, or the snapshot
@@ -585,10 +595,13 @@ public:
      *  generation is already live, a revoked one included. */
     bool CreateSnapshotGeneration(const uint256& base, int base_height) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    /** Publish the bound generation together with the dual-chainstate markers
-     *  and the consensus-configuration fingerprint it is valid for. */
-    bool PublishSnapshotGeneration(const uint256& config_fingerprint, const std::optional<uint256>& base_mn_list_hash)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    /** Publish the bound generation together with the dual-chainstate markers,
+     *  the consensus-configuration fingerprint it is valid for and the encoded
+     *  evo section it was seeded from (empty for a UTXO-only snapshot). */
+    bool PublishSnapshotGeneration(const uint256& config_fingerprint, const std::optional<uint256>& base_mn_list_hash,
+                                   const std::vector<uint8_t>& evo_section = {}) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! The evo section the live generation was published with, if any.
+    std::optional<std::vector<uint8_t>> ReadRetainedEvoSection() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /** Startup: collect unpublished and rejected generations, then bind the
      *  live one. Fails closed if the live generation was published under a
@@ -665,6 +678,12 @@ private:
     void CommitCurTransaction(EvoDbIdentity identity) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs);
     void RollbackCurTransaction(EvoDbIdentity identity) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs);
 
+    // only ActiveEvoViewScope is allowed to invoke these
+    friend class ActiveEvoViewScope;
+    //! An active-chain turn bound on this thread starts or ends.
+    void EnterActiveTurn() const;
+    void LeaveActiveTurn() const EXCLUSIVE_LOCKS_REQUIRED(!m_turns_mutex);
+
     static std::pair<std::string, std::vector<uint8_t>> SeedManifestKey(const DataStream& key)
     {
         return {EVODB_SEED_MANIFEST, {UCharCast(key.data()), UCharCast(key.data() + key.size())}};
@@ -697,6 +716,12 @@ private:
 
     static inline std::atomic<uint64_t> g_view_cache_epoch{0};
     std::atomic<bool> m_has_live_generation{false};
+    //! Turns start and end without taking m_turns_mutex; one that ends takes
+    //! it and notifies only while a thread waits for turns to end.
+    mutable std::atomic<int> m_active_turns{0};
+    mutable std::atomic<int> m_turn_waiters{0};
+    mutable Mutex m_turns_mutex;
+    mutable std::condition_variable m_turns_cv;
     const bool m_check_binding;
 
     //! The live generation the SNAPSHOT identity reads and writes.
@@ -733,19 +758,33 @@ public:
         if (evodb == nullptr || evodb->IsBound()) return;
         if (!evodb->HasLiveGeneration()) {
             m_scope.emplace(evodb->ActiveView());
-            return;
+        } else {
+            LOCK(::cs_main);
+            m_scope.emplace(evodb->ActiveView());
         }
-        LOCK(::cs_main);
-        m_scope.emplace(evodb->ActiveView());
+        Enter(*evodb);
     }
 
     template <typename TipFn>
     ActiveEvoViewScope(const CEvoDB* evodb, TipFn&& active_tip)
     {
         if (evodb == nullptr) return;
-        LOCK(::cs_main);
-        m_tip = active_tip();
-        if (!evodb->IsBound()) m_scope.emplace(evodb->ActiveView());
+        {
+            LOCK(::cs_main);
+            m_tip = active_tip();
+            if (evodb->IsBound()) return;
+            m_scope.emplace(evodb->ActiveView());
+        }
+        Enter(*evodb);
+    }
+
+    ActiveEvoViewScope(const ActiveEvoViewScope&) = delete;
+    ActiveEvoViewScope& operator=(const ActiveEvoViewScope&) = delete;
+
+    ~ActiveEvoViewScope()
+    {
+        m_scope.reset();
+        if (m_turn_db) m_turn_db->LeaveActiveTurn();
     }
 
     //! The active tip read with the bound view, if the scope was given a way
@@ -753,8 +792,15 @@ public:
     const CBlockIndex* Tip() const { return m_tip; }
 
 private:
+    void Enter(const CEvoDB& evodb)
+    {
+        m_turn_db = &evodb;
+        evodb.EnterActiveTurn();
+    }
+
     const CBlockIndex* m_tip{nullptr};
     std::optional<EvoViewScope> m_scope;
+    const CEvoDB* m_turn_db{nullptr};
 };
 
 //! Log a failed round of `what` unless a failure with the same view generation
