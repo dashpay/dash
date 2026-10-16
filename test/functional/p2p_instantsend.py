@@ -3,6 +3,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+from decimal import Decimal
+
 from test_framework.messages import msg_qsendrecsigs
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
@@ -170,21 +172,73 @@ class InstantSendTest(DashTestFramework):
             node.disconnect_p2ps()
 
     def test_provider_tx_not_locked(self):
-        self.log.info("Provider txs are not locked, but are mined and ChainLocked once safe")
+        self.log.info("Provider txs are not locked, but are mined once safe and their block is ChainLocked")
         node = self.nodes[0]
         funds_addr = node.getnewaddress()
         fund_id = node.sendtoaddress(funds_addr, 1)
         self.wait_for_instantlock(fund_id)
 
-        protx_id = self.mninfo[0].update_service(node, submit=True, fundsAddr=funds_addr)
+        protx_hex = self.mninfo[0].update_service(node, submit=False, fundsAddr=funds_addr)
+        protx_id = node.decoderawtransaction(protx_hex)["txid"]
+        mn = self.mninfo[0].get_node(self)
+        with mn.assert_debug_log([
+            f"CheckCanLock -- txid={protx_id}: provider txs are not locked",
+            f"ProcessTx -- txid={protx_id}: CheckCanLock returned false",
+        ], timeout=60):
+            node.sendrawtransaction(protx_hex)
+            self.bump_mocktime(30)
+            self.sync_mempools()
         later_id = node.sendtoaddress(node.getnewaddress(), 1)
         self.wait_for_instantlock(later_id)
-        self.sync_mempools()
         for n in self.nodes:
             assert not n.getrawtransaction(protx_id, True)["instantlock_internal"]
 
         tip = self.bury_tx(node, protx_id)
         self.wait_for_chainlocked_block(node, tip)
+
+        self.log.info("Provider txs first seen in a block are not locked retroactively")
+        fund_id = node.sendtoaddress(funds_addr, 1)
+        self.wait_for_instantlock(fund_id)
+        self.isolate_node(0)
+        protx_id = self.mninfo[0].update_service(node, submit=True, fundsAddr=funds_addr)
+        normal_id = node.sendtoaddress(node.getnewaddress(), 1)
+        self.bump_mocktime(10 * 60 + 1)
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        block_txs = node.getblock(block_hash)["tx"]
+        assert protx_id in block_txs
+        assert normal_id in block_txs
+
+        with mn.assert_debug_log([
+            f"CheckCanLock -- txid={protx_id}: provider txs are not locked",
+            f"ProcessTx -- txid={protx_id}: CheckCanLock returned false",
+        ], timeout=60):
+            node.setnetworkactive(True)
+            for i in range(1, self.num_nodes):
+                self.connect_nodes(0, i)
+            self.sync_blocks()
+        self.wait_until(lambda: all(n.getrawtransaction(normal_id, True)["instantlock_internal"] for n in self.nodes))
+        for n in self.nodes:
+            assert not n.getrawtransaction(protx_id, True)["instantlock_internal"]
+            assert not n.getblock(block_hash)["chainlock"]
+
+        self.log.info("Children of a provider tx are locked once its block is ChainLocked")
+        protx_out = node.getrawtransaction(protx_id, True)["vout"][0]
+        child_raw = node.createrawtransaction([{"txid": protx_id, "vout": 0}], {node.getnewaddress(): protx_out["value"] - Decimal("0.001")})
+        child_hex = node.signrawtransactionwithwallet(child_raw)["hex"]
+        child_id = node.decoderawtransaction(child_hex)["txid"]
+        with mn.assert_debug_log([
+            f"CheckCanLock -- txid={child_id}: outpoint {protx_id}-0 too new and not ChainLocked",
+        ], timeout=60):
+            node.sendrawtransaction(child_hex)
+            self.bump_mocktime(30)
+            self.sync_mempools()
+        for n in self.nodes:
+            assert not n.getrawtransaction(child_id, True)["instantlock_internal"]
+
+        self.bump_mocktime(10 * 60 + 1)
+        self.wait_for_chainlocked_block_all_nodes(block_hash)
+        self.wait_until(lambda: all(n.getrawtransaction(child_id, True)["instantlock_internal"] for n in self.nodes))
+        assert_equal(node.getbestblockhash(), block_hash)
 
 if __name__ == '__main__':
     InstantSendTest().main()
