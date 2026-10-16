@@ -24,4 +24,7 @@ natpmp_packages=libnatpmp
 multiprocess_packages = libmultiprocess capnp
 multiprocess_native_packages = native_libmultiprocess native_capnp
 
+platform_packages = rust_stdlib platform_cxx
+platform_native_packages = native_rust native_protobuf
+
 usdt_linux_packages=systemtap

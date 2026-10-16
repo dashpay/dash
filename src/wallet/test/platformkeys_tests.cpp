@@ -24,6 +24,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <array>
+#include <iterator>
 #include <optional>
 #include <set>
 #include <vector>
@@ -192,6 +193,8 @@ BOOST_AUTO_TEST_CASE(friendship_derivation_matches_key_wallet)
                       "1ed00e776865c0308fddae8d22fb3ae47ffd51ce409b298d1987aafdec6bef6b");
     BOOST_CHECK_EQUAL(HexStr(out.key.GetPubKey()),
                       "025b4ff1b10b9e1990df46dfa2f986300a7e6eb4a85289f4419581950edd3760bf");
+    // key-wallet's parent_fingerprint: Hash160 prefix of m/9'/1'/15'/0'/(id_a).
+    BOOST_CHECK_EQUAL(HexStr(out.parent_fingerprint), "a582fa1d");
 }
 
 //! ECDH secrets must be symmetric and match the libsecp256k1 KDF
@@ -207,6 +210,18 @@ BOOST_AUTO_TEST_CASE(ecdh_symmetry)
     BOOST_REQUIRE(ComputeECDHSecret(b, a.GetPubKey(), s_ba));
     BOOST_CHECK_EQUAL(s_ab.size(), 32U);
     BOOST_CHECK(s_ab == s_ba);
+}
+
+//! iOS ASK28 known answer from rs-platform-encryption's
+//! ask28_extraction_matches_ios_and_diverges_from_others: digest 0x00..0x1f
+//! gives 0x01c1d1e1, unlike the Android and DIP-literal readings.
+BOOST_AUTO_TEST_CASE(account_reference_uses_ios_ask28)
+{
+    uint256 mac;
+    for (size_t i{0}; i < mac.size(); ++i) {
+        *(mac.begin() + i) = static_cast<uint8_t>(i);
+    }
+    BOOST_CHECK_EQUAL(AccountReferenceFromMac(mac), 0x01c1d1e1U);
 }
 
 //! Mnemonic behind Dip14Seed() above.
@@ -290,6 +305,8 @@ struct FriendshipWalletSetup : public TestChain100Setup {
     }
 
     static constexpr uint32_t ACCOUNT{0};
+    //! Identity key 2 is the DashPay ENCRYPTION key.
+    static constexpr IdentityAuthKey ENCRYPTION_KEY{0, 2};
     const uint256 m_my_id{uint256S("1111111111111111111111111111111111111111111111111111111111111111")};
     const uint256 m_their_id{uint256S("2222222222222222222222222222222222222222222222222222222222222222")};
 
@@ -360,6 +377,7 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_must_be_unambiguous, Dip14WalletSetu
 {
     const auto before{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_REQUIRE(before);
+    BOOST_CHECK(m_iface->platformKeySourceStatus() == PlatformKeyStatus::SUCCESS);
 
     // The internal hook must not permit an empty path to expose the BIP32
     // master key, even though the typed public requests cannot form one.
@@ -390,6 +408,7 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_must_be_unambiguous, Dip14WalletSetu
 
     const auto ambiguous{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(ambiguous.status == PlatformKeyStatus::AMBIGUOUS_SOURCE);
+    BOOST_CHECK(m_iface->platformKeySourceStatus() == PlatformKeyStatus::AMBIGUOUS_SOURCE);
 }
 
 //! An imported root xprv is sufficient for Platform derivation. The mnemonic
@@ -416,6 +435,7 @@ BOOST_FIXTURE_TEST_CASE(child_xprv_has_no_platform_keys, FriendshipWalletSetup)
     const auto [wallet, iface]{MakeXprvWallet(child)};
     const auto result{iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(result.status == PlatformKeyStatus::NOT_SUPPORTED);
+    BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::NOT_SUPPORTED);
 }
 
 //! A root source is the complete extended public key, including its chain
@@ -508,6 +528,7 @@ BOOST_FIXTURE_TEST_CASE(legacy_wallet_has_no_platform_keys, FriendshipWalletSetu
     auto iface = interfaces::MakeWallet(m_context, wallet);
     const auto result{iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(result.status == PlatformKeyStatus::NOT_SUPPORTED);
+    BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::NOT_SUPPORTED);
 }
 
 //! Two independent wallet instances restored from the same recovery phrase:
@@ -641,6 +662,56 @@ BOOST_FIXTURE_TEST_CASE(recovery_ecdh_symmetry_across_restore, SeededWalletPair)
     SecureVector secret_contact_side;
     BOOST_REQUIRE(ComputeECDHSecret(contact_key, our_auth_key.value, secret_contact_side));
     BOOST_CHECK(secret_contact_side == secret_original.value);
+}
+
+//! Cross-implementation vectors generated with rs-platform-encryption and
+//! rust-dashcore's key-wallet (rev e4208c90786a) from Dip14Seed(), coin type
+//! 1, account 0, identity ids id_a = 000102..1f and id_b = fffefd..e0 (the
+//! same friendship as friendship_derivation_matches_key_wallet):
+//!  - the 69-byte DIP-15 compact xpub parentFingerprint || chainCode || pubKey
+//!    is the contactRequest encryptedPublicKey plaintext;
+//!  - calculate_account_reference(ENCRYPTION key at m/9'/1'/5'/0'/0'/0'/2',
+//!    compact xpub, account 0, version 0) is the request's accountReference;
+//!  - contact payment addresses are P2PKH of xpub/i, as
+//!    derive_contact_payment_address computes them.
+BOOST_FIXTURE_TEST_CASE(dip15_compact_xpub_account_reference_and_payment_vectors, Dip14WalletSetup)
+{
+    std::array<uint8_t, 32> id_a, id_b;
+    for (size_t i{0}; i < 32; ++i) {
+        id_a[i] = static_cast<uint8_t>(i);
+        id_b[i] = static_cast<uint8_t>(0xff - i);
+    }
+    const auto keychain{m_iface->ensureFriendshipReceivingKeychain(
+        FriendshipKeychainRequest{ACCOUNT, uint256{id_a}, uint256{id_b}, /*birth_time=*/0})};
+    BOOST_REQUIRE(keychain);
+    BOOST_CHECK_EQUAL(HexStr(keychain.value.parent_fingerprint), "a582fa1d");
+
+    CompactXpub compact;
+    BOOST_CHECK(!CompactXpubBytes(FriendshipXpub{}, compact));
+    BOOST_REQUIRE(CompactXpubBytes(keychain.value, compact));
+    BOOST_CHECK_EQUAL(HexStr(compact), "a582fa1d"
+                                       "1ed00e776865c0308fddae8d22fb3ae47ffd51ce409b298d1987aafdec6bef6b"
+                                       "025b4ff1b10b9e1990df46dfa2f986300a7e6eb4a85289f4419581950edd3760bf");
+
+    const auto enc_key{m_iface->getPlatformPubKey(ENCRYPTION_KEY)};
+    BOOST_REQUIRE(enc_key);
+    BOOST_CHECK_EQUAL(HexStr(enc_key.value), "0320e04238fc44be0b4c33768afe0b218e95986f0b77bef2caf6db39fd0c389fe4");
+
+    // HMAC-SHA256 digest cd9f746d8c7b362670e75fabe05ddde6b35b14fd653d5ce7bf2188da929295ac
+    const auto account_reference{m_iface->platformAccountReference(ENCRYPTION_KEY, compact)};
+    BOOST_REQUIRE(account_reference);
+    BOOST_CHECK_EQUAL(account_reference.value, 0x0929295aU);
+
+    const char* expected_addresses[]{
+        "yYToW2c6ZprW2ZjfbnV8LCEjvFZWjueBEV",
+        "ycuANvWuH6NozPfYzERcdhuAsq7wR88TfG",
+        "yifetSUKVcVfgvmFWxqw3vqjA1bAGokvVJ",
+    };
+    for (uint32_t index{0}; index < std::size(expected_addresses); ++index) {
+        CTxDestination destination;
+        BOOST_REQUIRE(DeriveFriendshipPaymentDestination(keychain.value, index, destination));
+        BOOST_CHECK_EQUAL(EncodeDestination(destination), expected_addresses[index]);
+    }
 }
 
 //! A payment received before the loss must become spendable again once the
