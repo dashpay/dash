@@ -1695,7 +1695,7 @@ RPCHelpMan getdeploymentinfo()
     return RPCHelpMan{"getdeploymentinfo",
         "Returns an object containing various state info regarding deployments of consensus changes.",
         {
-            {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Default{"hash of current chain tip"}, "The block hash at which to query deployment state. Other than the genesis block, the block must have passed full validation and must not be marked invalid."},
+            {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Default{"hash of current chain tip"}, "The block hash at which to query deployment state. Other than the genesis block, the block must have passed full validation and must not be marked invalid, or, on a node running from a snapshot, be the snapshot base or one of its ancestors."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "", {
@@ -1725,8 +1725,12 @@ RPCHelpMan getdeploymentinfo()
                 if (!blockindex) {
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
                 }
-                // ConnectBlock skips the genesis block, so it never reaches BLOCK_VALID_SCRIPTS
-                if (blockindex->pprev && !blockindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+                // ConnectBlock skips the genesis block, so it never reaches BLOCK_VALID_SCRIPTS. A snapshot
+                // chainstate answers for its base and the blocks below it from the signals the snapshot carries.
+                const CBlockIndex* snapshot_base{active_chainstate.SnapshotBase()};
+                const bool snapshot_assumed{snapshot_base && snapshot_base->GetAncestor(blockindex->nHeight) == blockindex &&
+                                            blockindex->IsValid(BLOCK_VALID_TREE)};
+                if (blockindex->pprev && !blockindex->IsValid(BLOCK_VALID_SCRIPTS) && !snapshot_assumed) {
                     throw JSONRPCError(RPC_MISC_ERROR, "MNHF signals unavailable for an invalid or unvalidated block");
                 }
             }

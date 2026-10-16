@@ -76,7 +76,7 @@ CMNHFManager::Signals CMNHFManager::GetSignalsStage(const CBlockIndex* const pin
 {
     if (!DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_V20)) return {};
 
-    Signals signals_tmp = GetForBlock(pindexPrev);
+    Signals signals_tmp = GetRecord(pindexPrev, /*derive_requested=*/true);
 
     if (pindexPrev == nullptr) return {};
     const int height = pindexPrev->nHeight + 1;
@@ -298,11 +298,38 @@ bool CMNHFManager::UndoBlock(const CBlock& block, const CBlockIndex* const pinde
 
 CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
 {
+    return GetRecord(pindex, /*derive_requested=*/false);
+}
+
+std::optional<std::pair<const CBlockIndex*, CMNHFManager::Signals>> CMNHFManager::SeededBase(const EvoViewToken& view)
+{
+    if (view.identity != EvoDbIdentity::SNAPSHOT) return std::nullopt;
+    const CBlockIndex* base{WITH_LOCK(::cs_main, return m_blockman.LookupBlockIndex(view.base))};
+    if (base == nullptr) return std::nullopt;
+    auto record{GetFromCache(base)};
+    if (!record) return std::nullopt;
+    return std::make_pair(base, std::move(*record));
+}
+
+CMNHFManager::Signals CMNHFManager::GetRecord(const CBlockIndex* pindex, bool derive_requested)
+{
     if (auto signals = GetFromCache(pindex)) return *signals;
     // A snapshot view holds only what its snapshot carried and its chainstate
     // connected: what else it lacks is unavailable to it, never a statement
     // about the block.
-    if (m_evoDb.CurrentView().identity == EvoDbIdentity::SNAPSHOT) {
+    if (const EvoViewToken view{m_evoDb.CurrentView()}; view.identity == EvoDbIdentity::SNAPSHOT) {
+        // A derived record is exact once filtered, so it may only answer a
+        // stage, never stand in for a raw record. Off the base's chain the
+        // base record says nothing.
+        if (derive_requested && pindex->nHeight <= view.base_height) {
+            if (const auto base{SeededBase(view)}; base && base->first->GetAncestor(pindex->nHeight) == pindex) {
+                Signals derived;
+                for (const auto& [bit, height] : base->second) {
+                    if (height <= pindex->nHeight) derived.emplace(bit, height);
+                }
+                return derived;
+            }
+        }
         throw BlockDataUnavailableError(strprintf("MNHF signals unavailable for block %s in the snapshot view",
                                                   pindex->GetBlockHash().ToString()));
     }
@@ -404,7 +431,11 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
 {
     assert(pindex != nullptr);
     const uint256& blockHash = pindex->GetBlockHash();
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    // A snapshot view's only record at or below its base is the seeded one:
+    // promotion fails on any other record NORMAL holds too.
     if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20) && Assume(m_evoDb.HasActiveTransaction()) &&
+        !AtOrBelowSnapshotBase(view, *pindex) &&
         !m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, blockHash), signals)) {
         // A mismatch is local EvoDB corruption, not a statement about the
         // block. Abort here: some callers (miner, RPC) never pass through a
@@ -415,7 +446,6 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
         m_notifications.fatalError(msg);
         throw EvoDbInconsistencyError(msg);
     }
-    const EvoViewToken view{m_evoDb.CurrentView()};
     LOCK(cs_cache);
     mnhfCache.For(view).insert(blockHash, signals);
 }
@@ -423,6 +453,10 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
 bool CMNHFManager::SeedSignals(const EvoViewToken& view, const CBlockIndex* pindex, const Signals& signals)
 {
     if (!Assume(pindex != nullptr) || !Assume(m_evoDb.HasActiveTransaction())) return false;
+    // Seeding may precede the chain checks, which refuse such a record.
+    if (std::ranges::any_of(signals, [&](const auto& signal) { return signal.second < 0 || signal.second > pindex->nHeight; })) {
+        return false;
+    }
     const EvoViewScope scope{view};
     if (!m_evoDb.WriteSeed(std::make_pair(DB_SIGNALS_v2, pindex->GetBlockHash()), signals)) {
         return false;

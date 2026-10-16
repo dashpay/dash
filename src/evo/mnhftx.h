@@ -136,7 +136,8 @@ public:
     bool UndoBlock(const CBlock& block, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
     // Implements interface. Only reads state computed when a block was connected, and throws if
-    // pindexPrev has none (e.g. it was never connected). A block whose connection failed after its
+    // pindexPrev has none (e.g. it was never connected); a snapshot view derives the stage of its
+    // base and the base's ancestors from the record it carries. A block whose connection failed after its
     // special transactions were processed can still be in the cache, so a caller that takes a block
     // from outside must check that it is valid first.
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
@@ -160,16 +161,33 @@ public:
      */
     void RebuildSignals(const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
 
-private:
-    void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
-
     /**
-     * Returns the signals stored for pindex, from the cache or evo db. Throws EvoDbMissingStateError
-     * if there are none, e.g. because the block was never connected, or BlockDataUnavailableError
-     * in a snapshot view, which lacks what its snapshot did not carry.
+     * The raw signal record of a block, before GetSignalsStage() filters it, from the cache or
+     * EvoDB; it is never rebuilt. Throws EvoDbMissingStateError if there is none, e.g. because
+     * the block was never connected, or BlockDataUnavailableError in a snapshot view, which
+     * lacks what its snapshot did not carry.
      * NOTE: that some signals could expired between blocks.
      */
     Signals GetForBlock(const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+
+private:
+    /**
+     * GetForBlock(), except that with `derive_requested` the record of
+     * `pindex` itself may be derived. A snapshot view holds the record of its
+     * base and none below it; for a block on the base's chain at or below the
+     * base, the base record's signals mined up to that block are a record with
+     * the block's own stage: a signal is only ever dropped by the expiry rule,
+     * which depends on the signal alone and which GetSignalsStage() re-applies.
+     * A derived record is never cached or persisted, and never derived for a
+     * block off the base's chain, which only that branch's own records can
+     * answer, or where the view carries no base record.
+     */
+    Signals GetRecord(const CBlockIndex* pindex, bool derive_requested) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    //! The base of a snapshot view and the signal record it carries, if any.
+    std::optional<std::pair<const CBlockIndex*, Signals>> SeededBase(const EvoViewToken& view)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+
+    void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
     /**
      * This function access to in-memory cache or to evo db but does not calculate anything
