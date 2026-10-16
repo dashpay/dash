@@ -7,7 +7,9 @@
 export LC_ALL=C.UTF-8
 
 export CONTAINER_NAME=ci_native_tsan
-case "$(uname -m)" in
+# DEPENDS_ARCH overrides the machine arch (uname -m) when the depends are
+# computed on a different machine than the one that builds them (CI check-cache).
+case "${DEPENDS_ARCH:-$(uname -m)}" in
   aarch64)
     export HOST=aarch64-linux-gnu
     ;;
