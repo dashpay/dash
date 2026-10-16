@@ -32,6 +32,8 @@ class CKeyPool;
 class CMasterKey;
 class CWallet;
 class CWalletTx;
+struct MasternodeOperatorKeyCounter;
+struct MasternodeOperatorLookahead;
 struct WalletContext;
 
 /**
@@ -84,6 +86,8 @@ extern const std::string KEY;
 extern const std::string KEYMETA;
 extern const std::string LOCKED_UTXO;
 extern const std::string MASTER_KEY;
+extern const std::string MASTERNODE_OPERATOR_LOOKAHEAD;
+extern const std::string MASTERNODE_OPERATOR_NEXT;
 extern const std::string MINVERSION;
 extern const std::string NAME;
 extern const std::string OLD_KEY;
@@ -228,6 +232,13 @@ public:
     bool HasCoinJoinPendingObs();
     bool ReadCoinJoinPendingObs(std::map<COutPoint, int64_t>& pending_obs);
     bool WriteCoinJoinPendingObs(const std::map<COutPoint, int64_t>& pending_obs);
+
+    /** Operator-key counter and recognition lookahead. Both are
+     *  advisory and hold no secret: the BIP39 seed reproduces every key. */
+    bool WriteMasternodeOperatorKeyCounter(const MasternodeOperatorKeyCounter& counter);
+    bool ReadMasternodeOperatorKeyCounter(MasternodeOperatorKeyCounter& counter);
+    bool WriteMasternodeOperatorLookahead(const MasternodeOperatorLookahead& lookahead);
+    bool ReadMasternodeOperatorLookahead(MasternodeOperatorLookahead& lookahead);
 
     /** Write a CGovernanceObject to the database */
     bool WriteGovernanceObject(const Governance::Object& obj);

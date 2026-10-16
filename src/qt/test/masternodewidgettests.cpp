@@ -195,6 +195,7 @@ public:
     {
         return TestProviderError();
     }
+    bool isMasternodeOperatorKeyInUse(const CBLSPublicKey&) override { return false; }
 
     QSemaphore entered;
     QSemaphore proceed;
