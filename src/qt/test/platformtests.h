@@ -43,6 +43,8 @@ private Q_SLOTS:
     void usernameCreatesTheIdentityFirst();
     void usernameForAnExistingIdentity();
     void droppedUsernameWriteIsReadBack();
+    void contactRequestUsesTheIdentityKeys();
+    void contactsAreTheNewestRequests();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H

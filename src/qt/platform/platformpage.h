@@ -13,6 +13,8 @@
 #include <memory>
 
 class BitcoinAmountField;
+class ContactFlow;
+class ContactsPage;
 class IdentityFlow;
 class UsernameFlow;
 
@@ -28,7 +30,7 @@ QT_END_NAMESPACE
  *  the first DashPay click with a one-line privacy notice, and says why
  *  DashPay can't run when a gate is closed. Once DashPay runs it shows the
  *  wallet's identity, its username and its balance; creates, continues or
- *  tops up the identity; and registers its username. */
+ *  tops up the identity; registers its username; and keeps its contacts. */
 class PlatformPage : public QWidget
 {
     Q_OBJECT
@@ -42,6 +44,7 @@ public:
     PlatformService* service() const { return m_service.get(); }
     IdentityFlow* identityFlow() const { return m_identity_flow.get(); }
     UsernameFlow* usernameFlow() const { return m_username_flow.get(); }
+    ContactFlow* contactFlow() const { return m_contact_flow.get(); }
 
 Q_SIGNALS:
     //! A service was created, or is about to be destroyed (nullptr) while
@@ -61,6 +64,8 @@ private:
     std::unique_ptr<IdentityFlow> m_identity_flow;
     //! Destroyed before the identity flow it builds on.
     std::unique_ptr<UsernameFlow> m_username_flow;
+    //! Destroyed before the identity flow it reads.
+    std::unique_ptr<ContactFlow> m_contact_flow;
 
     QLabel* m_username{nullptr};
     QLabel* m_identity{nullptr};
@@ -74,6 +79,7 @@ private:
     QLineEdit* m_username_input{nullptr};
     QPushButton* m_register{nullptr};
     QLabel* m_username_status{nullptr};
+    ContactsPage* m_contacts{nullptr};
     QPushButton* m_start{nullptr};
     QPushButton* m_stop{nullptr};
 };

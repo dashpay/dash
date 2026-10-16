@@ -56,6 +56,19 @@ QString FormatCredits(BitcoinUnit unit, uint64_t credits)
     return BitcoinUnits::formatWithUnit(unit, static_cast<CAmount>(credits / CREDITS_PER_DUFF));
 }
 
+std::optional<uint32_t> DocumentSigningKey(const platform::Identity& identity)
+{
+    using platform::IdentityPublicKey;
+    for (const IdentityPublicKey& key : identity.public_keys) {
+        if (key.purpose == IdentityPublicKey::Purpose::AUTHENTICATION &&
+            key.security_level == IdentityPublicKey::SecurityLevel::HIGH &&
+            key.type == IdentityPublicKey::Type::ECDSA_SECP256K1 && key.disabled_at == 0) {
+            return key.id;
+        }
+    }
+    return std::nullopt;
+}
+
 std::unique_ptr<platform::UnlockScope> KeepUnlocked(WalletModel::UnlockContext unlock)
 {
     return std::make_unique<WalletUnlock>(std::move(unlock));

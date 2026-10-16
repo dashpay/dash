@@ -9,6 +9,8 @@
 #include <qt/bitcoinunits.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
+#include <qt/platform/contactflow.h>
+#include <qt/platform/contactspage.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformui.h>
 #include <qt/platform/usernameflow.h>
@@ -78,6 +80,9 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     username_row->addWidget(m_register);
     username_row->addStretch();
 
+    m_contacts = new ContactsPage(this);
+    m_contacts->setObjectName("dashPayContactsPage");
+
     auto* header{new QHBoxLayout};
     header->addWidget(m_username);
     header->addWidget(m_identity);
@@ -95,6 +100,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     layout->addLayout(actions);
     layout->addWidget(m_username_status);
     layout->addLayout(username_row);
+    layout->addWidget(m_contacts);
     layout->addWidget(m_start, 0, Qt::AlignLeft);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
@@ -149,6 +155,8 @@ void PlatformPage::resetService()
 {
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
+        m_contacts->setFlow(nullptr);
+        m_contact_flow.reset();
         m_username_flow.reset();
         m_identity_flow.reset();
         m_service.reset();
@@ -162,6 +170,9 @@ void PlatformPage::resetService()
         connect(m_identity_flow.get(), &IdentityFlow::changed, this, &PlatformPage::refresh);
         m_username_flow = std::make_unique<UsernameFlow>(*m_service, *m_identity_flow);
         connect(m_username_flow.get(), &UsernameFlow::changed, this, &PlatformPage::refresh);
+        m_contact_flow = std::make_unique<ContactFlow>(*m_service, *m_identity_flow);
+        m_contacts->setFlow(m_contact_flow.get());
+        connect(m_contact_flow.get(), &ContactFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
@@ -212,7 +223,9 @@ void PlatformPage::refresh()
     const auto funding{running ? flow->funding() : std::nullopt};
     using NameStep = UsernameFlow::Step;
     const NameStep name_step{names ? names->step() : NameStep::IDLE};
-    const bool idle{running && step == Step::IDLE && name_step == NameStep::IDLE};
+    const ContactFlow* contacts{m_contact_flow.get()};
+    const bool idle{running && step == Step::IDLE && name_step == NameStep::IDLE && contacts &&
+                    contacts->step() == ContactFlow::Step::IDLE};
     //! Nothing in flight and no funding waiting for Platform.
     const bool ready{idle && !funding};
     QString identity_status;
@@ -274,4 +287,8 @@ void PlatformPage::refresh()
     const bool can_register{ready && flow->lookedUp() && (!identity || (names->namesRead() && !username))};
     m_username_input->setVisible(can_register);
     m_register->setVisible(can_register);
+
+    // Contacts find the identity by its username.
+    m_contacts->setVisible(running && identity && username);
+    m_contacts->refresh(ready);
 }
