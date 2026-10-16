@@ -48,6 +48,14 @@ int FindUnmatchedMasternodePayment(const std::vector<CTxOut>& expected,
     return -1;
 }
 
+bool HasDistinctRequiredPayments(const std::vector<CTxOut>& masternode_payments,
+                                 const std::vector<CTxOut>& superblock_payments, const std::vector<CTxOut>& actual)
+{
+    std::vector<CTxOut> required{masternode_payments};
+    required.insert(required.end(), superblock_payments.begin(), superblock_payments.end());
+    return FindUnmatchedMasternodePayment(required, actual, /*strict_multiplicity=*/true) < 0;
+}
+
 CAmount PlatformShare(const CAmount reward)
 {
     const CAmount platformReward = reward * 375 / 1000;
