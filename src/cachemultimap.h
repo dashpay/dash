@@ -110,6 +110,16 @@ public:
         return (mapIndex.find(key) != mapIndex.end());
     }
 
+    const V* Find(const K& key, const V& value) const
+    {
+        map_cit mit = mapIndex.find(key);
+        if (mit == mapIndex.end()) {
+            return nullptr;
+        }
+        it_map_cit it = mit->second.find(value);
+        return it == mit->second.end() ? nullptr : &it->second->value;
+    }
+
     bool Get(const K& key, V& value) const
     {
         map_cit it = mapIndex.find(key);

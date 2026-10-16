@@ -656,6 +656,8 @@ public:
     GetDataResponse PeerConsumeGetDataResponse(NodeId nodeid, const CInv& inv) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_object_request_mutex, ::cs_main);
     void PeerForgetObjectRequest(const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_object_request_mutex, ::cs_main);
+    void PeerAddObjectAnnouncement(const CNode& node, const CInv& inv) override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_object_request_mutex, !m_recent_confirmed_transactions_mutex, ::cs_main);
     void PeerPushInventory(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayInv(const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void PeerRelayInvFiltered(const CInv& inv, const CTransaction& relatedTx) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -7027,6 +7029,11 @@ GetDataResponse PeerManagerImpl::PeerConsumeGetDataResponse(NodeId nodeid, const
 void PeerManagerImpl::PeerForgetObjectRequest(const CInv& inv)
 {
     WITH_LOCK(m_object_request_mutex, m_object_request.ForgetTxHash(inv));
+}
+
+void PeerManagerImpl::PeerAddObjectAnnouncement(const CNode& node, const CInv& inv)
+{
+    if (!AlreadyHave(inv)) AddObjectAnnouncement(node, inv, GetTime<std::chrono::microseconds>());
 }
 
 void PeerManagerImpl::PeerPushInventory(NodeId nodeid, const CInv& inv)
