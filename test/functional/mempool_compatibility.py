@@ -10,9 +10,6 @@ In case we need to break mempool compatibility we can continue to use the test b
 Previous releases are required by this test, see test/README.md.
 """
 
-import os
-import shutil
-
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.wallet import MiniWallet
 
@@ -23,6 +20,7 @@ class MempoolCompatibilityTest(BitcoinTestFramework):
 
     def set_test_params(self):
         self.num_nodes = 2
+        self.setup_clean_chain = True
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_previous_releases()
@@ -36,9 +34,6 @@ class MempoolCompatibilityTest(BitcoinTestFramework):
             [],
             [],
         ]
-        # Delete v18.2.2 cached datadir to avoid making a legacy version try to
-        # make sense of our current database formats
-        shutil.rmtree(os.path.join(self.nodes[0].datadir, self.chain))
         self.start_nodes()
 
     def run_test(self):
@@ -62,9 +57,9 @@ class MempoolCompatibilityTest(BitcoinTestFramework):
         self.stop_node(1)
 
         self.log.info("Move mempool.dat from old to new node")
-        old_node_mempool = os.path.join(old_node.datadir, self.chain, 'mempool.dat')
-        new_node_mempool = os.path.join(new_node.datadir, self.chain, 'mempool.dat')
-        os.rename(old_node_mempool, new_node_mempool)
+        old_node_mempool = old_node.chain_path / "mempool.dat"
+        new_node_mempool = new_node.chain_path / "mempool.dat"
+        old_node_mempool.rename(new_node_mempool)
 
         self.log.info("Start new node and verify mempool contains the tx")
         self.start_node(1)
@@ -77,7 +72,7 @@ class MempoolCompatibilityTest(BitcoinTestFramework):
         self.stop_node(1)
 
         self.log.info("Move mempool.dat from new to old node")
-        os.rename(new_node_mempool, old_node_mempool)
+        new_node_mempool.rename(old_node_mempool)
 
         self.log.info("Start old node again and verify mempool contains both txs")
         self.start_node(0, ['-nowallet'])
