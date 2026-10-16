@@ -7,6 +7,7 @@
 #include <streams.h>
 #include <uint256.h>
 #include <wallet/hdchain.h>
+#include <wallet/test/util.h>
 #include <wallet/test/wallet_test_fixture.h>
 #include <wallet/walletdb.h>
 
@@ -117,7 +118,7 @@ BOOST_AUTO_TEST_CASE(walletdb_platform_data_records)
 static DBErrors LoadWithCorruptPlatformRecord(const node::NodeContext& node, const std::string& record_key,
                                               std::map<std::string, std::vector<unsigned char>>& platform_data_out)
 {
-    CWallet wallet(node.chain.get(), "", CreateMockWalletDatabase());
+    CWallet wallet(node.chain.get(), "", CreateMockableWalletDatabase());
     const std::vector<unsigned char> truncated{0x05};
     const std::vector<unsigned char> intact_value{0x01, 0x02};
     {

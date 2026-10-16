@@ -22,6 +22,7 @@
 #include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
@@ -38,7 +39,7 @@
 #include <QTest>
 
 using wallet::AddWallet;
-using wallet::CreateMockWalletDatabase;
+using wallet::CreateMockableWalletDatabase;
 using wallet::CWallet;
 using wallet::RemoveWallet;
 using wallet::TxStateInactive;
@@ -222,7 +223,7 @@ void ProviderTransactionTests::providerTransactionHistory()
 
     WalletContext& context{*m_node.walletLoader().context()};
     std::shared_ptr<CWallet> wallet{
-        std::make_shared<CWallet>(test.m_node.chain.get(), "", CreateMockWalletDatabase())};
+        std::make_shared<CWallet>(test.m_node.chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
     {

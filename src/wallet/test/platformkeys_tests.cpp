@@ -18,6 +18,7 @@
 #include <wallet/platformkeys.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/spend.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
@@ -228,7 +229,7 @@ struct FriendshipWalletSetup : public TestChain100Setup {
     std::pair<std::shared_ptr<CWallet>, std::unique_ptr<interfaces::Wallet>>
     MakeSeededWallet(const SecureString& mnemonic)
     {
-        auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
+        auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
         wallet->LoadWallet();
         {
             LOCK(wallet->cs_wallet);
@@ -242,7 +243,7 @@ struct FriendshipWalletSetup : public TestChain100Setup {
     std::pair<std::shared_ptr<CWallet>, std::unique_ptr<interfaces::Wallet>>
     MakeXprvWallet(const CExtKey& root)
     {
-        auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
+        auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
         wallet->LoadWallet();
 
         FlatSigningProvider provider;
@@ -451,7 +452,7 @@ BOOST_FIXTURE_TEST_CASE(invalid_mnemonic_does_not_change_platform_keys, Friendsh
         "birth kingdom trash renew flavor utility donkey gasp regular alert pave kingdom"};
     BOOST_REQUIRE(!CMnemonic::Check(bad_mnemonic));
 
-    auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
+    auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
     wallet->LoadWallet();
 
     // The master key a corrupt record would pair with: derived from the very
@@ -491,7 +492,7 @@ BOOST_FIXTURE_TEST_CASE(invalid_mnemonic_does_not_change_platform_keys, Friendsh
 //! created that a later wallet migration would orphan.
 BOOST_FIXTURE_TEST_CASE(legacy_wallet_has_no_platform_keys, FriendshipWalletSetup)
 {
-    auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
+    auto wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
     wallet->LoadWallet();
     {
         LOCK(wallet->cs_wallet);

@@ -15,13 +15,7 @@
 
 #include <optional>
 
-using wallet::CreateMockWalletDatabase;
-using wallet::CWallet;
-using wallet::DBErrors;
-using wallet::WALLET_FLAG_DESCRIPTORS;
-
-const std::string ADDRESS_B58T_UNSPENDABLE = "yXXXXXXXXXXXXXXXXXXXXXXXXXXXVd2rXU";
-
+namespace wallet {
 static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const bool add_mine, const uint32_t epoch_iters)
 {
     const auto test_setup = MakeNoLogFileContext<const TestingSetup>();
@@ -31,12 +25,11 @@ static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const b
     // Set clock to genesis block, so the descriptors/keys creation time don't interfere with the blocks scanning process.
     // The reason is 'generatetoaddress', which creates a chain with deterministic timestamps in the past.
     SetMockTime(test_setup->m_node.chainman->GetParams().GenesisBlock().nTime);
-    CWallet wallet{test_setup->m_node.chain.get(), "", CreateMockWalletDatabase()};
+    CWallet wallet{test_setup->m_node.chain.get(), "", CreateMockableWalletDatabase()};
     {
         LOCK(wallet.cs_wallet);
         wallet.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
         wallet.SetupDescriptorScriptPubKeyMans("", "");
-        if (wallet.LoadWallet() != DBErrors::LOAD_OK) assert(false);
     }
     auto handler = test_setup->m_node.chain->handleNotifications({&wallet, [](CWallet*) {}});
 
@@ -66,3 +59,4 @@ BENCHMARK(WalletBalanceDirty, benchmark::PriorityLevel::HIGH);
 BENCHMARK(WalletBalanceClean, benchmark::PriorityLevel::HIGH);
 BENCHMARK(WalletBalanceMine, benchmark::PriorityLevel::HIGH);
 BENCHMARK(WalletBalanceWatch, benchmark::PriorityLevel::HIGH);
+} // namespace wallet
