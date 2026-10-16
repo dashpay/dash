@@ -1413,6 +1413,55 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 }
 
+// Re-types a registration as an EvoNode with internal collateral claiming the given Platform node ID.
+// Only the mempool conflict maps are consulted by the callers, so the payload does not have to be valid.
+static CTransaction AsEvoWithPlatformNodeID(CMutableTransaction tx, const uint160& platform_node_id)
+{
+    auto pro_reg{*Assert(GetTxPayload<CProRegTx>(tx))};
+    pro_reg.nVersion = ProTxVersion::BasicBLS;
+    pro_reg.nType = MnType::Evo;
+    pro_reg.collateralOutpoint = COutPoint{};
+    pro_reg.platformNodeID = platform_node_id;
+    SetTxPayload(tx, pro_reg);
+    return CTransaction(tx);
+}
+
+// An ExtAddr registration with internal collateral, shared when shares are given. Its funding input is a
+// placeholder: CheckProRegTx() does not look the funding inputs up.
+static CTransaction CreateExtAddrProRegTx(MnType type, const MasternodePayoutShares& payouts, const CollateralShares& shares)
+{
+    CBLSSecretKey operator_key;
+    operator_key.MakeNewKey();
+
+    CProRegTx pro_reg;
+    pro_reg.nVersion = ProTxVersion::ExtAddr;
+    pro_reg.nType = type;
+    pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
+    pro_reg.collateralOutpoint.n = 0;
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg.keyIDVoting = GenerateRandomKey().GetPubKey().GetID();
+    if (type == MnType::Evo) {
+        pro_reg.platformNodeID = uint160{Span{GetRandHash()}.first(uint160::size())};
+    }
+    if (shares.empty()) {
+        pro_reg.keyIDOwner = GenerateRandomKey().GetPubKey().GetID();
+        pro_reg.payouts = payouts;
+    } else {
+        pro_reg.shares = shares;
+        pro_reg.vchJoinSigs.resize(shares.size());
+    }
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_REGISTER;
+    tx.vin.emplace_back(COutPoint(GetRandHash(), 0));
+    tx.vout.emplace_back(GetMnType(type).collat_amount,
+                         shares.empty() ? GenerateRandomAddress() : SharedCollateralScript());
+    pro_reg.inputsHash = CalcTxInputsHash(CTransaction(tx));
+    SetTxPayload(tx, pro_reg);
+    return CTransaction(tx);
+}
+
 void FuncTestMempoolDualProregtx(TestChainSetup& setup)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
@@ -1447,6 +1496,92 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     testPool.addUnchecked(entry.FromTx(tx_reg1));
     BOOST_CHECK_EQUAL(testPool.size(), 1U);
     BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_reg2)));
+
+    // The masternode list keeps owner key IDs and Platform node IDs in one uniqueness namespace, so a
+    // pending owner key and a pending Platform node ID with the same 160 bits cannot be mined in one block.
+    const uint160 owner1_id{ownerKey1.GetPubKey().GetID()};
+    // tx_reg2 has its own owner key, operator key and address; only its collateral reuse would clash with tx_reg1
+    const auto tx_platform_reg = AsEvoWithPlatformNodeID(tx_reg2, owner1_id);
+    const auto tx_unrelated_reg = AsEvoWithPlatformNodeID(tx_reg2, uint160{Span{GetRandHash()}.first(uint160::size())});
+    const auto tx_platform_up_serv = [&] {
+        auto tx = CreateProUpServTx(chainman, utxos, tx_reg1.GetHash(), operatorKey1, 5, CScript(), setup.coinbaseKey,
+                                    ProTxVersion::BasicBLS);
+        auto payload{*Assert(GetTxPayload<CProUpServTx>(tx))};
+        payload.nType = MnType::Evo;
+        payload.platformNodeID = owner1_id;
+        SetTxPayload(tx, payload);
+        return CTransaction(tx);
+    }();
+
+    // A pending owner key blocks a pending Platform node ID of the same value, at registration and at update
+    BOOST_CHECK(testPool.existsProviderTxConflict(tx_platform_reg));
+    BOOST_CHECK(testPool.existsProviderTxConflict(tx_platform_up_serv));
+    BOOST_CHECK(!testPool.existsProviderTxConflict(tx_unrelated_reg));
+
+    // ... and a pending Platform node ID blocks a pending owner key of the same value
+    testPool.removeRecursive(CTransaction(tx_reg1), MemPoolRemovalReason::MANUAL);
+    testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_platform_reg)));
+    BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_reg1)));
+
+    // A confirmed claim evicts the pending claim of the same value in the other field
+    testPool.removeForBlock({MakeTransactionRef(tx_reg1)}, chainman.ActiveChain().Height() + 1);
+    BOOST_CHECK(!testPool.exists(tx_platform_reg.GetHash()));
+
+    testPool.addUnchecked(entry.FromTx(tx_reg1));
+    testPool.removeForBlock({MakeTransactionRef(tx_platform_reg)}, chainman.ActiveChain().Height() + 1);
+    BOOST_CHECK(!testPool.exists(tx_reg1.GetHash()));
+    BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+    // Share owner keys take part in the same namespace. The registrations below have distinct operator keys,
+    // no addresses and internal collateral, so only the owner key / Platform node ID collision can conflict.
+    const auto make_evo = [] { return CreateExtAddrProRegTx(MnType::Evo, {{GenerateRandomAddress(), MasternodePayoutShare::MAX_REWARD}}, {}); };
+    const auto make_shared = [](const uint160& colliding_owner_id) {
+        const CAmount collateral{GetMnType(MnType::Regular).collat_amount};
+        return CreateExtAddrProRegTx(
+            MnType::Regular, {},
+            {{collateral - 100 * COIN, GenerateRandomAddress(), CScript{}, GenerateRandomKey().GetPubKey().GetID()},
+             {100 * COIN, GenerateRandomAddress(), CScript{}, CKeyID{colliding_owner_id}}});
+    };
+    const auto platform_node_id = [](const CTransaction& tx) { return Assert(GetTxPayload<CProRegTx>(tx))->platformNodeID; };
+
+    // A pending Platform node ID blocks a share owner key of the same value, and a confirmed share evicts it
+    const auto tx_evo = make_evo();
+    const auto tx_shared_on_evo = make_shared(platform_node_id(tx_evo));
+    testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_evo)));
+    BOOST_CHECK(testPool.existsProviderTxConflict(tx_shared_on_evo));
+    BOOST_CHECK(!testPool.existsProviderTxConflict(make_shared(uint160{Span{GetRandHash()}.first(uint160::size())})));
+    testPool.removeForBlock({MakeTransactionRef(tx_shared_on_evo)}, chainman.ActiveChain().Height() + 1);
+    BOOST_CHECK(!testPool.exists(tx_evo.GetHash()));
+    BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+    // A pending share owner key blocks a Platform node ID of the same value, and a confirmed Evo registration evicts it
+    const auto tx_shared = make_shared(uint160{Span{GetRandHash()}.first(uint160::size())});
+    const uint160 share_owner_id{Assert(GetTxPayload<CProRegTx>(tx_shared))->shares.back().keyIDOwner};
+    const auto with_platform_node_id = [](const CTransaction& tx, const uint160& id) {
+        auto mtx = CMutableTransaction(tx);
+        auto payload{*Assert(GetTxPayload<CProRegTx>(tx))};
+        payload.platformNodeID = id;
+        SetTxPayload(mtx, payload);
+        return CTransaction(mtx);
+    };
+    const auto tx_evo_on_share = with_platform_node_id(make_evo(), share_owner_id);
+    testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_shared)));
+    BOOST_CHECK(testPool.existsProviderTxConflict(tx_evo_on_share));
+    BOOST_CHECK(!testPool.existsProviderTxConflict(make_evo()));
+    testPool.removeForBlock({MakeTransactionRef(tx_evo_on_share)}, chainman.ActiveChain().Height() + 1);
+    BOOST_CHECK(!testPool.exists(tx_shared.GetHash()));
+    BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+    // An Evo registration may use the same value for its own owner key and Platform node ID, which is not a
+    // conflict with itself or with unrelated pending registrations
+    const auto tx_pending = make_evo();
+    testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_pending)));
+    const auto tx_evo_base = make_evo();
+    const auto tx_same_value = with_platform_node_id(tx_evo_base, uint160{Assert(GetTxPayload<CProRegTx>(tx_evo_base))->keyIDOwner});
+    BOOST_CHECK(!testPool.existsProviderTxConflict(tx_same_value));
+    testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_same_value)));
+    testPool.removeForBlock({MakeTransactionRef(tx_same_value)}, chainman.ActiveChain().Height() + 1);
+    BOOST_CHECK(testPool.exists(tx_pending.GetHash()));
 }
 
 // A ProRegTx that reuses a confirmed external collateral replaces the live MN at block
@@ -3015,42 +3150,6 @@ BOOST_AUTO_TEST_CASE(evonode_registrar_raise_not_mined)
 {
     TestChainV24SignalBeforeV19Setup setup;
     FuncEvoNodeRegistrarRaiseNotMined(setup);
-}
-
-// An ExtAddr registration with internal collateral, shared when shares are given. Its funding input is a
-// placeholder: CheckProRegTx() does not look the funding inputs up.
-static CTransaction CreateExtAddrProRegTx(MnType type, const MasternodePayoutShares& payouts, const CollateralShares& shares)
-{
-    CBLSSecretKey operator_key;
-    operator_key.MakeNewKey();
-
-    CProRegTx pro_reg;
-    pro_reg.nVersion = ProTxVersion::ExtAddr;
-    pro_reg.nType = type;
-    pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
-    pro_reg.collateralOutpoint.n = 0;
-    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
-    pro_reg.keyIDVoting = GenerateRandomKey().GetPubKey().GetID();
-    if (type == MnType::Evo) {
-        pro_reg.platformNodeID = uint160{Span{GetRandHash()}.first(uint160::size())};
-    }
-    if (shares.empty()) {
-        pro_reg.keyIDOwner = GenerateRandomKey().GetPubKey().GetID();
-        pro_reg.payouts = payouts;
-    } else {
-        pro_reg.shares = shares;
-        pro_reg.vchJoinSigs.resize(shares.size());
-    }
-
-    CMutableTransaction tx;
-    tx.nVersion = 3;
-    tx.nType = TRANSACTION_PROVIDER_REGISTER;
-    tx.vin.emplace_back(COutPoint(GetRandHash(), 0));
-    tx.vout.emplace_back(GetMnType(type).collat_amount,
-                         shares.empty() ? GenerateRandomAddress() : SharedCollateralScript());
-    pro_reg.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    SetTxPayload(tx, pro_reg);
-    return CTransaction(tx);
 }
 
 // Until evo_shares activates, an EvoNode registers with a single owner payout and without shared
