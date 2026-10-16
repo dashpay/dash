@@ -21,6 +21,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <psbt.h>
 #include <set>
 #include <string>
@@ -112,8 +113,17 @@ public:
     //! Initiate a rescan. Returns status indicating success, failure, abort, or already rescanning.
     virtual wallet::RescanStatus startRescan(bool from_genesis) = 0;
 
+    //! Rescan the blocks a key born at from_time may be paid in, as
+    //! importdescriptors does. Returns as startRescan() does.
+    virtual wallet::RescanStatus rescanFromTime(int64_t from_time) = 0;
+
     //! Abort a rescan.
     virtual void abortRescan() = 0;
+
+    //! The height startRescan(false), or with from_time rescanFromTime(),
+    //! starts at, when this node has pruned blocks it would read; nullopt
+    //! when it has them all.
+    virtual std::optional<int> rescanPrunedFrom(std::optional<int64_t> from_time = std::nullopt) = 0;
 
     //! Lock masternode collaterals
     virtual void autoLockMasternodeCollaterals() = 0;
@@ -142,6 +152,10 @@ public:
     //! Sign special transaction payload
     virtual bool signSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std::vector<unsigned char>& vchSig) = 0;
 
+    //! Whether this wallet can derive Platform keys: SUCCESS for a descriptor
+    //! wallet with private keys and a single HD root, whether locked or not.
+    virtual wallet::PlatformKeyStatus platformKeySourceStatus() = 0;
+
     //! Derive and return a public Platform key. The mnemonic-owning key
     //! manager performs derivation without exposing the wallet's root seed.
     virtual wallet::PlatformKeyResult<CPubKey> getPlatformPubKey(const wallet::PlatformKeyRequest& request) = 0;
@@ -155,6 +169,17 @@ public:
     //! and a counterparty public key, using the libsecp256k1 ECDH KDF.
     virtual wallet::PlatformKeyResult<SecureVector> platformECDHSecret(const wallet::IdentityAuthKey& key,
                                                                        const CPubKey& counterparty) = 0;
+
+    //! DIP-15 accountReference of a contact request sending compact_xpub,
+    //! keyed by the identity ENCRYPTION key, for account 0 and version 0 as
+    //! DashPay iOS sends it. The key never leaves the wallet.
+    virtual wallet::PlatformKeyResult<uint32_t> platformAccountReference(const wallet::IdentityAuthKey& key,
+                                                                         const wallet::CompactXpub& compact_xpub) = 0;
+
+    //! Our DIP-15 receiving chain, as ensureFriendshipReceivingKeychain()
+    //! returns it, without importing it.
+    virtual wallet::PlatformKeyResult<wallet::FriendshipXpub> getFriendshipReceivingXpub(
+        const wallet::FriendshipKeychainRequest& request) = 0;
 
     //! Ensure our private DIP-15 receiving chain is imported as a ranged
     //! descriptor and return the corresponding public chain. Derivation,
@@ -238,6 +263,15 @@ public:
         int& change_pos,
         CAmount& fee) = 0;
 
+    //! Create a signed, uncommitted asset lock converting credit_amount duffs
+    //! into Platform credits. Its single P2PKH credit output pays the key the
+    //! wallet derives for funding_key, so the credits stay recoverable from
+    //! the wallet's seed.
+    virtual util::Result<CTransactionRef> createAssetLockTransaction(CAmount credit_amount,
+        const wallet::AssetLockFundingKey& funding_key,
+        const wallet::CCoinControl& coin_control,
+        CAmount& fee) = 0;
+
     //! Fund a transaction template per the provider-transaction funding policy:
     //! inputs are selected only from coins received at the single specified
     //! fee-source destination, change is returned to that same destination, and
@@ -250,8 +284,9 @@ public:
     //! Sign every wallet-owned input of a transaction and report whether signing is complete.
     virtual util::Result<WalletTxSignResult> signTransaction(const CMutableTransaction& tx) = 0;
 
-    //! Commit transaction.
-    virtual void commitTransaction(CTransactionRef tx,
+    //! Commit transaction to the wallet and broadcast it. Returns an error
+    //! when it could not be broadcast; it stays committed to the wallet.
+    virtual util::Result<void> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) = 0;
 
