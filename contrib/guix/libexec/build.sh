@@ -201,7 +201,10 @@ GIT_ARCHIVE="${DIST_ARCHIVE_BASE}/${DISTNAME}.tar.gz"
 # Create the source tarball if not already there
 if [ ! -e "$GIT_ARCHIVE" ]; then
     mkdir -p "$(dirname "$GIT_ARCHIVE")"
-    git archive --prefix="${DISTNAME}/" --output="$GIT_ARCHIVE" HEAD
+    git -c safe.directory=/dash archive --prefix="${DISTNAME}/" --output="$GIT_ARCHIVE" HEAD || {
+        rm -f "$GIT_ARCHIVE"
+        exit 1
+    }
 fi
 
 mkdir -p "$OUTDIR"

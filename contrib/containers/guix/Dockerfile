@@ -68,7 +68,8 @@ RUN groupadd --system guixbuild && \
 # Setup unprivileged user and grant it passwordless sudo
 ARG USER_ID=1000 \
     GROUP_ID=1000
-RUN groupmod -g ${GROUP_ID} ubuntu; \
+RUN set -ex; \
+    groupmod -g ${GROUP_ID} ubuntu || echo "GID ${GROUP_ID} already allocated, ignoring"; \
     usermod -u ${USER_ID} -aG sudo ubuntu; \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
@@ -88,7 +89,10 @@ RUN mkdir -p \
         /src/dash/depends/{built,sources,work}; \
     chown -R ${USER_ID}:${GROUP_ID} \
         /home/ubuntu/.cache \
-        /src;
+        /src; \
+    git config --system --add safe.directory /src/dash; \
+    git config --system --add safe.directory /src/dash-detached-sigs; \
+    git config --system --add safe.directory /src/guix.sigs
 
 WORKDIR "/src/dash"
 
