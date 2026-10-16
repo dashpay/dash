@@ -22,10 +22,14 @@ from test_framework.messages import (
     CTxIn,
     CTxOut,
     SEQUENCE_FINAL,
+    msg_ping,
     uint256_from_compact,
     uint256_from_str,
 )
-from test_framework.p2p import P2PDataStore
+from test_framework.p2p import (
+    P2PDataStore,
+    p2p_activity,
+)
 from test_framework.script import (
     CScript,
     MAX_SCRIPT_ELEMENT_SIZE,
@@ -81,6 +85,28 @@ class CBrokenBlock(CBlock):
 DUPLICATE_COINBASE_SCRIPT_SIG = b'\x01\x78'  # Valid for block at height 120
 
 
+class P2PBlockStore(P2PDataStore):
+    def wait_for_disconnect(self, *, timeout=60):
+        # dashd's socket thread closes a peer marked for disconnection only once it wakes up,
+        # which takes up to its 500ms poll timeout when no data comes in. Keep pinging the node
+        # so it wakes up and hangs up as soon as it has decided to; the hang-up is still awaited.
+        # At most one ping per 50ms, so a node that wrongly stays connected is not flooded.
+        last_ping = 0
+
+        def disconnected():
+            nonlocal last_ping
+            if not self.is_connected:
+                return True
+            if time.monotonic() - last_ping >= 0.05:
+                last_ping = time.monotonic()
+                try:
+                    self.send_message(msg_ping(nonce=0))
+                except IOError:
+                    pass  # closed in the meantime; seen on the next check
+            return False
+        self.wait_until(disconnected, timeout=timeout, check_connected=False)
+
+
 class FullBlockTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
@@ -102,6 +128,8 @@ class FullBlockTest(BitcoinTestFramework):
         self.start_nodes()
 
     def run_test(self):
+        # ~160 block sends and reconnects: wake the p2p waits on activity instead of sleeping out each poll interval
+        p2p_activity.enabled = True
         node = self.nodes[0]  # convenience reference to the node
 
         self.bootstrap_p2p()  # Add one p2p connection to the node
@@ -1278,7 +1306,7 @@ class FullBlockTest(BitcoinTestFramework):
         # Don't use v2transport for the large reorg, which is too slow with the unoptimized python ChaCha20 implementation
         if self.options.v2transport:
             self.nodes[0].disconnect_p2ps()
-            self.helper_peer = self.nodes[0].add_p2p_connection(P2PDataStore(), supports_v2_p2p=False)
+            self.helper_peer = self.nodes[0].add_p2p_connection(P2PBlockStore(), supports_v2_p2p=False)
         self.log.info("Test a re-org of ~2 days' worth of blocks (1088 blocks)")
 
         self.move_tip(88)
@@ -1419,7 +1447,7 @@ class FullBlockTest(BitcoinTestFramework):
         """Add a P2P connection to the node.
 
         Helper to connect and wait for version handshake."""
-        self.helper_peer = self.nodes[0].add_p2p_connection(P2PDataStore())
+        self.helper_peer = self.nodes[0].add_p2p_connection(P2PBlockStore())
         # We need to wait for the initial getheaders from the peer before we
         # start populating our blockstore. If we don't, then we may run ahead
         # to the next subtest before we receive the getheaders. We'd then send

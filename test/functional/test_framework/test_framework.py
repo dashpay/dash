@@ -126,6 +126,13 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.extra_args = None
         self.network_thread = None
         self.mocktime = 0
+        # Poll sync_blocks(), sync_mempools(), wait_for_quorum_phase() and friends every 0.1s instead of
+        # every 1s / 0.5s. They wait for the same condition either way and only notice sooner that it holds.
+        # Opting in ALSO makes mine_quorum() and mine_cycle_quorum() wait for the DKG relay connections and
+        # for every sent DKG message before mining the next phase, and to wait for every llmq type to finalize
+        # before mining the final commitments, because the faster polling otherwise races ahead of them. Those waits time out under `quorum dkgsimerror`, so tests that inject DKG
+        # errors must not opt in.
+        self.fast_sync_polling = False
         self.rpc_timeout = 60  # Wait for up to 60 seconds for the RPC server to respond
         self.supports_cli = True
         self.bind_to_localhost_only = True
@@ -826,13 +833,15 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         sync_fun() if sync_fun else self.sync_all()
         return blocks
 
-    def sync_blocks(self, nodes=None, wait=1, timeout=60):
+    def sync_blocks(self, nodes=None, wait=None, timeout=60):
         """
         Wait until everybody has the same tip.
         sync_blocks needs to be called with an rpc_connections set that has least
         one node already synced to the latest, stable tip, otherwise there's a
         chance it might return before all nodes are stably synced.
         """
+        if wait is None:
+            wait = 0.1 if self.fast_sync_polling else 1
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
         stop_time = time.time() + timeout
@@ -848,16 +857,24 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             "".join("\n  {!r}".format(b) for b in best_hash),
         ))
 
-    def sync_mempools(self, nodes=None, wait=1, timeout=60, flush_scheduler=True, wait_func=None):
+    def sync_mempools(self, nodes=None, wait=None, timeout=60, flush_scheduler=True, wait_func=None):
         """
         Wait until everybody has the same transactions in their memory
         pools
+
+        wait_func (by default a 3s mocktime bump) runs after a failed check at most once per
+        `wait` seconds; with fast_sync_polling (and no explicit wait) the mempools are compared
+        every 0.1s in between, so mocktime advances on the same schedule as without it.
         """
+        poll = wait if wait is not None else (0.1 if self.fast_sync_polling else 1)
+        if wait is None:
+            wait = 1
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
         stop_time = time.time() + timeout
         if self.mocktime != 0 and wait_func is None:
             wait_func = lambda: self.bump_mocktime(3, nodes=nodes)
+        next_wait_func = 0
         while time.time() <= stop_time:
             pool = [set(r.getrawmempool()) for r in rpc_connections]
             if pool.count(pool[0]) == len(rpc_connections):
@@ -868,9 +885,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 return
             # Check that each peer has at least one connection
             assert (all([len(x.getpeerinfo()) for x in rpc_connections]))
-            if wait_func is not None:
+            if wait_func is not None and (poll >= wait or time.monotonic() >= next_wait_func):
                 wait_func()
-            time.sleep(wait)
+                next_wait_func = time.monotonic() + wait
+            time.sleep(poll)
         raise AssertionError("Mempool sync timed out after {}s:{}".format(
             timeout,
             "".join("\n  {!r}".format(m) for m in pool),
@@ -2061,13 +2079,27 @@ class DashTestFramework(BitcoinTestFramework):
         self.bump_mocktime(6, update_schedulers=False)
         self.wait_until(check_sporks_same, timeout=timeout)
 
+    @staticmethod
+    def once_per_second(wait_proc):
+        """Wrap wait_proc so that polling faster than once per second does not call it more often"""
+        last_call = None
+
+        def throttled():
+            nonlocal last_call
+            if wait_proc is not None and (last_call is None or time.monotonic() - last_call >= 1):
+                last_call = time.monotonic()
+                wait_proc()
+        return throttled
+
     def wait_for_quorum_connections(self, quorum_hash, expected_connections, mninfos, llmq_type_name="llmq_test", timeout = 60, wait_proc=None):
+        wait_proc = self.once_per_second(wait_proc)
+
         def check_quorum_connections():
             def ret():
-                if wait_proc is not None:
-                    wait_proc()
+                wait_proc()
                 return False
 
+            found_session = False
             for mn in mninfos:
                 s = mn.get_node(self).quorum("dkgstatus")
                 for qs in s["session"]:
@@ -2090,21 +2122,26 @@ class DashTestFramework(BitcoinTestFramework):
                                 cnt += 1
                         if cnt < expected_connections:
                             return ret()
-                        return True
-                    # a session with no matching connections - not ok
-                    return ret()
+                        found_session = True
+                        break
+                    else:
+                        # a session with no matching connections - not ok
+                        return ret()
+                    break
                 # a node with no sessions - ok
-                pass
+            if found_session:
+                return True
             # no sessions at all - not ok
             return ret()
 
-        self.wait_until(check_quorum_connections, timeout=timeout, sleep=1)
+        self.wait_until(check_quorum_connections, timeout=timeout, sleep=0.1 if self.fast_sync_polling else 1)
 
     def wait_for_masternode_probes(self, quorum_hash, mninfos, timeout = 30, wait_proc=None, llmq_type_name="llmq_test"):
+        wait_proc = self.once_per_second(wait_proc)
+
         def check_probes():
             def ret():
-                if wait_proc is not None:
-                    wait_proc()
+                wait_proc()
                 return False
 
             for mn in mninfos:
@@ -2136,9 +2173,94 @@ class DashTestFramework(BitcoinTestFramework):
                                         return ret()
             return True
 
-        self.wait_until(check_probes, timeout=timeout, sleep=1)
+        self.wait_until(check_probes, timeout=timeout, sleep=0.1 if self.fast_sync_polling else 1)
 
-    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=0.5):
+    @staticmethod
+    def dkg_relay_members(members, pro_tx_hash):
+        """The members that pro_tx_hash pushes its DKG messages to, as llmq::utils::GetQuorumRelayMembers with
+        onlyOutbound=true computes them: from each position of pro_tx_hash in members (a rotated quorum can list a
+        masternode twice), the members at ring distance 1, 2, 4, ..., except pro_tx_hash itself"""
+        relay_members = set()
+        if len(members) == 1:
+            return relay_members
+        for i in (i for i, member in enumerate(members) if member == pro_tx_hash):
+            gap, gap_max, k = 1, len(members) - 1, 0
+            while True:
+                gap_max >>= 1
+                if gap_max == 0 and k > 1:
+                    break
+                idx = (i + gap) % len(members)
+                gap <<= 1
+                k += 1
+                if members[idx] != pro_tx_hash:
+                    relay_members.add(members[idx])
+        return relay_members
+
+    def dkg_unreported_members(self, mninfos, reports):
+        """Members of mninfos that must run a DKG session another member reports but do not report it yet.
+        reports maps (llmqType, quorumIndex) to (proTxHashes reporting the session, allMembers). A worker that has
+        not set up its session yet publishes nothing, so waiting only on the sessions seen would let a lagging
+        llmq type through. A PoSe-banned member does not run the session even if a rotated quorum lists it."""
+        pro_tx_hashes = {mn.proTxHash for mn in mninfos}
+        unreported = []
+        for (llmq_type_name, quorum_index), (reporting, members) in reports.items():
+            for pro_tx_hash in sorted((set(members) & pro_tx_hashes) - reporting):
+                if self.nodes[0].protx("info", pro_tx_hash)["state"]["PoSeBanHeight"] == -1:
+                    unreported.append((llmq_type_name, quorum_index, pro_tx_hash))
+        return unreported
+
+    def wait_for_dkg_relay_connections(self, quorum_hash, mninfos, timeout=60, wait_proc=None):
+        """Wait until, in every DKG session based on quorum_hash, of any llmq type, each member in mninfos that runs
+        the session holds an authenticated connection to each of its relay members that runs it too. A member
+        announces each DKG message it sends or accepts once, only to the relay members it is connected to at that
+        moment (RelayInvToParticipants), so a contribution sent before these connections are up never reaches them.
+        wait_for_quorum_connections counts connections in either direction, which inbound ones from members that
+        dialed in first can satisfy while the member's own relay members are still being dialed. A member that does
+        not run the session (offline, or PoSe-banned in a rotated quorum) sends no MNAUTH and relays nothing. A
+        member that is not PoSe-banned and has not reported a session another member reports holds this up too."""
+        wait_proc = self.once_per_second(wait_proc)
+        missing = []
+
+        def check_relay_connections():
+            missing.clear()
+            sessions = {}
+            reports = {}
+            for mn in mninfos:
+                s = mn.get_node(self).quorum("dkgstatus", 2)
+                for qs in s["session"]:
+                    status = qs["status"]
+                    if status["quorumHash"] != quorum_hash:
+                        continue
+                    reports.setdefault((qs["llmqType"], qs["quorumIndex"]), (set(), status["allMembers"]))[0].add(mn.proTxHash)
+                    if status["aborted"]:
+                        continue
+                    connected = {c["proTxHash"]
+                                 for qc in s["quorumConnections"]
+                                 if qc["llmqType"] == qs["llmqType"] and qc["quorumIndex"] == qs["quorumIndex"]
+                                 and qc.get("quorumHash") == quorum_hash
+                                 for c in qc["quorumConnections"] if c["connected"]}
+                    sessions.setdefault((qs["llmqType"], qs["quorumIndex"]), []).append((mn.proTxHash, status["allMembers"], connected))
+            for (llmq_type_name, quorum_index), runners in sessions.items():
+                running = {pro_tx_hash for pro_tx_hash, _, _ in runners}
+                for pro_tx_hash, members, connected in runners:
+                    for relay_member in sorted((self.dkg_relay_members(members, pro_tx_hash) & running) - connected):
+                        missing.append((llmq_type_name, quorum_index, pro_tx_hash, relay_member))
+            missing.extend(self.dkg_unreported_members(mninfos, reports))
+            if missing:
+                wait_proc()
+                return False
+            return True
+
+        try:
+            self.wait_until(check_relay_connections, timeout=timeout, sleep=0.1 if self.fast_sync_polling else 1)
+        except AssertionError:
+            self.log.error(f"DKG relay connections still missing (llmqType, quorumIndex, member, relay member): {missing}")
+            raise
+
+    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=None):
+        if sleep is None:
+            sleep = 0.1 if self.fast_sync_polling else 0.5
+
         def check_dkg_session():
             member_count = 0
             for mn in mninfos:
@@ -2159,6 +2281,130 @@ class DashTestFramework(BitcoinTestFramework):
             return member_count >= expected_member_count
 
         self.wait_until(check_dkg_session, timeout=timeout, sleep=sleep)
+
+    def wait_for_dkg_messages(self, quorum_hash, phase, mninfos, timeout=30):
+        """Wait until every DKG session based on quorum_hash, of any llmq type, whose members are all among
+        mninfos is in the given phase (2-5) on each member running it, and each of those holds the message of that
+        phase from every member that reports having sent it, including members that aborted afterwards. Members judge each other by the messages they hold when the
+        next phase starts, so mining the next phase earlier lets them judge differently, and a type the caller
+        is not waiting for can then fail its DKG or punish a member that did nothing wrong. Members outside
+        mninfos (offline, isolated) are not asked for their status, so their messages are not waited for, and in
+        a session that has one only the phase of the other members is awaited, not their messages: relays can
+        route through the absent member, so a message may never arrive. A member that does not run the session (a rotated quorum can include a PoSe-banned masternode) sends nothing; one that
+        is not PoSe-banned and has not reported a session another member reports holds this up.
+        Times out if a sent message never counts as received, e.g. a premature commitment that fails
+        verification, so do not use it while members lie on purpose (quorum dkgsimerror)."""
+        sent_flag, received = {
+            2: ("sentContributions", "receivedContributions"),
+            3: ("sentComplaint", "receivedComplaints"),
+            4: ("sentJustification", "receivedJustifications"),
+            5: ("sentPrematureCommitment", "receivedPrematureCommitments"),
+        }[phase]
+        pro_tx_hashes = {mn.proTxHash for mn in mninfos}
+        lagging = []
+
+        def check_received():
+            lagging.clear()
+            sessions = {}
+            reports = {}
+            for mn in mninfos:
+                for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]:
+                    if qs["status"]["quorumHash"] == quorum_hash:
+                        key = (qs["llmqType"], qs["quorumIndex"])
+                        sessions.setdefault(key, []).append((mn.proTxHash, qs["status"]))
+                        reports.setdefault(key, (set(), qs["status"]["allMembers"]))[0].add(mn.proTxHash)
+            for key, statuses in sessions.items():
+                lagging.extend((*key, "not reported", pro_tx_hash) for _, _, pro_tx_hash in self.dkg_unreported_members(mninfos, {key: reports[key]}))
+                # A member that aborted after sending still relayed its message, so it is awaited too
+                senders = {pro_tx_hash for pro_tx_hash, status in statuses if status[sent_flag]}
+                # With a member outside mninfos only the phase is awaited: relays can route through that member
+                # (a rotated quorum has few edges), so a message of a live member may never reach another one
+                complete = set(statuses[0][1]["allMembers"]) <= pro_tx_hashes
+                for pro_tx_hash, status in statuses:
+                    if status["aborted"]:
+                        continue
+                    if status["phase"] != phase:
+                        lagging.append((*key, f"phase {status['phase']}", pro_tx_hash))
+                    elif complete and not senders <= {m["proTxHash"] for m in status[received]}:
+                        lagging.append((*key, "missing messages from " + ",".join(sorted(s[:8] for s in senders - {m["proTxHash"] for m in status[received]})), pro_tx_hash))
+            return not lagging
+
+        try:
+            self.wait_until(check_received, timeout=timeout)
+        except AssertionError:
+            self.log.error(f"DKG messages of phase {phase} still missing (llmqType, quorumIndex, reason, member): {lagging}")
+            raise
+
+    def wait_for_dkg_finalization(self, quorum_hash, mninfos, timeout=30):
+        """Wait until every DKG session based on quorum_hash, of any llmq type, is in phase 6 on each member of
+        mninfos that runs it. A member reports phase 6 only after FinalizeCommitments() has made its final
+        commitments mineable, so a type the caller does not wait for cannot be mined as a null commitment because
+        its commitment was still being built. Aborted sessions are skipped."""
+        def check_finalized():
+            reports = {}
+            for mn in mninfos:
+                for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]:
+                    status = qs["status"]
+                    if status["quorumHash"] != quorum_hash:
+                        continue
+                    reports.setdefault((qs["llmqType"], qs["quorumIndex"]), (set(), status["allMembers"]))[0].add(mn.proTxHash)
+                    if not status["aborted"] and status["phase"] != 6:
+                        return False
+            return not self.dkg_unreported_members(mninfos, reports)
+
+        self.wait_until(check_finalized, timeout=timeout)
+
+    def get_required_dkg_sessions(self, mninfos):
+        """(proTxHash, quorumHeight, llmqType, quorumIndex) of every DKG session that a member of mninfos is
+        predicted by 'quorum dkginfo' to take part in. Only sessions whose work block is already mined are
+        predicted, so nothing is required of those whose members cannot be known yet."""
+        node = mninfos[0].get_node(self)
+        required = set()
+        for mn in mninfos:
+            for d in node.quorum("dkginfo", mn.proTxHash)["upcoming_dkgs"]:
+                if d["known"] and d["isMember"]:
+                    required.add((mn.proTxHash, d["quorumHeight"], d["llmqType"], d["quorumIndex"]))
+        return required
+
+    def wait_for_required_dkg_sessions(self, quorum_hash, required, mninfos, llmq_types, timeout=30):
+        """Wait until each member of mninfos that is predicted (see get_required_dkg_sessions) to take part in a
+        DKG session of one of llmq_types (numeric ids) based on quorum_hash reports it. A worker that has not
+        published its session by the time the next phase starts can stay unpublished for the whole cycle, and
+        nothing else waits for a session that no member has published yet. Only the types the caller depends on
+        are required, because a predicted session can legitimately never start, e.g. when a fixture has fewer
+        members than the type needs ("not enough members, aborting init")."""
+        height = self.nodes[0].getblock(quorum_hash)["height"]
+        pro_tx_hashes = {mn.proTxHash for mn in mninfos}
+        wanted = {(pro_tx_hash, llmq_type, quorum_index) for pro_tx_hash, h, llmq_type, quorum_index in required
+                  if h == height and pro_tx_hash in pro_tx_hashes and llmq_type in llmq_types}
+        published = set()
+
+        def check_published():
+            published.clear()
+            for mn in mninfos:
+                for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]:
+                    if qs["status"]["quorumHash"] == quorum_hash:
+                        published.add((mn.proTxHash, qs["status"]["llmqType"], qs["quorumIndex"]))
+            return wanted <= published
+
+        try:
+            self.wait_until(check_published, timeout=timeout)
+        except AssertionError:
+            self.log.error(f"DKG sessions predicted but not published (proTxHash, llmqType, quorumIndex): {sorted(wanted - published)}")
+            raise
+
+    def wait_for_offset_dkg_session(self, quorum_hash, phase, mninfos, wait_proc=None):
+        """With quorum rotation active, the index 1 session of a cycle is based on the block after quorum_hash
+        and runs one block behind the session of quorum_hash, i.e. it is in phase - 1 when that one has just been
+        waited for in phase (the callers mine two blocks per phase). Wait for its relay connections (phase 2) or
+        for its messages of the previous phase (phases 3-6), so that the blocks mined for the next phase do not
+        cross a boundary of this session while its messages are still in flight and make a member miss the phase.
+        A hash without a session passes at once."""
+        offset_hash = self.nodes[0].getblockhash(self.nodes[0].getblock(quorum_hash)["height"] + 1)
+        if phase == 2:
+            self.wait_for_dkg_relay_connections(offset_hash, mninfos, wait_proc=wait_proc or (lambda: self.bump_mocktime(1)))
+        else:
+            self.wait_for_dkg_messages(offset_hash, phase - 1, mninfos)
 
     def node_quorum_commitment_types(self, node, quorum_hash):
         s = node.quorum("dkgstatus")
@@ -2228,7 +2474,7 @@ class DashTestFramework(BitcoinTestFramework):
             assert_equal(entry["workBlockHash"], self.nodes[0].getblockhash(work_height))
             assert_equal(entry["isMember"], proTxHash in members)
 
-    def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False):
+    def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False, required_llmq_types=()):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
@@ -2261,6 +2507,15 @@ class DashTestFramework(BitcoinTestFramework):
         if skip_count <= work_diff_depth:
             self.log.info(f"Capturing upcoming DKG membership predictions {skip_count} blocks ahead")
             predictions = self.get_upcoming_dkg_predictions(mninfos_online[0].get_node(self), llmq_type)
+        required_sessions = None
+        if self.fast_sync_polling:
+            # the sessions of every llmq type that start at the next DKG height, which only 'quorum dkginfo' knows
+            # once the work block is mined; the quorums formed while it is being mined are not affected
+            if skip_count > work_diff_depth:
+                self.bump_mocktime(1)
+                self.generate(self.nodes[0], skip_count - work_diff_depth, sync_fun=lambda: self.sync_blocks(nodes))
+                skip_count = work_diff_depth
+            required_sessions = self.get_required_dkg_sessions(mninfos_online)
         if skip_count != 0:
             self.bump_mocktime(1)
             self.generate(self.nodes[0], skip_count, sync_fun=lambda: self.sync_blocks(nodes))
@@ -2269,34 +2524,53 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Expected quorum_hash:"+str(q))
         self.log.info("Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_required_dkg_sessions(q, required_sessions, mninfos_online, {llmq_type, *required_llmq_types})
         self.wait_for_quorum_connections(q, expected_connections, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
         if spork23_active:
             self.wait_for_masternode_probes(q, mninfos_online, wait_proc=lambda: self.bump_mocktime(1))
+        if self.fast_sync_polling:
+            self.wait_for_dkg_relay_connections(q, mninfos_online, wait_proc=lambda: self.bump_mocktime(1))
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 2, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 2, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 3, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 3, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 4, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 4, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q, 5, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 5, mninfos_online)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_finalization(q, mninfos_online)
+            self.wait_for_offset_dkg_session(q, 6, mninfos_online)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type)
@@ -2319,6 +2593,13 @@ class DashTestFramework(BitcoinTestFramework):
             self.verify_upcoming_dkg_predictions(predictions, quorum_info)
 
         if not skip_maturity:
+            if self.fast_sync_polling:
+                # With rotation active, the index 1 session of the cycle starts one block after q and finalizes
+                # one block after q's, i.e. with the final commitment block above. The maturity blocks cross the
+                # mining window, which needs its commitment.
+                q_1 = self.nodes[0].getblockhash(quorum_info["height"] + 1)
+                self.wait_for_dkg_finalization(q_1, mninfos_online)
+                self.wait_for_quorum_commitments_on_miner(q_1, mninfos_online)
             # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
             self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
 
@@ -2435,6 +2716,8 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_connections(q_0, expected_connections, mninfos_online, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1))
         if spork23_active:
             self.wait_for_masternode_probes(q_0, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_relay_connections(q_0, mninfos_online, wait_proc=lambda: self.bump_mocktime(1))
 
         # the cycle's work block is mined, so index-1 participation is already predictable
         predictions_mid_cycle = self.get_upcoming_dkg_predictions(mninfos_online[0].get_node(self), llmq_type)
@@ -2450,46 +2733,64 @@ class DashTestFramework(BitcoinTestFramework):
         self.wait_for_quorum_connections(q_1, expected_connections, mninfos_online, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1))
         if spork23_active:
             self.wait_for_masternode_probes(q_1, mninfos_online, wait_proc=lambda: self.bump_mocktime(1), llmq_type_name=llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_relay_connections(q_1, mninfos_online, wait_proc=lambda: self.bump_mocktime(1))
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q_0, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 2, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q_1, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 2, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q_0, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 3, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q_1, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 3, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q_0, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 4, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q_1, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 4, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q_0, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_0, 5, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q_1, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_messages(q_1, 5, mninfos_online)
 
         self.move_blocks(nodes, 1)
 
@@ -2500,6 +2801,11 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.log.info("quorumIndex 1: Waiting for phase 6 (finalization)")
         self.wait_for_quorum_phase(q_1, 6, expected_members, None, 0, mninfos_online, llmq_type_name)
+        if self.fast_sync_polling:
+            self.wait_for_dkg_finalization(q_0, mninfos_online)
+            self.wait_for_dkg_finalization(q_1, mninfos_online)
+            self.wait_for_quorum_commitments_on_miner(q_0, mninfos_online)
+            self.wait_for_quorum_commitments_on_miner(q_1, mninfos_online)
         self.log.info("Mining final commitments")
         self.bump_mocktime(1)
         self.nodes[0].getblocktemplate() # this calls CreateNewBlock
@@ -2534,13 +2840,21 @@ class DashTestFramework(BitcoinTestFramework):
         return (quorum_info_0, quorum_info_1)
 
     def wait_for_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, timeout=10):
+        # Mocktime advances by 1s per second of waiting either way; with fast_sync_polling the
+        # nodes are just asked more often in between.
+        fast = self.fast_sync_polling
+        next_bump = 0
+
         def check_recovered_sig():
-            self.bump_mocktime(1)
+            nonlocal next_bump
+            if not fast or time.monotonic() >= next_bump:
+                self.bump_mocktime(1)
+                next_bump = time.monotonic() + 1
             for mn in self.mninfo: # type: MasternodeInfo
                 if not mn.get_node(self).quorum("hasrecsig", llmq_type, rec_sig_id, rec_sig_msg_hash):
                     return False
             return True
-        self.wait_until(check_recovered_sig, timeout=timeout, sleep=1)
+        self.wait_until(check_recovered_sig, timeout=timeout, sleep=0.1 if fast else 1)
 
     def get_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, use_platformsign=False):
         # Note: recsigs aren't relayed to regular nodes by default,

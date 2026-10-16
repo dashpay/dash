@@ -294,6 +294,7 @@ class P2PConnection(asyncio.Protocol):
         if self.p2p_connected_to_node and not self.supports_v2_p2p:
             self.send_version()
         self.on_open()
+        p2p_activity.notify()
 
     def connection_lost(self, exc):
         """asyncio callback when a connection is closed."""
@@ -363,10 +364,13 @@ class P2PConnection(asyncio.Protocol):
         """asyncio callback when data is read from the socket."""
         if len(t) > 0:
             self.recvbuf += t
-            if self.supports_v2_p2p and not self.v2_state.tried_v2_handshake:
-                self._on_data_v2_handshake()
-            else:
-                self._on_data()
+            try:
+                if self.supports_v2_p2p and not self.v2_state.tried_v2_handshake:
+                    self._on_data_v2_handshake()
+                else:
+                    self._on_data()
+            finally:
+                p2p_activity.notify()
 
     def _on_data(self):
         """Try to read P2P messages from the recv buffer.
@@ -654,12 +658,18 @@ class P2PInterface(P2PConnection):
     # Connection helper methods
 
     def wait_until(self, test_function_in, *, timeout=60, check_connected=True):
+        seen_seq = None
+
         def test_function():
+            nonlocal seen_seq
+            # Read before evaluating, so activity during the evaluation cuts the next sleep short
+            seen_seq = p2p_activity.seq
             if check_connected:
                 assert self.is_connected
             return test_function_in()
 
-        wait_until_helper(test_function, timeout=timeout, lock=p2p_lock, timeout_factor=self.timeout_factor)
+        wait_until_helper(test_function, timeout=timeout, lock=p2p_lock, timeout_factor=self.timeout_factor,
+                          sleep_fn=(lambda sleep: p2p_activity.wait(seen_seq, sleep)) if p2p_activity.enabled else None)
 
     def wait_for_connect(self, *, timeout=60):
         test_function = lambda: self.is_connected
@@ -783,6 +793,39 @@ class P2PInterface(P2PConnection):
 # This lock should be acquired in the thread running the test logic to synchronize
 # access to any data shared with the P2PInterface or P2PConnection.
 p2p_lock = threading.Lock()
+
+
+class P2PActivity:
+    """Wakes P2PInterface.wait_until() as soon as a connection opens or receives data,
+    instead of letting it sleep out its whole poll interval. The poll interval still
+    bounds every wait, so predicates that depend on anything else behave as before.
+
+    Opt-in: a test sets `p2p_activity.enabled = True` (it is off by default). Waking
+    earlier removes the slack that the poll interval gives the node to finish its own
+    bookkeeping, and a test can depend on that without saying so: p2p_blocksonly opens
+    its next block-relay-only connection right after wait_for_disconnect() and fails
+    now and then with "Already at capacity for specified connection type" when it runs
+    with the wake-up on. A closing connection never wakes it, for the same reason.
+
+    Its lock is never held while acquiring another lock, so it cannot deadlock."""
+    def __init__(self):
+        self._cond = threading.Condition()
+        self.seq = 0
+        self.enabled = False
+
+    def notify(self):
+        with self._cond:
+            self.seq += 1
+            self._cond.notify_all()
+
+    def wait(self, seen_seq, timeout):
+        """Sleep up to timeout seconds unless there was activity after seen_seq was read."""
+        with self._cond:
+            if self.seq == seen_seq:
+                self._cond.wait(timeout)
+
+
+p2p_activity = P2PActivity()
 
 
 class NetworkThread(threading.Thread):

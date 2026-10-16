@@ -10,8 +10,6 @@ Checks simple PoSe system based on LLMQ commitments
 
 '''
 
-import time
-
 from test_framework.masternodes import check_banned, check_punished
 from test_framework.messages import NODE_COMPACT_FILTERS
 from test_framework.p2p import P2P_SERVICES, P2PInterface
@@ -23,6 +21,9 @@ from test_framework.util import assert_equal, force_finish_mnsync
 
 # See version.h
 MIN_MASTERNODE_PROTO_VERSION = 70242
+# A member complains about a masternode it failed to reach more than 5 times (MASTERNODE_MAX_FAILED_OUTBOUND_ATTEMPTS)
+# and probes it at least once per DKG; two failed DKGs in a row (66% penalty each) ban it
+DKGS_TO_BAN_UNREACHABLE = 7
 
 
 class MasternodePeer(P2PInterface):
@@ -44,6 +45,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.set_dash_test_params(6, 5)
         self.set_dash_llmq_test_params(5, 3)
         self.delay_v20_and_mn_rr(height=9999)
+        self.fast_sync_polling = True
 
     def add_options(self, parser):
         self.add_wallet_options(parser)
@@ -181,6 +183,8 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, len(others), "receivedContributions", self.llmq_size, others)
+        self.wait_for_dkg_messages(q, 2, others + [mn])
+        self.wait_for_offset_dkg_session(q, 2, others)
 
         self.log.info("Replacing the connections to the masternode with stand-ins")
         mn.get_node(self).setnetworkactive(False)
@@ -196,21 +200,29 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, len(others), "receivedComplaints", expected_complaints, others)
+        self.wait_for_dkg_messages(q, 3, others)
+        self.wait_for_offset_dkg_session(q, 3, others)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, len(others), "receivedJustifications", 0, others)
+        self.wait_for_dkg_messages(q, 4, others)
+        self.wait_for_offset_dkg_session(q, 4, others)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, len(others), "receivedPrematureCommitments", len(others), others)
+        self.wait_for_dkg_messages(q, 5, others)
+        self.wait_for_offset_dkg_session(q, 5, others)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, len(others), None, 0, others)
+        self.wait_for_dkg_finalization(q, others)
+        self.wait_for_offset_dkg_session(q, 6, others)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, others)
@@ -227,6 +239,11 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.wait_for_quorum_list(q, nodes)
         assert_equal(q, self.nodes[0].quorum("list", 1)["llmq_test"][0])
 
+        # With rotation active, the session that starts one block after q finalizes with the block above
+        offset_hash = self.nodes[0].getblockhash(self.nodes[0].getblock(q)["height"] + 1)
+        self.wait_for_dkg_finalization(offset_hash, others)
+        self.wait_for_quorum_commitments_on_miner(offset_hash, others)
+
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
 
@@ -236,16 +253,18 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
     def test_no_banning(self, invalidate_proc, expected_connections=None):
         [_, instant_ban] = invalidate_proc(self.mninfo[0])
-        iters = 2 if instant_ban else 6
+        iters = 2 if instant_ban else DKGS_TO_BAN_UNREACHABLE
         for i in range(iters):
             self.log.info(f"Testing no PoSe banning in normal conditions {i + 1}/{iters}")
             self.mine_quorum(expected_connections=expected_connections)
 
-    def mine_quorum_less_checks(self, expected_good_nodes, mninfos_online):
+    def mine_quorum_less_checks(self, expected_good_nodes, mninfos_online, unreachable_mn):
         # Unlike in mine_quorum we skip most of the checks and only care about
         # nodes moving forward from phase to phase correctly and the fact that the quorum is actually mined.
         self.log.info("Mining a quorum with less checks")
         nodes = [self.nodes[0]] + [mn.get_node(self) for mn in mninfos_online]
+        judges = [mn for mn in mninfos_online if mn is not unreachable_mn]
+        attempts_before = self.get_outbound_attempt_counts(mninfos_online, unreachable_mn)
 
         # move forward to next DKG
         skip_count = 24 - (self.nodes[0].getblockcount() % 24)
@@ -256,30 +275,47 @@ class LLMQSimplePoSeTest(DashTestFramework):
         q = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_hash: "+str(q))
         self.log.info("Waiting for phase 1 (init)")
-        self.wait_for_quorum_phase(q, 1, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q, 1, expected_good_nodes, None, 0, judges)
+        self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, [q])
+        self.wait_for_dkg_relay_connections(q, judges, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 2 (contribute)")
-        self.wait_for_quorum_phase(q, 2, expected_good_nodes, "receivedContributions", expected_good_nodes, mninfos_online)
+        self.wait_for_quorum_phase(q, 2, expected_good_nodes, "receivedContributions", expected_good_nodes, judges)
+        self.wait_for_dkg_messages(q, 2, mninfos_online)
+        self.wait_for_offset_dkg_session(q, 2, mninfos_online, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
+        session_hashes = [q, self.nodes[0].getblockhash(self.nodes[0].getblock(q)["height"] + 1)]
+        self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, session_hashes)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
-        self.wait_for_quorum_phase(q, 3, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q, 3, expected_good_nodes, None, 0, judges)
+        self.wait_for_dkg_messages(q, 3, mninfos_online)
+        self.wait_for_offset_dkg_session(q, 3, mninfos_online, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
-        self.wait_for_quorum_phase(q, 4, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q, 4, expected_good_nodes, None, 0, judges)
+        self.wait_for_dkg_messages(q, 4, mninfos_online)
+        self.wait_for_offset_dkg_session(q, 4, mninfos_online, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
-        self.wait_for_quorum_phase(q, 5, expected_good_nodes, "receivedPrematureCommitments", expected_good_nodes, mninfos_online)
+        self.wait_for_quorum_phase(q, 5, expected_good_nodes, "receivedPrematureCommitments", expected_good_nodes, judges)
+        self.wait_for_dkg_messages(q, 5, mninfos_online)
+        self.wait_for_offset_dkg_session(q, 5, mninfos_online, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
-        self.wait_for_quorum_phase(q, 6, expected_good_nodes, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q, 6, expected_good_nodes, None, 0, judges)
+        self.wait_for_dkg_finalization(q, mninfos_online)
+        self.wait_for_offset_dkg_session(q, 6, mninfos_online, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online)
+
+        self.log.info("Waiting final commitments on mining node")
+        self.wait_for_quorum_commitments_on_miner(q, mninfos_online)
 
         self.log.info("Mining final commitment")
         self.bump_mocktime(1, nodes=nodes)
@@ -293,12 +329,40 @@ class LLMQSimplePoSeTest(DashTestFramework):
         assert_equal(q, new_quorum)
         quorum_info = self.nodes[0].quorum("info", 100, new_quorum)
 
+        # With rotation active, the session that starts one block after q finalizes with the block above
+        self.wait_for_dkg_finalization(session_hashes[1], mninfos_online)
+        self.wait_for_quorum_commitments_on_miner(session_hashes[1], mninfos_online)
+
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.bump_mocktime(8)
         self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["quorumIndex"], quorum_info["minedBlock"]))
 
+        # A session that was not initialized yet when phase 2 was checked has queued its probe by now
+        self.wait_for_failed_probes(judges, unreachable_mn, attempts_before, session_hashes)
+
         return new_quorum
+
+    def get_outbound_attempt_counts(self, mninfos, target_mn):
+        return {mn.proTxHash: mn.get_node(self).protx('info', target_mn.proTxHash)['metaInfo']['outboundAttemptCount']
+                for mn in mninfos}
+
+    def wait_for_failed_probes(self, judges, unreachable_mn, attempts_before, session_hashes):
+        # A member queues a probe of every other member when one of its DKG sessions starts, and the probes
+        # of sessions that start at the same block merge. Wait until each judge made as many attempts to
+        # reach unreachable_mn as it has session start blocks (among session_hashes) shared with it. Probes
+        # that are still pending when the next ones are queued would merge with them and be lost, so that
+        # the PoSe penalty would accumulate at whatever pace the masternode connection threads happen to run.
+        def probe_rounds(mn):
+            return len({qs["status"]["quorumHash"] for qs in mn.get_node(self).quorum("dkgstatus", 2)["session"]
+                        if qs["status"]["quorumHash"] in session_hashes
+                        and unreachable_mn.proTxHash in qs["status"]["allMembers"]})
+
+        def check_attempts():
+            counts = self.get_outbound_attempt_counts(judges, unreachable_mn)
+            return all(counts[mn.proTxHash] >= attempts_before[mn.proTxHash] + probe_rounds(mn) for mn in judges)
+
+        self.wait_until(check_attempts)
 
     def test_banning(self, invalidate_proc, expected_connections=None):
         mninfos_online = self.mninfo.copy()
@@ -332,12 +396,11 @@ class LLMQSimplePoSeTest(DashTestFramework):
                     self.mine_quorum(expected_connections=expected_connections, expected_members=expected_contributors, expected_contributions=expected_contributors, expected_complaints=expected_complaints, expected_commitments=expected_contributors, mninfos_online=mninfos_online, mninfos_valid=mninfos_valid)
             else:
                 # It's ok to miss probes/quorum connections up to 5 times.
-                # 6th time is when it should be banned for sure.
                 assert expected_connections is None
-                for j in range(6):
-                    self.log.info(f"Accumulating PoSe penalty {j + 1}/6")
+                for j in range(DKGS_TO_BAN_UNREACHABLE):
+                    self.log.info(f"Accumulating PoSe penalty {j + 1}/{DKGS_TO_BAN_UNREACHABLE}")
                     self.reset_probe_timeouts()
-                    self.mine_quorum_less_checks(expected_contributors - 1, mninfos_online)
+                    self.mine_quorum_less_checks(expected_contributors - 1, mninfos_online, mn)
                     if check_banned(self.nodes[0], mn):
                         break
 
@@ -349,16 +412,16 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
     def repair_masternodes(self, restart):
         self.log.info("Repairing all banned and punished masternodes")
-        for mn in self.mninfo: # type: MasternodeInfo
-            if check_banned(self.nodes[0], mn) or check_punished(self.nodes[0], mn):
-                addr = self.nodes[0].getnewaddress()
-                self.nodes[0].sendtoaddress(addr, 0.1)
-                mn.update_service(self.nodes[0], submit=True, fundsAddr=addr)
-                if restart:
-                    self.stop_node(mn.nodeIdx)
-                    self.start_masternode(mn)
-                else:
-                    mn.get_node(self).setnetworkactive(True)
+        repaired = [mn for mn in self.mninfo if check_banned(self.nodes[0], mn) or check_punished(self.nodes[0], mn)]
+        for mn in repaired:
+            addr = self.nodes[0].getnewaddress()
+            self.nodes[0].sendtoaddress(addr, 0.1)
+            mn.update_service(self.nodes[0], submit=True, fundsAddr=addr)
+        if restart:
+            self.restart_masternodes(mns=repaired)
+        else:
+            for mn in repaired:
+                mn.get_node(self).setnetworkactive(True)
                 self.connect_nodes(mn.nodeIdx, 0)
 
         # syncing blocks only since node 0 has txes waiting to be mined
@@ -380,8 +443,6 @@ class LLMQSimplePoSeTest(DashTestFramework):
     def reset_probe_timeouts(self):
         # Make sure all masternodes will reconnect/re-probe
         self.bump_mocktime(10 * 60 + 1)
-        # Sleep a couple of seconds to let mn sync tick to happen
-        time.sleep(2)
 
 
 if __name__ == '__main__':

@@ -26,6 +26,7 @@ class LLMQSigningTest(DashTestFramework):
         self.set_dash_llmq_test_params(5, 3)
         for args in self.extra_args:
             args.append("-llmqtestplatformparams=3:2")
+        self.fast_sync_polling = True
 
     def add_options(self, parser):
         self.add_wallet_options(parser)
@@ -49,46 +50,56 @@ class LLMQSigningTest(DashTestFramework):
         msgHash = "0000000000000000000000000000000000000000000000000000000000000002"
         msgHashConflict = "0000000000000000000000000000000000000000000000000000000000000003"
 
-        def check_sigs(hasrecsigs, isconflicting1, isconflicting2):
+        def check_sigs(hasrecsigs, isconflicting1, isconflicting2, sig_id=None):
+            sig_id = sig_id or id
             for mn in self.mninfo: # type: MasternodeInfo
-                if mn.get_node(self).quorum("hasrecsig", q_type, id, msgHash) != hasrecsigs:
+                if mn.get_node(self).quorum("hasrecsig", q_type, sig_id, msgHash) != hasrecsigs:
                     return False
-                if mn.get_node(self).quorum("isconflicting", q_type, id, msgHash) != isconflicting1:
+                if mn.get_node(self).quorum("isconflicting", q_type, sig_id, msgHash) != isconflicting1:
                     return False
-                if mn.get_node(self).quorum("isconflicting", q_type, id, msgHashConflict) != isconflicting2:
+                if mn.get_node(self).quorum("isconflicting", q_type, sig_id, msgHashConflict) != isconflicting2:
                     return False
             return True
 
         def wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, timeout):
             self.wait_until(lambda: check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout)
 
-        def assert_sigs_nochange(hasrecsigs, isconflicting1, isconflicting2, timeout):
-            assert not self.wait_until(lambda: not check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
+        def assert_sigs_nochange(hasrecsigs, isconflicting1, isconflicting2, timeout, other_ids=()):
+            def unchanged():
+                return all(check_sigs(hasrecsigs, isconflicting1, isconflicting2, sig_id) for sig_id in (id, *other_ids))
+            assert not self.wait_until(lambda: not unchanged(), timeout = timeout, do_assert = False)
+
+        # Recovering, conflicting or removing a recovered sig can't be undone during this test without a
+        # deliberate step, so a change caused by any earlier step is still visible in a later window. A step
+        # that must cause no change is therefore checked at once, and its window is shared with the next
+        # step that must cause no change either.
 
         # Initial state
         wait_for_sigs(False, False, False, 1)
 
         # Sign first share without any optional parameter, should not result in recovered sig
         self.mninfo[0].get_node(self).quorum("sign", q_type, id, msgHash)
-        assert_sigs_nochange(False, False, False, 3)
+        assert check_sigs(False, False, False)
         # Sign second share and test optional quorumHash parameter, should not result in recovered sig
         # 1. Providing an invalid quorum hash should fail and cause no changes for sigs
         assert not self.mninfo[1].get_node(self).quorum("sign", q_type, id, msgHash, msgHash)
-        assert_sigs_nochange(False, False, False, 3)
+        assert check_sigs(False, False, False)
         # 2. Providing a valid quorum hash should succeed and cause no changes for sigss
         quorumHash = self.mninfo[1].get_node(self).quorum("selectquorum", q_type, id)["quorumHash"]
         assert self.mninfo[1].get_node(self).quorum("sign", q_type, id, msgHash, quorumHash)
-        assert_sigs_nochange(False, False, False, 3)
-        # Sign third share and test optional submit parameter if spork21 is enabled, should result in recovered sig
-        # and conflict for msgHashConflict
+        assert check_sigs(False, False, False)
         if self.options.spork21:
+            # Test optional submit parameter if spork21 is enabled
             # 1. Providing an invalid quorum hash and set submit=false, should throw an error
             assert_raises_rpc_error(-8, 'quorum not found', self.mninfo[2].get_node(self).quorum, "sign", q_type, id, msgHash, id, False)
             # 2. Providing a valid quorum hash and set submit=false, should return a valid sigShare object
             sig_share_rpc_1 = self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash, quorumHash, False)
             sig_share_rpc_2 = self.mninfo[2].get_node(self).quorum("sign", q_type, id, msgHash, "", False)
             assert_equal(sig_share_rpc_1, sig_share_rpc_2)
-            assert_sigs_nochange(False, False, False, 3)
+        # Window shared by every step above
+        assert_sigs_nochange(False, False, False, 3)
+        # Sign third share, should result in recovered sig and conflict for msgHashConflict
+        if self.options.spork21:
             # 3. Sending the sig share received from RPC to the recovery member through P2P interface, should result
             # in a recovered sig
             sig_share = CSigShare()
@@ -134,7 +145,9 @@ class LLMQSigningTest(DashTestFramework):
 
         # Mine one more quorum, so that we have 2 active ones, nothing should change
         self.mine_quorum()
-        assert_sigs_nochange(True, False, True, 3)
+        # The window for this is shared with the one after the next quorums below
+        assert check_sigs(True, False, True)
+        first_id = id
 
         # Create a recovered sig for the oldest quorum i.e. the active quorum which will be moved
         # out of the active set when a new quorum appears
@@ -162,7 +175,7 @@ class LLMQSigningTest(DashTestFramework):
         # Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change
         self.mine_quorum()
         self.mine_quorum()
-        assert_sigs_nochange(True, False, True, 3)
+        assert_sigs_nochange(True, False, True, 3, other_ids=[first_id])
 
         # fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid
         self.bump_mocktime(recsig_time + int(60 * 60 * 24 * 6.5) - self.mocktime, update_schedulers=False)
