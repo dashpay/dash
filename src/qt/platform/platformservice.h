@@ -99,6 +99,8 @@ public:
 
     PlatformService(WalletModel& wallet_model, ClientModel& client_model, Sources sources = {});
 
+    WalletModel& walletModel() const { return m_wallet_model; }
+    ClientModel& clientModel() const { return m_client_model; }
     Gate gate() const { return m_gate; }
     //! Why DashPay can't run, naming the setting that disables it; empty for
     //! NONE and NO_CONSENT.

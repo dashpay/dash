@@ -43,6 +43,8 @@ public:
     std::deque<platform::Result<platform::Identifier>> sent_contact_requests;
 
     std::vector<Call> calls;
+    //! The asset lock proofs of registerIdentity and topUpIdentity, in call order.
+    std::vector<platform::AssetLockProof> proofs;
     bool shut_down{false};
 
     void getIdentity(const platform::Identifier& id, Callback<platform::Identity> cb) override;

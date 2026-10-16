@@ -5,11 +5,15 @@
 #ifndef BITCOIN_QT_PLATFORM_PLATFORMPAGE_H
 #define BITCOIN_QT_PLATFORM_PLATFORMPAGE_H
 
+#include <consensus/amount.h>
 #include <qt/platform/platformservice.h>
 
 #include <QWidget>
 
 #include <memory>
+
+class BitcoinAmountField;
+class IdentityFlow;
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -20,7 +24,8 @@ QT_END_NAMESPACE
  *
  *  It owns the wallet's PlatformService while both models are set, offers
  *  the first DashPay click with a one-line privacy notice, and says why
- *  DashPay can't run when a gate is closed. */
+ *  DashPay can't run when a gate is closed. Once DashPay runs it shows the
+ *  wallet's identity and its balance, and creates, continues or tops it up. */
 class PlatformPage : public QWidget
 {
     Q_OBJECT
@@ -32,6 +37,7 @@ public:
     void setWalletModel(WalletModel* wallet_model);
     void setClientModel(ClientModel* client_model);
     PlatformService* service() const { return m_service.get(); }
+    IdentityFlow* identityFlow() const { return m_identity_flow.get(); }
 
 Q_SIGNALS:
     //! A service was created, or is about to be destroyed (nullptr) while
@@ -41,13 +47,23 @@ Q_SIGNALS:
 private:
     void resetService();
     void refresh();
+    bool confirmFunding(CAmount amount, CAmount fee);
 
     const PlatformService::Sources m_sources;
     WalletModel* m_wallet_model{nullptr};
     ClientModel* m_client_model{nullptr};
     std::unique_ptr<PlatformService> m_service;
+    //! Destroyed before the service it calls through.
+    std::unique_ptr<IdentityFlow> m_identity_flow;
 
+    QLabel* m_identity{nullptr};
     QLabel* m_status{nullptr};
+    QLabel* m_identity_status{nullptr};
+    QPushButton* m_look_up{nullptr};
+    QPushButton* m_create{nullptr};
+    QPushButton* m_continue{nullptr};
+    BitcoinAmountField* m_top_up_amount{nullptr};
+    QPushButton* m_top_up{nullptr};
     QPushButton* m_start{nullptr};
     QPushButton* m_stop{nullptr};
 };
