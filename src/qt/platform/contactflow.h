@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,10 @@ class PlatformService;
  *
  * Paying a contact hands the next address of the payment chain their request
  * carries to the Send tab, counted as used before it is shown.
+ *
+ * An incoming request can be ignored, as on the mobile wallets: its sender
+ * is hidden from contacts() until unignored, whatever they send. That is
+ * kept in the wallet only, never on Platform.
  */
 class ContactFlow : public QObject
 {
@@ -71,8 +76,11 @@ public:
     bool swept() const { return m_sent && m_received; }
     //! Whether contact requests are being read.
     bool reading() const { return !m_sent_call.expired() || !m_received_call.expired(); }
-    //! Incoming first, then established, then outgoing.
+    //! Incoming first, then established, then outgoing; not the ignored.
     std::vector<Contact> contacts() const;
+    //! The senders of incoming requests that were ignored, waiting for
+    //! unignore().
+    std::vector<Contact> ignored() const;
     //! Why the last action failed, else why the last read did; empty when
     //! neither did.
     const QString& error() const { return m_error.isEmpty() ? m_read_error : m_error; }
@@ -83,6 +91,10 @@ public:
     void accept(const platform::Identifier& contact);
     //! Read the contact requests again.
     void refresh();
+    //! Hide the incoming requests of `contact`, now and later.
+    void ignore(const platform::Identifier& contact);
+    //! Show them again.
+    void unignore(const platform::Identifier& contact);
     //! Choose the address to pay an established contact at, and hand it to
     //! payTo().
     void pay(const platform::Identifier& contact);
@@ -96,6 +108,9 @@ private:
     using Requests = std::map<platform::Identifier, platform::ContactRequest>;
 
     void update();
+    //! contacts() or ignored().
+    std::vector<Contact> list(bool hidden) const;
+    void setIgnored(const platform::Identifier& contact, bool hide);
     //! Read whichever direction is unread and not being read.
     void sweep();
     void readRequests(platform::ContactDirection direction);
@@ -125,6 +140,8 @@ private:
     //! Usernames read, by identity; nullopt: none.
     std::map<platform::Identifier, std::optional<std::string>> m_names;
     std::map<platform::Identifier, std::weak_ptr<void>> m_name_calls;
+    //! The senders ignored, read from the wallet once the identity is found.
+    std::optional<std::set<platform::Identifier>> m_ignored;
     QString m_error;
     QString m_read_error;
 };

@@ -53,6 +53,8 @@ private Q_SLOTS:
     void prunedNodeRefusesTheRescan();
     void searchFindsUsernamesToAdd();
     void searchSurvivesAClientRebuild();
+    void ignoringHidesAnIncomingRequest();
+    void unignoringShowsTheRequestAgain();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H

@@ -10,15 +10,17 @@
 class ContactFlow;
 
 QT_BEGIN_NAMESPACE
+class QCheckBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
 class QTableWidget;
 QT_END_NAMESPACE
 
-/** The DashPay tab's contacts: incoming requests with Accept, contacts with
- *  Pay and our requests waiting for an answer, and adding a contact by
- *  username, typed or searched for. */
+/** The DashPay tab's contacts: incoming requests with Accept or Ignore,
+ *  contacts with Pay and our requests waiting for an answer, the ignored
+ *  requests on demand with Unignore, and adding a contact by username, typed
+ *  or searched for. */
 class ContactsPage : public QWidget
 {
     Q_OBJECT
@@ -37,10 +39,12 @@ Q_SIGNALS:
 
 private:
     ContactFlow* m_flow{nullptr};
+    bool m_writable{false};
     QLineEdit* m_username{nullptr};
     QPushButton* m_add{nullptr};
     QPushButton* m_search{nullptr};
     QPushButton* m_refresh{nullptr};
+    QCheckBox* m_show_ignored{nullptr};
     QLabel* m_status{nullptr};
     QTableWidget* m_list{nullptr};
 };
