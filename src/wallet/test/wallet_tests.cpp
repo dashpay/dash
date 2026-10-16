@@ -266,6 +266,25 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         }
     }
 
+    // Where a rescan from the birth of a wallet holding a genesis-era key
+    // would need blocks this node no longer has.
+    const auto rescan_pruned_from{[&] {
+        const auto wallet{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase())};
+        {
+            LOCK(wallet->cs_wallet);
+            wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+            wallet->SetLastBlockProcessed(newTip->nHeight, newTip->GetBlockHash());
+        }
+        AddKey(*wallet, coinbaseKey);
+        WalletContext context;
+        return interfaces::MakeWallet(context, wallet)->rescanPrunedFrom();
+    }};
+    BOOST_CHECK(!rescan_pruned_from());
+    // A pruning node that still has every block the rescan reads. The flag is
+    // set as Chainstate::FlushStateToDisk does once it prunes.
+    WITH_LOCK(::cs_main, m_node.chainman->m_blockman.m_have_pruned = true);
+    BOOST_CHECK(!rescan_pruned_from());
+
     // Prune the older block file.
     int file_number;
     {
@@ -274,6 +293,7 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         Assert(m_node.chainman)->m_blockman.PruneOneBlockFile(file_number);
     }
     UnlinkPrunedFiles({file_number});
+    BOOST_CHECK(rescan_pruned_from() == std::optional<int>{0});
 
     // Verify ScanForWalletTransactions only picks transactions in the new block
     // file.
@@ -923,6 +943,9 @@ BOOST_FIXTURE_TEST_CASE(create_asset_lock_transaction, AssetLockTestingSetup)
     BOOST_REQUIRE(wallet->EncryptWallet(passphrase));
     BOOST_REQUIRE(wallet->IsLocked());
     BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee));
+    // A locked wallet can still tell whether it is able to fund an identity.
+    BOOST_CHECK(iface->getPlatformPubKey(registration_key).status == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::SUCCESS);
     BOOST_REQUIRE(wallet->Unlock(passphrase, /*fForMixingOnly=*/true));
     BOOST_REQUIRE(wallet->IsLocked() && !wallet->IsLocked(/*fForMixing=*/true));
     BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee));

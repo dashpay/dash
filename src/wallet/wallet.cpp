@@ -4060,6 +4060,13 @@ PlatformKeyStatus CWallet::DerivePlatformKey(const PlatformKeyRequest& request, 
     return DerivePlatformKey(platformkeys::PlatformKeyPath(static_cast<uint32_t>(Params().ExtCoinType()), request), out);
 }
 
+PlatformKeyStatus CWallet::GetPlatformKeySourceStatus() const
+{
+    LOCK(cs_wallet);
+    const ScriptPubKeyMan* source{nullptr};
+    return GetPlatformKeySource(source);
+}
+
 PlatformKeyResult<CPubKey> CWallet::GetPlatformPubKey(const PlatformKeyRequest& request) const
 {
     LOCK(cs_wallet);
