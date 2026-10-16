@@ -116,10 +116,10 @@ class UpgradeWalletTest(BitcoinTestFramework):
 
         self.log.info("Test upgradewallet RPC...")
         # Prepare for copying of the older wallet
-        node_master_wallet_dir = os.path.join(node_master.datadir, "regtest/wallets", self.default_wallet_name)
-        node_master_wallet = os.path.join(node_master_wallet_dir, self.default_wallet_name, self.wallet_data_filename)
-        v18_2_wallet       = os.path.join(v18_2_node.datadir, "regtest/wallets/wallet.dat")
-        v16_1_wallet       = os.path.join(v16_1_node.datadir, "regtest/wallets/wallet.dat")
+        node_master_wallet_dir = node_master.wallets_path / self.default_wallet_name
+        node_master_wallet = node_master_wallet_dir / self.default_wallet_name / self.wallet_data_filename
+        v18_2_wallet = v18_2_node.wallets_path / "wallet.dat"
+        v16_1_wallet = v16_1_node.wallets_path / "wallet.dat"
         self.stop_nodes()
 
         shutil.rmtree(node_master_wallet_dir)

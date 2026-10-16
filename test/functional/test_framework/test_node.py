@@ -474,12 +474,20 @@ class TestNode():
             conf.write(conf_data)
 
     @property
+    def datadir_path(self) -> Path:
+        return Path(self.datadir)
+
+    @property
     def chain_path(self) -> Path:
-        return Path(self.datadir) / get_chain_folder(self.datadir, self.chain)
+        return self.datadir_path / get_chain_folder(self.datadir, self.chain)
 
     @property
     def debug_log_path(self) -> Path:
         return self.chain_path / 'debug.log'
+
+    @property
+    def wallets_path(self) -> Path:
+        return self.chain_path / "wallets"
 
     def debug_log_size(self, **kwargs) -> int:
         with open(self.debug_log_path, **kwargs) as dl:
