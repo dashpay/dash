@@ -377,6 +377,7 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_must_be_unambiguous, Dip14WalletSetu
 {
     const auto before{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_REQUIRE(before);
+    BOOST_CHECK(m_iface->platformKeySourceStatus() == PlatformKeyStatus::SUCCESS);
 
     // The internal hook must not permit an empty path to expose the BIP32
     // master key, even though the typed public requests cannot form one.
@@ -407,6 +408,7 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_must_be_unambiguous, Dip14WalletSetu
 
     const auto ambiguous{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(ambiguous.status == PlatformKeyStatus::AMBIGUOUS_SOURCE);
+    BOOST_CHECK(m_iface->platformKeySourceStatus() == PlatformKeyStatus::AMBIGUOUS_SOURCE);
 }
 
 //! An imported root xprv is sufficient for Platform derivation. The mnemonic
@@ -433,6 +435,7 @@ BOOST_FIXTURE_TEST_CASE(child_xprv_has_no_platform_keys, FriendshipWalletSetup)
     const auto [wallet, iface]{MakeXprvWallet(child)};
     const auto result{iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(result.status == PlatformKeyStatus::NOT_SUPPORTED);
+    BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::NOT_SUPPORTED);
 }
 
 //! A root source is the complete extended public key, including its chain
@@ -525,6 +528,7 @@ BOOST_FIXTURE_TEST_CASE(legacy_wallet_has_no_platform_keys, FriendshipWalletSetu
     auto iface = interfaces::MakeWallet(m_context, wallet);
     const auto result{iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(result.status == PlatformKeyStatus::NOT_SUPPORTED);
+    BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::NOT_SUPPORTED);
 }
 
 //! Two independent wallet instances restored from the same recovery phrase:

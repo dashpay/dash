@@ -1109,6 +1109,8 @@ public:
     /** All Platform data records whose key starts with prefix. */
     std::map<std::string, std::vector<unsigned char>> GetPlatformData(const std::string& prefix) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
+    /** Whether Platform keys can be derived, without deriving one (works while locked). */
+    PlatformKeyStatus GetPlatformKeySourceStatus() const;
     PlatformKeyResult<CPubKey> GetPlatformPubKey(const PlatformKeyRequest& request) const;
     PlatformKeyResult<std::vector<unsigned char>> SignPlatformDigest(const PlatformKeyRequest& request,
                                                                      const uint256& digest) const;
