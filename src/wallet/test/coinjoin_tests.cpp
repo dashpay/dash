@@ -147,7 +147,7 @@ class CTransactionBuilderTestSetup : public TestChain100Setup
 {
 public:
     CTransactionBuilderTestSetup() :
-        wallet{std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase())}
+        wallet{std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase())}
     {
         context.args = &m_args;
         context.chain = m_node.chain.get();
@@ -474,9 +474,6 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_unreadable_tests, CTransact
     SetMockTime(0);
 }
 
-// The failed write is provoked with a transaction left open on the database, which only blocks
-// further transactions on SQLite: BerkeleyBatch::TxnBegin() starts an independent one.
-#ifdef USE_SQLITE
 BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_persist_retry_tests, CTransactionBuilderTestSetup)
 {
     // 0.100001 DASH, a valid CoinJoin denomination
@@ -486,13 +483,10 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_persist_retry_tests, CTrans
     BOOST_CHECK(m_node.cj_walletman->doForClient("", [&](CCoinJoinClientManager& cj_man) {
         // Load the (missing) record first so that only the write itself fails below
         cj_man.CheckPendingObservations(*m_node.mempool);
-        {
-            // A transaction left open on the database keeps the manager from starting its own
-            WalletBatch blocker(wallet->GetDatabase());
-            BOOST_REQUIRE(blocker.TxnBegin());
-            cj_man.AddPendingObservation({outpoint});
-            BOOST_REQUIRE(blocker.TxnAbort());
-        }
+        // A failing database keeps the manager from starting its own transaction
+        GetMockableDatabase(*wallet).m_pass = false;
+        cj_man.AddPendingObservation({outpoint});
+        GetMockableDatabase(*wallet).m_pass = true;
         BOOST_CHECK(cj_man.IsPendingObservation(outpoint));
         BOOST_CHECK(WITH_LOCK(wallet->cs_wallet, return wallet->IsLockedCoin(outpoint)));
 
@@ -508,16 +502,14 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_persist_retry_tests, CTrans
 
     // Load a copy of the wallet database, the way a restart would: the input must still
     // be locked and tracked
-    DatabaseOptions options;
     const auto reloaded = std::make_shared<CWallet>(m_node.chain.get(), "",
-                                                    DuplicateMockDatabase(wallet->GetDatabase(), options));
+                                                    DuplicateMockDatabase(wallet->GetDatabase()));
     BOOST_REQUIRE_EQUAL(reloaded->LoadWallet(), DBErrors::LOAD_OK);
     BOOST_CHECK(WITH_LOCK(reloaded->cs_wallet, return reloaded->IsLockedCoin(outpoint)));
     std::map<COutPoint, int64_t> persisted;
     BOOST_CHECK(WalletBatch(reloaded->GetDatabase()).ReadCoinJoinPendingObs(persisted));
     BOOST_CHECK(persisted.count(outpoint) > 0);
 }
-#endif // USE_SQLITE
 
 BOOST_FIXTURE_TEST_CASE(coinjoin_manager_start_stop_tests, CTransactionBuilderTestSetup)
 {
