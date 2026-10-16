@@ -18,6 +18,8 @@
 #include <optional>
 
 namespace PlatformUi {
+//! Credits in one duff, as Dash Platform converts an asset lock.
+constexpr uint64_t CREDITS_PER_DUFF{1000};
 //! A failed Platform call as the user reads it; empty for OK and NOT_FOUND,
 //! which are answers.
 QString Describe(const platform::Status& status);

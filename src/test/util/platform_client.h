@@ -37,6 +37,7 @@ public:
     std::deque<platform::Result<platform::Identifier>> resolved_names;
     std::deque<platform::Result<platform::Names>> names;
     std::deque<platform::Result<std::vector<platform::Contest>>> contests;
+    std::deque<platform::Result<platform::VoteState>> vote_states;
     //! The answers to contactRequests, by direction.
     std::deque<platform::Result<std::vector<platform::ContactRequest>>> sent_requests;
     std::deque<platform::Result<std::vector<platform::ContactRequest>>> received_requests;
@@ -50,6 +51,8 @@ public:
     std::vector<platform::AssetLockProof> proofs;
     //! The identity and signing key of each registerName, in call order.
     std::vector<std::pair<platform::Identifier, uint32_t>> name_signers;
+    //! The contest fund of each registerName, in call order.
+    std::vector<uint64_t> name_contest_funds;
     //! The input of each sendContactRequest, in call order.
     std::vector<platform::ContactRequestInput> contact_inputs;
     bool shut_down{false};
@@ -60,6 +63,7 @@ public:
     void namesOfIdentity(const platform::Identifier& identity, uint32_t page_limit, uint32_t max_pages,
                          Callback<platform::Names> cb) override;
     void pendingContests(const platform::Identifier& identity, Callback<std::vector<platform::Contest>> cb) override;
+    void contestedVoteState(const std::string& label, Callback<platform::VoteState> cb) override;
     void contactRequests(const platform::Identifier& identity, platform::ContactDirection direction, uint64_t since_ms,
                          Callback<std::vector<platform::ContactRequest>> cb) override;
     void registerIdentity(std::vector<platform::IdentityPublicKey> keys, platform::AssetLockProof proof,
@@ -67,7 +71,7 @@ public:
     void topUpIdentity(const platform::Identifier& identity, platform::AssetLockProof proof,
                        wallet::TopupFundingKey funding, platform::Signing signing, Callback<uint64_t> cb) override;
     void registerName(const std::string& label, const platform::Identifier& identity, uint32_t key_id,
-                      platform::Signing signing, Callback<platform::Identifier> cb) override;
+                      uint64_t contest_fund, platform::Signing signing, Callback<platform::Identifier> cb) override;
     void sendContactRequest(const platform::ContactRequestInput& input, platform::Signing signing,
                             Callback<platform::Identifier> cb) override;
     void shutdown() override;

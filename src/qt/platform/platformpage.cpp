@@ -24,6 +24,41 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
+namespace {
+//! The masternode vote on our pending username, as the mobile wallets word it.
+QString ContestStatus(const platform::VoteState& state, const platform::Identifier& ours)
+{
+    using Winner = platform::VoteState::Winner;
+    if (state.winner == Winner::LOCKED) return PlatformPage::tr("Locked — nobody receives this username");
+    if (state.winner == Winner::IDENTITY) {
+        return state.winner_identity == ours ? PlatformPage::tr("You won this username")
+                                             : PlatformPage::tr("This username went to someone else");
+    }
+    uint32_t mine{0}, others{0};
+    for (const auto& contender : state.contenders) {
+        if (contender.identity == ours) {
+            mine = contender.votes;
+        } else {
+            others = std::max(others, contender.votes);
+        }
+    }
+    QString status{PlatformPage::tr("Voting in progress")};
+    if (state.lock > std::max(mine, others)) {
+        status = PlatformPage::tr("Voting in progress — lock votes are ahead");
+    } else if (mine > std::max(others, state.lock)) {
+        status = PlatformPage::tr("Voting in progress — you are ahead");
+    }
+    return PlatformPage::tr("%1. Votes: you %2, best other contender %3, lock %4, abstain %5.")
+        .arg(status)
+        .arg(mine)
+        .arg(others)
+        .arg(state.lock)
+        .arg(state.abstain);
+}
+} // namespace
+
 PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     QWidget(parent),
     m_sources(std::move(sources))
@@ -33,12 +68,14 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     GUIUtil::setFont({title}, GUIUtil::FontWeight::Bold, 18);
     m_username = new QLabel(this);
     m_username->setObjectName("dashPayUsername");
-    m_username->setTextFormat(Qt::PlainText);
-    m_username->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    m_username->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::LinksAccessibleByMouse);
     GUIUtil::setFont({m_username}, GUIUtil::FontWeight::Bold);
     m_identity = new QLabel(this);
     m_identity->setObjectName("dashPayIdentity");
     m_identity->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    m_contest = new QLabel(this);
+    m_contest->setObjectName("dashPayContestStatus");
+    m_contest->setWordWrap(true);
     auto* notice{new QLabel(tr("DashPay connects to evonodes, which see your IP address unless you use a proxy."), this)};
     notice->setObjectName("dashPayNotice");
     notice->setWordWrap(true);
@@ -96,6 +133,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     m_stop->setObjectName("dashPayStop");
     layout->addWidget(title);
     layout->addLayout(header);
+    layout->addWidget(m_contest);
     layout->addWidget(notice);
     layout->addWidget(m_status);
     layout->addWidget(m_identity_status);
@@ -114,6 +152,10 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
         }
     });
     connect(m_find, &QPushButton::clicked, this, [this] { m_recovery_flow->find(); });
+    // Only the pending username is a link.
+    connect(m_username, &QLabel::linkActivated, this, [this] {
+        if (const auto& pending{m_recovery_flow->pendingName()}) m_username_flow->readContest(*pending);
+    });
     connect(m_create, &QPushButton::clicked, this, [this] { m_identity_flow->create(); });
     connect(m_continue, &QPushButton::clicked, this, [this] { m_identity_flow->resume(); });
     const auto register_name = [this] {
@@ -166,7 +208,8 @@ void PlatformPage::resetService()
             return confirmFunding(amount, fee);
         });
         connect(m_identity_flow.get(), &IdentityFlow::changed, this, &PlatformPage::refresh);
-        m_username_flow = std::make_unique<UsernameFlow>(*m_service, *m_identity_flow);
+        m_username_flow = std::make_unique<UsernameFlow>(*m_service, *m_identity_flow,
+                                                         [this] { return confirmContest(); });
         connect(m_username_flow.get(), &UsernameFlow::changed, this, &PlatformPage::refresh);
         m_contact_flow = std::make_unique<ContactFlow>(*m_service, *m_identity_flow);
         m_contacts->setFlow(m_contact_flow.get());
@@ -188,6 +231,16 @@ bool PlatformPage::confirmFunding(CAmount amount, CAmount fee)
                                           BitcoinUnits::formatWithUnit(unit, fee),
                                           BitcoinUnits::formatWithUnit(unit, amount + fee)),
                                  QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Yes;
+}
+
+bool PlatformPage::confirmContest()
+{
+    const BitcoinUnit unit{m_wallet_model->getOptionsModel()->getDisplayUnit()};
+    return QMessageBox::warning(this, tr("Contested name"),
+                                tr("This name requires a masternode vote. The contest fee of %1 is spent when you "
+                                   "submit and is not returned, even if you do not win the name.")
+                                    .arg(PlatformUi::FormatCredits(unit, UsernameFlow::CONTEST_FUND)),
+                                QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Yes;
 }
 
 void PlatformPage::refresh()
@@ -217,9 +270,19 @@ void PlatformPage::refresh()
     const auto username{names && identity ? names->username() : std::nullopt};
     const RecoveryFlow* recovery{m_recovery_flow.get()};
     const auto pending{recovery && identity && !username ? recovery->pendingName() : std::nullopt};
-    m_username->setText(pending ? tr("%1 (waiting for the masternode vote)").arg(QString::fromStdString(*pending))
-                                : QString::fromStdString(username.value_or(std::string{})));
+    if (pending) {
+        m_username->setTextFormat(Qt::RichText);
+        m_username->setText(
+            tr("%1 (waiting for the masternode vote)")
+                .arg(QStringLiteral("<a href=\"contest\">%1</a>").arg(QString::fromStdString(*pending).toHtmlEscaped())));
+    } else {
+        m_username->setTextFormat(Qt::PlainText);
+        m_username->setText(QString::fromStdString(username.value_or(std::string{})));
+    }
     m_username->setVisible(username || pending);
+    const auto contest{pending ? names->contest() : std::nullopt};
+    if (contest) m_contest->setText(ContestStatus(*contest, identity->id));
+    m_contest->setVisible(contest.has_value());
 
     using Step = IdentityFlow::Step;
     const Step step{flow ? flow->step() : Step::IDLE};

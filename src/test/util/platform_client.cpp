@@ -57,6 +57,11 @@ void FakePlatformClient::pendingContests(const Identifier& identity, Callback<st
     Answer({"pendingContests", HexStr(identity), std::nullopt}, contests, std::move(cb));
 }
 
+void FakePlatformClient::contestedVoteState(const std::string& label, Callback<platform::VoteState> cb)
+{
+    Answer({"contestedVoteState", label, std::nullopt}, vote_states, std::move(cb));
+}
+
 void FakePlatformClient::contactRequests(const Identifier& identity, platform::ContactDirection direction, uint64_t,
                                          Callback<std::vector<platform::ContactRequest>> cb)
 {
@@ -81,9 +86,12 @@ void FakePlatformClient::topUpIdentity(const Identifier& identity, platform::Ass
 }
 
 void FakePlatformClient::registerName(const std::string& label, const Identifier& identity, uint32_t key_id,
-                                      platform::Signing signing, Callback<Identifier> cb)
+                                      uint64_t contest_fund, platform::Signing signing, Callback<Identifier> cb)
 {
-    if (!shut_down) name_signers.emplace_back(identity, key_id);
+    if (!shut_down) {
+        name_signers.emplace_back(identity, key_id);
+        name_contest_funds.push_back(contest_fund);
+    }
     Answer({"registerName", label, signing.identity_index}, registered_names, std::move(cb), std::move(signing.unlock));
 }
 

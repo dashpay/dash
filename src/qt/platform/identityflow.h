@@ -98,8 +98,8 @@ public:
     //! Look up the identity registered under the wallet's MASTER key,
     //! asking for the passphrase if the key must be derived.
     void lookUp();
-    //! Fund and register the identity.
-    void create();
+    //! Fund the identity with `amount` duffs of credits and register it.
+    void create(CAmount amount = REGISTRATION_AMOUNT);
     //! Fund `amount` duffs of credits for the identity.
     void topUp(CAmount amount);
     //! Send funding() to Platform again.

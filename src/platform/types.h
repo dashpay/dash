@@ -111,6 +111,24 @@ struct Contest {
     uint64_t ends_at_ms{0};
 };
 
+//! The tally of a contested name's masternode vote.
+struct VoteState {
+    struct Contender {
+        Identifier identity{};
+        uint32_t votes{0};
+    };
+    enum class Winner : uint8_t {
+        NONE, //!< still being voted on
+        IDENTITY,
+        LOCKED, //!< nobody receives the name
+    };
+    std::vector<Contender> contenders;
+    uint32_t abstain{0};
+    uint32_t lock{0};
+    Winner winner{Winner::NONE};
+    Identifier winner_identity{}; //!< meaningful only for Winner::IDENTITY
+};
+
 enum class ContactDirection : uint8_t {
     SENT,
     RECEIVED,

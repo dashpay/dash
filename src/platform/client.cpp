@@ -165,6 +165,11 @@ public:
             [this, identity] { return marshal::FromFfi(m_sdk->pending_contests_for_identity(identity)); }, std::move(cb));
     }
 
+    void contestedVoteState(const std::string& label, Callback<VoteState> cb) override
+    {
+        Submit<VoteState>([this, label] { return marshal::FromFfi(m_sdk->contested_vote_state(label)); }, std::move(cb));
+    }
+
     void contactRequests(const Identifier& identity, ContactDirection direction, uint64_t since_ms,
                          Callback<std::vector<ContactRequest>> cb) override
     {
@@ -204,12 +209,12 @@ public:
             std::move(cb), std::move(signing.unlock));
     }
 
-    void registerName(const std::string& label, const Identifier& identity, uint32_t key_id, Signing signing,
-                      Callback<Identifier> cb) override
+    void registerName(const std::string& label, const Identifier& identity, uint32_t key_id, uint64_t contest_fund,
+                      Signing signing, Callback<Identifier> cb) override
     {
         Submit<Identifier>(
-            [this, label, identity, key_id, &wallet = signing.wallet, index = signing.identity_index] {
-                return marshal::FromFfi(m_sdk->register_dpns_name(label, identity, key_id, /*contest_fund=*/0,
+            [this, label, identity, key_id, contest_fund, &wallet = signing.wallet, index = signing.identity_index] {
+                return marshal::FromFfi(m_sdk->register_dpns_name(label, identity, key_id, contest_fund,
                                                                   MakeWalletSigner(wallet, index, std::nullopt)));
             },
             std::move(cb), std::move(signing.unlock));

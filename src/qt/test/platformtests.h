@@ -43,6 +43,7 @@ private Q_SLOTS:
     void usernameCreatesTheIdentityFirst();
     void usernameForAnExistingIdentity();
     void droppedUsernameWriteIsReadBack();
+    void premiumUsernameJoinsTheVote();
     void contactRequestUsesTheIdentityKeys();
     void contactsAreTheNewestRequests();
     void payingAContactUsesEachAddressOnce();

@@ -31,7 +31,8 @@ QT_END_NAMESPACE
  *  the first DashPay click (Find my identity) with a one-line privacy notice,
  *  and says why DashPay can't run when a gate is closed. Once DashPay runs it
  *  recovers and shows the wallet's identity, its username and its balance;
- *  creates, continues or tops up the identity; registers its username; and
+ *  creates, continues or tops up the identity; registers its username, a
+ *  premium one through the masternode vote, whose tally it shows; and
  *  keeps its contacts, handing a payment to one to the Send tab. */
 class PlatformPage : public QWidget
 {
@@ -60,6 +61,7 @@ private:
     void resetService();
     void refresh();
     bool confirmFunding(CAmount amount, CAmount fee);
+    bool confirmContest();
 
     const PlatformService::Sources m_sources;
     WalletModel* m_wallet_model{nullptr};
@@ -76,6 +78,7 @@ private:
 
     QLabel* m_username{nullptr};
     QLabel* m_identity{nullptr};
+    QLabel* m_contest{nullptr};
     QLabel* m_status{nullptr};
     QLabel* m_identity_status{nullptr};
     QLabel* m_recovery_status{nullptr};

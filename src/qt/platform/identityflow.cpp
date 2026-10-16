@@ -249,12 +249,12 @@ void IdentityFlow::onLookedUp(platform::Result<platform::Identity> result)
     finish();
 }
 
-void IdentityFlow::create()
+void IdentityFlow::create(CAmount amount)
 {
     if (!m_looked_up || m_identity) return;
     Funding pending;
     pending.record = RegistrationRecord();
-    fund(wallet::RegistrationFundingKey{IDENTITY_INDEX}, REGISTRATION_AMOUNT, std::move(pending));
+    fund(wallet::RegistrationFundingKey{IDENTITY_INDEX}, amount, std::move(pending));
 }
 
 void IdentityFlow::topUp(CAmount amount)

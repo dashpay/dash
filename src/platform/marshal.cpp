@@ -136,6 +136,19 @@ Result<std::vector<Contest>> FromFfi(const dash_sdk::ContestsResult& result)
     return {FromFfi(result.status), std::move(contests)};
 }
 
+Result<VoteState> FromFfi(const dash_sdk::VoteStateResult& result)
+{
+    VoteState state;
+    for (const auto& contender : result.state.contenders) {
+        state.contenders.push_back({contender.identity, contender.votes});
+    }
+    state.abstain = result.state.abstain;
+    state.lock = result.state.lock;
+    state.winner = static_cast<VoteState::Winner>(result.state.winner_kind);
+    state.winner_identity = result.state.winner;
+    return {FromFfi(result.status), std::move(state)};
+}
+
 Result<std::vector<ContactRequest>> FromFfi(const dash_sdk::ContactRequestsResult& result)
 {
     return {FromFfi(result.status), Each<ContactRequest>(result.requests)};

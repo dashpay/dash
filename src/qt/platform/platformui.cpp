@@ -12,9 +12,6 @@
 
 namespace PlatformUi {
 namespace {
-//! Credits in one duff, as Dash Platform converts an asset lock.
-constexpr uint64_t CREDITS_PER_DUFF{1000};
-
 class WalletUnlock final : public platform::UnlockScope
 {
 public:

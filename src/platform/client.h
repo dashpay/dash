@@ -78,6 +78,8 @@ public:
                                  Callback<Names> cb) = 0;
     //! Best effort: the SDK examines at most 100 contests.
     virtual void pendingContests(const Identifier& identity, Callback<std::vector<Contest>> cb) = 0;
+    //! The tally of the vote on a contested label.
+    virtual void contestedVoteState(const std::string& label, Callback<VoteState> cb) = 0;
     //! Contact requests sent by or to identity, created strictly after
     //! since_ms (0: all).
     virtual void contactRequests(const Identifier& identity, ContactDirection direction, uint64_t since_ms,
@@ -91,10 +93,11 @@ public:
     //! result is the new balance.
     virtual void topUpIdentity(const Identifier& identity, AssetLockProof proof, wallet::TopupFundingKey funding,
                                Signing signing, Callback<uint64_t> cb) = 0;
-    //! Register a DPNS name, signed with identity key key_id. The result is
-    //! the domain document id.
-    virtual void registerName(const std::string& label, const Identifier& identity, uint32_t key_id, Signing signing,
-                              Callback<Identifier> cb) = 0;
+    //! Register a DPNS name, signed with identity key key_id. A contested
+    //! name pays at most contest_fund credits into its contest (0: the fund
+    //! as priced just before it is sent). The result is the domain document id.
+    virtual void registerName(const std::string& label, const Identifier& identity, uint32_t key_id,
+                              uint64_t contest_fund, Signing signing, Callback<Identifier> cb) = 0;
     //! The result is the contact request document id.
     virtual void sendContactRequest(const ContactRequestInput& input, Signing signing, Callback<Identifier> cb) = 0;
 

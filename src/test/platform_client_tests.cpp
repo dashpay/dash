@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(client_threads_and_shutdown)
     });
     std::optional<std::thread::id> unlock_released_on;
     std::optional<std::thread::id> unlock_released_before_callback;
-    client->registerName("alice", Identifier{}, /*key_id=*/1,
+    client->registerName("alice", Identifier{}, /*key_id=*/1, /*contest_fund=*/0,
                          Signing{*m_iface, 0, std::make_unique<TestUnlock>(unlock_released_on)},
                          [&](Result<Identifier>) { unlock_released_before_callback = unlock_released_on; });
     BOOST_REQUIRE(executor.WaitFor(2));
@@ -191,7 +191,8 @@ BOOST_AUTO_TEST_CASE(client_threads_and_shutdown)
 
     // Calls after shutdown() are dropped on the calling thread.
     unlock_released_on.reset();
-    client->registerName("alice", Identifier{}, 1, Signing{*m_iface, 0, std::make_unique<TestUnlock>(unlock_released_on)},
+    client->registerName("alice", Identifier{}, 1, 0,
+                         Signing{*m_iface, 0, std::make_unique<TestUnlock>(unlock_released_on)},
                          [&](Result<Identifier>) { write_called = true; });
     BOOST_CHECK(unlock_released_on == consumer);
     BOOST_CHECK_EQUAL(executor.pending(), 0U);

@@ -102,10 +102,11 @@ void RecoveryFlow::finish(const QString& error)
 
 void RecoveryFlow::update()
 {
-    if (!m_identity_flow.identity()) {
+    if (!m_identity_flow.identity()) m_ensured.clear();
+    // Read again with the names, as after a premium username's registration.
+    if (!m_identity_flow.identity() || !m_username_flow.namesRead()) {
         m_pending_read = false;
         m_pending_name.reset();
-        m_ensured.clear();
     }
     readPendingName();
     ensureKeychains();

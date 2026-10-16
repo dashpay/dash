@@ -179,7 +179,7 @@ std::weak_ptr<int> PendingRead(platform::PlatformClient& client)
 std::weak_ptr<int> PendingWrite(PlatformService& service, interfaces::Wallet& wallet, bool& done)
 {
     auto owner{std::make_shared<int>(0)};
-    service.client()->registerName("alice", {}, 0, platform::Signing{wallet, 0, nullptr},
+    service.client()->registerName("alice", {}, 0, 0, platform::Signing{wallet, 0, nullptr},
                                    service.trackWrite<platform::Identifier>(
                                        [owner, &done](platform::Result<platform::Identifier>) { done = true; }));
     return owner;
@@ -198,6 +198,23 @@ QPushButton* VisibleButton(const QWidget& page, const char* name)
 {
     auto* button{page.findChild<QPushButton*>(name)};
     return button && button->isVisibleTo(&page) ? button : nullptr;
+}
+
+//! An OK answer carrying `value`.
+template <typename T>
+platform::Result<T> Reply(T value)
+{
+    platform::Result<T> result;
+    result.status.kind = platform::StatusKind::OK;
+    result.value = std::move(value);
+    return result;
+}
+
+//! Whether the client was called with `argument`.
+bool Called(const FakePlatformClient& client, const std::string& method, const std::string& argument)
+{
+    return std::any_of(client.calls.begin(), client.calls.end(),
+                       [&](const auto& call) { return call.method == method && call.argument == argument; });
 }
 
 platform::Result<platform::Identity> Found(uint8_t id, uint64_t balance)
@@ -1045,8 +1062,8 @@ void PlatformTests::lockedWalletLooksUpOnUnlock()
 //! A wallet without an identity registers its username in one go, under
 //! one passphrase: a free label creates the identity first (funded after the
 //! same confirmation) and then the name, signed with the identity's HIGH
-//! key. A label DPNS rejects and a premium one are refused before anything
-//! is looked up or funded.
+//! key. A label DPNS rejects is refused before anything is looked up or
+//! funded.
 void PlatformTests::usernameCreatesTheIdentityFirst()
 {
     FundedFixture f{m_node};
@@ -1070,14 +1087,14 @@ void PlatformTests::usernameCreatesTheIdentityFirst()
     PlatformService service{f.wallet_model, f.models.client, sources.get()};
     Confirmations confirmations;
     IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
-    UsernameFlow flow{service, identity_flow};
+    UsernameFlow flow{service, identity_flow, [] { return false; }};
     identity_flow.lookUp();
     sources.fake->deliverAll();
     QVERIFY(identity_flow.lookedUp() && !identity_flow.identity());
     QCOMPARE(unlocks, 1);
 
     const size_t txs{wallet.getWalletTxs().size()};
-    for (const char* label : {"a", "-alice2-", "alice"}) {
+    for (const char* label : {"a", "-alice2-"}) {
         flow.registerName(label);
         QVERIFY2(flow.step() == UsernameFlow::Step::IDLE, label);
         QVERIFY2(!flow.error().isEmpty(), label);
@@ -1222,7 +1239,7 @@ void PlatformTests::droppedUsernameWriteIsReadBack()
     PlatformService service{f.wallet_model, f.models.client, sources.get()};
     Confirmations confirmations;
     IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
-    UsernameFlow flow{service, identity_flow};
+    UsernameFlow flow{service, identity_flow, [] { return false; }};
     ContactFlow contacts{service, identity_flow};
     sources.fake->deliverAll();
     QVERIFY(flow.namesRead() && !flow.username());
@@ -1279,6 +1296,111 @@ void PlatformTests::droppedUsernameWriteIsReadBack()
     sources.fake->deliverNext();
     QVERIFY(contacts.step() == ContactFlow::Step::IDLE && !contacts.error().isEmpty());
     QCOMPARE(sources.fake->countCalls("sendContactRequest"), size_t{0});
+}
+
+//! A premium username joins its masternode vote, as on the mobile wallets.
+//! The user is warned first that its contest fund is never refunded:
+//! declined, nothing is funded or sent. A wallet without an identity funds
+//! it with 0.25 DASH. An identity holding less than the fund and 0.01 DASH
+//! is topped up by the shortfall, or the smallest top-up, first, and the
+//! name is sent once the top-up lands; declined, the name is not sent. The
+//! name is sent with no cap on its fund, and is the identity's pending
+//! username, not its username, while the vote runs.
+void PlatformTests::premiumUsernameJoinsTheVote()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    FakeSources sources;
+    int clients{0};
+    sources.script = [&clients](FakePlatformClient& client) {
+        const int session{clients++};
+        const std::string label{std::vector<std::string>{"alice", "bob", "carol"}.at(session)};
+        client.resolved_names.assign(2, Resolved(std::nullopt));
+        client.names = {Names({}), Names({})};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests({})};
+        client.registered_names = {Resolved(1)};
+        auto identity{Found(7, 24'990'000'000)};
+        identity.value.public_keys = RegisteredKeys();
+        if (session == 0) {
+            client.identities_by_pubkey_hash = {NotFound()};
+            client.registered_identities = {identity};
+            client.contests = {Reply(std::vector<platform::Contest>{{label, 0}})};
+            return;
+        }
+        // The last vote is over, and took its fund: the identity is short.
+        identity.value.balance = UsernameFlow::PREMIUM_CREDITS - (label == "bob" ? 1'000'000'001 : 1);
+        client.identities_by_pubkey_hash = {identity};
+        // Platform takes the top-up's own fee from the credits it delivers.
+        client.top_ups = {Reply(identity.value.balance + 999'000'000)};
+        client.contests = {Reply(std::vector<platform::Contest>{}), Reply(std::vector<platform::Contest>{{label, 0}})};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
+    int warned{0};
+    bool accept{false};
+    UsernameFlow flow{service, identity_flow, [&] {
+                          ++warned;
+                          return accept;
+                      }};
+    ContactFlow contacts{service, identity_flow};
+    RecoveryFlow recovery{service, identity_flow, flow, contacts};
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.lookedUp() && !identity_flow.identity());
+    const size_t txs{wallet.getWalletTxs().size()};
+
+    flow.registerName("alice");
+    sources.fake->deliverAll();
+    QCOMPARE(warned, 1);
+    QVERIFY(flow.step() == UsernameFlow::Step::IDLE && flow.error().isEmpty());
+    QVERIFY(confirmations.asked.empty());
+    QCOMPARE(wallet.getWalletTxs().size(), txs);
+    QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{0});
+    QCOMPARE(sources.fake->countCalls("registerName"), size_t{0});
+
+    accept = true;
+    flow.registerName("alice");
+    sources.fake->deliverAll();
+    QCOMPARE(confirmations.asked.size(), size_t{1});
+    QCOMPARE(confirmations.asked.back().first, UsernameFlow::PREMIUM_REGISTRATION_AMOUNT);
+    QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{1});
+    QVERIFY(Called(*sources.fake, "registerName", "alice"));
+    QCOMPARE(sources.fake->name_contest_funds, std::vector<uint64_t>{0});
+    QVERIFY(flow.error().isEmpty());
+    QVERIFY(!flow.username());
+    QVERIFY(recovery.pendingName() == "alice");
+
+    // Short by 1'000'000'001 credits: the top-up is the shortfall, in duffs
+    // rounded up. Declined, the name is not sent either.
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.identity() && !recovery.pendingName());
+    for (const bool top_up : {false, true}) {
+        confirmations.accept = top_up;
+        flow.registerName("bob");
+        sources.fake->deliverAll();
+        QCOMPARE(confirmations.asked.back().first, CAmount{1'000'001});
+        QCOMPARE(sources.fake->countCalls("registerName"), size_t{top_up});
+        QCOMPARE(flow.error().isEmpty(), top_up);
+    }
+    QVERIFY(recovery.pendingName() == "bob");
+
+    // Short by one credit: the smallest top-up.
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.identity() && !recovery.pendingName());
+    flow.registerName("carol");
+    sources.fake->deliverAll();
+    QCOMPARE(warned, 5);
+    QCOMPARE(confirmations.asked.back().first, IdentityFlow::MIN_TOP_UP);
+    QVERIFY(Called(*sources.fake, "registerName", "carol"));
+    QVERIFY(sources.fake->name_signers.back().first == identity_flow.identity()->id);
+    QCOMPARE(sources.fake->name_contest_funds, std::vector<uint64_t>{0});
+    QVERIFY(recovery.pendingName() == "carol");
 }
 
 //! Adding a contact by username sends one request from the identity's first
@@ -1786,7 +1908,8 @@ void PlatformTests::findMyIdentityRestoresTheWallet()
 //! the wallet scanned without it: the rescan they need stays owed, across a
 //! restart, until one succeeds; a wallet loaded while it is owed rescans
 //! before DashPay reads anything. The identity's username still waiting for
-//! its vote is shown, and none is offered for registration meanwhile.
+//! its vote is shown, and none is offered for registration meanwhile; it
+//! links to the vote's tally.
 void PlatformTests::rescanOwedSurvivesARestart()
 {
     Fixture f{m_node};
@@ -1809,6 +1932,10 @@ void PlatformTests::rescanOwedSurvivesARestart()
         contests.status.kind = platform::StatusKind::OK;
         contests.value = {{"alice", 0}};
         client.contests = {contests};
+        platform::VoteState tally;
+        tally.contenders = {{OurIdentity().value.id, 17}, {{}, 3}};
+        tally.lock = 2;
+        client.vote_states = {Reply(std::move(tally))};
     };
     auto page{std::make_unique<PlatformPage>(sources.get())};
     f.attach(*page);
@@ -1817,6 +1944,13 @@ void PlatformTests::rescanOwedSurvivesARestart()
     QVERIFY(page->findChild<QLabel*>("dashPayUsername")->isVisibleTo(page.get()));
     QVERIFY(page->findChild<QLabel*>("dashPayUsername")->text().contains("alice"));
     QVERIFY(VisibleButton(*page, "dashPayRegisterUsername") == nullptr);
+    const auto* vote{page->findChild<QLabel*>("dashPayContestStatus")};
+    QVERIFY(!vote->isVisibleTo(page.get()));
+    QCOMPARE(page->findChild<QLabel*>("dashPayUsername")->textFormat(), Qt::RichText);
+    Q_EMIT page->findChild<QLabel*>("dashPayUsername")->linkActivated("contest");
+    sources.fake->deliverAll();
+    QVERIFY(Called(*sources.fake, "contestedVoteState", "alice"));
+    QVERIFY(vote->isVisibleTo(page.get()) && vote->text().contains("17"));
     QTRY_VERIFY(!page->recoveryFlow()->rescanning());
     QVERIFY(!wallet.getTx(paid));
     QVERIFY(page->findChild<QLabel*>("dashPayRecoveryStatus")->isVisibleTo(page.get()));
