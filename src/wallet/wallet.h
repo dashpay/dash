@@ -503,6 +503,8 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     PlatformKeyStatus DerivePlatformKey(const platformkeys::Path& path, platformkeys::ExtKey256& out) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    PlatformKeyStatus DeriveFriendshipReceivingKey(const FriendshipKeychainRequest& request,
+                                                   platformkeys::ExtKey256& out) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
 public:
     /**
@@ -1116,6 +1118,7 @@ public:
                                                                      const uint256& digest) const;
     PlatformKeyResult<SecureVector> PlatformECDHSecret(const IdentityAuthKey& key, const CPubKey& counterparty) const;
     PlatformKeyResult<uint32_t> PlatformAccountReference(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
+    PlatformKeyResult<FriendshipXpub> GetFriendshipReceivingXpub(const FriendshipKeychainRequest& request) const;
     PlatformKeyResult<FriendshipXpub> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
 
     /**

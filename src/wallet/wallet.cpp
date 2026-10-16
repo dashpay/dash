@@ -4125,15 +4125,34 @@ PlatformKeyResult<uint32_t> CWallet::PlatformAccountReference(const IdentityAuth
     return result;
 }
 
+PlatformKeyStatus CWallet::DeriveFriendshipReceivingKey(const FriendshipKeychainRequest& request,
+                                                        platformkeys::ExtKey256& out) const
+{
+    AssertLockHeld(cs_wallet);
+    return DerivePlatformKey(platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
+                                                          Span{request.local_id.begin(), uint256::size()},
+                                                          Span{request.remote_id.begin(), uint256::size()}),
+                             out);
+}
+
+PlatformKeyResult<FriendshipXpub> CWallet::GetFriendshipReceivingXpub(const FriendshipKeychainRequest& request) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<FriendshipXpub> result;
+    platformkeys::ExtKey256 key;
+    result.status = DeriveFriendshipReceivingKey(request, key);
+    if (result.status == PlatformKeyStatus::SUCCESS) {
+        result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+    }
+    return result;
+}
+
 PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
 {
     LOCK(cs_wallet);
     PlatformKeyResult<FriendshipXpub> result;
-    const auto path{platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
-                                                 Span{request.local_id.begin(), uint256::size()},
-                                                 Span{request.remote_id.begin(), uint256::size()})};
     platformkeys::ExtKey256 key;
-    result.status = DerivePlatformKey(path, key);
+    result.status = DeriveFriendshipReceivingKey(request, key);
     if (result.status != PlatformKeyStatus::SUCCESS) return result;
 
     CExtKey xprv{};

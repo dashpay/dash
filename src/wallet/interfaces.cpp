@@ -188,25 +188,29 @@ public:
     {
         return m_wallet->ChangeWalletPassphrase(old_wallet_passphrase, new_wallet_passphrase);
     }
+    //! Where a rescan of the blocks a key born at `time` may be paid in
+    //! starts, as importdescriptors does; nullopt when no block is that recent.
+    std::optional<int> rescanStartHeight(int64_t time)
+    {
+        int height{0};
+        if (!m_wallet->chain().findFirstBlockWithTimeAndHeight(time - TIMESTAMP_WINDOW, height,
+                                                               FoundBlock().height(height))) {
+            return std::nullopt;
+        }
+        return height;
+    }
     //! Where a rescan from the birth of the wallet's first key starts.
     int rescanStartHeight()
     {
-        int rescan_height{0};
         std::optional<int64_t> time_first_key;
         for (auto spk_man : m_wallet->GetAllScriptPubKeyMans()) {
             int64_t time = spk_man->GetTimeFirstKey();
             if (!time_first_key || time < *time_first_key) time_first_key = time;
         }
-        if (time_first_key) {
-            m_wallet->chain().findFirstBlockWithTimeAndHeight(*time_first_key - TIMESTAMP_WINDOW, rescan_height,
-                                                              FoundBlock().height(rescan_height));
-        }
-        return rescan_height;
+        return time_first_key ? rescanStartHeight(*time_first_key).value_or(0) : 0;
     }
-    wallet::RescanStatus startRescan(bool from_genesis) override
+    wallet::RescanStatus rescanFrom(int rescan_height)
     {
-        const int rescan_height{from_genesis ? 0 : rescanStartHeight()};
-
         WalletRescanReserver reserver(*m_wallet);
         if (!reserver.reserve()) {
             return wallet::RescanStatus::BUSY;
@@ -223,13 +227,24 @@ public:
         Assume(false); // unreachable
         return wallet::RescanStatus::FAILURE; // fallback for release builds
     }
+    wallet::RescanStatus startRescan(bool from_genesis) override
+    {
+        return rescanFrom(from_genesis ? 0 : rescanStartHeight());
+    }
+    wallet::RescanStatus rescanFromTime(int64_t from_time) override
+    {
+        const auto rescan_height{rescanStartHeight(from_time)};
+        // No block that recent: nothing to scan.
+        return rescan_height ? rescanFrom(*rescan_height) : wallet::RescanStatus::SUCCESS;
+    }
     void abortRescan() override { m_wallet->AbortRescan(); }
-    std::optional<int> rescanPrunedFrom() override
+    std::optional<int> rescanPrunedFrom(std::optional<int64_t> from_time) override
     {
         if (!m_wallet->chain().havePruned()) return std::nullopt;
         LOCK(m_wallet->cs_wallet);
-        const int rescan_height{rescanStartHeight()};
-        if (m_wallet->chain().hasBlocks(m_wallet->GetLastBlockHash(), rescan_height)) return std::nullopt;
+        const std::optional<int> rescan_height{from_time ? rescanStartHeight(*from_time) : rescanStartHeight()};
+        if (!rescan_height || m_wallet->chain().hasBlocks(m_wallet->GetLastBlockHash(), *rescan_height))
+            return std::nullopt;
         return rescan_height;
     }
     void autoLockMasternodeCollaterals() override { m_wallet->AutoLockMasternodeCollaterals(); }
@@ -280,6 +295,11 @@ public:
                                                                  const wallet::CompactXpub& compact_xpub) override
     {
         return m_wallet->PlatformAccountReference(key, compact_xpub);
+    }
+    wallet::PlatformKeyResult<wallet::FriendshipXpub> getFriendshipReceivingXpub(
+        const wallet::FriendshipKeychainRequest& request) override
+    {
+        return m_wallet->GetFriendshipReceivingXpub(request);
     }
     wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) override

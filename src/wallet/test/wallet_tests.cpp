@@ -266,9 +266,9 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         }
     }
 
-    // Where a rescan from the birth of a wallet holding a genesis-era key
-    // would need blocks this node no longer has.
-    const auto rescan_pruned_from{[&] {
+    // Where a rescan from the birth of a wallet holding a genesis-era key, or
+    // from a given time, would need blocks this node no longer has.
+    const auto rescan_pruned_from{[&](std::optional<int64_t> from_time = std::nullopt) {
         const auto wallet{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase())};
         {
             LOCK(wallet->cs_wallet);
@@ -277,7 +277,7 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         }
         AddKey(*wallet, coinbaseKey);
         WalletContext context;
-        return interfaces::MakeWallet(context, wallet)->rescanPrunedFrom();
+        return interfaces::MakeWallet(context, wallet)->rescanPrunedFrom(from_time);
     }};
     BOOST_CHECK(!rescan_pruned_from());
     // A pruning node that still has every block the rescan reads. The flag is
@@ -294,6 +294,9 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
     }
     UnlinkPrunedFiles({file_number});
     BOOST_CHECK(rescan_pruned_from() == std::optional<int>{0});
+    BOOST_CHECK(rescan_pruned_from(/*from_time=*/0) == std::optional<int>{0});
+    // Born after the pruned blocks: the rescan reads only the new block file.
+    BOOST_CHECK(!rescan_pruned_from(newTip->GetBlockTimeMax() + TIMESTAMP_WINDOW));
 
     // Verify ScanForWalletTransactions only picks transactions in the new block
     // file.

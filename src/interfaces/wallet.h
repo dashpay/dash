@@ -113,12 +113,17 @@ public:
     //! Initiate a rescan. Returns status indicating success, failure, abort, or already rescanning.
     virtual wallet::RescanStatus startRescan(bool from_genesis) = 0;
 
+    //! Rescan the blocks a key born at from_time may be paid in, as
+    //! importdescriptors does. Returns as startRescan() does.
+    virtual wallet::RescanStatus rescanFromTime(int64_t from_time) = 0;
+
     //! Abort a rescan.
     virtual void abortRescan() = 0;
 
-    //! The height startRescan(false) starts at, when this node has pruned
-    //! blocks it would read; nullopt when it has them all.
-    virtual std::optional<int> rescanPrunedFrom() = 0;
+    //! The height startRescan(false), or with from_time rescanFromTime(),
+    //! starts at, when this node has pruned blocks it would read; nullopt
+    //! when it has them all.
+    virtual std::optional<int> rescanPrunedFrom(std::optional<int64_t> from_time = std::nullopt) = 0;
 
     //! Lock masternode collaterals
     virtual void autoLockMasternodeCollaterals() = 0;
@@ -170,6 +175,11 @@ public:
     //! DashPay iOS sends it. The key never leaves the wallet.
     virtual wallet::PlatformKeyResult<uint32_t> platformAccountReference(const wallet::IdentityAuthKey& key,
                                                                          const wallet::CompactXpub& compact_xpub) = 0;
+
+    //! Our DIP-15 receiving chain, as ensureFriendshipReceivingKeychain()
+    //! returns it, without importing it.
+    virtual wallet::PlatformKeyResult<wallet::FriendshipXpub> getFriendshipReceivingXpub(
+        const wallet::FriendshipKeychainRequest& request) = 0;
 
     //! Ensure our private DIP-15 receiving chain is imported as a ranged
     //! descriptor and return the corresponding public chain. Derivation,

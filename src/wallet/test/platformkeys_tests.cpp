@@ -320,9 +320,18 @@ struct FriendshipWalletSetup : public TestChain100Setup {
 //! to them must count towards the spendable balance.
 BOOST_FIXTURE_TEST_CASE(friendship_own_chain_is_spendable, FriendshipWalletSetup)
 {
-    const auto keychain{m_iface->ensureFriendshipReceivingKeychain(
-        FriendshipKeychainRequest{ACCOUNT, m_my_id, m_their_id, /*birth_time=*/0})};
+    // Derived without importing it: not ours yet, and the chain the import returns.
+    const FriendshipKeychainRequest request{ACCOUNT, m_my_id, m_their_id, /*birth_time=*/0};
+    const auto derived{m_iface->getFriendshipReceivingXpub(request)};
+    BOOST_REQUIRE(derived);
+    CTxDestination first;
+    BOOST_REQUIRE(DeriveFriendshipPaymentDestination(derived.value, 0, first));
+    BOOST_CHECK_EQUAL(IsMine(first), ISMINE_NO);
+
+    const auto keychain{m_iface->ensureFriendshipReceivingKeychain(request)};
     BOOST_REQUIRE(keychain);
+    BOOST_CHECK(keychain.value.pubkey == derived.value.pubkey && keychain.value.chaincode == derived.value.chaincode &&
+                keychain.value.parent_fingerprint == derived.value.parent_fingerprint);
 
     // The public chain returned after import derives the addresses made ours.
     for (uint32_t index = 0; index < 5; ++index) {
