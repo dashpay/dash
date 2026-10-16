@@ -153,6 +153,10 @@ Q_SIGNALS:
     void outOfSyncWarningClicked();
     /** Request navigation to proposal info view */
     void showProposalInfo();
+#ifdef ENABLE_PLATFORM_GUI
+    /** The send coins page was filled in to pay a DashPay contact */
+    void contactPaymentPrepared();
+#endif
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H

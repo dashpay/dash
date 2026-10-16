@@ -173,6 +173,7 @@ void PlatformPage::resetService()
         m_contact_flow = std::make_unique<ContactFlow>(*m_service, *m_identity_flow);
         m_contacts->setFlow(m_contact_flow.get());
         connect(m_contact_flow.get(), &ContactFlow::changed, this, &PlatformPage::refresh);
+        connect(m_contact_flow.get(), &ContactFlow::payTo, this, &PlatformPage::payTo);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();

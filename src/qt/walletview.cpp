@@ -113,6 +113,10 @@ WalletView::WalletView(WalletModel* wallet_model, QWidget* parent)
     platformPage = new PlatformPage();
     platformPage->setWalletModel(walletModel);
     addWidget(platformPage);
+    connect(platformPage, &PlatformPage::payTo, this, [this](const QString& address) {
+        sendCoinsPage->setAddress(address);
+        Q_EMIT contactPaymentPrepared();
+    });
 #endif
 
     connect(proposalListPage, &ProposalList::showProposalInfo, this, &WalletView::showProposalInfo);

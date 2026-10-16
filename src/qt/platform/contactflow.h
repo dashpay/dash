@@ -29,6 +29,9 @@ class PlatformService;
  * with one SDK call. The wallet derives the ECDH secret and the receiving
  * chain the request carries, and imports that chain first, so the contact's
  * payments are seen; no private key leaves it.
+ *
+ * Paying a contact hands the next address of the payment chain their request
+ * carries to the Send tab, counted as used before it is shown.
  */
 class ContactFlow : public QObject
 {
@@ -40,6 +43,7 @@ public:
         RESOLVING, //!< resolving the username
         FETCHING,  //!< reading the contact's identity
         SENDING,   //!< from the passphrase to Platform's answer
+        PAYING,    //!< reading the identity of the contact to pay
     };
     //! In the order contacts() lists them.
     enum class State {
@@ -71,9 +75,14 @@ public:
     void accept(const platform::Identifier& contact);
     //! Read the contact requests again.
     void refresh();
+    //! Choose the address to pay an established contact at, and hand it to
+    //! payTo().
+    void pay(const platform::Identifier& contact);
 
 Q_SIGNALS:
     void changed();
+    //! Pay the contact at this address of their payment chain.
+    void payTo(const QString& address);
 
 private:
     using Requests = std::map<platform::Identifier, platform::ContactRequest>;
@@ -88,12 +97,14 @@ private:
     void fetch();
     void onFetched(platform::Result<platform::Identity> result);
     void onSent(const platform::Status& status);
+    void prefill(const platform::Identity& theirs);
     void finish(const QString& error = {});
 
     PlatformService& m_service;
     IdentityFlow& m_identity_flow;
     Step m_step{Step::IDLE};
-    //! The username being added, and the contact the request goes to.
+    //! The username being added, and the contact the request goes to or
+    //! the payment is for.
     std::string m_label;
     platform::Identifier m_contact{};
     //! The step's call, until it calls back or is dropped.
