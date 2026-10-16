@@ -13,6 +13,7 @@
 #include <qt/platform/contactspage.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformui.h>
+#include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
 #include <qt/walletmodel.h>
 
@@ -46,9 +47,12 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     m_identity_status = new QLabel(this);
     m_identity_status->setObjectName("dashPayIdentityStatus");
     m_identity_status->setWordWrap(true);
+    m_recovery_status = new QLabel(this);
+    m_recovery_status->setObjectName("dashPayRecoveryStatus");
+    m_recovery_status->setWordWrap(true);
 
-    m_look_up = new QPushButton(tr("Look up identity"), this);
-    m_look_up->setObjectName("dashPayLookUp");
+    m_find = new QPushButton(tr("Find my identity"), this);
+    m_find->setObjectName("dashPayFindIdentity");
     m_create = new QPushButton(tr("Create identity"), this);
     m_create->setObjectName("dashPayCreateIdentity");
     m_continue = new QPushButton(tr("Continue"), this);
@@ -60,7 +64,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     m_top_up = new QPushButton(tr("Top up"), this);
     m_top_up->setObjectName("dashPayTopUp");
     auto* actions{new QHBoxLayout};
-    actions->addWidget(m_look_up);
+    actions->addWidget(m_find);
     actions->addWidget(m_create);
     actions->addWidget(m_continue);
     actions->addWidget(m_top_up_amount);
@@ -88,8 +92,6 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     header->addWidget(m_identity);
     header->addStretch();
 
-    m_start = new QPushButton(tr("Start DashPay"), this);
-    m_start->setObjectName("dashPayStart");
     m_stop = new QPushButton(tr("Turn off DashPay for this wallet"), this);
     m_stop->setObjectName("dashPayStop");
     layout->addWidget(title);
@@ -97,26 +99,21 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     layout->addWidget(notice);
     layout->addWidget(m_status);
     layout->addWidget(m_identity_status);
+    layout->addWidget(m_recovery_status);
     layout->addLayout(actions);
     layout->addWidget(m_username_status);
     layout->addLayout(username_row);
     layout->addWidget(m_contacts);
-    layout->addWidget(m_start, 0, Qt::AlignLeft);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
     GUIUtil::updateFonts();
 
-    connect(m_start, &QPushButton::clicked, this, [this] {
-        if (!m_service->start()) {
-            QMessageBox::warning(this, tr("DashPay"), tr("The wallet could not save that DashPay is started."));
-        }
-    });
     connect(m_stop, &QPushButton::clicked, this, [this] {
         if (!m_service->stop()) {
             QMessageBox::warning(this, tr("DashPay"), tr("The wallet could not save that DashPay is turned off."));
         }
     });
-    connect(m_look_up, &QPushButton::clicked, this, [this] { m_identity_flow->lookUp(); });
+    connect(m_find, &QPushButton::clicked, this, [this] { m_recovery_flow->find(); });
     connect(m_create, &QPushButton::clicked, this, [this] { m_identity_flow->create(); });
     connect(m_continue, &QPushButton::clicked, this, [this] { m_identity_flow->resume(); });
     const auto register_name = [this] {
@@ -156,6 +153,7 @@ void PlatformPage::resetService()
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
         m_contacts->setFlow(nullptr);
+        m_recovery_flow.reset();
         m_contact_flow.reset();
         m_username_flow.reset();
         m_identity_flow.reset();
@@ -174,6 +172,8 @@ void PlatformPage::resetService()
         m_contacts->setFlow(m_contact_flow.get());
         connect(m_contact_flow.get(), &ContactFlow::changed, this, &PlatformPage::refresh);
         connect(m_contact_flow.get(), &ContactFlow::payTo, this, &PlatformPage::payTo);
+        m_recovery_flow = std::make_unique<RecoveryFlow>(*m_service, *m_identity_flow, *m_username_flow, *m_contact_flow);
+        connect(m_recovery_flow.get(), &RecoveryFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
@@ -201,7 +201,6 @@ void PlatformPage::refresh()
     }
     m_status->setText(status);
     m_status->setVisible(!status.isEmpty());
-    m_start->setVisible(m_service && gate == Gate::NO_CONSENT);
     m_stop->setVisible(m_service && m_service->consented());
 
     const IdentityFlow* flow{m_identity_flow.get()};
@@ -216,8 +215,11 @@ void PlatformPage::refresh()
     m_identity->setVisible(identity != nullptr);
     const UsernameFlow* names{m_username_flow.get()};
     const auto username{names && identity ? names->username() : std::nullopt};
-    m_username->setText(QString::fromStdString(username.value_or(std::string{})));
-    m_username->setVisible(username.has_value());
+    const RecoveryFlow* recovery{m_recovery_flow.get()};
+    const auto pending{recovery && identity && !username ? recovery->pendingName() : std::nullopt};
+    m_username->setText(pending ? tr("%1 (waiting for the masternode vote)").arg(QString::fromStdString(*pending))
+                                : QString::fromStdString(username.value_or(std::string{})));
+    m_username->setVisible(username || pending);
 
     using Step = IdentityFlow::Step;
     const Step step{flow ? flow->step() : Step::IDLE};
@@ -226,7 +228,8 @@ void PlatformPage::refresh()
     const NameStep name_step{names ? names->step() : NameStep::IDLE};
     const ContactFlow* contacts{m_contact_flow.get()};
     const bool idle{running && step == Step::IDLE && name_step == NameStep::IDLE && contacts &&
-                    contacts->step() == ContactFlow::Step::IDLE};
+                    contacts->step() == ContactFlow::Step::IDLE && recovery &&
+                    recovery->step() == RecoveryFlow::Step::IDLE};
     //! Nothing in flight and no funding waiting for Platform.
     const bool ready{idle && !funding};
     QString identity_status;
@@ -261,7 +264,8 @@ void PlatformPage::refresh()
     }
     m_identity_status->setText(identity_status);
     m_identity_status->setVisible(!identity_status.isEmpty());
-    m_look_up->setVisible(ready && !flow->lookedUp());
+    // The first DashPay click, and on a locked wallet the one each session.
+    m_find->setVisible((m_service && gate == Gate::NO_CONSENT) || (ready && !flow->lookedUp()));
     m_create->setVisible(ready && flow->lookedUp() && !identity);
     m_continue->setVisible(idle && funding.has_value());
     m_top_up_amount->setVisible(ready && identity);
@@ -285,9 +289,28 @@ void PlatformPage::refresh()
     }
     m_username_status->setText(username_status);
     m_username_status->setVisible(!username_status.isEmpty());
-    const bool can_register{ready && flow->lookedUp() && (!identity || (names->namesRead() && !username))};
+    const bool can_register{ready && flow->lookedUp() &&
+                            (!identity || (names->namesRead() && !username && recovery->pendingRead() && !pending))};
     m_username_input->setVisible(can_register);
     m_register->setVisible(can_register);
+
+    QString recovery_status;
+    if (recovery) {
+        if (recovery->step() == RecoveryFlow::Step::FINDING && step != Step::LOOKING_UP) {
+            recovery_status = tr("Reading your DashPay contacts…");
+        } else if (!recovery->error().isEmpty()) {
+            recovery_status = recovery->error();
+        } else if (recovery->rescanning()) {
+            recovery_status = tr("Rescanning the wallet for payments from your DashPay contacts…");
+        } else if (recovery->prunedFrom()) {
+            recovery_status = tr("Payments from your DashPay contacts need a wallet rescan from block %1, but this "
+                                 "node has pruned those blocks. To see them, turn off pruning and restart Dash Core "
+                                 "with -reindex.")
+                                  .arg(*recovery->prunedFrom());
+        }
+    }
+    m_recovery_status->setText(recovery_status);
+    m_recovery_status->setVisible(!recovery_status.isEmpty());
 
     // Contacts find the identity by its username.
     m_contacts->setVisible(running && identity && username);

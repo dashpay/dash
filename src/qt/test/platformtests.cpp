@@ -14,11 +14,13 @@
 #include <key.h>
 #include <key_io.h>
 #include <netbase.h>
+#include <node/blockstorage.h>
 #include <qt/clientfeeds.h>
 #include <qt/platform/contactflow.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformpage.h>
 #include <qt/platform/platformservice.h>
+#include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/walletmodel.h>
@@ -29,6 +31,7 @@
 #include <util/settings.h>
 #include <util/system.h>
 #include <util/time.h>
+#include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
 #include <wallet/wallet.h>
@@ -391,6 +394,46 @@ CScript FundingScript(interfaces::Wallet& wallet, const wallet::PlatformKeyReque
     return GetScriptForDestination(PKHash{pubkey.value});
 }
 
+//! Our DIP-15 receiving chain of the identity 0x05… towards `theirs`, born at `birth`.
+wallet::FriendshipKeychainRequest OurRequest(uint8_t theirs, int64_t birth = 0)
+{
+    platform::Identifier ours, contact;
+    ours.fill(5);
+    contact.fill(theirs);
+    return {ContactFlow::ACCOUNT, uint256{ours}, uint256{contact}, birth};
+}
+
+//! Address `index` that `theirs` pays us at: derived, not imported.
+CTxDestination OurAddress(interfaces::Wallet& wallet, uint8_t theirs, uint32_t index)
+{
+    const auto chain{wallet.getFriendshipReceivingXpub(OurRequest(theirs))};
+    Assert(chain);
+    return PaymentAddress(chain.value, index);
+}
+
+//! The identity 0x05… with the keys Dash Core registers.
+platform::Result<platform::Identity> OurIdentity()
+{
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    return ours;
+}
+
+//! A payment chain key for contacts' requests.
+CPubKey ZeroSeedPubKey()
+{
+    CExtKey key;
+    const std::array<std::byte, 32> seed{};
+    key.SetSeed(seed);
+    return key.Neuter().pubkey;
+}
+
+//! The coinbase of a new block pays `address`.
+uint256 MineTo(TestChain100Setup& chain, const CTxDestination& address)
+{
+    return chain.CreateAndProcessBlock({}, GetScriptForDestination(address)).vtx.at(0)->GetHash();
+}
+
 //! Restores the ArgsManager settings a test forced.
 struct SettingsRestore {
     util::Settings saved;
@@ -542,14 +585,14 @@ void PlatformTests::nothingBeforeConsent()
     QVERIFY(page.findChild<QLabel*>("dashPayNotice")->isVisibleTo(&page));
     QVERIFY(VisibleButton(page, "dashPayStop") == nullptr);
 
-    QPushButton* start{VisibleButton(page, "dashPayStart")};
-    QVERIFY(start != nullptr);
-    start->click();
+    QPushButton* find{VisibleButton(page, "dashPayFindIdentity")};
+    QVERIFY(find != nullptr);
+    find->click();
     QCOMPARE(sources.made.size(), size_t{1});
     QVERIFY(sources.made.back().endpoints == std::vector<CService>{Ipv4Evonode()});
     QVERIFY(!sources.made.back().proxy);
     QVERIFY(page.service()->client() != nullptr);
-    QVERIFY(VisibleButton(page, "dashPayStart") == nullptr);
+    QVERIFY(VisibleButton(page, "dashPayFindIdentity") == nullptr);
 
     // The consent is the wallet's: the next session starts without a click.
     {
@@ -564,7 +607,7 @@ void PlatformTests::nothingBeforeConsent()
     stop->click();
     QVERIFY(read.expired());
     QVERIFY(page.service()->client() == nullptr);
-    QVERIFY(VisibleButton(page, "dashPayStart") != nullptr);
+    QVERIFY(VisibleButton(page, "dashPayFindIdentity") != nullptr);
     FakeSources after;
     PlatformService service{f.wallet_model, f.models.client, after.get()};
     QVERIFY(after.made.empty());
@@ -978,18 +1021,18 @@ void PlatformTests::lockedWalletLooksUpOnUnlock()
     QVERIFY(VisibleButton(page, "dashPayCreateIdentity") == nullptr);
     QVERIFY(!page.findChild<QLabel*>("dashPayIdentity")->isVisibleTo(&page));
 
-    QPushButton* look_up{VisibleButton(page, "dashPayLookUp")};
-    QVERIFY(look_up != nullptr);
-    look_up->click();
+    QPushButton* find{VisibleButton(page, "dashPayFindIdentity")};
+    QVERIFY(find != nullptr);
+    find->click();
     QCOMPARE(unlocks, 1);
-    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
     QCOMPARE(sources.made.size(), size_t{2});
     QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
-    QVERIFY(VisibleButton(page, "dashPayLookUp") == nullptr);
+    QVERIFY(VisibleButton(page, "dashPayFindIdentity") == nullptr);
     sources.fake->deliverAll();
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
     QVERIFY(page.findChild<QLabel*>("dashPayIdentity")->isVisibleTo(&page));
     QVERIFY(VisibleButton(page, "dashPayTopUp") != nullptr);
-    QVERIFY(VisibleButton(page, "dashPayLookUp") == nullptr);
+    QVERIFY(VisibleButton(page, "dashPayFindIdentity") == nullptr);
     QVERIFY(VisibleButton(page, "dashPayCreateIdentity") == nullptr);
 
     f.setNetworkActive(false);
@@ -1637,4 +1680,229 @@ void PlatformTests::paymentsFollowTheWalletHistory()
     QCOMPARE(sources.fake->countCalls("getIdentity"), size_t{1});
     QCOMPARE(paid.size(), 1);
     QCOMPARE(paid.front().front().toString(), at(17));
+}
+
+//! On a restored wallet, Find my identity is the first DashPay click: under
+//! one passphrase it starts DashPay, finds the identity by its MASTER key,
+//! reads its usernames and contacts, and imports our receiving chain towards
+//! each contact we asked elsewhere, answered or not, born when our request to
+//! them was created. A chain the wallet has is left as it is. A client
+//! rebuilt during the lookup keeps the unlock. No
+//! other write starts meanwhile, and Find starts none while another flow is
+//! busy.
+void PlatformTests::findMyIdentityRestoresTheWallet()
+{
+    Fixture f{m_node, /*consented=*/false};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    CKey bob_key, carol_key;
+    bob_key.MakeNewKey(/*fCompressed=*/true);
+    carol_key.MakeNewKey(/*fCompressed=*/true);
+    // Bob's contact was made on another app on this seed, carol's here (her
+    // chain was imported when we answered); dave, asked on the other app,
+    // hasn't answered but can pay us.
+    QVERIFY(wallet.ensureFriendshipReceivingKeychain(OurRequest(0x0c, 1'700'000'000)));
+    const auto bob_first{OurAddress(wallet, 0x0b, 0)};
+    const auto carol_first{OurAddress(wallet, 0x0c, 0)};
+    const auto dave_first{OurAddress(wallet, 0x0d, 0)};
+    const auto received{Requests({IncomingRequest(wallet, 0x0b, 5, bob_key, 2, ZeroSeedPubKey()),
+                                  IncomingRequest(wallet, 0x0c, 5, carol_key, 2, ZeroSeedPubKey())})};
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    int unlocks{0};
+    UsernameFlow* during_dialog{nullptr};
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        ++unlocks;
+        if (during_dialog) during_dialog->registerName("erin2026");
+        f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({Request(5, 0x0b, 1'600'000'000'500), Request(5, 0x0c, 1'650'000'000'000),
+                                          Request(5, 0x0d, 1'650'000'000'000)})};
+        client.received_requests = {received};
+        client.resolved_names = {Resolved(std::nullopt)};
+    };
+    const auto spkms{f.wallet->GetAllScriptPubKeyMans()};
+    // When the chain paying `address` was born, as listdescriptors shows it.
+    const auto birth = [&](const CTxDestination& address) {
+        const auto owners{f.wallet->GetScriptPubKeyMans(GetScriptForDestination(address))};
+        return owners.size() == 1 ? (*owners.begin())->GetTimeFirstKey() : int64_t{-1};
+    };
+    const int64_t carol_birth{birth(carol_first)};
+
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QVERIFY(sources.made.empty());
+    QPushButton* find{VisibleButton(page, "dashPayFindIdentity")};
+    QVERIFY(find != nullptr);
+    find->click();
+    QCOMPARE(sources.made.size(), size_t{1});
+    // The evonodes change during the lookup: the new client looks the identity up again.
+    sources.evonodes = {Ipv4Evonode2()};
+    f.listRead();
+    QCOMPARE(sources.made.size(), size_t{2});
+    // A free username found while the contacts are read is not registered.
+    page.usernameFlow()->registerName("dave2026");
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("registerName"), size_t{0});
+    QVERIFY(!page.usernameFlow()->error().isEmpty());
+
+    QCOMPARE(unlocks, 1);
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+    QVERIFY(page.service()->consented());
+    QVERIFY(page.findChild<QLabel*>("dashPayIdentity")->isVisibleTo(&page));
+    QVERIFY(page.findChild<QLabel*>("dashPayUsername")->isVisibleTo(&page));
+    QVERIFY(VisibleButton(page, "dashPayFindIdentity") == nullptr);
+    std::vector<std::pair<uint8_t, ContactFlow::State>> listed;
+    for (const auto& contact : page.contactFlow()->contacts()) {
+        listed.emplace_back(contact.id[0], contact.state);
+    }
+    QVERIFY(listed == (std::vector<std::pair<uint8_t, ContactFlow::State>>{{0x0b, ContactFlow::State::ESTABLISHED},
+                                                                           {0x0c, ContactFlow::State::ESTABLISHED},
+                                                                           {0x0d, ContactFlow::State::OUTGOING}}));
+    QVERIFY(ContactButton(page, 0x0b) && ContactButton(page, 0x0b)->objectName() == "dashPayPayContact");
+
+    // Bob's and dave's payments to us are now the wallet's; carol's chain was there.
+    QVERIFY(wallet.isSpendable(bob_first));
+    QVERIFY(wallet.isSpendable(dave_first));
+    QCOMPARE(f.wallet->GetAllScriptPubKeyMans().size(), spkms.size() + 2);
+    QCOMPARE(birth(bob_first), int64_t{1'600'000'000});
+    QCOMPARE(birth(dave_first), int64_t{1'650'000'000});
+    QCOMPARE(birth(carol_first), carol_birth);
+
+    // Another flow started while the passphrase dialog was open: Find looks nothing up.
+    during_dialog = page.usernameFlow();
+    page.recoveryFlow()->find();
+    QCOMPARE(unlocks, 2);
+    QVERIFY(page.recoveryFlow()->step() == RecoveryFlow::Step::IDLE);
+    QVERIFY(!page.recoveryFlow()->error().isEmpty());
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+}
+
+//! Payments to a chain imported for a contact made elsewhere are in blocks
+//! the wallet scanned without it: the rescan they need stays owed, across a
+//! restart, until one succeeds; a wallet loaded while it is owed rescans
+//! before DashPay reads anything. The identity's username still waiting for
+//! its vote is shown, and none is offered for registration meanwhile.
+void PlatformTests::rescanOwedSurvivesARestart()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    CKey bob_key;
+    bob_key.MakeNewKey(/*fCompressed=*/true);
+    const auto paid{MineTo(f.chain, OurAddress(wallet, 0x0b, 0))};
+    // Another rescan holds the wallet's reservation.
+    std::optional<wallet::WalletRescanReserver> other{*f.wallet};
+    QVERIFY(other->reserve());
+
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({})};
+        client.sent_requests = {Requests({Request(5, 0x0b, 1'000)})};
+        client.received_requests = {Requests({IncomingRequest(wallet, 0x0b, 5, bob_key, 2, ZeroSeedPubKey())})};
+        platform::Result<std::vector<platform::Contest>> contests;
+        contests.status.kind = platform::StatusKind::OK;
+        contests.value = {{"alice", 0}};
+        client.contests = {contests};
+    };
+    auto page{std::make_unique<PlatformPage>(sources.get())};
+    f.attach(*page);
+    sources.fake->deliverAll();
+    QVERIFY(wallet.isSpendable(OurAddress(wallet, 0x0b, 0)));
+    QVERIFY(page->findChild<QLabel*>("dashPayUsername")->isVisibleTo(page.get()));
+    QVERIFY(page->findChild<QLabel*>("dashPayUsername")->text().contains("alice"));
+    QVERIFY(VisibleButton(*page, "dashPayRegisterUsername") == nullptr);
+    QTRY_VERIFY(!page->recoveryFlow()->rescanning());
+    QVERIFY(!wallet.getTx(paid));
+    QVERIFY(page->findChild<QLabel*>("dashPayRecoveryStatus")->isVisibleTo(page.get()));
+
+    // Loaded again: no Platform answer is needed to rescan.
+    FakeSources later;
+    page = std::make_unique<PlatformPage>(later.get());
+    f.attach(*page);
+    QVERIFY(page->recoveryFlow()->rescanning());
+    QTRY_VERIFY(!page->recoveryFlow()->rescanning());
+    QVERIFY(!wallet.getTx(paid));
+
+    other.reset();
+    page = std::make_unique<PlatformPage>(later.get());
+    f.attach(*page);
+    QVERIFY(page->recoveryFlow()->rescanning());
+    QTRY_VERIFY(!page->recoveryFlow()->rescanning());
+    QVERIFY(wallet.getTx(paid));
+
+    // Nothing is owed once a rescan succeeded.
+    const auto unseen{MineTo(f.chain, OurAddress(wallet, 0x0b, 1))};
+    page = std::make_unique<PlatformPage>(later.get());
+    f.attach(*page);
+    QVERIFY(!page->recoveryFlow()->rescanning());
+    QVERIFY(!wallet.getTx(unseen));
+}
+
+//! A rescan owed from a time after the blocks a node pruned runs, and finds
+//! the payments since. One owed from before them is refused, said so, and
+//! refused again the next time; the chain stays imported, so later payments
+//! are seen.
+void PlatformTests::prunedNodeRefusesTheRescan()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    ChainstateManager& chainman{*f.chain.m_node.chainman};
+    node::BlockManager& blockman{chainman.m_blockman};
+    // The blocks so far fill their file, which is pruned; hours later a new
+    // block starts the next one.
+    const int pruned_file{WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()->GetBlockPos().nFile)};
+    WITH_LOCK(::cs_main, blockman.GetBlockFileInfo(pruned_file)->nSize = node::MAX_BLOCKFILE_SIZE);
+    SetMockTime(GetTime() + 4 * 60 * 60);
+    const auto recent{MineTo(f.chain, OurAddress(wallet, 0x0c, 0))};
+    {
+        LOCK(::cs_main);
+        blockman.m_have_pruned = true;
+        blockman.PruneOneBlockFile(pruned_file);
+    }
+    node::UnlinkPrunedFiles({pruned_file});
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip())};
+    WITH_LOCK(f.wallet->cs_wallet, f.wallet->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash()));
+
+    // Carol's contact was made after the pruned blocks, bob's long before.
+    CKey bob_key, carol_key;
+    bob_key.MakeNewKey(/*fCompressed=*/true);
+    carol_key.MakeNewKey(/*fCompressed=*/true);
+    const auto carol{IncomingRequest(wallet, 0x0c, 5, carol_key, 2, ZeroSeedPubKey())};
+    const auto bob{IncomingRequest(wallet, 0x0b, 5, bob_key, 2, ZeroSeedPubKey())};
+    const auto carol_sent{Request(5, 0x0c, static_cast<uint64_t>(GetTime()) * 1000)};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({carol_sent}), Requests({carol_sent, Request(5, 0x0b, 1'000)})};
+        client.received_requests = {Requests({carol}), Requests({carol, bob})};
+    };
+    auto page{std::make_unique<PlatformPage>(sources.get())};
+    f.attach(*page);
+    sources.fake->deliverAll();
+    QVERIFY(page->recoveryFlow()->rescanning());
+    QTRY_VERIFY(!page->recoveryFlow()->rescanning());
+    QVERIFY(!page->recoveryFlow()->prunedFrom());
+    QVERIFY(page->recoveryFlow()->error().isEmpty());
+    QVERIFY(wallet.getTx(recent));
+
+    VisibleButton(*page, "dashPayRefreshContacts")->click();
+    sources.fake->deliverAll();
+    QVERIFY(wallet.isSpendable(OurAddress(wallet, 0x0b, 0)));
+    QVERIFY(page->recoveryFlow()->prunedFrom().has_value());
+    QVERIFY(!page->recoveryFlow()->rescanning());
+    QVERIFY(page->findChild<QLabel*>("dashPayRecoveryStatus")->isVisibleTo(page.get()));
+
+    FakeSources later;
+    page = std::make_unique<PlatformPage>(later.get());
+    f.attach(*page);
+    QVERIFY(page->recoveryFlow()->prunedFrom().has_value());
+    QVERIFY(!page->recoveryFlow()->rescanning());
 }

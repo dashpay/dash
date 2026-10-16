@@ -16,6 +16,7 @@ class BitcoinAmountField;
 class ContactFlow;
 class ContactsPage;
 class IdentityFlow;
+class RecoveryFlow;
 class UsernameFlow;
 
 QT_BEGIN_NAMESPACE
@@ -27,11 +28,11 @@ QT_END_NAMESPACE
 /** The DashPay tab of one wallet. Only built with --enable-platform-gui.
  *
  *  It owns the wallet's PlatformService while both models are set, offers
- *  the first DashPay click with a one-line privacy notice, and says why
- *  DashPay can't run when a gate is closed. Once DashPay runs it shows the
- *  wallet's identity, its username and its balance; creates, continues or
- *  tops up the identity; registers its username; and keeps its contacts,
- *  handing a payment to one to the Send tab. */
+ *  the first DashPay click (Find my identity) with a one-line privacy notice,
+ *  and says why DashPay can't run when a gate is closed. Once DashPay runs it
+ *  recovers and shows the wallet's identity, its username and its balance;
+ *  creates, continues or tops up the identity; registers its username; and
+ *  keeps its contacts, handing a payment to one to the Send tab. */
 class PlatformPage : public QWidget
 {
     Q_OBJECT
@@ -46,6 +47,7 @@ public:
     IdentityFlow* identityFlow() const { return m_identity_flow.get(); }
     UsernameFlow* usernameFlow() const { return m_username_flow.get(); }
     ContactFlow* contactFlow() const { return m_contact_flow.get(); }
+    RecoveryFlow* recoveryFlow() const { return m_recovery_flow.get(); }
 
 Q_SIGNALS:
     //! A service was created, or is about to be destroyed (nullptr) while
@@ -69,12 +71,15 @@ private:
     std::unique_ptr<UsernameFlow> m_username_flow;
     //! Destroyed before the identity flow it reads.
     std::unique_ptr<ContactFlow> m_contact_flow;
+    //! Destroyed before the flows it reads.
+    std::unique_ptr<RecoveryFlow> m_recovery_flow;
 
     QLabel* m_username{nullptr};
     QLabel* m_identity{nullptr};
     QLabel* m_status{nullptr};
     QLabel* m_identity_status{nullptr};
-    QPushButton* m_look_up{nullptr};
+    QLabel* m_recovery_status{nullptr};
+    QPushButton* m_find{nullptr};
     QPushButton* m_create{nullptr};
     QPushButton* m_continue{nullptr};
     BitcoinAmountField* m_top_up_amount{nullptr};
@@ -83,7 +88,6 @@ private:
     QPushButton* m_register{nullptr};
     QLabel* m_username_status{nullptr};
     ContactsPage* m_contacts{nullptr};
-    QPushButton* m_start{nullptr};
     QPushButton* m_stop{nullptr};
 };
 

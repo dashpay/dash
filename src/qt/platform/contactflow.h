@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QString>
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -38,6 +39,9 @@ class ContactFlow : public QObject
     Q_OBJECT
 
 public:
+    //! The DIP-15 account of every receiving chain, as the mobile wallets send it.
+    static constexpr uint32_t ACCOUNT{0};
+
     enum class Step {
         IDLE,
         RESOLVING, //!< resolving the username
@@ -56,6 +60,8 @@ public:
         State state{State::INCOMING};
         //! Their username, once read; nullopt when unread or they have none.
         std::optional<std::string> username;
+        //! When our newest request to them was created; 0 without one.
+        uint64_t sent_at_ms{0};
     };
 
     ContactFlow(PlatformService& service, IdentityFlow& identity_flow);
@@ -63,6 +69,8 @@ public:
     Step step() const { return m_step; }
     //! Whether both directions were read since the identity was found.
     bool swept() const { return m_sent && m_received; }
+    //! Whether contact requests are being read.
+    bool reading() const { return !m_sent_call.expired() || !m_received_call.expired(); }
     //! Incoming first, then established, then outgoing.
     std::vector<Contact> contacts() const;
     //! Why the last action failed, else why the last read did; empty when

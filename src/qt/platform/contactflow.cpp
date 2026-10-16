@@ -33,9 +33,6 @@ namespace {
 using platform::IdentityPublicKey;
 using Purpose = IdentityPublicKey::Purpose;
 
-//! The DIP-15 account of every receiving chain, as the mobile wallets send it.
-constexpr uint32_t ACCOUNT{0};
-
 const IdentityPublicKey* FindKey(const platform::Identity& identity, uint32_t id)
 {
     const auto it{std::find_if(identity.public_keys.begin(), identity.public_keys.end(),
@@ -63,7 +60,7 @@ std::optional<uint32_t> ImportedAccountReference(interfaces::Wallet& wallet, con
                                                  const platform::Identifier& theirs, uint32_t encryption_key)
 {
     const auto chain{wallet.ensureFriendshipReceivingKeychain(
-        {ACCOUNT, uint256{ours}, uint256{theirs}, TicksSinceEpoch<std::chrono::seconds>(NodeClock::now())})};
+        {ContactFlow::ACCOUNT, uint256{ours}, uint256{theirs}, TicksSinceEpoch<std::chrono::seconds>(NodeClock::now())})};
     wallet::CompactXpub compact;
     if (!chain || !wallet::CompactXpubBytes(chain.value, compact)) return std::nullopt;
     const auto reference{wallet.platformAccountReference({IdentityFlow::IDENTITY_INDEX, encryption_key}, compact)};
@@ -182,7 +179,9 @@ std::vector<ContactFlow::Contact> ContactFlow::contacts() const
     if (!swept()) return contacts;
     const auto add = [&](const platform::Identifier& id, State state) {
         const auto name{m_names.find(id)};
-        contacts.push_back({id, state, name == m_names.end() ? std::nullopt : name->second});
+        const auto sent{m_sent->find(id)};
+        contacts.push_back({id, state, name == m_names.end() ? std::nullopt : name->second,
+                            sent == m_sent->end() ? 0 : sent->second.created_at_ms});
     };
     for (const auto& [id, request] : *m_received) {
         add(id, m_sent->count(id) ? State::ESTABLISHED : State::INCOMING);
@@ -231,7 +230,7 @@ void ContactFlow::finish(const QString& error)
 
 void ContactFlow::refresh()
 {
-    if (m_step != Step::IDLE || !m_sent_call.expired() || !m_received_call.expired()) return;
+    if (m_step != Step::IDLE || reading()) return;
     m_sent.reset();
     m_received.reset();
     std::erase_if(m_names, [](const auto& name) { return !name.second; });
@@ -256,8 +255,10 @@ void ContactFlow::readRequests(platform::ContactDirection direction)
     auto& call{sent ? m_sent_call : m_received_call};
     if (!identity || !client || requests || !call.expired()) return;
     client->contactRequests(identity->id, direction, /*since_ms=*/0,
-                            PlatformUi::Tracked<std::vector<platform::ContactRequest>>(call, [this, sent,
-                                                                                              &requests](auto result) {
+                            PlatformUi::Tracked<std::vector<platform::ContactRequest>>(call, [this, sent, &requests,
+                                                                                              &call](auto result) {
+                                // Answered: no longer reading().
+                                call.reset();
                                 if (result.ok()) {
                                     // Ours by recipient, theirs by sender.
                                     requests = Newest(std::move(result.value), sent ? &platform::ContactRequest::to_user_id

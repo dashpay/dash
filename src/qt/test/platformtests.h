@@ -47,6 +47,9 @@ private Q_SLOTS:
     void contactsAreTheNewestRequests();
     void payingAContactUsesEachAddressOnce();
     void paymentsFollowTheWalletHistory();
+    void findMyIdentityRestoresTheWallet();
+    void rescanOwedSurvivesARestart();
+    void prunedNodeRefusesTheRescan();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H
