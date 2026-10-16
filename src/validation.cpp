@@ -3023,11 +3023,11 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         const bool has_chainlock = m_chainlocks.HasChainLock(pindex->nHeight, pindex->GetBlockHash());
         for (const auto& tx : block.vtx) {
             if (!instantsend::HasLockInputs(*tx)) continue;
-            while (auto conflictLockOpt = m_isman->ConflictingISLockIfAny(*tx)) {
+            if (auto conflictLockOpt = m_isman->ConflictingISLockIfAny(*tx)) {
                 auto [conflict_islock_hash, conflict_txid] = conflictLockOpt.value();
                 if (has_chainlock) {
                     LogPrint(BCLog::ALL, "ConnectBlock(DASH): chain-locked transaction %s overrides islock %s\n", tx->GetHash().ToString(), conflict_islock_hash.ToString());
-                    m_isman->RemoveConflictingISLockByTx(*tx);
+                    m_isman->RemoveConflictingISLocksByTx(*tx);
                 } else {
                     // The node which relayed this should switch to correct chain.
                     // TODO: relay instantsend data/proof.
