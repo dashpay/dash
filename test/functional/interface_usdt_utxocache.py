@@ -131,11 +131,16 @@ class UTXOCacheFlush(ctypes.Structure):
         return f"UTXOCacheFlush(duration={self.duration}, mode={FLUSHMODE_NAME[self.mode]}, size={self.size}, memory={self.memory}, for_prune={self.for_prune})"
 
 
+# Credit-pool reconstruction keeps history from V20 activation until its first snapshot, so postpone V20
+# to let this test prune its early blocks.
+DEPLOYMENT_ARGS = ["-testactivationheight=v20@2000", "-testactivationheight=mn_rr@2000"]
+
+
 class UTXOCacheTracepointTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = False
         self.num_nodes = 1
-        self.extra_args = [["-txindex"]]
+        self.extra_args = [["-txindex"] + DEPLOYMENT_ARGS]
 
     def skip_test_if_missing_module(self):
         self.skip_if_platform_not_linux()
@@ -390,7 +395,7 @@ class UTXOCacheTracepointTest(BitcoinTestFramework):
         assert_equal(0, len(possible_cache_sizes))
 
         self.log.info("restart the node with -prune")
-        self.start_node(0, ["-fastprune=1", "-prune=1"])
+        self.start_node(0, ["-fastprune=1", "-prune=1"] + DEPLOYMENT_ARGS)
 
         BLOCKS_TO_MINE = 450
         self.log.info(f"mine {BLOCKS_TO_MINE} blocks to be able to prune")

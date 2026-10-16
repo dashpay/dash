@@ -21,14 +21,18 @@ from test_framework.util import (
     assert_raises_rpc_error,
 )
 
+# Credit-pool reconstruction keeps history from V20 activation until its first snapshot, so postpone V20
+# to let this test prune its early blocks.
+DEPLOYMENT_ARGS = ["-testactivationheight=v20@3000", "-testactivationheight=mn_rr@3000"]
+
 
 class GetBlockFromPeerTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 3
         self.extra_args = [
-            [],
-            [],
-            ["-fastprune", "-prune=1"]
+            DEPLOYMENT_ARGS,
+            DEPLOYMENT_ARGS,
+            ["-fastprune", "-prune=1"] + DEPLOYMENT_ARGS,
         ]
 
     def setup_network(self):
@@ -88,7 +92,7 @@ class GetBlockFromPeerTest(BitcoinTestFramework):
         self.log.info("Don't fetch blocks while the node has not synced past it yet")
         # For this test we need node 1 in prune mode and as a side effect this also disconnects
         # the nodes which is also necessary for the rest of the test.
-        self.restart_node(1, ["-prune=550"])
+        self.restart_node(1, ["-prune=550"] + DEPLOYMENT_ARGS)
 
         # Generate a block on the disconnected node that the pruning node is not connected to
         blockhash = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
