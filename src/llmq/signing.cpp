@@ -429,6 +429,8 @@ void CRecoveredSigsDb::CleanupOldVotes(int64_t maxAge)
 
 //////////////////
 
+const CEvoDB& CSigningManager::EvoDb() const { return qman.EvoDb(); }
+
 CSigningManager::CSigningManager(const CQuorumManager& _qman, const util::DbWrapperParams& db_params,
                                  int64_t max_recsigs_age) :
     db{db_params},

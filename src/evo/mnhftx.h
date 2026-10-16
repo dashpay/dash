@@ -11,6 +11,7 @@
 #include <versionbits.h>
 
 #include <bls/bls.h>
+#include <evo/viewcache.h>
 #include <unordered_lru_cache.h>
 
 #include <gsl/pointers.h>
@@ -104,7 +105,8 @@ private:
     static constexpr size_t MNHFCacheSize = 1000;
     Mutex cs_cache;
     // versionBit <-> height
-    Uint256LruHashMap<Signals> mnhfCache GUARDED_BY(cs_cache){MNHFCacheSize};
+    EvoViewCache<Uint256LruHashMap<Signals>> mnhfCache GUARDED_BY(cs_cache){
+        [] { return Uint256LruHashMap<Signals>{MNHFCacheSize}; }};
 
 public:
     CMNHFManager() = delete;
@@ -130,10 +132,16 @@ public:
     // Implements interface
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
-    bool ForceSignalDBUpdate(const CBlockIndex* tip) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+    //! Recompute and persist the signals at `tip` under `view`, the view of
+    //! the chainstate whose tip it is. Signals this node's Evo state cannot
+    //! rebuild are left to be rebuilt on demand.
+    bool ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
 
 private:
     void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    //! Persist the signals at `pindex` when a block-scoped transaction can commit them.
+    void MaybePersist(const Signals& signals, const CBlockIndex* const pindex);
 
     /**
      * This function returns list of signals available on previous block.

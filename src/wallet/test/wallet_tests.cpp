@@ -17,6 +17,7 @@
 #include <coinjoin/coinjoin.h>
 #include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
+#include <evo/snapshot_types.h>
 #include <interfaces/chain.h>
 #include <key_io.h>
 #include <node/blockstorage.h>
@@ -1874,6 +1875,70 @@ BOOST_FIXTURE_TEST_CASE(AbandonedSpendRestoresDustLock, ListCoinsTestingSetup)
     BOOST_CHECK(wallet->AddToWallet(spend_tx, TxStateInMempool{}));
     BOOST_CHECK_EQUAL(wallet->CountInputsWithAmount(COIN / 100), 0);
     BOOST_CHECK(!wallet->IsLockedCoin(dust_outpoint));
+}
+
+// While the masternode list cannot be read, an output that may be masternode
+// collateral is kept out of automatic coin selection; the next block
+// classifies it and locks it if it is collateral.
+BOOST_FIXTURE_TEST_CASE(MasternodeCollateralWithheldWhileListUnavailable, ListCoinsTestingSetup)
+{
+    const CScript wallet_script{GetScriptForDestination(PKHash(coinbaseKey.GetPubKey()))};
+    // Mature enough coinbases to fund the collateral.
+    for (int i{0}; i < 3; ++i) {
+        CreateAndProcessBlock({}, wallet_script);
+    }
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    auto utxos{BuildSimpleUtxoMap(m_coinbase_txns)};
+    const CTransactionRef pro_reg_tx{MakeTransactionRef(
+        CreateProRegTx(*m_node.chainman, utxos, /*port=*/1, wallet_script, coinbaseKey, owner_key, operator_key))};
+    const COutPoint collateral{pro_reg_tx->GetHash(), 0};
+    // By ordinary coin selection, or by CoinJoin's automatic denomination.
+    const auto auto_spendable{[&] {
+        LOCK(wallet->cs_wallet);
+        const auto coins{AvailableCoins(*wallet).All()};
+        const auto tally{wallet->SelectCoinsGroupedByAddresses(/*fSkipDenominated=*/false, /*fAnonymizable=*/false)};
+        return std::ranges::any_of(coins, [&](const COutput& coin) { return coin.outpoint == collateral; }) ||
+               std::ranges::any_of(tally, [&](const CompactTallyItem& item) {
+                   return std::ranges::find(item.outpoints, collateral) != item.outpoints.end();
+               });
+    }};
+    const CBlockIndex* tip{WITH_LOCK(m_node.chainman->GetMutex(), return m_node.chainman->ActiveChain().Tip())};
+
+    // With DIP3 counted from genesis the tip's masternode list must be read
+    // from EvoDB, and that read fails as unavailable.
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+    m_node.dmnman->SetListSnapshotMissHookForTesting(
+        [](const CBlockIndex*) { throw BlockDataUnavailableError("masternode list unavailable"); });
+    const auto [last_hash, last_height]{
+        WITH_LOCK(wallet->cs_wallet, return std::make_pair(wallet->GetLastBlockHash(), wallet->GetLastBlockHeight()))};
+    BOOST_REQUIRE(wallet->AddToWallet(pro_reg_tx, TxStateConfirmed{last_hash, last_height, /*index=*/1}));
+    m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    consensus.DIP0003Height = dip3_height;
+    {
+        LOCK(wallet->cs_wallet);
+        BOOST_CHECK(!wallet->IsLockedCoin(collateral));
+        BOOST_CHECK(wallet->IsUnclassifiedProTxCoin(collateral));
+    }
+    BOOST_CHECK(!auto_spendable());
+
+    const CBlock block{CreateAndProcessBlock({}, wallet_script)};
+    const uint256 block_hash{block.GetHash()};
+    interfaces::BlockInfo block_info{block_hash};
+    block_info.prev_hash = &block.hashPrevBlock;
+    block_info.height = tip->nHeight + 1;
+    block_info.data = &block;
+    wallet->blockConnected(block_info);
+    {
+        LOCK(wallet->cs_wallet);
+        BOOST_CHECK(wallet->IsLockedCoin(collateral));
+        BOOST_CHECK(!wallet->IsUnclassifiedProTxCoin(collateral));
+    }
+    BOOST_CHECK(!auto_spendable());
+    // Control: unlocked by the user, it is spendable.
+    WITH_LOCK(wallet->cs_wallet, wallet->UnlockCoin(collateral));
+    BOOST_CHECK(auto_spendable());
 }
 
 BOOST_FIXTURE_TEST_CASE(AbandonedSpendRestoresActiveMasternodeCollateralLock, ListCoinsTestingSetup)

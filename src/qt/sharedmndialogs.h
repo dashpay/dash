@@ -63,7 +63,7 @@ private:
     //! Fill the reward field with a fresh address of this wallet
     void useNewAddress();
 
-    const bool m_v24_active;
+    const std::optional<bool> m_v24_active;
     const bool m_is_shared;
     const QString m_voting_address;
     const std::vector<interfaces::MnShare> m_shares;
@@ -238,7 +238,7 @@ protected:
     const CAmount m_early_penalty;
     const uint32_t m_early_period_blocks;
     const int m_registered_height;
-    const bool m_v24_active;
+    const std::optional<bool> m_v24_active;
     //! Null without a wallet, in which case every action button is gated off
     MasternodeOperationRunner* const m_runner;
 

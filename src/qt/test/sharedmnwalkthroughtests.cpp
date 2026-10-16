@@ -375,7 +375,7 @@ void SharedMnWalkthroughTests::walkthrough()
     QVERIFY2(ChainHeight(m_node) > Params().GetConsensus().DIP0003EnforcementHeight,
              "the chain must be past DIP3 enforcement before a shared registration can be relayed");
 
-    QVERIFY2(m_node.isV24Active(), "shared masternodes require an active v24 deployment");
+    QVERIFY2(m_node.isV24Active().value_or(false), "shared masternodes require an active v24 deployment");
 
     for (const auto& wallet : {coord_wallet, alice_wallet, bob_wallet}) {
         SyncWallet(m_node, *wallet);
