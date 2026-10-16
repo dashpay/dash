@@ -2731,4 +2731,101 @@ BOOST_FIXTURE_TEST_CASE(base_coinbase_serves_the_base_chainlock, CreditWindowSet
 }
 
 
+/**
+ * The 102-block activation chain with only LLMQ_TEST configured, and the
+ * testdummy bit reconfigured as an EHF deployment whose window has not
+ * started: a signal for it is the out-of-window premise of
+ * evo_mnhf_tests/mnhf_bit_reuse_reindex_tests, which GetSignalsStage() drops.
+ */
+struct MnhfSnapshotSetup : public SnapshotActivationChainSetup {
+    ConsensusParamsRestorer m_restorer{Params().GetConsensus()};
+    int m_bit{-1};
+
+    MnhfSnapshotSetup()
+    {
+        auto& consensus{m_restorer.Get()};
+        consensus.llmqs = {evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+        auto& deployment{consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY]};
+        deployment.nStartTime = 2'000'000'000;
+        deployment.useEHF = true;
+        m_bit = deployment.bit;
+    }
+
+    //! Rewrite the NORMAL signal record of `index`, as block connection
+    //! would have written it, and drop every cached copy.
+    void WriteSignals(const CBlockIndex* index, const std::optional<CMNHFManager::Signals>& signals)
+    {
+        {
+            LOCK(::cs_main);
+            auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL)};
+            const auto key{std::make_pair(std::string{"mnhf_s2"}, index->GetBlockHash())};
+            m_node.evodb->Erase(key);
+            if (signals) m_node.evodb->Write(key, *signals);
+            tx->Commit();
+            BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::NORMAL));
+        }
+        // Opening an EvoDB starts a new view-cache epoch.
+        CEvoDB epoch{util::DbWrapperParams{.path = m_args.GetDataDirBase() / "mnhf_epoch", .memory = true, .wipe = true}};
+    }
+};
+
+BOOST_FIXTURE_TEST_CASE(mnhf_raw_signal_record_is_exported, MnhfSnapshotSetup)
+{
+    const CBlockIndex* base{Ancestor(m_node, 100)};
+    const CMNHFManager::Signals raw{{static_cast<uint8_t>(m_bit), base->nHeight}};
+    WriteSignals(base, raw);
+    auto& mnhfman{*m_node.special_tx->m_mnhfman};
+    {
+        LOCK(::cs_main);
+        BOOST_REQUIRE(mnhfman.GetForBlock(base) == raw);
+        BOOST_REQUIRE(mnhfman.GetSignalsStage(base).empty());
+    }
+
+    const auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    BOOST_CHECK(snapshot.mnhf_signals == raw);
+    std::string error;
+    BOOST_CHECK_MESSAGE(ValidAgainstChain(m_node, snapshot, base, error), error);
+
+    const EvoViewToken seeded{SeedGeneration(m_node, snapshot, base)};
+    LOCK(::cs_main);
+    const EvoViewScope scope{seeded};
+    CMNHFManager::Signals stored;
+    BOOST_REQUIRE(m_node.evodb->Read(std::make_pair(std::string{"mnhf_s2"}, base->GetBlockHash()), stored));
+    BOOST_CHECK(stored == raw);
+    BOOST_CHECK(mnhfman.GetForBlock(base) == raw);
+    // B + 1 sees the record filtered exactly as NORMAL does.
+    BOOST_CHECK(mnhfman.GetSignalsStage(base).empty());
+    // Below the base only bodies can answer: without them the record is
+    // unavailable, never a guess; with them it is rebuilt as NORMAL has it.
+    {
+        const AbsentBodies absent{m_node, base->nHeight - 10, base->nHeight - 1};
+        BOOST_CHECK_THROW(mnhfman.GetSignalsStage(base->pprev), BlockDataUnavailableError);
+    }
+    const auto rebuilt{mnhfman.GetSignalsStage(base->pprev)};
+    const EvoViewScope normal{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+    BOOST_CHECK(rebuilt == mnhfman.GetSignalsStage(base->pprev));
+}
+
+BOOST_FIXTURE_TEST_CASE(mnhf_export_rebuilds_a_record_held_only_in_memory, MnhfSnapshotSetup)
+{
+    // The exporter runs outside any block transaction, where a rebuilt signal
+    // record is only cached, never written. It still exports that record. The
+    // deployment's window is open, so the rebuild carries the signal forward.
+    m_restorer.Get().vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
+    const CBlockIndex* base{Ancestor(m_node, 90)};
+    const CMNHFManager::Signals raw{{static_cast<uint8_t>(m_bit), 84}};
+    WriteSignals(base->GetAncestor(84), raw);
+    for (int height{85}; height <= base->nHeight; ++height)
+        WriteSignals(base->GetAncestor(height), std::nullopt);
+    BOOST_REQUIRE(!WITH_LOCK(::cs_main, return m_node.evodb->HasActiveTransaction()));
+
+    const auto snapshot{BuildEvoSnapshotAt(m_node, base)};
+    BOOST_CHECK(snapshot.mnhf_signals == raw);
+    LOCK(::cs_main);
+    CMNHFManager::Signals stored;
+    BOOST_CHECK(!m_node.evodb->Read(std::make_pair(std::string{"mnhf_s2"}, base->GetBlockHash()), stored));
+    BOOST_CHECK(WITH_LOCK(m_node.evodb->cs, return m_node.evodb->GetCurTransaction().IsClean()));
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
