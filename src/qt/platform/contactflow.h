@@ -35,6 +35,9 @@ class PlatformService;
  * Paying a contact hands the next address of the payment chain their request
  * carries to the Send tab, counted as used before it is shown.
  *
+ * A username typed in the Send tab is paid the same way when it belongs to
+ * a contact; anyone else is offered a contact request instead.
+ *
  * An incoming request can be ignored, as on the mobile wallets: its sender
  * is hidden from contacts() until unignored, whatever they send. That is
  * kept in the wallet only, never on Platform.
@@ -98,11 +101,20 @@ public:
     //! Choose the address to pay an established contact at, and hand it to
     //! payTo().
     void pay(const platform::Identifier& contact);
+    //! pay() for the contact a username belongs to. Nothing happens unless
+    //! the contacts were read, which needs DashPay to be on for the wallet.
+    void payUsername(const std::string& username);
 
 Q_SIGNALS:
     void changed();
-    //! Pay the contact at this address of their payment chain.
-    void payTo(const QString& address);
+    //! Pay the contact at this address of their payment chain. `username`
+    //! is the one payUsername() was given; empty for pay().
+    void payTo(const QString& address, const QString& username = {});
+    //! payUsername() chose no address; `error` says why.
+    void usernameNotPaid(const QString& username, const QString& error);
+    //! `username` belongs to a DashPay user who is not a contact: add() sends
+    //! them a contact request.
+    void notAContact(const QString& username);
 
 private:
     using Requests = std::map<platform::Identifier, platform::ContactRequest>;
@@ -117,6 +129,9 @@ private:
     void readNames();
     void resolve();
     void onResolved(platform::Result<platform::Identifier> result);
+    void onPaymentResolved(const platform::Identifier& contact);
+    //! The username payUsername() is paying; empty when it is not.
+    QString payingUsername() const;
     void fetch();
     void onFetched(platform::Result<platform::Identity> result);
     void onSent(const platform::Status& status);
@@ -129,6 +144,8 @@ private:
     //! The username being added, and the contact the request goes to or
     //! the payment is for.
     std::string m_label;
+    //! The resolved username is to be paid, not added.
+    bool m_paying_username{false};
     platform::Identifier m_contact{};
     //! The step's call, until it calls back or is dropped.
     std::weak_ptr<void> m_call;

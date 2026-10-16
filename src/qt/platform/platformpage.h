@@ -50,18 +50,25 @@ public:
     UsernameFlow* usernameFlow() const { return m_username_flow.get(); }
     ContactFlow* contactFlow() const { return m_contact_flow.get(); }
     RecoveryFlow* recoveryFlow() const { return m_recovery_flow.get(); }
+    //! Pay the contact a username belongs to, as typed in the Send tab. The
+    //! address comes with payTo(); anyone else is offered a contact request.
+    void payUsername(const QString& username);
 
 Q_SIGNALS:
     //! A service was created, or is about to be destroyed (nullptr) while
     //! the models it holds and the page's widgets still exist.
     void serviceChanged(PlatformService* service);
-    //! Pay a contact at this address in the Send tab.
-    void payTo(const QString& address);
+    //! Pay a contact at this address in the Send tab. `username` is the one
+    //! typed there; empty when the payment starts from the contacts list.
+    void payTo(const QString& address, const QString& username = {});
+    //! Paying a typed username chose no address; `error` says why.
+    void usernameNotPaid(const QString& username, const QString& error);
 
 private:
     void resetService();
     void refresh();
     void searchUsernames();
+    void offerContactRequest(const QString& username);
     bool confirmFunding(CAmount amount, CAmount fee);
     bool confirmContest();
 

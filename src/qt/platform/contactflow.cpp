@@ -248,11 +248,16 @@ void ContactFlow::update()
 
 void ContactFlow::finish(const QString& error)
 {
+    const QString username{payingUsername()};
+    m_paying_username = false;
     m_step = Step::IDLE;
     m_error = error;
     sweep();
     Q_EMIT changed();
+    if (!username.isEmpty() && !error.isEmpty()) Q_EMIT usernameNotPaid(username, error);
 }
+
+QString ContactFlow::payingUsername() const { return m_paying_username ? QString::fromStdString(m_label) : QString{}; }
 
 void ContactFlow::refresh()
 {
@@ -371,11 +376,31 @@ void ContactFlow::onResolved(platform::Result<platform::Identifier> result)
     if (!result.ok()) return finish(PlatformUi::Describe(result.status));
     const auto& identity{m_identity_flow.identity()};
     if (identity && result.value == identity->id) return finish(tr("“%1” is your own username.").arg(label));
+    if (m_paying_username) return onPaymentResolved(result.value);
     if (m_sent && m_sent->count(result.value)) {
         return finish(tr("You have already sent “%1” a contact request.").arg(label));
     }
     m_contact = result.value;
     m_step = Step::FETCHING;
+    fetch();
+    Q_EMIT changed();
+}
+
+void ContactFlow::onPaymentResolved(const platform::Identifier& contact)
+{
+    if (!swept()) return finish();
+    if (!m_sent->count(contact)) {
+        // Their request, if they sent one, is answered by sending ours.
+        const QString username{payingUsername()};
+        finish();
+        Q_EMIT notAContact(username);
+        return;
+    }
+    if (!m_received->count(contact)) {
+        return finish(tr("“%1” has not accepted your contact request yet.").arg(payingUsername()));
+    }
+    m_contact = contact;
+    m_step = Step::PAYING;
     fetch();
     Q_EMIT changed();
 }
@@ -470,6 +495,17 @@ void ContactFlow::pay(const platform::Identifier& contact)
     Q_EMIT changed();
 }
 
+void ContactFlow::payUsername(const std::string& username)
+{
+    if (m_step != Step::IDLE || !swept() || !platform::IsValidUsername(username)) return;
+    m_label = username;
+    m_paying_username = true;
+    m_step = Step::RESOLVING;
+    m_error.clear();
+    resolve();
+    Q_EMIT changed();
+}
+
 void ContactFlow::prefill(const platform::Identity& theirs)
 {
     WalletModel::UnlockContext unlock{m_service.walletModel().requestUnlock()};
@@ -486,6 +522,7 @@ void ContactFlow::prefill(const platform::Identity& theirs)
     }
     const auto address{NextPaymentAddress(wallet, ours->id, theirs.id, *chain)};
     if (!address) return finish(tr("Dash Core could not choose and record this contact's payment address."));
+    const QString username{payingUsername()};
     finish();
-    Q_EMIT payTo(QString::fromStdString(EncodeDestination(*address)));
+    Q_EMIT payTo(QString::fromStdString(EncodeDestination(*address)), username);
 }

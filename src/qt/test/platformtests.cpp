@@ -24,6 +24,8 @@
 #include <qt/platform/usernameflow.h>
 #include <qt/platform/usernamesearchdialog.h>
 #include <qt/qvalidatedlineedit.h>
+#include <qt/sendcoinsdialog.h>
+#include <qt/sendcoinsentry.h>
 #include <qt/walletmodel.h>
 #include <qt/walletview.h>
 #include <script/standard.h>
@@ -49,6 +51,7 @@
 #include <QStyle>
 #include <QStyleFactory>
 #include <QTableWidget>
+#include <QValidator>
 
 #include <algorithm>
 #include <memory>
@@ -2374,4 +2377,234 @@ void PlatformTests::unignoringShowsTheRequestAgain()
     f.attach(*page);
     sources.fake->deliverAll();
     QVERIFY(ContactIds(page->contactFlow()->contacts()) == (Ids{0x0d, 0x0e}));
+}
+
+//! A username typed in the Send tab pays an established contact the way Pay
+//! does: the next address of their payment chain, from the same cursor,
+//! chosen once. Anyone else is not paid: a contact who has not answered, or
+//! no one, says why; a DashPay user who is not a contact, or whose request
+//! waits for us, is offered a contact request, and no address is used up.
+void PlatformTests::sendPaysAContactByUsername()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    CKey bob_key;
+    bob_key.MakeNewKey(/*fCompressed=*/true);
+    const auto chain{PaymentChain(ZeroSeedPubKey())};
+    // Bob (0x0b) and we asked each other, carol (0x0c) hasn't answered, dave
+    // (0x0d) waits for us, and eve (0x0e) is a DashPay user we know nothing of.
+    // Made now: the rebuilt client's script runs when the wallet is locked.
+    const auto bob_request{IncomingRequest(wallet, 0x0b, 5, bob_key, 2, chain.pubkey)};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({Request(5, 0x0b, 1), Request(5, 0x0c, 1)})};
+        client.received_requests = {Requests({bob_request, Request(0x0d, 5, 2)})};
+        client.resolved_names = {Resolved(0x0b),         Resolved(0x0b), Resolved(0x0c), Resolved(0x0d), Resolved(0x0e),
+                                 Resolved(std::nullopt), Resolved(5),    Resolved(0x0b), Resolved(0x0b)};
+        client.identities.assign(12, Peer(0x0b, bob_key, Purpose::ENCRYPTION));
+    };
+    const auto at = [&](uint32_t index) {
+        return QString::fromStdString(EncodeDestination(PaymentAddress(chain, index)));
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    QSignalSpy paid{&page, &PlatformPage::payTo};
+    QSignalSpy not_paid{&page, &PlatformPage::usernameNotPaid};
+    QSignalSpy offered{page.contactFlow(), &ContactFlow::notAContact};
+    const auto pay = [&](const QString& username) {
+        page.payUsername(username);
+        sources.fake->deliverAll();
+    };
+
+    pay("bob2026");
+    QCOMPARE(paid.size(), 1);
+    QCOMPARE(paid.back().at(0).toString(), at(0));
+    QCOMPARE(paid.back().at(1).toString(), QString{"bob2026"});
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
+    QCOMPARE(sources.fake->countCalls("getIdentity"), size_t{1});
+    QVERIFY(not_paid.isEmpty() && offered.isEmpty());
+    // Pay on the contact's row and a typed username share one cursor.
+    QCOMPARE(PayContact(page, sources, 0x0b), at(1));
+    QVERIFY(paid.back().at(1).toString().isEmpty());
+    pay("bob2026");
+    QCOMPARE(paid.back().at(0).toString(), at(2));
+
+    // Not a contact: nobody is paid, nothing is written.
+    const int payments{static_cast<int>(paid.size())};
+    pay("carol2026");
+    QCOMPARE(not_paid.size(), 1);
+    QCOMPARE(not_paid.back().at(0).toString(), QString{"carol2026"});
+    QVERIFY(!not_paid.back().at(1).toString().isEmpty());
+    pay("dave2026");
+    pay("eve2026");
+    QCOMPARE(offered.size(), 2);
+    QCOMPARE(offered.at(0).at(0).toString(), QString{"dave2026"});
+    QCOMPARE(offered.at(1).at(0).toString(), QString{"eve2026"});
+    QCOMPARE(not_paid.size(), 1);
+    pay("nobody2026");
+    pay("me2026");
+    QCOMPARE(not_paid.size(), 3);
+    QCOMPARE(paid.size(), payments);
+    QCOMPARE(PayContact(page, sources, 0x0b), at(3));
+
+    // A locked wallet needs its passphrase: without it no address is chosen.
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    bool give_passphrase{false};
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        if (give_passphrase) f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    pay("bob2026");
+    QCOMPARE(not_paid.size(), 4);
+    give_passphrase = true;
+    pay("bob2026");
+    QCOMPARE(paid.back().at(0).toString(), at(4));
+    QCOMPARE(paid.back().at(1).toString(), QString{"bob2026"});
+
+    // A rebuild drops the lookup; the new client makes it again.
+    page.payUsername("bob2026");
+    sources.evonodes = {Ipv4Evonode2()};
+    f.listRead();
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
+    sources.fake->deliverAll();
+    QCOMPARE(paid.back().at(0).toString(), at(5));
+}
+
+//! A typed username is looked up only once DashPay is on for the wallet and
+//! its contacts are read; before that it is as good as an address that is
+//! not one, and nothing leaves the wallet.
+void PlatformTests::usernameInSendNeedsDashPay()
+{
+    Fixture f{m_node, /*consented=*/false};
+    QVERIFY(f.models.ok);
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests({})};
+        client.resolved_names = {Resolved(0x0b), Resolved(0x0b)};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QSignalSpy paid{&page, &PlatformPage::payTo};
+    QSignalSpy not_paid{&page, &PlatformPage::usernameNotPaid};
+    QSignalSpy offered{page.contactFlow(), &ContactFlow::notAContact};
+
+    // Without the wallet's consent there is no client.
+    page.payUsername("bob2026");
+    QVERIFY(sources.made.empty());
+    QVERIFY(paid.isEmpty() && not_paid.isEmpty() && offered.isEmpty());
+    // With it, but before the identity and its contacts were read.
+    QVERIFY(page.service()->start());
+    page.payUsername("bob2026");
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{0});
+    sources.fake->deliverAll();
+    page.payUsername("bob2026");
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
+    sources.fake->deliverAll();
+    QCOMPARE(offered.size(), 1);
+    // With the network off the identity is forgotten, and with it the contacts.
+    f.setNetworkActive(false);
+    page.payUsername("bob2026");
+    QCOMPARE(sources.made.size(), size_t{1});
+    QVERIFY(paid.isEmpty() && not_paid.isEmpty());
+    QCOMPARE(offered.size(), 1);
+}
+
+//! The Send tab's pay-to field takes a username as well as an address: the
+//! letters Base58 leaves out and hyphens are accepted while typing, leaving
+//! the field with a name in it announces the name, and an address does not.
+//! The contact's address then replaces the name in the entry that held it,
+//! and only the first one that did; a payment from the contacts list still
+//! gets an entry of its own.
+void PlatformTests::sendEntryTakesAUsername()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    const auto chain{PaymentChain(ZeroSeedPubKey())};
+    const QString address{QString::fromStdString(EncodeDestination(PaymentAddress(chain, 0)))};
+    WalletView view{&f.wallet_model, nullptr};
+    view.gotoSendCoinsPage();
+    auto* dialog{qobject_cast<SendCoinsDialog*>(view.currentWidget())};
+    QVERIFY(dialog);
+    QSignalSpy entered{dialog, &SendCoinsDialog::usernameEntered};
+    auto* pay_to{dialog->findChild<QValidatedLineEdit*>("payTo")};
+    QVERIFY(pay_to);
+
+    QString name{"Bob-l0O"};
+    int pos{0};
+    QVERIFY(pay_to->validator()->validate(name, pos) == QValidator::Acceptable);
+    name = "Bob_l";
+    QVERIFY(pay_to->validator()->validate(name, pos) == QValidator::Invalid);
+    // The CoinJoin tab keeps the address validator.
+    view.gotoCoinJoinCoinsPage();
+    auto* coinjoin_pay_to{qobject_cast<SendCoinsDialog*>(view.currentWidget())->findChild<QValidatedLineEdit*>("payTo")};
+    name = "Bob-l0O";
+    QVERIFY(coinjoin_pay_to->validator()->validate(name, pos) == QValidator::Invalid);
+    view.gotoSendCoinsPage();
+
+    // An address, or what one looks like with a typo, is no username.
+    Q_EMIT pay_to->editingFinished();
+    QVERIFY(entered.isEmpty());
+    pay_to->setText(address);
+    Q_EMIT pay_to->editingFinished();
+    QString typo{address};
+    typo[10] = typo[10] == 'a' ? 'b' : 'a';
+    pay_to->setText(typo);
+    Q_EMIT pay_to->editingFinished();
+    QVERIFY(entered.isEmpty());
+    // A username is announced once: leaving the field again, as a message
+    // box returning the focus does, announces nothing; changing it does.
+    pay_to->setText("Bob-l0O");
+    Q_EMIT pay_to->editingFinished();
+    QCOMPARE(entered.size(), 1);
+    QCOMPARE(entered.front().front().toString(), QString{"Bob-l0O"});
+    Q_EMIT pay_to->editingFinished();
+    QCOMPARE(entered.size(), 1);
+    // It is still no address: the entry refuses to send it.
+    auto* first_entry{dialog->findChild<SendCoinsEntry*>()};
+    QVERIFY(!first_entry->validate(m_node));
+    QVERIFY(!pay_to->isValid());
+    pay_to->setText("Bob-l0O2");
+    Q_EMIT pay_to->editingFinished();
+    QCOMPARE(entered.size(), 2);
+    // Typed again once the address has replaced it: announced again.
+    pay_to->setText("Bob-l0O");
+    Q_EMIT pay_to->editingFinished();
+    QCOMPARE(entered.size(), 3);
+    dialog->setUsernameAddress("Bob-l0O", address);
+    pay_to->setText("Bob-l0O");
+    Q_EMIT pay_to->editingFinished();
+    QCOMPARE(entered.size(), 4);
+    // A name made of Base58 characters is no address either.
+    pay_to->setText("dave2k");
+    Q_EMIT pay_to->editingFinished();
+    QCOMPARE(entered.size(), 5);
+    QCOMPARE(entered.back().front().toString(), QString{"dave2k"});
+    pay_to->setText("Bob-l0O");
+
+    SendCoinsEntry* second{dialog->addEntry()};
+    auto* second_pay_to{second->findChild<QValidatedLineEdit*>("payTo")};
+    second_pay_to->setText("Bob-l0O");
+    dialog->setUsernameAddress("Bob-l0O", address);
+    QCOMPARE(pay_to->text(), address);
+    QCOMPARE(second_pay_to->text(), QString{"Bob-l0O"});
+
+    // The wallet's view fills the entry that held the name; the one filled
+    // from the contacts list is a new entry.
+    PlatformPage* page{view.findChild<PlatformPage*>()};
+    QSignalSpy prepared{&view, &WalletView::contactPaymentPrepared};
+    Q_EMIT page->payTo(address, "Bob-l0O");
+    QCOMPARE(second_pay_to->text(), address);
+    QCOMPARE(dialog->findChildren<QValidatedLineEdit*>("payTo").size(), 2);
+    QVERIFY(prepared.isEmpty());
+    Q_EMIT page->payTo(address, {});
+    QCOMPARE(dialog->findChildren<QValidatedLineEdit*>("payTo").size(), 3);
+    QCOMPARE(prepared.size(), 1);
+    // The tab pays what the Send tab announces.
+    QVERIFY(QObject::disconnect(dialog, &SendCoinsDialog::usernameEntered, page, &PlatformPage::payUsername));
 }

@@ -110,13 +110,26 @@ WalletView::WalletView(WalletModel* wallet_model, QWidget* parent)
     addWidget(proposalListPage);
 
 #ifdef ENABLE_PLATFORM_GUI
+    sendCoinsPage->allowUsernames();
     platformPage = new PlatformPage();
     platformPage->setWalletModel(walletModel);
     addWidget(platformPage);
-    connect(platformPage, &PlatformPage::payTo, this, [this](const QString& address) {
-        sendCoinsPage->setAddress(address);
-        Q_EMIT contactPaymentPrepared();
+    connect(platformPage, &PlatformPage::payTo, this, [this](const QString& address, const QString& username) {
+        if (username.isEmpty()) {
+            sendCoinsPage->setAddress(address);
+            Q_EMIT contactPaymentPrepared();
+        } else {
+            sendCoinsPage->setUsernameAddress(username, address);
+        }
     });
+    // Queued: the message box is modal, and it must not open inside the call that failed.
+    connect(
+        platformPage, &PlatformPage::usernameNotPaid, this,
+        [this](const QString&, const QString& error) {
+            Q_EMIT message(tr("DashPay"), error, CClientUIInterface::MSG_WARNING);
+        },
+        Qt::QueuedConnection);
+    connect(sendCoinsPage, &SendCoinsDialog::usernameEntered, platformPage, &PlatformPage::payUsername);
 #endif
 
     connect(proposalListPage, &ProposalList::showProposalInfo, this, &WalletView::showProposalInfo);

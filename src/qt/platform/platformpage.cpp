@@ -218,11 +218,30 @@ void PlatformPage::resetService()
         m_contacts->setFlow(m_contact_flow.get());
         connect(m_contact_flow.get(), &ContactFlow::changed, this, &PlatformPage::refresh);
         connect(m_contact_flow.get(), &ContactFlow::payTo, this, &PlatformPage::payTo);
+        connect(m_contact_flow.get(), &ContactFlow::usernameNotPaid, this, &PlatformPage::usernameNotPaid);
+        // Not from inside the flow, which the question's event loop may outlive.
+        connect(m_contact_flow.get(), &ContactFlow::notAContact, this, &PlatformPage::offerContactRequest,
+                Qt::QueuedConnection);
         m_recovery_flow = std::make_unique<RecoveryFlow>(*m_service, *m_identity_flow, *m_username_flow, *m_contact_flow);
         connect(m_recovery_flow.get(), &RecoveryFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
+}
+
+void PlatformPage::payUsername(const QString& username)
+{
+    if (m_contact_flow) m_contact_flow->payUsername(username.toStdString());
+}
+
+void PlatformPage::offerContactRequest(const QString& username)
+{
+    if (QMessageBox::question(this, tr("DashPay"),
+                              tr("“%1” is not one of your DashPay contacts yet. Send them a contact request?").arg(username),
+                              QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Yes &&
+        m_contact_flow) {
+        m_contact_flow->add(username.toStdString());
+    }
 }
 
 void PlatformPage::searchUsernames()

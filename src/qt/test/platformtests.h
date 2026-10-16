@@ -55,6 +55,9 @@ private Q_SLOTS:
     void searchSurvivesAClientRebuild();
     void ignoringHidesAnIncomingRequest();
     void unignoringShowsTheRequestAgain();
+    void sendPaysAContactByUsername();
+    void usernameInSendNeedsDashPay();
+    void sendEntryTakesAUsername();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H
