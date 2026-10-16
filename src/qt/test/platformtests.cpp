@@ -6,13 +6,17 @@
 
 #include <qt/test/masternodetestutil.h>
 
+#include <evo/assetlocktx.h>
+#include <evo/specialtx.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <netbase.h>
 #include <qt/clientfeeds.h>
+#include <qt/platform/identityflow.h>
 #include <qt/platform/platformpage.h>
 #include <qt/platform/platformservice.h>
 #include <qt/walletmodel.h>
+#include <script/standard.h>
 #include <test/util/platform_client.h>
 #include <test/util/setup_common.h>
 #include <util/settings.h>
@@ -30,9 +34,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 using MasternodeTestUtil::GuiModels;
+using MasternodeTestUtil::MakeCoinbaseWallet;
 using MasternodeTestUtil::MakeTestWallet;
 using MasternodeTestUtil::WalletGuard;
 using Gate = PlatformService::Gate;
@@ -45,6 +51,27 @@ CService OnionEvonode() { return LookupNumeric("pg6mmjiyjmcrsslvykfwnntlaru7p5sv
 CService I2pEvonode() { return LookupNumeric("udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p", 443); }
 //! -proxy=127.0.0.1:9050 with -proxyrandomize.
 platform::ProxyConfig Tor() { return {LookupNumeric("127.0.0.1", 9050), true}; }
+
+//! 110 blocks: the coinbase key's first coins are mature.
+struct MatureChain : TestChain100Setup {
+    explicit MatureChain(const std::string& chain_name) :
+        TestChain100Setup{chain_name}
+    {
+        mineBlocks(10);
+    }
+};
+
+//! On a MatureChain the wallet holds the coinbase key's coins.
+template <typename ChainSetup>
+std::shared_ptr<wallet::CWallet> MakeFixtureWallet(interfaces::Node& node, wallet::WalletContext& context,
+                                                   const ChainSetup& chain)
+{
+    if constexpr (std::is_same_v<ChainSetup, MatureChain>) {
+        return MakeCoinbaseWallet(node, context, chain, "platform", /*encrypt=*/false);
+    } else {
+        return MakeTestWallet(node, context, "platform");
+    }
+}
 
 //! One test's node, wallet and models; the wallet has started DashPay unless
 //! told otherwise. The node context is reset only after the models are gone.
@@ -66,7 +93,7 @@ struct FixtureWithChain {
         reset{node_in},
         node(node_in),
         context((node.setContext(&chain.m_node), *node.walletLoader().context())),
-        wallet(MakeTestWallet(node, context, "platform")),
+        wallet(MakeFixtureWallet(node, context, chain)),
         guard(context, wallet),
         models(node),
         wallet_model(interfaces::MakeWallet(context, wallet), models.client)
@@ -92,12 +119,16 @@ struct FixtureWithChain {
 using Fixture = FixtureWithChain<TestChain100Setup>;
 //! A node in initial block download: only the old genesis block.
 using SyncingFixture = FixtureWithChain<TestingSetup>;
+//! A synced node and a wallet with coins to fund asset locks with.
+using FundedFixture = FixtureWithChain<MatureChain>;
 
 //! What a service reads instead of the node, and the clients it made.
 struct FakeSources {
     PlatformNetworkSettings settings;
     std::vector<CService> evonodes{Ipv4Evonode()};
     bool refuse{false};
+    //! Run on each new client, to script the answers to the calls it gets first.
+    std::function<void(FakePlatformClient&)> script;
     std::vector<platform::ClientConfig> made; //!< one per client asked for
     FakePlatformClient* fake{nullptr};        //!< the latest one
 
@@ -109,6 +140,7 @@ struct FakeSources {
                 if (refuse) return nullptr;
                 auto client{std::make_unique<FakePlatformClient>()};
                 fake = client.get();
+                if (script) script(*client);
                 return client;
             },
             [this] { return evonodes; },
@@ -150,6 +182,63 @@ QPushButton* VisibleButton(const QWidget& page, const char* name)
 {
     auto* button{page.findChild<QPushButton*>(name)};
     return button && button->isVisibleTo(&page) ? button : nullptr;
+}
+
+platform::Result<platform::Identity> Found(uint8_t id, uint64_t balance)
+{
+    platform::Result<platform::Identity> result;
+    result.status.kind = platform::StatusKind::OK;
+    result.value.id.fill(id);
+    result.value.balance = balance;
+    return result;
+}
+
+platform::Result<platform::Identity> NotFound()
+{
+    platform::Result<platform::Identity> result;
+    result.status.kind = platform::StatusKind::NOT_FOUND;
+    return result;
+}
+
+//! The node has the asset lock's InstantSend lock at once.
+std::optional<platform::AssetLockProof> InstantProof(const CTransactionRef& tx)
+{
+    return platform::InstantAssetLockProof{tx, {1}, 0};
+}
+
+//! Confirms, or declines, each asset lock the flow would send, and keeps
+//! what it was asked.
+struct Confirmations {
+    bool accept{true};
+    std::vector<std::pair<CAmount, CAmount>> asked; //!< amount, fee
+
+    IdentityFlow::Confirm get()
+    {
+        return [this](CAmount amount, CAmount fee) {
+            asked.emplace_back(amount, fee);
+            return accept;
+        };
+    }
+};
+
+uint256 ProofTxid(const platform::AssetLockProof& proof)
+{
+    return std::get<platform::InstantAssetLockProof>(proof).transaction->GetHash();
+}
+
+//! The key the asset lock's credit output pays, as a script.
+CScript CreditScript(interfaces::Wallet& wallet, const uint256& txid)
+{
+    const CTransactionRef tx{wallet.getTx(txid)};
+    Assert(tx && tx->nType == TRANSACTION_ASSET_LOCK);
+    return Assert(GetTxPayload<CAssetLockPayload>(*tx))->getCreditOutputs().at(0).scriptPubKey;
+}
+
+CScript FundingScript(interfaces::Wallet& wallet, const wallet::PlatformKeyRequest& key)
+{
+    const auto pubkey{wallet.getPlatformPubKey(key)};
+    Assert(pubkey);
+    return GetScriptForDestination(PKHash{pubkey.value});
 }
 
 //! Restores the ArgsManager settings a test forced.
@@ -548,4 +637,214 @@ void PlatformTests::detachingClientModelStopsClient()
     unloaded.reset();
     QVERIFY(unloaded_read.expired());
     QCOMPARE(told, std::vector<PlatformService*>{nullptr});
+}
+
+//! Creating an identity: the user sees the amount and the exact fee first,
+//! and declining sends nothing. Accepting commits an asset lock paying the
+//! registration funding key and records it; once the node has a lock for it
+//! the identity is registered with that proof, and is then the wallet's and
+//! the record is gone.
+void PlatformTests::registrationFundsAndRegisters()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {NotFound()};
+        client.registered_identities = {Found(7, 2'999'000'000)};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    bool locked{false};
+    IdentityFlow flow{service, confirmations.get(),
+                      [&locked](const CTransactionRef& tx) { return locked ? InstantProof(tx) : std::nullopt; }};
+    sources.fake->deliverAll();
+    QVERIFY(flow.lookedUp());
+    QVERIFY(!flow.identity());
+
+    const size_t txs{wallet.getWalletTxs().size()};
+    confirmations.accept = false;
+    flow.create();
+    QCOMPARE(confirmations.asked.size(), size_t{1});
+    QCOMPARE(confirmations.asked.back().first, IdentityFlow::REGISTRATION_AMOUNT);
+    QVERIFY(confirmations.asked.back().second > 0);
+    QCOMPARE(wallet.getWalletTxs().size(), txs);
+    QVERIFY(!flow.funding());
+    QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{0});
+
+    confirmations.accept = true;
+    flow.create();
+    const auto funding{flow.funding()};
+    QVERIFY(funding && !funding->top_up);
+    QCOMPARE(funding->amount, IdentityFlow::REGISTRATION_AMOUNT);
+    QVERIFY(CreditScript(wallet, funding->txid) == FundingScript(wallet, wallet::RegistrationFundingKey{0}));
+    QVERIFY(flow.step() == IdentityFlow::Step::WAITING_FOR_LOCK);
+    QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{0});
+    locked = true;
+    Q_EMIT f.models.client.instantSendChanged();
+    QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{1});
+    QVERIFY(sources.fake->calls.back().identity_index == 0U);
+    QVERIFY(ProofTxid(sources.fake->proofs.back()) == funding->txid);
+
+    sources.fake->deliverAll();
+    QVERIFY(flow.identity() && flow.identity()->balance == 2'999'000'000U);
+    QVERIFY(!flow.funding());
+    QVERIFY(flow.error().isEmpty());
+}
+
+//! A registration whose write was dropped (network off) or whose answer
+//! never came (restart) keeps its record: the next session offers Continue,
+//! which sends the same asset lock again without funding another. Platform
+//! reporting it consumed means an earlier attempt landed, and the identity
+//! is then found by its MASTER key, which ends the record.
+void PlatformTests::continueResumesFundingAfterRestart()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    Confirmations confirmations;
+    uint256 txid;
+    {
+        FakeSources sources;
+        sources.script = [](FakePlatformClient& client) { client.identities_by_pubkey_hash = {NotFound()}; };
+        PlatformService service{f.wallet_model, f.models.client, sources.get()};
+        IdentityFlow flow{service, confirmations.get(), InstantProof};
+        sources.fake->deliverAll();
+        flow.create();
+        QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{1});
+        txid = Assert(flow.funding())->txid;
+
+        f.setNetworkActive(false);
+        QVERIFY(flow.step() == IdentityFlow::Step::IDLE);
+        QVERIFY(flow.funding() && flow.funding()->txid == txid);
+        f.setNetworkActive(true);
+        sources.fake->deliverAll();
+        QVERIFY(flow.lookedUp() && !flow.identity());
+        flow.resume();
+        QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{1});
+        QVERIFY(ProofTxid(sources.fake->proofs.back()) == txid);
+        // Restart before Platform answered.
+    }
+
+    const size_t txs{wallet.getWalletTxs().size()};
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        platform::Result<platform::Identity> consumed;
+        consumed.status = {platform::StatusKind::CONSENSUS, 10504, "asset lock outpoint already consumed"};
+        client.identities_by_pubkey_hash = {NotFound(), Found(9, 1'000)};
+        client.registered_identities = {consumed};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    IdentityFlow flow{service, confirmations.get(), InstantProof};
+    sources.fake->deliverAll();
+    QVERIFY(flow.funding() && flow.funding()->txid == txid);
+    flow.resume();
+    QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{1});
+    QVERIFY(ProofTxid(sources.fake->proofs.back()) == txid);
+    QCOMPARE(confirmations.asked.size(), size_t{1});
+    QCOMPARE(wallet.getWalletTxs().size(), txs);
+
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{2});
+    QVERIFY(flow.identity() && flow.identity()->id[0] == 9);
+    QVERIFY(!flow.funding());
+}
+
+//! Each top-up funds an asset lock paying a top-up key not used before,
+//! adds it to the identity the wallet found, and shows the new balance.
+void PlatformTests::topUpUsesAFreshFundingKey()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {Found(5, 100)};
+        platform::Result<uint64_t> balance;
+        balance.status.kind = platform::StatusKind::OK;
+        balance.value = 1'000'000'100;
+        client.top_ups = {balance, balance};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    IdentityFlow flow{service, confirmations.get(), InstantProof};
+    sources.fake->deliverAll();
+    QVERIFY(flow.identity());
+
+    for (uint32_t index : {0U, 1U}) {
+        flow.topUp(IdentityFlow::MIN_TOP_UP);
+        const auto funding{flow.funding()};
+        QVERIFY(funding && funding->top_up && funding->top_up->funding_index == index);
+        QVERIFY(CreditScript(wallet, funding->txid) == FundingScript(wallet, wallet::TopupFundingKey{index}));
+        QVERIFY(sources.fake->calls.back().method == "topUpIdentity");
+        QVERIFY(sources.fake->calls.back().argument == HexStr(flow.identity()->id));
+        QVERIFY(ProofTxid(sources.fake->proofs.back()) == funding->txid);
+        sources.fake->deliverAll();
+        QVERIFY(!flow.funding());
+    }
+    QCOMPARE(flow.identity()->balance, uint64_t{1'000'000'100});
+    QCOMPARE(confirmations.asked.back().first, IdentityFlow::MIN_TOP_UP);
+
+    // A funding payment abandoned while its write was dropped can't reach
+    // Platform: Continue ends its record instead of sending it.
+    flow.topUp(IdentityFlow::MIN_TOP_UP);
+    const uint256 abandoned{Assert(flow.funding())->txid};
+    f.setNetworkActive(false);
+    QVERIFY(wallet.abandonTransaction(abandoned));
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QVERIFY(flow.funding());
+    flow.resume();
+    QVERIFY(!flow.funding());
+    QCOMPARE(sources.fake->countCalls("topUpIdentity"), size_t{0});
+    QVERIFY(!flow.error().isEmpty());
+}
+
+//! An encrypted wallet derives its MASTER key only unlocked: the tab does
+//! not ask for the passphrase on its own but offers the lookup, and once
+//! the identity is found it shows its balance and offers a top-up. A client
+//! rebuilt while the passphrase dialog is open gets one lookup, shown as
+//! running; later clients look it up again without the passphrase.
+void PlatformTests::lockedWalletLooksUpOnUnlock()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+    int unlocks{0};
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        ++unlocks;
+        f.setNetworkActive(false);
+        f.setNetworkActive(true);
+        f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) { client.identities_by_pubkey_hash = {Found(3, 4'000'000)}; };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{0});
+    QCOMPARE(unlocks, 0);
+    QVERIFY(VisibleButton(page, "dashPayCreateIdentity") == nullptr);
+    QVERIFY(!page.findChild<QLabel*>("dashPayIdentity")->isVisibleTo(&page));
+
+    QPushButton* look_up{VisibleButton(page, "dashPayLookUp")};
+    QVERIFY(look_up != nullptr);
+    look_up->click();
+    QCOMPARE(unlocks, 1);
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+    QCOMPARE(sources.made.size(), size_t{2});
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
+    QVERIFY(VisibleButton(page, "dashPayLookUp") == nullptr);
+    sources.fake->deliverAll();
+    QVERIFY(page.findChild<QLabel*>("dashPayIdentity")->isVisibleTo(&page));
+    QVERIFY(VisibleButton(page, "dashPayTopUp") != nullptr);
+    QVERIFY(VisibleButton(page, "dashPayLookUp") == nullptr);
+    QVERIFY(VisibleButton(page, "dashPayCreateIdentity") == nullptr);
+
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    QCOMPARE(sources.made.size(), size_t{3});
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
+    QCOMPARE(unlocks, 1);
 }

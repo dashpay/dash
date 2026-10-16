@@ -4,8 +4,16 @@
 
 #include <qt/platform/platformpage.h>
 
+#include <base58.h>
+#include <qt/bitcoinamountfield.h>
+#include <qt/bitcoinunits.h>
 #include <qt/guiutil.h>
+#include <qt/optionsmodel.h>
+#include <qt/platform/identityflow.h>
+#include <qt/platform/platformui.h>
+#include <qt/walletmodel.h>
 
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -18,18 +26,48 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     auto* layout{new QVBoxLayout(this)};
     auto* title{new QLabel(tr("DashPay"), this)};
     GUIUtil::setFont({title}, GUIUtil::FontWeight::Bold, 18);
+    m_identity = new QLabel(this);
+    m_identity->setObjectName("dashPayIdentity");
+    m_identity->setTextInteractionFlags(Qt::TextSelectableByMouse);
     auto* notice{new QLabel(tr("DashPay connects to evonodes, which see your IP address unless you use a proxy."), this)};
     notice->setObjectName("dashPayNotice");
     notice->setWordWrap(true);
     m_status = new QLabel(this);
     m_status->setWordWrap(true);
+    m_identity_status = new QLabel(this);
+    m_identity_status->setObjectName("dashPayIdentityStatus");
+    m_identity_status->setWordWrap(true);
+
+    m_look_up = new QPushButton(tr("Look up identity"), this);
+    m_look_up->setObjectName("dashPayLookUp");
+    m_create = new QPushButton(tr("Create identity"), this);
+    m_create->setObjectName("dashPayCreateIdentity");
+    m_continue = new QPushButton(tr("Continue"), this);
+    m_continue->setObjectName("dashPayContinue");
+    m_top_up_amount = new BitcoinAmountField(this);
+    m_top_up_amount->setObjectName("dashPayTopUpAmount");
+    m_top_up_amount->SetMinValue(IdentityFlow::MIN_TOP_UP);
+    m_top_up_amount->setValue(IdentityFlow::MIN_TOP_UP);
+    m_top_up = new QPushButton(tr("Top up"), this);
+    m_top_up->setObjectName("dashPayTopUp");
+    auto* actions{new QHBoxLayout};
+    actions->addWidget(m_look_up);
+    actions->addWidget(m_create);
+    actions->addWidget(m_continue);
+    actions->addWidget(m_top_up_amount);
+    actions->addWidget(m_top_up);
+    actions->addStretch();
+
     m_start = new QPushButton(tr("Start DashPay"), this);
     m_start->setObjectName("dashPayStart");
     m_stop = new QPushButton(tr("Turn off DashPay for this wallet"), this);
     m_stop->setObjectName("dashPayStop");
     layout->addWidget(title);
+    layout->addWidget(m_identity);
     layout->addWidget(notice);
     layout->addWidget(m_status);
+    layout->addWidget(m_identity_status);
+    layout->addLayout(actions);
     layout->addWidget(m_start, 0, Qt::AlignLeft);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
@@ -45,6 +83,14 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
             QMessageBox::warning(this, tr("DashPay"), tr("The wallet could not save that DashPay is turned off."));
         }
     });
+    connect(m_look_up, &QPushButton::clicked, this, [this] { m_identity_flow->lookUp(); });
+    connect(m_create, &QPushButton::clicked, this, [this] { m_identity_flow->create(); });
+    connect(m_continue, &QPushButton::clicked, this, [this] { m_identity_flow->resume(); });
+    connect(m_top_up, &QPushButton::clicked, this, [this] {
+        bool valid{false};
+        const CAmount amount{m_top_up_amount->value(&valid)};
+        if (valid && amount >= IdentityFlow::MIN_TOP_UP) m_identity_flow->topUp(amount);
+    });
     refresh();
 }
 
@@ -57,6 +103,7 @@ PlatformPage::~PlatformPage()
 void PlatformPage::setWalletModel(WalletModel* wallet_model)
 {
     m_wallet_model = wallet_model;
+    if (m_wallet_model) m_top_up_amount->setDisplayUnit(m_wallet_model->getOptionsModel()->getDisplayUnit());
     resetService();
 }
 
@@ -70,14 +117,30 @@ void PlatformPage::resetService()
 {
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
+        m_identity_flow.reset();
         m_service.reset();
     }
     if (m_wallet_model && m_client_model) {
         m_service = std::make_unique<PlatformService>(*m_wallet_model, *m_client_model, m_sources);
         connect(m_service.get(), &PlatformService::changed, this, &PlatformPage::refresh);
+        m_identity_flow = std::make_unique<IdentityFlow>(*m_service, [this](CAmount amount, CAmount fee) {
+            return confirmFunding(amount, fee);
+        });
+        connect(m_identity_flow.get(), &IdentityFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
+}
+
+bool PlatformPage::confirmFunding(CAmount amount, CAmount fee)
+{
+    const BitcoinUnit unit{m_wallet_model->getOptionsModel()->getDisplayUnit()};
+    return QMessageBox::question(this, tr("Confirm DashPay payment"),
+                                 tr("Send %1 to Dash Platform as identity credits?\n\nNetwork fee: %2\nTotal: %3")
+                                     .arg(BitcoinUnits::formatWithUnit(unit, amount),
+                                          BitcoinUnits::formatWithUnit(unit, fee),
+                                          BitcoinUnits::formatWithUnit(unit, amount + fee)),
+                                 QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Yes;
 }
 
 void PlatformPage::refresh()
@@ -93,4 +156,59 @@ void PlatformPage::refresh()
     m_status->setVisible(!status.isEmpty());
     m_start->setVisible(m_service && gate == Gate::NO_CONSENT);
     m_stop->setVisible(m_service && m_service->consented());
+
+    const IdentityFlow* flow{m_identity_flow.get()};
+    const bool running{flow && m_service->client()};
+    const BitcoinUnit unit{m_wallet_model ? m_wallet_model->getOptionsModel()->getDisplayUnit() : BitcoinUnit::DASH};
+    const platform::Identity* identity{flow && flow->identity() ? &*flow->identity() : nullptr};
+    if (identity) {
+        m_identity->setText(tr("Identity %1 · Balance %2")
+                                .arg(QString::fromStdString(EncodeBase58(identity->id)),
+                                     PlatformUi::FormatCredits(unit, identity->balance)));
+    }
+    m_identity->setVisible(identity != nullptr);
+
+    using Step = IdentityFlow::Step;
+    const Step step{flow ? flow->step() : Step::IDLE};
+    const auto funding{running ? flow->funding() : std::nullopt};
+    const bool idle{running && step == Step::IDLE};
+    //! Nothing in flight and no funding waiting for Platform.
+    const bool ready{idle && !funding};
+    QString identity_status;
+    switch (step) {
+    case Step::IDLE:
+        if (!running) break;
+        if (!flow->error().isEmpty()) {
+            identity_status = flow->error();
+        } else if (funding) {
+            identity_status = tr("A funding payment of %1 has not reached Dash Platform yet.")
+                                  .arg(BitcoinUnits::formatWithUnit(unit, funding->amount));
+        } else if (!flow->lookedUp()) {
+            identity_status = tr("Unlock the wallet so DashPay can find your identity.");
+        } else if (!identity) {
+            identity_status = tr("This wallet has no DashPay identity yet. Creating one buys %1 of credits.")
+                                  .arg(BitcoinUnits::formatWithUnit(unit, IdentityFlow::REGISTRATION_AMOUNT));
+        }
+        break;
+    case Step::LOOKING_UP:
+        identity_status = tr("Looking up your DashPay identity…");
+        break;
+    case Step::FUNDING:
+        identity_status = tr("Preparing the funding payment…");
+        break;
+    case Step::WAITING_FOR_LOCK:
+        identity_status = tr("Waiting for the network to lock the funding payment…");
+        break;
+    case Step::SENDING:
+        identity_status = funding && funding->top_up ? tr("Adding the credits to your identity…")
+                                                     : tr("Creating your DashPay identity…");
+        break;
+    }
+    m_identity_status->setText(identity_status);
+    m_identity_status->setVisible(!identity_status.isEmpty());
+    m_look_up->setVisible(ready && !flow->lookedUp());
+    m_create->setVisible(ready && flow->lookedUp() && !identity);
+    m_continue->setVisible(idle && funding.has_value());
+    m_top_up_amount->setVisible(ready && identity);
+    m_top_up->setVisible(ready && identity);
 }

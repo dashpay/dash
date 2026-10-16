@@ -63,16 +63,18 @@ void FakePlatformClient::contactRequests(const Identifier& identity, platform::C
     Answer({"contactRequests", HexStr(identity), std::nullopt}, contact_requests, std::move(cb));
 }
 
-void FakePlatformClient::registerIdentity(std::vector<platform::IdentityPublicKey>, platform::AssetLockProof,
+void FakePlatformClient::registerIdentity(std::vector<platform::IdentityPublicKey>, platform::AssetLockProof proof,
                                           platform::Signing signing, Callback<platform::Identity> cb)
 {
+    if (!shut_down) proofs.push_back(std::move(proof));
     Answer({"registerIdentity", "", signing.identity_index}, registered_identities, std::move(cb),
            std::move(signing.unlock));
 }
 
-void FakePlatformClient::topUpIdentity(const Identifier& identity, platform::AssetLockProof, wallet::TopupFundingKey,
-                                       platform::Signing signing, Callback<uint64_t> cb)
+void FakePlatformClient::topUpIdentity(const Identifier& identity, platform::AssetLockProof proof,
+                                       wallet::TopupFundingKey, platform::Signing signing, Callback<uint64_t> cb)
 {
+    if (!shut_down) proofs.push_back(std::move(proof));
     Answer({"topUpIdentity", HexStr(identity), signing.identity_index}, top_ups, std::move(cb), std::move(signing.unlock));
 }
 
