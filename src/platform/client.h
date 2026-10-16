@@ -53,6 +53,8 @@ struct ClientConfig {
     std::optional<ProxyConfig> proxy; //!< nullopt: connect directly
     //! Evonode Platform HTTPS endpoints, fixed for the client's lifetime.
     std::vector<CService> endpoints;
+
+    friend bool operator==(const ClientConfig&, const ClientConfig&) = default;
 };
 
 //! Asynchronous Dash Platform client. Each call runs on a worker thread and

@@ -166,6 +166,8 @@ struct ProxyConfig {
     std::variant<CService, std::string> address;
     //! -proxyrandomize: fresh credentials per connection.
     bool randomize_credentials{true};
+
+    friend bool operator==(const ProxyConfig&, const ProxyConfig&) = default;
 };
 
 } // namespace platform
