@@ -127,6 +127,8 @@ QT_MOC_CPP += \
   qt/platform/moc_contactflow.cpp \
   qt/platform/moc_contactspage.cpp \
   qt/platform/moc_identityflow.cpp \
+  qt/platform/moc_notificationfeed.cpp \
+  qt/platform/moc_notificationspage.cpp \
   qt/platform/moc_platformpage.cpp \
   qt/platform/moc_platformservice.cpp \
   qt/platform/moc_recoveryflow.cpp \
@@ -241,6 +243,8 @@ BITCOIN_QT_H += \
   qt/platform/contactflow.h \
   qt/platform/contactspage.h \
   qt/platform/identityflow.h \
+  qt/platform/notificationfeed.h \
+  qt/platform/notificationspage.h \
   qt/platform/platformpage.h \
   qt/platform/platformservice.h \
   qt/platform/platformui.h \
@@ -386,6 +390,8 @@ BITCOIN_QT_PLATFORM_CPP = \
   qt/platform/contactflow.cpp \
   qt/platform/contactspage.cpp \
   qt/platform/identityflow.cpp \
+  qt/platform/notificationfeed.cpp \
+  qt/platform/notificationspage.cpp \
   qt/platform/platformpage.cpp \
   qt/platform/platformservice.cpp \
   qt/platform/platformui.cpp \

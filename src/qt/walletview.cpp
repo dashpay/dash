@@ -130,6 +130,13 @@ WalletView::WalletView(WalletModel* wallet_model, QWidget* parent)
         },
         Qt::QueuedConnection);
     connect(sendCoinsPage, &SendCoinsDialog::usernameEntered, platformPage, &PlatformPage::payUsername);
+    // What the tray is told about transactions, the DashPay tab is told too.
+    connect(this, &WalletView::incomingTransaction, platformPage,
+            [this](const QString&, BitcoinUnit, const CAmount& amount, const QString&, const QString& address) {
+                platformPage->incomingPayment(address, amount);
+            });
+    connect(platformPage, &PlatformPage::notification, this,
+            [this](const QString& text) { Q_EMIT message(tr("DashPay"), text, CClientUIInterface::MSG_INFORMATION); });
 #endif
 
     connect(proposalListPage, &ProposalList::showProposalInfo, this, &WalletView::showProposalInfo);

@@ -16,6 +16,8 @@ class BitcoinAmountField;
 class ContactFlow;
 class ContactsPage;
 class IdentityFlow;
+class NotificationFeed;
+class NotificationsPage;
 class RecoveryFlow;
 class UsernameFlow;
 class UsernameSearchDialog;
@@ -49,10 +51,14 @@ public:
     IdentityFlow* identityFlow() const { return m_identity_flow.get(); }
     UsernameFlow* usernameFlow() const { return m_username_flow.get(); }
     ContactFlow* contactFlow() const { return m_contact_flow.get(); }
+    NotificationFeed* notificationFeed() const { return m_notifications.get(); }
     RecoveryFlow* recoveryFlow() const { return m_recovery_flow.get(); }
     //! Pay the contact a username belongs to, as typed in the Send tab. The
     //! address comes with payTo(); anyone else is offered a contact request.
     void payUsername(const QString& username);
+    //! The wallet received `amount` at `address`; the feed lists it when a
+    //! contact paid it.
+    void incomingPayment(const QString& address, CAmount amount);
 
 Q_SIGNALS:
     //! A service was created, or is about to be destroyed (nullptr) while
@@ -63,6 +69,8 @@ Q_SIGNALS:
     void payTo(const QString& address, const QString& username = {});
     //! Paying a typed username chose no address; `error` says why.
     void usernameNotPaid(const QString& username, const QString& error);
+    //! Something new among the contacts, for the tray.
+    void notification(const QString& text);
 
 private:
     void resetService();
@@ -82,6 +90,9 @@ private:
     std::unique_ptr<UsernameFlow> m_username_flow;
     //! Destroyed before the identity flow it reads.
     std::unique_ptr<ContactFlow> m_contact_flow;
+    //! Destroyed before the flow it reads, and made before the recovery flow so that it sees the
+    //! contacts while the recovery still holds the wallet unlocked.
+    std::unique_ptr<NotificationFeed> m_notifications;
     //! Destroyed before the flows it reads.
     std::unique_ptr<RecoveryFlow> m_recovery_flow;
     //! Destroyed before the flows it reads.
@@ -102,6 +113,7 @@ private:
     QPushButton* m_register{nullptr};
     QLabel* m_username_status{nullptr};
     ContactsPage* m_contacts{nullptr};
+    NotificationsPage* m_notifications_page{nullptr};
     QPushButton* m_stop{nullptr};
 };
 

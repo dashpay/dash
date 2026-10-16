@@ -54,17 +54,19 @@ std::optional<uint32_t> FirstEnabledKey(const platform::Identity& identity, Purp
 }
 
 //! The accountReference over our receiving chain towards `theirs`, which is
-//! imported first so their payments are seen. No payment can predate it, so
-//! it is born now.
+//! imported first so their payments are seen, and returned in `chain`. No
+//! payment can predate it, so it is born now.
 std::optional<uint32_t> ImportedAccountReference(interfaces::Wallet& wallet, const platform::Identifier& ours,
-                                                 const platform::Identifier& theirs, uint32_t encryption_key)
+                                                 const platform::Identifier& theirs, uint32_t encryption_key,
+                                                 wallet::FriendshipXpub& chain)
 {
-    const auto chain{wallet.ensureFriendshipReceivingKeychain(
+    const auto imported{wallet.ensureFriendshipReceivingKeychain(
         {ContactFlow::ACCOUNT, uint256{ours}, uint256{theirs}, TicksSinceEpoch<std::chrono::seconds>(NodeClock::now())})};
     wallet::CompactXpub compact;
-    if (!chain || !wallet::CompactXpubBytes(chain.value, compact)) return std::nullopt;
+    if (!imported || !wallet::CompactXpubBytes(imported.value, compact)) return std::nullopt;
     const auto reference{wallet.platformAccountReference({IdentityFlow::IDENTITY_INDEX, encryption_key}, compact)};
     if (!reference) return std::nullopt;
+    chain = imported.value;
     return reference.value;
 }
 
@@ -203,8 +205,10 @@ std::vector<ContactFlow::Contact> ContactFlow::list(bool hidden) const
         if ((state == State::INCOMING && m_ignored && m_ignored->count(id)) != hidden) return;
         const auto name{m_names.find(id)};
         const auto sent{m_sent->find(id)};
+        const auto received{m_received->find(id)};
         contacts.push_back({id, state, name == m_names.end() ? std::nullopt : name->second,
-                            sent == m_sent->end() ? 0 : sent->second.created_at_ms});
+                            sent == m_sent->end() ? 0 : sent->second.created_at_ms,
+                            received == m_received->end() ? 0 : received->second.created_at_ms, name != m_names.end()});
     };
     for (const auto& [id, request] : *m_received) {
         add(id, m_sent->count(id) ? State::ESTABLISHED : State::INCOMING);
@@ -462,8 +466,10 @@ void ContactFlow::onFetched(platform::Result<platform::Identity> result)
         return finish(tr("This person's contact request to you carries no valid payment key, so DashPay can't add "
                          "them."));
     }
-    const auto reference{ImportedAccountReference(wallet, ours.id, theirs.id, *encryption_key)};
+    wallet::FriendshipXpub chain;
+    const auto reference{ImportedAccountReference(wallet, ours.id, theirs.id, *encryption_key, chain)};
     if (!reference) return finish(tr("Dash Core could not derive the contact request's keys from this wallet."));
+    Q_EMIT receivingChain(theirs.id, chain);
 
     platform::ContactRequestInput input;
     input.sender = ours.id;

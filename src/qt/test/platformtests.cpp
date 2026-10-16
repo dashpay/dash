@@ -15,9 +15,11 @@
 #include <key_io.h>
 #include <netbase.h>
 #include <node/blockstorage.h>
+#include <node/interface_ui.h>
 #include <qt/clientfeeds.h>
 #include <qt/platform/contactflow.h>
 #include <qt/platform/identityflow.h>
+#include <qt/platform/notificationfeed.h>
 #include <qt/platform/platformpage.h>
 #include <qt/platform/platformservice.h>
 #include <qt/platform/recoveryflow.h>
@@ -552,6 +554,40 @@ Ids ContactIds(const std::vector<ContactFlow::Contact>& contacts)
         ids.push_back(contact.id[0]);
     }
     return ids;
+}
+
+
+//! A time Platform could stamp a request with, `seconds` from now.
+uint64_t At(int64_t seconds)
+{
+    return static_cast<uint64_t>(TicksSinceEpoch<std::chrono::milliseconds>(NodeClock::now()) + seconds * 1000);
+}
+
+//! The wallet received `amount` at `address`.
+void Pay(PlatformPage& page, const CTxDestination& address, CAmount amount = COIN)
+{
+    page.incomingPayment(QString::fromStdString(EncodeDestination(address)), amount);
+}
+
+using Listed = std::vector<std::pair<uint8_t, NotificationFeed::Kind>>;
+
+//! The first byte of each contact and what the notifications say of them, newest first.
+Listed Notifications(const PlatformPage& page)
+{
+    Listed listed;
+    for (const auto& entry : page.notificationFeed()->entries()) {
+        listed.emplace_back(entry.contact[0], entry.kind);
+    }
+    return listed;
+}
+
+//! What the notifications say of the contact whose id starts with `id`: the first entry, the newest.
+QString NotificationText(const PlatformPage& page, uint8_t id)
+{
+    for (const auto& entry : page.notificationFeed()->entries()) {
+        if (entry.contact[0] == id) return page.notificationFeed()->text(entry);
+    }
+    return {};
 }
 
 } // namespace
@@ -2607,4 +2643,342 @@ void PlatformTests::sendEntryTakesAUsername()
     QCOMPARE(prepared.size(), 1);
     // The tab pays what the Send tab announces.
     QVERIFY(QObject::disconnect(dialog, &SendCoinsDialog::usernameEntered, page, &PlatformPage::payUsername));
+}
+
+//! What the contacts hold at the first read is not news; a request that
+//! arrives afterwards, and the answer to one of ours, are alerted once, one
+//! we answered ourselves is only listed. After a restart a request made while
+//! the wallet was closed is announced, and many at once are one alert.
+void PlatformTests::requestsAndAnswersAreAnnouncedOnce()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    using Kind = NotificationFeed::Kind;
+    using RequestList = std::vector<platform::ContactRequest>;
+    // Bob (0x0b) hasn't answered us, dave (0x0d) asked us before the first read.
+    const RequestList sent{Request(5, 0x0b, At(-300))};
+    const RequestList received{Request(0x0d, 5, At(-200))};
+    // Erin asks and bob answers; later we answer dave; later still frank asks.
+    auto asked{received};
+    asked.push_back(Request(0x0e, 5, At(10)));
+    asked.push_back(Request(0x0b, 5, At(20)));
+    auto answered{sent};
+    answered.push_back(Request(5, 0x0d, At(30)));
+    auto later{asked};
+    later.push_back(Request(0x0f, 5, At(40)));
+    // Then one more than an alert holds ask at once, then as many as it
+    // holds, and one a moment before the last restart.
+    constexpr uint8_t MAX_ALERTS{NotificationFeed::MAX_ALERTS};
+    auto flood{later};
+    for (uint8_t id = 0x20; id < 0x20 + MAX_ALERTS + 1; ++id) {
+        flood.push_back(Request(id, 5, At(50)));
+    }
+    auto exactly_max{flood};
+    for (uint8_t id = 0x40; id < 0x40 + MAX_ALERTS; ++id) {
+        exactly_max.push_back(Request(id, 5, At(55)));
+    }
+    auto just_now{exactly_max};
+    just_now.push_back(Request(0x11, 5, At(60)));
+    std::vector<std::pair<RequestList, RequestList>> reads;
+    auto ours{OurIdentity()};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        for (const auto& [sent_read, received_read] : reads) {
+            client.sent_requests.push_back(Requests(sent_read));
+            client.received_requests.push_back(Requests(received_read));
+        }
+    };
+    std::unique_ptr<PlatformPage> page;
+    std::unique_ptr<QSignalSpy> alerts;
+    const auto open = [&] {
+        page = std::make_unique<PlatformPage>(sources.get());
+        f.attach(*page);
+        alerts = std::make_unique<QSignalSpy>(page.get(), &PlatformPage::notification);
+        sources.fake->deliverAll();
+    };
+    reads = {{sent, received}, {sent, asked}, {sent, asked}, {answered, asked}};
+    open();
+    const auto refresh = [&] {
+        VisibleButton(*page, "dashPayRefreshContacts")->click();
+        sources.fake->deliverAll();
+    };
+    QVERIFY(alerts->isEmpty());
+    QVERIFY(Notifications(*page) == (Listed{{0x0d, Kind::REQUEST}}));
+
+    refresh();
+    QCOMPARE(alerts->size(), 2);
+    QVERIFY(Notifications(*page) == (Listed{{0x0b, Kind::ACCEPTED}, {0x0e, Kind::REQUEST}, {0x0d, Kind::REQUEST}}));
+    // Each alert says who, in the order of the requests.
+    QCOMPARE(alerts->at(0).front().toString(), NotificationText(*page, 0x0e));
+    QCOMPARE(alerts->at(1).front().toString(), NotificationText(*page, 0x0b));
+    const auto* list{page->findChild<QTableWidget*>("dashPayNotifications")};
+    QVERIFY(list->isVisibleTo(page.get()));
+    QCOMPARE(list->rowCount(), 3);
+    refresh();
+    QCOMPARE(alerts->size(), 2);
+    refresh();
+    QCOMPARE(alerts->size(), 2);
+    QVERIFY(Notifications(*page) == (Listed{{0x0d, Kind::ADDED}, {0x0b, Kind::ACCEPTED}, {0x0e, Kind::REQUEST}}));
+
+    // Frank's request was made while the wallet was closed.
+    reads = {{answered, later}, {answered, flood}, {answered, exactly_max}, {answered, just_now}};
+    open();
+    QCOMPARE(alerts->size(), 1);
+    QCOMPARE(alerts->front().front().toString(), NotificationText(*page, 0x0f));
+    QVERIFY(Notifications(*page).size() == 4);
+    refresh();
+    QCOMPARE(alerts->size(), 2);
+    QVERIFY(alerts->back().front().toString().contains(QString::number(MAX_ALERTS + 1)));
+    refresh();
+    QCOMPARE(alerts->size(), 2 + MAX_ALERTS);
+    refresh();
+    QCOMPARE(alerts->size(), 3 + MAX_ALERTS);
+    QCOMPARE(alerts->back().front().toString(), NotificationText(*page, 0x11));
+
+    // Another identity of the wallet has announced nothing: what its
+    // contacts hold, a request newer than any announced included, is not news to it.
+    ours.value.id.fill(6);
+    auto newer{just_now};
+    newer.push_back(Request(0x12, 5, At(70)));
+    reads = {{answered, newer}};
+    open();
+    QVERIFY(alerts->isEmpty());
+}
+
+//! A request is announced only once its sender's username has been read,
+//! so the alert names them, and not before an older request still waiting
+//! for its sender's name: a later one doesn't make that one be skipped. Two
+//! made at the same time are announced together.
+void PlatformTests::requestsAreAnnouncedByName()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    using Kind = NotificationFeed::Kind;
+    // Dave (0x0d) asked after erin (0x0e) and frank (0x0f), who asked at the
+    // same time. Names are read in that order: his, erin's, frank's.
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"}), Names({"dave2026"}), Names({"erin2026"}), Names({"frank2026"})};
+        client.sent_requests = {Requests({}), Requests({})};
+        client.received_requests = {Requests({}), Requests({Request(0x0d, 5, At(20)), Request(0x0e, 5, At(10)),
+                                                            Request(0x0f, 5, At(10))})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QSignalSpy alerts{&page, &PlatformPage::notification};
+    sources.fake->deliverAll();
+    VisibleButton(page, "dashPayRefreshContacts")->click();
+    // The requests are read, then dave's and erin's names, but not frank's.
+    for (int answer = 0; answer < 4; ++answer) {
+        sources.fake->deliverNext();
+    }
+    QVERIFY(Notifications(page) == (Listed{{0x0d, Kind::REQUEST}, {0x0e, Kind::REQUEST}, {0x0f, Kind::REQUEST}}));
+    QVERIFY(alerts.isEmpty());
+    sources.fake->deliverAll();
+    QCOMPARE(alerts.size(), 3);
+    QVERIFY(NotificationText(page, 0x0d).contains("dave2026"));
+    QVERIFY(NotificationText(page, 0x0e).contains("erin2026"));
+    QVERIFY(NotificationText(page, 0x0f).contains("frank2026"));
+    QCOMPARE(alerts.at(0).front().toString(), NotificationText(page, 0x0e));
+    QCOMPARE(alerts.at(1).front().toString(), NotificationText(page, 0x0f));
+    QCOMPARE(alerts.at(2).front().toString(), NotificationText(page, 0x0d));
+}
+
+//! A payment to an address of a contact's receiving chain is listed as that
+//! contact's and alerted; nothing else is. The range looked at moves on with
+//! the payments, and the list stays for the identity, not for another.
+void PlatformTests::contactPaymentsAreAttributed()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    using Kind = NotificationFeed::Kind;
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    // Bob is a contact, carol hasn't answered us, dave waits for us.
+    auto ours{OurIdentity()};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"}), Names({"dave2026"}), Names({"bob2026"}), Names({"carol2026"})};
+        client.sent_requests = {Requests({Request(5, 0x0b, 1), Request(5, 0x0c, 1)})};
+        client.received_requests = {Requests({Request(0x0b, 5, 2), Request(0x0d, 5, 2)})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QSignalSpy alerts{&page, &PlatformPage::notification};
+    sources.fake->deliverAll();
+    const auto pay = [&](const CTxDestination& address, CAmount amount = COIN) { Pay(page, address, amount); };
+    using Payments = std::vector<std::pair<uint8_t, CAmount>>;
+    // The payments listed: the contact and what they paid.
+    const auto payments = [&] {
+        Payments paid;
+        for (const auto& entry : page.notificationFeed()->entries()) {
+            if (entry.kind == Kind::PAYMENT) paid.emplace_back(entry.contact[0], entry.amount);
+        }
+        return paid;
+    };
+    QVERIFY(alerts.isEmpty());
+
+    pay(OurAddress(wallet, 0x0b, 3), COIN);
+    QCOMPARE(alerts.size(), 1);
+    QVERIFY(alerts.front().front().toString().contains("bob2026"));
+    QVERIFY(payments() == (Payments{{0x0b, COIN}}));
+    // Carol has not answered, but can pay: a fresh chain is looked at up to
+    // the range, and then on from where a payment was.
+    pay(OurAddress(wallet, 0x0c, NotificationFeed::CHAIN_RANGE), COIN);
+    QCOMPARE(alerts.size(), 1);
+    pay(OurAddress(wallet, 0x0c, NotificationFeed::CHAIN_RANGE - 1), 2 * COIN);
+    QCOMPARE(alerts.size(), 2);
+    pay(OurAddress(wallet, 0x0c, 2 * NotificationFeed::CHAIN_RANGE - 1), 3 * COIN);
+    QCOMPARE(alerts.size(), 3);
+    pay(OurAddress(wallet, 0x0c, 3 * NotificationFeed::CHAIN_RANGE - 1), 4 * COIN);
+    QCOMPARE(alerts.size(), 4);
+    pay(OurAddress(wallet, 0x0c, 4 * NotificationFeed::CHAIN_RANGE), COIN);
+    QCOMPARE(alerts.size(), 4);
+    const Payments listed{payments()};
+    QCOMPARE(listed.size(), size_t{4});
+    QVERIFY(std::count(listed.begin(), listed.end(), std::make_pair(uint8_t{0x0c}, 4 * COIN)) == 1);
+
+    // Not a contact's: dave never got a chain from us, and nobody pays this
+    // address, one the wallet sent to, or nothing at all.
+    pay(OurAddress(wallet, 0x0d, 0), COIN);
+    pay(PaymentAddress(PaymentChain(ZeroSeedPubKey()), 0), COIN);
+    pay(OurAddress(wallet, 0x0b, 1), -COIN);
+    pay(OurAddress(wallet, 0x0b, 1), 0);
+    page.incomingPayment("not an address", COIN);
+    QCOMPARE(alerts.size(), 4);
+    QCOMPARE(payments().size(), size_t{4});
+
+    // They are listed in the tab with the contact's requests.
+    const auto* list{page.findChild<QTableWidget*>("dashPayNotifications")};
+    QVERIFY(list->isVisibleTo(&page));
+    QCOMPARE(list->rowCount(), 4 + 1 + 1);
+
+    // The network going off and on leaves the identity, and what was listed.
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QCOMPARE(payments().size(), size_t{4});
+    pay(OurAddress(wallet, 0x0b, 4), COIN);
+    QCOMPARE(alerts.size(), 5);
+    QCOMPARE(payments().size(), size_t{5});
+    // Another identity of the wallet has nothing yet: its contacts' chains
+    // are others, and the old ones are not paid.
+    ours.value.id.fill(6);
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QVERIFY(payments().empty());
+    pay(OurAddress(wallet, 0x0b, 5), COIN);
+    QCOMPARE(alerts.size(), 5);
+}
+
+//! A locked wallet can't derive a contact's chain when the payment arrives,
+//! but the unlock that found the identity could, and the one that sent a
+//! contact request: the payments are attributed, also after the network
+//! went off and on.
+void PlatformTests::lockedWalletPaymentsAreAttributed()
+{
+    Fixture f{m_node, /*consented=*/false};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    const auto bob_first{OurAddress(wallet, 0x0b, 0)};
+    const auto carol_first{OurAddress(wallet, 0x0c, 0)};
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock,
+                     [&] { f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase"); });
+    auto carol{Found(0x0c, 0)};
+    carol.value.public_keys = {Key(0, Purpose::AUTHENTICATION, Level::MASTER), Key(3, Purpose::DECRYPTION, Level::MEDIUM)};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({Request(5, 0x0b, 1)}), Requests({Request(5, 0x0b, 1), Request(5, 0x0c, 3)})};
+        client.received_requests = {Requests({Request(0x0b, 5, 2)})};
+        client.resolved_names = {Resolved(0x0c)};
+        client.identities = {carol};
+        client.sent_contact_requests = {Resolved(1)};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QSignalSpy alerts{&page, &PlatformPage::notification};
+    VisibleButton(page, "dashPayFindIdentity")->click();
+    sources.fake->deliverAll();
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+    QVERIFY(wallet.getFriendshipReceivingXpub(OurRequest(0x0b)).status != wallet::PlatformKeyStatus::SUCCESS);
+    QVERIFY(alerts.isEmpty());
+
+    Pay(page, bob_first);
+    QCOMPARE(alerts.size(), 1);
+    QCOMPARE(page.notificationFeed()->entries().front().contact[0], uint8_t{0x0b});
+
+    // Carol is asked while the wallet is unlocked for it, and locks again.
+    page.contactFlow()->add("carol2026");
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("sendContactRequest"), size_t{1});
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+    QVERIFY(wallet.getFriendshipReceivingXpub(OurRequest(0x0c)).status != wallet::PlatformKeyStatus::SUCCESS);
+    Pay(page, carol_first);
+    QCOMPARE(alerts.size(), 2);
+
+    // The identity is found again without the passphrase, which no chain can be derived with.
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    Pay(page, bob_first);
+    QCOMPARE(alerts.size(), 3);
+}
+
+//! The tab hears of the transactions the wallet shows the tray, and the
+//! alerts it raises reach the tray the way a transaction's do.
+void PlatformTests::notificationsReachTheTray()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    WalletView view{&f.wallet_model, nullptr};
+    PlatformPage* page{view.findChild<PlatformPage*>()};
+    QVERIFY(page);
+    QSignalSpy messages{&view, &WalletView::message};
+    Q_EMIT page->notification("Bob has sent you a contact request");
+    QCOMPARE(messages.size(), 1);
+    QCOMPARE(messages.front().at(2).toUInt(), static_cast<uint>(CClientUIInterface::MSG_INFORMATION));
+    QVERIFY(QObject::disconnect(&view, &WalletView::incomingTransaction, page, nullptr));
+}
+
+//! A contact who paid us before this session paid at addresses past the
+//! first range: the range starts past the last address the wallet's history
+//! pays, so their next payment is still attributed.
+void PlatformTests::frequentPayersAreAttributed()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    constexpr uint32_t PAID{NotificationFeed::CHAIN_RANGE + 20};
+    // One transaction pays bob's first PAID addresses.
+    std::vector<wallet::CRecipient> recipients;
+    for (uint32_t index = 0; index < PAID; ++index) {
+        recipients.push_back({GetScriptForDestination(OurAddress(wallet, 0x0b, index)), COIN / 100, false});
+    }
+    int change_pos{-1};
+    CAmount fee;
+    const auto tx{wallet.createTransaction(recipients, {}, /*sign=*/true, change_pos, fee)};
+    QVERIFY(tx && wallet.commitTransaction(*tx, {}, {}));
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"}), Names({"bob2026"})};
+        client.sent_requests = {Requests({Request(5, 0x0b, 1)})};
+        client.received_requests = {Requests({Request(0x0b, 5, 2)})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QSignalSpy alerts{&page, &PlatformPage::notification};
+    sources.fake->deliverAll();
+    // The last address of the range, then the first past the history.
+    Pay(page, OurAddress(wallet, 0x0b, PAID + NotificationFeed::CHAIN_RANGE - 1));
+    QCOMPARE(alerts.size(), 1);
+    Pay(page, OurAddress(wallet, 0x0b, PAID));
+    QCOMPARE(alerts.size(), 2);
 }

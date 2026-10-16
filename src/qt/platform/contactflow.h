@@ -6,6 +6,7 @@
 #define BITCOIN_QT_PLATFORM_CONTACTFLOW_H
 
 #include <platform/types.h>
+#include <wallet/platformtypes.h>
 
 #include <QObject>
 #include <QString>
@@ -70,6 +71,10 @@ public:
         std::optional<std::string> username;
         //! When our newest request to them was created; 0 without one.
         uint64_t sent_at_ms{0};
+        //! When their newest request to us was created; 0 without one.
+        uint64_t received_at_ms{0};
+        //! Whether the username was looked up, whether they have one or not.
+        bool name_read{false};
     };
 
     ContactFlow(PlatformService& service, IdentityFlow& identity_flow);
@@ -115,6 +120,9 @@ Q_SIGNALS:
     //! `username` belongs to a DashPay user who is not a contact: add() sends
     //! them a contact request.
     void notAContact(const QString& username);
+    //! Our receiving chain towards `contact` was imported to send them a
+    //! request; the wallet is unlocked for it, and may not be later.
+    void receivingChain(const platform::Identifier& contact, const wallet::FriendshipXpub& chain);
 
 private:
     using Requests = std::map<platform::Identifier, platform::ContactRequest>;

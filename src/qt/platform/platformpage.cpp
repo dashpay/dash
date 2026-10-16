@@ -12,6 +12,8 @@
 #include <qt/platform/contactflow.h>
 #include <qt/platform/contactspage.h>
 #include <qt/platform/identityflow.h>
+#include <qt/platform/notificationfeed.h>
+#include <qt/platform/notificationspage.h>
 #include <qt/platform/platformui.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
@@ -125,6 +127,8 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     m_contacts = new ContactsPage(this);
     m_contacts->setObjectName("dashPayContactsPage");
     connect(m_contacts, &ContactsPage::searchRequested, this, &PlatformPage::searchUsernames);
+    m_notifications_page = new NotificationsPage(this);
+    m_notifications_page->setObjectName("dashPayNotificationsPage");
 
     auto* header{new QHBoxLayout};
     header->addWidget(m_username);
@@ -144,6 +148,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     layout->addWidget(m_username_status);
     layout->addLayout(username_row);
     layout->addWidget(m_contacts);
+    layout->addWidget(m_notifications_page);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
     GUIUtil::updateFonts();
@@ -197,8 +202,10 @@ void PlatformPage::resetService()
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
         m_contacts->setFlow(nullptr);
+        m_notifications_page->setFeed(nullptr);
         m_search.reset();
         m_recovery_flow.reset();
+        m_notifications.reset();
         m_contact_flow.reset();
         m_username_flow.reset();
         m_identity_flow.reset();
@@ -222,6 +229,10 @@ void PlatformPage::resetService()
         // Not from inside the flow, which the question's event loop may outlive.
         connect(m_contact_flow.get(), &ContactFlow::notAContact, this, &PlatformPage::offerContactRequest,
                 Qt::QueuedConnection);
+        m_notifications = std::make_unique<NotificationFeed>(*m_service, *m_identity_flow, *m_contact_flow);
+        m_notifications_page->setFeed(m_notifications.get());
+        connect(m_notifications.get(), &NotificationFeed::changed, this, &PlatformPage::refresh);
+        connect(m_notifications.get(), &NotificationFeed::alert, this, &PlatformPage::notification);
         m_recovery_flow = std::make_unique<RecoveryFlow>(*m_service, *m_identity_flow, *m_username_flow, *m_contact_flow);
         connect(m_recovery_flow.get(), &RecoveryFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
@@ -232,6 +243,11 @@ void PlatformPage::resetService()
 void PlatformPage::payUsername(const QString& username)
 {
     if (m_contact_flow) m_contact_flow->payUsername(username.toStdString());
+}
+
+void PlatformPage::incomingPayment(const QString& address, CAmount amount)
+{
+    if (m_notifications) m_notifications->received(address, amount);
 }
 
 void PlatformPage::offerContactRequest(const QString& username)
@@ -405,6 +421,8 @@ void PlatformPage::refresh()
     m_recovery_status->setVisible(!recovery_status.isEmpty());
 
     // Contacts find the identity by its username.
-    m_contacts->setVisible(running && identity && username);
+    const bool contacts_shown{running && identity && username};
+    m_contacts->setVisible(contacts_shown);
     m_contacts->refresh(ready);
+    m_notifications_page->refresh(contacts_shown);
 }

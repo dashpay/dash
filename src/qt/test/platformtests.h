@@ -58,6 +58,12 @@ private Q_SLOTS:
     void sendPaysAContactByUsername();
     void usernameInSendNeedsDashPay();
     void sendEntryTakesAUsername();
+    void requestsAndAnswersAreAnnouncedOnce();
+    void requestsAreAnnouncedByName();
+    void contactPaymentsAreAttributed();
+    void lockedWalletPaymentsAreAttributed();
+    void notificationsReachTheTray();
+    void frequentPayersAreAttributed();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H
