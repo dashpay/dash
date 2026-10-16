@@ -25,6 +25,7 @@
 #include <interfaces/ipc.h>
 #include <key_io.h>
 #include <kernel/cs_main.h>
+#include <logging.h>
 #include <net.h>
 #include <net_processing.h>
 #include <node/context.h>

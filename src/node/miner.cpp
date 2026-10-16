@@ -14,6 +14,7 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
+#include <logging.h>
 #include <node/context.h>
 #include <policy/feerate.h>
 #include <policy/policy.h>

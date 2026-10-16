@@ -4,9 +4,11 @@
 
 #include <map>
 
+#include <clientversion.h>
 #include <dbwrapper.h>
 #include <hash.h>
 #include <index/blockfilterindex.h>
+#include <logging.h>
 #include <node/blockstorage.h>
 #include <serialize.h>
 #include <util/fs_helpers.h>

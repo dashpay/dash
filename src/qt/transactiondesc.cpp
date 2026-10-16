@@ -14,6 +14,7 @@
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
+#include <logging.h>
 #include <script/script.h>
 #include <util/strencodings.h>
 #include <util/system.h>

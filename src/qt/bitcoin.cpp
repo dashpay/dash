@@ -15,6 +15,7 @@
 #include <interfaces/handler.h>
 #include <interfaces/init.h>
 #include <interfaces/node.h>
+#include <logging.h>
 #include <net.h>
 #include <node/interface_ui.h>
 #include <noui.h>

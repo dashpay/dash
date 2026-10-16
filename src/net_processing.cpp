@@ -16,6 +16,7 @@
 #include <index/blockfilterindex.h>
 #include <index/txindex.h>
 #include <kernel/mempool_entry.h>
+#include <logging.h>
 #include <merkleblock.h>
 #include <net_types.h>
 #include <netbase.h>

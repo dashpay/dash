@@ -21,6 +21,7 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <clientversion.h>
 #include <context.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
@@ -41,6 +42,7 @@
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <kernel/coinstats.h>
+#include <logging.h>
 #include <mapport.h>
 #include <net.h>
 #include <net_permissions.h>

@@ -18,6 +18,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <checkqueue.h>
+#include <clientversion.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <consensus/merkle.h>
@@ -6218,7 +6219,7 @@ static bool DeleteCoinsDBFromDisk(const fs::path db_path, bool is_snapshot)
 
     // We have to destruct before this call leveldb::DB in order to release the db
     // lock, otherwise `DestroyDB` will fail. See `leveldb::~DBImpl()`.
-    const bool destroyed = dbwrapper::DestroyDB(path_str, {}).ok();
+    const bool destroyed = DestroyDB(path_str);
 
     if (!destroyed) {
         LogPrintf("error: leveldb DestroyDB call failed on %s\n", path_str);
