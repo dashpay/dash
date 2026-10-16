@@ -113,8 +113,8 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
             }
             request.SetError(nError);
             CDataStream ssResponse{SER_NETWORK, pfrom.GetCommonVersion()};
-            ssResponse << request << body;
-            m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::QDATA, ssResponse));
+            ssResponse << request << Span{body};
+            m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::QDATA, Span{ssResponse}));
             return misbehave;
         };
 

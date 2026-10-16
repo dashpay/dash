@@ -676,7 +676,7 @@ void CQuorumManager::MigrateOldQuorumDB(CEvoDB& evoDb) const
                 if (!evoDb.GetRawDB().ReadDataStream(k, s)) {
                     break;
                 }
-                batch.Write(k, s);
+                batch.Write(k, Span{s});
             }
             if (prefix == DB_QUORUM_SK_SHARE) {
                 if (!pcursor->GetValue(sk)) {

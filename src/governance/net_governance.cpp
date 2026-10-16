@@ -288,7 +288,7 @@ bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgM
         CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
         ss.reserve(1000);
         if (!m_gov_manager.SerializeObjectForHash(inv.hash, ss)) return false;
-        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, ss));
+        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, Span{ss}));
         return true;
     }
     if (inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
@@ -296,7 +296,7 @@ bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgM
         CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
         ss.reserve(1000);
         if (!m_gov_manager.SerializeVoteForHash(inv.hash, ss)) return false;
-        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss));
+        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, Span{ss}));
         return true;
     }
     return false;
