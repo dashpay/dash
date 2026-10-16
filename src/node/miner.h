@@ -26,6 +26,7 @@ class CChainParams;
 class CChainstateHelper;
 class CConnman;
 class CEvoDB;
+class CMNListBuilder;
 class CScript;
 struct LLMQContext;
 
@@ -202,9 +203,12 @@ private:
     // Methods for how to add transactions to a block.
     /** Add transactions based on feerate including unconfirmed ancestors
       * Increments nPackagesSelected / nDescendantsUpdated with corresponding
-      * statistics from the package selection (for logging statistics). */
+      * statistics from the package selection (for logging statistics).
+      * Provider transactions are applied to mn_list_builder (if set) and packages that do not
+      * apply are skipped. */
     void addPackageTxs(const CTxMemPool& mempool, int& nPackagesSelected, int& nDescendantsUpdated,
-                       const CBlockIndex* pindexPrev) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, mempool.cs);
+                       const CBlockIndex* pindexPrev, CMNListBuilder* mn_list_builder)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, mempool.cs);
 
     // helper functions for addPackageTxs()
     /** Remove confirmed (inBlock) entries from given set */

@@ -41,6 +41,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <vector>
 
 static bool IsV24Active(const ChainstateManager& chainman) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -4116,6 +4117,158 @@ void FuncStaleSpecialTxDoesNotPoisonTemplate(TestChainV24SignalBeforeV19Setup& s
     }
 };
 
+// Provider transactions are validated against the tip, so two that are each valid alone can
+// still conflict when mined together. Block assembly must keep the first one selected, leave out
+// the other and its descendants, and still include unrelated transactions, instead of producing a
+// template whose masternode list cannot be built. This holds whether the list rejects a
+// transaction through a check or by throwing (as AddMN does for a duplicate platformNodeID). A
+// package that is left out must leave no trace in the list: a later registration reusing the owner
+// key of its (valid) parent is still selected. addUnchecked() puts registrations with the same
+// owner key, or the same platformNodeID, into the mempool, which relay would not do.
+void FuncTemplateSkipsConflictingProviderPackage(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& mempool = *Assert(setup.m_node.mempool.get());
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    const CScript coinbase_script = GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey()));
+    // Mature enough coinbase outputs to fund EvoNode collateral too.
+    setup.mineBlocks(60);
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+
+    CKey owner_key;
+    owner_key.MakeNewKey(true);
+    // Funded from the coinbase outputs, or from a collateral-sized output paid to the coinbase key.
+    // A platformNodeID makes it an EvoNode registration.
+    auto make_reg = [&](int port, const CKey& owner, const std::optional<COutPoint>& funding = std::nullopt,
+                        const std::optional<uint160>& platform_node_id = std::nullopt) {
+        CBLSSecretKey operator_key;
+        operator_key.MakeNewKey();
+        CProRegTx pro_reg;
+        pro_reg.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+        pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
+        pro_reg.collateralOutpoint.n = 0;
+        BOOST_REQUIRE_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)),
+                            NetInfoStatus::Success);
+        if (platform_node_id) {
+            pro_reg.nType = MnType::Evo;
+            pro_reg.platformNodeID = *platform_node_id;
+            pro_reg.platformP2PPort = port + 1000;
+            pro_reg.platformHTTPPort = port + 2000;
+        }
+        pro_reg.keyIDOwner = owner.GetPubKey().GetID();
+        pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+        pro_reg.keyIDVoting = owner.GetPubKey().GetID();
+        pro_reg.scriptPayout = coinbase_script;
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_REGISTER;
+        SimpleUTXOMap spent;
+        if (funding) {
+            const CTxOut funding_out{dmn_types::Regular.collat_amount, coinbase_script};
+            tx.vin.emplace_back(*funding);
+            tx.vout.push_back(funding_out);
+            spent.emplace(*funding, Coin(funding_out, /*nHeightIn=*/1, /*fCoinBaseIn=*/false));
+        } else {
+            spent = FundTransaction(chainman, tx, utxos, coinbase_script, GetMnType(pro_reg.nType).collat_amount);
+        }
+        pro_reg.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        SetTxPayload(tx, pro_reg);
+        SignTransaction(tx, spent, setup.coinbaseKey);
+        return tx;
+    };
+    const auto tx_first = make_reg(21001, owner_key);
+    const auto tx_second = make_reg(21002, owner_key);
+
+    CKey other_owner_key;
+    CBLSSecretKey other_operator_key;
+    const auto tx_other = CreateProRegTx(chainman, utxos, 21003, GenerateRandomAddress(), setup.coinbaseKey,
+                                         other_owner_key, other_operator_key);
+
+    // A package whose parent applies and whose child (spending the parent's collateral output)
+    // conflicts with tx_first. It ranks right after tx_first and is tried as a whole and left out.
+    // tx_reuse, ranked next, claims the parent's owner key: it must apply because the rejected
+    // package left no trace, after which the parent, retried on its own, conflicts with it.
+    CKey parent_owner_key;
+    parent_owner_key.MakeNewKey(true);
+    const auto tx_parent = make_reg(21004, parent_owner_key);
+    const auto tx_conflicting_child = make_reg(21005, owner_key, COutPoint{tx_parent.GetHash(), 0});
+    const auto tx_reuse = make_reg(21006, parent_owner_key);
+
+    // Two EvoNode registrations with distinct owner keys and the same platformNodeID: the list
+    // rejects the second one by throwing from AddMN, so it must be left out like a failing one.
+    uint160 platform_node_id;
+    platform_node_id.SetHex("00112233445566778899aabbccddeeff00112233");
+    CKey evo_owner_keys[2];
+    for (auto& key : evo_owner_keys) key.MakeNewKey(true);
+    const auto tx_evo_first = make_reg(21007, evo_owner_keys[0], std::nullopt, platform_node_id);
+    const auto tx_evo_second = make_reg(21008, evo_owner_keys[1], std::nullopt, platform_node_id);
+
+    // A child of the transaction selected second must be left out with it.
+    const COutPoint second_out{tx_second.GetHash(), 0};
+    CMutableTransaction tx_child;
+    tx_child.vin.emplace_back(second_out);
+    tx_child.vout.emplace_back(tx_second.vout[0].nValue - 10000, coinbase_script);
+    SignTransaction(tx_child, {{second_out, Coin(tx_second.vout[0], /*nHeightIn=*/1, /*fCoinBaseIn=*/false)}},
+                    setup.coinbaseKey);
+
+    // Entries carry their real fees (the coinbase claims them); selection order comes from
+    // prioritisation.
+    TestMemPoolEntryHelper entry;
+    {
+        LOCK2(cs_main, mempool.cs);
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_first));
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_second));
+        mempool.addUnchecked(entry.Fee(10000).FromTx(tx_child));
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_other));
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_parent));
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_conflicting_child));
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_reuse));
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_evo_first));
+        mempool.addUnchecked(entry.Fee(0).FromTx(tx_evo_second));
+        mempool.PrioritiseTransaction(tx_first.GetHash(), 1000000);
+        mempool.PrioritiseTransaction(tx_conflicting_child.GetHash(), 900000);
+        mempool.PrioritiseTransaction(tx_reuse.GetHash(), 300000);
+        mempool.PrioritiseTransaction(tx_parent.GetHash(), 20000);
+        mempool.PrioritiseTransaction(tx_evo_first.GetHash(), 400000);
+        mempool.PrioritiseTransaction(tx_evo_second.GetHash(), 200000);
+        mempool.PrioritiseTransaction(tx_second.GetHash(), 100000);
+        mempool.PrioritiseTransaction(tx_other.GetHash(), 50000);
+        // The rollback check relies on this order: tx_first, then the parent/child package (the
+        // child's entry ranks by its ancestor feerate), then tx_reuse, then the parent alone.
+        const CompareTxMemPoolEntryByAncestorFee ranks_before;
+        const auto first_entry = *Assert(mempool.GetIter(tx_first.GetHash()));
+        const auto package_entry = *Assert(mempool.GetIter(tx_conflicting_child.GetHash()));
+        const auto reuse_entry = *Assert(mempool.GetIter(tx_reuse.GetHash()));
+        const auto parent_entry = *Assert(mempool.GetIter(tx_parent.GetHash()));
+        BOOST_REQUIRE(ranks_before(*first_entry, *package_entry));
+        BOOST_REQUIRE(ranks_before(*package_entry, *reuse_entry));
+        BOOST_REQUIRE(ranks_before(*reuse_entry, *parent_entry));
+    }
+
+    node::BlockAssembler assembler{chainman.ActiveChainstate(), setup.m_node, &mempool};
+    std::unique_ptr<node::CBlockTemplate> block_template;
+    try {
+        block_template = assembler.CreateNewBlock(coinbase_pk);
+    } catch (const std::exception& e) {
+        BOOST_ERROR("CreateNewBlock threw: " << e.what());
+    }
+    BOOST_REQUIRE_MESSAGE(block_template != nullptr, "no template built while conflicting ProTxs were resident");
+
+    std::set<uint256> selected;
+    for (const auto& tx : block_template->block.vtx) {
+        selected.insert(tx->GetHash());
+    }
+    BOOST_CHECK(selected.count(tx_first.GetHash()));
+    BOOST_CHECK(!selected.count(tx_second.GetHash()));
+    BOOST_CHECK(!selected.count(tx_child.GetHash()));
+    BOOST_CHECK(selected.count(tx_other.GetHash()));
+    BOOST_CHECK(!selected.count(tx_conflicting_child.GetHash()));
+    BOOST_CHECK(selected.count(tx_reuse.GetHash()));
+    BOOST_CHECK(!selected.count(tx_parent.GetHash()));
+    BOOST_CHECK(selected.count(tx_evo_first.GetHash()));
+    BOOST_CHECK(!selected.count(tx_evo_second.GetHash()));
+}
+
 // A legacy masternode migrates to the basic scheme keeping its operator key: SetStateVersion
 // re-encodes the key and UpdateMN re-keys the unique-property map, so no key rotation is forced.
 void FuncProUpRegTxMigratesLegacySameKey(TestChainV24SignalBeforeV19Setup& setup)
@@ -4307,6 +4460,12 @@ BOOST_AUTO_TEST_CASE(stale_special_tx_does_not_poison_template)
 {
     TestChainV24SignalBeforeV19Setup setup;
     FuncStaleSpecialTxDoesNotPoisonTemplate(setup);
+}
+
+BOOST_AUTO_TEST_CASE(template_skips_conflicting_provider_package)
+{
+    TestChainV19Setup setup;
+    FuncTemplateSkipsConflictingProviderPackage(setup);
 }
 
 BOOST_AUTO_TEST_CASE(proupreg_migrates_legacy_same_key)

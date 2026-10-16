@@ -216,13 +216,26 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->nTime = TicksSinceEpoch<std::chrono::seconds>(NodeClock::now());
     m_lock_time_cutoff = pindexPrev->GetMedianTimePast();
 
+    // The masternode list as built by the transactions selected so far. Provider transactions are
+    // applied to it as they are selected, so the ones that do not fit the list are left out.
+    std::optional<CMNListBuilder> mn_list_builder;
     if (fDIP0003Active_context) {
+        // No list-transition logs: a package's trial may still be discarded, and block connection
+        // logs the transitions that actually happen.
+        mn_list_builder.emplace(*m_chain_helper.special_tx, pindexPrev, fV24Active_context, m_chainstate.CoinsTip(),
+                                /*debugLogs=*/false);
         for (const Consensus::LLMQParams& params : llmq::GetEnabledQuorumParams(m_chainstate.m_chainman, pindexPrev)) {
             std::vector<CTransactionRef> vqcTx;
             if (m_quorum_block_processor.GetMineableCommitmentsTx(params,
                                                                   nHeight,
                                                                   vqcTx)) {
                 for (const auto& qcTx : vqcTx) {
+                    BlockValidationState state;
+                    if (!mn_list_builder->ApplyTx(*qcTx, state)) {
+                        throw std::runtime_error(
+                            strprintf("%s: quorum commitment does not apply to the masternode list: %s", __func__,
+                                      state.ToString()));
+                    }
                     pblock->vtx.emplace_back(qcTx);
                     pblocktemplate->vTxFees.emplace_back(0);
                     pblocktemplate->vTxSigOps.emplace_back(0);
@@ -237,7 +250,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     int nDescendantsUpdated = 0;
     if (m_mempool) {
         LOCK(m_mempool->cs);
-        addPackageTxs(*m_mempool, nPackagesSelected, nDescendantsUpdated, pindexPrev);
+        addPackageTxs(*m_mempool, nPackagesSelected, nDescendantsUpdated, pindexPrev,
+                      mn_list_builder ? &*mn_list_builder : nullptr);
     }
 
     const auto time_1{SteadyClock::now()};
@@ -284,9 +298,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         BlockValidationState state;
         CDeterministicMNList mn_list;
-        const bool is_v24_active{DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
-        if (!m_chain_helper.special_tx->BuildNewListFromBlock(*pblock, pindexPrev, is_v24_active,
-                                                              m_chainstate.CoinsTip(), true, state, mn_list)) {
+        if (!mn_list_builder->Finish(*pblock, state, mn_list)) {
             throw std::runtime_error(strprintf("%s: BuildNewListFromBlock failed: %s", __func__, state.ToString()));
         }
         if (!CalcCbTxMerkleRootMNList(cbTx.merkleRootMNList, mn_list.to_sml(), state)) {
@@ -496,7 +508,8 @@ void BlockAssembler::SortForBlock(const CTxMemPool::setEntries& package, std::ve
 // Each time through the loop, we compare the best transaction in
 // mapModifiedTxs with the next transaction in the mempool to decide what
 // transaction package to work on next.
-void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSelected, int& nDescendantsUpdated, const CBlockIndex* const pindexPrev)
+void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSelected, int& nDescendantsUpdated,
+                                   const CBlockIndex* const pindexPrev, CMNListBuilder* mn_list_builder)
 {
     AssertLockHeld(mempool.cs);
 
@@ -739,6 +752,34 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             }
         }
 
+        // Provider transactions are checked against the tip on entry, so two of them can each be
+        // valid alone and still conflict in one block. Apply the package to a copy of the list as
+        // built so far and skip it if any of its transactions does not apply, instead of producing a
+        // template whose masternode list cannot be built.
+        std::optional<CMNListBuilder> package_mn_list;
+        if (validPackage && mn_list_builder != nullptr &&
+            std::any_of(sortedEntries.begin(), sortedEntries.end(),
+                        [](const auto& entry) { return entry->GetTx().IsSpecialTxVersion(); })) {
+            package_mn_list.emplace(*mn_list_builder);
+            for (const auto& entry : sortedEntries) {
+                const auto& tx = entry->GetTx();
+                BlockValidationState state;
+                std::string error;
+                try {
+                    if (!package_mn_list->ApplyTx(tx, state)) error = state.ToString();
+                } catch (const std::runtime_error& e) {
+                    // AddMN()/UpdateMN() report a unique-property conflict by throwing
+                    error = e.what();
+                }
+                if (!error.empty()) {
+                    LogPrintf("%s: package tx %s skipped, does not apply to the masternode list: %s\n", __func__,
+                              tx.GetHash().ToString(), error);
+                    validPackage = false;
+                    break;
+                }
+            }
+        }
+
         if (validPackage && creditPoolDiff != std::nullopt && !creditPoolTransactions.empty()) {
             TxValidationState state;
             if (!creditPoolDiff->ProcessLockUnlockTransactions(creditPoolTransactions, state)) {
@@ -759,6 +800,9 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         nConsecutiveFailed = 0;
         signals = std::move(packageSignals);
         keyChangedMNs.insert(packageKeyChangedMNs.begin(), packageKeyChangedMNs.end());
+        if (package_mn_list) {
+            *mn_list_builder = std::move(*package_mn_list);
+        }
 
         for (size_t i = 0; i < sortedEntries.size(); ++i) {
             AddToBlock(sortedEntries[i]);
