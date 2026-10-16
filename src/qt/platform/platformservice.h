@@ -115,6 +115,10 @@ public:
     //! rebuild waits for a write. A call whose client is destroyed never
     //! calls back.
     platform::PlatformClient* client() const { return m_paused ? nullptr : m_client.get(); }
+    //! Whether a write is in flight. The wallet's flows start one only when
+    //! none is, which serializes the wallet's unlocks and its identity's
+    //! state transitions.
+    bool writing() const { return m_writes > 0; }
 
     //! Wrap the callback of a write, in the call that starts it: a rebuild
     //! waits until it has run.

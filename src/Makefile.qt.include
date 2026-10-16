@@ -126,7 +126,8 @@ if ENABLE_PLATFORM_GUI
 QT_MOC_CPP += \
   qt/platform/moc_identityflow.cpp \
   qt/platform/moc_platformpage.cpp \
-  qt/platform/moc_platformservice.cpp
+  qt/platform/moc_platformservice.cpp \
+  qt/platform/moc_usernameflow.cpp
 endif
 
 BITCOIN_MM = \
@@ -236,7 +237,8 @@ BITCOIN_QT_H += \
   qt/platform/identityflow.h \
   qt/platform/platformpage.h \
   qt/platform/platformservice.h \
-  qt/platform/platformui.h
+  qt/platform/platformui.h \
+  qt/platform/usernameflow.h
 endif
 
 QT_RES_ICONS = \
@@ -376,7 +378,8 @@ BITCOIN_QT_PLATFORM_CPP = \
   qt/platform/identityflow.cpp \
   qt/platform/platformpage.cpp \
   qt/platform/platformservice.cpp \
-  qt/platform/platformui.cpp
+  qt/platform/platformui.cpp \
+  qt/platform/usernameflow.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS

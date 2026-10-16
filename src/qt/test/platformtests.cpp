@@ -15,6 +15,7 @@
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformpage.h>
 #include <qt/platform/platformservice.h>
+#include <qt/platform/usernameflow.h>
 #include <qt/walletmodel.h>
 #include <script/standard.h>
 #include <test/util/platform_client.h>
@@ -27,6 +28,7 @@
 
 #include <QCoreApplication>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QSignalSpy>
 
@@ -42,6 +44,8 @@ using MasternodeTestUtil::MakeCoinbaseWallet;
 using MasternodeTestUtil::MakeTestWallet;
 using MasternodeTestUtil::WalletGuard;
 using Gate = PlatformService::Gate;
+using Purpose = platform::IdentityPublicKey::Purpose;
+using Level = platform::IdentityPublicKey::SecurityLevel;
 
 namespace {
 CService Ipv4Evonode() { return LookupNumeric("203.0.113.7", 443); }
@@ -197,6 +201,43 @@ platform::Result<platform::Identity> NotFound()
 {
     platform::Result<platform::Identity> result;
     result.status.kind = platform::StatusKind::NOT_FOUND;
+    return result;
+}
+
+platform::IdentityPublicKey Key(uint32_t id, Purpose purpose, Level level, uint64_t disabled_at = 0)
+{
+    platform::IdentityPublicKey key;
+    key.id = id;
+    key.purpose = purpose;
+    key.security_level = level;
+    key.disabled_at = disabled_at;
+    return key;
+}
+
+//! The keys Dash Core registers, by id as the mobile wallets do.
+std::vector<platform::IdentityPublicKey> RegisteredKeys()
+{
+    return {Key(0, Purpose::AUTHENTICATION, Level::MASTER), Key(1, Purpose::AUTHENTICATION, Level::CRITICAL),
+            Key(2, Purpose::AUTHENTICATION, Level::HIGH),   Key(3, Purpose::TRANSFER, Level::CRITICAL),
+            Key(4, Purpose::ENCRYPTION, Level::MEDIUM),     Key(5, Purpose::DECRYPTION, Level::MEDIUM)};
+}
+
+platform::Result<platform::Identifier> Resolved(std::optional<uint8_t> owner)
+{
+    platform::Result<platform::Identifier> result;
+    result.status.kind = owner ? platform::StatusKind::OK : platform::StatusKind::NOT_FOUND;
+    if (owner) result.value.fill(*owner);
+    return result;
+}
+
+platform::Result<platform::Names> Names(const std::vector<std::string>& labels)
+{
+    platform::Result<platform::Names> result;
+    result.status.kind = platform::StatusKind::OK;
+    result.value.complete = true;
+    for (const std::string& label : labels) {
+        result.value.names.push_back({label, label, {}, {}});
+    }
     return result;
 }
 
@@ -847,4 +888,220 @@ void PlatformTests::lockedWalletLooksUpOnUnlock()
     QCOMPARE(sources.made.size(), size_t{3});
     QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
     QCOMPARE(unlocks, 1);
+}
+
+//! A wallet without an identity registers its username in one go, under
+//! one passphrase: a free label creates the identity first (funded after the
+//! same confirmation) and then the name, signed with the identity's HIGH
+//! key. A label DPNS rejects and a premium one are refused before anything
+//! is looked up or funded.
+void PlatformTests::usernameCreatesTheIdentityFirst()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    int unlocks{0};
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        ++unlocks;
+        f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {NotFound()};
+        client.resolved_names = {Resolved(std::nullopt)};
+        auto created{Found(7, 2'999'000'000)};
+        created.value.public_keys = RegisteredKeys();
+        client.registered_identities = {created};
+        client.registered_names = {Resolved(1)};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
+    UsernameFlow flow{service, identity_flow};
+    identity_flow.lookUp();
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.lookedUp() && !identity_flow.identity());
+    QCOMPARE(unlocks, 1);
+
+    const size_t txs{wallet.getWalletTxs().size()};
+    for (const char* label : {"a", "-alice2-", "alice"}) {
+        flow.registerName(label);
+        QVERIFY2(flow.step() == UsernameFlow::Step::IDLE, label);
+        QVERIFY2(!flow.error().isEmpty(), label);
+    }
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{0});
+    QVERIFY(confirmations.asked.empty());
+    QCOMPARE(wallet.getWalletTxs().size(), txs);
+    QCOMPARE(unlocks, 1);
+
+    flow.registerName("alice2026");
+    QVERIFY(sources.fake->calls.back().method == "resolveName");
+    QVERIFY(sources.fake->calls.back().argument == "alice2026");
+    sources.fake->deliverAll();
+    QCOMPARE(confirmations.asked.size(), size_t{1});
+    QCOMPARE(confirmations.asked.back().first, IdentityFlow::REGISTRATION_AMOUNT);
+    QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{1});
+    QCOMPARE(sources.fake->countCalls("registerName"), size_t{1});
+    QVERIFY(sources.fake->calls.back().argument == "alice2026");
+    QVERIFY(sources.fake->calls.back().identity_index == 0U);
+    QVERIFY(sources.fake->name_signers.back().first == identity_flow.identity()->id);
+    QCOMPARE(sources.fake->name_signers.back().second, uint32_t{2});
+    QVERIFY(flow.username() == "alice2026");
+    QVERIFY(flow.error().isEmpty());
+    QCOMPARE(unlocks, 2);
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+}
+
+//! An identity without a name registers one directly, with no asset lock:
+//! not with a disabled key or a key of another purpose, nor a label
+//! someone else holds. A label that resolves to the identity is its own.
+//! A rebuild that drops the lookup of a label looks it up again. The tab
+//! header shows the name; registering is offered only once the identity's
+//! names were read and it has none.
+void PlatformTests::usernameForAnExistingIdentity()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    FakeSources sources;
+    int clients{0};
+    sources.script = [&clients](FakePlatformClient& client) {
+        auto found{Found(5, 1'000'000)};
+        found.value.public_keys = {Key(0, Purpose::AUTHENTICATION, Level::MASTER),
+                                   Key(1, Purpose::AUTHENTICATION, Level::CRITICAL),
+                                   Key(2, Purpose::AUTHENTICATION, Level::HIGH, /*disabled_at=*/1),
+                                   Key(3, Purpose::ENCRYPTION, Level::HIGH)};
+        // The first session's identity has no usable HIGH key; later ones added one.
+        if (clients++ == 0) {
+            client.resolved_names = {Resolved(std::nullopt), Resolved(5)};
+        } else {
+            found.value.public_keys.push_back(Key(6, Purpose::AUTHENTICATION, Level::HIGH));
+            client.resolved_names = {Resolved(8), Resolved(std::nullopt)};
+            client.registered_names = {Resolved(1)};
+        }
+        client.identities_by_pubkey_hash = {found};
+        client.names = {Names({})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    const auto* header{page.findChild<QLabel*>("dashPayUsername")};
+    auto* input{page.findChild<QLineEdit*>("dashPayUsernameInput")};
+    auto* submit{page.findChild<QPushButton*>("dashPayRegisterUsername")};
+    sources.fake->deliverNext();
+    QVERIFY(page.identityFlow()->identity());
+    QVERIFY(!page.usernameFlow()->namesRead());
+    QVERIFY(!submit->isVisibleTo(&page));
+    sources.fake->deliverAll();
+    QVERIFY(!header->isVisibleTo(&page));
+    QVERIFY(input->isVisibleTo(&page) && submit->isVisibleTo(&page));
+    const size_t txs{wallet.getWalletTxs().size()};
+
+    input->setText("bob-the-builder-9");
+    submit->click();
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
+    QCOMPARE(sources.fake->countCalls("registerName"), size_t{0});
+    QVERIFY(page.findChild<QLabel*>("dashPayUsernameStatus")->isVisibleTo(&page));
+
+    input->setText("mine-already-2");
+    submit->click();
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("registerName"), size_t{0});
+    QCOMPARE(header->text(), QString{"mine-already-2"});
+    QVERIFY(header->isVisibleTo(&page) && !submit->isVisibleTo(&page));
+
+    // The next session's identity has a usable key and, as read, no name.
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QVERIFY(submit->isVisibleTo(&page) && !header->isVisibleTo(&page));
+    input->setText("taken-name-2");
+    submit->click();
+    // A rebuild drops the read: the label is resolved again on the new client.
+    sources.evonodes = {Ipv4Evonode2()};
+    f.listRead();
+    QCOMPARE(sources.made.size(), size_t{3});
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
+    QVERIFY(sources.fake->calls.back().argument == "taken-name-2");
+    QCOMPARE(sources.fake->countCalls("registerName"), size_t{0});
+    QVERIFY(submit->isVisibleTo(&page));
+
+    input->setText("bob-the-builder-9");
+    submit->click();
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("registerName"), size_t{1});
+    QVERIFY(sources.fake->calls.back().argument == "bob-the-builder-9");
+    QVERIFY(sources.fake->name_signers.back().first == page.identityFlow()->identity()->id);
+    QCOMPARE(sources.fake->name_signers.back().second, uint32_t{6});
+    QCOMPARE(wallet.getWalletTxs().size(), txs);
+    QVERIFY(header->isVisibleTo(&page));
+    QCOMPARE(header->text(), QString{"bob-the-builder-9"});
+    QVERIFY(!input->isVisibleTo(&page) && !submit->isVisibleTo(&page));
+}
+
+//! One write at a time per wallet, across both flows: no top-up starts
+//! while a username write is in flight, and no username is sent while
+//! another write is. A username write the client dropped is not sent again;
+//! the identity's names, read again once the identity is found, show that
+//! it landed.
+void PlatformTests::droppedUsernameWriteIsReadBack()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    FakeSources sources;
+    int clients{0};
+    sources.script = [&clients](FakePlatformClient& client) {
+        auto found{Found(5, 1'000'000'000)};
+        found.value.public_keys = RegisteredKeys();
+        client.identities_by_pubkey_hash = {found};
+        client.names = {Names(clients++ == 0 ? std::vector<std::string>{} : std::vector<std::string>{"carol2026"})};
+        client.resolved_names = {Resolved(std::nullopt), Resolved(std::nullopt)};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
+    UsernameFlow flow{service, identity_flow};
+    sources.fake->deliverAll();
+    QVERIFY(flow.namesRead() && !flow.username());
+    const auto names_sent = [&](const std::string& label) {
+        const auto& calls{sources.fake->calls};
+        return std::count_if(calls.begin(), calls.end(), [&](const FakePlatformClient::Call& call) {
+            return call.method == "registerName" && call.argument == label;
+        });
+    };
+
+    flow.registerName("carol2026");
+    sources.fake->deliverNext();
+    QVERIFY(flow.step() == UsernameFlow::Step::REGISTERING);
+    identity_flow.topUp(IdentityFlow::MIN_TOP_UP);
+    QVERIFY(confirmations.asked.empty());
+    QVERIFY(!identity_flow.funding());
+
+    f.setNetworkActive(false);
+    QVERIFY(flow.step() == UsernameFlow::Step::IDLE);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QVERIFY(flow.username() == "carol2026");
+    QCOMPARE(names_sent("carol2026"), 0);
+    QCOMPARE(sources.fake->countCalls("namesOfIdentity"), size_t{1});
+
+    // Another write began while the label was resolved.
+    flow.registerName("dave2026");
+    bool written{false};
+    PendingWrite(service, f.wallet_model.wallet(), written);
+    sources.fake->deliverNext();
+    QVERIFY(flow.step() == UsernameFlow::Step::IDLE && !flow.error().isEmpty());
+    sources.fake->deliverAll();
+    QCOMPARE(names_sent("dave2026"), 0);
+
+    // So did a top-up.
+    flow.registerName("erin2026");
+    identity_flow.topUp(IdentityFlow::MIN_TOP_UP);
+    QVERIFY(identity_flow.step() == IdentityFlow::Step::SENDING);
+    sources.fake->deliverNext();
+    QVERIFY(flow.step() == UsernameFlow::Step::IDLE && !flow.error().isEmpty());
+    sources.fake->deliverAll();
+    QCOMPARE(names_sent("erin2026"), 0);
 }
