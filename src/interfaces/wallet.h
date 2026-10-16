@@ -250,8 +250,9 @@ public:
     //! Sign every wallet-owned input of a transaction and report whether signing is complete.
     virtual util::Result<WalletTxSignResult> signTransaction(const CMutableTransaction& tx) = 0;
 
-    //! Commit transaction.
-    virtual void commitTransaction(CTransactionRef tx,
+    //! Commit transaction to the wallet and broadcast it. Returns an error
+    //! when it could not be broadcast; it stays committed to the wallet.
+    virtual util::Result<void> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) = 0;
 
