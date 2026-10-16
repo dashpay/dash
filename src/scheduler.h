@@ -74,6 +74,20 @@ public:
      */
     void serviceQueue() EXCLUSIVE_LOCKS_REQUIRED(!newTaskMutex);
 
+    /** Run every task, and every round of a repeating task, through
+     *  `wrapper`, e.g. to bind per-task context. Must be set before any task
+     *  is scheduled. */
+    void SetTaskWrapper(std::function<void(const Function&)> wrapper) { m_task_wrapper = std::move(wrapper); }
+    //! Run `f` through the task wrapper, if any.
+    void RunTask(const Function& f) const
+    {
+        if (m_task_wrapper) {
+            m_task_wrapper(f);
+        } else {
+            f();
+        }
+    }
+
     /** Tell any threads running serviceQueue to stop as soon as the current task is done */
     void stop() EXCLUSIVE_LOCKS_REQUIRED(!newTaskMutex)
     {
@@ -108,6 +122,7 @@ private:
     bool stopRequested GUARDED_BY(newTaskMutex){false};
     bool stopWhenEmpty GUARDED_BY(newTaskMutex){false};
     bool shouldStop() const EXCLUSIVE_LOCKS_REQUIRED(newTaskMutex) { return stopRequested || (stopWhenEmpty && taskQueue.empty()); }
+    std::function<void(const Function&)> m_task_wrapper;
 };
 
 /**

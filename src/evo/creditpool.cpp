@@ -7,6 +7,7 @@
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 
 #include <chain.h>
@@ -17,6 +18,7 @@
 #include <masternode/payments.h>
 #include <node/blockstorage.h>
 #include <shutdown.h>
+#include <util/check.h>
 #include <util/overflow.h>
 #include <validation.h>
 
@@ -29,6 +31,9 @@
 using node::ReadBlockFromDisk;
 
 static const std::string DB_CREDITPOOL_SNAPSHOT = "cpm_S";
+// Window entries carried by an assumeutxo snapshot, for blocks at or below its
+// base. Written only into a snapshot generation.
+static const std::string DB_CREDITPOOL_HISTORY = "cpm_H";
 
 static bool GetDataFromUnlockTx(const CTransaction& tx, CAmount& toUnlock, uint64_t& index, TxValidationState& state)
 {
@@ -60,6 +65,8 @@ struct CreditPoolDataPerBlock {
 };
 } // anonymous namespace
 
+static std::optional<CreditPoolDataPerBlock> ParseCreditData(const CBlock& block, int height);
+
 // it throws exception if anything went wrong
 static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::not_null<const CBlockIndex*> block_index,
                                                                     const Consensus::Params& consensusParams)
@@ -80,19 +87,34 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
 
     CBlock block;
     if (!ReadBlockFromDisk(block, block_index, consensusParams)) {
+        // A body this node does not have (pruned, or below an unvalidated
+        // snapshot base) is a local state error, never the block's fault.
+        if (!WITH_LOCK(::cs_main, return block_index->nStatus & BLOCK_HAVE_DATA)) {
+            throw BlockDataUnavailableError("failed-getcbforblock-read");
+        }
         throw std::runtime_error("failed-getcbforblock-read");
     }
+    auto parsed{ParseCreditData(block, block_index->nHeight)};
+    if (!parsed) return std::nullopt;
+    blockData = std::move(*parsed);
 
+    LOCK(cache_mutex);
+    block_data_cache.insert(block_index->GetBlockHash(), blockData);
+    return blockData;
+}
+
+static std::optional<CreditPoolDataPerBlock> ParseCreditData(const CBlock& block, int height)
+{
+    CreditPoolDataPerBlock blockData;
     if (block.vtx.empty() || block.vtx[0]->vExtraPayload.empty() || !block.vtx[0]->IsSpecialTxVersion()) {
-        LogPrintf("%s: ERROR: empty CbTx for CreditPool at height=%d\n", __func__, block_index->nHeight);
+        LogPrintf("%s: ERROR: empty CbTx for CreditPool at height=%d\n", __func__, height);
         return std::nullopt;
     }
-
 
     if (const auto opt_cbTx = GetTxPayload<CCbTx>(block.vtx[0]->vExtraPayload); opt_cbTx) {
         blockData.credit_pool = opt_cbTx->creditPoolBalance;
     } else {
-        LogPrintf("%s: WARNING: No valid CbTx at height=%d\n", __func__, block_index->nHeight);
+        LogPrintf("%s: WARNING: No valid CbTx at height=%d\n", __func__, height);
         return std::nullopt;
     }
     for (const CTransactionRef& tx : block.vtx) {
@@ -107,9 +129,6 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
         blockData.unlocked += unlocked;
         blockData.indexes.insert(index);
     }
-
-    LOCK(cache_mutex);
-    block_data_cache.insert(block_index->GetBlockHash(), blockData);
     return blockData;
 }
 
@@ -124,8 +143,9 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
     if (!DeploymentActiveAt(block_index, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) return CCreditPool{};
 
     const uint256 block_hash = block_index.GetBlockHash();
+    const EvoViewToken view{evoDb.CurrentView()};
     CCreditPool pool;
-    if (WITH_LOCK(cache_mutex, return creditPoolCache.get(block_hash, pool))) {
+    if (WITH_LOCK(cache_mutex, return creditPoolCache.For(view).get(block_hash, pool))) {
         // The pool may have been constructed, and cached, outside a block-scoped transaction
         // (mempool acceptance, template creation, RPC), where its snapshot cannot be written.
         // Persist it from the first transaction-scoped lookup instead, or the snapshot would be
@@ -133,10 +153,12 @@ std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& b
         MaybeWriteSnapshot(block_hash, block_index.nHeight, pool);
         return pool;
     }
-    if (block_index.nHeight % DISK_SNAPSHOT_PERIOD == 0) {
+    // A snapshot base carries its full pool at whatever height the base has.
+    if (block_index.nHeight % DISK_SNAPSHOT_PERIOD == 0 ||
+        (view.identity == EvoDbIdentity::SNAPSHOT && block_index.nHeight == view.base_height)) {
         if (evoDb.Read(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block_hash), pool)) {
             LOCK(cache_mutex);
-            creditPoolCache.insert(block_hash, pool);
+            creditPoolCache.For(view).insert(block_hash, pool);
             return pool;
         }
     }
@@ -166,8 +188,87 @@ void CCreditPoolManager::MaybeWriteSnapshot(const uint256& block_hash, int heigh
 void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const CCreditPool& pool)
 {
     MaybeWriteSnapshot(block_hash, height, pool);
+    const EvoViewToken view{evoDb.CurrentView()};
     LOCK(cache_mutex);
-    creditPoolCache.insert(block_hash, pool);
+    creditPoolCache.For(view).insert(block_hash, pool);
+}
+
+bool CCreditPoolManager::SeedSnapshot(const EvoViewToken& view, const CBlockIndex* block, const CCreditPool& pool)
+{
+    if (!Assume(block != nullptr) || !Assume(evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    if (!evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_SNAPSHOT, block->GetBlockHash()), pool)) return false;
+    LOCK(cache_mutex);
+    creditPoolCache.For(view).erase(block->GetBlockHash());
+    return true;
+}
+
+bool CCreditPoolManager::SeedHistory(const EvoViewToken& view, const CBlockIndex* base,
+                                     const std::vector<CreditHistoryEntry>& entries)
+{
+    if (!Assume(base != nullptr) || !Assume(evoDb.HasActiveTransaction()) ||
+        !Assume(entries.size() <= static_cast<size_t>(base->nHeight) + 1)) {
+        return false;
+    }
+    const EvoViewScope scope{view};
+    const int first_height{base->nHeight - static_cast<int>(entries.size()) + 1};
+    for (size_t i{0}; i < entries.size(); ++i) {
+        const CBlockIndex* index{base->GetAncestor(first_height + static_cast<int>(i))};
+        if (!evoDb.WriteDerived(std::make_pair(DB_CREDITPOOL_HISTORY, index->GetBlockHash()), entries[i])) return false;
+    }
+    return true;
+}
+
+std::optional<CreditHistoryEntry> CCreditPoolManager::ReadHistoryEntry(gsl::not_null<const CBlockIndex*> block_index,
+                                                                       const Consensus::Params& consensus_params,
+                                                                       std::string& error)
+{
+    if (!DeploymentActiveAt(*block_index, consensus_params, Consensus::DEPLOYMENT_DIP0003)) return CreditHistoryEntry{};
+    CBlock block;
+    if (!ReadBlockFromDisk(block, block_index, consensus_params)) {
+        error = strprintf("credit-pool window block %s is unreadable", block_index->GetBlockHash().ToString());
+        return std::nullopt;
+    }
+    try {
+        if (const auto data{ParseCreditData(block, block_index->nHeight)}) {
+            return CreditHistoryEntry{data->credit_pool, data->unlocked};
+        }
+    } catch (const std::exception& e) {
+        error = e.what();
+        return std::nullopt;
+    }
+    error = strprintf("credit-pool window block %s has no valid CbTx", block_index->GetBlockHash().ToString());
+    return std::nullopt;
+}
+
+std::optional<CreditHistoryEntry> CCreditPoolManager::GetDistantEntry(gsl::not_null<const CBlockIndex*> block_index)
+{
+    const auto& consensus{m_chainman.GetConsensus()};
+    const EvoViewToken view{evoDb.CurrentView()};
+    if (view.identity != EvoDbIdentity::SNAPSHOT || block_index->nHeight > view.base_height) {
+        const auto data{GetCreditDataFromBlock(block_index, consensus)};
+        if (!data) return std::nullopt;
+        return CreditHistoryEntry{data->credit_pool, data->unlocked};
+    }
+    // At or below the base the snapshot view carries the window entries. A
+    // body this node also has must agree with them; the carried record never
+    // enters the cache of entries parsed from real blocks.
+    if (!DeploymentActiveAt(*block_index, consensus, Consensus::DEPLOYMENT_DIP0003)) return std::nullopt;
+    CreditHistoryEntry carried;
+    if (!evoDb.Read(std::make_pair(DB_CREDITPOOL_HISTORY, block_index->GetBlockHash()), carried)) {
+        throw BlockDataUnavailableError(
+            strprintf("credit-pool window entry for block %s is not carried", block_index->GetBlockHash().ToString()));
+    }
+    if (WITH_LOCK(::cs_main, return (block_index->nStatus & BLOCK_HAVE_DATA) != 0)) {
+        std::string error;
+        const auto real{ReadHistoryEntry(block_index, consensus, error)};
+        if (real && *real != carried) {
+            throw evo::SnapshotStateMismatchError(
+                strprintf("carried credit-pool window entry for block %s differs from the block",
+                          block_index->GetBlockHash().ToString()));
+        }
+    }
+    return carried;
 }
 
 CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CBlockIndex*> block_index, CCreditPool prev)
@@ -203,11 +304,9 @@ CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CB
     CAmount distantUnlocked{0};
     CAmount distantBalance{0};
     if (distant_block_index) {
-        if (std::optional<CreditPoolDataPerBlock> distant_block{
-                GetCreditDataFromBlock(distant_block_index, m_chainman.GetConsensus())};
-            distant_block) {
-            distantUnlocked = distant_block->unlocked;
-            distantBalance = distant_block->credit_pool;
+        if (const auto distant{GetDistantEntry(distant_block_index)}) {
+            distantUnlocked = distant->unlocked;
+            distantBalance = distant->credit_pool;
         }
     }
 
@@ -418,6 +517,8 @@ std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpo
         // M_ERROR so the block is not marked invalid.
         state.Error(e.what());
         return std::nullopt;
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
         state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-getcreditpooldiff");

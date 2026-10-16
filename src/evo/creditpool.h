@@ -6,6 +6,7 @@
 #define BITCOIN_EVO_CREDITPOOL_H
 
 #include <consensus/amount.h>
+#include <evo/viewcache.h>
 #include <primitives/transaction.h>
 #include <saltedhasher.h>
 #include <serialize.h>
@@ -35,6 +36,16 @@ struct Params;
 namespace llmq {
 class CQuorumManager;
 } // namespace llmq
+
+/** One block's entry in the credit-pool sliding window: the pool balance its
+ *  CbTx records and the amount its asset unlocks withdraw. */
+struct CreditHistoryEntry {
+    CAmount credit_pool{0};
+    CAmount unlocked{0};
+
+    bool operator==(const CreditHistoryEntry&) const = default;
+    SERIALIZE_METHODS(CreditHistoryEntry, obj) { READWRITE(obj.credit_pool, obj.unlocked); }
+};
 
 struct CCreditPool {
     CAmount locked{0};
@@ -118,7 +129,8 @@ class CCreditPoolManager
 private:
     static constexpr size_t CreditPoolCacheSize = 1000;
     Mutex cache_mutex;
-    Uint256LruHashMap<CCreditPool> creditPoolCache GUARDED_BY(cache_mutex){CreditPoolCacheSize};
+    EvoViewCache<Uint256LruHashMap<CCreditPool>> creditPoolCache GUARDED_BY(cache_mutex){
+        [] { return Uint256LruHashMap<CCreditPool>{CreditPoolCacheSize}; }};
 
     CEvoDB& evoDb;
     const ChainstateManager& m_chainman;
@@ -174,6 +186,19 @@ public:
       * it can happen if there limits of withdrawal (unlock) exceed
       */
     CCreditPool GetCreditPool(const CBlockIndex* block) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
+    /** Seed the full pool at a snapshot base into `view`, inside the caller's
+     *  open EvoDB transaction for that view. */
+    bool SeedSnapshot(const EvoViewToken& view, const CBlockIndex* block, const CCreditPool& pool)
+        EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
+    /** Seed the window entries of the blocks ending at `base`, oldest first,
+     *  into `view`, inside the caller's open EvoDB transaction for that view. */
+    bool SeedHistory(const EvoViewToken& view, const CBlockIndex* base, const std::vector<CreditHistoryEntry>& entries);
+
+    /** A block's window entry from its body: {0, 0} before DIP3. Without a
+     *  readable body, or with a malformed CbTx, nullopt and `error`. */
+    static std::optional<CreditHistoryEntry> ReadHistoryEntry(gsl::not_null<const CBlockIndex*> block_index,
+                                                              const Consensus::Params& consensus_params,
+                                                              std::string& error);
 
 private:
     std::optional<CCreditPool> GetFromCache(const CBlockIndex& block_index) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
@@ -184,6 +209,9 @@ private:
 
     CCreditPool ConstructCreditPool(const gsl::not_null<const CBlockIndex*> block_index, CCreditPool prev)
         EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
+    /** The entry of the block leaving the window: the carried record at or
+     *  below a snapshot base in the snapshot view, the block body otherwise. */
+    std::optional<CreditHistoryEntry> GetDistantEntry(gsl::not_null<const CBlockIndex*> block_index);
 };
 
 std::optional<CCreditPoolDiff> GetCreditPoolDiffForBlock(CCreditPoolManager& cpoolman,
