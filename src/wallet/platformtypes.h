@@ -55,6 +55,10 @@ struct InvitationFundingKey {
 
 using PlatformKeyRequest = std::variant<IdentityAuthKey, RegistrationFundingKey, TopupFundingKey, InvitationFundingKey>;
 
+//! The keys an asset lock's credit output may pay: every one is derived from
+//! the wallet's seed, so the credits it funds can be recovered.
+using AssetLockFundingKey = std::variant<RegistrationFundingKey, TopupFundingKey, InvitationFundingKey>;
+
 struct FriendshipKeychainRequest {
     uint32_t account{0};
     uint256 local_id;

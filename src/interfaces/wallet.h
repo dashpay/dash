@@ -244,6 +244,15 @@ public:
         int& change_pos,
         CAmount& fee) = 0;
 
+    //! Create a signed, uncommitted asset lock converting credit_amount duffs
+    //! into Platform credits. Its single P2PKH credit output pays the key the
+    //! wallet derives for funding_key, so the credits stay recoverable from
+    //! the wallet's seed.
+    virtual util::Result<CTransactionRef> createAssetLockTransaction(CAmount credit_amount,
+        const wallet::AssetLockFundingKey& funding_key,
+        const wallet::CCoinControl& coin_control,
+        CAmount& fee) = 0;
+
     //! Fund a transaction template per the provider-transaction funding policy:
     //! inputs are selected only from coins received at the single specified
     //! fee-source destination, change is returned to that same destination, and
@@ -256,8 +265,9 @@ public:
     //! Sign every wallet-owned input of a transaction and report whether signing is complete.
     virtual util::Result<WalletTxSignResult> signTransaction(const CMutableTransaction& tx) = 0;
 
-    //! Commit transaction.
-    virtual void commitTransaction(CTransactionRef tx,
+    //! Commit transaction to the wallet and broadcast it. Returns an error
+    //! when it could not be broadcast; it stays committed to the wallet.
+    virtual util::Result<void> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) = 0;
 

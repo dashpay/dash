@@ -35,6 +35,7 @@
 #include <wallet/hdchain.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/walletutil.h>
+#include <evo/assetlocktx.h>
 #include <evo/deterministicmns.h>
 #include <masternode/sync.h>
 #include <txdb.h>
@@ -455,6 +456,36 @@ public:
 
         return txr.tx;
     }
+    util::Result<CTransactionRef> createAssetLockTransaction(CAmount credit_amount,
+        const AssetLockFundingKey& funding_key,
+        const CCoinControl& coin_control,
+        CAmount& fee) override
+    {
+        // CreateTransaction accepts a zero Platform credit, which CheckAssetLockTx refuses,
+        // and bounds no amount from above before coin selection doubles it.
+        if (credit_amount <= 0 || !MoneyRange(credit_amount)) return util::Error{_("Invalid amount")};
+
+        LOCK(m_wallet->cs_wallet);
+        // A wallet unlocked only for mixing keeps its keys but must not spend.
+        if (m_wallet->IsLocked()) {
+            return util::Error{_("Please enter the wallet passphrase with walletpassphrase first.")};
+        }
+        const auto funding_pubkey{m_wallet->GetPlatformPubKey(
+            std::visit([](const auto& key) { return PlatformKeyRequest{key}; }, funding_key))};
+        if (!funding_pubkey) return util::Error{_("Could not derive the asset lock funding key")};
+
+        // Version 1 stays consensus-valid after v24 and is the only version the
+        // mempool relays today (IsStandardSpecialTx).
+        CCoinControl version_1_control{coin_control};
+        version_1_control.m_asset_lock_version = CAssetLockPayload::INITIAL_VERSION;
+        auto res{CreateTransaction(*m_wallet,
+                                   {CRecipient{GetScriptForDestination(PKHash{funding_pubkey.value}), credit_amount,
+                                               /*fSubtractFeeFromAmount=*/false, /*fPlatformTransfer=*/true}},
+                                   RANDOM_CHANGE_POSITION, version_1_control, /*sign=*/true)};
+        if (!res) return util::Error{util::ErrorString(res)};
+        fee = res->fee;
+        return res->tx;
+    }
     util::Result<CTransactionRef> fundTransaction(const CMutableTransaction& tx_template,
                                                   const CTxDestination& fund_destination) override
     {
@@ -538,12 +569,12 @@ public:
             errors.push_back(std::move(error));
         return WalletTxSignResult{MakeTransactionRef(std::move(signed_tx)), complete, std::move(errors)};
     }
-    void commitTransaction(CTransactionRef tx,
+    util::Result<void> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) override
     {
         LOCK(m_wallet->cs_wallet);
-        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
+        return m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
     }
     bool transactionCanBeAbandoned(const uint256& txid) override { return m_wallet->TransactionCanBeAbandoned(txid); }
     bool transactionCanBeResent(const uint256& txid) override { return m_wallet->TransactionCanBeResent(txid); }
