@@ -95,28 +95,6 @@ BOOST_AUTO_TEST_CASE(interface_coin_lock_failed_persist)
     BOOST_CHECK(wallet_interface->isLockedCoin(outpoint));
 }
 
-static std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context)
-{
-    DatabaseOptions options;
-    options.create_flags = WALLET_FLAG_DESCRIPTORS;
-    DatabaseStatus status;
-    bilingual_str error;
-    std::vector<bilingual_str> warnings;
-    auto database = MakeWalletDatabase("", options, status, error);
-    auto wallet = CWallet::Create(context, "", std::move(database), options.create_flags, error, warnings);
-    NotifyWalletLoaded(context, wallet);
-    return wallet;
-}
-
-static void TestUnloadWallet(WalletContext& context, std::shared_ptr<CWallet>&& wallet)
-{
-    std::vector<bilingual_str> warnings;
-    SyncWithValidationInterfaceQueue();
-    wallet->m_chain_notifications_handler.reset();
-    RemoveWallet(context, wallet, /*load_on_start=*/std::nullopt, warnings);
-    UnloadWallet(std::move(wallet));
-}
-
 static CMutableTransaction TestSimpleSpend(const CTransaction& from, uint32_t index, const CKey& key, const CScript& pubkey)
 {
     CMutableTransaction mtx;
@@ -864,7 +842,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     auto wallet = TestLoadWallet(context);
     CKey key = GenerateRandomKey();
     AddKey(*wallet, key);
-    TestUnloadWallet(context, std::move(wallet));
+    TestUnloadWallet(std::move(wallet));
 
 
     // Add log hook to detect AddToWallet events from rescans, blockConnected,
@@ -900,10 +878,11 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
 
     // Reload wallet and make sure new transactions are detected despite events
     // being blocked
+    // Loading will also ask for current mempool transactions
     wallet = TestLoadWallet(context);
     BOOST_CHECK(rescan_completed);
-    // AddToWallet events for block_tx and mempool_tx
-    BOOST_CHECK_EQUAL(addtx_count, 2);
+    // AddToWallet events for block_tx and mempool_tx (x2)
+    BOOST_CHECK_EQUAL(addtx_count, 3);
     {
         LOCK(wallet->cs_wallet);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_tx.GetHash()), 1U);
@@ -917,9 +896,9 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     SyncWithValidationInterfaceQueue();
     // AddToWallet events for block_tx and mempool_tx events are counted a
     // second time as the notification queue is processed
-    BOOST_CHECK_EQUAL(addtx_count, 4);
+    BOOST_CHECK_EQUAL(addtx_count, 5);
 
-    TestUnloadWallet(context, std::move(wallet));
+    TestUnloadWallet(std::move(wallet));
 
 
     // Load wallet again, this time creating new block and mempool transactions
@@ -939,14 +918,16 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
             SyncWithValidationInterfaceQueue();
         });
     wallet = TestLoadWallet(context);
-    BOOST_CHECK_EQUAL(addtx_count, 2);
+    // Since mempool transactions are requested at the end of loading, there will
+    // be 2 additional AddToWallet calls, one from the previous test, and a duplicate for mempool_tx
+    BOOST_CHECK_EQUAL(addtx_count, 2 + 2);
     {
         LOCK(wallet->cs_wallet);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_tx.GetHash()), 1U);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(mempool_tx.GetHash()), 1U);
     }
 
-    TestUnloadWallet(context, std::move(wallet));
+    TestUnloadWallet(std::move(wallet));
 }
 
 BOOST_FIXTURE_TEST_CASE(CreateWalletWithoutChain, BasicTestingSetup)
@@ -990,7 +971,7 @@ BOOST_FIXTURE_TEST_CASE(ZapSelectTx, TestChain100Setup)
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_hash), 0u);
     }
 
-    TestUnloadWallet(context, std::move(wallet));
+    TestUnloadWallet(std::move(wallet));
 }
 
 /* --------------------------- Dash-specific tests start here --------------------------- */

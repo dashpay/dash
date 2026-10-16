@@ -25,8 +25,15 @@ class Chain;
 namespace wallet {
 class CWallet;
 class WalletDatabase;
+struct WalletContext;
+
+const std::string ADDRESS_B58T_UNSPENDABLE = "yXXXXXXXXXXXXXXXXXXXXXXXXXXXVd2rXU";
 
 std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, ChainstateManager& chainman, const CKey& key);
+
+std::shared_ptr<CWallet> TestLoadWallet(WalletContext& context);
+std::shared_ptr<CWallet> TestLoadWallet(std::unique_ptr<WalletDatabase> database, WalletContext& context, uint64_t create_flags);
+void TestUnloadWallet(std::shared_ptr<CWallet>&& wallet);
 
 // Creates a copy of the provided database
 std::unique_ptr<WalletDatabase> DuplicateMockDatabase(WalletDatabase& database);
