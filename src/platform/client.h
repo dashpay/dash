@@ -76,6 +76,9 @@ public:
     //! The names of an identity, reading at most max_pages pages of page_limit.
     virtual void namesOfIdentity(const Identifier& identity, uint32_t page_limit, uint32_t max_pages,
                                  Callback<Names> cb) = 0;
+    //! The names starting with prefix, at most limit of them (not 0). The
+    //! result is never complete: the SDK does not say whether more exist.
+    virtual void searchNames(const std::string& prefix, uint32_t limit, Callback<Names> cb) = 0;
     //! Best effort: the SDK examines at most 100 contests.
     virtual void pendingContests(const Identifier& identity, Callback<std::vector<Contest>> cb) = 0;
     //! The tally of the vote on a contested label.

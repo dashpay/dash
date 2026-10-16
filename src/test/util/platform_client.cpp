@@ -52,6 +52,12 @@ void FakePlatformClient::namesOfIdentity(const Identifier& identity, uint32_t, u
     Answer({"namesOfIdentity", HexStr(identity), std::nullopt}, names, std::move(cb));
 }
 
+void FakePlatformClient::searchNames(const std::string& prefix, uint32_t limit, Callback<platform::Names> cb)
+{
+    if (!shut_down) search_limits.push_back(limit);
+    Answer({"searchNames", prefix, std::nullopt}, search_results, std::move(cb));
+}
+
 void FakePlatformClient::pendingContests(const Identifier& identity, Callback<std::vector<platform::Contest>> cb)
 {
     Answer({"pendingContests", HexStr(identity), std::nullopt}, contests, std::move(cb));

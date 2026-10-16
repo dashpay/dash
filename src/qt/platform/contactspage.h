@@ -18,7 +18,7 @@ QT_END_NAMESPACE
 
 /** The DashPay tab's contacts: incoming requests with Accept, contacts with
  *  Pay and our requests waiting for an answer, and adding a contact by
- *  username. */
+ *  username, typed or searched for. */
 class ContactsPage : public QWidget
 {
     Q_OBJECT
@@ -31,10 +31,15 @@ public:
     //! when `writable`: no DashPay flow, this one included, is busy.
     void refresh(bool writable);
 
+Q_SIGNALS:
+    //! The user asked to search usernames to add.
+    void searchRequested();
+
 private:
     ContactFlow* m_flow{nullptr};
     QLineEdit* m_username{nullptr};
     QPushButton* m_add{nullptr};
+    QPushButton* m_search{nullptr};
     QPushButton* m_refresh{nullptr};
     QLabel* m_status{nullptr};
     QTableWidget* m_list{nullptr};

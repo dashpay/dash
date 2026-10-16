@@ -15,6 +15,7 @@
 #include <qt/platform/platformui.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
+#include <qt/platform/usernamesearchdialog.h>
 #include <qt/walletmodel.h>
 
 #include <QHBoxLayout>
@@ -123,6 +124,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
 
     m_contacts = new ContactsPage(this);
     m_contacts->setObjectName("dashPayContactsPage");
+    connect(m_contacts, &ContactsPage::searchRequested, this, &PlatformPage::searchUsernames);
 
     auto* header{new QHBoxLayout};
     header->addWidget(m_username);
@@ -195,6 +197,7 @@ void PlatformPage::resetService()
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
         m_contacts->setFlow(nullptr);
+        m_search.reset();
         m_recovery_flow.reset();
         m_contact_flow.reset();
         m_username_flow.reset();
@@ -220,6 +223,13 @@ void PlatformPage::resetService()
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
+}
+
+void PlatformPage::searchUsernames()
+{
+    // One dialog for as long as the service: it is the one a search is answered to.
+    if (!m_search) m_search = std::make_unique<UsernameSearchDialog>(*m_service, *m_contact_flow, this);
+    m_search->open();
 }
 
 bool PlatformPage::confirmFunding(CAmount amount, CAmount fee)

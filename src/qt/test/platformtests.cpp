@@ -22,6 +22,7 @@
 #include <qt/platform/platformservice.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
+#include <qt/platform/usernamesearchdialog.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/walletmodel.h>
 #include <qt/walletview.h>
@@ -37,11 +38,15 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
+#include <QApplication>
 #include <QCoreApplication>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QPushButton>
 #include <QSignalSpy>
+#include <QStyle>
+#include <QStyleFactory>
 #include <QTableWidget>
 
 #include <algorithm>
@@ -477,6 +482,57 @@ struct NoClearnet {
         g_reachable_nets.Add(NET_IPV6);
     }
 };
+
+//! The dialog the Search button opened.
+UsernameSearchDialog* SearchDialog(const PlatformPage& page) { return page.findChild<UsernameSearchDialog*>(); }
+
+//! The native macOS style paints through an NSView, which the minimal
+//! platform lacks (QTBUG-49686), so a shown widget crashes it. While a test
+//! shows one, Fusion is the style, as SharedMnWalkthroughTests does.
+struct FusionStyle {
+    QString saved;
+    FusionStyle()
+    {
+#if defined(Q_OS_MACOS)
+        if (QApplication::platformName() == "minimal") {
+            saved = QApplication::style()->objectName();
+            if (QStyle* const fusion = QStyleFactory::create("Fusion"); fusion != nullptr) {
+                QApplication::setStyle(fusion);
+            }
+        }
+#endif
+    }
+    ~FusionStyle()
+    {
+        if (!saved.isEmpty()) QApplication::setStyle(saved);
+    }
+};
+
+//! Click Search and return the dialog it opened.
+UsernameSearchDialog* OpenSearch(const PlatformPage& page)
+{
+    VisibleButton(page, "dashPaySearchContacts")->click();
+    UsernameSearchDialog* dialog{SearchDialog(page)};
+    Assert(dialog && dialog->isVisible());
+    return dialog;
+}
+
+//! Type `prefix` in the dialog and click Search.
+void SearchFor(const UsernameSearchDialog& dialog, const QString& prefix)
+{
+    dialog.findChild<QLineEdit*>("dashPaySearchInput")->setText(prefix);
+    dialog.findChild<QPushButton*>("dashPaySearch")->click();
+}
+
+QStringList SearchResults(const UsernameSearchDialog& dialog)
+{
+    QStringList labels;
+    const auto* list{dialog.findChild<QListWidget*>("dashPaySearchResults")};
+    for (int row = 0; row < list->count(); ++row) {
+        labels << list->item(row)->text();
+    }
+    return labels;
+}
 } // namespace
 
 //! The route follows Core's rules for its own connections: -proxy (or none)
@@ -2039,4 +2095,145 @@ void PlatformTests::prunedNodeRefusesTheRescan()
     f.attach(*page);
     QVERIFY(page->recoveryFlow()->prunedFrom().has_value());
     QVERIFY(!page->recoveryFlow()->rescanning());
+}
+
+//! The search dialog looks a prefix up when asked, not before it is two
+//! characters long and not twice at once, and shows the usernames the SDK
+//! returns without claiming they are all. Add sends the chosen one a contact
+//! request through the contact flow and closes the dialog; the Search
+//! button is offered only while no DashPay flow is busy.
+void PlatformTests::searchFindsUsernamesToAdd()
+{
+    const FusionStyle style;
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    auto bob{Found(9, 0)};
+    bob.value.public_keys = {Key(1, Purpose::ENCRYPTION, Level::MEDIUM), Key(3, Purpose::DECRYPTION, Level::MEDIUM)};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity()};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({}), Requests({Request(5, 9, 1)})};
+        client.received_requests = {Requests({})};
+        client.search_results = {Names({"alice2026", "bob2026"})};
+        client.resolved_names = {Resolved(9)};
+        client.identities = {bob};
+        client.sent_contact_requests = {Resolved(1)};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    QVERIFY(SearchDialog(page) == nullptr);
+    UsernameSearchDialog* dialog{OpenSearch(page)};
+    auto* add{dialog->findChild<QPushButton*>("dashPayAddFromSearch")};
+    auto* results{dialog->findChild<QListWidget*>("dashPaySearchResults")};
+    QVERIFY(!add->isEnabled());
+
+    // Too short to search.
+    SearchFor(*dialog, "b");
+    QCOMPARE(sources.fake->countCalls("searchNames"), size_t{0});
+    // Searched once, with the prefix as typed and a limit; asking again
+    // before the answer starts nothing.
+    SearchFor(*dialog, " bo ");
+    SearchFor(*dialog, "bob");
+    QCOMPARE(sources.fake->countCalls("searchNames"), size_t{1});
+    QCOMPARE(sources.fake->calls.back().argument, std::string{"bo"});
+    QVERIFY(sources.fake->search_limits.back() > 0);
+    sources.fake->deliverAll();
+    QCOMPARE(SearchResults(*dialog), (QStringList{"alice2026", "bob2026"}));
+    QVERIFY(!add->isEnabled());
+
+    // Add sends the chosen username's owner a request, and the Search button
+    // is gone while it is on its way.
+    results->setCurrentRow(1);
+    QVERIFY(add->isEnabled());
+    add->click();
+    QVERIFY(!dialog->isVisible());
+    QVERIFY(VisibleButton(page, "dashPaySearchContacts") == nullptr);
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
+    QCOMPARE(sources.fake->calls.back().argument, std::string{"bob2026"});
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->contact_inputs.size(), size_t{1});
+    QVERIFY(sources.fake->contact_inputs.back().recipient == bob.value.id);
+    QVERIFY(page.contactFlow()->error().isEmpty());
+    QCOMPARE(page.contactFlow()->contacts().size(), size_t{1});
+    QVERIFY(VisibleButton(page, "dashPaySearchContacts") != nullptr);
+}
+
+//! A search the client drops is asked again of the client that replaces it,
+//! and a search that fails shows no usernames. Add waits while a flow is
+//! busy.
+void PlatformTests::searchSurvivesAClientRebuild()
+{
+    const FusionStyle style;
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    FakeSources sources;
+    int clients{0};
+    platform::Result<platform::Names> failed;
+    failed.status.kind = platform::StatusKind::UNAVAILABLE;
+    sources.script = [&](FakePlatformClient& client) {
+        // The network is turned off and on again, which forgets the identity.
+        if (clients++ != 1) {
+            client.identities_by_pubkey_hash = {OurIdentity()};
+            client.names = {Names({"me2026"})};
+            client.sent_requests = {Requests({})};
+            client.received_requests = {Requests({})};
+        }
+        if (clients == 2) client.search_results = {Names({"carol2026"})};
+        if (clients == 3) {
+            client.search_results = {Names({"carol2026", "carolyn"}), failed, Names({"carol2026"}), Names({"carol2026"})};
+        }
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    UsernameSearchDialog* dialog{OpenSearch(page)};
+    auto* status{dialog->findChild<QLabel*>("dashPaySearchStatus")};
+    auto* add{dialog->findChild<QPushButton*>("dashPayAddFromSearch")};
+
+    SearchFor(*dialog, "car");
+    QCOMPARE(sources.fake->countCalls("searchNames"), size_t{1});
+    sources.evonodes = {Ipv4Evonode2()};
+    f.listRead();
+    QCOMPARE(sources.made.size(), size_t{2});
+    QCOMPARE(sources.fake->countCalls("searchNames"), size_t{1});
+    QCOMPARE(sources.fake->calls.back().argument, std::string{"car"});
+    sources.fake->deliverAll();
+    QCOMPARE(SearchResults(*dialog), (QStringList{"carol2026"}));
+
+    // Turned off meanwhile, the search waits for the network.
+    SearchFor(*dialog, "caro");
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    QCOMPARE(sources.made.size(), size_t{3});
+    QCOMPARE(sources.fake->countCalls("searchNames"), size_t{1});
+    sources.fake->deliverAll();
+    QCOMPARE(SearchResults(*dialog), (QStringList{"carol2026", "carolyn"}));
+
+    // A failed search leaves no usernames.
+    SearchFor(*dialog, "caroly");
+    sources.fake->deliverAll();
+    QVERIFY(SearchResults(*dialog).isEmpty());
+    QVERIFY(status->isVisibleTo(dialog));
+
+    // Nothing can be added while the contact flow is busy.
+    SearchFor(*dialog, "caro");
+    sources.fake->deliverAll();
+    dialog->findChild<QListWidget*>("dashPaySearchResults")->setCurrentRow(0);
+    QVERIFY(add->isEnabled());
+    page.contactFlow()->add("dave2026");
+    QVERIFY(page.contactFlow()->step() == ContactFlow::Step::RESOLVING);
+    QVERIFY(!add->isEnabled());
+    sources.fake->deliverAll();
+    QVERIFY(add->isEnabled());
+
+    // Closing the dialog does not end a search: the one dialog the page keeps
+    // is the one the answer goes to, whenever it is opened again.
+    SearchFor(*dialog, "caro");
+    dialog->reject();
+    VisibleButton(page, "dashPaySearchContacts")->click();
+    QVERIFY(SearchDialog(page) == dialog);
+    sources.fake->deliverAll();
+    QCOMPARE(SearchResults(*dialog), (QStringList{"carol2026"}));
 }

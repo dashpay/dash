@@ -159,6 +159,12 @@ public:
                       std::move(cb));
     }
 
+    void searchNames(const std::string& prefix, uint32_t limit, Callback<Names> cb) override
+    {
+        Submit<Names>([this, prefix, limit] { return marshal::FromFfi(m_sdk->search_names(prefix, limit)); },
+                      std::move(cb));
+    }
+
     void pendingContests(const Identifier& identity, Callback<std::vector<Contest>> cb) override
     {
         Submit<std::vector<Contest>>(
