@@ -6,7 +6,9 @@
 #define BITCOIN_PLATFORM_CLIENT_H
 
 #include <platform/types.h>
+#include <pubkey.h>
 #include <span.h>
+#include <uint256.h>
 #include <wallet/platformtypes.h>
 
 #include <array>
@@ -15,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace interfaces {
@@ -80,6 +83,12 @@ public:
     virtual void pendingContests(const Identifier& identity, Callback<std::vector<Contest>> cb) = 0;
     //! The tally of the vote on a contested label.
     virtual void contestedVoteState(const std::string& label, Callback<VoteState> cb) = 0;
+    //! The names whose vote is open. Best effort: the SDK may stop after
+    //! its first 100.
+    virtual void currentContests(Callback<std::vector<Contest>> cb) = 0;
+    //! The name votes masternode pro_tx_hash has cast: one page of at most
+    //! 100, which may not be all of them.
+    virtual void masternodeVotes(const uint256& pro_tx_hash, Callback<std::vector<NameVote>> cb) = 0;
     //! Contact requests sent by or to identity, created strictly after
     //! since_ms (0: all).
     virtual void contactRequests(const Identifier& identity, ContactDirection direction, uint64_t since_ms,
@@ -100,6 +109,12 @@ public:
                               uint64_t contest_fund, Signing signing, Callback<Identifier> cb) = 0;
     //! The result is the contact request document id.
     virtual void sendContactRequest(const ContactRequestInput& input, Signing signing, Callback<Identifier> cb) = 0;
+    //! Cast vote as masternode pro_tx_hash, signed in the wallet with the
+    //! masternode's voting key; signing.identity_index is unused. When
+    //! Platform refuses that key, the status message carries the SDK's
+    //! diagnosis.
+    virtual void castMasternodeVote(const uint256& pro_tx_hash, const CKeyID& voting_key, const NameVote& vote,
+                                    Signing signing, Callback<std::monostate> cb) = 0;
 
     //! Drop queued calls, cancel and wait for running ones, and destroy
     //! every call not yet delivered, unlock scopes included. No callback runs

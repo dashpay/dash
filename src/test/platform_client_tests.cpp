@@ -5,9 +5,11 @@
 #include <platform/client.h>
 #include <platform/signer.h>
 
+#include <hash.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <pubkey.h>
+#include <script/standard.h>
 #include <sync.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
@@ -204,7 +206,8 @@ BOOST_AUTO_TEST_CASE(client_threads_and_shutdown)
 //! and over the sighash for the asset lock's funding key. Expected values
 //! are computed independently in Python (stdlib HMAC-SHA512 BIP32 and the
 //! functional test framework's secp256k1) from the DIP-14 seed, on the
-//! mainnet coin type that TestingSetup's chain uses.
+//! mainnet coin type that TestingSetup's chain uses. A vote is signed with
+//! the masternode's voting key only.
 BOOST_AUTO_TEST_CASE(wallet_signer_vectors)
 {
     std::vector<uint8_t> signable(64);
@@ -253,10 +256,28 @@ BOOST_AUTO_TEST_CASE(wallet_signer_vectors)
                       "dc1a11c608c8248e1cef5fc34d65d6861fc4a25807566a");
 
     // A write without an asset lock has no funding key to sign with, and
-    // no ECDSA_HASH160 key is signed with yet.
+    // identity keys are never ECDSA_HASH160 keys.
     const auto document{MakeWalletSigner(*m_iface, 0, std::nullopt)};
     BOOST_CHECK(!document->SignAssetLock(0, sighash, sig));
     BOOST_CHECK(!document->SignIdentityKey(0, /*key_type=*/2, {}, {signable.data(), signable.size()}, sig));
+
+    // A vote signs with the masternode's voting key, the wallet key whose
+    // HASH160 the SDK names, and with no other key.
+    const auto destination{m_iface->getNewDestination("")};
+    BOOST_REQUIRE(destination);
+    const CKeyID voting_key{ToKeyID(std::get<PKHash>(*destination))};
+    const auto voting{MakeVotingSigner(*m_iface, voting_key)};
+    BOOST_REQUIRE(voting->SignIdentityKey(/*key_id=*/0, /*key_type=*/2, {voting_key.data(), voting_key.size()},
+                                          {signable.data(), signable.size()}, sig));
+    CPubKey signer;
+    BOOST_REQUIRE(signer.RecoverCompact(Hash(signable), {sig.begin(), sig.end()}));
+    BOOST_CHECK(signer.GetID() == voting_key);
+    const CKeyID other_key{};
+    BOOST_CHECK(!voting->SignIdentityKey(0, /*key_type=*/2, {other_key.data(), other_key.size()},
+                                         {signable.data(), signable.size()}, sig));
+    BOOST_CHECK(!voting->SignIdentityKey(0, /*key_type=*/0, {voting_key.data(), voting_key.size()},
+                                         {signable.data(), signable.size()}, sig));
+    BOOST_CHECK(!voting->SignAssetLock(0, sighash, sig));
 
     // ECDH with our ENCRYPTION key (identity 0, key 2) and the recipient key
     // 7*G: SHA256 of the compressed shared point.

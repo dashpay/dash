@@ -91,6 +91,18 @@ PlatformService::PlatformService(WalletModel& wallet_model, ClientModel& client_
             return endpoints;
         };
     }
+    if (!m_sources.masternodes) {
+        m_sources.masternodes = [feed = m_client_model.feedMasternode()] {
+            std::vector<Masternode> masternodes;
+            if (const auto data{feed->data()}) {
+                for (const auto& entry : data->m_entries) {
+                    if (entry->isBanned()) continue;
+                    masternodes.push_back({entry->proTxHashRaw(), entry->keyIdVotingRaw(), entry->type() == MnType::Evo});
+                }
+            }
+            return masternodes;
+        };
+    }
     if (!m_sources.network_settings) {
         m_sources.network_settings = [&node] { return PlatformNetworkSettings::Read(node); };
     }

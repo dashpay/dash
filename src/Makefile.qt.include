@@ -130,7 +130,9 @@ QT_MOC_CPP += \
   qt/platform/moc_platformpage.cpp \
   qt/platform/moc_platformservice.cpp \
   qt/platform/moc_recoveryflow.cpp \
-  qt/platform/moc_usernameflow.cpp
+  qt/platform/moc_usernameflow.cpp \
+  qt/platform/moc_votingflow.cpp \
+  qt/platform/moc_votingpage.cpp
 endif
 
 BITCOIN_MM = \
@@ -244,7 +246,9 @@ BITCOIN_QT_H += \
   qt/platform/platformservice.h \
   qt/platform/platformui.h \
   qt/platform/recoveryflow.h \
-  qt/platform/usernameflow.h
+  qt/platform/usernameflow.h \
+  qt/platform/votingflow.h \
+  qt/platform/votingpage.h
 endif
 
 QT_RES_ICONS = \
@@ -388,7 +392,9 @@ BITCOIN_QT_PLATFORM_CPP = \
   qt/platform/platformservice.cpp \
   qt/platform/platformui.cpp \
   qt/platform/recoveryflow.cpp \
-  qt/platform/usernameflow.cpp
+  qt/platform/usernameflow.cpp \
+  qt/platform/votingflow.cpp \
+  qt/platform/votingpage.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS

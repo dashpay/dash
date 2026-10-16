@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <variant>
 #include <vector>
 
 //! Conversions between dash-sdk-cxx's bridge structs and platform:: types.
@@ -22,6 +23,9 @@ Result<uint64_t> FromFfi(const dash_sdk::BalanceResult& result);
 Result<Names> FromFfi(const dash_sdk::NamesResult& result);
 Result<std::vector<Contest>> FromFfi(const dash_sdk::ContestsResult& result);
 Result<VoteState> FromFfi(const dash_sdk::VoteStateResult& result);
+Result<std::vector<NameVote>> FromFfi(const dash_sdk::NameVotesResult& result);
+//! The outcome of a call that answers with its status only.
+Result<std::monostate> Outcome(const dash_sdk::Status& status);
 Result<std::vector<ContactRequest>> FromFfi(const dash_sdk::ContactRequestsResult& result);
 
 std::vector<dash_sdk::IdentityKey> ToFfi(const std::vector<IdentityPublicKey>& keys);

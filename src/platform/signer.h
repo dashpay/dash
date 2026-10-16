@@ -6,6 +6,7 @@
 #define BITCOIN_PLATFORM_SIGNER_H
 
 #include <platform/types.h>
+#include <pubkey.h>
 #include <wallet/platformtypes.h>
 
 #include <dash/sdk/callbacks.h>
@@ -28,6 +29,10 @@ namespace platform {
 //! funding_key (none: refused).
 std::unique_ptr<dash_sdk::WalletSigner> MakeWalletSigner(interfaces::Wallet& wallet, uint32_t identity_index,
                                                          std::optional<wallet::AssetLockFundingKey> funding_key);
+
+//! Signs a masternode vote with the wallet's key voting_key, the voting key
+//! the masternode registered (ECDSA_HASH160), and with nothing else.
+std::unique_ptr<dash_sdk::WalletSigner> MakeVotingSigner(interfaces::Wallet& wallet, const CKeyID& voting_key);
 
 //! The wallet's half of a contact request from sender: the ECDH secret of
 //! IdentityAuthKey{identity_index, sender_key_id}, and the compact xpub of

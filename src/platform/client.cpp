@@ -14,6 +14,7 @@
 
 #include <dash/sdk/ffi.h>
 
+#include <algorithm>
 #include <condition_variable>
 #include <deque>
 #include <exception>
@@ -26,6 +27,15 @@ namespace {
 
 //! Enough for a write in flight not to hold up the reads a wallet load makes.
 constexpr int WORKER_THREADS{4};
+
+//! A hash's bytes as the binding takes them: in Core's internal order.
+template <unsigned int BITS>
+std::array<uint8_t, BITS / 8> Array(const base_blob<BITS>& blob)
+{
+    std::array<uint8_t, BITS / 8> out;
+    std::copy(blob.begin(), blob.end(), out.begin());
+    return out;
+}
 
 //! A call. Run() makes the blocking SDK call on a worker; Deliver() releases
 //! the unlock scope and runs the callback on the executor. A task is
@@ -170,6 +180,17 @@ public:
         Submit<VoteState>([this, label] { return marshal::FromFfi(m_sdk->contested_vote_state(label)); }, std::move(cb));
     }
 
+    void currentContests(Callback<std::vector<Contest>> cb) override
+    {
+        Submit<std::vector<Contest>>([this] { return marshal::FromFfi(m_sdk->current_contests()); }, std::move(cb));
+    }
+
+    void masternodeVotes(const uint256& pro_tx_hash, Callback<std::vector<NameVote>> cb) override
+    {
+        Submit<std::vector<NameVote>>(
+            [this, hash = Array(pro_tx_hash)] { return marshal::FromFfi(m_sdk->identity_votes(hash)); }, std::move(cb));
+    }
+
     void contactRequests(const Identifier& identity, ContactDirection direction, uint64_t since_ms,
                          Callback<std::vector<ContactRequest>> cb) override
     {
@@ -227,6 +248,19 @@ public:
                 return marshal::FromFfi(m_sdk->send_contact_request(marshal::ToFfi(input),
                                                                     MakeWalletSigner(wallet, index, std::nullopt),
                                                                     MakeContactKeys(wallet, index, input.sender)));
+            },
+            std::move(cb), std::move(signing.unlock));
+    }
+
+    void castMasternodeVote(const uint256& pro_tx_hash, const CKeyID& voting_key, const NameVote& vote, Signing signing,
+                            Callback<std::monostate> cb) override
+    {
+        Submit<std::monostate>(
+            [this, pro_tx_hash, voting_key, vote, &wallet = signing.wallet] {
+                return marshal::Outcome(m_sdk->cast_masternode_vote(Array(pro_tx_hash), Array(voting_key),
+                                                                    vote.normalized_label,
+                                                                    static_cast<dash_sdk::VoteChoice>(vote.choice),
+                                                                    vote.towards, MakeVotingSigner(wallet, voting_key)));
             },
             std::move(cb), std::move(signing.unlock));
     }

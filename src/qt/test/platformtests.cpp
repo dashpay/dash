@@ -22,6 +22,7 @@
 #include <qt/platform/platformservice.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
+#include <qt/platform/votingflow.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/walletmodel.h>
 #include <qt/walletview.h>
@@ -37,9 +38,11 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QTableWidget>
@@ -58,6 +61,7 @@ using MasternodeTestUtil::WalletGuard;
 using Gate = PlatformService::Gate;
 using Purpose = platform::IdentityPublicKey::Purpose;
 using Level = platform::IdentityPublicKey::SecurityLevel;
+using Choice = platform::NameVote::Choice;
 
 namespace {
 CService Ipv4Evonode() { return LookupNumeric("203.0.113.7", 443); }
@@ -142,6 +146,7 @@ using FundedFixture = FixtureWithChain<MatureChain>;
 struct FakeSources {
     PlatformNetworkSettings settings;
     std::vector<CService> evonodes{Ipv4Evonode()};
+    std::vector<PlatformService::Masternode> masternodes;
     bool refuse{false};
     //! Run on each new client, to script the answers to the calls it gets first.
     std::function<void(FakePlatformClient&)> script;
@@ -161,6 +166,7 @@ struct FakeSources {
             },
             [this] { return evonodes; },
             [this] { return settings; },
+            [this] { return masternodes; },
         };
     }
 };
@@ -200,12 +206,26 @@ QPushButton* VisibleButton(const QWidget& page, const char* name)
     return button && button->isVisibleTo(&page) ? button : nullptr;
 }
 
-//! An OK answer carrying `value`.
+//! A valid masternode with this voting key.
+PlatformService::Masternode Masternode(uint8_t id, const CKeyID& voting_key, bool evonode = false)
+{
+    platform::Identifier pro_tx_hash;
+    pro_tx_hash.fill(id);
+    return {uint256{pro_tx_hash}, voting_key, evonode};
+}
+
+//! A fresh key of the wallet, as a masternode's voting key.
+CKeyID NewVotingKey(interfaces::Wallet& wallet)
+{
+    return ToKeyID(std::get<PKHash>(*Assert(wallet.getNewDestination(""))));
+}
+
+//! A `kind` answer carrying `value`.
 template <typename T>
-platform::Result<T> Reply(T value)
+platform::Result<T> Reply(T value, platform::StatusKind kind = platform::StatusKind::OK)
 {
     platform::Result<T> result;
-    result.status.kind = platform::StatusKind::OK;
+    result.status.kind = kind;
     result.value = std::move(value);
     return result;
 }
@@ -2039,4 +2059,278 @@ void PlatformTests::prunedNodeRefusesTheRescan()
     f.attach(*page);
     QVERIFY(page->recoveryFlow()->prunedFrom().has_value());
     QVERIFY(!page->recoveryFlow()->rescanning());
+}
+
+//! The wallet votes with the valid masternodes whose voting key it holds,
+//! and only with those, including one the masternode list adds later; a
+//! wallet holding no voting key has no voting. Nothing is read from Platform
+//! until Show username votes, which on a wallet that has not started DashPay
+//! is its first DashPay click, and in a later session is asked for again.
+//! The open contests are read, and the votes of our masternodes, not others'.
+void PlatformTests::votingListsTheWalletsMasternodes()
+{
+    Fixture f{m_node, /*consented=*/false};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    const auto ours{Masternode(1, NewVotingKey(wallet), /*evonode=*/true)};
+    const auto theirs{Masternode(2, CKeyID{})};
+    FakeSources sources;
+    sources.masternodes = {theirs, ours};
+    sources.script = [](FakePlatformClient& client) {
+        client.current_contests = {Reply(std::vector<platform::Contest>{{"alice", 0}, {"bob", 0}})};
+        client.masternode_votes = {Reply(std::vector<platform::NameVote>{{"alice", Choice::LOCK, {}}})};
+    };
+    {
+        PlatformPage page{sources.get()};
+        f.attach(page);
+        QVERIFY(page.votingFlow()->masternodes() == std::vector{ours});
+        QVERIFY(page.findChild<QWidget*>("dashPayVotingPage")->isVisibleTo(&page));
+        QVERIFY(sources.made.empty());
+        QPushButton* show{VisibleButton(page, "dashPayShowVotes")};
+        QVERIFY(show != nullptr);
+        show->click();
+        QVERIFY(page.service()->consented());
+        QCOMPARE(sources.made.size(), size_t{1});
+        QCOMPARE(sources.fake->countCalls("currentContests"), size_t{1});
+        QCOMPARE(sources.fake->countCalls("masternodeVotes"), size_t{1});
+        QVERIFY(Called(*sources.fake, "masternodeVotes", ours.pro_tx_hash.ToString()));
+        sources.fake->deliverAll();
+        QCOMPARE(page.findChild<QListWidget*>("dashPayContests")->count(), 2);
+        const auto* votes{page.votingFlow()->votes(ours.pro_tx_hash)};
+        QVERIFY(votes && (*votes == std::vector<platform::NameVote>{{"alice", Choice::LOCK, {}}}));
+
+        const auto added{Masternode(3, NewVotingKey(wallet))};
+        sources.masternodes.push_back(added);
+        f.listRead();
+        QVERIFY(page.votingFlow()->masternodes() == (std::vector{ours, added}));
+        QCOMPARE(sources.fake->countCalls("masternodeVotes"), size_t{2});
+        QVERIFY(Called(*sources.fake, "masternodeVotes", added.pro_tx_hash.ToString()));
+    }
+
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QCOMPARE(sources.made.size(), size_t{2});
+    QCOMPARE(sources.fake->countCalls("currentContests"), size_t{0});
+    QCOMPARE(sources.fake->countCalls("masternodeVotes"), size_t{0});
+    VisibleButton(page, "dashPayShowVotes")->click();
+    QCOMPARE(sources.fake->countCalls("currentContests"), size_t{1});
+
+    sources.masternodes = {theirs};
+    f.listRead();
+    QVERIFY(page.votingFlow()->masternodes().empty());
+    QVERIFY(!page.findChild<QWidget*>("dashPayVotingPage")->isVisibleTo(&page));
+}
+
+//! A vote is cast as the masternode chosen, for a contender, to lock the
+//! name or to abstain, as the contest's tally offers them, and signed with
+//! that masternode's voting key. A locked wallet asks for the passphrase,
+//! which the vote keeps until Platform answers; declined, nothing is cast.
+//! A cast vote is read back with the tally, unless another contest is open
+//! by then. Platform's refusal is shown with the SDK's diagnosis of the
+//! voting key. The tally shown is the open contest's.
+void PlatformTests::masternodeVoteUsesItsVotingKey()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    const auto first{Masternode(1, NewVotingKey(wallet))};
+    const auto second{Masternode(2, NewVotingKey(wallet), /*evonode=*/true)};
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    int unlocks{0};
+    bool give_passphrase{true};
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        ++unlocks;
+        if (give_passphrase) f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    platform::Identifier carol, dave;
+    carol.fill(7);
+    dave.fill(8);
+    platform::VoteState tally;
+    tally.contenders = {{carol, 3}, {dave, 1}};
+    tally.lock = 2;
+    platform::Result<std::monostate> refused;
+    refused.status.kind = platform::StatusKind::CONSENSUS;
+    refused.status.consensus_code = 2000;
+    refused.status.message = "Public key 0 doesn't exist: NoVoterIdentity { pro_tx_hash: 0101 }";
+    FakeSources sources;
+    sources.masternodes = {first, second};
+    sources.script = [&](FakePlatformClient& client) {
+        client.current_contests = {Reply(std::vector<platform::Contest>{{"alice", 0}, {"bob", 0}})};
+        client.masternode_votes.assign(5, Reply(std::vector<platform::NameVote>{}));
+        client.vote_states.assign(6, Reply(tally));
+        client.cast_votes = {Reply(std::monostate{}), Reply(std::monostate{}), refused, Reply(std::monostate{})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    FakePlatformClient& fake{*sources.fake};
+    VisibleButton(page, "dashPayShowVotes")->click();
+    fake.deliverAll();
+    auto* contests{page.findChild<QListWidget*>("dashPayContests")};
+    QCOMPARE(contests->count(), 2);
+    QVERIFY(VisibleButton(page, "dashPayCastVote") == nullptr);
+    contests->setCurrentRow(0);
+    QVERIFY(Called(fake, "contestedVoteState", "alice"));
+    fake.deliverAll();
+    auto* masternode{page.findChild<QComboBox*>("dashPayVoteMasternode")};
+    auto* choice{page.findChild<QComboBox*>("dashPayVoteChoice")};
+    QCOMPARE(masternode->count(), 2);
+    // Nothing is chosen yet; then the two contenders, lock and abstain.
+    QCOMPARE(choice->count(), 5);
+    QPushButton* cast{VisibleButton(page, "dashPayCastVote")};
+    QVERIFY(cast != nullptr && !cast->isEnabled());
+    QCOMPARE(unlocks, 0);
+
+    masternode->setCurrentIndex(1);
+    choice->setCurrentIndex(2);
+    QVERIFY(cast->isEnabled());
+    cast->click();
+    QCOMPARE(unlocks, 1);
+    QCOMPARE(fake.votes_cast.size(), size_t{1});
+    QVERIFY(
+        fake.votes_cast.back() ==
+        (FakePlatformClient::CastVote{second.pro_tx_hash, second.voting_key, {"alice", Choice::TOWARDS_IDENTITY, dave}}));
+    std::vector<unsigned char> signature;
+    QVERIFY(wallet.signSpecialTxPayload(uint256::ONE, second.voting_key, signature));
+    const auto votes_read = [&](const PlatformService::Masternode& masternode) {
+        return fake.countCalls("masternodeVotes", masternode.pro_tx_hash.ToString());
+    };
+    QCOMPARE(votes_read(second), size_t{1});
+    fake.deliverAll();
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+    QVERIFY(!wallet.signSpecialTxPayload(uint256::ONE, second.voting_key, signature));
+    QCOMPARE(votes_read(second), size_t{2});
+    QCOMPARE(votes_read(first), size_t{1});
+    QCOMPARE(fake.countCalls("contestedVoteState"), size_t{2});
+    QVERIFY(page.votingFlow()->error().isEmpty());
+    // The page still shows the masternode and the choice voted with.
+    QCOMPARE(masternode->currentIndex(), 1);
+    QCOMPARE(choice->currentIndex(), 2);
+
+    masternode->setCurrentIndex(0);
+    choice->setCurrentIndex(3);
+    VisibleButton(page, "dashPayCastVote")->click();
+    QCOMPARE(fake.votes_cast.size(), size_t{2});
+    QVERIFY(fake.votes_cast.back() ==
+            (FakePlatformClient::CastVote{first.pro_tx_hash, first.voting_key, {"alice", Choice::LOCK, {}}}));
+    fake.deliverAll();
+
+    give_passphrase = false;
+    choice->setCurrentIndex(4);
+    VisibleButton(page, "dashPayCastVote")->click();
+    QCOMPARE(unlocks, 3);
+    QCOMPARE(fake.votes_cast.size(), size_t{2});
+    QVERIFY(!page.votingFlow()->error().isEmpty());
+
+    give_passphrase = true;
+    VisibleButton(page, "dashPayCastVote")->click();
+    QCOMPARE(fake.votes_cast.size(), size_t{3});
+    QVERIFY(fake.votes_cast.back().vote.choice == Choice::ABSTAIN);
+    fake.deliverAll();
+    QVERIFY(page.votingFlow()->error().contains("NoVoterIdentity"));
+    QVERIFY(page.findChild<QLabel*>("dashPayVotingStatus")->text().contains("NoVoterIdentity"));
+
+    // Back to alice before bob's tally answers: alice's tally is shown.
+    contests->setCurrentRow(1);
+    contests->setCurrentRow(0);
+    fake.deliverAll();
+    QCOMPARE(fake.countCalls("contestedVoteState", "bob"), size_t{1});
+    QVERIFY(page.votingFlow()->tallyLabel() == "alice" && page.votingFlow()->tally());
+    QCOMPARE(choice->count(), 5);
+    // A vote on alice ending while bob is open leaves bob's tally shown.
+    choice->setCurrentIndex(3);
+    cast->click();
+    contests->setCurrentRow(1);
+    fake.deliverAll();
+    QCOMPARE(fake.votes_cast.size(), size_t{4});
+    QVERIFY(page.votingFlow()->tallyLabel() == "bob" && page.votingFlow()->tally());
+}
+
+//! A vote is one DashPay write at a time, as every other: a write started
+//! during its passphrase dialog stops it, it stops a write that reaches its
+//! own passphrase meanwhile, and it is not cast while another write is in
+//! flight. A rebuild for a changed evonode set waits for it, and one during
+//! its passphrase dialog, with the masternode list changing, does not end it
+//! or change who votes; a vote dropped with its client is over, and our
+//! masternodes' votes are read again to see whether it landed.
+void PlatformTests::voteKeepsToOneWriteAtATime()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    const auto ours{Masternode(1, NewVotingKey(wallet))};
+    const auto added{Masternode(2, NewVotingKey(wallet))};
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    std::function<void()> during_dialog;
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        if (auto during{std::exchange(during_dialog, nullptr)}) during();
+        f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    FakeSources sources;
+    sources.masternodes = {ours};
+    sources.script = [](FakePlatformClient& client) {
+        client.resolved_names = {Reply(platform::Identifier{}, platform::StatusKind::UNAVAILABLE), Resolved(std::nullopt)};
+        client.cast_votes = {Reply(std::monostate{})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    FakePlatformClient& fake{*sources.fake};
+    VotingFlow& voting{*page.votingFlow()};
+    UsernameFlow& names{*page.usernameFlow()};
+    const platform::NameVote lock{"alice", Choice::LOCK, {}};
+
+    during_dialog = [&] { names.registerName("erin2026"); };
+    voting.vote(ours.pro_tx_hash, lock);
+    QVERIFY(voting.step() == VotingFlow::Step::IDLE);
+    QVERIFY(!voting.error().isEmpty());
+    QCOMPARE(fake.countCalls("castMasternodeVote"), size_t{0});
+    fake.deliverAll();
+    QVERIFY(names.step() == UsernameFlow::Step::IDLE);
+
+    bool done{false};
+    const auto write{PendingWrite(*page.service(), wallet, done)};
+    voting.vote(ours.pro_tx_hash, lock);
+    QVERIFY(!voting.error().isEmpty());
+    QCOMPARE(fake.countCalls("castMasternodeVote"), size_t{0});
+    fake.deliverAll();
+    QVERIFY(done);
+
+    names.registerName("frank2026");
+    during_dialog = [&] { fake.deliverAll(); };
+    voting.vote(ours.pro_tx_hash, lock);
+    QVERIFY(names.step() == UsernameFlow::Step::IDLE);
+    QVERIFY(!names.error().isEmpty());
+    QVERIFY(!Called(fake, "registerName", "frank2026"));
+    QCOMPARE(fake.countCalls("castMasternodeVote"), size_t{1});
+    QVERIFY(voting.step() == VotingFlow::Step::VOTING);
+    sources.evonodes = {Ipv4Evonode2()};
+    f.listRead();
+    QCOMPARE(sources.made.size(), size_t{1});
+    fake.deliverAll();
+    QVERIFY(voting.step() == VotingFlow::Step::IDLE);
+    QVERIFY(voting.error().isEmpty());
+    QCoreApplication::processEvents();
+    QCOMPARE(sources.made.size(), size_t{2});
+
+    during_dialog = [&] {
+        sources.evonodes = {Ipv4Evonode()};
+        sources.masternodes.insert(sources.masternodes.begin(), added);
+        f.listRead();
+    };
+    voting.vote(voting.masternodes().front().pro_tx_hash, lock);
+    QCOMPARE(sources.made.size(), size_t{3});
+    QVERIFY(sources.fake->votes_cast.back() == (FakePlatformClient::CastVote{ours.pro_tx_hash, ours.voting_key, lock}));
+    QCOMPARE(sources.fake->countCalls("castMasternodeVote"), size_t{1});
+    QVERIFY(voting.step() == VotingFlow::Step::VOTING);
+    sources.fake->deliverAll();
+    QVERIFY(voting.step() == VotingFlow::Step::IDLE);
+
+    voting.load();
+    sources.fake->deliverAll();
+    voting.vote(ours.pro_tx_hash, lock);
+    QVERIFY(voting.step() == VotingFlow::Step::VOTING);
+    f.setNetworkActive(false);
+    QVERIFY(voting.step() == VotingFlow::Step::IDLE);
+    QVERIFY(!voting.error().isEmpty());
+    f.setNetworkActive(true);
+    QCOMPARE(sources.fake->countCalls("masternodeVotes", ours.pro_tx_hash.ToString()), size_t{1});
 }

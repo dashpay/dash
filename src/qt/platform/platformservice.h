@@ -8,6 +8,8 @@
 #include <netaddress.h>
 #include <platform/client.h>
 #include <platform/types.h>
+#include <pubkey.h>
+#include <uint256.h>
 
 #include <QObject>
 #include <QString>
@@ -84,6 +86,15 @@ public:
         CLIENT_FAILED,
     };
 
+    //! A valid masternode in Core's DIP-3 list.
+    struct Masternode {
+        uint256 pro_tx_hash;
+        CKeyID voting_key;
+        bool evonode{false};
+
+        friend bool operator==(const Masternode&, const Masternode&) = default;
+    };
+
     //! What the service reads from the node. An empty member uses the node.
     struct Sources {
         //! The SDK client, verifying proofs against the node's quorums.
@@ -93,6 +104,8 @@ public:
         std::function<std::vector<CService>()> evonodes;
         //! PlatformNetworkSettings::Read.
         std::function<PlatformNetworkSettings()> network_settings;
+        //! The valid masternodes in Core's masternode list.
+        std::function<std::vector<Masternode>()> masternodes;
     };
 
     //! The wallet record the first DashPay click writes.
@@ -102,6 +115,7 @@ public:
 
     WalletModel& walletModel() const { return m_wallet_model; }
     ClientModel& clientModel() const { return m_client_model; }
+    std::vector<Masternode> masternodes() const { return m_sources.masternodes(); }
     Gate gate() const { return m_gate; }
     //! Why DashPay can't run, naming the setting that disables it; empty for
     //! NONE and NO_CONSENT.

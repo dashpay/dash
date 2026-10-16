@@ -149,6 +149,24 @@ Result<VoteState> FromFfi(const dash_sdk::VoteStateResult& result)
     return {FromFfi(result.status), std::move(state)};
 }
 
+// NameVote::Choice and the binding's VoteChoice convert by value.
+static_assert(static_cast<uint8_t>(dash_sdk::VoteChoice::TowardsIdentity) ==
+                  static_cast<uint8_t>(NameVote::Choice::TOWARDS_IDENTITY) &&
+              static_cast<uint8_t>(dash_sdk::VoteChoice::Abstain) == static_cast<uint8_t>(NameVote::Choice::ABSTAIN) &&
+              static_cast<uint8_t>(dash_sdk::VoteChoice::Lock) == static_cast<uint8_t>(NameVote::Choice::LOCK));
+
+Result<std::vector<NameVote>> FromFfi(const dash_sdk::NameVotesResult& result)
+{
+    std::vector<NameVote> votes;
+    votes.reserve(result.votes.size());
+    for (const auto& vote : result.votes) {
+        votes.push_back({std::string{vote.normalized_label}, static_cast<NameVote::Choice>(vote.choice), vote.towards});
+    }
+    return {FromFfi(result.status), std::move(votes)};
+}
+
+Result<std::monostate> Outcome(const dash_sdk::Status& status) { return {FromFfi(status), {}}; }
+
 Result<std::vector<ContactRequest>> FromFfi(const dash_sdk::ContactRequestsResult& result)
 {
     return {FromFfi(result.status), Each<ContactRequest>(result.requests)};

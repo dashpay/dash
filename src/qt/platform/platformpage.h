@@ -18,6 +18,8 @@ class ContactsPage;
 class IdentityFlow;
 class RecoveryFlow;
 class UsernameFlow;
+class VotingFlow;
+class VotingPage;
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -33,7 +35,9 @@ QT_END_NAMESPACE
  *  recovers and shows the wallet's identity, its username and its balance;
  *  creates, continues or tops up the identity; registers its username, a
  *  premium one through the masternode vote, whose tally it shows; and
- *  keeps its contacts, handing a payment to one to the Send tab. */
+ *  keeps its contacts, handing a payment to one to the Send tab. A wallet
+ *  holding masternode voting keys votes on contested usernames, with or
+ *  without an identity. */
 class PlatformPage : public QWidget
 {
     Q_OBJECT
@@ -49,6 +53,7 @@ public:
     UsernameFlow* usernameFlow() const { return m_username_flow.get(); }
     ContactFlow* contactFlow() const { return m_contact_flow.get(); }
     RecoveryFlow* recoveryFlow() const { return m_recovery_flow.get(); }
+    VotingFlow* votingFlow() const { return m_voting_flow.get(); }
 
 Q_SIGNALS:
     //! A service was created, or is about to be destroyed (nullptr) while
@@ -75,6 +80,8 @@ private:
     std::unique_ptr<ContactFlow> m_contact_flow;
     //! Destroyed before the flows it reads.
     std::unique_ptr<RecoveryFlow> m_recovery_flow;
+    //! Destroyed before the service it calls through.
+    std::unique_ptr<VotingFlow> m_voting_flow;
 
     QLabel* m_username{nullptr};
     QLabel* m_identity{nullptr};
@@ -91,6 +98,7 @@ private:
     QPushButton* m_register{nullptr};
     QLabel* m_username_status{nullptr};
     ContactsPage* m_contacts{nullptr};
+    VotingPage* m_voting{nullptr};
     QPushButton* m_stop{nullptr};
 };
 

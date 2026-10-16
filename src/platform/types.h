@@ -105,7 +105,7 @@ struct Names {
     bool complete{false};
 };
 
-//! A contested name the identity is a contender for, still being voted on.
+//! A contested name still being voted on.
 struct Contest {
     std::string normalized_label;
     uint64_t ends_at_ms{0};
@@ -127,6 +127,20 @@ struct VoteState {
     uint32_t lock{0};
     Winner winner{Winner::NONE};
     Identifier winner_identity{}; //!< meaningful only for Winner::IDENTITY
+};
+
+//! A masternode's vote on a contested name.
+struct NameVote {
+    enum class Choice : uint8_t {
+        TOWARDS_IDENTITY,
+        ABSTAIN,
+        LOCK, //!< nobody receives the name
+    };
+    std::string normalized_label;
+    Choice choice{Choice::ABSTAIN};
+    Identifier towards{}; //!< meaningful only for Choice::TOWARDS_IDENTITY
+
+    friend bool operator==(const NameVote&, const NameVote&) = default;
 };
 
 enum class ContactDirection : uint8_t {

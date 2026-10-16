@@ -14,12 +14,14 @@
 #include <algorithm>
 #include <chrono>
 #include <variant>
+#include <vector>
 
 namespace platform {
 
 namespace {
 
 constexpr uint8_t KEY_TYPE_ECDSA_SECP256K1{static_cast<uint8_t>(IdentityPublicKey::Type::ECDSA_SECP256K1)};
+constexpr uint8_t KEY_TYPE_ECDSA_HASH160{static_cast<uint8_t>(IdentityPublicKey::Type::ECDSA_HASH160)};
 
 bool Sign(interfaces::Wallet& wallet, const wallet::PlatformKeyRequest& key, const uint256& digest,
           std::array<uint8_t, 65>& sig_out)
@@ -47,6 +49,22 @@ std::unique_ptr<dash_sdk::WalletSigner> MakeWalletSigner(interfaces::Wallet& wal
             const auto key{std::visit([](auto k) -> wallet::PlatformKeyRequest { return k; }, *funding_key)};
             return Sign(wallet, key, uint256{sighash}, sig_out);
         });
+}
+
+std::unique_ptr<dash_sdk::WalletSigner> MakeVotingSigner(interfaces::Wallet& wallet, const CKeyID& voting_key)
+{
+    return std::make_unique<dash_sdk::WalletSigner>(
+        [&wallet, voting_key](uint32_t /*key_id*/, uint8_t key_type, std::span<const uint8_t> key_data,
+                              std::span<const uint8_t> signable, std::array<uint8_t, 65>& sig_out) {
+            if (key_type != KEY_TYPE_ECDSA_HASH160 || !std::ranges::equal(key_data, voting_key)) return false;
+            std::vector<unsigned char> signature;
+            if (!wallet.signSpecialTxPayload(Hash(signable), voting_key, signature) || signature.size() != sig_out.size()) {
+                return false;
+            }
+            std::copy(signature.begin(), signature.end(), sig_out.begin());
+            return true;
+        },
+        dash_sdk::WalletSigner::SignAssetLockFn{});
 }
 
 std::unique_ptr<dash_sdk::ContactKeys> MakeContactKeys(interfaces::Wallet& wallet, uint32_t identity_index,

@@ -15,6 +15,8 @@
 #include <qt/platform/platformui.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
+#include <qt/platform/votingflow.h>
+#include <qt/platform/votingpage.h>
 #include <qt/walletmodel.h>
 
 #include <QHBoxLayout>
@@ -123,6 +125,8 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
 
     m_contacts = new ContactsPage(this);
     m_contacts->setObjectName("dashPayContactsPage");
+    m_voting = new VotingPage(this);
+    m_voting->setObjectName("dashPayVotingPage");
 
     auto* header{new QHBoxLayout};
     header->addWidget(m_username);
@@ -142,6 +146,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     layout->addWidget(m_username_status);
     layout->addLayout(username_row);
     layout->addWidget(m_contacts);
+    layout->addWidget(m_voting);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
     GUIUtil::updateFonts();
@@ -195,6 +200,8 @@ void PlatformPage::resetService()
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
         m_contacts->setFlow(nullptr);
+        m_voting->setFlow(nullptr);
+        m_voting_flow.reset();
         m_recovery_flow.reset();
         m_contact_flow.reset();
         m_username_flow.reset();
@@ -217,6 +224,9 @@ void PlatformPage::resetService()
         connect(m_contact_flow.get(), &ContactFlow::payTo, this, &PlatformPage::payTo);
         m_recovery_flow = std::make_unique<RecoveryFlow>(*m_service, *m_identity_flow, *m_username_flow, *m_contact_flow);
         connect(m_recovery_flow.get(), &RecoveryFlow::changed, this, &PlatformPage::refresh);
+        m_voting_flow = std::make_unique<VotingFlow>(*m_service);
+        m_voting->setFlow(m_voting_flow.get());
+        connect(m_voting_flow.get(), &VotingFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
@@ -290,9 +300,10 @@ void PlatformPage::refresh()
     using NameStep = UsernameFlow::Step;
     const NameStep name_step{names ? names->step() : NameStep::IDLE};
     const ContactFlow* contacts{m_contact_flow.get()};
+    const VotingFlow* voting{m_voting_flow.get()};
     const bool idle{running && step == Step::IDLE && name_step == NameStep::IDLE && contacts &&
                     contacts->step() == ContactFlow::Step::IDLE && recovery &&
-                    recovery->step() == RecoveryFlow::Step::IDLE};
+                    recovery->step() == RecoveryFlow::Step::IDLE && voting && voting->step() == VotingFlow::Step::IDLE};
     //! Nothing in flight and no funding waiting for Platform.
     const bool ready{idle && !funding};
     QString identity_status;
@@ -378,4 +389,7 @@ void PlatformPage::refresh()
     // Contacts find the identity by its username.
     m_contacts->setVisible(running && identity && username);
     m_contacts->refresh(ready);
+    // Voting needs no identity; before DashPay runs it offers the first click.
+    m_voting->setVisible(voting && !voting->masternodes().empty() && (gate == Gate::NO_CONSENT || running));
+    m_voting->refresh(idle);
 }

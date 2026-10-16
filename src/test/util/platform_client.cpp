@@ -62,6 +62,16 @@ void FakePlatformClient::contestedVoteState(const std::string& label, Callback<p
     Answer({"contestedVoteState", label, std::nullopt}, vote_states, std::move(cb));
 }
 
+void FakePlatformClient::currentContests(Callback<std::vector<platform::Contest>> cb)
+{
+    Answer({"currentContests", "", std::nullopt}, current_contests, std::move(cb));
+}
+
+void FakePlatformClient::masternodeVotes(const uint256& pro_tx_hash, Callback<std::vector<platform::NameVote>> cb)
+{
+    Answer({"masternodeVotes", pro_tx_hash.ToString(), std::nullopt}, masternode_votes, std::move(cb));
+}
+
 void FakePlatformClient::contactRequests(const Identifier& identity, platform::ContactDirection direction, uint64_t,
                                          Callback<std::vector<platform::ContactRequest>> cb)
 {
@@ -103,6 +113,15 @@ void FakePlatformClient::sendContactRequest(const platform::ContactRequestInput&
            std::move(cb), std::move(signing.unlock));
 }
 
+void FakePlatformClient::castMasternodeVote(const uint256& pro_tx_hash, const CKeyID& voting_key,
+                                            const platform::NameVote& vote, platform::Signing signing,
+                                            Callback<std::monostate> cb)
+{
+    if (!shut_down) votes_cast.push_back({pro_tx_hash, voting_key, vote});
+    Answer({"castMasternodeVote", pro_tx_hash.ToString(), signing.identity_index}, cast_votes, std::move(cb),
+           std::move(signing.unlock));
+}
+
 void FakePlatformClient::shutdown()
 {
     shut_down = true;
@@ -124,7 +143,9 @@ void FakePlatformClient::deliverNext()
     deliver();
 }
 
-size_t FakePlatformClient::countCalls(const std::string& method) const
+size_t FakePlatformClient::countCalls(const std::string& method, const std::optional<std::string>& argument) const
 {
-    return std::count_if(calls.begin(), calls.end(), [&](const Call& call) { return call.method == method; });
+    return std::count_if(calls.begin(), calls.end(), [&](const Call& call) {
+        return call.method == method && (!argument || call.argument == *argument);
+    });
 }

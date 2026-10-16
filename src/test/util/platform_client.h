@@ -38,6 +38,8 @@ public:
     std::deque<platform::Result<platform::Names>> names;
     std::deque<platform::Result<std::vector<platform::Contest>>> contests;
     std::deque<platform::Result<platform::VoteState>> vote_states;
+    std::deque<platform::Result<std::vector<platform::Contest>>> current_contests;
+    std::deque<platform::Result<std::vector<platform::NameVote>>> masternode_votes;
     //! The answers to contactRequests, by direction.
     std::deque<platform::Result<std::vector<platform::ContactRequest>>> sent_requests;
     std::deque<platform::Result<std::vector<platform::ContactRequest>>> received_requests;
@@ -45,6 +47,7 @@ public:
     std::deque<platform::Result<uint64_t>> top_ups;
     std::deque<platform::Result<platform::Identifier>> registered_names;
     std::deque<platform::Result<platform::Identifier>> sent_contact_requests;
+    std::deque<platform::Result<std::monostate>> cast_votes;
 
     std::vector<Call> calls;
     //! The asset lock proofs of registerIdentity and topUpIdentity, in call order.
@@ -55,6 +58,15 @@ public:
     std::vector<uint64_t> name_contest_funds;
     //! The input of each sendContactRequest, in call order.
     std::vector<platform::ContactRequestInput> contact_inputs;
+    struct CastVote {
+        uint256 pro_tx_hash;
+        CKeyID voting_key;
+        platform::NameVote vote;
+
+        friend bool operator==(const CastVote&, const CastVote&) = default;
+    };
+    //! Each castMasternodeVote, in call order.
+    std::vector<CastVote> votes_cast;
     bool shut_down{false};
 
     void getIdentity(const platform::Identifier& id, Callback<platform::Identity> cb) override;
@@ -64,6 +76,8 @@ public:
                          Callback<platform::Names> cb) override;
     void pendingContests(const platform::Identifier& identity, Callback<std::vector<platform::Contest>> cb) override;
     void contestedVoteState(const std::string& label, Callback<platform::VoteState> cb) override;
+    void currentContests(Callback<std::vector<platform::Contest>> cb) override;
+    void masternodeVotes(const uint256& pro_tx_hash, Callback<std::vector<platform::NameVote>> cb) override;
     void contactRequests(const platform::Identifier& identity, platform::ContactDirection direction, uint64_t since_ms,
                          Callback<std::vector<platform::ContactRequest>> cb) override;
     void registerIdentity(std::vector<platform::IdentityPublicKey> keys, platform::AssetLockProof proof,
@@ -74,14 +88,16 @@ public:
                       uint64_t contest_fund, platform::Signing signing, Callback<platform::Identifier> cb) override;
     void sendContactRequest(const platform::ContactRequestInput& input, platform::Signing signing,
                             Callback<platform::Identifier> cb) override;
+    void castMasternodeVote(const uint256& pro_tx_hash, const CKeyID& voting_key, const platform::NameVote& vote,
+                            platform::Signing signing, Callback<std::monostate> cb) override;
     void shutdown() override;
 
     //! Run the pending callbacks, including those they add.
     void deliverAll();
     //! Run the oldest pending callback only.
     void deliverNext();
-    //! Number of recorded calls of a method.
-    size_t countCalls(const std::string& method) const;
+    //! Number of recorded calls of a method, with that argument if given.
+    size_t countCalls(const std::string& method, const std::optional<std::string>& argument = std::nullopt) const;
 
 private:
     template <typename T>
