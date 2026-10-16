@@ -83,7 +83,7 @@ private:
     bool fUnitTest;
 
     /// Add signature to a txin
-    bool AddScriptSig(const CTxIn& txin) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    bool AddScriptSig(const CTxIn& txin, const CService& sender) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
     /// Charge fees to bad actors (Charge clients a fee if they're abusive)
     void ChargeFees() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
@@ -127,8 +127,6 @@ private:
 
     /// Check that all inputs are signed. (Are all inputs signed?)
     bool IsSignaturesComplete() const EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
-    /// Check to make sure a given input matches an input in the pool and its scriptSig is valid
-    bool IsInputScriptSigValid(const CTxIn& txin) const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     // Set the 'state' value, with some logging and capturing when the state changed
     void SetState(PoolState nStateNew);
