@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <qt/test/wallettests.h>
+#include <qt/test/masternodetestutil.h>
 #include <qt/test/util.h>
 
 #include <chainparams.h>
@@ -320,4 +321,31 @@ void WalletTests::walletTests()
     }
 #endif
     TestGUI(m_node);
+}
+
+//! An unlock handed from one owner to another relocks the wallet once, when
+//! its last owner goes away.
+void WalletTests::unlockContextMove()
+{
+    TestChain100Setup test;
+    m_node.setContext(&test.m_node);
+    WalletContext& context{*m_node.walletLoader().context()};
+    const auto wallet{MasternodeTestUtil::MakeCoinbaseWallet(m_node, context, test, "unlock", /*encrypt=*/true)};
+    QVERIFY(wallet != nullptr);
+    MasternodeTestUtil::WalletGuard guard{context, wallet};
+    MasternodeTestUtil::GuiModels models{m_node};
+    QVERIFY(models.ok);
+    WalletModel wallet_model(interfaces::MakeWallet(context, wallet), models.client);
+    connect(&wallet_model, &WalletModel::requireUnlock, [&wallet_model] {
+        wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    QCOMPARE(wallet_model.getEncryptionStatus(), WalletModel::Locked);
+
+    // emplace moves the returned context; the moved-from one must not relock.
+    std::optional<WalletModel::UnlockContext> held;
+    held.emplace(wallet_model.requestUnlock());
+    QVERIFY(held->isValid());
+    QCOMPARE(wallet_model.getEncryptionStatus(), WalletModel::Unlocked);
+    held.reset();
+    QCOMPARE(wallet_model.getEncryptionStatus(), WalletModel::Locked);
 }
