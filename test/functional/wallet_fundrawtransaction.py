@@ -20,6 +20,7 @@ from test_framework.util import (
     assert_raises_rpc_error,
     count_bytes,
     find_vout_for_address,
+    get_fee,
     satoshi_round,
 )
 from test_framework.wallet_util import bytes_to_wif
@@ -550,6 +551,8 @@ class RawTransactionsTest(BitcoinTestFramework):
         df_wallet = self.nodes[1].get_wallet_rpc(self.default_wallet_name)
         self.nodes[1].createwallet(wallet_name="locked_wallet", descriptors=self.options.descriptors)
         wallet = self.nodes[1].get_wallet_rpc("locked_wallet")
+        # This test is not meant to exercise fee estimation. Making sure all txs are sent at a consistent fee rate.
+        wallet.settxfee(self.min_relay_tx_fee)
 
         # Add some balance to the wallet (this will be reverted at the end of the test)
         df_wallet.sendall(recipients=[wallet.getnewaddress()])
@@ -578,10 +581,11 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # Choose input
         inputs = wallet.listunspent()
-        # Deduce fee to produce a changeless transaction
-        # (500 duffs is above the fee of this 1-in/1-out tx at the test feerate,
-        #  while the remainder stays below the cost of creating a change output)
-        value = inputs[0]["amount"] - Decimal("0.00000500")
+
+        # Deduce exact fee to produce a changeless transaction
+        tx_size = 191  # Total tx size: 191 bytes, p2pkh -> p2pkh. Input 147 bytes + rest of tx is 44 bytes.
+        value = inputs[0]["amount"] - get_fee(tx_size, self.min_relay_tx_fee)
+
         outputs = {self.nodes[0].getnewaddress():value}
         rawtx = wallet.createrawtransaction(inputs, outputs)
         # fund a transaction that does not require a new key for the change output
