@@ -15,6 +15,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 class ClientModel;
@@ -119,6 +120,18 @@ public:
     //! none is, which serializes the wallet's unlocks and its identity's
     //! state transitions.
     bool writing() const { return m_writes > 0; }
+    //! Each of the wallet's flows that writes is registered, to be seen idle
+    //! or not. The flows are destroyed together, before the service.
+    template <typename Flow>
+    void addWriter(const Flow& flow)
+    {
+        m_writers.emplace_back(&flow, [&flow] { return flow.step() == Flow::Step::IDLE; });
+    }
+    //! Whether no write is in flight and every other flow is idle. A flow
+    //! checks it once its passphrase dialog has closed, before it keeps the
+    //! unlock for a write: another write's unlock would relock the wallet
+    //! under it.
+    bool othersIdle(const QObject& flow) const;
 
     //! Wrap the callback of a write, in the call that starts it: a rebuild
     //! waits until it has run.
@@ -156,6 +169,7 @@ private:
     //! A configuration the SDK refused, not tried again.
     std::optional<platform::ClientConfig> m_refused;
     int m_writes{0};
+    std::vector<std::pair<const QObject*, std::function<bool()>>> m_writers;
     //! The evonode set changed while a write was in flight.
     bool m_paused{false};
 };

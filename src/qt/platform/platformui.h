@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace PlatformUi {
 //! A failed Platform call as the user reads it; empty for OK and NOT_FOUND,
@@ -22,6 +23,9 @@ namespace PlatformUi {
 QString Describe(const platform::Status& status);
 //! A Platform balance in credits as a Dash amount, rounded down to a duff.
 QString FormatCredits(BitcoinUnit unit, uint64_t credits);
+//! The key a document is signed with: the identity's enabled HIGH
+//! authentication key, whatever its id.
+std::optional<uint32_t> DocumentSigningKey(const platform::Identity& identity);
 //! Keeps the wallet unlocked until the client has signed the write.
 std::unique_ptr<platform::UnlockScope> KeepUnlocked(WalletModel::UnlockContext unlock);
 //! The callback of a call, owning a token `call` points to: it expires

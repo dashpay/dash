@@ -12,30 +12,15 @@
 #include <utility>
 
 namespace {
-using platform::IdentityPublicKey;
-
 //! The header shows the first of the identity's names.
 constexpr uint32_t NAMES_PAGE_LIMIT{10};
-
-//! The key a DPNS document is signed with: the identity's enabled HIGH
-//! authentication key, whatever its id.
-std::optional<uint32_t> SigningKey(const platform::Identity& identity)
-{
-    for (const IdentityPublicKey& key : identity.public_keys) {
-        if (key.purpose == IdentityPublicKey::Purpose::AUTHENTICATION &&
-            key.security_level == IdentityPublicKey::SecurityLevel::HIGH &&
-            key.type == IdentityPublicKey::Type::ECDSA_SECP256K1 && key.disabled_at == 0) {
-            return key.id;
-        }
-    }
-    return std::nullopt;
-}
 } // namespace
 
 UsernameFlow::UsernameFlow(PlatformService& service, IdentityFlow& identity_flow) :
     m_service(service),
     m_identity_flow(identity_flow)
 {
+    m_service.addWriter(*this);
     connect(&m_service, &PlatformService::changed, this, &UsernameFlow::update);
     connect(&m_identity_flow, &IdentityFlow::changed, this, &UsernameFlow::update);
     update();
@@ -138,9 +123,8 @@ void UsernameFlow::onResolved(platform::Result<platform::Identifier> result)
 
     m_unlock.emplace(m_service.walletModel().requestUnlock());
     if (!m_unlock->isValid()) return finish(tr("The wallet stayed locked, so no username was registered."));
-    // Only alone: the unlock of another write in flight would relock the
-    // wallet under this one. The passphrase dialog may have started one.
-    if (m_identity_flow.step() != IdentityFlow::Step::IDLE || m_service.writing()) {
+    // The passphrase dialog may have let another flow start.
+    if (!m_service.othersIdle(*this)) {
         return finish(tr("Another DashPay payment is on its way. Try again once it is done."));
     }
     m_step = Step::PREPARING;
@@ -153,7 +137,7 @@ void UsernameFlow::send(const platform::Identity& identity)
     platform::PlatformClient* client{m_service.client()};
     // Paused for a rebuild: changed() comes back here.
     if (!client) return;
-    const auto key{SigningKey(identity)};
+    const auto key{PlatformUi::DocumentSigningKey(identity)};
     if (!key) return finish(tr("Your identity has no key DashPay can register a username with."));
     platform::Signing signing{m_service.walletModel().wallet(), IdentityFlow::IDENTITY_INDEX,
                               PlatformUi::KeepUnlocked(std::move(*m_unlock))};

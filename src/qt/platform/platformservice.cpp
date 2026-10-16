@@ -226,6 +226,13 @@ bool PlatformService::refresh()
     return had_client || m_client || m_gate != old_gate;
 }
 
+bool PlatformService::othersIdle(const QObject& flow) const
+{
+    return !writing() && std::all_of(m_writers.begin(), m_writers.end(), [&flow](const auto& writer) {
+        return writer.first == &flow || writer.second();
+    });
+}
+
 void PlatformService::writeFinished()
 {
     Assume(m_writes > 0);

@@ -6,12 +6,15 @@
 
 #include <qt/test/masternodetestutil.h>
 
+#include <crypto/aes.h>
 #include <evo/assetlocktx.h>
 #include <evo/specialtx.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
+#include <key.h>
 #include <netbase.h>
 #include <qt/clientfeeds.h>
+#include <qt/platform/contactflow.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformpage.h>
 #include <qt/platform/platformservice.h>
@@ -22,6 +25,7 @@
 #include <test/util/setup_common.h>
 #include <util/settings.h>
 #include <util/system.h>
+#include <util/time.h>
 #include <wallet/context.h>
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
@@ -31,6 +35,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalSpy>
+#include <QTableWidget>
 
 #include <algorithm>
 #include <memory>
@@ -239,6 +244,43 @@ platform::Result<platform::Names> Names(const std::vector<std::string>& labels)
         result.value.names.push_back({label, label, {}, {}});
     }
     return result;
+}
+
+platform::Result<std::vector<platform::ContactRequest>> Requests(std::vector<platform::ContactRequest> requests)
+{
+    platform::Result<std::vector<platform::ContactRequest>> result;
+    result.status.kind = platform::StatusKind::OK;
+    result.value = std::move(requests);
+    return result;
+}
+
+platform::ContactRequest Request(uint8_t from, uint8_t to, uint64_t created_at_ms)
+{
+    platform::ContactRequest request;
+    request.owner.fill(from);
+    request.to_user_id.fill(to);
+    request.created_at_ms = created_at_ms;
+    return request;
+}
+
+//! A request from `from` encrypted, as DIP-15 does, from their key
+//! `sender_key` (id 1) to the wallet's identity key `our_key`; it carries
+//! `pubkey` as the payment chain's key.
+platform::ContactRequest IncomingRequest(interfaces::Wallet& wallet, uint8_t from, uint8_t to, const CKey& sender_key,
+                                         uint64_t created_at_ms, Span<const uint8_t> pubkey, uint32_t our_key = 5)
+{
+    auto request{Request(from, to, created_at_ms)};
+    request.sender_key_index = 1;
+    request.recipient_key_index = our_key;
+    const auto secret{wallet.platformECDHSecret({0, our_key}, sender_key.GetPubKey())};
+    Assert(secret && secret.value.size() == AES256_KEYSIZE);
+    std::vector<uint8_t> compact(4 + 32, 0x11);
+    compact.insert(compact.end(), pubkey.begin(), pubkey.end());
+    request.encrypted_public_key.assign(AES_BLOCKSIZE, 0x22);
+    request.encrypted_public_key.resize(AES_BLOCKSIZE + 80);
+    const AES256CBCEncrypt aes{secret.value.data(), request.encrypted_public_key.data(), /*padIn=*/true};
+    Assert(aes.Encrypt(compact.data(), compact.size(), request.encrypted_public_key.data() + AES_BLOCKSIZE) == 80);
+    return request;
 }
 
 //! The node has the asset lock's InstantSend lock at once.
@@ -1024,7 +1066,9 @@ void PlatformTests::usernameForAnExistingIdentity()
     QCOMPARE(sources.made.size(), size_t{3});
     sources.fake->deliverAll();
     QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
-    QVERIFY(sources.fake->calls.back().argument == "taken-name-2");
+    QVERIFY(std::any_of(sources.fake->calls.begin(), sources.fake->calls.end(), [](const auto& call) {
+        return call.method == "resolveName" && call.argument == "taken-name-2";
+    }));
     QCOMPARE(sources.fake->countCalls("registerName"), size_t{0});
     QVERIFY(submit->isVisibleTo(&page));
 
@@ -1041,11 +1085,12 @@ void PlatformTests::usernameForAnExistingIdentity()
     QVERIFY(!input->isVisibleTo(&page) && !submit->isVisibleTo(&page));
 }
 
-//! One write at a time per wallet, across both flows: no top-up starts
-//! while a username write is in flight, and no username is sent while
-//! another write is. A username write the client dropped is not sent again;
-//! the identity's names, read again once the identity is found, show that
-//! it landed.
+//! One write at a time per wallet, across the three flows: no top-up starts
+//! while a username write is in flight, no username is sent while another
+//! write is or a contact is being added, and no contact request while a
+//! username is being registered. A username write the client dropped is not
+//! sent again; the identity's names, read again once the identity is found,
+//! show that it landed.
 void PlatformTests::droppedUsernameWriteIsReadBack()
 {
     FundedFixture f{m_node};
@@ -1057,12 +1102,18 @@ void PlatformTests::droppedUsernameWriteIsReadBack()
         found.value.public_keys = RegisteredKeys();
         client.identities_by_pubkey_hash = {found};
         client.names = {Names(clients++ == 0 ? std::vector<std::string>{} : std::vector<std::string>{"carol2026"})};
-        client.resolved_names = {Resolved(std::nullopt), Resolved(std::nullopt)};
+        client.resolved_names = {Resolved(std::nullopt), Resolved(std::nullopt), Resolved(std::nullopt), Resolved(9)};
+        auto contact{Found(9, 0)};
+        contact.value.public_keys = {Key(1, Purpose::DECRYPTION, Level::MEDIUM)};
+        client.identities = {contact};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests({})};
     };
     PlatformService service{f.wallet_model, f.models.client, sources.get()};
     Confirmations confirmations;
     IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
     UsernameFlow flow{service, identity_flow};
+    ContactFlow contacts{service, identity_flow};
     sources.fake->deliverAll();
     QVERIFY(flow.namesRead() && !flow.username());
     const auto names_sent = [&](const std::string& label) {
@@ -1104,4 +1155,273 @@ void PlatformTests::droppedUsernameWriteIsReadBack()
     QVERIFY(flow.step() == UsernameFlow::Step::IDLE && !flow.error().isEmpty());
     sources.fake->deliverAll();
     QCOMPARE(names_sent("erin2026"), 0);
+
+    // A free label resolved while a contact is being added.
+    flow.registerName("frank2026");
+    contacts.add("grace2026");
+    sources.fake->deliverNext();
+    QVERIFY(flow.step() == UsernameFlow::Step::IDLE && !flow.error().isEmpty());
+    QCOMPARE(names_sent("frank2026"), 0);
+    // That contact found while a username is being checked.
+    sources.fake->deliverNext();
+    QVERIFY(contacts.step() == ContactFlow::Step::FETCHING);
+    flow.registerName("heidi2026");
+    sources.fake->deliverNext();
+    QVERIFY(contacts.step() == ContactFlow::Step::IDLE && !contacts.error().isEmpty());
+    QCOMPARE(sources.fake->countCalls("sendContactRequest"), size_t{0});
+}
+
+//! Adding a contact by username sends one request from the identity's first
+//! enabled ENCRYPTION key, signed with its HIGH key, to the contact's enabled
+//! DECRYPTION key, preferred to an ENCRYPTION key. Our receiving chain
+//! towards them is imported first, and the accountReference is over that
+//! chain. A label DPNS rejects, our own name, a name nobody holds, a contact
+//! with no key to encrypt to and one already asked send nothing. A rebuild
+//! that drops the lookup of the name or of the contact makes it again. A
+//! request the client dropped is not sent again: our requests, read again,
+//! show that it landed.
+void PlatformTests::contactRequestUsesTheIdentityKeys()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = {Key(0, Purpose::AUTHENTICATION, Level::MASTER), Key(2, Purpose::AUTHENTICATION, Level::HIGH),
+                              Key(3, Purpose::ENCRYPTION, Level::MEDIUM, /*disabled_at=*/1),
+                              Key(7, Purpose::ENCRYPTION, Level::MEDIUM)};
+    auto keyless{Found(8, 0)};
+    keyless.value.public_keys = {Key(0, Purpose::AUTHENTICATION, Level::MASTER),
+                                 Key(1, Purpose::DECRYPTION, Level::MEDIUM, /*disabled_at=*/1)};
+    auto bob{Found(9, 0)};
+    bob.value.public_keys = {Key(1, Purpose::ENCRYPTION, Level::MEDIUM),
+                             Key(2, Purpose::DECRYPTION, Level::MEDIUM, /*disabled_at=*/1),
+                             Key(3, Purpose::DECRYPTION, Level::MEDIUM)};
+    auto carol{bob};
+    carol.value.id.fill(10);
+    FakeSources sources;
+    int clients{0};
+    sources.script = [&](FakePlatformClient& client) {
+        switch (clients++) {
+        case 0:
+            client.identities_by_pubkey_hash = {ours};
+            client.sent_requests = {Requests({}), Requests({Request(5, 9, 1)})};
+            client.received_requests = {Requests({})};
+            client.resolved_names = {Resolved(5), Resolved(std::nullopt), Resolved(8), Resolved(9), Resolved(9)};
+            client.identities = {keyless, bob};
+            client.sent_contact_requests = {Resolved(1)};
+            break;
+        case 1: // rebuilt while carol's name resolved
+            client.resolved_names = {Resolved(10)};
+            break;
+        case 2: // rebuilt while carol's identity was read
+            client.identities = {carol};
+            break;
+        default:
+            client.identities_by_pubkey_hash = {ours};
+            client.sent_requests = {Requests({Request(5, 9, 1), Request(5, 10, 2)})};
+            client.received_requests = {Requests({})};
+        }
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    IdentityFlow identity_flow{service, confirmations.get()};
+    ContactFlow flow{service, identity_flow};
+    sources.fake->deliverAll();
+    QVERIFY(flow.swept() && flow.contacts().empty());
+
+    for (const char* name : {"-x-", "me2026", "nobody2026", "keyless2026"}) {
+        flow.add(name);
+        sources.fake->deliverAll();
+        QVERIFY2(flow.step() == ContactFlow::Step::IDLE && !flow.error().isEmpty(), name);
+    }
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{3});
+    QCOMPARE(sources.fake->countCalls("getIdentity"), size_t{1});
+    QCOMPARE(sources.fake->countCalls("sendContactRequest"), size_t{0});
+
+    const size_t chains{f.wallet->GetAllScriptPubKeyMans().size()};
+    flow.add("bob2026");
+    sources.fake->deliverNext();
+    sources.fake->deliverNext();
+    QCOMPARE(sources.fake->countCalls("sendContactRequest"), size_t{1});
+    QVERIFY(sources.fake->calls.back().identity_index == 0U);
+    const platform::ContactRequestInput input{sources.fake->contact_inputs.back()};
+    QVERIFY(input.sender == ours.value.id);
+    QVERIFY(input.recipient == bob.value.id);
+    QCOMPARE(input.sender_key_index, uint32_t{7});
+    QCOMPARE(input.recipient_key_index, uint32_t{3});
+    QCOMPARE(input.signing_key_id, uint32_t{2});
+    // The chain the request carries was imported: deriving it again adds none.
+    QCOMPARE(f.wallet->GetAllScriptPubKeyMans().size(), chains + 1);
+    const auto chain{
+        wallet.ensureFriendshipReceivingKeychain({0, uint256{ours.value.id}, uint256{bob.value.id}, GetTime()})};
+    QVERIFY(chain);
+    QCOMPARE(f.wallet->GetAllScriptPubKeyMans().size(), chains + 1);
+    CTxDestination first;
+    QVERIFY(wallet::DeriveFriendshipPaymentDestination(chain.value, 0, first));
+    QVERIFY(wallet.isSpendable(first));
+    wallet::CompactXpub compact;
+    QVERIFY(wallet::CompactXpubBytes(chain.value, compact));
+    const auto reference{wallet.platformAccountReference({0, 7}, compact)};
+    QVERIFY(reference);
+    QCOMPARE(input.account_reference, reference.value);
+
+    sources.fake->deliverAll();
+    QVERIFY(flow.error().isEmpty());
+    QCOMPARE(flow.contacts().size(), size_t{1});
+    QVERIFY(flow.contacts().front().id == bob.value.id);
+    QVERIFY(flow.contacts().front().state == ContactFlow::State::OUTGOING);
+
+    flow.add("bob2026");
+    sources.fake->deliverAll();
+    QVERIFY(!flow.error().isEmpty());
+    QCOMPARE(sources.fake->countCalls("getIdentity"), size_t{2});
+
+    flow.add("carol2026");
+    sources.evonodes = {Ipv4Evonode2()};
+    f.listRead();
+    QCOMPARE(sources.fake->countCalls("resolveName"), size_t{1});
+    QVERIFY(sources.fake->calls.back().argument == "carol2026");
+    sources.fake->deliverNext();
+    sources.evonodes = {Ipv4Evonode()};
+    f.listRead();
+    QCOMPARE(sources.made.size(), size_t{3});
+    QCOMPARE(sources.fake->countCalls("getIdentity"), size_t{1});
+    QVERIFY(sources.fake->calls.back().argument == HexStr(carol.value.id));
+    sources.fake->deliverNext();
+    QCOMPARE(sources.fake->countCalls("sendContactRequest"), size_t{1});
+    QVERIFY(sources.fake->contact_inputs.back().recipient == carol.value.id);
+    f.setNetworkActive(false);
+    QVERIFY(flow.step() == ContactFlow::Step::IDLE);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QCOMPARE(sources.made.size(), size_t{4});
+    QCOMPARE(sources.fake->countCalls("sendContactRequest"), size_t{0});
+    QCOMPARE(flow.contacts().size(), size_t{2});
+    QVERIFY(flow.contacts().back().id == carol.value.id);
+}
+
+//! The contacts are what the requests on Platform say, newest per
+//! counterparty: a request each way is a contact, theirs alone waits for
+//! Accept and ours alone for them. Accepting reads their newest request and
+//! takes only one carrying a valid payment key, sent from an enabled
+//! ENCRYPTION or AUTHENTICATION key of theirs to one of our keys; our
+//! request goes back to their DECRYPTION key, and they are then a contact.
+void PlatformTests::contactsAreTheNewestRequests()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    CKey dave_key, erin_key, frank_key, grace_key, heidi_key;
+    for (CKey* key : {&dave_key, &erin_key, &frank_key, &grace_key, &heidi_key}) {
+        key->MakeNewKey(/*fCompressed=*/true);
+    }
+    CExtKey chain;
+    const std::array<std::byte, 32> seed{};
+    chain.SetSeed(seed);
+    const CPubKey valid{chain.Neuter().pubkey};
+    std::vector<uint8_t> invalid(CPubKey::COMPRESSED_SIZE, 0xff);
+    invalid[0] = 0x02;
+    //! Their key 1 sent their requests; key 2 receives ours.
+    const auto peer = [](uint8_t id, const CKey& key, Purpose purpose, uint64_t disabled_at = 0) {
+        auto found{Found(id, 0)};
+        auto sender{Key(1, purpose, Level::HIGH, disabled_at)};
+        const CPubKey pubkey{key.GetPubKey()};
+        sender.data.assign(pubkey.begin(), pubkey.end());
+        found.value.public_keys = {Key(0, Purpose::AUTHENTICATION, Level::MASTER), sender,
+                                   Key(2, Purpose::DECRYPTION, Level::MEDIUM)};
+        return found;
+    };
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    // Bob (0x0b) answered ours; carol (0x0c) was asked twice and didn't.
+    // Dave's newest request carries a valid payment key, erin's doesn't;
+    // frank sent his from a key since disabled, grace from an AUTHENTICATION
+    // key, and heidi to a key we don't have.
+    const auto sent{Requests({Request(5, 0x0b, 1), Request(5, 0x0c, 5), Request(5, 0x0c, 9)})};
+    auto with_dave{sent};
+    with_dave.value.push_back(Request(5, 0x0d, 10));
+    auto with_grace{with_dave};
+    with_grace.value.push_back(Request(5, 0x10, 11));
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        const auto received{Requests(
+            {Request(0x0b, 5, 2), IncomingRequest(wallet, 0x0d, 5, dave_key, 2, invalid),
+             IncomingRequest(wallet, 0x0d, 5, dave_key, 8, valid), IncomingRequest(wallet, 0x0e, 5, erin_key, 3, valid),
+             IncomingRequest(wallet, 0x0e, 5, erin_key, 7, invalid),
+             IncomingRequest(wallet, 0x0f, 5, frank_key, 4, valid), IncomingRequest(wallet, 0x10, 5, grace_key, 4, valid),
+             IncomingRequest(wallet, 0x11, 5, heidi_key, 4, valid, /*our_key=*/9)})};
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"}), Names({"dave2026"})};
+        client.sent_requests = {sent, with_dave, with_grace, with_grace};
+        client.received_requests = {received, received};
+        client.identities = {peer(0x0d, dave_key, Purpose::ENCRYPTION), peer(0x0e, erin_key, Purpose::ENCRYPTION),
+                             peer(0x0f, frank_key, Purpose::ENCRYPTION, /*disabled_at=*/1),
+                             peer(0x10, grace_key, Purpose::AUTHENTICATION), peer(0x11, heidi_key, Purpose::ENCRYPTION)};
+        client.sent_contact_requests = {Resolved(1), Resolved(2)};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    const ContactFlow& flow{*page.contactFlow()};
+    using State = ContactFlow::State;
+    using Listed = std::vector<std::pair<uint8_t, State>>;
+    const auto contacts = [&] {
+        Listed contacts;
+        for (const auto& contact : flow.contacts()) {
+            contacts.emplace_back(contact.id[0], contact.state);
+        }
+        return contacts;
+    };
+    QVERIFY(contacts() == (Listed{{0x0d, State::INCOMING},
+                                  {0x0e, State::INCOMING},
+                                  {0x0f, State::INCOMING},
+                                  {0x10, State::INCOMING},
+                                  {0x11, State::INCOMING},
+                                  {0x0b, State::ESTABLISHED},
+                                  {0x0c, State::OUTGOING}}));
+    QVERIFY(flow.contacts().front().username == "dave2026");
+    const auto* list{page.findChild<QTableWidget*>("dashPayContacts")};
+    QVERIFY(list->isVisibleTo(&page));
+    const auto accept_button = [&](uint8_t id) -> QPushButton* {
+        const auto listed{contacts()};
+        for (size_t row = 0; row < listed.size(); ++row) {
+            if (listed[row].first == id) return qobject_cast<QPushButton*>(list->cellWidget(row, 2));
+        }
+        return nullptr;
+    };
+    for (uint8_t id : {0x0d, 0x0e, 0x0f, 0x10, 0x11}) {
+        QVERIFY(accept_button(id));
+    }
+    QVERIFY(!accept_button(0x0b) && !accept_button(0x0c));
+
+    const size_t chains{f.wallet->GetAllScriptPubKeyMans().size()};
+    for (uint8_t id : {0x0d, 0x0e, 0x0f, 0x10, 0x11}) {
+        accept_button(id)->click();
+        sources.fake->deliverAll();
+        const bool accepted{id == 0x0d || id == 0x10};
+        QVERIFY(flow.error().isEmpty() == accepted);
+        QVERIFY(page.findChild<QLabel*>("dashPayContactsStatus")->isVisibleTo(&page) != accepted);
+    }
+    QCOMPARE(sources.fake->countCalls("getIdentity"), size_t{5});
+    QCOMPARE(sources.fake->contact_inputs.size(), size_t{2});
+    for (const platform::ContactRequestInput& input : sources.fake->contact_inputs) {
+        QCOMPARE(input.recipient_key_index, uint32_t{2});
+        QCOMPARE(input.sender_key_index, uint32_t{4});
+        QCOMPARE(input.signing_key_id, uint32_t{2});
+    }
+    QCOMPARE(sources.fake->contact_inputs[0].recipient[0], uint8_t{0x0d});
+    QCOMPARE(sources.fake->contact_inputs[1].recipient[0], uint8_t{0x10});
+    QCOMPARE(f.wallet->GetAllScriptPubKeyMans().size(), chains + 2);
+    QVERIFY(contacts() == (Listed{{0x0e, State::INCOMING},
+                                  {0x0f, State::INCOMING},
+                                  {0x11, State::INCOMING},
+                                  {0x0b, State::ESTABLISHED},
+                                  {0x0d, State::ESTABLISHED},
+                                  {0x10, State::ESTABLISHED},
+                                  {0x0c, State::OUTGOING}}));
+
+    VisibleButton(page, "dashPayRefreshContacts")->click();
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->countCalls("receivedRequests"), size_t{2});
+    QCOMPARE(flow.contacts().size(), size_t{7});
 }
