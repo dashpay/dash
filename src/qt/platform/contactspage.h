@@ -16,8 +16,9 @@ class QPushButton;
 class QTableWidget;
 QT_END_NAMESPACE
 
-/** The DashPay tab's contacts: incoming requests with Accept, contacts and
- *  our requests waiting for an answer, and adding a contact by username. */
+/** The DashPay tab's contacts: incoming requests with Accept, contacts with
+ *  Pay and our requests waiting for an answer, and adding a contact by
+ *  username. */
 class ContactsPage : public QWidget
 {
     Q_OBJECT
@@ -26,8 +27,8 @@ public:
     explicit ContactsPage(QWidget* parent = nullptr);
 
     void setFlow(ContactFlow* flow) { m_flow = flow; }
-    //! Show the flow's contacts; offer adding and accepting only when
-    //! `writable`: no DashPay flow, this one included, is busy.
+    //! Show the flow's contacts; offer adding, accepting and paying only
+    //! when `writable`: no DashPay flow, this one included, is busy.
     void refresh(bool writable);
 
 private:

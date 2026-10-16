@@ -1035,6 +1035,12 @@ void BitcoinGUI::addWallet(WalletModel* walletModel)
         rpcConsole->setInfoView(RPCConsole::InfoView::Governance);
         showDebugWindow();
     });
+#ifdef ENABLE_PLATFORM_GUI
+    connect(wallet_view, &WalletView::contactPaymentPrepared, this, [this, walletModel] {
+        setCurrentWallet(walletModel);
+        gotoSendCoinsPage();
+    });
+#endif
     connect(this, &BitcoinGUI::setPrivacy, wallet_view, &WalletView::setPrivacy);
     wallet_view->setPrivacy(isPrivacyModeActivated());
     const QString display_name = walletModel->getDisplayName();

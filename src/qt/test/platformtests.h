@@ -45,6 +45,8 @@ private Q_SLOTS:
     void droppedUsernameWriteIsReadBack();
     void contactRequestUsesTheIdentityKeys();
     void contactsAreTheNewestRequests();
+    void payingAContactUsesEachAddressOnce();
+    void paymentsFollowTheWalletHistory();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H
