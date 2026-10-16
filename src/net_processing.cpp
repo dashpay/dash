@@ -4235,14 +4235,6 @@ void PeerManagerImpl::ProcessMessage(
             // We send this to non-NODE NETWORK peers as well, because
             // they may wish to request compact blocks from us
             m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, /*high_bandwidth=*/false, /*version=*/CMPCTBLOCKS_VERSION));
-
-            // Announce our sporks to every new peer so a node that lost or never had them
-            // picks them up without having to ask
-            if (m_chainparams.IsTestChain()) {
-                for (const auto& spork : m_sporkman.ActiveSporks()) {
-                    PushInv(*peer, CInv{MSG_SPORK, spork.GetHash()});
-                }
-            }
         }
 
         // Announce our sporks to every new peer so a node that lost or never had them
