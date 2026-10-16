@@ -15,9 +15,13 @@
 #include <chainparams.h>
 #include <coinjoin/client.h>
 #include <coinjoin/coinjoin.h>
+#include <consensus/validation.h>
+#include <evo/assetlocktx.h>
 #include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
+#include <evo/specialtx.h>
 #include <interfaces/chain.h>
+#include <interfaces/wallet.h>
 #include <key_io.h>
 #include <node/blockstorage.h>
 #include <policy/policy.h>
@@ -262,6 +266,25 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         }
     }
 
+    // Where a rescan from the birth of a wallet holding a genesis-era key
+    // would need blocks this node no longer has.
+    const auto rescan_pruned_from{[&] {
+        const auto wallet{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase())};
+        {
+            LOCK(wallet->cs_wallet);
+            wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+            wallet->SetLastBlockProcessed(newTip->nHeight, newTip->GetBlockHash());
+        }
+        AddKey(*wallet, coinbaseKey);
+        WalletContext context;
+        return interfaces::MakeWallet(context, wallet)->rescanPrunedFrom();
+    }};
+    BOOST_CHECK(!rescan_pruned_from());
+    // A pruning node that still has every block the rescan reads. The flag is
+    // set as Chainstate::FlushStateToDisk does once it prunes.
+    WITH_LOCK(::cs_main, m_node.chainman->m_blockman.m_have_pruned = true);
+    BOOST_CHECK(!rescan_pruned_from());
+
     // Prune the older block file.
     int file_number;
     {
@@ -270,6 +293,7 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         Assert(m_node.chainman)->m_blockman.PruneOneBlockFile(file_number);
     }
     UnlinkPrunedFiles({file_number});
+    BOOST_CHECK(rescan_pruned_from() == std::optional<int>{0});
 
     // Verify ScanForWalletTransactions only picks transactions in the new block
     // file.
@@ -809,6 +833,126 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTestingSetup)
         expected_coins_sizes[out_type] = 2U;
         TestCoinsResult(*this, out_type, 1 * COIN, expected_coins_sizes);
     }
+}
+
+//! Special transactions are only accepted once DIP0003 is active, which the
+//! default regtest parameters place far beyond the pinned fixture chains. The
+//! same chain as the evo tests: activation at 109, tip at 108.
+struct AssetLockTestingSetup : public TestChainSetup {
+    AssetLockTestingSetup() : TestChainSetup{107, CBaseChainParams::REGTEST, {"-dip3params=109:500"}}
+    {
+        CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        wallet = CreateSyncedWallet(*m_node.chain, *Assert(m_node.chainman), coinbaseKey);
+    }
+
+    ~AssetLockTestingSetup() { wallet.reset(); }
+
+    std::unique_ptr<CWallet> wallet;
+};
+
+//! An asset lock built through the wallet interface must be a consensus-valid
+//! special transaction the local mempool accepts, paying the key the wallet
+//! derives for the requested funding key at the fee it reports, and
+//! commitTransaction must report a mempool rejection with its reason.
+BOOST_FIXTURE_TEST_CASE(create_asset_lock_transaction, AssetLockTestingSetup)
+{
+    WalletContext context;
+    context.args = &m_args;
+    context.chain = m_node.chain.get();
+    const auto wallet_ref{std::shared_ptr<CWallet>(wallet.get(), [](CWallet*) {})};
+    auto iface{interfaces::MakeWallet(context, wallet_ref)};
+    wallet->SetBroadcastTransactions(true);
+
+    const RegistrationFundingKey registration_key{0};
+    const TopupFundingKey topup_key{0};
+    const auto registration_pubkey{iface->getPlatformPubKey(registration_key)};
+    const auto topup_pubkey{iface->getPlatformPubKey(topup_key)};
+    BOOST_REQUIRE(registration_pubkey && topup_pubkey);
+    BOOST_REQUIRE(registration_pubkey.value != topup_pubkey.value);
+    const CAmount credit_amount{COIN};
+    CCoinControl coin_control;
+    CAmount fee{0};
+
+    const auto zero_amount{iface->createAssetLockTransaction(0, registration_key, coin_control, fee)};
+    BOOST_REQUIRE(!zero_amount);
+    // Refused like a zero amount, before coin selection, not as insufficient funds.
+    const auto over_max_money{iface->createAssetLockTransaction(MAX_MONEY + 1, registration_key, coin_control, fee)};
+    BOOST_REQUIRE(!over_max_money);
+    BOOST_CHECK_EQUAL(util::ErrorString(over_max_money).original, util::ErrorString(zero_amount).original);
+
+    const auto res{iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee)};
+    BOOST_REQUIRE_MESSAGE(res, util::ErrorString(res).original);
+    const CTransactionRef& tx{*res};
+    BOOST_CHECK_EQUAL(tx->nVersion, 3);
+    BOOST_CHECK_EQUAL(tx->nType, TRANSACTION_ASSET_LOCK);
+
+    const auto payload{GetTxPayload<CAssetLockPayload>(*tx)};
+    BOOST_REQUIRE(payload);
+    BOOST_CHECK_EQUAL(payload->getVersion(), CAssetLockPayload::INITIAL_VERSION);
+    BOOST_REQUIRE_EQUAL(payload->getCreditOutputs().size(), 1U);
+    BOOST_CHECK_EQUAL(payload->getCreditOutputs()[0].nValue, credit_amount);
+    BOOST_CHECK(payload->getCreditOutputs()[0].scriptPubKey == GetScriptForDestination(PKHash{registration_pubkey.value}));
+
+    // Each funding key request pays its own wallet-derived key.
+    CAmount topup_fee{0};
+    const auto topup{iface->createAssetLockTransaction(credit_amount, topup_key, coin_control, topup_fee)};
+    BOOST_REQUIRE_MESSAGE(topup, util::ErrorString(topup).original);
+    const auto topup_payload{GetTxPayload<CAssetLockPayload>(**topup)};
+    BOOST_REQUIRE(topup_payload);
+    BOOST_REQUIRE_EQUAL(topup_payload->getCreditOutputs().size(), 1U);
+    BOOST_CHECK(topup_payload->getCreditOutputs()[0].scriptPubKey == GetScriptForDestination(PKHash{topup_pubkey.value}));
+
+    TxValidationState tx_state;
+    BOOST_CHECK_MESSAGE(CheckAssetLockTx(*tx, tx_state, /*is_v24_active=*/false), tx_state.ToString());
+    BOOST_CHECK_MESSAGE(CheckAssetLockTx(*tx, tx_state, /*is_v24_active=*/true), tx_state.ToString());
+
+    // Platform recipients without a version selection still get the current
+    // payload version, which the standard mempool refuses to relay.
+    const auto default_version{CreateTransaction(*wallet,
+                                                 {CRecipient{GetScriptForDestination(PKHash{registration_pubkey.value}), credit_amount,
+                                                             /*fSubtractFeeFromAmount=*/false, /*fPlatformTransfer=*/true}},
+                                                 RANDOM_CHANGE_POSITION, CCoinControl{}, /*sign=*/true)};
+    BOOST_REQUIRE(!default_version);
+    BOOST_CHECK(util::ErrorString(default_version).original.find("assetlocktx-version-2") != std::string::npos);
+    BOOST_CHECK(util::ErrorString(default_version).original.find("-acceptnonstdtxn=1") != std::string::npos);
+
+    // Both spend the same coin: the first reaches the mempool, the second is
+    // a conflict the wallet must report and let the caller abandon.
+    CCoinControl same_input;
+    same_input.Select(tx->vin[0].prevout);
+    same_input.m_allow_other_inputs = false;
+    CAmount conflicting_fee{0};
+    const auto conflicting{iface->createAssetLockTransaction(credit_amount, registration_key, same_input, conflicting_fee)};
+    BOOST_REQUIRE_MESSAGE(conflicting, util::ErrorString(conflicting).original);
+    const auto accepted{iface->commitTransaction(tx, {}, {})};
+    BOOST_CHECK_MESSAGE(accepted, util::ErrorString(accepted).original);
+    BOOST_CHECK(m_node.mempool->exists(tx->GetHash()));
+    // The reported fee is the one the mempool charges.
+    BOOST_CHECK_GT(fee, 0);
+    BOOST_CHECK_EQUAL(m_node.mempool->info(tx->GetHash()).fee, fee);
+
+    const auto rejected{iface->commitTransaction(*conflicting, {}, {})};
+    BOOST_REQUIRE(!rejected);
+    BOOST_CHECK(util::ErrorString(rejected).original.find("txn-mempool-conflict") != std::string::npos);
+    BOOST_CHECK(!m_node.mempool->exists((*conflicting)->GetHash()));
+    BOOST_CHECK(iface->abandonTransaction((*conflicting)->GetHash()));
+
+    // An encrypted wallet builds asset locks only when fully unlocked: not
+    // while locked, and not while unlocked for mixing only.
+    const SecureString passphrase{"asset lock"};
+    BOOST_REQUIRE(wallet->EncryptWallet(passphrase));
+    BOOST_REQUIRE(wallet->IsLocked());
+    BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee));
+    // A locked wallet can still tell whether it is able to fund an identity.
+    BOOST_CHECK(iface->getPlatformPubKey(registration_key).status == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::SUCCESS);
+    BOOST_REQUIRE(wallet->Unlock(passphrase, /*fForMixingOnly=*/true));
+    BOOST_REQUIRE(wallet->IsLocked() && !wallet->IsLocked(/*fForMixing=*/true));
+    BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee));
+    BOOST_REQUIRE(wallet->Lock());
+    BOOST_REQUIRE(wallet->Unlock(passphrase));
+    const auto unlocked{iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee)};
+    BOOST_CHECK_MESSAGE(unlocked, util::ErrorString(unlocked).original);
 }
 
 BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)
