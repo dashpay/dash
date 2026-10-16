@@ -430,7 +430,9 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
         if (!entry) return false;
         result.credit_history.push_back(*entry);
     }
-    result.mnhf_signals = mnhfman.GetSignalsStage(base_index);
+    // The raw record: GetSignalsStage() would filter it for the next block,
+    // which the snapshot chainstate does itself.
+    result.mnhf_signals = mnhfman.GetForBlock(base_index);
     result.quorums = CanonicallySortedCopy(std::move(result.quorums));
     result.historical_mn_list_diffs = CanonicallySortedCopy(std::move(result.historical_mn_list_diffs));
     result.quorum_modifiers = CanonicallySortedCopy(std::move(result.quorum_modifiers));
