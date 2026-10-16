@@ -11,10 +11,12 @@
 #include <qt/optionsmodel.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformui.h>
+#include <qt/platform/usernameflow.h>
 #include <qt/walletmodel.h>
 
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -26,6 +28,11 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     auto* layout{new QVBoxLayout(this)};
     auto* title{new QLabel(tr("DashPay"), this)};
     GUIUtil::setFont({title}, GUIUtil::FontWeight::Bold, 18);
+    m_username = new QLabel(this);
+    m_username->setObjectName("dashPayUsername");
+    m_username->setTextFormat(Qt::PlainText);
+    m_username->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    GUIUtil::setFont({m_username}, GUIUtil::FontWeight::Bold);
     m_identity = new QLabel(this);
     m_identity->setObjectName("dashPayIdentity");
     m_identity->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -58,16 +65,36 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     actions->addWidget(m_top_up);
     actions->addStretch();
 
+    m_username_input = new QLineEdit(this);
+    m_username_input->setObjectName("dashPayUsernameInput");
+    m_username_input->setPlaceholderText(tr("Username"));
+    m_register = new QPushButton(tr("Register username"), this);
+    m_register->setObjectName("dashPayRegisterUsername");
+    m_username_status = new QLabel(this);
+    m_username_status->setObjectName("dashPayUsernameStatus");
+    m_username_status->setWordWrap(true);
+    auto* username_row{new QHBoxLayout};
+    username_row->addWidget(m_username_input);
+    username_row->addWidget(m_register);
+    username_row->addStretch();
+
+    auto* header{new QHBoxLayout};
+    header->addWidget(m_username);
+    header->addWidget(m_identity);
+    header->addStretch();
+
     m_start = new QPushButton(tr("Start DashPay"), this);
     m_start->setObjectName("dashPayStart");
     m_stop = new QPushButton(tr("Turn off DashPay for this wallet"), this);
     m_stop->setObjectName("dashPayStop");
     layout->addWidget(title);
-    layout->addWidget(m_identity);
+    layout->addLayout(header);
     layout->addWidget(notice);
     layout->addWidget(m_status);
     layout->addWidget(m_identity_status);
     layout->addLayout(actions);
+    layout->addWidget(m_username_status);
+    layout->addLayout(username_row);
     layout->addWidget(m_start, 0, Qt::AlignLeft);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
@@ -86,6 +113,11 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     connect(m_look_up, &QPushButton::clicked, this, [this] { m_identity_flow->lookUp(); });
     connect(m_create, &QPushButton::clicked, this, [this] { m_identity_flow->create(); });
     connect(m_continue, &QPushButton::clicked, this, [this] { m_identity_flow->resume(); });
+    const auto register_name = [this] {
+        m_username_flow->registerName(m_username_input->text().trimmed().toStdString());
+    };
+    connect(m_register, &QPushButton::clicked, this, register_name);
+    connect(m_username_input, &QLineEdit::returnPressed, this, register_name);
     connect(m_top_up, &QPushButton::clicked, this, [this] {
         bool valid{false};
         const CAmount amount{m_top_up_amount->value(&valid)};
@@ -117,6 +149,7 @@ void PlatformPage::resetService()
 {
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
+        m_username_flow.reset();
         m_identity_flow.reset();
         m_service.reset();
     }
@@ -127,6 +160,8 @@ void PlatformPage::resetService()
             return confirmFunding(amount, fee);
         });
         connect(m_identity_flow.get(), &IdentityFlow::changed, this, &PlatformPage::refresh);
+        m_username_flow = std::make_unique<UsernameFlow>(*m_service, *m_identity_flow);
+        connect(m_username_flow.get(), &UsernameFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
@@ -167,11 +202,17 @@ void PlatformPage::refresh()
                                      PlatformUi::FormatCredits(unit, identity->balance)));
     }
     m_identity->setVisible(identity != nullptr);
+    const UsernameFlow* names{m_username_flow.get()};
+    const auto username{names && identity ? names->username() : std::nullopt};
+    m_username->setText(QString::fromStdString(username.value_or(std::string{})));
+    m_username->setVisible(username.has_value());
 
     using Step = IdentityFlow::Step;
     const Step step{flow ? flow->step() : Step::IDLE};
     const auto funding{running ? flow->funding() : std::nullopt};
-    const bool idle{running && step == Step::IDLE};
+    using NameStep = UsernameFlow::Step;
+    const NameStep name_step{names ? names->step() : NameStep::IDLE};
+    const bool idle{running && step == Step::IDLE && name_step == NameStep::IDLE};
     //! Nothing in flight and no funding waiting for Platform.
     const bool ready{idle && !funding};
     QString identity_status;
@@ -211,4 +252,26 @@ void PlatformPage::refresh()
     m_continue->setVisible(idle && funding.has_value());
     m_top_up_amount->setVisible(ready && identity);
     m_top_up->setVisible(ready && identity);
+
+    QString username_status;
+    switch (name_step) {
+    case NameStep::IDLE:
+        if (running) username_status = names->error();
+        break;
+    case NameStep::CHECKING:
+        username_status = tr("Checking that the username is free…");
+        break;
+    case NameStep::PREPARING:
+        // Until the identity exists its own status says what runs.
+        if (identity) username_status = tr("Registering your username…");
+        break;
+    case NameStep::REGISTERING:
+        username_status = tr("Registering your username…");
+        break;
+    }
+    m_username_status->setText(username_status);
+    m_username_status->setVisible(!username_status.isEmpty());
+    const bool can_register{ready && flow->lookedUp() && (!identity || (names->namesRead() && !username))};
+    m_username_input->setVisible(can_register);
+    m_register->setVisible(can_register);
 }

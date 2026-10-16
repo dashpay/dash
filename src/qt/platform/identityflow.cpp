@@ -27,8 +27,6 @@ namespace {
 using platform::IdentityPublicKey;
 using Funding = IdentityFlow::Funding;
 
-//! Every identity is index 0 until the UI offers more than one.
-constexpr uint32_t IDENTITY_INDEX{0};
 //! The asset lock's one credit output.
 constexpr uint32_t CREDIT_OUTPUT{0};
 //! rs-dpp IdentityAssetLockTransactionOutPointAlreadyConsumedError.
@@ -53,7 +51,10 @@ constexpr KeySpec REGISTRATION_KEYS[]{
     {5, IdentityPublicKey::Purpose::DECRYPTION, IdentityPublicKey::SecurityLevel::MEDIUM},
 };
 
-std::string RegistrationRecord() { return strprintf("%sidentity/%u", IdentityFlow::FUNDING_PREFIX, IDENTITY_INDEX); }
+std::string RegistrationRecord()
+{
+    return strprintf("%sidentity/%u", IdentityFlow::FUNDING_PREFIX, IdentityFlow::IDENTITY_INDEX);
+}
 std::string TopUpRecord(uint32_t index) { return strprintf("%stopup/%u", IdentityFlow::FUNDING_PREFIX, index); }
 
 std::vector<unsigned char> Encode(const Funding& funding)
@@ -115,7 +116,8 @@ std::pair<CTransactionRef, interfaces::WalletTxStatus> WalletTxOf(interfaces::Wa
 
 std::optional<std::array<uint8_t, 20>> MasterKeyHash(interfaces::Wallet& wallet)
 {
-    const auto key{wallet.getPlatformPubKey(wallet::IdentityAuthKey{IDENTITY_INDEX, REGISTRATION_KEYS[0].id})};
+    const auto key{
+        wallet.getPlatformPubKey(wallet::IdentityAuthKey{IdentityFlow::IDENTITY_INDEX, REGISTRATION_KEYS[0].id})};
     if (!key) return std::nullopt;
     const CKeyID hash{key.value.GetID()};
     std::array<uint8_t, 20> out;
@@ -127,7 +129,7 @@ std::optional<std::vector<IdentityPublicKey>> RegistrationKeys(interfaces::Walle
 {
     std::vector<IdentityPublicKey> keys;
     for (const KeySpec& spec : REGISTRATION_KEYS) {
-        const auto pubkey{wallet.getPlatformPubKey(wallet::IdentityAuthKey{IDENTITY_INDEX, spec.id})};
+        const auto pubkey{wallet.getPlatformPubKey(wallet::IdentityAuthKey{IdentityFlow::IDENTITY_INDEX, spec.id})};
         if (!pubkey) return std::nullopt;
         IdentityPublicKey key;
         key.id = spec.id;
@@ -151,18 +153,6 @@ std::optional<platform::AssetLockProof> NodeProof(interfaces::Node& node, interf
                                          COutPoint{tx->GetHash(), CREDIT_OUTPUT}};
 }
 
-//! Keeps the wallet unlocked until the client has signed the write.
-class WalletUnlock final : public platform::UnlockScope
-{
-public:
-    explicit WalletUnlock(WalletModel::UnlockContext unlock) :
-        m_unlock(std::move(unlock))
-    {
-    }
-
-private:
-    WalletModel::UnlockContext m_unlock;
-};
 } // namespace
 
 IdentityFlow::IdentityFlow(PlatformService& service, Confirm confirm, Proof proof) :
@@ -187,14 +177,6 @@ std::optional<Funding> IdentityFlow::funding() const
         if (auto funding{Decode(record, value)}) return funding;
     }
     return std::nullopt;
-}
-
-template <typename T>
-platform::PlatformClient::Callback<T> IdentityFlow::tracked(std::function<void(platform::Result<T>)> fn)
-{
-    auto call{std::make_shared<int>(0)};
-    m_call = call;
-    return [call, fn = std::move(fn)](platform::Result<T> result) { fn(std::move(result)); };
 }
 
 void IdentityFlow::serviceChanged()
@@ -243,8 +225,9 @@ void IdentityFlow::startLookUp(bool unlock)
     if (m_step != Step::IDLE || !client) return;
     m_step = Step::LOOKING_UP;
     m_error.clear();
-    client->getIdentityByPublicKeyHash(*m_key_hash, tracked<platform::Identity>(
-                                                        [this](auto result) { onLookedUp(std::move(result)); }));
+    client->getIdentityByPublicKeyHash(*m_key_hash, PlatformUi::Tracked<platform::Identity>(m_call, [this](auto result) {
+        onLookedUp(std::move(result));
+    }));
     Q_EMIT changed();
 }
 
@@ -311,7 +294,7 @@ void IdentityFlow::awaitLock(Funding pending, CTransactionRef tx, WalletModel::U
 
 void IdentityFlow::fund(const wallet::AssetLockFundingKey& key, CAmount amount, Funding pending)
 {
-    if (m_step != Step::IDLE || !m_service.client() || funding()) return;
+    if (m_step != Step::IDLE || !m_service.client() || m_service.writing() || funding()) return;
     auto unlock{beginFunding()};
     if (!unlock) return;
     interfaces::Wallet& wallet{m_service.walletModel().wallet()};
@@ -338,7 +321,7 @@ void IdentityFlow::fund(const wallet::AssetLockFundingKey& key, CAmount amount, 
 void IdentityFlow::resume()
 {
     auto pending{funding()};
-    if (m_step != Step::IDLE || !m_service.client() || !pending) return;
+    if (m_step != Step::IDLE || !m_service.client() || m_service.writing() || !pending) return;
     interfaces::Wallet& wallet{m_service.walletModel().wallet()};
     const auto [tx, status]{WalletTxOf(wallet, pending->txid)};
     if (!tx || status.is_abandoned || status.depth_in_main_chain < 0) {
@@ -365,20 +348,20 @@ void IdentityFlow::send()
         keys = RegistrationKeys(wallet);
         if (!keys) return finish(tr("Dash Core could not derive your identity's keys from this wallet."));
     }
-    platform::Signing signing{wallet, IDENTITY_INDEX, std::make_unique<WalletUnlock>(std::move(*m_unlock))};
+    platform::Signing signing{wallet, IDENTITY_INDEX, PlatformUi::KeepUnlocked(std::move(*m_unlock))};
     m_unlock.reset();
     m_step = Step::SENDING;
     if (m_funding->top_up) {
         client->topUpIdentity(m_funding->identity, *proof, *m_funding->top_up, std::move(signing),
-                              m_service.trackWrite<uint64_t>(
-                                  tracked<uint64_t>([this, funding = *m_funding](platform::Result<uint64_t> result) {
+                              m_service.trackWrite<uint64_t>(PlatformUi::Tracked<uint64_t>(
+                                  m_call, [this, funding = *m_funding](platform::Result<uint64_t> result) {
                                       if (result.ok() && m_identity) m_identity->balance = result.value;
                                       sent(funding, result.status);
                                   })));
     } else {
         client->registerIdentity(std::move(*keys), *proof, std::move(signing),
-                                 m_service.trackWrite<platform::Identity>(tracked<platform::Identity>(
-                                     [this, funding = *m_funding](platform::Result<platform::Identity> result) {
+                                 m_service.trackWrite<platform::Identity>(PlatformUi::Tracked<platform::Identity>(
+                                     m_call, [this, funding = *m_funding](platform::Result<platform::Identity> result) {
                                          if (result.ok()) {
                                              m_identity = std::move(result.value);
                                              m_looked_up = true;

@@ -78,9 +78,10 @@ void FakePlatformClient::topUpIdentity(const Identifier& identity, platform::Ass
     Answer({"topUpIdentity", HexStr(identity), signing.identity_index}, top_ups, std::move(cb), std::move(signing.unlock));
 }
 
-void FakePlatformClient::registerName(const std::string& label, const Identifier&, uint32_t, platform::Signing signing,
-                                      Callback<Identifier> cb)
+void FakePlatformClient::registerName(const std::string& label, const Identifier& identity, uint32_t key_id,
+                                      platform::Signing signing, Callback<Identifier> cb)
 {
+    if (!shut_down) name_signers.emplace_back(identity, key_id);
     Answer({"registerName", label, signing.identity_index}, registered_names, std::move(cb), std::move(signing.unlock));
 }
 
@@ -100,10 +101,16 @@ void FakePlatformClient::shutdown()
 void FakePlatformClient::deliverAll()
 {
     while (!m_pending.empty()) {
-        auto deliver{std::move(m_pending.front())};
-        m_pending.pop_front();
-        deliver();
+        deliverNext();
     }
+}
+
+void FakePlatformClient::deliverNext()
+{
+    if (m_pending.empty()) return;
+    auto deliver{std::move(m_pending.front())};
+    m_pending.pop_front();
+    deliver();
 }
 
 size_t FakePlatformClient::countCalls(const std::string& method) const

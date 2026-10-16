@@ -46,6 +46,8 @@ class IdentityFlow : public QObject
     Q_OBJECT
 
 public:
+    //! Every identity is index 0 until the UI offers more than one.
+    static constexpr uint32_t IDENTITY_INDEX{0};
     //! What a new identity is funded with, as the mobile wallets: enough to
     //! register a username.
     static constexpr CAmount REGISTRATION_AMOUNT{3'000'000};
@@ -118,9 +120,6 @@ private:
     void send();
     void sent(const Funding& funding, const platform::Status& status);
     void finish(const QString& error = {});
-    //! The callback of the one call in flight; it expires if the call is dropped.
-    template <typename T>
-    platform::PlatformClient::Callback<T> tracked(std::function<void(platform::Result<T>)> fn);
 
     PlatformService& m_service;
     const Confirm m_confirm;
@@ -132,6 +131,7 @@ private:
     //! Hash160 of the MASTER key, kept once derived: deriving needs an
     //! unlocked wallet.
     std::optional<std::array<uint8_t, 20>> m_key_hash;
+    //! The one call in flight, until it calls back or is dropped.
     std::weak_ptr<void> m_call;
     //! The funding being waited for or sent, and the unlock it signs with.
     std::optional<Funding> m_funding;

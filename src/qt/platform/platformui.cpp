@@ -8,10 +8,24 @@
 
 #include <QCoreApplication>
 
+#include <utility>
+
 namespace PlatformUi {
 namespace {
 //! Credits in one duff, as Dash Platform converts an asset lock.
 constexpr uint64_t CREDITS_PER_DUFF{1000};
+
+class WalletUnlock final : public platform::UnlockScope
+{
+public:
+    explicit WalletUnlock(WalletModel::UnlockContext unlock) :
+        m_unlock(std::move(unlock))
+    {
+    }
+
+private:
+    WalletModel::UnlockContext m_unlock;
+};
 } // namespace
 
 QString Describe(const platform::Status& status)
@@ -40,5 +54,10 @@ QString Describe(const platform::Status& status)
 QString FormatCredits(BitcoinUnit unit, uint64_t credits)
 {
     return BitcoinUnits::formatWithUnit(unit, static_cast<CAmount>(credits / CREDITS_PER_DUFF));
+}
+
+std::unique_ptr<platform::UnlockScope> KeepUnlocked(WalletModel::UnlockContext unlock)
+{
+    return std::make_unique<WalletUnlock>(std::move(unlock));
 }
 } // namespace PlatformUi
