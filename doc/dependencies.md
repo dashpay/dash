@@ -41,7 +41,7 @@ You can find installation instructions in the `build-*.md` file for your platfor
 | --- | --- | --- | --- | --- |
 | [Rust](../depends/packages/native_rust.mk) (compiler and standard library) | [link](https://forge.rust-lang.org/infra/other-installation-methods.html#standalone-installers) | 1.98.1 | 1.98.1 | No |
 | [protoc](../depends/packages/native_protobuf.mk) (build tool) | [link](https://github.com/protocolbuffers/protobuf/releases) | 32.0 | 25.0 | No |
-| [dash-sdk-cxx](../depends/packages/platform_cxx.mk) (Dash Platform SDK C++ binding) | [link](https://github.com/dashpay/platform) | commit [dc4dc8e...](https://github.com/dashpay/platform/tree/dc4dc8e80ef8c495be693d4cc19c378a94f5d116) | | No |
+| [dash-sdk-cxx](../depends/packages/platform_cxx.mk) (Dash Platform SDK C++ binding) | [link](https://github.com/dashpay/platform) | commit [a4bb9f0...](https://github.com/dashpay/platform/tree/a4bb9f02e9a203e8c217e45363138522dd106ead) | | No |
 
 ### Networking
 | Dependency | Releases | Version used | Minimum required | Runtime |

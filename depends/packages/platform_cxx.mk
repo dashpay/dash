@@ -18,13 +18,13 @@
 # SOURCES_PATH is used as is; its hash is checked on extraction either way.
 
 package=platform_cxx
-$(package)_version=dc4dc8e80ef8c495be693d4cc19c378a94f5d116
+$(package)_version=a4bb9f02e9a203e8c217e45363138522dd106ead
 $(package)_download_path=https://github.com/dashpay/platform/archive
 $(package)_download_file=$($(package)_version).tar.gz
 $(package)_file_name=platform-$($(package)_version).tar.gz
-$(package)_sha256_hash=fca5a310c8322924734ae7f8c522bffe4622bb4eb8394a6e054f56129ffbe592
+$(package)_sha256_hash=c84a63d4c4a71f296419655b8e3fb1b7f3c48aeabc9afb7e8b3a45dd762dbd56
 $(package)_crates_file_name=dash-sdk-cxx-crates-$($(package)_version).tar.gz
-$(package)_crates_sha256_hash=6f9d50e3c82406956b4b769874824bac7c28e8f1bcf1b3d514f7d381ea672f55
+$(package)_crates_sha256_hash=332a8e62fdca902250ccfe78730b15bf9c1951060757176273914e6013290431
 $(package)_fetched_id=$($(package)_crates_sha256_hash)
 $(package)_extra_sources=$($(package)_crates_file_name)
 $(package)_dependencies=native_rust rust_stdlib native_protobuf
