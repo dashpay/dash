@@ -2105,9 +2105,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
         if (status == node::ChainstateLoadStatus::SUCCESS) {
             uiInterface.InitMessage(_("Verifying blocks…").translated);
-            if (chainman.m_blockman.m_have_pruned && options.check_blocks > MIN_BLOCKS_TO_KEEP) {
+            if (chainman.m_blockman.m_have_pruned && options.check_blocks > chainman.GetParams().MinBlocksToKeep()) {
                 LogWarning("pruned datadir may not have more than %d blocks; only checking available blocks\n",
-                           MIN_BLOCKS_TO_KEEP);
+                           chainman.GetParams().MinBlocksToKeep());
             }
             std::tie(status, error) = catch_exceptions([&]{ return VerifyLoadedChainstate(chainman, options, *Assert(node.evodb), [](bool bls_state) {
                         LogPrintf("AppInitMain: bls_legacy_scheme=%d\n", bls_state);

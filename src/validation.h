@@ -85,8 +85,9 @@ static const unsigned int MAX_HEADERS_COMPRESSED_RESULT = 8000;
 
 /** Default for -stopatheight */
 static const int DEFAULT_STOPATHEIGHT = 0;
-/** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of ActiveChain().Tip() will not be pruned. */
-static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
+/** Blocks within this distance of ActiveChain().Tip() are accepted unrequested and announced by pruned nodes.
+ *  Bitcoin Core's MIN_BLOCKS_TO_KEEP; pruning retention is CChainParams::MinBlocksToKeep(). */
+static const unsigned int BLOCKS_NEAR_TIP = 288;
 static const signed int DEFAULT_CHECKBLOCKS = 6;
 static constexpr int DEFAULT_CHECKLEVEL{3};
 

@@ -172,8 +172,9 @@ void BlockManager::FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nM
         return;
     }
 
-    // last block to prune is the lesser of (user-specified height, MIN_BLOCKS_TO_KEEP from the tip)
-    unsigned int nLastBlockWeCanPrune = std::min((unsigned)nManualPruneHeight, chain_tip_height - MIN_BLOCKS_TO_KEEP);
+    // last block to prune is the lesser of (user-specified height, MinBlocksToKeep() from the tip)
+    unsigned int nLastBlockWeCanPrune = std::min((unsigned)nManualPruneHeight,
+                                                 static_cast<unsigned>(chain_tip_height - GetParams().MinBlocksToKeep()));
     int count = 0;
     for (int fileNumber = 0; fileNumber < m_last_blockfile; fileNumber++) {
         if (m_blockfile_info[fileNumber].nSize == 0 || m_blockfile_info[fileNumber].nHeightLast > nLastBlockWeCanPrune) {
@@ -196,7 +197,7 @@ void BlockManager::FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPr
         return;
     }
 
-    unsigned int nLastBlockWeCanPrune{(unsigned)std::min(prune_height, chain_tip_height - static_cast<int>(MIN_BLOCKS_TO_KEEP))};
+    unsigned int nLastBlockWeCanPrune{(unsigned)std::min(prune_height, chain_tip_height - GetParams().MinBlocksToKeep())};
     uint64_t nCurrentUsage = CalculateCurrentUsage();
     // We don't check to prune until after we've allocated new space for files
     // So we should leave a buffer under our target to account for another allocation
@@ -226,7 +227,7 @@ void BlockManager::FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPr
                 break;
             }
 
-            // don't prune files that could have a block within MIN_BLOCKS_TO_KEEP of the main chain's tip but keep scanning
+            // don't prune files that could have a block within MinBlocksToKeep() of the main chain's tip but keep scanning
             if (m_blockfile_info[fileNumber].nHeightLast > nLastBlockWeCanPrune) {
                 continue;
             }

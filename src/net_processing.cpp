@@ -160,7 +160,7 @@ static constexpr auto BLOCK_STALLING_TIMEOUT_MAX{64s};
 static const int MAX_CMPCTBLOCK_DEPTH = 5;
 /** Maximum depth of blocks we're willing to respond to GETBLOCKTXN requests for. */
 static const int MAX_BLOCKTXN_DEPTH = 10;
-static_assert(MAX_BLOCKTXN_DEPTH <= MIN_BLOCKS_TO_KEEP, "MAX_BLOCKTXN_DEPTH too high");
+static_assert(MAX_BLOCKTXN_DEPTH <= BLOCKS_NEAR_TIP, "MAX_BLOCKTXN_DEPTH too high");
 /** Size of the "block download window": how far ahead of our current height do we fetch?
  *  Larger windows tolerate larger download speed differences between peer, but increase the potential
  *  degree of disordering of blocks on disk (which make reindexing and pruning harder). We'll probably
@@ -4717,7 +4717,7 @@ void PeerManagerImpl::ProcessMessage(
             }
             // If pruning, don't inv blocks unless we have on disk and are likely to still have
             // for some reasonable time window (1 hour) that block relay might require.
-            const int nPrunedBlocksLikelyToHave = MIN_BLOCKS_TO_KEEP - 3600 / m_chainparams.GetConsensus().nPowTargetSpacing;
+            const int nPrunedBlocksLikelyToHave = BLOCKS_NEAR_TIP - 3600 / m_chainparams.GetConsensus().nPowTargetSpacing;
             if (m_chainman.m_blockman.IsPruneMode() && (!(pindex->nStatus & BLOCK_HAVE_DATA) || pindex->nHeight <= m_chainman.ActiveChain().Tip()->nHeight - nPrunedBlocksLikelyToHave)) {
                 LogPrint(BCLog::NET, " getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
                 break;
