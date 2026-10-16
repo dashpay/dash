@@ -24,6 +24,7 @@ class Chainstate;
 class CDataStream;
 class CDBBatch;
 class CDBWrapper;
+class CEvoDB;
 class CInv;
 class CTransaction;
 struct RPCResult;
@@ -199,6 +200,9 @@ public:
     CSigningManager(const CSigningManager&) = delete;
     CSigningManager& operator=(const CSigningManager&) = delete;
     explicit CSigningManager(const CQuorumManager& _qman, const util::DbWrapperParams& db_params, int64_t max_recsigs_age);
+
+    //! The EvoDB the quorum manager reads, for workers that bind an Evo view.
+    const CEvoDB& EvoDb() const;
     ~CSigningManager();
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);

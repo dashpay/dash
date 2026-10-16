@@ -9,9 +9,11 @@
 #include <evo/evodb.h>
 #include <evo/simplifiedmns.h>
 #include <evo/smldiff.h>
+#include <evo/snapshot_types.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <node/blockstorage.h>
+#include <util/check.h>
 #include <validation.h>
 
 #include <univalue.h>
@@ -22,6 +24,7 @@ using node::CBlockIndexHeightOnlyComparator;
 
 namespace {
 constexpr std::string_view DB_QUORUM_SNAPSHOT{"llmq_S"};
+constexpr std::string_view DB_QUORUM_MODIFIER{"llmq_M3"};
 
 bool CheckBlockDataAvailable(gsl::not_null<const CBlockIndex*> pindex, std::string& error)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -58,6 +61,11 @@ std::optional<llmq::CycleData> ConstructCycle(llmq::CQuorumSnapshotManager& qsna
             ret.m_snap = opt_snap.value();
         } else {
             error = "Cannot find quorum snapshot";
+            // Locally missing below a snapshot base, not the requester's fault.
+            if (qsnapman.IsCarriedOnly(ret.m_cycle_index)) {
+                error = strprintf("Quorum snapshot for block %s %s", ret.m_cycle_index->GetBlockHash().ToString(),
+                                  BLOCK_DATA_UNAVAILABLE_SUFFIX);
+            }
             return std::nullopt;
         }
     }
@@ -74,6 +82,12 @@ void InsertBaseBlockSorted(std::vector<const CBlockIndex*>& baseBlockIndexes, co
 } // anonymous namespace
 
 namespace llmq {
+bool CQuorumSnapshotManager::IsCarriedOnly(const CBlockIndex* pindex) const
+{
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    return view.identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view.base_height;
+}
+
 bool BuildQuorumRotationInfo(CDeterministicMNManager& dmnman, CQuorumSnapshotManager& qsnapman,
                              const ChainstateManager& chainman, const CQuorumManager& qman,
                              const CQuorumBlockProcessor& qblockman, const CGetQuorumRotationInfo& request,
@@ -292,7 +306,7 @@ std::vector<CycleData*> CQuorumRotationInfo::GetCycles()
 
 CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& evoDb) :
     m_evoDb{evoDb},
-    quorumSnapshotCache{32}
+    quorumSnapshotCache{[] { return Uint256LruHashMap<CQuorumSnapshot>{32}; }}
 {
 }
 
@@ -303,14 +317,16 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
     CQuorumSnapshot snapshot = {};
 
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
+    const EvoViewToken view{m_evoDb.CurrentView()};
 
     LOCK(snapshotCacheCs);
+    auto& cache{quorumSnapshotCache.For(view)};
     // try using cache before reading from disk
-    if (quorumSnapshotCache.get(snapshotHash, snapshot)) {
+    if (cache.get(snapshotHash, snapshot)) {
         return snapshot;
     }
     if (m_evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
-        quorumSnapshotCache.insert(snapshotHash, snapshot);
+        cache.insert(snapshotHash, snapshot);
         return snapshot;
     }
 
@@ -320,11 +336,54 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
 void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)
 {
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
+    const auto key{std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash)};
 
-    // LOCK(::cs_main);
     AssertLockNotHeld(m_evoDb.cs);
-    LOCK2(snapshotCacheCs, m_evoDb.cs);
-    m_evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
-    quorumSnapshotCache.insert(snapshotHash, snapshot);
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    if (view.identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view.base_height) {
+        // At or below the snapshot base the snapshot view holds only carried
+        // state. A carried quarter must match the one just computed from
+        // complete inputs. An uncarried one is a reconstruction output, never a
+        // required input, so it is neither persisted nor cached.
+        CQuorumSnapshot carried;
+        if (m_evoDb.Read(key, carried) && ::SerializeHash(carried) != ::SerializeHash(snapshot)) {
+            throw evo::SnapshotStateMismatchError(
+                strprintf("carried quorum snapshot for %s at height %d differs from the computed one",
+                          pindex->GetBlockHash().ToString(), pindex->nHeight));
+        }
+        return;
+    }
+
+    LOCK(snapshotCacheCs);
+    m_evoDb.WriteDurable(key, snapshot);
+    quorumSnapshotCache.For(view).insert(snapshotHash, snapshot);
+}
+
+bool CQuorumSnapshotManager::SeedSnapshotForBlock(const EvoViewToken& view, const Consensus::LLMQType llmqType,
+                                                  const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)
+{
+    if (!Assume(pindex != nullptr) || !Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    const auto snapshot_hash{::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()))};
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_QUORUM_SNAPSHOT, snapshot_hash), snapshot)) return false;
+    LOCK(snapshotCacheCs);
+    quorumSnapshotCache.For(view).erase(snapshot_hash);
+    return true;
+}
+
+bool CQuorumSnapshotManager::SeedQuorumModifier(const EvoViewToken& view, Consensus::LLMQType llmq_type,
+                                                const uint256& work_block_hash, const uint256& modifier)
+{
+    if (!Assume(m_evoDb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    return m_evoDb.WriteDerived(std::make_tuple(DB_QUORUM_MODIFIER, llmq_type, work_block_hash), modifier);
+}
+
+std::optional<uint256> CQuorumSnapshotManager::GetSeededQuorumModifier(Consensus::LLMQType llmq_type,
+                                                                       const uint256& work_block_hash) const
+{
+    uint256 modifier;
+    if (!m_evoDb.Read(std::make_tuple(DB_QUORUM_MODIFIER, llmq_type, work_block_hash), modifier)) return std::nullopt;
+    return modifier;
 }
 } // namespace llmq

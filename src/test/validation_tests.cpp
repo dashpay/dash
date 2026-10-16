@@ -41,6 +41,51 @@ BOOST_AUTO_TEST_CASE(test_assumeutxo)
     BOOST_CHECK_EQUAL(out210.nChainTx, 200U);
 }
 
+//! Regtest accepts extra exact assumeutxo entries, each bound to its block.
+BOOST_AUTO_TEST_CASE(assumeutxodata_option)
+{
+    const std::string utxo_hash(64, '1');
+    const std::string evo_hash(64, '2');
+    const std::string block_hash(64, '3');
+    const auto params_for = [](const std::string& value) {
+        ArgsManager args;
+        SetupChainParamsOptions(args);
+        args.ForceSetArg("-assumeutxodata", value);
+        return CreateChainParams(args, CBaseChainParams::REGTEST);
+    };
+
+    const auto params{params_for(strprintf("219:%s:%s:230:%s", utxo_hash, evo_hash, block_hash))};
+    const auto entry{ExpectedAssumeutxo(219, *params)};
+    BOOST_REQUIRE(entry);
+    BOOST_CHECK_EQUAL(entry->hash_serialized.ToString(), utxo_hash);
+    BOOST_CHECK_EQUAL(entry->evo_hash.ToString(), evo_hash);
+    BOOST_CHECK_EQUAL(entry->nChainTx, 230U);
+    BOOST_CHECK_EQUAL(entry->blockhash.ToString(), block_hash);
+    // The built-in entries stay.
+    BOOST_CHECK(ExpectedAssumeutxo(110, *params));
+
+    // The option authorizes nothing outside regtest.
+    for (const auto& chain : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET}) {
+        ArgsManager args;
+        SetupChainParamsOptions(args);
+        args.ForceSetArg("-assumeutxodata", strprintf("219:%s:%s:230:%s", utxo_hash, evo_hash, block_hash));
+        BOOST_CHECK(!ExpectedAssumeutxo(219, *CreateChainParams(args, chain)));
+    }
+
+    for (const std::string& invalid : {
+             strprintf("219:%s:%s:230", utxo_hash, evo_hash),
+             strprintf("0:%s:%s:230:%s", utxo_hash, evo_hash, block_hash),
+             strprintf("219:%s:%s:230:%s", std::string(64, '0'), evo_hash, block_hash),
+             strprintf("219:%s:%s:230:%s", utxo_hash, std::string(64, '0'), block_hash),
+             strprintf("219:%s:%s:0:%s", utxo_hash, evo_hash, block_hash),
+             strprintf("219:%s:%s:230:%s", utxo_hash, evo_hash, std::string(63, '3')),
+             // Height 110 already has an entry.
+             strprintf("110:%s:%s:230:%s", utxo_hash, evo_hash, block_hash),
+         }) {
+        BOOST_CHECK_THROW(params_for(invalid), std::runtime_error);
+    }
+}
+
 //! Test the Dash (non-witness) IsBlockMutated() predicate directly.
 BOOST_AUTO_TEST_CASE(block_malleation)
 {

@@ -4,6 +4,8 @@
 
 #include <evo/cbtx.h>
 
+#include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -177,6 +179,29 @@ std::string CCbTx::ToString() const
         creditPoolBalance / COIN, creditPoolBalance % COIN, merkleRootAssetUnlocks.ToString());
 }
 
+std::optional<CCbTx> DecodeCbTxPayload(const CTransaction& tx, bool legacy_bls_scheme)
+{
+    if (!tx.IsCoinBase() || tx.nType != TRANSACTION_COINBASE) return std::nullopt;
+    CDataStream ds(tx.vExtraPayload, SER_NETWORK, PROTOCOL_VERSION);
+    CCbTx cbtx;
+    try {
+        ds >> cbtx.nVersion >> cbtx.nHeight >> cbtx.merkleRootMNList;
+        if (cbtx.nVersion >= CCbTx::Version::MERKLE_ROOT_QUORUMS) {
+            ds >> cbtx.merkleRootQuorums;
+            if (cbtx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE) {
+                ds >> COMPACTSIZE(cbtx.bestCLHeightDiff);
+                ds >> CBLSSignatureVersionWrapper(cbtx.bestCLSignature, legacy_bls_scheme);
+                ds >> cbtx.creditPoolBalance;
+                if (cbtx.nVersion >= CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS) ds >> cbtx.merkleRootAssetUnlocks;
+            }
+        }
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+    if (!ds.empty()) return std::nullopt;
+    return cbtx;
+}
+
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
 {
     if (pindex == nullptr) {
@@ -190,20 +215,31 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
 
     CBlock block;
     if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        // A snapshot view lacks the bodies at or below its base, where a
+        // coinbase ChainLock that cannot be read cannot be told from none.
+        if (const auto view{EvoViewScope::InnermostAny()};
+            view && view->identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view->base_height &&
+            !WITH_LOCK(::cs_main, return pindex->nStatus & BLOCK_HAVE_DATA)) {
+            throw BlockDataUnavailableError(
+                strprintf("coinbase of block %s at or below the snapshot base is not available",
+                          pindex->GetBlockHash().ToString()));
+        }
         return std::nullopt;
     }
 
-    return GetNonNullCoinbaseChainlock(block, pindex->nHeight);
+    return GetNonNullCoinbaseChainlock(block, *pindex, Params().GetConsensus());
 }
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, int32_t height)
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, const CBlockIndex& index,
+                                                                              const Consensus::Params& consensus)
 {
-    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase() || block.vtx[0]->nType != TRANSACTION_COINBASE) {
-        return std::nullopt;
-    }
-    const auto payload = GetTxPayload<CCbTx>(*block.vtx[0]);
-    if (!payload || payload->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || payload->nHeight != height ||
-        !payload->bestCLSignature.IsValid() || payload->bestCLHeightDiff >= uint32_t(height)) {
+    if (block.vtx.empty()) return std::nullopt;
+    // The signature encoding is the block's own scheme, not the one this node
+    // happens to be in (a background chainstate connects pre-v19 blocks in
+    // the legacy scheme while other threads read v19 blocks).
+    const auto payload{DecodeCbTxPayload(*block.vtx[0], !DeploymentActiveAt(index, consensus, Consensus::DEPLOYMENT_V19))};
+    if (!payload || payload->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || payload->nHeight != index.nHeight ||
+        !payload->bestCLSignature.IsValid() || payload->bestCLHeightDiff >= static_cast<uint32_t>(index.nHeight)) {
         return std::nullopt;
     }
     return std::make_pair(payload->bestCLSignature, payload->bestCLHeightDiff);

@@ -59,6 +59,9 @@ struct AssumeutxoData {
     //! We need to hardcode the value here because this is computed cumulatively using block data,
     //! which we do not necessarily have at the time of snapshot load.
     const unsigned int nChainTx;
+
+    //! The snapshot base block this entry authorizes, or null for any block at its height.
+    const uint256 blockhash{};
 };
 
 using MapAssumeutxo = std::map<int, const AssumeutxoData>;
@@ -238,6 +241,8 @@ public:
         std::unordered_map<Consensus::LLMQType, LLMQParameters> llmq_test_parameters{};
         //! Name of the LLMQ to use for InstantSend (DIP0024)
         std::optional<std::string> llmq_dip0024_instantsend{};
+        //! Extra exact snapshot authorizations, keyed by base height
+        std::vector<std::pair<int, AssumeutxoData>> assumeutxo_data{};
     };
 
     static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);

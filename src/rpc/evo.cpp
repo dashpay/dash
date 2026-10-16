@@ -1699,10 +1699,11 @@ static RPCHelpMan protx_list()
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
         }
 
-        std::set<COutPoint> setOutpts;
-        for (const auto& outpt : wallet->ListProTxCoins()) {
-            setOutpts.emplace(outpt);
+        const auto protx_coins{wallet->ListProTxCoins()};
+        if (!protx_coins) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Masternode list is not available yet");
         }
+        const std::set<COutPoint> setOutpts{protx_coins->begin(), protx_coins->end()};
 
         CDeterministicMNList mnList = dmnman.GetListForBlock(chainman.ActiveChain()[height]);
         mnList.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {

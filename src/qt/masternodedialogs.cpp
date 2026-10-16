@@ -339,12 +339,6 @@ void MasternodeActionDialog::finishSubmission(MasternodeOperationRunner::Submiss
     accept();
 }
 
-UpdateServiceDialog::UpdateServiceDialog(interfaces::Node& node, WalletModel* wallet_model,
-                                         const MasternodeEntry& entry, QWidget* parent) :
-    UpdateServiceDialog(node, wallet_model, entry, node.evo().getProviderTxCapabilities(), parent)
-{
-}
-
 UpdateServiceDialog::UpdateServiceDialog(interfaces::Node& node, WalletModel* wallet_model, const MasternodeEntry& entry,
                                          interfaces::ProviderTxCapabilities capabilities, QWidget* parent) :
     MasternodeActionDialog(node, wallet_model, entry, parent),
@@ -507,12 +501,6 @@ void UpdateServiceDialog::submit()
             return m_runner->updateMasternodeService(std::move(request), std::move(callback));
         });
     });
-}
-
-UpdateRegistrarDialog::UpdateRegistrarDialog(interfaces::Node& node, WalletModel* wallet_model,
-                                             const MasternodeEntry& entry, QWidget* parent) :
-    UpdateRegistrarDialog(node, wallet_model, entry, node.evo().getProviderTxCapabilities(), parent)
-{
 }
 
 UpdateRegistrarDialog::UpdateRegistrarDialog(interfaces::Node& node, WalletModel* wallet_model,

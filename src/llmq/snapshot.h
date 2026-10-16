@@ -6,6 +6,7 @@
 #define BITCOIN_LLMQ_SNAPSHOT_H
 
 #include <evo/smldiff.h>
+#include <evo/viewcache.h>
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 #include <unordered_lru_cache.h>
@@ -237,7 +238,8 @@ private:
 
     CEvoDB& m_evoDb;
 
-    Uint256LruHashMap<CQuorumSnapshot> quorumSnapshotCache GUARDED_BY(snapshotCacheCs);
+    EvoViewCache<Uint256LruHashMap<CQuorumSnapshot>> quorumSnapshotCache GUARDED_BY(snapshotCacheCs){
+        [] { return Uint256LruHashMap<CQuorumSnapshot>{32}; }};
 
 public:
     CQuorumSnapshotManager() = delete;
@@ -246,8 +248,26 @@ public:
     explicit CQuorumSnapshotManager(CEvoDB& evoDb);
     ~CQuorumSnapshotManager();
 
+    //! The Evo view the calling operation reads, for callers that partition
+    //! their own caches of state derived from quorum snapshots.
+    EvoViewToken CurrentView() const { return m_evoDb.CurrentView(); }
+
     std::optional<CQuorumSnapshot> GetSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
     void StoreSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot);
+    //! Whether the calling operation reads the snapshot view and `pindex` is
+    //! at or below its base, where only carried quarters exist.
+    bool IsCarriedOnly(const CBlockIndex* pindex) const;
+
+    /** Seed a carried rotation quarter into `view`, inside the caller's open
+     *  EvoDB transaction for that view. */
+    bool SeedSnapshotForBlock(const EvoViewToken& view, Consensus::LLMQType llmqType, const CBlockIndex* pindex,
+                              const CQuorumSnapshot& snapshot);
+    /** Seed the exact score modifier of a work block into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedQuorumModifier(const EvoViewToken& view, Consensus::LLMQType llmq_type, const uint256& work_block_hash,
+                            const uint256& modifier);
+    //! The modifier seeded for a work block in the calling operation's view.
+    std::optional<uint256> GetSeededQuorumModifier(Consensus::LLMQType llmq_type, const uint256& work_block_hash) const;
 };
 } // namespace llmq
 

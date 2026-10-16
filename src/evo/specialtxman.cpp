@@ -15,6 +15,9 @@
 #include <evo/netinfo.h>
 #include <evo/sharedcollateral.h>
 #include <evo/simplifiedmns.h>
+#include <evo/snapshot.h>
+#include <evo/snapshot_types.h>
+#include <evo/viewcache.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
@@ -27,6 +30,7 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <hash.h>
+#include <node/blockstorage.h>
 #include <primitives/block.h>
 #include <util/system.h>
 
@@ -37,6 +41,7 @@ CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager&
                                          const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman) :
     m_cpoolman{std::make_unique<CCreditPoolManager>(evodb, chainman)},
     m_mnhfman{std::make_unique<CMNHFManager>(evodb, consensus_params)},
+    m_evodb{evodb},
     m_dmnman{dmnman},
     m_qblockman{qblockman},
     m_qsnapman{qsnapman},
@@ -49,6 +54,48 @@ CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager&
 }
 
 CSpecialTxProcessor::~CSpecialTxProcessor() = default;
+
+// The coinbase of an assumeutxo snapshot base, carried by the snapshot and
+// proven against the base header. Written only into a snapshot generation.
+static const std::string DB_BASE_COINBASE{"cb_S"};
+
+CoinbaseChainlock CSpecialTxProcessor::GetCoinbaseChainlock(const CBlockIndex* pindex) const
+{
+    CoinbaseChainlock result;
+    // There's no CL in CbTx before v20 activation
+    if (pindex == nullptr || !DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) return result;
+    const auto from_coinbase = [&](const CTransaction& coinbase) {
+        const bool legacy{!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V19)};
+        const auto cbtx{DecodeCbTxPayload(coinbase, legacy)};
+        if (cbtx && cbtx->nVersion >= CCbTx::Version::CLSIG_AND_BALANCE && cbtx->nHeight == pindex->nHeight &&
+            cbtx->bestCLSignature.IsValid() && cbtx->bestCLHeightDiff < static_cast<uint32_t>(pindex->nHeight)) {
+            result = {CoinbaseChainlock::Status::CERTIFIED, cbtx->bestCLSignature, cbtx->bestCLHeightDiff};
+        }
+        return result;
+    };
+    const EvoViewToken view{m_evodb.CurrentView()};
+    const bool snapshot_view{view.identity == EvoDbIdentity::SNAPSHOT};
+    if (snapshot_view && pindex->nHeight == view.base_height) {
+        CMutableTransaction carried;
+        if (m_evodb.Read(std::make_pair(DB_BASE_COINBASE, pindex->GetBlockHash()), carried)) {
+            return from_coinbase(CTransaction{carried});
+        }
+    }
+    CBlock block;
+    if (!node::ReadBlockFromDisk(block, pindex, m_consensus_params)) {
+        if (snapshot_view) result.status = CoinbaseChainlock::Status::UNAVAILABLE;
+        return result;
+    }
+    if (block.vtx.empty()) return result;
+    return from_coinbase(*block.vtx[0]);
+}
+
+bool CSpecialTxProcessor::SeedBaseCoinbase(const EvoViewToken& view, const CBlockIndex* base, const CTransaction& coinbase)
+{
+    if (!Assume(base != nullptr) || !Assume(m_evodb.HasActiveTransaction())) return false;
+    const EvoViewScope scope{view};
+    return m_evodb.WriteDerived(std::make_pair(DB_BASE_COINBASE, base->GetBlockHash()), CMutableTransaction{coinbase});
+}
 
 static bool AddNetInfoEntries(const std::shared_ptr<NetInfoInterface>& net_info, NetInfoPurpose purpose,
                               const NetInfoList& entries, BlockValidationState& state)
@@ -157,33 +204,44 @@ static bool ApplyProUpServTx(CDeterministicMNState& state_mn, const CProUpServTx
 }
 
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                            const CChain& chain, const llmq::CQuorumManager& qman,
-                            const chainlock::Chainlocks& chainlocks, BlockValidationState& state)
+                            const CChain& chain, const llmq::CQuorumManager& qman, const chainlock::Chainlocks& chainlocks,
+                            const CSpecialTxProcessor& special_tx, BlockValidationState& state)
 {
     if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return true;
     }
 
+    // The previous block's coinbase ChainLock, remembered per Evo view.
+    struct CachedChainlock {
+        const CBlockIndex* pindex{nullptr};
+        std::optional<std::pair<CBLSSignature, uint32_t>> chainlock;
+    };
     static Mutex cached_mutex;
-    static const CBlockIndex* cached_pindex GUARDED_BY(cached_mutex){nullptr};
-    static std::optional<std::pair<CBLSSignature, uint32_t>> cached_chainlock GUARDED_BY(cached_mutex){std::nullopt};
+    static EvoViewCache<CachedChainlock> cached_by_view GUARDED_BY(cached_mutex);
+    const EvoViewToken view{qman.CurrentView()};
 
     auto best_clsig = chainlocks.GetBestChainLock();
     if (best_clsig.getHeight() == pindex->nHeight - 1 && cbTx.bestCLHeightDiff == 0 &&
         cbTx.bestCLSignature == best_clsig.getSig()) {
         // matches our best clsig which still hold values for the previous block
         LOCK(cached_mutex);
-        cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
-        cached_pindex = pindex;
+        cached_by_view.For(view) = {pindex, std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff)};
         return true;
     }
 
     std::optional<std::pair<CBLSSignature, uint32_t>> prevBlockCoinbaseChainlock{std::nullopt};
-    if (LOCK(cached_mutex); cached_pindex == pindex->pprev) {
-        prevBlockCoinbaseChainlock = cached_chainlock;
+    if (LOCK(cached_mutex); cached_by_view.For(view).pindex == pindex->pprev) {
+        prevBlockCoinbaseChainlock = cached_by_view.For(view).chainlock;
     }
     if (!prevBlockCoinbaseChainlock.has_value()) {
-        prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindex->pprev);
+        const CoinbaseChainlock previous{special_tx.GetCoinbaseChainlock(pindex->pprev)};
+        if (previous.status == CoinbaseChainlock::Status::UNAVAILABLE) {
+            throw BlockDataUnavailableError(
+                strprintf("coinbase ChainLock of block %s is not available", pindex->pprev->GetBlockHash().ToString()));
+        }
+        if (previous.status == CoinbaseChainlock::Status::CERTIFIED) {
+            prevBlockCoinbaseChainlock = std::make_pair(previous.signature, previous.height_diff);
+        }
     }
     // If std::optional prevBlockCoinbaseChainlock is empty, then up to the previous block, coinbase Chainlock is null.
     if (prevBlockCoinbaseChainlock.has_value()) {
@@ -207,8 +265,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
         if (best_clsig.getHeight() == curBlockCoinbaseCLHeight && best_clsig.getSig() == cbTx.bestCLSignature) {
             // matches our best (but outdated) clsig, no need to verify it again
             LOCK(cached_mutex);
-            cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
-            cached_pindex = pindex;
+            cached_by_view.For(view) = {pindex, std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff)};
             return true;
         }
         const CBlockIndex* pAncestor = pindex->GetAncestor(curBlockCoinbaseCLHeight);
@@ -224,8 +281,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-invalid-clsig");
         }
         LOCK(cached_mutex);
-        cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
-        cached_pindex = pindex;
+        cached_by_view.For(view) = {pindex, std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff)};
     } else if (cbTx.bestCLHeightDiff != 0) {
         // Null bestCLSignature is allowed only with bestCLHeightDiff = 0
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
@@ -285,6 +341,13 @@ bool CSpecialTxProcessor::CheckSpecialTxInner(const CChain* chain, const CTransa
             return chain ? CheckAssetUnlockTx(m_blockman, m_qman, *chain, tx, pindexPrev, indexes, rules.v24, state)
                          : CheckAssetUnlockTx(m_blockman, m_qman, tx, pindexPrev, indexes, rules.v24, state);
         }
+    } catch (const evo::LocalStateError& e) {
+        // This node's Evo state is missing or wrong, not the transaction.
+        // During block connection the chainstate boundary classifies it.
+        // Mempool and mining callers have no such boundary: fail the
+        // operation without blaming the transaction or its relayer.
+        if (chain != nullptr) throw;
+        return state.Error(e.what());
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-check-special-tx");
@@ -872,9 +935,17 @@ bool CMNListBuilder::Finish(const CBlock& block, BlockValidationState& state, CD
     return m_processor->FinishListForBlock(block, m_pindex_prev, m_prev_list, m_debug_logs, m_list, state, mnListRet);
 }
 
+uint256 CanonicalDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNList& list)
+{
+    if (list.GetBlockHash().IsNull()) {
+        return evo::CanonicalMNListHash(CDeterministicMNList{pindex->GetBlockHash(), pindex->nHeight, 0});
+    }
+    return evo::CanonicalMNListHash(list);
+}
+
 uint256 CSpecialTxProcessor::GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const
 {
-    return SerializeHash(m_dmnman.GetListForBlock(pindex));
+    return CanonicalDeterministicMNListHash(pindex, m_dmnman.GetListForBlock(pindex));
 }
 
 void CSpecialTxProcessor::UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex) { m_dmnman.UpdatedBlockTip(pindex); }
@@ -886,6 +957,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
                                                    MNListUpdates& updatesRet)
 {
     AssertLockHeld(::cs_main);
+
+    if (!IsEvoViewBound(chainstate)) {
+        return state.Error(strprintf("%s: not bound to the chainstate's Evo view", __func__));
+    }
 
     try {
         static int64_t nTimeLoop = 0;
@@ -1045,7 +1120,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             LogPrint(BCLog::BENCHMARK, "      - CalcCbTxMerkleRootQuorums: %.2fms [%.2fs]\n",
                      0.001 * (nTime6_2 - nTime6_1), nTimeMerkleQuorums * 0.000001);
 
-            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, chain, m_qman, m_chainlocks, state)) {
+            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, chain, m_qman, m_chainlocks, *this, state)) {
                 // pass the state returned by the function above
                 return false;
             }
@@ -1078,6 +1153,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-procspectxsinblock");
@@ -1086,9 +1163,13 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
     return true;
 }
 
-bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, MNListUpdates& updatesRet)
+bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block,
+                                                const CBlockIndex* pindex, MNListUpdates& updatesRet)
 {
     AssertLockHeld(::cs_main);
+    if (!IsEvoViewBound(chainstate)) {
+        throw EvoViewBindingError(strprintf("%s: not bound to the chainstate's Evo view", __func__));
+    }
 
     auto bls_legacy_scheme = bls::bls_legacy_scheme.load();
 
@@ -1111,6 +1192,9 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, co
         if (!m_qblockman.UndoBlock(chainstate, block, pindex)) {
             return false;
         }
+    } catch (const evo::LocalStateError&) {
+        bls::bls_legacy_scheme.store(bls_legacy_scheme);
+        throw;
     } catch (const std::exception& e) {
         bls::bls_legacy_scheme.store(bls_legacy_scheme);
         LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
@@ -1146,6 +1230,8 @@ bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-checkcreditpooldiff");
