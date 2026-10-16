@@ -241,6 +241,11 @@ void SyncManager::ProcessTick()
                     m_node_sync.SwitchToNextAsset();
                     return;
                 }
+                if (m_gov_manager.IsCollateralSourceBehind()) {
+                    // Every proposal would fail its collateral check, so wait for the index without timing out
+                    m_node_sync.BumpAssetLastTime("SyncManager::ProcessTick");
+                    return;
+                }
                 LogPrint(BCLog::GOBJECT, "Sync Tick -- nTick %d asset_id %d last_bump %lld GetTime() %lld diff %lld\n",
                          nTick, asset_id, m_node_sync.GetLastBump(), GetTime(), GetTime() - m_node_sync.GetLastBump());
 

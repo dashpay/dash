@@ -6,7 +6,6 @@
 
 import platform
 import os
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.test_framework import BitcoinTestFramework
 
 class FeatureRemovePrunedFilesOnStartupTest(BitcoinTestFramework):
@@ -48,10 +47,10 @@ class FeatureRemovePrunedFilesOnStartupTest(BitcoinTestFramework):
         # Check that the files are removed on restart once the fds are closed
         fd1.close()
         fd2.close()
-        self.restart_node(0, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_node(0)
         assert not os.path.exists(blk0)
         assert not os.path.exists(rev1)
-        self.stop_node(0, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_node(0)
 
 if __name__ == '__main__':
     FeatureRemovePrunedFilesOnStartupTest().main()

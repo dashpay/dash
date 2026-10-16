@@ -7,7 +7,10 @@
 import json
 
 EXPECTED_STDERR_NO_GOV = "Warning: You are starting with governance validation disabled."
-EXPECTED_STDERR_NO_GOV_PRUNE = f"{EXPECTED_STDERR_NO_GOV} This is expected because you are running a pruned node."
+EXPECTED_STDERR_GOV_PRUNED_TOO_FAR = (
+    "Warning: Governance is disabled because this node has already pruned the old blocks it needs to build "
+    "the governance collateral index. Restart once with -reindex to enable governance; the blockchain will be "
+    "downloaded again but the node stays pruned.")
 
 def prepare_object(node, object_type, parent_hash, creation_time, revision, name, amount, payment_address):
     proposal_rev = revision

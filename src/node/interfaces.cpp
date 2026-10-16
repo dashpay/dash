@@ -22,6 +22,7 @@
 #include <governance/superblock.h>
 #include <governance/vote.h>
 #include <index/blockfilterindex.h>
+#include <index/govcollateralindex.h>
 #include <init.h>
 #include <instantsend/instantsend.h>
 #include <interfaces/chain.h>
@@ -493,6 +494,14 @@ public:
     std::optional<CGovernanceObject> createProposal(int32_t revision, int64_t created_time,
                         const std::string& data_hex, std::string& error) override
     {
+        if (!context().govman || !context().govman->IsValid() || !context().gov_collateral_index) {
+            error = "Governance is disabled on this node, so it can't submit proposals";
+            return std::nullopt;
+        }
+        if (!context().gov_collateral_index->BlockUntilSyncedToCurrentChain()) {
+            error = "This node is still building its governance collateral index, so it can't submit proposals yet";
+            return std::nullopt;
+        }
         CGovernanceObject govobj(uint256{}, revision, created_time, uint256{}, data_hex);
         if (govobj.GetObjectType() != GovernanceObject::PROPOSAL) {
             error = "Invalid object type, only proposals can be validated";
@@ -507,7 +516,8 @@ public:
         {
             LOCK(::cs_main);
             std::string strError;
-            if (!govobj.IsValidLocally(Assert(context().dmnman)->GetListAtChainTip(), chainman, strError, false)) {
+            if (!govobj.IsValidLocally(Assert(context().dmnman)->GetListAtChainTip(), chainman, /*collateral=*/nullptr,
+                                       strError, false)) {
                 error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
                 return std::nullopt;
             }
@@ -519,6 +529,14 @@ public:
                         const uint256& fee_txid, std::string& out_object_hash, std::string& error) override
     {
         if (!context().govman || !context().dmnman || !context().chainman) { error = "Governance not available"; return false; }
+        if (!context().govman->IsValid() || !context().gov_collateral_index) {
+            error = "Governance is disabled on this node, so it can't submit proposals";
+            return false;
+        }
+        if (!context().gov_collateral_index->BlockUntilSyncedToCurrentChain()) {
+            error = "This node is still building its governance collateral index, so it can't submit proposals yet";
+            return false;
+        }
         if(!Assert(context().mn_sync)->IsBlockchainSynced()) { error = "Client not synced"; return false; }
         const auto mnList = Assert(context().dmnman)->GetListAtChainTip();
         CGovernanceObject govobj(parent, revision, created_time, fee_txid, data_hex);
@@ -532,7 +550,9 @@ public:
         {
             LOCK2(cs_main, mempool.cs);
             std::string strError;
-            if (!govobj.IsValidLocally(mnList, *Assert(context().chainman), strError, fMissingConfirmations, true) && !fMissingConfirmations) {
+            if (!govobj.IsValidLocally(mnList, *Assert(context().chainman), context().gov_collateral_index.get(),
+                                       strError, fMissingConfirmations, true) &&
+                !fMissingConfirmations) {
                 error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
                 return false;
             }

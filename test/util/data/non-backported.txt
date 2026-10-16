@@ -22,6 +22,8 @@ src/governance/*.cpp
 src/governance/*.h
 src/index/address*.cpp
 src/index/address*.h
+src/index/govcollateral*.cpp
+src/index/govcollateral*.h
 src/index/spent*.cpp
 src/index/spent*.h
 src/index/timestamp*.cpp

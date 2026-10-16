@@ -38,6 +38,7 @@ struct RPCResult;
 class UniValue;
 
 namespace governance {
+class CollateralSource;
 class SuperblockManager;
 
 struct OrphanVote {
@@ -254,6 +255,8 @@ private:
     governance::SuperblockManager& m_superblocks;
     CDeterministicMNManager& m_dmnman;
     CMasternodeSync& m_mn_sync;
+    //! Null on a node that can't look up proposal collateral
+    const governance::CollateralSource* const m_collateral;
 
     int64_t nTimeLastDiff{0};
     // keep track of current block height
@@ -272,11 +275,14 @@ public:
     CGovernanceManager& operator=(const CGovernanceManager&) = delete;
     explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
                                 governance::SuperblockManager& superblocks, CDeterministicMNManager& dmnman,
-                                CMasternodeSync& mn_sync);
+                                CMasternodeSync& mn_sync, const governance::CollateralSource* collateral);
     ~CGovernanceManager();
 
     // Basic initialization and querying
     bool IsValid() const { return is_loaded; }
+    const governance::CollateralSource* GetCollateralSource() const { return m_collateral; }
+    //! Whether proposal collateral can't be checked yet because the collateral source is still catching up
+    bool IsCollateralSourceBehind() const;
     bool LoadCache(bool load_cache)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
