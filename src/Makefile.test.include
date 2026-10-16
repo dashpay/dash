@@ -226,6 +226,10 @@ BITCOIN_TESTS =\
   test/versionbits_tests.cpp \
   test/xoroshiro128plusplus_tests.cpp
 
+if ENABLE_PLATFORM_GUI
+BITCOIN_TESTS += test/platform_client_tests.cpp
+endif
+
 if ENABLE_WALLET
 BITCOIN_TESTS += \
   wallet/test/bip39_tests.cpp \
@@ -272,6 +276,10 @@ endif # ENABLE_WALLET
 test_test_dash_SOURCES = $(BITCOIN_TEST_SUITE) $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_dash_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS)
 test_test_dash_LDADD = $(LIBTEST_UTIL)
+if ENABLE_PLATFORM_GUI
+test_test_dash_LDADD += $(LIBDASH_PLATFORM)
+test_test_dash_CPPFLAGS += $(PLATFORM_CXX_CFLAGS)
+endif
 if ENABLE_WALLET
 test_test_dash_LDADD += $(LIBBITCOIN_WALLET)
 test_test_dash_CPPFLAGS += $(BDB_CPPFLAGS)
