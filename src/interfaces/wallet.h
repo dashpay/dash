@@ -21,6 +21,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <psbt.h>
 #include <set>
 #include <string>
@@ -115,6 +116,10 @@ public:
     //! Abort a rescan.
     virtual void abortRescan() = 0;
 
+    //! The height startRescan(false) starts at, when this node has pruned
+    //! blocks it would read; nullopt when it has them all.
+    virtual std::optional<int> rescanPrunedFrom() = 0;
+
     //! Lock masternode collaterals
     virtual void autoLockMasternodeCollaterals() = 0;
 
@@ -141,6 +146,10 @@ public:
 
     //! Sign special transaction payload
     virtual bool signSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std::vector<unsigned char>& vchSig) = 0;
+
+    //! Whether this wallet can derive Platform keys: SUCCESS for a descriptor
+    //! wallet with private keys and a single HD root, whether locked or not.
+    virtual wallet::PlatformKeyStatus platformKeySourceStatus() = 0;
 
     //! Derive and return a public Platform key. The mnemonic-owning key
     //! manager performs derivation without exposing the wallet's root seed.
