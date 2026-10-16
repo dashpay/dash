@@ -21,6 +21,7 @@
 #include <util/system.h>
 #include <validation.h>
 #include <wallet/context.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 
 #include <univalue.h>
@@ -29,7 +30,7 @@
 
 using wallet::AddWallet;
 using wallet::CWallet;
-using wallet::CreateMockWalletDatabase;
+using wallet::CreateMockableWalletDatabase;
 using wallet::RemoveWallet;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 using wallet::WalletContext;
@@ -74,7 +75,7 @@ struct WalletOptions {
 std::shared_ptr<CWallet> MakeWallet(interfaces::Node& node, WalletContext& context, const std::string& name,
                                     const WalletOptions& options)
 {
-    auto wallet{std::make_shared<CWallet>(node.context()->chain.get(), name, CreateMockWalletDatabase())};
+    auto wallet{std::make_shared<CWallet>(node.context()->chain.get(), name, CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
     const CBlockIndex* const tip{options.setup == nullptr

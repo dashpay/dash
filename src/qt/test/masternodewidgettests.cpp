@@ -32,6 +32,7 @@
 #include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
+#include <wallet/test/util.h>
 #include <wallet/wallet.h>
 
 #include <QAbstractButton>
@@ -67,7 +68,7 @@
 #include <utility>
 #include <vector>
 
-using wallet::CreateMockWalletDatabase;
+using wallet::CreateMockableWalletDatabase;
 using wallet::CWallet;
 using wallet::WalletContext;
 
@@ -407,7 +408,7 @@ void MasternodeWidgetTests::operationRunnerThreading()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     auto wallet_interface{interfaces::MakeWallet(context, wallet)};
     QVERIFY(wallet_interface != nullptr);
@@ -455,7 +456,7 @@ void MasternodeWidgetTests::operationRunnerExceptions()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     auto wallet_interface{interfaces::MakeWallet(context, wallet)};
     QVERIFY(wallet_interface != nullptr);
@@ -492,7 +493,7 @@ void MasternodeWidgetTests::operationRunnerShutdownDelivery()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     auto wallet_interface{interfaces::MakeWallet(context, wallet)};
     QVERIFY(wallet_interface != nullptr);
@@ -548,7 +549,7 @@ void MasternodeWidgetTests::feeSourcePickerEligibility()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     wallet->SetWalletFlag(wallet::WALLET_FLAG_DESCRIPTORS);
 
@@ -613,7 +614,7 @@ void MasternodeWidgetTests::registeredCollateralExclusion()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     wallet->SetWalletFlag(wallet::WALLET_FLAG_DESCRIPTORS);
 
@@ -916,7 +917,7 @@ void MasternodeWidgetTests::masternodeListRegistrationAvailability()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     MasternodeTestUtil::GuiModels models{m_node};
     QVERIFY2(models.ok, qPrintable(QString::fromStdString(models.error.translated)));
@@ -999,7 +1000,7 @@ void MasternodeWidgetTests::sharedMasternodeOwnedFilter()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     wallet->SetWalletFlag(wallet::WALLET_FLAG_DESCRIPTORS);
 
@@ -1036,7 +1037,7 @@ void MasternodeWidgetTests::sharedMasternodeContextMenu()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     wallet->SetWalletFlag(wallet::WALLET_FLAG_DESCRIPTORS);
 
@@ -1220,7 +1221,7 @@ void MasternodeWidgetTests::wizardInteractionLifecycle()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     MasternodeTestUtil::GuiModels models{m_node};
     QVERIFY2(models.ok, qPrintable(QString::fromStdString(models.error.translated)));
@@ -1303,7 +1304,7 @@ void MasternodeWidgetTests::registrationResultStates()
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
-    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockWalletDatabase())};
+    const auto wallet{std::make_shared<CWallet>(m_node.context()->chain.get(), "", CreateMockableWalletDatabase())};
     wallet->LoadWallet();
     MasternodeTestUtil::GuiModels models{m_node};
     QVERIFY2(models.ok, qPrintable(QString::fromStdString(models.error.translated)));
