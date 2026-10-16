@@ -533,12 +533,12 @@ public:
             errors.push_back(std::move(error));
         return WalletTxSignResult{MakeTransactionRef(std::move(signed_tx)), complete, std::move(errors)};
     }
-    void commitTransaction(CTransactionRef tx,
+    util::Result<void> commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
         WalletOrderForm order_form) override
     {
         LOCK(m_wallet->cs_wallet);
-        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
+        return m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
     }
     bool transactionCanBeAbandoned(const uint256& txid) override { return m_wallet->TransactionCanBeAbandoned(txid); }
     bool transactionCanBeResent(const uint256& txid) override { return m_wallet->TransactionCanBeResent(txid); }
