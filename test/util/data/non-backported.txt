@@ -35,6 +35,8 @@ src/masternode/*.cpp
 src/masternode/*.h
 src/messagesigner.*
 src/netfulfilledman.*
+src/platform/*.cpp
+src/platform/*.h
 src/qt/clientfeeds.*
 src/qt/descriptiondialog.*
 src/qt/donutchart.*
@@ -49,6 +51,8 @@ src/qt/masternodewizard.*
 src/qt/mnsharesession.*
 src/qt/mnemonicverificationdialog.*
 src/qt/networkwidget.*
+src/qt/platform/*.cpp
+src/qt/platform/*.h
 src/qt/test/coincontroltreewidgettests.*
 src/qt/test/providertransactiontests.cpp
 src/qt/test/providertransactiontests.h
@@ -56,6 +60,7 @@ src/qt/test/masternodemaintenancetests.*
 src/qt/test/masternodetestutil.*
 src/qt/test/masternodewidgettests.*
 src/qt/test/mnsharesessiontests.*
+src/qt/test/platformtests.*
 src/qt/test/sharedmnwalkthroughtests.*
 src/qt/test/sharedmnwidgettests.*
 src/qt/test/sharedmnwizardtests.*
@@ -92,10 +97,12 @@ src/test/llmq*.cpp
 src/test/quorum_proofs_tests.cpp
 src/test/masternode_params_tests.cpp
 src/test/masternode_payments_tests.cpp
+src/test/platform_client_tests.cpp
 src/test/spork_tests.cpp
 src/test/unordered_lru_cache_tests.cpp
 src/test/util/llmq_tests.h
 src/test/util/masternode.*
+src/test/util/platform_client.*
 src/test/governance*.cpp
 src/unordered_lru_cache.h
 src/util/edge.*

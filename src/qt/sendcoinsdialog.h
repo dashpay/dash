@@ -5,6 +5,10 @@
 #ifndef BITCOIN_QT_SENDCOINSDIALOG_H
 #define BITCOIN_QT_SENDCOINSDIALOG_H
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <qt/clientmodel.h>
 #include <qt/walletmodel.h>
 
@@ -47,6 +51,12 @@ public:
     QWidget *setupTabChain(QWidget *prev);
 
     void setAddress(const QString &address);
+#ifdef ENABLE_PLATFORM_GUI
+    /** Let the entries take a DashPay username as well as an address. */
+    void allowUsernames();
+    /** The first entry that holds `username` takes `address` instead. */
+    void setUsernameAddress(const QString& username, const QString& address);
+#endif
     void pasteEntry(const SendCoinsRecipient &rv);
     bool handlePaymentRequest(const SendCoinsRecipient &recipient);
 
@@ -60,6 +70,10 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void coinsSent(const uint256& txid);
+#ifdef ENABLE_PLATFORM_GUI
+    /** The user left an entry holding something that is not an address. */
+    void usernameEntered(const QString& username);
+#endif
 
 private:
     Ui::SendCoinsDialog *ui;
@@ -68,6 +82,9 @@ private:
     std::unique_ptr<wallet::CCoinControl> m_coin_control;
     std::unique_ptr<WalletModelTransaction> m_current_transaction;
     bool fNewRecipientAllowed{true};
+#ifdef ENABLE_PLATFORM_GUI
+    bool m_usernames{false};
+#endif
     bool send(const QList<SendCoinsRecipient>& recipients, QString& question_string, QString& informative_text, QString& detailed_text);
     bool fFeeMinimized{true};
     bool fKeepChangeAddress;

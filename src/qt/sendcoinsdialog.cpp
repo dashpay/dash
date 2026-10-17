@@ -696,6 +696,10 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
     connect(entry, &SendCoinsEntry::useAvailableBalance, this, &SendCoinsDialog::useAvailableBalance);
     connect(entry, &SendCoinsEntry::payAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
     connect(entry, &SendCoinsEntry::subtractFeeFromAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
+#ifdef ENABLE_PLATFORM_GUI
+    connect(entry, &SendCoinsEntry::usernameEntered, this, &SendCoinsDialog::usernameEntered);
+    if (m_usernames) entry->allowUsername();
+#endif
 
     // Focus the field, so that entry can start immediately
     entry->clear();
@@ -769,6 +773,28 @@ void SendCoinsDialog::setAddress(const QString &address)
 
     entry->setAddress(address);
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void SendCoinsDialog::allowUsernames()
+{
+    m_usernames = true;
+    for (auto* entry : findChildren<SendCoinsEntry*>()) {
+        entry->allowUsername();
+    }
+}
+
+void SendCoinsDialog::setUsernameAddress(const QString& username, const QString& address)
+{
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        auto* entry{qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget())};
+        // An entry edited since is not filled.
+        if (entry && entry->getValue().address == username) {
+            entry->setAddress(address);
+            return;
+        }
+    }
+}
+#endif
 
 void SendCoinsDialog::pasteEntry(const SendCoinsRecipient &rv)
 {
