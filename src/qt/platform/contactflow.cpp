@@ -56,14 +56,15 @@ std::optional<uint32_t> FirstEnabledKey(const platform::Identity& identity, Purp
 //! The accountReference over our receiving chain towards `theirs`, which is
 //! imported first so their payments are seen. No payment can predate it, so
 //! it is born now.
-std::optional<uint32_t> ImportedAccountReference(interfaces::Wallet& wallet, const platform::Identifier& ours,
-                                                 const platform::Identifier& theirs, uint32_t encryption_key)
+std::optional<uint32_t> ImportedAccountReference(interfaces::Wallet& wallet, uint32_t index,
+                                                 const platform::Identifier& ours, const platform::Identifier& theirs,
+                                                 uint32_t encryption_key)
 {
     const auto chain{wallet.ensureFriendshipReceivingKeychain(
         {ContactFlow::ACCOUNT, uint256{ours}, uint256{theirs}, TicksSinceEpoch<std::chrono::seconds>(NodeClock::now())})};
     wallet::CompactXpub compact;
     if (!chain || !wallet::CompactXpubBytes(chain.value, compact)) return std::nullopt;
-    const auto reference{wallet.platformAccountReference({IdentityFlow::IDENTITY_INDEX, encryption_key}, compact)};
+    const auto reference{wallet.platformAccountReference({index, encryption_key}, compact)};
     if (!reference) return std::nullopt;
     return reference.value;
 }
@@ -87,9 +88,10 @@ std::map<platform::Identifier, platform::ContactRequest> Newest(std::vector<plat
 QString NoSuchUser() { return ContactFlow::tr("No DashPay user has that username."); }
 
 //! The payment chain an incoming request carries, decrypted with our key it
-//! names. nullopt unless their key and ours are keys DIP-15 accepts for its
-//! ECDH and it decrypts to a valid point. The wallet must be unlocked.
-std::optional<wallet::FriendshipXpub> PeerXpub(interfaces::Wallet& wallet, const platform::Identity& ours,
+//! names, `ours` being the identity at `index`. nullopt unless their key and
+//! ours are keys DIP-15 accepts for its ECDH and it decrypts to a valid
+//! point. The wallet must be unlocked.
+std::optional<wallet::FriendshipXpub> PeerXpub(interfaces::Wallet& wallet, uint32_t index, const platform::Identity& ours,
                                                const platform::Identity& theirs, const platform::ContactRequest& request)
 {
     // The keys DIP-15 accepts on receive, as rs-platform-wallet validates them.
@@ -105,8 +107,7 @@ std::optional<wallet::FriendshipXpub> PeerXpub(interfaces::Wallet& wallet, const
          our_key->type != IdentityPublicKey::Type::ECDSA_HASH160)) {
         return std::nullopt;
     }
-    const auto secret{wallet.platformECDHSecret({IdentityFlow::IDENTITY_INDEX, request.recipient_key_index},
-                                                CPubKey{their_key->data})};
+    const auto secret{wallet.platformECDHSecret({index, request.recipient_key_index}, CPubKey{their_key->data})};
     std::array<uint8_t, 32> shared;
     if (!secret || secret.value.size() != shared.size()) return std::nullopt;
     std::copy(secret.value.begin(), secret.value.end(), shared.begin());
@@ -196,10 +197,13 @@ std::vector<ContactFlow::Contact> ContactFlow::contacts() const
 
 void ContactFlow::update()
 {
-    // The identity is forgotten when a gate closes; its contacts go with it.
+    // The identity is forgotten when a gate closes or another is selected;
+    // its contacts go with it.
     if (!m_identity_flow.identity()) {
         m_sent.reset();
         m_received.reset();
+        m_sent_call.reset();
+        m_received_call.reset();
         m_names.clear();
         m_name_calls.clear();
     }
@@ -249,14 +253,15 @@ void ContactFlow::sweep()
 void ContactFlow::readRequests(platform::ContactDirection direction)
 {
     const bool sent{direction == platform::ContactDirection::SENT};
-    const auto& identity{m_identity_flow.identity()};
+    const platform::Identity* identity{m_identity_flow.identity()};
     platform::PlatformClient* client{m_service.client()};
     auto& requests{sent ? m_sent : m_received};
     auto& call{sent ? m_sent_call : m_received_call};
     if (!identity || !client || requests || !call.expired()) return;
     client->contactRequests(identity->id, direction, /*since_ms=*/0,
-                            PlatformUi::Tracked<std::vector<platform::ContactRequest>>(call, [this, sent, &requests,
-                                                                                              &call](auto result) {
+                            PlatformUi::Tracked<std::vector<platform::ContactRequest>>(call, [this, sent, &requests, &call,
+                                                                                              id = identity->id](auto result) {
+                                if (!m_identity_flow.isSelected(id)) return;
                                 // Answered: no longer reading().
                                 call.reset();
                                 if (result.ok()) {
@@ -315,8 +320,7 @@ void ContactFlow::onResolved(platform::Result<platform::Identifier> result)
     const QString label{QString::fromStdString(m_label)};
     if (result.status.kind == platform::StatusKind::NOT_FOUND) return finish(NoSuchUser());
     if (!result.ok()) return finish(PlatformUi::Describe(result.status));
-    const auto& identity{m_identity_flow.identity()};
-    if (identity && result.value == identity->id) return finish(tr("“%1” is your own username.").arg(label));
+    if (m_identity_flow.isSelected(result.value)) return finish(tr("“%1” is your own username.").arg(label));
     if (m_sent && m_sent->count(result.value)) {
         return finish(tr("You have already sent “%1” a contact request.").arg(label));
     }
@@ -374,16 +378,17 @@ void ContactFlow::onFetched(platform::Result<platform::Identity> result)
         return finish(tr("Another DashPay request is on its way. Try again once it is done."));
     }
     platform::PlatformClient* client{m_service.client()};
-    if (!client || !m_identity_flow.identity() || !swept()) return finish();
+    if (!client || !m_identity_flow.isSelected(ours.id) || !swept()) return finish();
 
     interfaces::Wallet& wallet{m_service.walletModel().wallet()};
+    const uint32_t index{m_identity_flow.index()};
     // Answering their request: only one carrying a chain we can pay.
     if (const auto incoming{m_received->find(theirs.id)};
-        incoming != m_received->end() && !PeerXpub(wallet, ours, theirs, incoming->second)) {
+        incoming != m_received->end() && !PeerXpub(wallet, index, ours, theirs, incoming->second)) {
         return finish(tr("This person's contact request to you carries no valid payment key, so DashPay can't add "
                          "them."));
     }
-    const auto reference{ImportedAccountReference(wallet, ours.id, theirs.id, *encryption_key)};
+    const auto reference{ImportedAccountReference(wallet, index, ours.id, theirs.id, *encryption_key)};
     if (!reference) return finish(tr("Dash Core could not derive the contact request's keys from this wallet."));
 
     platform::ContactRequestInput input;
@@ -393,7 +398,7 @@ void ContactFlow::onFetched(platform::Result<platform::Identity> result)
     input.recipient_key_index = *recipient_key;
     input.signing_key_id = *signing_key;
     input.account_reference = *reference;
-    client->sendContactRequest(input, {wallet, IdentityFlow::IDENTITY_INDEX, PlatformUi::KeepUnlocked(std::move(unlock))},
+    client->sendContactRequest(input, {wallet, index, PlatformUi::KeepUnlocked(std::move(unlock))},
                                m_service.trackWrite<platform::Identifier>(PlatformUi::Tracked<platform::Identifier>(
                                    m_call, [this](auto result) { onSent(result.status); })));
 }
@@ -423,10 +428,10 @@ void ContactFlow::prefill(const platform::Identity& theirs)
     if (!m_service.othersIdle(*this)) {
         return finish(tr("Another DashPay request is on its way. Try again once it is done."));
     }
-    const auto& ours{m_identity_flow.identity()};
+    const platform::Identity* ours{m_identity_flow.identity()};
     if (!ours || !swept() || !m_received->count(theirs.id)) return finish();
     interfaces::Wallet& wallet{m_service.walletModel().wallet()};
-    const auto chain{PeerXpub(wallet, *ours, theirs, m_received->at(theirs.id))};
+    const auto chain{PeerXpub(wallet, m_identity_flow.index(), *ours, theirs, m_received->at(theirs.id))};
     if (!chain) {
         return finish(tr("This contact's request to you carries no valid payment key, so DashPay can't pay them."));
     }

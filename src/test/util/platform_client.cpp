@@ -12,23 +12,24 @@ using platform::Identifier;
 
 template <typename T>
 void FakePlatformClient::Answer(Call call, std::deque<platform::Result<T>>& scripted, Callback<T> cb,
-                                std::unique_ptr<platform::UnlockScope> unlock)
+                                std::unique_ptr<platform::UnlockScope> unlock, platform::StatusKind unscripted)
 {
     if (shut_down) return;
     calls.push_back(std::move(call));
     platform::Result<T> result;
     if (scripted.empty()) {
-        result.status.kind = platform::StatusKind::UNAVAILABLE;
+        result.status.kind = unscripted;
         result.status.message = "nothing scripted";
     } else {
         result = std::move(scripted.front());
         scripted.pop_front();
     }
-    m_pending.push_back([cb = std::move(cb), result = std::move(result),
-                         unlock = std::shared_ptr<platform::UnlockScope>{std::move(unlock)}]() mutable {
-        unlock.reset();
-        cb(std::move(result));
-    });
+    m_pending.emplace_back(calls.back().method,
+                           [cb = std::move(cb), result = std::move(result),
+                            unlock = std::shared_ptr<platform::UnlockScope>{std::move(unlock)}]() mutable {
+                               unlock.reset();
+                               cb(std::move(result));
+                           });
 }
 
 void FakePlatformClient::getIdentity(const Identifier& id, Callback<platform::Identity> cb)
@@ -39,7 +40,8 @@ void FakePlatformClient::getIdentity(const Identifier& id, Callback<platform::Id
 void FakePlatformClient::getIdentityByPublicKeyHash(const std::array<uint8_t, 20>& pubkey_hash,
                                                     Callback<platform::Identity> cb)
 {
-    Answer({"getIdentityByPublicKeyHash", HexStr(pubkey_hash), std::nullopt}, identities_by_pubkey_hash, std::move(cb));
+    Answer({"getIdentityByPublicKeyHash", HexStr(pubkey_hash), std::nullopt}, identities_by_pubkey_hash, std::move(cb),
+           nullptr, platform::StatusKind::NOT_FOUND);
 }
 
 void FakePlatformClient::resolveName(const std::string& label, Callback<Identifier> cb)
@@ -65,10 +67,13 @@ void FakePlatformClient::contactRequests(const Identifier& identity, platform::C
            sent ? sent_requests : received_requests, std::move(cb));
 }
 
-void FakePlatformClient::registerIdentity(std::vector<platform::IdentityPublicKey>, platform::AssetLockProof proof,
+void FakePlatformClient::registerIdentity(std::vector<platform::IdentityPublicKey> keys, platform::AssetLockProof proof,
                                           platform::Signing signing, Callback<platform::Identity> cb)
 {
-    if (!shut_down) proofs.push_back(std::move(proof));
+    if (!shut_down) {
+        proofs.push_back(std::move(proof));
+        registered_keys.push_back(std::move(keys));
+    }
     Answer({"registerIdentity", "", signing.identity_index}, registered_identities, std::move(cb),
            std::move(signing.unlock));
 }
@@ -111,9 +116,19 @@ void FakePlatformClient::deliverAll()
 void FakePlatformClient::deliverNext()
 {
     if (m_pending.empty()) return;
-    auto deliver{std::move(m_pending.front())};
+    auto deliver{std::move(m_pending.front().second)};
     m_pending.pop_front();
     deliver();
+}
+
+bool FakePlatformClient::deliverFirst(const std::string& method)
+{
+    const auto it{std::find_if(m_pending.begin(), m_pending.end(), [&](const auto& call) { return call.first == method; })};
+    if (it == m_pending.end()) return false;
+    auto deliver{std::move(it->second)};
+    m_pending.erase(it);
+    deliver();
+    return true;
 }
 
 size_t FakePlatformClient::countCalls(const std::string& method) const

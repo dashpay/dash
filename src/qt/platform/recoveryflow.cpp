@@ -49,7 +49,7 @@ RecoveryFlow::RecoveryFlow(PlatformService& service, IdentityFlow& identity_flow
     connect(&m_service, &PlatformService::changed, this, &RecoveryFlow::update);
     connect(&m_username_flow, &UsernameFlow::changed, this, &RecoveryFlow::update);
     // The contact flow follows the service and the identity flow: once it
-    // has, the reads it needs have started.
+    // has, the reads it needs have started, those of readOthers() too.
     connect(&m_contact_flow, &ContactFlow::changed, this, [this] {
         update();
         found();
@@ -102,12 +102,19 @@ void RecoveryFlow::finish(const QString& error)
 
 void RecoveryFlow::update()
 {
+    // Forgotten when a gate closes or another identity is selected.
     if (!m_identity_flow.identity()) {
         m_pending_read = false;
         m_pending_name.reset();
+        m_pending_call.reset();
         m_ensured.clear();
     }
+    if (!m_identity_flow.lookedUp()) {
+        m_others_sent.clear();
+        m_others_calls.clear();
+    }
     readPendingName();
+    readOthers();
     ensureKeychains();
     Q_EMIT changed();
 }
@@ -118,20 +125,24 @@ void RecoveryFlow::found()
     // A lookup the client dropped is made again, and has not failed.
     const bool looking_up{m_identity_flow.step() != IdentityFlow::Step::IDLE ||
                           (!m_identity_flow.lookedUp() && m_identity_flow.error().isEmpty())};
-    const bool waiting{looking_up || (m_identity_flow.identity() && !m_contact_flow.swept() && m_contact_flow.reading())};
+    const bool reading_others{std::any_of(m_others_calls.begin(), m_others_calls.end(),
+                                          [](const auto& call) { return !call.second.expired(); })};
+    const bool waiting{looking_up || reading_others ||
+                       (m_identity_flow.identity() && !m_contact_flow.swept() && m_contact_flow.reading())};
     if (m_service.gate() == PlatformService::Gate::NONE && waiting) return;
     finish();
 }
 
 void RecoveryFlow::readPendingName()
 {
-    const auto& identity{m_identity_flow.identity()};
+    const platform::Identity* identity{m_identity_flow.identity()};
     platform::PlatformClient* client{m_service.client()};
     if (m_pending_read || !identity || !client || !m_username_flow.namesRead() || m_username_flow.username() ||
         !m_pending_call.expired()) {
         return;
     }
-    const auto read = [this](platform::Result<std::vector<platform::Contest>> result) {
+    const auto read = [this, id = identity->id](platform::Result<std::vector<platform::Contest>> result) {
+        if (!m_identity_flow.isSelected(id)) return;
         // Best effort, as the mobile wallets.
         if (!result.ok()) {
             LogPrintf("DashPay: reading the identity's pending usernames failed: %s\n", result.status.message);
@@ -144,23 +155,61 @@ void RecoveryFlow::readPendingName()
     client->pendingContests(identity->id, PlatformUi::Tracked<std::vector<platform::Contest>>(m_pending_call, read));
 }
 
+void RecoveryFlow::readOthers()
+{
+    platform::PlatformClient* client{m_service.client()};
+    if (!m_identity_flow.lookedUp() || m_identity_flow.step() != IdentityFlow::Step::IDLE || !client) return;
+    for (const auto& [index, identity] : m_identity_flow.identities()) {
+        auto& call{m_others_calls[identity.id]};
+        if (m_identity_flow.isSelected(identity.id) || m_others_sent.count(identity.id) || !call.expired()) continue;
+        client->contactRequests(
+            identity.id, platform::ContactDirection::SENT, /*since_ms=*/0,
+            PlatformUi::Tracked<std::vector<platform::ContactRequest>>(call, [this, id = identity.id](auto result) {
+                // Answered: no longer read, for found().
+                m_others_calls.erase(id);
+                if (!result.ok()) {
+                    LogPrintf("DashPay: reading the contact requests of another identity failed: %s\n",
+                              result.status.message);
+                }
+                // As for the selected identity's contacts, our newest request's.
+                auto& births{m_others_sent[id]};
+                for (const platform::ContactRequest& request : result.value) {
+                    auto& birth{births[request.to_user_id]};
+                    birth = std::max(birth, static_cast<int64_t>(request.created_at_ms / 1000));
+                }
+                update();
+                found();
+            }));
+    }
+}
+
 void RecoveryFlow::ensureKeychains()
 {
-    const auto& identity{m_identity_flow.identity()};
-    if (!identity || !m_contact_flow.swept()) return;
+    // Every contact an identity sent a request to can pay us, answered or
+    // not. Their payments need our chain, which our request carries: none
+    // predates it.
+    std::vector<wallet::FriendshipKeychainRequest> wanted;
+    if (const platform::Identity* identity{m_identity_flow.identity()}; identity && m_contact_flow.swept()) {
+        for (const ContactFlow::Contact& contact : m_contact_flow.contacts()) {
+            if (contact.state == ContactFlow::State::INCOMING) continue;
+            wanted.push_back({ContactFlow::ACCOUNT, uint256{identity->id}, uint256{contact.id},
+                              static_cast<int64_t>(contact.sent_at_ms / 1000)});
+        }
+    }
+    for (const auto& [ours, births] : m_others_sent) {
+        for (const auto& [theirs, birth] : births) {
+            wanted.push_back({ContactFlow::ACCOUNT, uint256{ours}, uint256{theirs}, birth});
+        }
+    }
     interfaces::Wallet& wallet{m_service.walletModel().wallet()};
     std::vector<wallet::FriendshipKeychainRequest> missing;
-    for (const ContactFlow::Contact& contact : m_contact_flow.contacts()) {
-        // Every contact we sent a request to can pay us, answered or not.
-        if (contact.state == ContactFlow::State::INCOMING || m_ensured.count(contact.id)) continue;
-        // Their payments need our chain, which our request carries: none predates it.
-        const wallet::FriendshipKeychainRequest request{ContactFlow::ACCOUNT, uint256{identity->id}, uint256{contact.id},
-                                                        static_cast<int64_t>(contact.sent_at_ms / 1000)};
+    for (const auto& request : wanted) {
+        if (m_ensured.count({request.local_id, request.remote_id})) continue;
         const auto chain{wallet.getFriendshipReceivingXpub(request)};
         CTxDestination first;
         // A locked wallet: "Find my identity" imports them under its passphrase.
         if (!chain || !wallet::DeriveFriendshipPaymentDestination(chain.value, 0, first)) return;
-        m_ensured.insert(contact.id);
+        m_ensured.insert({request.local_id, request.remote_id});
         if (!wallet.isSpendable(first)) missing.push_back(request);
     }
     if (missing.empty()) return;

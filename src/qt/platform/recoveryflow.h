@@ -7,14 +7,18 @@
 
 #include <platform/types.h>
 #include <qt/walletmodel.h>
+#include <uint256.h>
 
 #include <QObject>
 #include <QString>
 
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 
 class ContactFlow;
 class IdentityFlow;
@@ -27,10 +31,10 @@ QT_END_NAMESPACE
 
 /**
  * Recovers the wallet's DashPay state from its seed, as the mobile wallets
- * do on every load: the identity found by its MASTER key, its usernames, a
- * username still waiting for its masternode vote, and its contacts, whose
- * payments to us the wallet must see. Nothing of it is kept but what the
- * wallet itself needs.
+ * do on every load: the identities found by their MASTER keys; the selected
+ * one's usernames, a username still waiting for its masternode vote, and
+ * contacts; and the contacts of every identity, whose payments to us the
+ * wallet must see. Nothing of it is kept but what the wallet itself needs.
  *
  * Our receiving chain of a contact made elsewhere (another app on this seed,
  * or before the wallet was restored) is imported, born when our request to
@@ -72,12 +76,14 @@ Q_SIGNALS:
 
 private:
     void update();
-    //! Give the passphrase back once the identity is looked up and its
+    //! Give the passphrase back once the identities are looked up and their
     //! contacts are read, or can't be.
     void found();
     void readPendingName();
-    //! Import our receiving chain towards each contact we sent a request to,
-    //! where the wallet has none.
+    //! Read our requests from the identities not selected.
+    void readOthers();
+    //! Import our receiving chain towards each contact an identity sent a
+    //! request to, where the wallet has none.
     void ensureKeychains();
     void rescan();
     void finish(const QString& error = {});
@@ -91,8 +97,13 @@ private:
     std::weak_ptr<void> m_pending_call;
     bool m_pending_read{false};
     std::optional<std::string> m_pending_name;
-    //! Contacts whose chain was looked for since the identity was found.
-    std::set<platform::Identifier> m_ensured;
+    //! Our requests from each identity not selected: by recipient, when the
+    //! newest was created, in seconds.
+    std::map<platform::Identifier, std::map<platform::Identifier, int64_t>> m_others_sent;
+    std::map<platform::Identifier, std::weak_ptr<void>> m_others_calls;
+    //! Our identity and contact of each chain looked for since the identity
+    //! was found.
+    std::set<std::pair<uint256, uint256>> m_ensured;
     QThread* m_rescan{nullptr};
     //! A chain was imported while the rescan ran, which scanned blocks without it.
     bool m_owed_again{false};

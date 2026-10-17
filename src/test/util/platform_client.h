@@ -19,7 +19,8 @@
 
 //! A scripted platform::PlatformClient for tests of the layers above it.
 //! Each call records itself and takes the next result scripted for it
-//! (UNAVAILABLE when none is). As with the real client, its callback runs
+//! (UNAVAILABLE when none is, except NOT_FOUND for a public key hash: no
+//! identity is registered under it). As with the real client, its callback runs
 //! later: deliverAll() runs the pending callbacks, a write releasing its
 //! unlock scope just before its callback. shutdown() drops pending callbacks
 //! and later calls.
@@ -48,6 +49,8 @@ public:
     std::vector<Call> calls;
     //! The asset lock proofs of registerIdentity and topUpIdentity, in call order.
     std::vector<platform::AssetLockProof> proofs;
+    //! The keys of each registerIdentity, in call order.
+    std::vector<std::vector<platform::IdentityPublicKey>> registered_keys;
     //! The identity and signing key of each registerName, in call order.
     std::vector<std::pair<platform::Identifier, uint32_t>> name_signers;
     //! The input of each sendContactRequest, in call order.
@@ -76,15 +79,19 @@ public:
     void deliverAll();
     //! Run the oldest pending callback only.
     void deliverNext();
+    //! Run the oldest pending callback of a method, as the real client may
+    //! answer before older calls; false if none is pending.
+    bool deliverFirst(const std::string& method);
     //! Number of recorded calls of a method.
     size_t countCalls(const std::string& method) const;
 
 private:
     template <typename T>
     void Answer(Call call, std::deque<platform::Result<T>>& scripted, Callback<T> cb,
-                std::unique_ptr<platform::UnlockScope> unlock = nullptr);
+                std::unique_ptr<platform::UnlockScope> unlock = nullptr,
+                platform::StatusKind unscripted = platform::StatusKind::UNAVAILABLE);
 
-    std::deque<std::function<void()>> m_pending;
+    std::deque<std::pair<std::string, std::function<void()>>> m_pending;
 };
 
 #endif // BITCOIN_TEST_UTIL_PLATFORM_CLIENT_H

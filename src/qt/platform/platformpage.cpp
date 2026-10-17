@@ -17,12 +17,16 @@
 #include <qt/platform/usernameflow.h>
 #include <qt/walletmodel.h>
 
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+#include <utility>
+#include <vector>
 
 PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     QWidget(parent),
@@ -39,6 +43,8 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     m_identity = new QLabel(this);
     m_identity->setObjectName("dashPayIdentity");
     m_identity->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    m_identities = new QComboBox(this);
+    m_identities->setObjectName("dashPayIdentities");
     auto* notice{new QLabel(tr("DashPay connects to evonodes, which see your IP address unless you use a proxy."), this)};
     notice->setObjectName("dashPayNotice");
     notice->setWordWrap(true);
@@ -55,6 +61,8 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     m_find->setObjectName("dashPayFindIdentity");
     m_create = new QPushButton(tr("Create identity"), this);
     m_create->setObjectName("dashPayCreateIdentity");
+    m_create_another = new QPushButton(tr("Create another identity"), this);
+    m_create_another->setObjectName("dashPayCreateAnotherIdentity");
     m_continue = new QPushButton(tr("Continue"), this);
     m_continue->setObjectName("dashPayContinue");
     m_top_up_amount = new BitcoinAmountField(this);
@@ -69,6 +77,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     actions->addWidget(m_continue);
     actions->addWidget(m_top_up_amount);
     actions->addWidget(m_top_up);
+    actions->addWidget(m_create_another);
     actions->addStretch();
 
     m_username_input = new QLineEdit(this);
@@ -90,6 +99,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     auto* header{new QHBoxLayout};
     header->addWidget(m_username);
     header->addWidget(m_identity);
+    header->addWidget(m_identities);
     header->addStretch();
 
     m_stop = new QPushButton(tr("Turn off DashPay for this wallet"), this);
@@ -115,6 +125,9 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     });
     connect(m_find, &QPushButton::clicked, this, [this] { m_recovery_flow->find(); });
     connect(m_create, &QPushButton::clicked, this, [this] { m_identity_flow->create(); });
+    connect(m_create_another, &QPushButton::clicked, this, [this] { m_identity_flow->create(); });
+    connect(m_identities, qOverload<int>(&QComboBox::activated), this,
+            [this](int row) { m_identity_flow->select(m_identities->itemData(row).toUInt()); });
     connect(m_continue, &QPushButton::clicked, this, [this] { m_identity_flow->resume(); });
     const auto register_name = [this] {
         m_username_flow->registerName(m_username_input->text().trimmed().toStdString());
@@ -206,7 +219,7 @@ void PlatformPage::refresh()
     const IdentityFlow* flow{m_identity_flow.get()};
     const bool running{flow && m_service->client()};
     const BitcoinUnit unit{m_wallet_model ? m_wallet_model->getOptionsModel()->getDisplayUnit() : BitcoinUnit::DASH};
-    const platform::Identity* identity{flow && flow->identity() ? &*flow->identity() : nullptr};
+    const platform::Identity* identity{flow ? flow->identity() : nullptr};
     if (identity) {
         m_identity->setText(tr("Identity %1 · Balance %2")
                                 .arg(QString::fromStdString(EncodeBase58(identity->id)),
@@ -267,6 +280,29 @@ void PlatformPage::refresh()
     // The first DashPay click, and on a locked wallet the one each session.
     m_find->setVisible((m_service && gate == Gate::NO_CONSENT) || (ready && !flow->lookedUp()));
     m_create->setVisible(ready && flow->lookedUp() && !identity);
+    m_create_another->setVisible(ready && flow->lookedUp() && identity);
+
+    // Refilled only when it changes, so an open list stays open.
+    std::vector<std::pair<QString, uint32_t>> items;
+    if (running) {
+        for (const auto& [index, found] : flow->identities()) {
+            items.emplace_back(QString::fromStdString(EncodeBase58(found.id)), index);
+        }
+    }
+    bool same{static_cast<int>(items.size()) == m_identities->count()};
+    for (int row = 0; same && row < m_identities->count(); ++row) {
+        same = m_identities->itemText(row) == items[row].first;
+    }
+    if (!same) {
+        m_identities->clear();
+        for (const auto& [text, index] : items) {
+            m_identities->addItem(text, index);
+        }
+    }
+    if (identity) m_identities->setCurrentIndex(m_identities->findData(flow->index()));
+    m_identities->setVisible(m_identities->count() > 1);
+    // Switching identity waits for every flow: no write crosses it.
+    m_identities->setEnabled(idle && identity);
     m_continue->setVisible(idle && funding.has_value());
     m_top_up_amount->setVisible(ready && identity);
     m_top_up->setVisible(ready && identity);

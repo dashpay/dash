@@ -30,10 +30,12 @@ void UsernameFlow::update()
 {
     // The identity flow forgets the identity when a gate closes, which is
     // also what drops a write: once the identity is found again, its names
-    // say whether a dropped registration landed.
+    // say whether a dropped registration landed. Another identity selected
+    // has its own names, read anew.
     if (!m_identity_flow.identity()) {
         m_names_read = false;
         m_username.reset();
+        m_names_call.reset();
     }
     // A call the client dropped never calls back.
     if (m_step == Step::CHECKING && m_call.expired()) {
@@ -63,11 +65,12 @@ void UsernameFlow::finish(const QString& error)
 
 void UsernameFlow::readNames()
 {
-    const auto& identity{m_identity_flow.identity()};
+    const platform::Identity* identity{m_identity_flow.identity()};
     platform::PlatformClient* client{m_service.client()};
     if (m_step != Step::IDLE || m_names_read || !identity || !m_names_call.expired() || !client) return;
     client->namesOfIdentity(identity->id, NAMES_PAGE_LIMIT, /*max_pages=*/1,
-                            PlatformUi::Tracked<platform::Names>(m_names_call, [this](auto result) {
+                            PlatformUi::Tracked<platform::Names>(m_names_call, [this, id = identity->id](auto result) {
+                                if (!m_identity_flow.isSelected(id)) return;
                                 if (!result.ok()) {
                                     LogPrintf("DashPay: reading the identity's usernames failed: %s\n",
                                               result.status.message);
@@ -111,9 +114,8 @@ void UsernameFlow::resolve()
 
 void UsernameFlow::onResolved(platform::Result<platform::Identifier> result)
 {
-    const auto& identity{m_identity_flow.identity()};
     if (result.ok()) {
-        if (identity && result.value == identity->id) {
+        if (m_identity_flow.isSelected(result.value)) {
             m_username = m_label;
             return finish();
         }
@@ -139,7 +141,7 @@ void UsernameFlow::send(const platform::Identity& identity)
     if (!client) return;
     const auto key{PlatformUi::DocumentSigningKey(identity)};
     if (!key) return finish(tr("Your identity has no key DashPay can register a username with."));
-    platform::Signing signing{m_service.walletModel().wallet(), IdentityFlow::IDENTITY_INDEX,
+    platform::Signing signing{m_service.walletModel().wallet(), m_identity_flow.index(),
                               PlatformUi::KeepUnlocked(std::move(*m_unlock))};
     m_unlock.reset();
     m_step = Step::REGISTERING;

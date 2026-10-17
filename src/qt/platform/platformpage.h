@@ -20,6 +20,7 @@ class RecoveryFlow;
 class UsernameFlow;
 
 QT_BEGIN_NAMESPACE
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -30,9 +31,10 @@ QT_END_NAMESPACE
  *  It owns the wallet's PlatformService while both models are set, offers
  *  the first DashPay click (Find my identity) with a one-line privacy notice,
  *  and says why DashPay can't run when a gate is closed. Once DashPay runs it
- *  recovers and shows the wallet's identity, its username and its balance;
- *  creates, continues or tops up the identity; registers its username; and
- *  keeps its contacts, handing a payment to one to the Send tab. */
+ *  recovers the wallet's identities and shows the selected one's username
+ *  and balance, switching between them; creates, continues or tops up an
+ *  identity; registers its username; and keeps its contacts, handing a
+ *  payment to one to the Send tab. */
 class PlatformPage : public QWidget
 {
     Q_OBJECT
@@ -76,11 +78,13 @@ private:
 
     QLabel* m_username{nullptr};
     QLabel* m_identity{nullptr};
+    QComboBox* m_identities{nullptr};
     QLabel* m_status{nullptr};
     QLabel* m_identity_status{nullptr};
     QLabel* m_recovery_status{nullptr};
     QPushButton* m_find{nullptr};
     QPushButton* m_create{nullptr};
+    QPushButton* m_create_another{nullptr};
     QPushButton* m_continue{nullptr};
     BitcoinAmountField* m_top_up_amount{nullptr};
     QPushButton* m_top_up{nullptr};

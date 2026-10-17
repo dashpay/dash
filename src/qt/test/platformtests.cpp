@@ -6,6 +6,7 @@
 
 #include <qt/test/masternodetestutil.h>
 
+#include <base58.h>
 #include <crypto/aes.h>
 #include <evo/assetlocktx.h>
 #include <evo/specialtx.h>
@@ -37,6 +38,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QLabel>
 #include <QLineEdit>
@@ -45,6 +47,7 @@
 #include <QTableWidget>
 
 #include <algorithm>
+#include <deque>
 #include <memory>
 #include <optional>
 #include <string>
@@ -271,15 +274,16 @@ platform::ContactRequest Request(uint8_t from, uint8_t to, uint64_t created_at_m
 }
 
 //! A request from `from` encrypted, as DIP-15 does, from their key
-//! `sender_key` (id 1) to the wallet's identity key `our_key`; it carries
-//! `pubkey` as the payment chain's key.
+//! `sender_key` (id 1) to the key `our_key` of the wallet's identity
+//! `our_index`; it carries `pubkey` as the payment chain's key.
 platform::ContactRequest IncomingRequest(interfaces::Wallet& wallet, uint8_t from, uint8_t to, const CKey& sender_key,
-                                         uint64_t created_at_ms, Span<const uint8_t> pubkey, uint32_t our_key = 5)
+                                         uint64_t created_at_ms, Span<const uint8_t> pubkey, uint32_t our_key = 5,
+                                         uint32_t our_index = 0)
 {
     auto request{Request(from, to, created_at_ms)};
     request.sender_key_index = 1;
     request.recipient_key_index = our_key;
-    const auto secret{wallet.platformECDHSecret({0, our_key}, sender_key.GetPubKey())};
+    const auto secret{wallet.platformECDHSecret({our_index, our_key}, sender_key.GetPubKey())};
     Assert(secret && secret.value.size() == AES256_KEYSIZE);
     std::vector<uint8_t> compact(4 + 32, 0x11);
     compact.insert(compact.end(), pubkey.begin(), pubkey.end());
@@ -394,29 +398,68 @@ CScript FundingScript(interfaces::Wallet& wallet, const wallet::PlatformKeyReque
     return GetScriptForDestination(PKHash{pubkey.value});
 }
 
-//! Our DIP-15 receiving chain of the identity 0x05… towards `theirs`, born at `birth`.
-wallet::FriendshipKeychainRequest OurRequest(uint8_t theirs, int64_t birth = 0)
+//! The identifier `id`, as registered.
+platform::Identifier Id(uint8_t id)
 {
-    platform::Identifier ours, contact;
-    ours.fill(5);
-    contact.fill(theirs);
-    return {ContactFlow::ACCOUNT, uint256{ours}, uint256{contact}, birth};
+    platform::Identifier identifier;
+    identifier.fill(id);
+    return identifier;
 }
 
-//! Address `index` that `theirs` pays us at: derived, not imported.
-CTxDestination OurAddress(interfaces::Wallet& wallet, uint8_t theirs, uint32_t index)
+//! Our DIP-15 receiving chain of our identity `ours` (0x05… unless told)
+//! towards `theirs`, born at `birth`.
+wallet::FriendshipKeychainRequest OurRequest(uint8_t theirs, int64_t birth = 0, uint8_t ours = 5)
 {
-    const auto chain{wallet.getFriendshipReceivingXpub(OurRequest(theirs))};
+    return {ContactFlow::ACCOUNT, uint256{Id(ours)}, uint256{Id(theirs)}, birth};
+}
+
+//! Address `index` that `theirs` pays our identity `ours` at: derived, not imported.
+CTxDestination OurAddress(interfaces::Wallet& wallet, uint8_t theirs, uint32_t index, uint8_t ours = 5)
+{
+    const auto chain{wallet.getFriendshipReceivingXpub(OurRequest(theirs, 0, ours))};
     Assert(chain);
     return PaymentAddress(chain.value, index);
 }
 
-//! The identity 0x05… with the keys Dash Core registers.
-platform::Result<platform::Identity> OurIdentity()
+//! An identity `id` of the wallet's, with the keys Dash Core registers.
+platform::Result<platform::Identity> Registered(uint8_t id, uint64_t balance)
 {
-    auto ours{Found(5, 1'000'000)};
-    ours.value.public_keys = RegisteredKeys();
-    return ours;
+    auto found{Found(id, balance)};
+    found.value.public_keys = RegisteredKeys();
+    return found;
+}
+
+//! The identity 0x05… with the keys Dash Core registers.
+platform::Result<platform::Identity> OurIdentity() { return Registered(5, 1'000'000); }
+
+//! The hash of the MASTER key of the wallet's identity `index`, as the fake
+//! records a lookup by it.
+std::string MasterKeyHash(interfaces::Wallet& wallet, uint32_t index)
+{
+    const auto key{wallet.getPlatformPubKey(wallet::IdentityAuthKey{index, 0})};
+    Assert(key);
+    return HexStr(key.value.GetID());
+}
+
+//! The key hashes the client was asked for, in order.
+std::vector<std::string> Probed(const FakePlatformClient& client)
+{
+    std::vector<std::string> hashes;
+    for (const auto& call : client.calls) {
+        if (call.method == "getIdentityByPublicKeyHash") hashes.push_back(call.argument);
+    }
+    return hashes;
+}
+
+//! The contacts listed, by first byte of their id.
+using Listed = std::vector<std::pair<uint8_t, ContactFlow::State>>;
+Listed ListedContacts(const ContactFlow& flow)
+{
+    Listed listed;
+    for (const auto& contact : flow.contacts()) {
+        listed.emplace_back(contact.id[0], contact.state);
+    }
+    return listed;
 }
 
 //! A payment chain key for contacts' requests.
@@ -925,7 +968,9 @@ void PlatformTests::continueResumesFundingAfterRestart()
     sources.script = [](FakePlatformClient& client) {
         platform::Result<platform::Identity> consumed;
         consumed.status = {platform::StatusKind::CONSENSUS, 10504, "asset lock outpoint already consumed"};
-        client.identities_by_pubkey_hash = {NotFound(), Found(9, 1'000)};
+        // None at load; the lookup after the refusal finds it at index 0.
+        client.identities_by_pubkey_hash.assign(IdentityFlow::GAP_LIMIT, NotFound());
+        client.identities_by_pubkey_hash.push_back(Found(9, 1'000));
         client.registered_identities = {consumed};
     };
     PlatformService service{f.wallet_model, f.models.client, sources.get()};
@@ -939,7 +984,7 @@ void PlatformTests::continueResumesFundingAfterRestart()
     QCOMPARE(wallet.getWalletTxs().size(), txs);
 
     sources.fake->deliverAll();
-    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{2});
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{2 * IdentityFlow::GAP_LIMIT + 1});
     QVERIFY(flow.identity() && flow.identity()->id[0] == 9);
     QVERIFY(!flow.funding());
 }
@@ -1773,12 +1818,13 @@ void PlatformTests::findMyIdentityRestoresTheWallet()
     QCOMPARE(birth(carol_first), carol_birth);
 
     // Another flow started while the passphrase dialog was open: Find looks nothing up.
+    const size_t lookups{sources.fake->countCalls("getIdentityByPublicKeyHash")};
     during_dialog = page.usernameFlow();
     page.recoveryFlow()->find();
     QCOMPARE(unlocks, 2);
     QVERIFY(page.recoveryFlow()->step() == RecoveryFlow::Step::IDLE);
     QVERIFY(!page.recoveryFlow()->error().isEmpty());
-    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{1});
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), lookups);
     QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
 }
 
@@ -1905,4 +1951,333 @@ void PlatformTests::prunedNodeRefusesTheRescan()
     f.attach(*page);
     QVERIFY(page->recoveryFlow()->prunedFrom().has_value());
     QVERIFY(!page->recoveryFlow()->rescanning());
+}
+
+//! With an identity at index 0 the next is created at index 1: its asset
+//! lock pays index 1's registration funding key and it registers index 1's
+//! keys. A lookup while it waits finds the first only and keeps its funding
+//! for Continue. Once registered it is listed, the first staying selected. A
+//! top-up of the first resumed while the second is selected credits the
+//! first.
+void PlatformTests::anotherIdentityUsesTheNextIndex()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    const auto created{Registered(7, 2'999'000'000)};
+    Confirmations confirmations;
+    {
+        FakeSources sources;
+        sources.script = [&](FakePlatformClient& client) {
+            client.identities_by_pubkey_hash = {OurIdentity()};
+            client.names = {Names({"me2026"})};
+            client.registered_identities = {created};
+        };
+        PlatformService service{f.wallet_model, f.models.client, sources.get()};
+        IdentityFlow flow{service, confirmations.get(), InstantProof};
+        UsernameFlow names{service, flow};
+        sources.fake->deliverAll();
+        QVERIFY(flow.identity() && flow.index() == 0);
+
+        flow.create();
+        QVERIFY(flow.funding() && !flow.funding()->top_up && flow.funding()->index == 1);
+        const uint256 txid{flow.funding()->txid};
+        QVERIFY(CreditScript(wallet, txid) == FundingScript(wallet, wallet::RegistrationFundingKey{1}));
+        QCOMPARE(sources.fake->countCalls("registerIdentity"), size_t{1});
+        // Dropped: the lookup finds the first only, and the funding waits.
+        f.setNetworkActive(false);
+        f.setNetworkActive(true);
+        sources.fake->deliverAll();
+        QCOMPARE(flow.identities().size(), size_t{1});
+        QVERIFY(flow.funding() && flow.funding()->txid == txid);
+
+        flow.resume();
+        QVERIFY(sources.fake->calls.back().method == "registerIdentity");
+        QVERIFY(sources.fake->calls.back().identity_index == 1U);
+        QVERIFY(ProofTxid(sources.fake->proofs.back()) == txid);
+        const auto& keys{sources.fake->registered_keys.back()};
+        QCOMPARE(keys.size(), size_t{6});
+        for (const auto& key : keys) {
+            const auto pubkey{wallet.getPlatformPubKey(wallet::IdentityAuthKey{1, key.id})};
+            QVERIFY(pubkey && key.data == std::vector<uint8_t>(pubkey.value.begin(), pubkey.value.end()));
+        }
+        sources.fake->deliverAll();
+        QCOMPARE(flow.identities().size(), size_t{2});
+        QVERIFY(flow.identities().at(1).id == Id(7));
+        QVERIFY(!flow.funding());
+        QVERIFY(flow.identity() && flow.identity()->id == Id(5));
+        QVERIFY(names.username() == "me2026");
+    }
+
+    FakeSources later;
+    later.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity(), created};
+        client.identities = {created};
+        platform::Result<uint64_t> credited;
+        credited.status.kind = platform::StatusKind::OK;
+        credited.value = 5'000'000'000;
+        client.top_ups = {credited};
+    };
+    PlatformService service{f.wallet_model, f.models.client, later.get()};
+    IdentityFlow flow{service, confirmations.get(), InstantProof};
+    later.fake->deliverAll();
+    QCOMPARE(flow.identities().size(), size_t{2});
+    QVERIFY(flow.identity() && flow.identity()->id == Id(5));
+    flow.topUp(IdentityFlow::MIN_TOP_UP);
+    QVERIFY(flow.funding() && flow.funding()->top_up && flow.funding()->identity == Id(5));
+    // Dropped, and the second is selected before Continue.
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    later.fake->deliverAll();
+    flow.select(1);
+    later.fake->deliverAll();
+    QVERIFY(flow.identity() && flow.identity()->id == Id(7));
+    const uint64_t balance{flow.identity()->balance};
+    flow.resume();
+    QVERIFY(later.fake->calls.back().method == "topUpIdentity");
+    QVERIFY(later.fake->calls.back().argument == HexStr(Id(5)));
+    later.fake->deliverAll();
+    QVERIFY(!flow.funding());
+    QCOMPARE(flow.identity()->balance, balance);
+    QCOMPARE(flow.identities().at(0).balance, uint64_t{5'000'000'000});
+}
+
+//! Find my identity finds every identity of the seed, as rs-platform-wallet
+//! scans: the MASTER keys of index 0, 1, … are looked up until 5 indexes in
+//! a row hold none, past a gap between two. The lowest is selected, and the
+//! wallet imports our chain towards each contact the other one asked, under
+//! the same passphrase. A lookup Platform doesn't answer leaves the wallet
+//! not looked up, offering Find again and no identity to create; so does a
+//! locked wallet's lookup that reaches an index whose key it didn't derive.
+void PlatformTests::findMyIdentityFindsEveryIdentity()
+{
+    Fixture f{m_node, /*consented=*/false};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    std::vector<std::string> hashes;
+    for (uint32_t index{0}; index <= 7; ++index) {
+        hashes.push_back(MasterKeyHash(wallet, index));
+    }
+    const auto paid_to_other{OurAddress(wallet, 0x0b, 0, /*ours=*/6)};
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    int unlocks{0};
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        ++unlocks;
+        f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    });
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        platform::Result<platform::Identity> unanswered;
+        unanswered.status.kind = platform::StatusKind::UNAVAILABLE;
+        // The first lookup is not answered at index 1.
+        client.identities_by_pubkey_hash = {OurIdentity(), unanswered, OurIdentity(), NotFound(), Registered(6, 2'000'000)};
+        client.names = {Names({"me2026"})};
+        // The selected identity's requests, then the other's: it asked 0x0b.
+        client.sent_requests = {Requests({}), Requests({Request(6, 0x0b, 1'600'000'000'000)})};
+        client.received_requests = {Requests({})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    QPushButton* find{VisibleButton(page, "dashPayFindIdentity")};
+    QVERIFY(find != nullptr);
+    find->click();
+    sources.fake->deliverAll();
+    QVERIFY(!page.identityFlow()->lookedUp());
+    QVERIFY(VisibleButton(page, "dashPayCreateIdentity") == nullptr);
+    QVERIFY(VisibleButton(page, "dashPayCreateAnotherIdentity") == nullptr);
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+
+    find = VisibleButton(page, "dashPayFindIdentity");
+    QVERIFY(find != nullptr);
+    find->click();
+    sources.fake->deliverAll();
+    std::vector<std::string> probed{hashes[0], hashes[1]};
+    probed.insert(probed.end(), hashes.begin(), hashes.end());
+    QVERIFY(Probed(*sources.fake) == probed);
+    QVERIFY(page.identityFlow()->lookedUp());
+    std::vector<uint32_t> indexes;
+    for (const auto& [index, identity] : page.identityFlow()->identities()) {
+        indexes.push_back(index);
+    }
+    QVERIFY(indexes == (std::vector<uint32_t>{0, 2}));
+    QVERIFY(page.identityFlow()->identity() && page.identityFlow()->identity()->id == Id(5));
+    const auto* selector{page.findChild<QComboBox*>("dashPayIdentities")};
+    QVERIFY(selector->isVisibleTo(&page) && selector->count() == 2);
+
+    QVERIFY(wallet.isSpendable(paid_to_other));
+    const auto owners{f.wallet->GetScriptPubKeyMans(GetScriptForDestination(paid_to_other))};
+    QVERIFY(owners.size() == 1 && (*owners.begin())->GetTimeFirstKey() == 1'600'000'000);
+    QCOMPARE(unlocks, 2);
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+
+    // Identities registered elsewhere fill every index derived: the locked
+    // wallet's next lookup can't finish without the passphrase.
+    sources.script = [](FakePlatformClient& client) {
+        for (uint8_t id{0x10}; id < 0x18; ++id) {
+            client.identities_by_pubkey_hash.push_back(Registered(id, 0));
+        }
+    };
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    QVERIFY(Probed(*sources.fake) == hashes);
+    QVERIFY(!page.identityFlow()->lookedUp());
+    QVERIFY(VisibleButton(page, "dashPayFindIdentity") != nullptr);
+    QVERIFY(VisibleButton(page, "dashPayCreateAnotherIdentity") == nullptr);
+    QCOMPARE(unlocks, 2);
+}
+
+//! Selecting another identity reads it again, for its balance, and then its
+//! names and contacts. Nothing read for the one before stays, not even what
+//! is answered after the switch, before or after the new identity is read
+//! again. The selection is the main identity the next time the wallet loads.
+//! A switch Platform doesn't answer looks the identities up again.
+void PlatformTests::switchingReadsTheOtherIdentity()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity(), NotFound(), Registered(6, 2'000'000)};
+        client.identities = {Registered(6, 2'500'000), OurIdentity(), Registered(6, 2'500'000)};
+        client.names = {Names({}), Names({})};
+        platform::Result<std::vector<platform::Contest>> contests;
+        contests.status.kind = platform::StatusKind::OK;
+        contests.value = {{"alice", 0}};
+        client.contests = {contests};
+        // Our requests, in the order read: the first identity's, the second's
+        // as the other one, then the first's as the other one, the second's;
+        // the second's read again, then the first's.
+        client.sent_requests = {Requests({Request(5, 0x0b, 1'000)}), Requests({}), Requests({}),
+                                Requests({Request(6, 0x0c, 1'000)}), Requests({}), Requests({Request(5, 0x0b, 1'000)})};
+        client.received_requests = {Requests({}), Requests({}), Requests({}), Requests({})};
+    };
+    auto page{std::make_unique<PlatformPage>(sources.get())};
+    f.attach(*page);
+    // The lookups and the first identity's names are answered; its pending
+    // username and its contacts are still being read.
+    while (sources.fake->deliverFirst("getIdentityByPublicKeyHash") || sources.fake->deliverFirst("namesOfIdentity")) {}
+    QVERIFY(page->identityFlow()->identity() && page->identityFlow()->identity()->id == Id(5));
+    auto* selector{page->findChild<QComboBox*>("dashPayIdentities")};
+    QVERIFY(selector->isVisibleTo(page.get()) && selector->isEnabled());
+    Q_EMIT selector->activated(selector->findData(2U));
+    QVERIFY(!page->identityFlow()->identity());
+    sources.fake->deliverAll();
+
+    const platform::Identity* identity{page->identityFlow()->identity()};
+    QVERIFY(identity && identity->id == Id(6) && page->identityFlow()->index() == 2);
+    QCOMPARE(identity->balance, uint64_t{2'500'000});
+    QVERIFY(page->findChild<QLabel*>("dashPayIdentity")->text().contains(QString::fromStdString(EncodeBase58(Id(6)))));
+    QCOMPARE(selector->itemData(selector->currentIndex()).toUInt(), 2U);
+    // No username and none pending: the first one's is not the second's.
+    QVERIFY(page->usernameFlow()->namesRead() && page->recoveryFlow()->pendingRead());
+    QVERIFY(!page->findChild<QLabel*>("dashPayUsername")->isVisibleTo(page.get()));
+    QVERIFY(ListedContacts(*page->contactFlow()) == (Listed{{0x0c, ContactFlow::State::OUTGOING}}));
+
+    // Back to the first while the second's contacts are read again, the
+    // first answered first: its contacts are read at once.
+    page->contactFlow()->refresh();
+    Q_EMIT selector->activated(selector->findData(0U));
+    QVERIFY(sources.fake->deliverFirst("getIdentity"));
+    sources.fake->deliverAll();
+    QVERIFY(page->identityFlow()->identity() && page->identityFlow()->identity()->id == Id(5));
+    QVERIFY(ListedContacts(*page->contactFlow()) == (Listed{{0x0b, ContactFlow::State::OUTGOING}}));
+    Q_EMIT selector->activated(selector->findData(2U));
+    sources.fake->deliverAll();
+    QVERIFY(page->identityFlow()->identity() && page->identityFlow()->identity()->id == Id(6));
+
+    FakeSources later;
+    later.script = [](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity(), NotFound(), Registered(6, 2'500'000),
+                                            OurIdentity(), NotFound(), Registered(6, 2'500'000)};
+    };
+    page = std::make_unique<PlatformPage>(later.get());
+    f.attach(*page);
+    later.fake->deliverAll();
+    QVERIFY(page->identityFlow()->identity() && page->identityFlow()->identity()->id == Id(6));
+
+    page->identityFlow()->select(0);
+    later.fake->deliverAll();
+    QVERIFY(page->identityFlow()->lookedUp());
+    QVERIFY(page->identityFlow()->identity() && page->identityFlow()->identity()->id == Id(5));
+}
+
+//! The selected identity can't change while a write is in flight, and no
+//! write starts while it changes: each signs with the keys of the identity
+//! selected when it started. The names read after a username registration
+//! belong to the identity it was for.
+void PlatformTests::noWriteCrossesASwitch()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    CKey dave_key;
+    dave_key.MakeNewKey(/*fCompressed=*/true);
+    const auto from_dave{IncomingRequest(wallet, 0x0d, 6, dave_key, 2, ZeroSeedPubKey(), /*our_key=*/5, /*our_index=*/2)};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity(), NotFound(), Registered(6, 2'000'000)};
+        client.identities = {Registered(6, 2'000'000), Peer(0x0d, dave_key, Purpose::ENCRYPTION)};
+        // The first identity's names, read again after its lost registration (which landed), then the second's.
+        client.names = {Names({}), Names({"alice2026"}), Names({})};
+        client.resolved_names = {Resolved(std::nullopt), Resolved(std::nullopt), Resolved(std::nullopt)};
+        platform::Result<platform::Identifier> lost;
+        lost.status.kind = platform::StatusKind::UNAVAILABLE;
+        client.registered_names = {lost, Resolved(6)};
+        client.sent_requests = {Requests({}), Requests({}), Requests({})};
+        client.received_requests = {Requests({}), Requests({from_dave})};
+        client.sent_contact_requests = {Resolved(1)};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
+    UsernameFlow names{service, identity_flow};
+    ContactFlow contacts{service, identity_flow};
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.identity() && identity_flow.index() == 0);
+    // The identity index the last write of `method` signed with.
+    const auto signed_with = [&](const std::string& method) {
+        const auto& calls{sources.fake->calls};
+        const auto it{std::find_if(calls.rbegin(), calls.rend(), [&](const auto& call) { return call.method == method; })};
+        return it == calls.rend() ? std::nullopt : it->identity_index;
+    };
+
+    names.registerName("alice2026");
+    sources.fake->deliverNext();
+    QVERIFY(names.step() == UsernameFlow::Step::REGISTERING);
+    identity_flow.select(2);
+    QVERIFY(identity_flow.identity() && identity_flow.identity()->id == Id(5));
+    QCOMPARE(sources.fake->countCalls("getIdentity"), size_t{0});
+    // Its answer is lost; the names read again are the first identity's.
+    sources.fake->deliverNext();
+    QVERIFY(sources.fake->name_signers.back() == std::make_pair(Id(5), uint32_t{2}));
+    QVERIFY(signed_with("registerName") == 0U);
+
+    identity_flow.select(2);
+    QVERIFY(!identity_flow.identity());
+    names.registerName("bob2026");
+    QVERIFY(sources.fake->deliverFirst("resolveName"));
+    QVERIFY(names.step() == UsernameFlow::Step::IDLE && !names.error().isEmpty());
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.identity() && identity_flow.identity()->id == Id(6) && identity_flow.index() == 2);
+    QVERIFY(names.namesRead() && !names.username());
+
+    names.registerName("bob2026");
+    sources.fake->deliverAll();
+    QVERIFY(names.username() == "bob2026");
+    QVERIFY(sources.fake->name_signers.back() == std::make_pair(Id(6), uint32_t{2}));
+    QVERIFY(signed_with("registerName") == 2U);
+
+    // Accepting dave's request to the second identity: decrypted, signed and
+    // referenced with its keys.
+    contacts.accept(Id(0x0d));
+    sources.fake->deliverAll();
+    QVERIFY(signed_with("sendContactRequest") == 2U);
+    QVERIFY(sources.fake->contact_inputs.back().sender == Id(6));
+    const auto chain{wallet.getFriendshipReceivingXpub(OurRequest(0x0d, 0, /*ours=*/6))};
+    wallet::CompactXpub compact;
+    QVERIFY(chain && wallet::CompactXpubBytes(chain.value, compact));
+    const auto reference{wallet.platformAccountReference({2, 4}, compact)};
+    QVERIFY(reference && reference.value != wallet.platformAccountReference({0, 4}, compact).value);
+    QCOMPARE(sources.fake->contact_inputs.back().account_reference, reference.value);
 }
