@@ -70,6 +70,9 @@ LIBSECP256K1=secp256k1/libsecp256k1.la
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
+if ENABLE_PLATFORM_GUI
+LIBDASH_PLATFORM=libdash_platform.a
+endif
 if BUILD_BITCOIN_LIBS
 LIBBITCOINCONSENSUS=libdashconsensus.la
 endif
@@ -135,7 +138,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_IPC) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_WALLET_TOOL) \
-  $(LIBBITCOIN_ZMQ)
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBDASH_PLATFORM)
 
 if BUILD_BITCOIND
   bin_PROGRAMS += dashd
@@ -719,6 +723,21 @@ libbitcoin_zmq_a_SOURCES = \
   zmq/zmqpublishnotifier.cpp \
   zmq/zmqrpc.cpp \
   zmq/zmqutil.cpp
+endif
+#
+
+# platform: the Dash Platform client of dash-qt and its tests #
+if ENABLE_PLATFORM_GUI
+libdash_platform_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS) $(PLATFORM_CXX_CFLAGS)
+libdash_platform_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libdash_platform_a_SOURCES = \
+  platform/client.cpp \
+  platform/client.h \
+  platform/marshal.cpp \
+  platform/marshal.h \
+  platform/signer.cpp \
+  platform/signer.h \
+  platform/types.h
 endif
 #
 
