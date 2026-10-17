@@ -255,7 +255,7 @@ public Q_SLOTS:
     /* ChainLock received */
     void updateChainLockHeight(int chainLockHeight);
     /* New, updated or removed address book entry */
-    void updateAddressBook(const QString &address, const QString &label, bool isMine, const QString &purpose, int status);
+    void updateAddressBook(const QString &address, const QString &label, bool isMine, wallet::AddressPurpose purpose, int status);
     /* Watch-only added */
     void updateWatchOnlyFlag(bool fHaveWatchonly);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */

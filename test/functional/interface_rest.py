@@ -435,5 +435,20 @@ class RESTTest (BitcoinTestFramework):
         resp = self.test_rest_request(f"/deploymentinfo/{INVALID_PARAM}", ret_type=RetType.OBJ, status=400)
         assert_equal(resp.read().decode('utf-8').rstrip(), f"Invalid hash: {INVALID_PARAM}")
 
+        self.log.info("Test deployment info with unavailable block data")
+        self.generate(self.nodes[0], max(0, 432 - self.nodes[0].getblockcount()))
+        tip_before_request = self.nodes[0].getbestblockhash()
+        self.disconnect_nodes(0, 1)
+        header_only_hash = self.generate(self.nodes[1], 1, sync_fun=self.no_op)[0]
+        self.nodes[0].submitheader(self.nodes[1].getblockheader(header_only_hash, False))
+        resp = self.test_rest_request(f"/deploymentinfo/{header_only_hash}", ret_type=RetType.OBJ, status=500)
+        assert_equal(resp.getheader('Content-Type'), 'text/plain')
+        assert_equal(resp.read().decode('utf-8').rstrip(), "failed-getehfforblock-read")
+        assert_equal(self.nodes[0].getbestblockhash(), tip_before_request)
+        assert_equal(self.test_rest_request('/deploymentinfo'), self.nodes[0].getdeploymentinfo())
+        self.connect_nodes(0, 1)
+        self.sync_all()
+        assert_equal(self.test_rest_request(f"/deploymentinfo/{header_only_hash}"), self.nodes[0].getdeploymentinfo(header_only_hash))
+
 if __name__ == '__main__':
     RESTTest().main()

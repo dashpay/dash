@@ -127,12 +127,6 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
 
         auto id = islock->GetRequestId();
 
-        // no need to verify an ISLOCK if we already have verified the recovered sig that belongs to it
-        if (m_sigman.HasRecoveredSig(llmq_params.type, id, islock->txid)) {
-            data->alreadyVerified++;
-            continue;
-        }
-
         auto cycleHeightOpt = GetBlockHeight(m_is_manager, m_chainman.ActiveChainstate(), islock->cycleHash);
         if (!cycleHeightOpt) {
             data->batchVerifier.badSources.emplace(nodeId);
@@ -156,6 +150,13 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
             data->batchVerifier.badMessages.emplace(hash);
             continue;
         }
+        llmq::CRecoveredSig recovered_sig;
+        if (m_sigman.GetRecoveredSig(llmq_params.type, id, islock->txid, recovered_sig) &&
+            recovered_sig.getQuorumHash() == quorum->qc->quorumHash && recovered_sig.sig.Get() == sig) {
+            data->alreadyVerified++;
+            continue;
+        }
+
         uint256 signHash = llmq::SignHash{llmq_params.type, quorum->qc->quorumHash, id, islock->txid}.Get();
         data->batchVerifier.PushMessage(nodeId, hash, signHash, sig, quorum->qc->quorumPublicKey);
         data->verifyCount++;

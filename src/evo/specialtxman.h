@@ -6,6 +6,7 @@
 #define BITCOIN_EVO_SPECIALTXMAN_H
 
 #include <consensus/amount.h>
+#include <evo/deterministicmns.h>
 #include <gsl/pointers.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <sync.h>
@@ -20,7 +21,6 @@ class CCbTx;
 class CChain;
 class CCoinsViewCache;
 class CCreditPoolManager;
-class CDeterministicMNList;
 class CDeterministicMNManager;
 class CProDisTx;
 class CRangesSet;
@@ -108,12 +108,60 @@ public:
                               const CDeterministicMNList& prevList, const CCoinsViewCache& view, bool debugLogs,
                               BlockValidationState& state, CDeterministicMNList& mnListRet);
 
+    /** Passthrough to CDeterministicMNManager::UpdatedBlockTip */
+    void UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex);
+
 private:
+    friend class CMNListBuilder;
+
+    // The three phases of RebuildListFromBlock(): per-block updates, one provider transaction, and
+    // collateral spends plus payee bookkeeping once every transaction has been applied.
+    CDeterministicMNList BeginListForBlock(gsl::not_null<const CBlockIndex*> pindexPrev,
+                                           const CDeterministicMNList& prevList) const;
+    bool ApplyTxToList(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, bool is_v24_active,
+                       const CCoinsViewCache& view, bool debugLogs, CDeterministicMNList& newList,
+                       BlockValidationState& state) const;
+    bool FinishListForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
+                            const CDeterministicMNList& prevList, bool debugLogs, CDeterministicMNList newList,
+                            BlockValidationState& state, CDeterministicMNList& mnListRet) const;
+
     bool CheckSpecialTxInner(const CChain* chain, const CTransaction& tx, const CBlockIndex* pindexPrev,
                              SpecialTxRules rules, const CCoinsViewCache& view, const std::optional<CRangesSet>& indexes,
                              bool check_sigs, TxValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool CheckCreditPoolDiffForBlock(const CBlock& block, const CBlockIndex* pindex, const CCbTx& cbTx,
                                      CAmount blockSubsidy, BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+};
+
+/**
+ * Builds the masternode list for a block one transaction at a time, with the same result as
+ * CSpecialTxProcessor::RebuildListFromBlock() over the same transactions. Block assembly uses it to
+ * try a package on a copy and keep the copy only if every transaction in it applies, so conflicting
+ * transactions are left out instead of failing the whole template. Copying is cheap: the list is
+ * backed by persistent maps.
+ */
+class CMNListBuilder
+{
+public:
+    CMNListBuilder(const CSpecialTxProcessor& processor, const CDeterministicMNList& prevList,
+                   gsl::not_null<const CBlockIndex*> pindexPrev, bool is_v24_active, const CCoinsViewCache& view,
+                   bool debugLogs);
+    //! Starts from the list at pindexPrev, as BuildNewListFromBlock() does.
+    CMNListBuilder(const CSpecialTxProcessor& processor, gsl::not_null<const CBlockIndex*> pindexPrev,
+                   bool is_v24_active, const CCoinsViewCache& view, bool debugLogs) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Same result, and same exceptions, as RebuildListFromBlock() processing this transaction next.
+    [[nodiscard]] bool ApplyTx(const CTransaction& tx, BlockValidationState& state);
+    //! Collateral spends and payee bookkeeping for the whole block. Does not modify the builder.
+    [[nodiscard]] bool Finish(const CBlock& block, BlockValidationState& state, CDeterministicMNList& mnListRet) const;
+
+private:
+    const CSpecialTxProcessor* m_processor;
+    CDeterministicMNList m_prev_list;
+    gsl::not_null<const CBlockIndex*> m_pindex_prev;
+    bool m_is_v24_active;
+    const CCoinsViewCache* m_view;
+    bool m_debug_logs;
+    CDeterministicMNList m_list;
 };
 
 /**

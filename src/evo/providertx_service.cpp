@@ -4,6 +4,7 @@
 
 #include <evo/providertx_service.h>
 
+#include <consensus/amount.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
@@ -23,6 +24,7 @@
 #include <sync.h>
 #include <util/check.h>
 #include <util/message.h>
+#include <util/moneystr.h>
 #include <util/result.h>
 #include <util/strencodings.h>
 #include <util/translation.h>
@@ -728,6 +730,69 @@ std::optional<ProviderTxError> InsertUnanimousSignatures(node::NodeContext& node
     return std::nullopt;
 }
 
+//! The share signatures on a registrar update commit to its payload and input outpoints but
+//! not to its outputs. Before re-signing the fee inputs, make sure the transaction has the shape
+//! the wallet gave it when funding it: unlocked coins of one address of this wallet, change (if
+//! any) back to that address, and a fee no higher than the wallet's maximum.
+std::optional<ProviderTxError> CheckRegistrarUpdateFunding(Wallet& wallet, const CMutableTransaction& tx)
+{
+    const auto single_address_error{[] {
+        return Error(ProviderTxErrorCode::WALLET_ERROR,
+                     "a shared registrar update must spend from and return change to a single address");
+    }};
+    std::vector<COutPoint> outpoints;
+    outpoints.reserve(tx.vin.size());
+    for (const CTxIn& input : tx.vin) {
+        outpoints.push_back(input.prevout);
+    }
+    const auto coins{wallet.getCoins(outpoints)};
+    std::optional<CTxDestination> fee_source;
+    CAmount input_total{0};
+    for (size_t i = 0; i < coins.size(); ++i) {
+        const CScript& script{coins[i].txout.scriptPubKey};
+        CTxDestination source;
+        if (coins[i].depth_in_main_chain < 0 || !wallet.isSpendable(script) || !ExtractDestination(script, source)) {
+            return Error(ProviderTxErrorCode::WALLET_ERROR,
+                         "a shared registrar update must be combined by the wallet that funded it");
+        }
+        // Masternode collaterals are locked, and funding never selects a locked coin
+        if (wallet.isLockedCoin(outpoints[i])) {
+            return Error(ProviderTxErrorCode::WALLET_ERROR, "a shared registrar update must not spend a locked coin");
+        }
+        if (fee_source && source != *fee_source) return single_address_error();
+        fee_source = source;
+        input_total += coins[i].txout.nValue;
+        if (!MoneyRange(input_total)) {
+            return Error(ProviderTxErrorCode::INVALID_PARAMETER, "transaction input value out of range");
+        }
+    }
+    if (!fee_source) {
+        return Error(ProviderTxErrorCode::WALLET_ERROR,
+                     "a shared registrar update must be combined by the wallet that funded it");
+    }
+    CAmount output_total{0};
+    for (const CTxOut& output : tx.vout) {
+        if (!MoneyRange(output.nValue)) {
+            return Error(ProviderTxErrorCode::INVALID_PARAMETER, "transaction output value out of range");
+        }
+        output_total += output.nValue;
+        if (!MoneyRange(output_total)) {
+            return Error(ProviderTxErrorCode::INVALID_PARAMETER, "transaction output value out of range");
+        }
+        // Funding without change leaves a zero-valued marker output
+        if (output.nValue == 0) continue;
+        if (CTxDestination change; !ExtractDestination(output.scriptPubKey, change) || change != *fee_source) {
+            return single_address_error();
+        }
+    }
+    if (const CAmount fee{input_total - output_total}; fee > wallet.getDefaultMaxTxFee()) {
+        return Error(ProviderTxErrorCode::WALLET_ERROR,
+                     strprintf("a shared registrar update fee of %s exceeds this wallet's maximum fee (%s)",
+                               FormatMoney(fee), FormatMoney(wallet.getDefaultMaxTxFee())));
+    }
+    return std::nullopt;
+}
+
 } // namespace
 
 interfaces::ProviderTxCapabilities GetCapabilities(node::NodeContext& node, std::optional<bool> basic_override)
@@ -1232,9 +1297,10 @@ ProviderTxResult<ProviderTxSubmission> CombineShared(node::NodeContext& node, Wa
                          "a shared registrar update must be combined by the wallet that funded it");
         }
         if (auto error{CheckWallet(*wallet)}) return *error;
+        if (auto error{CheckRegistrarUpdateFunding(*wallet, tx)}) return *error;
         // Inserting the signatures changed the payload, so the fee inputs signed at prepare time
         // are stale; re-sign them with this wallet
-        return Finish(node, *wallet, tx, request.submit, /*allow_partial=*/true);
+        return Finish(node, *wallet, tx, request.submit);
     }
     return Error(ProviderTxErrorCode::INVALID_PARAMETER, "transaction is not a shared masternode transaction");
 }

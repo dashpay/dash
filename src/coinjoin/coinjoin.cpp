@@ -371,7 +371,8 @@ bool CCoinJoinBaseSession::IsValidInOuts(Chainstate& active_chainstate, const ll
         nFees -= txout.nValue;
     }
 
-    CCoinsViewMemPool viewMemPool(WITH_LOCK(::cs_main, return &active_chainstate.CoinsTip()), mempool);
+    LOCK(::cs_main);
+    CCoinsViewMemPool viewMemPool(&active_chainstate.CoinsTip(), mempool);
 
     for (const auto& txin : vin) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- txin=%s\n", __func__, txin.ToString());

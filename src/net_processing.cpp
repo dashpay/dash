@@ -4221,6 +4221,15 @@ void PeerManagerImpl::ProcessMessage(
             m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, /*high_bandwidth=*/false, /*version=*/CMPCTBLOCKS_VERSION));
         }
 
+        // Announce our sporks to every new peer so a node that lost or never had them
+        // picks them up without having to ask. Like spork relay, this includes masternode
+        // connections, which only become relay-capable after MNAUTH.
+        if (m_chainparams.IsTestChain()) {
+            for (const auto& spork : m_sporkman.ActiveSporks()) {
+                PushInv(*peer, CInv{MSG_SPORK, spork.GetHash()});
+            }
+        }
+
         if (!RejectIncomingTxs(pfrom)) {
             // Tell our peer that he should send us CoinJoin queue messages
             m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::SENDDSQUEUE, true));

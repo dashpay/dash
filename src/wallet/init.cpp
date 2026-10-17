@@ -103,6 +103,14 @@ void WalletInit::AddWalletOptions(ArgsManager& argsman) const
 
     argsman.AddArg("-hdseed=<hex>", "User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::WALLET_HD);
     argsman.AddArg("-mnemonic=<text>", "User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::WALLET_HD);
+    argsman.AddArg("-allow-deprecated-long-mnemonics",
+                   strprintf("Allow creating an HD wallet with a mnemonic passphrase of %d to %d bytes. Seed "
+                             "derivation ignores the bytes past the %dth, so use this only to recover a wallet "
+                             "created with such a passphrase by Dash Core 19.2.0 or later. It can't recover one "
+                             "created by an earlier version (default: 0)",
+                             CMnemonic::MAX_PASSPHRASE_BYTES + 1, CMnemonic::MAX_DEPRECATED_PASSPHRASE_BYTES,
+                             CMnemonic::MAX_PASSPHRASE_BYTES),
+                   ArgsManager::ALLOW_ANY, OptionsCategory::WALLET_HD);
     argsman.AddArg("-mnemonicbits=<n>", strprintf("User defined mnemonic security for HD wallet in bits (BIP39). Only has effect during wallet creation/first start (allowed values: 128, 160, 192, 224, 256; default: %u)", CHDChain::DEFAULT_MNEMONIC_BITS), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET_HD);
     argsman.AddArg("-mnemonicpassphrase=<text>", "User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::WALLET_HD);
     argsman.AddArg("-usehd", strprintf("Use hierarchical deterministic key generation (HD) after BIP39/BIP44. Only has effect during wallet creation/first start (default: %u)", DEFAULT_USE_HD_WALLET), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET_HD);

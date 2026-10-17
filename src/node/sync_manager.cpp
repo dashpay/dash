@@ -201,17 +201,6 @@ void SyncManager::ProcessTick()
                 continue;
             }
 
-            // SPORK : ALWAYS ASK FOR SPORKS AS WE SYNC
-
-            if (!m_netfulfilledman.HasFulfilledRequest(pnode->addr, "spork-sync")) {
-                // always get sporks first, only request once from each peer
-                m_netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
-                // get current network sporks
-                m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS));
-                LogPrint(BCLog::MNSYNC, "Sync Tick -- nTick %d asset_id %d -- requesting sporks from peer=%d\n", nTick,
-                         asset_id, pnode->GetId());
-            }
-
             if (asset_id == MASTERNODE_SYNC_BLOCKCHAIN) {
                 int64_t nTimeSyncTimeout = snap.Nodes().size() > 3 ? MASTERNODE_SYNC_TICK_SECONDS
                                                                    : MASTERNODE_SYNC_TIMEOUT_SECONDS;

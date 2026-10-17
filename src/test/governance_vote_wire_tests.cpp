@@ -95,6 +95,27 @@ BOOST_AUTO_TEST_CASE(ser_disk_deserialization_unaffected)
     BOOST_CHECK_EQUAL(ss.size(), 0U);
 }
 
+// Object signatures are bounded to 96 bytes (BLS) on network and disk reads alike.
+BOOST_AUTO_TEST_CASE(object_signature_size_limit)
+{
+    Governance::Object object;
+    for (int ser_type : {SER_NETWORK, SER_DISK}) {
+        for (size_t sig_len : {size_t{0}, size_t{65}, size_t{96}, size_t{97}}) {
+            object.vchSig.assign(sig_len, 0xAA);
+            CDataStream ss(ser_type, PROTOCOL_VERSION);
+            ss << object;
+
+            Governance::Object decoded;
+            if (sig_len <= Governance::Object::MAX_SIGNATURE_SIZE) {
+                BOOST_CHECK_NO_THROW(ss >> decoded);
+                BOOST_CHECK(decoded.vchSig == object.vchSig);
+            } else {
+                BOOST_CHECK_THROW(ss >> decoded, std::ios_base::failure);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(extreme_timestamp_is_rejected_without_overflow)
 {
     CGovernanceVote vote;

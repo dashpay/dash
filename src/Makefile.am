@@ -489,7 +489,6 @@ BITCOIN_CORE_H = \
   wallet/external_signer_scriptpubkeyman.h \
   wallet/fees.h \
   wallet/hdchain.h \
-  wallet/ismine.h \
   wallet/load.h \
   wallet/platformkeys.h \
   wallet/platformtypes.h \
@@ -501,6 +500,7 @@ BITCOIN_CORE_H = \
   wallet/spend.h \
   wallet/sqlite.h \
   wallet/transaction.h \
+  wallet/types.h \
   wallet/wallet.h \
   wallet/walletdb.h \
   wallet/wallettool.h \

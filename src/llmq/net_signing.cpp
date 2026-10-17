@@ -417,7 +417,7 @@ void NetSigning::ProcessPendingSigShares(
             // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
             // deserialization in the message thread
             if (!sig.IsValid()) {
-                BanNode(nodeId);
+                batchVerifier.badSources.emplace(nodeId);
                 // don't process any additional shares from this node
                 break;
             }

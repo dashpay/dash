@@ -202,11 +202,8 @@ public:
     void Serialize(Stream &s) const EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
     {
         LOCK(cs_store);
-        // TODO: Remove the historical invalid-vote-cache field on the next disk-format version bump.
-        const CacheMap<uint256, CGovernanceVote> empty_invalid_votes{MAX_CACHE_SIZE};
         s   << SERIALIZATION_VERSION_STRING
             << mapErasedGovernanceObjects
-            << empty_invalid_votes
             << cmmapOrphanVotes
             << mapObjects
             << mapLastMasternodeObject
@@ -225,10 +222,7 @@ public:
             return;
         }
 
-        // TODO: Stop consuming the historical invalid-vote-cache field on the next disk-format version bump.
-        CacheMap<uint256, CGovernanceVote> discarded_invalid_votes;
         s   >> mapErasedGovernanceObjects
-            >> discarded_invalid_votes
             >> cmmapOrphanVotes
             >> mapObjects
             >> mapLastMasternodeObject
@@ -402,6 +396,11 @@ private:
 
     // ...
     void MasternodeRateUpdate(const CGovernanceObject& govobj)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_store);
+
+    /** Queue a deferred re-announcement for a trigger that is too new to propagate
+     *  reliably yet. Only call this for triggers we are keeping. */
+    void ScheduleTriggerRelay(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
     bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus, bool fForce, bool& fRateCheckBypassed)

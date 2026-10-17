@@ -108,6 +108,38 @@ class PSBTTest(BitcoinTestFramework):
 
         wallet.unloadwallet()
 
+    def test_sighash_single(self):
+        self.log.info("Test that SIGHASH_SINGLE won't sign an input with no matching output")
+        node = self.nodes[0]
+        node.createwallet("sighash_single")
+        wallet = node.get_wallet_rpc("sighash_single")
+        def_wallet = node.get_wallet_rpc(self.default_wallet_name)
+
+        addrs = [wallet.getnewaddress() for _ in range(2)]
+        for addr in addrs:
+            def_wallet.sendtoaddress(addr, 1)
+        self.generatetoaddress(node, 1, def_wallet.getnewaddress())
+        node.syncwithvalidationinterfacequeue()
+        ins = [{"txid": u["txid"], "vout": u["vout"]} for u in wallet.listunspent(addresses=addrs)]
+        assert_equal(len(ins), 2)
+
+        raw = node.createrawtransaction(ins, [{wallet.getnewaddress(): 1.9999}])
+        for sighash in ["SINGLE", "SINGLE|ANYONECANPAY", "ALL"]:
+            signed = wallet.walletprocesspsbt(node.converttopsbt(raw), True, sighash)["psbt"]
+            state = wallet.analyzepsbt(signed)["inputs"]
+            # Input 0 has a matching output and can always sign and finalize.
+            assert state[0]["is_final"]
+            # Input 1 has no matching output, so only ALL can sign it.
+            assert_equal(state[1]["is_final"], sighash == "ALL")
+
+            signed_raw = wallet.signrawtransactionwithwallet(raw, [], sighash)
+            assert_equal(signed_raw["complete"], sighash == "ALL")
+            tx = node.decoderawtransaction(signed_raw["hex"])
+            assert tx["vin"][0]["scriptSig"]["hex"]
+            assert_equal(bool(tx["vin"][1]["scriptSig"]["hex"]), sighash == "ALL")
+
+        wallet.unloadwallet()
+
     def run_test(self):
         # Create and fund a raw tx for sending 10 DASH
         psbtx1 = self.nodes[0].walletcreatefundedpsbt([], {self.nodes[2].getnewaddress():10})['psbt']
@@ -393,6 +425,7 @@ class PSBTTest(BitcoinTestFramework):
         with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data/rpc_psbt.json'), encoding='utf-8') as f:
             d = json.load(f)
             invalids = d['invalid']
+            invalid_with_msgs = d["invalid_with_msg"]
             valids = d['valid']
             creators = d['creator']
             signers = d['signer']
@@ -403,6 +436,9 @@ class PSBTTest(BitcoinTestFramework):
         # Invalid PSBTs
         for invalid in invalids:
             assert_raises_rpc_error(-22, "TX decode failed", self.nodes[0].decodepsbt, invalid)
+        for invalid in invalid_with_msgs:
+            psbt, msg = invalid
+            assert_raises_rpc_error(-22, f"TX decode failed {msg}", self.nodes[0].decodepsbt, psbt)
 
         # Valid PSBTs
         for valid in valids:
@@ -441,6 +477,7 @@ class PSBTTest(BitcoinTestFramework):
             assert_equal(extracted, extractor['result'])
 
         self.test_input_confs_control()
+        self.test_sighash_single()
 
         # Test that psbts with p2pkh outputs are created properly
         p2pkh = self.nodes[0].getnewaddress()
@@ -551,11 +588,9 @@ class PSBTTest(BitcoinTestFramework):
         assert_equal(analysis['next'], 'creator')
         assert_equal(analysis['error'], 'PSBT is not valid. Output amount invalid')
 
-        analysis = self.nodes[0].analyzepsbt('cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
-        assert_equal(analysis['next'], 'creator')
-        assert_equal(analysis['error'], 'PSBT is not valid. Input 0 specifies invalid prevout')
+        assert_raises_rpc_error(-22, "TX decode failed", self.nodes[0].analyzepsbt, 'cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
 
-        assert_raises_rpc_error(-25, 'Inputs missing or spent', self.nodes[0].walletprocesspsbt, 'cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
+        assert_raises_rpc_error(-22, "TX decode failed", self.nodes[0].walletprocesspsbt, 'cHNidP8BAJoCAAAAAkvEW8NnDtdNtDpsmze+Ht2LH35IJcKv00jKAlUs21RrAwAAAAD/////S8Rbw2cO1020OmybN74e3Ysffkglwq/TSMoCVSzbVGsBAAAAAP7///8CwLYClQAAAAAWABSNJKzjaUb3uOxixsvh1GGE3fW7zQD5ApUAAAAAFgAUKNw0x8HRctAgmvoevm4u1SbN7XIAAAAAAAEAnQIAAAACczMa321tVHuN4GKWKRncycI22aX3uXgwSFUKM2orjRsBAAAAAP7///9zMxrfbW1Ue43gYpYpGdzJwjbZpfe5eDBIVQozaiuNGwAAAAAA/v///wIA+QKVAAAAABl2qRT9zXUVA8Ls5iVqynLHe5/vSe1XyYisQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAAAAAQEfQM0ClQAAAAAWABRmWQUcjSjghQ8/uH4Bn/zkakwLtAAAAA==')
 
         self.log.info("Test that we can fund psbts with external inputs specified")
 

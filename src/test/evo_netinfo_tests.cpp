@@ -34,8 +34,9 @@ static const std::vector<TestEntry> addr_vals_main{
     // - Non-mainnet port on mainnet causes failure in MnNetInfo
     // - ExtNetInfo is indifferent to choice of port unless it's a bad port which 9998 isn't
     {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9998"}, NetInfoStatus::BadPort, NetInfoStatus::Success},
-    // Internal addresses not allowed on mainnet
+    // Internal and private addresses not allowed on mainnet
     {{NetInfoPurpose::CORE_P2P, "127.0.0.1:9999"}, NetInfoStatus::NotRoutable, NetInfoStatus::NotRoutable},
+    {{NetInfoPurpose::CORE_P2P, "10.0.0.1:9999"}, NetInfoStatus::NotRoutable, NetInfoStatus::NotRoutable},
     // Valid IPv4 formatting but invalid IPv4 address
     {{NetInfoPurpose::CORE_P2P, "0.0.0.0:9999"}, NetInfoStatus::BadAddress, NetInfoStatus::BadAddress},
     // Port greater than uint16_t max
@@ -144,6 +145,16 @@ BOOST_AUTO_TEST_CASE(mnnetinfo_rules_main)
 }
 
 BOOST_AUTO_TEST_CASE(extnetinfo_rules_main) { TestExtNetInfo(addr_vals_main); }
+
+BOOST_AUTO_TEST_CASE(netinfo_rules_main_allowprivatenet)
+{
+    // -allowprivatenet widens CNetAddr::IsRoutable() to RFC1918 addresses; a node-local option
+    // must not change which masternode addresses pass consensus validation
+    fAllowPrivateNet = true;
+    TestMnNetInfo(addr_vals_main);
+    TestExtNetInfo(addr_vals_main);
+    fAllowPrivateNet = DEFAULT_ALLOWPRIVATENET;
+}
 
 BOOST_AUTO_TEST_CASE(provider_network_fields_main)
 {
@@ -375,6 +386,20 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
         ds << entry;
         ds >> entry2;
         BOOST_CHECK(entry == entry2 && entry2.GetAddrPort().value() == service);
+    }
+
+    {
+        // GetEntries() order does not depend on whether the object was built or deserialized
+        ExtNetInfo netInfo;
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:443"), NetInfoStatus::Success);
+        BOOST_CHECK_EQUAL(netInfo.AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"), NetInfoStatus::Success);
+
+        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        ds << netInfo;
+        ExtNetInfo netInfo2;
+        ds >> netInfo2;
+        BOOST_CHECK(netInfo == netInfo2);
+        BOOST_CHECK(netInfo.GetEntries() == netInfo2.GetEntries());
     }
 }
 
@@ -695,6 +720,63 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
         ExtNetInfo netInfo;
         ds >> netInfo;
         BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::BadInput);
+    }
+
+    {
+        // A repeated purpose is rejected at deserialization, even if its entries would
+        // otherwise be silently cleared instead of failing
+        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        write_header(ds, 2);
+        ds << NetInfoPurpose::CORE_P2P;
+        WriteCompactSize(ds, 1);
+        ds << NetInfoEntry{LookupNumeric("1.1.1.1", port)};
+        ds << NetInfoPurpose::CORE_P2P;
+        WriteCompactSize(ds, 1);
+        ds << uint8_t{0x03}; // unknown NetInfoType
+
+        ExtNetInfo netInfo;
+        BOOST_CHECK_THROW(ds >> netInfo, std::ios_base::failure);
+    }
+
+    // Purposes must be ascending and known, so that one object has exactly one encoding
+    for (const auto& purposes : std::vector<std::vector<NetInfoPurpose>>{
+             {NetInfoPurpose::PLATFORM_HTTPS, NetInfoPurpose::CORE_P2P},
+             {static_cast<NetInfoPurpose>(3)},
+         }) {
+        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        write_header(ds, purposes.size());
+        for (const auto purpose : purposes) {
+            ds << purpose;
+            WriteCompactSize(ds, 1);
+            ds << NetInfoEntry{LookupNumeric("1.1.1.1", port)};
+        }
+
+        ExtNetInfo netInfo;
+        BOOST_CHECK_THROW(ds >> netInfo, std::ios_base::failure);
+    }
+
+    // A cleared entry under a known purpose decodes but must not validate
+    const auto with_entry = [&](auto&& write_entry) {
+        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        write_header(ds, 1);
+        ds << NetInfoPurpose::CORE_P2P;
+        WriteCompactSize(ds, 1);
+        write_entry(ds);
+        return ds;
+    };
+    for (auto ds : {
+             with_entry([](CDataStream& s) { s << uint8_t{0x03}; }),                                                  // unknown type
+             with_entry([](CDataStream& s) { s << NetInfoEntry::NetInfoType::Invalid; }),                             // explicit invalid marker
+             with_entry([](CDataStream& s) {
+                 s << NetInfoEntry::NetInfoType::Service;
+                 OverrideStream<CDataStream> s_v2(&s, /*nType=*/0, s.GetVersion() | ADDRV2_FORMAT);
+                 s_v2 << CService{};
+             }), // unspecified address
+             with_entry([](CDataStream& s) { s << NetInfoEntry::NetInfoType::Service << uint8_t{2} << uint8_t{16}; }), // truncated service
+         }) {
+        ExtNetInfo netInfo;
+        ds >> netInfo;
+        BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Malformed);
     }
 
     // Port 443 is only permitted for Platform HTTPS addresses

@@ -102,7 +102,7 @@ public:
     std::vector< TransactionNotification > vQueueNotifications;
 
     void NotifyTransactionChanged(const uint256 &hash, ChangeType status);
-    void NotifyAddressBookChanged(const CTxDestination &address, const std::string &label, bool isMine, const std::string &purpose, ChangeType status);
+    void NotifyAddressBookChanged(const CTxDestination &address, const std::string &label, bool isMine, wallet::AddressPurpose purpose, ChangeType status);
     void DispatchNotifications();
 
     /* Query entire wallet anew from core.
@@ -216,7 +216,7 @@ public:
         }
     }
 
-    void updateAddressBook(interfaces::Wallet& wallet, const QString& address, const QString& label, bool isMine, const QString& purpose, int status)
+    void updateAddressBook(interfaces::Wallet& wallet, const QString& address, const QString& label, bool isMine, wallet::AddressPurpose purpose, int status)
     {
         std::string address2 = address.toStdString();
         int index = 0;
@@ -311,7 +311,7 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
 }
 
 void TransactionTableModel::updateAddressBook(const QString& address, const QString& label, bool isMine,
-                                              const QString& purpose, int status)
+                                              wallet::AddressPurpose purpose, int status)
 {
     priv->updateAddressBook(walletModel->wallet(), address, label, isMine, purpose, status);
 }
@@ -854,13 +854,13 @@ void TransactionTablePriv::NotifyTransactionChanged(const uint256 &hash, ChangeT
     notification.invoke(parent);
 }
 
-void TransactionTablePriv::NotifyAddressBookChanged(const CTxDestination &address, const std::string &label, bool isMine, const std::string &purpose, ChangeType status)
+void TransactionTablePriv::NotifyAddressBookChanged(const CTxDestination &address, const std::string &label, bool isMine, wallet::AddressPurpose purpose, ChangeType status)
 {
     bool invoked = QMetaObject::invokeMethod(parent, "updateAddressBook", Qt::QueuedConnection,
                               Q_ARG(QString, QString::fromStdString(EncodeDestination(address))),
                               Q_ARG(QString, QString::fromStdString(label)),
                               Q_ARG(bool, isMine),
-                              Q_ARG(QString, QString::fromStdString(purpose)),
+                              Q_ARG(wallet::AddressPurpose, purpose),
                               Q_ARG(int, (int)status));
     assert(invoked);
 }

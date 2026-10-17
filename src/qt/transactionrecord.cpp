@@ -10,7 +10,7 @@
 #include <interfaces/wallet.h>
 #include <primitives/transaction.h>
 
-#include <wallet/ismine.h>
+#include <wallet/types.h>
 
 #include <algorithm>
 #include <cstdint>

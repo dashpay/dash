@@ -542,6 +542,19 @@ public:
     void removeProTxConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeExpiredAssetUnlock(int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** If entry changes or revokes the operator key a masternode has at the chain tip, return that
+     *  masternode. Decided against the current list rather than isKeyChangeProTx, which records the list
+     *  at admission and goes stale when a reorg changes the key under a transaction staying in the pool. */
+    std::optional<uint256> GetKeyChangeTarget(const CTxMemPoolEntry& entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** If key_change changes or revokes a masternode's operator key, return that masternode's pending
+     *  ProUpServTxs that do not descend from it. They are signed with the key being replaced, and mined
+     *  after key_change in the same block they would restore the previous operator's service fields. */
+    std::vector<txiter> GetServiceUpdatesBeforeKeyChange(txiter key_change) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** Is tx a ProUpServTx that block assembly could not reliably mine ahead of a key change of its
+     *  masternode? That is one with a pending operator key change among its ancestors, which it can only
+     *  be mined after, or with a pending asset lock or unlock or MNHF signal, whose own checks in block
+     *  assembly could keep it, and the key change it was to precede, out of the block. */
+    bool IsUnorderableServiceUpdate(const CTransaction& tx, const setEntries& ancestors) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     bool CompareDepthAndScore(const uint256& hasha, const uint256& hashb);
     bool isSpent(const COutPoint& outpoint) const;

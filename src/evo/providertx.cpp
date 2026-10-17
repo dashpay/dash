@@ -319,11 +319,6 @@ bool CProRegTx::IsTriviallyValid(TxValidationState& state) const
         // pass the state returned by the function above
         return false;
     }
-    for (const auto& entry : netInfo->GetEntries()) {
-        if (!entry.IsTriviallyValid()) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-bad");
-        }
-    }
 
     if (nOperatorReward > 10000) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-reward");
@@ -429,11 +424,6 @@ bool CProUpServTx::IsTriviallyValid(TxValidationState& state) const
     if (!IsNetInfoTriviallyValid(netInfo, nType, state)) {
         // pass the state returned by the function above
         return false;
-    }
-    for (const auto& entry : netInfo->GetEntries()) {
-        if (!entry.IsTriviallyValid()) {
-            return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-netinfo-bad");
-        }
     }
 
     return true;

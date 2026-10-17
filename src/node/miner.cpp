@@ -31,6 +31,7 @@
 #include <evo/chainhelper.h>
 #include <evo/creditpool.h>
 #include <evo/mnhftx.h>
+#include <evo/providertx.h>
 #include <evo/deterministicmns.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtxman.h>
@@ -215,13 +216,26 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->nTime = TicksSinceEpoch<std::chrono::seconds>(NodeClock::now());
     m_lock_time_cutoff = pindexPrev->GetMedianTimePast();
 
+    // The masternode list as built by the transactions selected so far. Provider transactions are
+    // applied to it as they are selected, so the ones that do not fit the list are left out.
+    std::optional<CMNListBuilder> mn_list_builder;
     if (fDIP0003Active_context) {
+        // No list-transition logs: a package's trial may still be discarded, and block connection
+        // logs the transitions that actually happen.
+        mn_list_builder.emplace(*m_chain_helper.special_tx, pindexPrev, fV24Active_context, m_chainstate.CoinsTip(),
+                                /*debugLogs=*/false);
         for (const Consensus::LLMQParams& params : llmq::GetEnabledQuorumParams(m_chainstate.m_chainman, pindexPrev)) {
             std::vector<CTransactionRef> vqcTx;
             if (m_quorum_block_processor.GetMineableCommitmentsTx(params,
                                                                   nHeight,
                                                                   vqcTx)) {
                 for (const auto& qcTx : vqcTx) {
+                    BlockValidationState state;
+                    if (!mn_list_builder->ApplyTx(*qcTx, state)) {
+                        throw std::runtime_error(
+                            strprintf("%s: quorum commitment does not apply to the masternode list: %s", __func__,
+                                      state.ToString()));
+                    }
                     pblock->vtx.emplace_back(qcTx);
                     pblocktemplate->vTxFees.emplace_back(0);
                     pblocktemplate->vTxSigOps.emplace_back(0);
@@ -236,7 +250,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     int nDescendantsUpdated = 0;
     if (m_mempool) {
         LOCK(m_mempool->cs);
-        addPackageTxs(*m_mempool, nPackagesSelected, nDescendantsUpdated, pindexPrev);
+        addPackageTxs(*m_mempool, nPackagesSelected, nDescendantsUpdated, pindexPrev,
+                      mn_list_builder ? &*mn_list_builder : nullptr);
     }
 
     const auto time_1{SteadyClock::now()};
@@ -283,9 +298,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         BlockValidationState state;
         CDeterministicMNList mn_list;
-        const bool is_v24_active{DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman, Consensus::DEPLOYMENT_V24)};
-        if (!m_chain_helper.special_tx->BuildNewListFromBlock(*pblock, pindexPrev, is_v24_active,
-                                                              m_chainstate.CoinsTip(), true, state, mn_list)) {
+        if (!mn_list_builder->Finish(*pblock, state, mn_list)) {
             throw std::runtime_error(strprintf("%s: BuildNewListFromBlock failed: %s", __func__, state.ToString()));
         }
         if (!CalcCbTxMerkleRootMNList(cbTx.merkleRootMNList, mn_list.to_sml(), state)) {
@@ -495,7 +508,8 @@ void BlockAssembler::SortForBlock(const CTxMemPool::setEntries& package, std::ve
 // Each time through the loop, we compare the best transaction in
 // mapModifiedTxs with the next transaction in the mempool to decide what
 // transaction package to work on next.
-void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSelected, int& nDescendantsUpdated, const CBlockIndex* const pindexPrev)
+void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSelected, int& nDescendantsUpdated,
+                                   const CBlockIndex* const pindexPrev, CMNListBuilder* mn_list_builder)
 {
     AssertLockHeld(mempool.cs);
 
@@ -510,6 +524,16 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     // This map with signals is used only to find duplicates
     auto signals = m_chain_helper.ehf_manager->GetSignalsStage(pindexPrev);
     const SpecialTxRules special_tx_rules{GetSpecialTxRules(pindexPrev, m_chainstate.m_chainman)};
+    // Masternodes whose operator key a transaction already in the block changes or revokes. A
+    // ProUpServTx of theirs must not follow: one left out of the key change's package, whether it
+    // could not be put first, did not fit or did not pass TestPackageTransactions() then (which can
+    // change while the template is built), may come up later.
+    std::set<uint256> keyChangedMNs;
+    const auto serviceUpdateTarget = [](const CTransaction& tx) -> std::optional<uint256> {
+        if (tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE) return std::nullopt;
+        const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
+        return opt_proTx ? std::make_optional(opt_proTx->proTxHash) : std::nullopt;
+    };
 
     // mapModifiedTx will store sorted packages after they are modified
     // because some of their txs are already in the block
@@ -616,6 +640,50 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);
 
+        // A pending ProUpServTx signed with the operator key that a key change in this package
+        // replaces must not follow the key change in the block: it would restore the previous
+        // operator's service fields. Mine such updates first. One that cannot be in this block now,
+        // whose package block assembly could not reliably put first (the mempool rejects those on
+        // entry, but a reorg can return such ancestors later), or whose package has an update of a
+        // masternode whose key already changed in the block, is left out: keyChangedMNs keeps it out
+        // of the rest of the block. If those pulled in do not fit, they are all left out instead of
+        // holding the key change back, which pending updates could otherwise do forever.
+        CTxMemPool::setEntries serviceUpdates;
+        for (const auto& entry : ancestors) {
+            for (const auto& update : mempool.GetServiceUpdatesBeforeKeyChange(entry)) {
+                if (inBlock.count(update) || serviceUpdates.count(update)) {
+                    continue;
+                }
+                auto updatePackage{mempool.AssumeCalculateMemPoolAncestors(__func__, *update,
+                                                                           CTxMemPool::Limits::NoLimits(),
+                                                                           /*fSearchForParents=*/false)};
+                onlyUnconfirmed(updatePackage);
+                updatePackage.insert(update);
+                const bool followsKeyChange{std::any_of(updatePackage.begin(), updatePackage.end(),
+                                                        [&](const CTxMemPool::txiter& it) {
+                                                            const auto target{serviceUpdateTarget(it->GetTx())};
+                                                            return target && keyChangedMNs.count(*target);
+                                                        })};
+                if (!followsKeyChange && TestPackageTransactions(updatePackage) &&
+                    !mempool.IsUnorderableServiceUpdate(update->GetTx(), updatePackage)) {
+                    serviceUpdates.insert(updatePackage.begin(), updatePackage.end());
+                }
+            }
+        }
+        if (!serviceUpdates.empty()) {
+            uint64_t extraSize{0};
+            unsigned int extraSigOps{0};
+            for (const auto& entry : serviceUpdates) {
+                if (!ancestors.count(entry)) {
+                    extraSize += entry->GetTxSize();
+                    extraSigOps += entry->GetSigOpCount();
+                }
+            }
+            if (!TestPackage(packageSize + extraSize, packageSigOps + extraSigOps)) {
+                serviceUpdates.clear();
+            }
+        }
+
         // Test if all tx's are Final and safe
         if (!TestPackageTransactions(ancestors)) {
             if (fUsingModified) {
@@ -625,15 +693,38 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             continue;
         }
 
-        // Package can be added. Sort the entries in a valid order.
+        // Package can be added. Sort the entries in a valid order, the service updates first.
         std::vector<CTxMemPool::txiter> sortedEntries;
-        SortForBlock(ancestors, sortedEntries);
+        SortForBlock(serviceUpdates, sortedEntries);
+        CTxMemPool::setEntries rest;
+        for (const auto& entry : ancestors) {
+            if (!serviceUpdates.count(entry)) {
+                rest.insert(entry);
+            }
+        }
+        std::vector<CTxMemPool::txiter> sortedRest;
+        SortForBlock(rest, sortedRest);
+        sortedEntries.insert(sortedEntries.end(), sortedRest.begin(), sortedRest.end());
+        ancestors.insert(serviceUpdates.begin(), serviceUpdates.end());
 
         auto packageSignals = signals;
+        std::vector<uint256> packageKeyChangedMNs;
         std::vector<CTransactionRef> creditPoolTransactions;
         bool validPackage{true};
         for (const auto& entry : sortedEntries) {
             const auto& tx = entry->GetTx();
+            if (const auto target = serviceUpdateTarget(tx);
+                target && (keyChangedMNs.count(*target) ||
+                           std::find(packageKeyChangedMNs.begin(), packageKeyChangedMNs.end(), *target) !=
+                               packageKeyChangedMNs.end())) {
+                LogPrintf("%s: package tx %s skipped, it would follow a key change of masternode %s\n", __func__,
+                          tx.GetHash().ToString(), target->ToString());
+                validPackage = false;
+                break;
+            }
+            if (const auto target = mempool.GetKeyChangeTarget(*entry)) {
+                packageKeyChangedMNs.push_back(*target);
+            }
             if (std::optional<uint8_t> signal = extractEHFSignal(tx); signal != std::nullopt) {
                 if (!packageSignals.emplace(*signal, 0).second) {
                     LogPrintf("%s: package tx %s skipped due to duplicate EHF signal %d\n", __func__,
@@ -661,6 +752,34 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             }
         }
 
+        // Provider transactions are checked against the tip on entry, so two of them can each be
+        // valid alone and still conflict in one block. Apply the package to a copy of the list as
+        // built so far and skip it if any of its transactions does not apply, instead of producing a
+        // template whose masternode list cannot be built.
+        std::optional<CMNListBuilder> package_mn_list;
+        if (validPackage && mn_list_builder != nullptr &&
+            std::any_of(sortedEntries.begin(), sortedEntries.end(),
+                        [](const auto& entry) { return entry->GetTx().IsSpecialTxVersion(); })) {
+            package_mn_list.emplace(*mn_list_builder);
+            for (const auto& entry : sortedEntries) {
+                const auto& tx = entry->GetTx();
+                BlockValidationState state;
+                std::string error;
+                try {
+                    if (!package_mn_list->ApplyTx(tx, state)) error = state.ToString();
+                } catch (const std::runtime_error& e) {
+                    // AddMN()/UpdateMN() report a unique-property conflict by throwing
+                    error = e.what();
+                }
+                if (!error.empty()) {
+                    LogPrintf("%s: package tx %s skipped, does not apply to the masternode list: %s\n", __func__,
+                              tx.GetHash().ToString(), error);
+                    validPackage = false;
+                    break;
+                }
+            }
+        }
+
         if (validPackage && creditPoolDiff != std::nullopt && !creditPoolTransactions.empty()) {
             TxValidationState state;
             if (!creditPoolDiff->ProcessLockUnlockTransactions(creditPoolTransactions, state)) {
@@ -680,6 +799,10 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         // This transaction will make it in; reset the failed counter.
         nConsecutiveFailed = 0;
         signals = std::move(packageSignals);
+        keyChangedMNs.insert(packageKeyChangedMNs.begin(), packageKeyChangedMNs.end());
+        if (package_mn_list) {
+            *mn_list_builder = std::move(*package_mn_list);
+        }
 
         for (size_t i = 0; i < sortedEntries.size(); ++i) {
             AddToBlock(sortedEntries[i]);

@@ -181,7 +181,7 @@ static RPCHelpMan masternode_status()
             RPCResult::Type::OBJ, "", "",
             {
                 GetRpcResult("outpoint"),
-                GetRpcResult("service", /*optional=*/true),
+                {RPCResult::Type::STR, "service", "IP address and port of this masternode"},
                 GetRpcResult("proTxHash", /*optional=*/true),
                 GetRpcResult("type_str", /*optional=*/true, /*override_name=*/"type"),
                 GetRpcResult("collateralHash", /*optional=*/true),
@@ -408,6 +408,10 @@ static RPCHelpMan masternode_payments()
         if (pindex == nullptr) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
+        // Payees come from the previous block's list, which an unconnected block may not have yet
+        if (!chainman.ActiveChain().Contains(pindex)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Block is not in main chain");
+        }
     }
 
     int64_t nCount = request.params.size() > 1 ? request.params[1].getInt<int64_t>() : 1;
@@ -417,7 +421,8 @@ static RPCHelpMan masternode_payments()
 
     CHECK_NONFATAL(node.chain_helper);
     CHECK_NONFATAL(node.dmnman);
-    while (vecPayments.size() < uint64_t(std::abs(nCount)) && pindex != nullptr) {
+    // Payees are selected from the previous block's list, so the genesis block has none
+    while (vecPayments.size() < uint64_t(std::abs(nCount)) && pindex != nullptr && pindex->pprev != nullptr) {
         CBlock block;
         if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
@@ -442,6 +447,13 @@ static RPCHelpMan masternode_payments()
             for (const auto& txin : tx->vin) {
                 uint256 blockHashTmp;
                 CTransactionRef txPrev = GetTransaction(/* block_index */ nullptr, &mempool, txin.prevout.hash, Params().GetConsensus(), blockHashTmp);
+                if (!txPrev) {
+                    throw JSONRPCError(RPC_MISC_ERROR, "Unable to calculate block fees: previous transaction not "
+                                                       "found. Use -txindex to enable historical transaction queries");
+                }
+                if (txin.prevout.n >= txPrev->vout.size()) {
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to calculate block fees: previous output not found");
+                }
                 nValueIn += txPrev->vout[txin.prevout.n].nValue;
             }
             nBlockFees += nValueIn - tx->GetValueOut();

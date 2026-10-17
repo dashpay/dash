@@ -665,8 +665,16 @@ static bool rest_deploymentinfo(const CoreContext& context, HTTPRequest* req, co
             jsonRequest.params.push_back(hash_str);
         }
 
+        std::string result;
+        try {
+            result = getdeploymentinfo().HandleRequest(jsonRequest).write() + "\n";
+        } catch (const UniValue& error) {
+            return RESTERR(req, HTTP_INTERNAL_SERVER_ERROR, error["message"].get_str());
+        } catch (const std::exception& error) {
+            return RESTERR(req, HTTP_INTERNAL_SERVER_ERROR, error.what());
+        }
         req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK, getdeploymentinfo().HandleRequest(jsonRequest).write() + "\n");
+        req->WriteReply(HTTP_OK, result);
         return true;
     }
     default: {

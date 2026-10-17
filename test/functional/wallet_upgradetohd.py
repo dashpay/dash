@@ -209,6 +209,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         # Null characters are allowed in wallet passphrases since v23
         walletpass = "111\0pass222"
         node.encryptwallet(walletpass)
+        assert_raises_rpc_error(-1, "invalid mnemonic", node.upgradetohd, "invalid mnemonic", "", walletpass)
         assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", node.rescanblockchain)
         assert_raises_rpc_error(-13, "Error: Wallet encrypted but passphrase not supplied to RPC.", node.upgradetohd, mnemonic[0])
         assert_raises_rpc_error(-14, "Error: The wallet passphrase entered was incorrect", node.upgradetohd, mnemonic[0], "", "111")
@@ -263,6 +264,24 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         assert_equal(0, w_null.getbalance())
         assert_equal(get_mnemonic(w_null)[1], "custom-passphrase\0")
         w_null.unloadwallet()
+
+        self.log.info("Reject mnemonic passphrases that seed derivation would truncate, unless explicitly allowed")
+        long_passphrase = "a" * 249
+        node.createwallet("wallet-long", blank=True)
+        w_long = node.get_wallet_rpc("wallet-long")
+        assert_raises_rpc_error(-8, "Mnemonic passphrase is too long", w_long.upgradetohd, custom_mnemonic, long_passphrase)
+        w_long.upgradetohd(custom_mnemonic, "a" * 248)
+        assert_equal(get_mnemonic(w_long)[1], "a" * 248)
+        self.restart_node(0, extra_args=[f"-mnemonicpassphrase={long_passphrase}"])
+        assert_raises_rpc_error(-4, "Mnemonic passphrase is too long", node.createwallet, "wallet-long-startup")
+        self.restart_node(0, extra_args=["-allow-deprecated-long-mnemonics", f"-mnemonicpassphrase={long_passphrase}"])
+        node.createwallet("wallet-long-startup")
+        assert_equal(get_mnemonic(node.get_wallet_rpc("wallet-long-startup"))[1], long_passphrase)
+        node.createwallet("wallet-long-recovered", blank=True)
+        w_long = node.get_wallet_rpc("wallet-long-recovered")
+        assert_raises_rpc_error(-8, "must be at most 256 bytes", w_long.upgradetohd, custom_mnemonic, "a" * 257)
+        w_long.upgradetohd(custom_mnemonic, "a" * 256)
+        assert_equal(get_mnemonic(w_long)[1], "a" * 256)
 
 
 if __name__ == '__main__':

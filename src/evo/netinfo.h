@@ -400,9 +400,6 @@ private:
     uint8_t m_version{CURRENT_VERSION};
     std::map<NetInfoPurpose, NetInfoList> m_data{};
 
-    // memory only
-    NetInfoList m_all_entries{};
-
 public:
     ExtNetInfo() = default;
     template <typename Stream>
@@ -425,12 +422,16 @@ public:
         if (m_version == 0 || m_version > CURRENT_VERSION) {
             return; // Don't bother with unknown versions
         }
-        s >> m_data;
-
-        // Regenerate internal cache
-        m_all_entries.clear();
-        for (const auto& [_, entries] : m_data) {
-            m_all_entries.insert(m_all_entries.end(), entries.begin(), entries.end());
+        // Purposes must be known and ascending, so that one object has exactly one encoding
+        m_data.clear();
+        const auto n_purposes{ReadCompactSize(s)};
+        for (size_t i{0}; i < n_purposes; ++i) {
+            NetInfoPurpose purpose;
+            s >> purpose;
+            if (!IsValidPurpose(purpose) || (!m_data.empty() && purpose <= m_data.rbegin()->first)) {
+                throw std::ios_base::failure("ExtNetInfo: purpose unknown or out of order");
+            }
+            s >> m_data.try_emplace(purpose).first->second;
         }
     }
 
@@ -449,7 +450,6 @@ public:
     {
         m_version = CURRENT_VERSION;
         m_data.clear();
-        m_all_entries.clear();
     }
 
 private:

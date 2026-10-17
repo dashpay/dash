@@ -306,10 +306,8 @@ bool CSpecialTxProcessor::BuildNewListFromBlock(const CBlock& block, gsl::not_nu
     return RebuildListFromBlock(block, pindexPrev, is_v24_active, oldList, view, debugLogs, state, mnListRet);
 }
 
-bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
-                                               bool is_v24_active, const CDeterministicMNList& prevList,
-                                               const CCoinsViewCache& view, bool debugLogs, BlockValidationState& state,
-                                               CDeterministicMNList& mnListRet)
+CDeterministicMNList CSpecialTxProcessor::BeginListForBlock(gsl::not_null<const CBlockIndex*> pindexPrev,
+                                                            const CDeterministicMNList& prevList) const
 {
     // Verify that prevList either represents an empty/initial state (default-constructed),
     // or it matches the previous block's hash.
@@ -321,8 +319,6 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
     CDeterministicMNList newList = prevList;
     newList.SetBlockHash(uint256()); // we can't know the final block hash, so better not return a (invalid) block hash
     newList.SetHeight(nHeight);
-
-    auto payee = prevList.GetMNPayee(pindexPrev);
 
     // we iterate the prevList here and update the newList
     // this is only valid as long these have not diverged at this point, which is the case as long as we don't add
@@ -344,389 +340,403 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
 
     newList.DecreaseScores();
 
-    const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_MN_RR)};
+    return newList;
+}
 
-    // we skip the coinbase
-    for (int i = 1; i < static_cast<int>(block.vtx.size()); i++) {
-        const CTransaction& tx = *block.vtx[i];
+bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                        bool is_v24_active, const CCoinsViewCache& view, bool debugLogs,
+                                        CDeterministicMNList& newList, BlockValidationState& state) const
+{
+    const int nHeight = pindexPrev->nHeight + 1;
 
-        if (!tx.IsSpecialTxVersion()) {
-            // only interested in special TXs
-            continue;
+    if (!tx.IsSpecialTxVersion()) {
+        // only interested in special TXs
+        return true;
+    }
+
+    if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
+        const auto opt_proTx = GetTxPayload<CProRegTx>(tx);
+        if (!opt_proTx) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+        }
+        auto& proTx = *opt_proTx;
+
+        auto dmn = std::make_shared<CDeterministicMN>(newList.GetTotalRegisteredCount(), proTx.nType);
+        dmn->proTxHash = tx.GetHash();
+
+        // collateralOutpoint is either pointing to an external collateral or to the ProRegTx itself
+        if (proTx.collateralOutpoint.hash.IsNull()) {
+            dmn->collateralOutpoint = COutPoint(tx.GetHash(), proTx.collateralOutpoint.n);
+        } else {
+            dmn->collateralOutpoint = proTx.collateralOutpoint;
         }
 
-        if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
-            const auto opt_proTx = GetTxPayload<CProRegTx>(tx);
-            if (!opt_proTx) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+        // Complain about spent collaterals only when we process the tip.
+        // This is safe because blocks below the tip were verified
+        // when they were connected initially.
+        if (!view.GetBestBlock().IsNull()) {
+            Coin coin;
+            CAmount expectedCollateral = GetMnType(proTx.nType).collat_amount;
+            if (!proTx.collateralOutpoint.hash.IsNull() && (!view.GetCoin(dmn->collateralOutpoint, coin) ||
+                                                            coin.IsSpent() || coin.out.nValue != expectedCollateral)) {
+                // should actually never get to this point as CheckProRegTx should have handled this case.
+                // We do this additional check nevertheless to be 100% sure
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-collateral");
             }
-            auto& proTx = *opt_proTx;
+        }
 
-            auto dmn = std::make_shared<CDeterministicMN>(newList.GetTotalRegisteredCount(), proTx.nType);
-            dmn->proTxHash = tx.GetHash();
+        auto replacedDmn = newList.GetMNByCollateral(dmn->collateralOutpoint);
+        if (replacedDmn != nullptr) {
+            // This might only happen with a ProRegTx that refers an external collateral
+            // In that case the new ProRegTx will replace the old one. This means the old one is removed
+            // and the new one is added like a completely fresh one, which is also at the bottom of the payment list
+            newList.RemoveMN(replacedDmn->proTxHash);
+            if (debugLogs) {
+                LogPrintf("%s -- MN %s removed from list because collateral was used for " /* Continued */
+                          "a new ProRegTx. collateralOutpoint=%s, nHeight=%d, mapCurMNs.allMNsCount=%d\n",
+                          __func__, replacedDmn->proTxHash.ToString(), dmn->collateralOutpoint.ToStringShort(),
+                          nHeight, newList.GetCounts().total());
+            }
+        }
 
-            // collateralOutpoint is either pointing to an external collateral or to the ProRegTx itself
-            if (proTx.collateralOutpoint.hash.IsNull()) {
-                dmn->collateralOutpoint = COutPoint(tx.GetHash(), proTx.collateralOutpoint.n);
+        for (const auto& entry : proTx.netInfo->GetEntries()) {
+            if (const auto service_opt{entry.GetAddrPort()}) {
+                if (newList.HasUniqueProperty(*service_opt)) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+                }
+            } else if (const auto domain_opt{entry.GetDomainPort()}) {
+                if (newList.HasUniqueProperty(*domain_opt)) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+                }
             } else {
-                dmn->collateralOutpoint = proTx.collateralOutpoint;
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-entry");
             }
-
-            // Complain about spent collaterals only when we process the tip.
-            // This is safe because blocks below the tip were verified
-            // when they were connected initially.
-            if (!view.GetBestBlock().IsNull()) {
-                Coin coin;
-                CAmount expectedCollateral = GetMnType(proTx.nType).collat_amount;
-                if (!proTx.collateralOutpoint.hash.IsNull() && (!view.GetCoin(dmn->collateralOutpoint, coin) ||
-                                                                coin.IsSpent() || coin.out.nValue != expectedCollateral)) {
-                    // should actually never get to this point as CheckProRegTx should have handled this case.
-                    // We do this additional check nevertheless to be 100% sure
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-collateral");
-                }
-            }
-
-            auto replacedDmn = newList.GetMNByCollateral(dmn->collateralOutpoint);
-            if (replacedDmn != nullptr) {
-                // This might only happen with a ProRegTx that refers an external collateral
-                // In that case the new ProRegTx will replace the old one. This means the old one is removed
-                // and the new one is added like a completely fresh one, which is also at the bottom of the payment list
-                newList.RemoveMN(replacedDmn->proTxHash);
-                if (debugLogs) {
-                    LogPrintf("%s -- MN %s removed from list because collateral was used for " /* Continued */
-                              "a new ProRegTx. collateralOutpoint=%s, nHeight=%d, mapCurMNs.allMNsCount=%d\n",
-                              __func__, replacedDmn->proTxHash.ToString(), dmn->collateralOutpoint.ToStringShort(),
-                              nHeight, newList.GetCounts().total());
-                }
-            }
-
-            for (const auto& entry : proTx.netInfo->GetEntries()) {
-                if (const auto service_opt{entry.GetAddrPort()}) {
-                    if (newList.HasUniqueProperty(*service_opt)) {
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
-                    }
-                } else if (const auto domain_opt{entry.GetDomainPort()}) {
-                    if (newList.HasUniqueProperty(*domain_opt)) {
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
-                    }
-                } else {
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-entry");
-                }
-            }
-            if (proTx.IsShared()) {
-                for (const auto& share : proTx.shares) {
-                    if (newList.HasUniqueProperty(share.keyIDOwner)) {
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
-                    }
-                }
-                if (newList.HasUniqueProperty(proTx.pubKeyOperator)) {
+        }
+        if (proTx.IsShared()) {
+            for (const auto& share : proTx.shares) {
+                if (newList.HasUniqueProperty(share.keyIDOwner)) {
                     return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
                 }
-            } else if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.pubKeyOperator)) {
+            }
+            if (newList.HasUniqueProperty(proTx.pubKeyOperator)) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
             }
+        } else if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.pubKeyOperator)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
+        }
 
-            dmn->nOperatorReward = proTx.nOperatorReward;
+        dmn->nOperatorReward = proTx.nOperatorReward;
 
-            auto dmnState = std::make_shared<CDeterministicMNState>(proTx);
-            dmnState->nRegisteredHeight = nHeight;
-            if (proTx.netInfo->IsEmpty()) {
-                // start in banned pdmnState as we need to wait for a ProUpServTx
-                dmnState->BanIfNotBanned(nHeight);
+        auto dmnState = std::make_shared<CDeterministicMNState>(proTx);
+        dmnState->nRegisteredHeight = nHeight;
+        if (proTx.netInfo->IsEmpty()) {
+            // start in banned pdmnState as we need to wait for a ProUpServTx
+            dmnState->BanIfNotBanned(nHeight);
+        }
+        dmn->pdmnState = dmnState;
+
+        // CheckProRegTx ran against pindexPrev, so transactions in this same block are invisible
+        // to each other and two of them could claim one operator key under different encodings.
+        // Re-probe the list as rebuilt so far. AddMN() reports a duplicate by throwing, which
+        // would escape block assembly, so reject cleanly here instead.
+        if (is_v24_active &&
+            newList.HasOperatorKeyUnderAnyScheme(dmn->pdmnState->pubKeyOperator.Get(), /*self=*/uint256())) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
+        }
+
+        newList.AddMN(dmn);
+
+        if (debugLogs) {
+            LogPrintf("%s -- MN %s added at height %d: %s\n", __func__, tx.GetHash().ToString(), nHeight,
+                      proTx.ToString());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
+        const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
+        if (!opt_proTx) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+        }
+        if (!IsValidMnType(opt_proTx->nType)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-type");
+        }
+
+        for (const auto& entry : opt_proTx->netInfo->GetEntries()) {
+            if (const auto service_opt{entry.GetAddrPort()}) {
+                if (newList.HasUniqueProperty(*service_opt) &&
+                    newList.GetUniquePropertyMN(*service_opt)->proTxHash != opt_proTx->proTxHash) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+                }
+            } else if (const auto domain_opt{entry.GetDomainPort()}) {
+                if (newList.HasUniqueProperty(*domain_opt) &&
+                    newList.GetUniquePropertyMN(*domain_opt)->proTxHash != opt_proTx->proTxHash) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
+                }
+            } else {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-entry");
             }
-            dmn->pdmnState = dmnState;
+        }
 
-            // CheckProRegTx ran against pindexPrev, so transactions in this same block are invisible
-            // to each other and two of them could claim one operator key under different encodings.
-            // Re-probe the list as rebuilt so far. AddMN() reports a duplicate by throwing, which
-            // would escape block assembly, so reject cleanly here instead.
-            if (is_v24_active &&
-                newList.HasOperatorKeyUnderAnyScheme(dmn->pdmnState->pubKeyOperator.Get(), /*self=*/uint256())) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
-            }
+        auto dmn = newList.GetMN(opt_proTx->proTxHash);
+        if (!dmn) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+        }
+        if (opt_proTx->nType != dmn->nType) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-type-mismatch");
+        }
 
-            newList.AddMN(dmn);
-
-            if (debugLogs) {
-                LogPrintf("%s -- MN %s added at height %d: %s\n", __func__, tx.GetHash().ToString(), nHeight,
-                          proTx.ToString());
-            }
-        } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
-            const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
-            if (!opt_proTx) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
-            }
-            if (!IsValidMnType(opt_proTx->nType)) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-type");
-            }
-
-            for (const auto& entry : opt_proTx->netInfo->GetEntries()) {
-                if (const auto service_opt{entry.GetAddrPort()}) {
-                    if (newList.HasUniqueProperty(*service_opt) &&
-                        newList.GetUniquePropertyMN(*service_opt)->proTxHash != opt_proTx->proTxHash) {
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
-                    }
-                } else if (const auto domain_opt{entry.GetDomainPort()}) {
-                    if (newList.HasUniqueProperty(*domain_opt) &&
-                        newList.GetUniquePropertyMN(*domain_opt)->proTxHash != opt_proTx->proTxHash) {
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-netinfo-entry");
-                    }
-                } else {
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-netinfo-entry");
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+        const uint16_t current_version{static_cast<uint16_t>(newState->nVersion)};
+        const uint16_t target_version{is_v24_active ? std::max<uint16_t>(current_version, opt_proTx->nVersion)
+                                                    : current_version};
+        if (!ApplyProUpServTx(*newState, *opt_proTx, is_v24_active, state)) {
+            return false;
+        }
+        if (newState->IsBanned()) {
+            // only revive when all keys are set (a shared masternode has a null keyIDOwner;
+            // its share owner keys are immutable and always set)
+            if (newState->pubKeyOperator != CBLSLazyPublicKey() && !newState->keyIDVoting.IsNull() &&
+                (newState->IsShared() || !newState->keyIDOwner.IsNull())) {
+                newState->Revive(nHeight);
+                if (debugLogs) {
+                    LogPrintf("%s -- MN %s revived at height %d\n", __func__, opt_proTx->proTxHash.ToString(), nHeight);
                 }
             }
+        }
 
-            auto dmn = newList.GetMN(opt_proTx->proTxHash);
-            if (!dmn) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
-            }
-            if (opt_proTx->nType != dmn->nType) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-type-mismatch");
-            }
+        // Migrating a legacy masternode to the basic scheme re-encodes its stored key
+        // (SetStateVersion), moving it to the basic-scheme slot. Per-transaction checks ran
+        // against pindexPrev, so re-check against the list as rebuilt so far: if another
+        // masternode holds this key under either encoding, the re-key in UpdateMN() would throw
+        // out of block assembly.
+        if (is_v24_active && IsSchemeMigration(current_version, target_version) &&
+            newList.HasOperatorKeyUnderAnyScheme(dmn->pdmnState->pubKeyOperator.Get(),
+                                                 /*self=*/opt_proTx->proTxHash)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
+        }
 
-            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
-            const uint16_t current_version{static_cast<uint16_t>(newState->nVersion)};
-            const uint16_t target_version{is_v24_active ? std::max<uint16_t>(current_version, opt_proTx->nVersion)
-                                                        : current_version};
-            if (!ApplyProUpServTx(*newState, *opt_proTx, is_v24_active, state)) {
-                return false;
-            }
-            if (newState->IsBanned()) {
-                // only revive when all keys are set (a shared masternode has a null keyIDOwner;
-                // its share owner keys are immutable and always set)
-                if (newState->pubKeyOperator != CBLSLazyPublicKey() && !newState->keyIDVoting.IsNull() &&
-                    (newState->IsShared() || !newState->keyIDOwner.IsNull())) {
-                    newState->Revive(nHeight);
-                    if (debugLogs) {
-                        LogPrintf("%s -- MN %s revived at height %d\n", __func__, opt_proTx->proTxHash.ToString(), nHeight);
-                    }
-                }
-            }
+        newList.UpdateMN(opt_proTx->proTxHash, newState);
+        if (debugLogs) {
+            LogPrintf("%s -- MN %s updated at height %d: %s\n", __func__, opt_proTx->proTxHash.ToString(), nHeight,
+                      opt_proTx->ToString());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+        const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
+        if (!opt_proTx) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+        }
 
-            // Migrating a legacy masternode to the basic scheme re-encodes its stored key
-            // (SetStateVersion), moving it to the basic-scheme slot. Per-transaction checks ran
-            // against pindexPrev, so re-check against the list as rebuilt so far: if another
-            // masternode holds this key under either encoding, the re-key in UpdateMN() would throw
-            // out of block assembly.
-            if (is_v24_active && IsSchemeMigration(current_version, target_version) &&
-                newList.HasOperatorKeyUnderAnyScheme(dmn->pdmnState->pubKeyOperator.Get(),
+        auto dmn = newList.GetMN(opt_proTx->proTxHash);
+        if (!dmn) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+        }
+        if (dmn->pdmnState->IsShared()) {
+            // shared masternodes are updated via ProUpShareTx / ProUpSharedRegTx exclusively
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-shared-mn");
+        }
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+        const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
+        const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
+        const uint16_t target_version{is_v24_active ? std::max<uint16_t>(old_version, opt_proTx->nVersion)
+                                                    : (operator_changed ? opt_proTx->nVersion : old_version)};
+
+        // Per-transaction checks ran against pindexPrev, so an earlier transaction in this same
+        // block is invisible to them. Re-evaluate against the list as rebuilt so far: this update
+        // moves the operator key to a new unique-property slot if it rotates the key or crosses
+        // the legacy->basic boundary (which re-encodes the key), and if that slot is held by
+        // another masternode the re-key in UpdateMN() would throw out of block assembly. Reject
+        // cleanly. Scoped to those two cases so a pre-existing cross-scheme pair's non-migrating
+        // routine update is not blocked.
+        {
+            const bool migrating{IsSchemeMigration(old_version, target_version)};
+            if (is_v24_active && (operator_changed || migrating) &&
+                newList.HasOperatorKeyUnderAnyScheme(opt_proTx->pubKeyOperator.Get(),
                                                      /*self=*/opt_proTx->proTxHash)) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
             }
+        }
 
-            newList.UpdateMN(opt_proTx->proTxHash, newState);
-            if (debugLogs) {
-                LogPrintf("%s -- MN %s updated at height %d: %s\n", __func__, opt_proTx->proTxHash.ToString(), nHeight,
-                          opt_proTx->ToString());
-            }
-        } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
-            const auto opt_proTx = GetTxPayload<CProUpRegTx>(tx);
-            if (!opt_proTx) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
-            }
-
-            auto dmn = newList.GetMN(opt_proTx->proTxHash);
-            if (!dmn) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
-            }
-            if (dmn->pdmnState->IsShared()) {
-                // shared masternodes are updated via ProUpShareTx / ProUpSharedRegTx exclusively
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-shared-mn");
-            }
-            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
-            const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
-            const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
-            const uint16_t target_version{is_v24_active ? std::max<uint16_t>(old_version, opt_proTx->nVersion)
-                                                        : (operator_changed ? opt_proTx->nVersion : old_version)};
-
-            // Per-transaction checks ran against pindexPrev, so an earlier transaction in this same
-            // block is invisible to them. Re-evaluate against the list as rebuilt so far: this update
-            // moves the operator key to a new unique-property slot if it rotates the key or crosses
-            // the legacy->basic boundary (which re-encodes the key), and if that slot is held by
-            // another masternode the re-key in UpdateMN() would throw out of block assembly. Reject
-            // cleanly. Scoped to those two cases so a pre-existing cross-scheme pair's non-migrating
-            // routine update is not blocked.
-            {
-                const bool migrating{IsSchemeMigration(old_version, target_version)};
-                if (is_v24_active && (operator_changed || migrating) &&
-                    newList.HasOperatorKeyUnderAnyScheme(opt_proTx->pubKeyOperator.Get(),
-                                                         /*self=*/opt_proTx->proTxHash)) {
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
-                }
-            }
-
-            if (operator_changed) {
-                // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes
-                newState->ResetOperatorFields();
-                newState->BanIfNotBanned(nHeight);
-                newState->pubKeyOperator = opt_proTx->pubKeyOperator;
-            }
-            newState->keyIDVoting = opt_proTx->keyIDVoting;
-            // SetStateVersion() re-encodes the operator key to target_version's scheme, so the stored
-            // key stays consistent with its version whether it was carried in this payload (possibly
-            // under a different version's encoding) or migrated in place.
-            if (!SetStateVersion(*newState, target_version, dmn->nType, state)) {
-                return false;
-            }
-            if (target_version >= ProTxVersion::ExtAddr) {
-                newState->payouts = opt_proTx->nVersion >= ProTxVersion::ExtAddr
-                    ? opt_proTx->payouts
-                    : LegacyPayoutAsList(opt_proTx->scriptPayout);
-                newState->scriptPayout.clear();
-            } else {
-                newState->scriptPayout = opt_proTx->scriptPayout;
-                newState->payouts.clear();
-            }
-
-            newList.UpdateMN(opt_proTx->proTxHash, newState);
-
-            if (debugLogs) {
-                LogPrintf("%s -- MN %s updated at height %d: %s\n", __func__, opt_proTx->proTxHash.ToString(), nHeight,
-                          opt_proTx->ToString());
-            }
-        } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
-            const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
-            if (!opt_proTx) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
-            }
-
-            auto dmn = newList.GetMN(opt_proTx->proTxHash);
-            if (!dmn) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
-            }
-            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
-            const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
-            // ResetOperatorFields() drops nVersion back to LegacyBLS. Post-v24 the state version must be
-            // preserved (never silently downgraded), so pick the target the same max-based way the registrar
-            // path does and restore it below. Pre-v24 keep the historical reset-to-legacy behaviour.
-            uint16_t target_version{ProTxVersion::LegacyBLS};
-            if (is_v24_active) {
-                target_version = std::max<uint16_t>(old_version, opt_proTx->nVersion);
-            }
+        if (operator_changed) {
+            // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes
             newState->ResetOperatorFields();
-            if (target_version >= ProTxVersion::BasicBLS && !SetStateVersion(*newState, target_version, dmn->nType, state)) {
-                return false;
-            }
             newState->BanIfNotBanned(nHeight);
-            newState->nRevocationReason = opt_proTx->nReason;
+            newState->pubKeyOperator = opt_proTx->pubKeyOperator;
+        }
+        newState->keyIDVoting = opt_proTx->keyIDVoting;
+        // SetStateVersion() re-encodes the operator key to target_version's scheme, so the stored
+        // key stays consistent with its version whether it was carried in this payload (possibly
+        // under a different version's encoding) or migrated in place.
+        if (!SetStateVersion(*newState, target_version, dmn->nType, state)) {
+            return false;
+        }
+        if (target_version >= ProTxVersion::ExtAddr) {
+            newState->payouts = opt_proTx->nVersion >= ProTxVersion::ExtAddr
+                ? opt_proTx->payouts
+                : LegacyPayoutAsList(opt_proTx->scriptPayout);
+            newState->scriptPayout.clear();
+        } else {
+            newState->scriptPayout = opt_proTx->scriptPayout;
+            newState->payouts.clear();
+        }
 
-            newList.UpdateMN(opt_proTx->proTxHash, newState);
+        newList.UpdateMN(opt_proTx->proTxHash, newState);
 
-            if (debugLogs) {
-                LogPrintf("%s -- MN %s revoked operator key at height %d: %s\n", __func__,
-                          opt_proTx->proTxHash.ToString(), nHeight, opt_proTx->ToString());
+        if (debugLogs) {
+            LogPrintf("%s -- MN %s updated at height %d: %s\n", __func__, opt_proTx->proTxHash.ToString(), nHeight,
+                      opt_proTx->ToString());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
+        if (!opt_proTx) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+        }
+
+        auto dmn = newList.GetMN(opt_proTx->proTxHash);
+        if (!dmn) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+        }
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+        const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
+        // ResetOperatorFields() drops nVersion back to LegacyBLS. Post-v24 the state version must be
+        // preserved (never silently downgraded), so pick the target the same max-based way the registrar
+        // path does and restore it below. Pre-v24 keep the historical reset-to-legacy behaviour.
+        uint16_t target_version{ProTxVersion::LegacyBLS};
+        if (is_v24_active) {
+            target_version = std::max<uint16_t>(old_version, opt_proTx->nVersion);
+        }
+        newState->ResetOperatorFields();
+        if (target_version >= ProTxVersion::BasicBLS && !SetStateVersion(*newState, target_version, dmn->nType, state)) {
+            return false;
+        }
+        newState->BanIfNotBanned(nHeight);
+        newState->nRevocationReason = opt_proTx->nReason;
+
+        newList.UpdateMN(opt_proTx->proTxHash, newState);
+
+        if (debugLogs) {
+            LogPrintf("%s -- MN %s revoked operator key at height %d: %s\n", __func__,
+                      opt_proTx->proTxHash.ToString(), nHeight, opt_proTx->ToString());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+        const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);
+        if (!opt_proTx) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+        }
+
+        auto dmn = newList.GetMN(opt_proTx->proTxHash);
+        if (!dmn) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+        }
+        if (!dmn->pdmnState->IsShared() || opt_proTx->shareIndex >= dmn->pdmnState->shares.size()) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupshare-index");
+        }
+
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+        newState->shares[opt_proTx->shareIndex].scriptReward = opt_proTx->scriptReward;
+
+        // CheckProUpShareTx ran against pindexPrev, so a shared registrar update earlier in
+        // this block is invisible to it and could have moved the voting key onto this share's
+        // scripts. Recheck the separation rule against the state as rebuilt so far.
+        if (!IsShareListVotingKeySafe(newState->shares, newState->keyIDVoting)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupshare-payee-reuse");
+        }
+
+        newList.UpdateMN(opt_proTx->proTxHash, newState);
+
+        if (debugLogs) {
+            LogPrintf("%s -- MN %s updated share at height %d: %s\n", __func__, opt_proTx->proTxHash.ToString(),
+                      nHeight, opt_proTx->ToString());
+        }
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
+        const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
+        if (!opt_proTx) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+        }
+
+        auto dmn = newList.GetMN(opt_proTx->proTxHash);
+        if (!dmn) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
+        }
+        if (!dmn->pdmnState->IsShared()) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupsharedreg-not-shared");
+        }
+
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+        const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
+        const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
+        if (operator_changed) {
+            // Operator-key change semantics match ProUpRegTx: reset all operator related
+            // fields and put the MN into PoSe-banned state until a new ProUpServTx arrives
+            newState->ResetOperatorFields();
+            newState->BanIfNotBanned(nHeight);
+            newState->pubKeyOperator = opt_proTx->pubKeyOperator;
+        }
+        newState->keyIDVoting = opt_proTx->keyIDVoting;
+        // Shared masternodes are always ExtAddr or later; restore the state version that
+        // ResetOperatorFields() cleared
+        if (!SetStateVersion(*newState, old_version, dmn->nType, state)) {
+            return false;
+        }
+        if (operator_changed) {
+            newState->pubKeyOperator.SetLegacy(false);
+        }
+
+        // CheckProUpSharedRegTx ran against pindexPrev, so transactions earlier in this same
+        // block are invisible to it. Re-evaluate against the list as rebuilt so far: another
+        // update may have taken the operator key (under either encoding; the re-key in
+        // UpdateMN() would throw out of block assembly), and a share reward update may have
+        // moved a share script onto the new voting key.
+        if (operator_changed && newList.HasOperatorKeyUnderAnyScheme(opt_proTx->pubKeyOperator.Get(),
+                                                                     /*self=*/opt_proTx->proTxHash)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
+        }
+        if (!IsShareListVotingKeySafe(newState->shares, newState->keyIDVoting)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupsharedreg-payee-reuse");
+        }
+
+        newList.UpdateMN(opt_proTx->proTxHash, newState);
+
+        if (debugLogs) {
+            LogPrintf("%s -- MN %s updated shared registrar at height %d: %s\n", __func__,
+                      opt_proTx->proTxHash.ToString(), nHeight, opt_proTx->ToString());
+        }
+    } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
+        const auto opt_qc = GetTxPayload<llmq::CFinalCommitmentTxPayload>(tx);
+        if (!opt_qc) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-payload");
+        }
+        if (!opt_qc->commitment.IsNull()) {
+            const auto& llmq_params_opt = Params().GetLLMQ(opt_qc->commitment.llmqType);
+            if (!llmq_params_opt.has_value()) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-commitment-type");
             }
-        } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
-            const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);
-            if (!opt_proTx) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
+            int qcnHeight = int(opt_qc->nHeight);
+            int quorumHeight = qcnHeight - (qcnHeight % llmq_params_opt->dkgInterval) +
+                               int(opt_qc->commitment.quorumIndex);
+            auto pQuorumBaseBlockIndex = pindexPrev->GetAncestor(quorumHeight);
+            if (!pQuorumBaseBlockIndex || pQuorumBaseBlockIndex->GetBlockHash() != opt_qc->commitment.quorumHash) {
+                // we should actually never get into this case as validation should have caught it...but let's be sure
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-quorum-hash");
             }
 
-            auto dmn = newList.GetMN(opt_proTx->proTxHash);
-            if (!dmn) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
-            }
-            if (!dmn->pdmnState->IsShared() || opt_proTx->shareIndex >= dmn->pdmnState->shares.size()) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupshare-index");
-            }
+            // The commitment has already been validated at this point, so it's safe to use members of it
 
-            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
-            newState->shares[opt_proTx->shareIndex].scriptReward = opt_proTx->scriptReward;
-
-            // CheckProUpShareTx ran against pindexPrev, so a shared registrar update earlier in
-            // this block is invisible to it and could have moved the voting key onto this share's
-            // scripts. Recheck the separation rule against the state as rebuilt so far.
-            if (!IsShareListVotingKeySafe(newState->shares, newState->keyIDVoting)) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupshare-payee-reuse");
-            }
-
-            newList.UpdateMN(opt_proTx->proTxHash, newState);
-
-            if (debugLogs) {
-                LogPrintf("%s -- MN %s updated share at height %d: %s\n", __func__, opt_proTx->proTxHash.ToString(),
-                          nHeight, opt_proTx->ToString());
-            }
-        } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
-            const auto opt_proTx = GetTxPayload<CProUpSharedRegTx>(tx);
-            if (!opt_proTx) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-payload");
-            }
-
-            auto dmn = newList.GetMN(opt_proTx->proTxHash);
-            if (!dmn) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
-            }
-            if (!dmn->pdmnState->IsShared()) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupsharedreg-not-shared");
-            }
-
-            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
-            const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
-            const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
-            if (operator_changed) {
-                // Operator-key change semantics match ProUpRegTx: reset all operator related
-                // fields and put the MN into PoSe-banned state until a new ProUpServTx arrives
-                newState->ResetOperatorFields();
-                newState->BanIfNotBanned(nHeight);
-                newState->pubKeyOperator = opt_proTx->pubKeyOperator;
-            }
-            newState->keyIDVoting = opt_proTx->keyIDVoting;
-            // Shared masternodes are always ExtAddr or later; restore the state version that
-            // ResetOperatorFields() cleared
-            if (!SetStateVersion(*newState, old_version, dmn->nType, state)) {
-                return false;
-            }
-            if (operator_changed) {
-                newState->pubKeyOperator.SetLegacy(false);
-            }
-
-            // CheckProUpSharedRegTx ran against pindexPrev, so transactions earlier in this same
-            // block are invisible to it. Re-evaluate against the list as rebuilt so far: another
-            // update may have taken the operator key (under either encoding; the re-key in
-            // UpdateMN() would throw out of block assembly), and a share reward update may have
-            // moved a share script onto the new voting key.
-            if (operator_changed && newList.HasOperatorKeyUnderAnyScheme(opt_proTx->pubKeyOperator.Get(),
-                                                                         /*self=*/opt_proTx->proTxHash)) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
-            }
-            if (!IsShareListVotingKeySafe(newState->shares, newState->keyIDVoting)) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-proupsharedreg-payee-reuse");
-            }
-
-            newList.UpdateMN(opt_proTx->proTxHash, newState);
-
-            if (debugLogs) {
-                LogPrintf("%s -- MN %s updated shared registrar at height %d: %s\n", __func__,
-                          opt_proTx->proTxHash.ToString(), nHeight, opt_proTx->ToString());
-            }
-        } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
-            const auto opt_qc = GetTxPayload<llmq::CFinalCommitmentTxPayload>(tx);
-            if (!opt_qc) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-payload");
-            }
-            if (!opt_qc->commitment.IsNull()) {
-                const auto& llmq_params_opt = Params().GetLLMQ(opt_qc->commitment.llmqType);
-                if (!llmq_params_opt.has_value()) {
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-commitment-type");
-                }
-                int qcnHeight = int(opt_qc->nHeight);
-                int quorumHeight = qcnHeight - (qcnHeight % llmq_params_opt->dkgInterval) +
-                                   int(opt_qc->commitment.quorumIndex);
-                auto pQuorumBaseBlockIndex = pindexPrev->GetAncestor(quorumHeight);
-                if (!pQuorumBaseBlockIndex || pQuorumBaseBlockIndex->GetBlockHash() != opt_qc->commitment.quorumHash) {
-                    // we should actually never get into this case as validation should have caught it...but let's be sure
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-quorum-hash");
-                }
-
-                // The commitment has already been validated at this point, so it's safe to use members of it
-
-                const auto members = llmq::utils::GetAllQuorumMembers(opt_qc->commitment.llmqType,
-                                                                      {m_dmnman, m_qsnapman, m_chainman,
-                                                                       pQuorumBaseBlockIndex});
-                HandleQuorumCommitment(opt_qc->commitment, members, debugLogs, newList);
-            }
+            const auto members = llmq::utils::GetAllQuorumMembers(opt_qc->commitment.llmqType,
+                                                                  {m_dmnman, m_qsnapman, m_chainman,
+                                                                   pQuorumBaseBlockIndex});
+            HandleQuorumCommitment(opt_qc->commitment, members, debugLogs, newList);
         }
     }
+
+    return true;
+}
+
+bool CSpecialTxProcessor::FinishListForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                             const CDeterministicMNList& prevList, bool debugLogs,
+                                             CDeterministicMNList newList, BlockValidationState& state,
+                                             CDeterministicMNList& mnListRet) const
+{
+    const int nHeight = pindexPrev->nHeight + 1;
+    auto payee = prevList.GetMNPayee(pindexPrev);
+    const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_MN_RR)};
 
     // we skip the coinbase
     for (int i = 1; i < static_cast<int>(block.vtx.size()); i++) {
@@ -793,6 +803,56 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
 
     return true;
 }
+
+bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                               bool is_v24_active, const CDeterministicMNList& prevList,
+                                               const CCoinsViewCache& view, bool debugLogs, BlockValidationState& state,
+                                               CDeterministicMNList& mnListRet)
+{
+    CDeterministicMNList newList = BeginListForBlock(pindexPrev, prevList);
+
+    // we skip the coinbase
+    for (int i = 1; i < static_cast<int>(block.vtx.size()); i++) {
+        if (!ApplyTxToList(*block.vtx[i], pindexPrev, is_v24_active, view, debugLogs, newList, state)) {
+            return false;
+        }
+    }
+
+    return FinishListForBlock(block, pindexPrev, prevList, debugLogs, newList, state, mnListRet);
+}
+
+CMNListBuilder::CMNListBuilder(const CSpecialTxProcessor& processor, const CDeterministicMNList& prevList,
+                               gsl::not_null<const CBlockIndex*> pindexPrev, bool is_v24_active,
+                               const CCoinsViewCache& view, bool debugLogs) :
+    m_processor{&processor},
+    m_prev_list{prevList},
+    m_pindex_prev{pindexPrev},
+    m_is_v24_active{is_v24_active},
+    m_view{&view},
+    m_debug_logs{debugLogs},
+    m_list{processor.BeginListForBlock(pindexPrev, prevList)}
+{
+}
+
+CMNListBuilder::CMNListBuilder(const CSpecialTxProcessor& processor, gsl::not_null<const CBlockIndex*> pindexPrev,
+                               bool is_v24_active, const CCoinsViewCache& view, bool debugLogs) :
+    CMNListBuilder(processor, processor.m_dmnman.GetListForBlock(pindexPrev), pindexPrev, is_v24_active, view,
+                   debugLogs)
+{
+    AssertLockHeld(::cs_main);
+}
+
+bool CMNListBuilder::ApplyTx(const CTransaction& tx, BlockValidationState& state)
+{
+    return m_processor->ApplyTxToList(tx, m_pindex_prev, m_is_v24_active, *m_view, m_debug_logs, m_list, state);
+}
+
+bool CMNListBuilder::Finish(const CBlock& block, BlockValidationState& state, CDeterministicMNList& mnListRet) const
+{
+    return m_processor->FinishListForBlock(block, m_pindex_prev, m_prev_list, m_debug_logs, m_list, state, mnListRet);
+}
+
+void CSpecialTxProcessor::UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex) { m_dmnman.UpdatedBlockTip(pindex); }
 
 bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const CChain& chain, const CBlock& block,
                                                    const CBlockIndex* pindex, SpecialTxRules rules,

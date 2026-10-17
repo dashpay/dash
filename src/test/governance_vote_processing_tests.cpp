@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <bls/bls.h>
 #include <consensus/amount.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
@@ -58,6 +59,20 @@ void SignWithOperatorKey(CGovernanceVote& vote, const CBLSSecretKey& key)
     // CGovernanceVote::CheckSignature() deserializes and verifies with legacy=false.
     vote.SetSignature(
         key.Sign(vote.GetSignatureHash(), /*specificLegacyScheme=*/false).ToByteVector(/*specificLegacyScheme=*/false));
+}
+
+//! A trigger that is signed by the fixture masternode and passes IsValidLocally, but whose payload
+//! is not a superblock, so SuperblockManager::AddTrigger rejects it after it was inserted.
+CGovernanceObject MakeFailedTrigger(const COutPoint& mn_collateral, const CBLSSecretKey& operator_key,
+                                    int64_t creation_time, int salt)
+{
+    const std::string data{strprintf(R"({"type":2,"salt":%d})", salt)};
+    CGovernanceObject govobj{uint256{}, /*revision=*/1, creation_time, uint256{}, HexStr(data)};
+    BOOST_REQUIRE(govobj.GetObjectType() == GovernanceObject::TRIGGER);
+    govobj.SetMasternodeOutpoint(mn_collateral);
+    govobj.SetSignature(operator_key.Sign(govobj.GetSignatureHash(), /*specificLegacyScheme=*/false)
+                            .ToByteVector(/*specificLegacyScheme=*/false));
+    return govobj;
 }
 
 // A chain with one registered masternode whose voting (ECDSA) and operator (BLS) keys are known
@@ -437,7 +452,7 @@ BOOST_AUTO_TEST_CASE(proposal_funding_votes_require_the_voting_key)
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
 }
 
-BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
+BOOST_AUTO_TEST_CASE(legacy_governance_cache_is_discarded)
 {
     const uint256 parent_hash{MakeProposal(uint256::ONE).GetHash()};
     CKey attacker_key;
@@ -449,28 +464,87 @@ BOOST_AUTO_TEST_CASE(legacy_invalid_vote_cache_is_discarded)
     CacheMap<uint256, CGovernanceVote> legacy_invalid_votes{3};
     legacy_invalid_votes.Insert(forged.GetHash(), forged);
     const auto proposal = std::make_shared<CGovernanceObject>(MakeProposal(uint256::ONE));
+    const std::map<uint256, std::shared_ptr<CGovernanceObject>> objects{{proposal->GetHash(), proposal}};
 
-    CDataStream stream{SER_DISK, CLIENT_VERSION};
-    stream << std::string{"CGovernanceManager-Version-16"}
+    // A version 16 cache, including its invalid-vote field, is dropped as a whole.
+    CDataStream legacy{SER_DISK, CLIENT_VERSION};
+    legacy << std::string{"CGovernanceManager-Version-16"}
            << std::map<uint256, int64_t>{}
            << legacy_invalid_votes
            << CacheMultiMap<uint256, governance::OrphanVote>{3}
-           << std::map<uint256, std::shared_ptr<CGovernanceObject>>{{proposal->GetHash(), proposal}}
+           << objects
            << std::map<COutPoint, TestGovernanceStore::last_object_rec>{}
            << CDeterministicMNList{};
 
+    TestGovernanceStore legacy_store;
+    legacy_store.Unserialize(legacy);
+    BOOST_CHECK_EQUAL(legacy_store.ObjectCount(), 0U);
+
+    // The current format has no invalid-vote field and round-trips.
+    CDataStream current{SER_DISK, CLIENT_VERSION};
+    current << std::string{"CGovernanceManager-Version-17"}
+            << std::map<uint256, int64_t>{}
+            << CacheMultiMap<uint256, governance::OrphanVote>{3}
+            << objects
+            << std::map<COutPoint, TestGovernanceStore::last_object_rec>{}
+            << CDeterministicMNList{};
+
     TestGovernanceStore store;
-    store.Unserialize(stream);
+    store.Unserialize(current);
     BOOST_CHECK_EQUAL(store.ObjectCount(), 1U);
 
     CDataStream saved{SER_DISK, CLIENT_VERSION};
     store.Serialize(saved);
-    std::string version;
-    std::map<uint256, int64_t> erased_objects;
-    CacheMap<uint256, CGovernanceVote> saved_invalid_votes;
-    saved >> version >> erased_objects >> saved_invalid_votes;
-    BOOST_CHECK_EQUAL(version, "CGovernanceManager-Version-16");
-    BOOST_CHECK_EQUAL(saved_invalid_votes.GetSize(), 0U);
+    TestGovernanceStore reloaded;
+    reloaded.Unserialize(saved);
+    BOOST_CHECK_EQUAL(reloaded.ObjectCount(), 1U);
+    BOOST_CHECK(saved.empty());
+}
+
+// MasternodeRateCheck allows a masternode that has no rate-buffer entry yet, and only accepted
+// triggers used to create one. A key whose triggers all fail AddTrigger was therefore never
+// throttled: every one cost a BLS verification and a mapErasedGovernanceObjects entry.
+BOOST_AUTO_TEST_CASE(failed_triggers_advance_the_masternode_rate_limit)
+{
+    const int64_t now{GetTime()};
+    constexpr int attempts{12};
+    int stored{0};
+    for (int i = 0; i < attempts; ++i) {
+        CGovernanceObject govobj{MakeFailedTrigger(mn_collateral, mn_operator_key, now + i, /*salt=*/i)};
+        const uint256 hash{govobj.GetHash()};
+        // Rate rejection is not misbehaviour, so ProcessObject reports success either way.
+        WITH_LOCK(::cs_main, BOOST_CHECK(m_node.govman->ProcessObject(/*peer_str=*/"test-peer", hash, govobj)));
+        if (m_node.govman->HaveObjectForHash(hash)) {
+            ++stored;
+            BOOST_CHECK(Assert(m_node.govman->FindGovernanceObject(hash))->IsSetCachedDelete());
+        }
+    }
+
+    // The rate is only computed over a full buffer, so the attempt that would fill it is the
+    // first one rated, and these timestamps are far too close together to pass.
+    BOOST_CHECK_EQUAL(stored, RATE_BUFFER_SIZE - 1);
+    BOOST_CHECK(m_node.govman->FetchRelayInventory().empty());
+}
+
+// Rate accounting now runs before AddTrigger, but scheduling the deferred re-announcement of a
+// trigger created close to the future-deviation limit must not: a trigger that AddTrigger rejected
+// would be announced, and served on GETDATA, once it aged past RELIABLE_PROPAGATION_TIME.
+BOOST_AUTO_TEST_CASE(failed_trigger_is_not_scheduled_for_deferred_relay)
+{
+    const int64_t now{GetTime()};
+    // Inside (now + MAX_TIME_FUTURE_DEVIATION - RELIABLE_PROPAGATION_TIME, now + MAX_TIME_FUTURE_DEVIATION],
+    // i.e. 1h - 60s < offset <= 1h: accepted by MasternodeRateCheck, too new to propagate reliably.
+    CGovernanceObject govobj{MakeFailedTrigger(mn_collateral, mn_operator_key, now + 3550, /*salt=*/0)};
+    const uint256 hash{govobj.GetHash()};
+    WITH_LOCK(::cs_main, BOOST_CHECK(m_node.govman->ProcessObject(/*peer_str=*/"test-peer", hash, govobj)));
+    BOOST_REQUIRE(m_node.govman->HaveObjectForHash(hash));
+    BOOST_CHECK(!m_node.govman->HaveSyncableObjectForHash(hash));
+    BOOST_CHECK(m_node.govman->FetchRelayInventory().empty());
+
+    // Age it past RELIABLE_PROPAGATION_TIME and run the deferred-relay pass.
+    SetMockTime(std::chrono::seconds{now + 120});
+    m_node.govman->UpdatedBlockTip(WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
+    BOOST_CHECK(m_node.govman->FetchRelayInventory().empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

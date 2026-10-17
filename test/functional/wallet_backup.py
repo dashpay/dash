@@ -119,6 +119,18 @@ class WalletBackupTest(BitcoinTestFramework):
         assert_raises_rpc_error(-18, error_message, node.restorewallet, wallet_name, invalid_wallet_file)
         assert not os.path.exists(not_created_wallet_file)
 
+    def restore_corrupt_bdb_wallet(self):
+        if self.options.descriptors:
+            return
+        node = self.nodes[3]
+        backup_file = os.path.join(self.nodes[0].datadir, 'wallet.bak')
+        corrupt_file = backup_file + '.corrupt'
+        with open(backup_file, 'rb') as source, open(corrupt_file, 'wb') as dest:
+            dest.write(source.read(4096))
+        wallet_name = 'restore_corrupt_bdb'
+        assert_raises_rpc_error(-4, 'corrupt', node.restorewallet, wallet_name, corrupt_file)
+        assert not os.path.exists(os.path.join(node.datadir, self.chain, 'wallets', wallet_name))
+
     def restore_nonexistent_wallet(self):
         node = self.nodes[3]
         nonexistent_wallet_file = os.path.join(self.nodes[0].datadir, 'nonexistent_wallet.bak')
@@ -126,6 +138,24 @@ class WalletBackupTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Backup file does not exist", node.restorewallet, wallet_name, nonexistent_wallet_file)
         not_created_wallet_file = os.path.join(node.datadir, self.chain, 'wallets', wallet_name)
         assert not os.path.exists(not_created_wallet_file)
+
+    def restore_preserves_existing_directory(self):
+        node = self.nodes[3]
+        wallet_dir = os.path.join(node.datadir, self.chain, 'wallets')
+        backup_file = os.path.join(self.nodes[0].datadir, 'wallet.bak')
+        invalid_path = os.path.join(node.datadir, 'x' * 256)
+        for wallet_name in ('restore_existing', os.path.join(node.datadir, 'restore_absolute')):
+            destination = os.path.join(wallet_dir, wallet_name)
+            sentinel = os.path.join(destination, 'nested', 'sentinel')
+            os.makedirs(os.path.dirname(sentinel))
+            with open(sentinel, 'w', encoding='utf8') as f:
+                f.write('preserve existing data')
+            assert_raises_rpc_error(-4, 'Unexpected exception:', node.restorewallet, wallet_name, invalid_path)
+            with open(sentinel, encoding='utf8') as f:
+                assert_equal(f.read(), 'preserve existing data')
+            assert_raises_rpc_error(-8, 'Backup file does not exist', node.restorewallet, wallet_name, backup_file + '.missing')
+            assert_raises_rpc_error(-36, 'Database already exists', node.restorewallet, wallet_name, backup_file)
+            assert os.path.isfile(sentinel)
 
     def restore_wallet_existent_name(self):
         node = self.nodes[3]
@@ -188,6 +218,8 @@ class WalletBackupTest(BitcoinTestFramework):
 
         self.restore_invalid_wallet()
         self.restore_nonexistent_wallet()
+        self.restore_preserves_existing_directory()
+        self.restore_corrupt_bdb_wallet()
 
         backup_file_0 = os.path.join(self.nodes[0].datadir, 'wallet.bak')
         backup_file_1 = os.path.join(self.nodes[1].datadir, 'wallet.bak')

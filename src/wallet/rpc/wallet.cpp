@@ -12,6 +12,7 @@
 
 #include <core_io.h>
 #include <httpserver.h>
+#include <interfaces/handler.h>
 #include <policy/policy.h>
 #include <rpc/blockchain.h>
 #include <rpc/rawtransaction_util.h>
@@ -21,6 +22,7 @@
 #include <util/fees.h>
 #include <util/translation.h>
 #include <util/vector.h>
+#include <wallet/bip39.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
@@ -379,13 +381,26 @@ static RPCHelpMan upgradetohd()
             throw JSONRPCError(RPC_WALLET_ERROR, "Private keys are disabled for this wallet");
         }
 
+        const bool allow_long{
+            EnsureWalletContext(request.context).args->GetBoolArg("-allow-deprecated-long-mnemonics", false)};
+        const size_t max_bytes{allow_long ? CMnemonic::MAX_DEPRECATED_PASSPHRASE_BYTES : CMnemonic::MAX_PASSPHRASE_BYTES};
+        if (mnemonic_passphrase.size() > max_bytes) {
+            throw JSONRPCError(
+                RPC_INVALID_PARAMETER,
+                strprintf("Mnemonic passphrase is too long, must be at most %d bytes.%s", max_bytes,
+                          allow_long ? "" : " Use -allow-deprecated-long-mnemonics only to recover an existing wallet."));
+        }
+
         pwallet->WalletLogPrintf("Upgrading wallet to HD\n");
         pwallet->SetMinVersion(FEATURE_HD);
 
+        std::unique_ptr<interfaces::Handler> relock;
         if (pwallet->IsCrypted()) {
             if (wallet_passphrase.empty()) {
                 throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: Wallet encrypted but supplied empty wallet passphrase");
             }
+
+            relock = interfaces::MakeCleanupHandler([&pwallet] { pwallet->Lock(); });
 
             // We are intentionally re-locking the wallet so we can validate passphrase
             // by verifying if it can unlock the wallet
@@ -425,10 +440,7 @@ static RPCHelpMan upgradetohd()
             }
         }
 
-        if (pwallet->IsCrypted()) {
-            // Relock encrypted wallet
-            pwallet->Lock();
-        } else if (!wallet_passphrase.empty()) {
+        if (!pwallet->IsCrypted() && !wallet_passphrase.empty()) {
             // Encrypt non-encrypted wallet
             if (!pwallet->EncryptWallet(wallet_passphrase)) {
                 throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Failed to encrypt HD wallet");

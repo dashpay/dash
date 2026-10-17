@@ -3,7 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_equal
+from test_framework.util import assert_equal, assert_raises_rpc_error
 
 '''
 rpc_masternode.py
@@ -65,6 +65,10 @@ class RPCMasternodeTest(DashTestFramework):
         # using chaintip as a start block should return 2 blocks now, with the tip being the last one
         assert_equal(len(payments2_2), 2)
         assert_equal(payments[0], payments2_2[-1])
+        # the genesis block has no previous block to pay masternodes from
+        assert_equal(self.nodes[0].masternode("payments", self.nodes[0].getblockhash(0)), [])
+        payments_to_genesis = self.nodes[0].masternode("payments", self.nodes[0].getblockhash(1), -2)
+        assert_equal([p["height"] for p in payments_to_genesis], [1])
 
         self.log.info("test that `masternode payments` results at chaintip match `getblocktemplate` results for that block")
         gbt_masternode = self.nodes[0].getblocktemplate()["masternode"]
@@ -102,6 +106,25 @@ class RPCMasternodeTest(DashTestFramework):
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
         # we have 3 masternodes that are running already and 2 new outputs we just created
         assert_equal(len(self.nodes[0].masternode("outputs")), 5)
+
+        self.log.info("test that masternode list RPCs refuse a block that is not connected")
+        node = self.nodes[0]
+        block = self.generateblock(node, output=addr1, transactions=[], submit=False)
+        node.submitheader(block["hex"][:160])
+        assert_raises_rpc_error(-8, "Block is not in main chain", node.protx, "info", self.mninfo[0].proTxHash, block["hash"])
+        assert_raises_rpc_error(-8, "Block is not in main chain", node.protx, "listdiff", 1, block["hash"])
+        assert_raises_rpc_error(-8, "Block is not in main chain", node.masternode, "payments", block["hash"])
+        # a list cached for the header alone would make the next block fail with bad-cbtx-mnmerkleroot
+        assert_equal(node.submitblock(block["hex"]), None)
+        tip = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert_equal(node.getbestblockhash(), tip)
+
+        self.log.info("test payments without historical transaction data")
+        spend_blockhash = self.nodes[0].getrawtransaction(self.mninfo[0].proTxHash, True)["blockhash"]
+        self.restart_node(0, extra_args=self.nodes[0].extra_args + ["-txindex=0"])
+        assert_raises_rpc_error(-1, "previous transaction not found",
+                                self.nodes[0].masternode, "payments", spend_blockhash)
+        self.nodes[0].getblockcount()
 
 if __name__ == '__main__':
     RPCMasternodeTest().main()

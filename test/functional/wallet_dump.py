@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the dumpwallet RPC."""
 import datetime
+import json
 import os
 import time
 
@@ -100,7 +101,39 @@ class WalletDumpTest(BitcoinTestFramework):
         self.add_nodes(self.num_nodes, extra_args=self.extra_args)
         self.start_nodes()
 
+    def test_electrum_import(self):
+        node = self.nodes[0]
+        node.createwallet('electrum_source', descriptors=False)
+        node.createwallet('electrum_destination', blank=True, descriptors=False)
+        source = node.get_wallet_rpc('electrum_source')
+        destination = node.get_wallet_rpc('electrum_destination')
+        addresses = [source.getnewaddress() for _ in range(4)]
+        secrets = [source.dumpprivkey(address) for address in addresses]
+        json_file = os.path.join(node.datadir, 'electrum.json')
+        csv_file = os.path.join(node.datadir, 'electrum.csv')
+        with open(json_file, 'wb') as f:
+            f.write(json.dumps({addresses[0]: secrets[0]}).encode() + b'\x00trailing bytes')
+        assert_raises_rpc_error(-3, 'Cannot parse Electrum wallet export file', destination.importelectrumwallet, json_file)
+        assert not destination.getaddressinfo(addresses[0])['ismine']
+        with open(json_file, 'w', encoding='utf8') as f:
+            json.dump({addresses[0]: secrets[0], addresses[1]: 'p2pkh:' + secrets[1]}, f)
+        with open(csv_file, 'w', encoding='utf8') as f:
+            f.write('address,private_key\n' + addresses[2] + ',' + secrets[2] + '\n' + addresses[3] + ',p2pkh:' + secrets[3] + '\n')
+        for filename, import_addresses in ((json_file, addresses[:2]), (csv_file, addresses[2:])):
+            assert_raises_rpc_error(-8, 'Rescan index must be non-negative', destination.importelectrumwallet, filename, -1)
+            assert all(not destination.getaddressinfo(address)['ismine'] for address in import_addresses)
+        destination.importelectrumwallet(json_file, 0)
+        destination.importelectrumwallet(csv_file, node.getblockcount())
+        destination.importelectrumwallet(json_file, node.getblockcount() + 100)
+        for address, secret in zip(addresses, secrets):
+            assert_equal(destination.dumpprivkey(address), secret)
+            signature = destination.signmessage(address, 'Electrum import regression')
+            assert node.verifymessage(address, signature, 'Electrum import regression')
+        source.unloadwallet()
+        destination.unloadwallet()
+
     def run_test(self):
+        self.test_electrum_import()
         self.nodes[0].createwallet("dump")
 
         wallet_unenc_dump = os.path.join(self.nodes[0].datadir, "wallet.unencrypted.dump")

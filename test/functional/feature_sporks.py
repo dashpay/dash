@@ -8,6 +8,7 @@ import struct
 from test_framework.messages import ser_compact_size
 from test_framework.p2p import MESSAGEMAP, P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import force_finish_mnsync
 
 
 class msg_getsporks:
@@ -111,10 +112,9 @@ class SporkTest(BitcoinTestFramework):
         assert self.get_test_spork_state(self.nodes[0]) == spork_new_state
         assert self.get_test_spork_state(self.nodes[1]) == spork_new_state
 
-        # Generate one block to kick off masternode sync, which also starts sporks syncing for node2
-        self.generate(self.nodes[1], 1, sync_fun=self.no_op)
-
-        # connect new node and check spork propagation after restoring from cache
+        # A node that has already finished mnsync must still pick up sporks from a new peer,
+        # here one that connects to it inbound after restoring its sporks from cache
+        force_finish_mnsync(self.nodes[2])
         self.connect_nodes(1, 2)
         self.wait_until(lambda: self.get_test_spork_state(self.nodes[2]), timeout=10)
 

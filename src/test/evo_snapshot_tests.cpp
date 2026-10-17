@@ -1017,7 +1017,7 @@ BOOST_FIXTURE_TEST_CASE(nested_mn_map_wire_order_is_canonical, BasicTestingSetup
     BOOST_REQUIRE(info_input.empty());
 
     const auto is_noncanonical = [](const auto& e) {
-        return std::string{e.what()}.find("noncanonical MN object encoding") != std::string::npos;
+        return std::string{e.what()}.find("ExtNetInfo:") != std::string::npos;
     };
     for (const bool duplicate : {false, true}) {
         auto changed_entries{entries};
@@ -1042,8 +1042,7 @@ BOOST_FIXTURE_TEST_CASE(nested_mn_map_wire_order_is_canonical, BasicTestingSetup
         };
         const auto changed_mn{replace_info(*mn)};
         auto ordinary_input{changed_mn};
-        const CDeterministicMN ordinary{deserialize, ordinary_input};
-        BOOST_CHECK(ordinary.pdmnState->netInfo->Validate() == NetInfoStatus::Success);
+        BOOST_CHECK_THROW(CDeterministicMN(deserialize, ordinary_input), std::ios_base::failure);
 
         CDataStream base{SER_DISK, CLIENT_VERSION};
         base << H(42) << 42 << uint32_t{10};

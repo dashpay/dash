@@ -291,7 +291,7 @@ NetInfoStatus MnNetInfo::ValidateService(const CService& service)
     if (!service.IsIPv4()) {
         return NetInfoStatus::BadType;
     }
-    if (Params().RequireRoutableExternalIP() && !service.IsRoutable()) {
+    if (Params().RequireRoutableExternalIP() && (service.IsRFC1918() || !service.IsRoutable())) {
         return NetInfoStatus::NotRoutable;
     }
 
@@ -383,19 +383,18 @@ std::string MnNetInfo::ToString() const
 bool ExtNetInfo::HasAddrPortDuplicates() const
 {
     std::set<NetInfoEntry> known{};
-    for (const auto& entry : m_all_entries) {
+    for (const auto& entry : GetEntries()) {
         if (auto [_, inserted] = known.insert(entry); !inserted) {
             return true;
         }
     }
-    ASSERT_IF_DEBUG(known.size() == m_all_entries.size());
     return false;
 }
 
 bool ExtNetInfo::IsAddrPortDuplicate(const NetInfoEntry& candidate) const
 {
-    return std::any_of(m_all_entries.begin(), m_all_entries.end(),
-                       [&candidate](const auto& entry) { return candidate == entry; });
+    const auto entries{GetEntries()};
+    return std::any_of(entries.begin(), entries.end(), [&candidate](const auto& entry) { return candidate == entry; });
 }
 
 bool ExtNetInfo::HasAddrDuplicates(const NetInfoList& entries)
@@ -443,9 +442,6 @@ NetInfoStatus ExtNetInfo::ProcessCandidate(const NetInfoPurpose purpose, const N
         auto [_, status] = m_data.try_emplace(purpose, std::vector<NetInfoEntry>({candidate}));
         assert(status); // We did just check to see if our value already existed, try_emplace shouldn't fail
     }
-
-    // Candidate successfully added, update cache
-    m_all_entries.push_back(candidate);
     return NetInfoStatus::Success;
 }
 
@@ -457,7 +453,7 @@ NetInfoStatus ExtNetInfo::ValidateService(const NetInfoPurpose purpose, const CS
     if (!service.IsCJDNS() && !service.IsI2P() && !service.IsIPv4() && !service.IsIPv6() && !service.IsTor()) {
         return NetInfoStatus::BadType;
     }
-    if (Params().RequireRoutableExternalIP() && !service.IsRoutable()) {
+    if (Params().RequireRoutableExternalIP() && (service.IsRFC1918() || !service.IsRoutable())) {
         return NetInfoStatus::NotRoutable;
     }
     const uint16_t service_port{service.GetPort()};
@@ -553,10 +549,11 @@ NetInfoStatus ExtNetInfo::AddEntry(const NetInfoPurpose purpose, const std::stri
 NetInfoList ExtNetInfo::GetEntries(std::optional<NetInfoPurpose> purpose_opt) const
 {
     if (!purpose_opt) {
-        // Without a purpose code specified, we're being requested for a flattened list of all
-        // entries. ExtNetInfo is an append-only structure, so we can avoid re-calculating a
-        // list of all entries by maintaining a small cache.
-        return m_all_entries;
+        NetInfoList ret;
+        for (const auto& [_, entries] : m_data) {
+            ret.insert(ret.end(), entries.begin(), entries.end());
+        }
+        return ret;
     }
     if (!IsValidPurpose(*purpose_opt)) return NetInfoList{};
     const auto& it{m_data.find(*purpose_opt)};
@@ -594,9 +591,6 @@ NetInfoStatus ExtNetInfo::Validate() const
         return NetInfoStatus::Duplicate;
     }
     for (const auto& [purpose, entries] : m_data) {
-        if (!IsValidPurpose(purpose)) {
-            return NetInfoStatus::Malformed;
-        }
         if (entries.empty()) {
             // Purpose if present in map must have at least one entry
             return NetInfoStatus::Malformed;
@@ -610,27 +604,18 @@ NetInfoStatus ExtNetInfo::Validate() const
             return NetInfoStatus::Duplicate;
         }
         for (const auto& entry : entries) {
-            if (!entry.IsTriviallyValid()) {
-                // Trivially invalid NetInfoEntry, no point checking against consensus rules
-                return NetInfoStatus::Malformed;
-            }
+            NetInfoStatus ret{NetInfoStatus::Malformed};
             if (const auto& service_opt{entry.GetAddrPort()}) {
-                if (auto ret{ValidateService(purpose, *service_opt)}; ret != NetInfoStatus::Success) {
-                    // Stores CService underneath but doesn't pass validation rules
-                    return ret;
-                }
+                ret = ValidateService(purpose, *service_opt);
             } else if (const auto domain_opt{entry.GetDomainPort()}) {
                 if (purpose != NetInfoPurpose::PLATFORM_HTTPS) {
                     // Domains only allowed for Platform HTTPS API
                     return NetInfoStatus::BadInput;
                 }
-                if (auto ret{ValidateDomainPort(*domain_opt)}; ret != NetInfoStatus::Success) {
-                    // Stores DomainPort underneath but doesn't pass validation rules
-                    return ret;
-                }
-            } else {
-                // Doesn't store valid type underneath
-                return NetInfoStatus::Malformed;
+                ret = ValidateDomainPort(*domain_opt);
+            }
+            if (ret != NetInfoStatus::Success) {
+                return ret;
             }
         }
     }
