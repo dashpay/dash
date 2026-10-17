@@ -2487,14 +2487,13 @@ bool CWallet::SignGovernanceVote(const CKeyID& keyID, CGovernanceVote& vote) con
     return true;
 }
 
-void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm)
+util::Result<void> CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm)
 {
     LOCK(cs_wallet);
     WalletLogPrintf("CommitTransaction:\n%s", tx->ToString()); /* Continued */
 
-    // Add tx to wallet, because if it has change it's also ours,
-    // otherwise just for transaction history.
-    CWalletTx* wtx = AddToWallet(tx, TxStateInactive{}, [&](CWalletTx& wtx, bool new_tx) {
+    // What this commit records about the transaction.
+    const auto record_commit{[&](CWalletTx& wtx, bool new_tx) {
         CHECK_NONFATAL(wtx.mapValue.empty());
         CHECK_NONFATAL(wtx.vOrderForm.empty());
         wtx.mapValue = std::move(mapValue);
@@ -2502,7 +2501,42 @@ void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
         wtx.fTimeReceivedIsTxTime = true;
         wtx.fFromMe = true;
         return true;
-    });
+    }};
+
+    // A transaction the wallet already holds as confirmed or in the mempool was
+    // sent. Committing it again must not hand AddToWallet() an inactive state,
+    // which would undo that and, once the broadcast is refused as already
+    // known, let the caller abandon it and release its spent inputs. It still
+    // gets this commit's record, which it lacks if the wallet first saw it
+    // relayed or mined through another path.
+    if (const auto it{mapWallet.find(tx->GetHash())}; it != mapWallet.end() && (it->second.isConfirmed() || it->second.InMempool())) {
+        CWalletTx& sent{it->second};
+        sent.mapValue.clear();
+        sent.vOrderForm.clear();
+        record_commit(sent, /*new_tx=*/false);
+        if (!WalletBatch{GetDatabase()}.WriteTx(sent)) {
+            throw std::runtime_error(std::string(__func__) + ": Wallet db error, transaction commit failed");
+        }
+        NotifyTransactionChanged(sent.GetHash(), CT_UPDATED);
+        return {};
+    }
+
+    // Committing a transaction the wallet holds abandoned, such as an identical
+    // retry of a send whose broadcast was refused, takes it back as if new: its
+    // inputs are spent again, as when an abandoned transaction re-enters the
+    // mempool, and AddToWallet() finds the state it is given.
+    if (const auto it{mapWallet.find(tx->GetHash())}; it != mapWallet.end() && it->second.isAbandoned()) {
+        CWalletTx& abandoned{it->second};
+        abandoned.m_state = TxStateInactive{};
+        abandoned.mapValue.clear();
+        abandoned.vOrderForm.clear();
+        WalletBatch batch{GetDatabase()};
+        ReconcileWalletUTXOs(abandoned.tx, batch);
+    }
+
+    // Add tx to wallet, because if it has change it's also ours,
+    // otherwise just for transaction history.
+    CWalletTx* wtx = AddToWallet(tx, TxStateInactive{}, record_commit);
 
     // wtx can only be null if the db write failed.
     if (!wtx) {
@@ -2523,14 +2557,26 @@ void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
 
     if (!fBroadcastTransactions) {
         // Don't submit tx to the mempool
-        return;
+        return {};
     }
 
     bilingual_str err_string;
     if (!SubmitTxMemoryPoolAndRelay(*wtx, err_string, true)) {
+        // A transaction already in the chain, e.g. mined through another path
+        // before this wallet processed its block, was sent. BroadcastTransaction
+        // refuses it without a reason, having found its outputs.
+        if (err_string.empty()) {
+            std::map<COutPoint, Coin> outputs;
+            for (uint32_t i{0}; i < tx->vout.size(); ++i) outputs.emplace(COutPoint{tx->GetHash(), i}, Coin{});
+            chain().findCoins(outputs);
+            if (std::any_of(outputs.begin(), outputs.end(), [](const auto& output) { return !output.second.IsSpent(); })) return {};
+        }
         WalletLogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", err_string.original);
         // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
+        // Not every refusal carries a reason, e.g. the -maxtxfee check in BroadcastTransaction.
+        return util::Error{err_string.empty() ? _("Transaction could not be broadcast") : err_string};
     }
+    return {};
 }
 
 DBErrors CWallet::LoadWallet()
@@ -4014,6 +4060,13 @@ PlatformKeyStatus CWallet::DerivePlatformKey(const PlatformKeyRequest& request, 
     return DerivePlatformKey(platformkeys::PlatformKeyPath(static_cast<uint32_t>(Params().ExtCoinType()), request), out);
 }
 
+PlatformKeyStatus CWallet::GetPlatformKeySourceStatus() const
+{
+    LOCK(cs_wallet);
+    const ScriptPubKeyMan* source{nullptr};
+    return GetPlatformKeySource(source);
+}
+
 PlatformKeyResult<CPubKey> CWallet::GetPlatformPubKey(const PlatformKeyRequest& request) const
 {
     LOCK(cs_wallet);
@@ -4056,15 +4109,50 @@ PlatformKeyResult<SecureVector> CWallet::PlatformECDHSecret(const IdentityAuthKe
     return result;
 }
 
+PlatformKeyResult<uint32_t> CWallet::PlatformAccountReference(const IdentityAuthKey& request, const CompactXpub& compact_xpub) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<uint32_t> result;
+    platformkeys::ExtKey256 key;
+    uint256 mac;
+    result.status = DerivePlatformKey(PlatformKeyRequest{request}, key);
+    if (result.status != PlatformKeyStatus::SUCCESS) return result;
+    if (!platformkeys::ComputeAccountReferenceMac(key.key, compact_xpub, mac)) {
+        result.status = PlatformKeyStatus::DERIVATION_ERROR;
+        return result;
+    }
+    result.value = platformkeys::AccountReferenceFromMac(mac);
+    return result;
+}
+
+PlatformKeyStatus CWallet::DeriveFriendshipReceivingKey(const FriendshipKeychainRequest& request,
+                                                        platformkeys::ExtKey256& out) const
+{
+    AssertLockHeld(cs_wallet);
+    return DerivePlatformKey(platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
+                                                          Span{request.local_id.begin(), uint256::size()},
+                                                          Span{request.remote_id.begin(), uint256::size()}),
+                             out);
+}
+
+PlatformKeyResult<FriendshipXpub> CWallet::GetFriendshipReceivingXpub(const FriendshipKeychainRequest& request) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<FriendshipXpub> result;
+    platformkeys::ExtKey256 key;
+    result.status = DeriveFriendshipReceivingKey(request, key);
+    if (result.status == PlatformKeyStatus::SUCCESS) {
+        result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+    }
+    return result;
+}
+
 PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
 {
     LOCK(cs_wallet);
     PlatformKeyResult<FriendshipXpub> result;
-    const auto path{platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
-                                                 Span{request.local_id.begin(), uint256::size()},
-                                                 Span{request.remote_id.begin(), uint256::size()})};
     platformkeys::ExtKey256 key;
-    result.status = DerivePlatformKey(path, key);
+    result.status = DeriveFriendshipReceivingKey(request, key);
     if (result.status != PlatformKeyStatus::SUCCESS) return result;
 
     CExtKey xprv{};
@@ -4096,7 +4184,7 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         return result;
     }
 
-    result.value = {key.key.GetPubKey(), key.chaincode};
+    result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     return result;
 }
 

@@ -810,7 +810,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
             }
         }
 
-        opt_assetLockPayload.emplace(creditOutputs, CAssetLockPayload::CURRENT_VERSION);
+        opt_assetLockPayload.emplace(creditOutputs, coin_control.m_asset_lock_version.value_or(CAssetLockPayload::CURRENT_VERSION));
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << *opt_assetLockPayload;
         nExtraPayloadSize = ss.size();
@@ -1130,13 +1130,17 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         return util::Error{_("Transaction too large")};
     }
 
-    // An asset lock for Platform recipients carries payload version 2, which is
-    // deliberately non-standard until Platform can process it. Returning such a
-    // transaction hands the caller a txid for something the local mempool drops on
-    // submission and that therefore never relays, so fail before it is committed.
+    // An asset lock for Platform recipients carries payload version 2 by default,
+    // which is deliberately non-standard until Platform can process it. Returning
+    // a non-standard transaction hands the caller a txid for something the local
+    // mempool drops on submission and that therefore never relays, so fail before
+    // it is committed.
     if (std::string reason; opt_assetLockPayload && wallet.chain().isNonStandardSpecialTx(tx, reason)) {
-        return util::Error{strprintf(_("Transaction is non-standard (%s) and would not relay; sending to Platform "
-                                       "addresses currently requires a node started with -acceptnonstdtxn=1"), reason)};
+        if (opt_assetLockPayload->getVersion() == CAssetLockPayload::CURRENT_VERSION) {
+            return util::Error{strprintf(_("Transaction is non-standard (%s) and would not relay; sending to Platform "
+                                           "addresses currently requires a node started with -acceptnonstdtxn=1"), reason)};
+        }
+        return util::Error{strprintf(_("Transaction is non-standard (%s) and would not relay"), reason)};
     }
 
     if (current_fee > wallet.m_default_max_tx_fee) {
