@@ -10,6 +10,8 @@
 #include <support/allocators/secure.h>
 #include <uint256.h>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <variant>
 
@@ -53,6 +55,10 @@ struct InvitationFundingKey {
 
 using PlatformKeyRequest = std::variant<IdentityAuthKey, RegistrationFundingKey, TopupFundingKey, InvitationFundingKey>;
 
+//! The keys an asset lock's credit output may pay: every one is derived from
+//! the wallet's seed, so the credits it funds can be recovered.
+using AssetLockFundingKey = std::variant<RegistrationFundingKey, TopupFundingKey, InvitationFundingKey>;
+
 struct FriendshipKeychainRequest {
     uint32_t account{0};
     uint256 local_id;
@@ -63,7 +69,19 @@ struct FriendshipKeychainRequest {
 struct FriendshipXpub {
     CPubKey pubkey;
     ChainCode chaincode;
+    //! BIP32 fingerprint (Hash160 prefix) of the parent key, m/9'/coin'/15'/account'/<user_a>.
+    std::array<uint8_t, 4> parent_fingerprint{};
 };
+
+//! DIP-15 compact xpub: parentFingerprint(4) || chainCode(32) || pubKey(33).
+//! It is the contactRequest encryptedPublicKey plaintext and the
+//! accountReference MAC input, with no version, depth or child number.
+inline constexpr size_t COMPACT_XPUB_SIZE{4 + 32 + 33};
+using CompactXpub = std::array<uint8_t, COMPACT_XPUB_SIZE>;
+
+//! Serialize a friendship xpub in the compact form. Fails for a xpub whose
+//! key is not compressed, as externally supplied contact xpubs may be.
+[[nodiscard]] bool CompactXpubBytes(const FriendshipXpub& xpub, CompactXpub& compact_out);
 
 //! Derive one contact payment destination from a DIP-15 friendship xpub.
 //! This is public-only key math and does not require a wallet instance.

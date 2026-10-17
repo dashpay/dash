@@ -6,14 +6,54 @@
 #include <qt/sendcoinsentry.h>
 #include <qt/forms/ui_sendcoinsentry.h>
 
+#include <base58.h>
 #include <qt/addressbookpage.h>
 #include <qt/addresstablemodel.h>
+#include <qt/bitcoinaddressvalidator.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/walletmodel.h>
 
 #include <QApplication>
 #include <QClipboard>
+
+#include <algorithm>
+
+#ifdef ENABLE_PLATFORM_GUI
+namespace {
+//! The address validator, which also lets a DashPay username through: a
+//! DPNS label has the letters and digits Base58 leaves out, and hyphens.
+//! Whether the text is an address is still checked when the entry is sent.
+class RecipientEntryValidator : public BitcoinAddressEntryValidator
+{
+public:
+    explicit RecipientEntryValidator(QObject* parent) :
+        BitcoinAddressEntryValidator(parent, /*fAllowURI=*/true)
+    {
+    }
+
+    State validate(QString& input, int& pos) const override
+    {
+        const State state{BitcoinAddressEntryValidator::validate(input, pos)};
+        if (state != Invalid) return state;
+        const auto username_char = [](QChar ch) {
+            const ushort c{ch.unicode()};
+            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '-';
+        };
+        return std::all_of(input.begin(), input.end(), username_char) ? Acceptable : Invalid;
+    }
+};
+
+//! Whether text is what an address looks like, mistyped or of another
+//! network included: Base58 of an address's length, which every valid address
+//! is. Such text is not sent to an evonode as a username.
+bool LooksLikeAddress(const QString& text)
+{
+    std::vector<unsigned char> data;
+    return DecodeBase58(text.toStdString(), data, /*max_ret_len=*/25) && data.size() == 25;
+}
+} // namespace
+#endif
 
 SendCoinsEntry::SendCoinsEntry(QWidget* parent) :
     QWidget(parent),
@@ -41,6 +81,24 @@ SendCoinsEntry::SendCoinsEntry(QWidget* parent) :
     connect(ui->deleteButton, &QPushButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->useAvailableBalanceButton, &QPushButton::clicked, this, &SendCoinsEntry::useAvailableBalanceClicked);
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void SendCoinsEntry::allowUsername()
+{
+    ui->payTo->setValidator(new RecipientEntryValidator(this));
+    // Leaving the field with a username in it announces it, once: a message
+    // box opened for the answer takes the focus, and giving it back leaves
+    // the field again. Nothing is announced while it is typed, because what
+    // is looked up goes to an evonode.
+    connect(ui->payTo, &QLineEdit::editingFinished, this, [this] {
+        const QString text{ui->payTo->text()};
+        if (text.isEmpty() || m_announced || LooksLikeAddress(text)) return;
+        m_announced = true;
+        Q_EMIT usernameEntered(text);
+    });
+    connect(ui->payTo, &QLineEdit::textChanged, this, [this] { m_announced = false; });
+}
+#endif
 
 SendCoinsEntry::~SendCoinsEntry()
 {

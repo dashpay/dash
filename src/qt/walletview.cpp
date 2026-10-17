@@ -14,6 +14,9 @@
 #include <qt/mnemonicverificationdialog.h>
 #include <qt/optionsmodel.h>
 #include <qt/overviewpage.h>
+#ifdef ENABLE_PLATFORM_GUI
+#include <qt/platform/platformpage.h>
+#endif
 #include <qt/receivecoinsdialog.h>
 #include <qt/sendcoinsdialog.h>
 #include <qt/signverifymessagedialog.h>
@@ -106,6 +109,29 @@ WalletView::WalletView(WalletModel* wallet_model, QWidget* parent)
     proposalListPage->setWalletModel(walletModel);
     addWidget(proposalListPage);
 
+#ifdef ENABLE_PLATFORM_GUI
+    sendCoinsPage->allowUsernames();
+    platformPage = new PlatformPage();
+    platformPage->setWalletModel(walletModel);
+    addWidget(platformPage);
+    connect(platformPage, &PlatformPage::payTo, this, [this](const QString& address, const QString& username) {
+        if (username.isEmpty()) {
+            sendCoinsPage->setAddress(address);
+            Q_EMIT contactPaymentPrepared();
+        } else {
+            sendCoinsPage->setUsernameAddress(username, address);
+        }
+    });
+    // Queued: the message box is modal, and it must not open inside the call that failed.
+    connect(
+        platformPage, &PlatformPage::usernameNotPaid, this,
+        [this](const QString&, const QString& error) {
+            Q_EMIT message(tr("DashPay"), error, CClientUIInterface::MSG_WARNING);
+        },
+        Qt::QueuedConnection);
+    connect(sendCoinsPage, &SendCoinsDialog::usernameEntered, platformPage, &PlatformPage::payUsername);
+#endif
+
     connect(proposalListPage, &ProposalList::showProposalInfo, this, &WalletView::showProposalInfo);
 
     connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::transactionClicked);
@@ -173,6 +199,9 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     if (proposalListPage != nullptr) {
         proposalListPage->setClientModel(_clientModel);
     }
+#ifdef ENABLE_PLATFORM_GUI
+    platformPage->setClientModel(_clientModel);
+#endif
     walletModel->setClientModel(_clientModel);
 }
 
@@ -225,6 +254,13 @@ void WalletView::gotoMasternodePage()
 {
     setCurrentWidget(masternodeListPage);
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void WalletView::gotoPlatformPage()
+{
+    setCurrentWidget(platformPage);
+}
+#endif
 
 void WalletView::gotoReceiveCoinsPage()
 {

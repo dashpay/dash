@@ -307,6 +307,14 @@ if test "$enable_miner" = "yes"; then
     AC_DEFINE(ENABLE_MINER, 1, [Define this symbol if in-wallet miner should be enabled])
 fi
 
+AC_ARG_ENABLE([platform-gui],
+    [AS_HELP_STRING([--enable-platform-gui],
+                    [enable Dash Platform (usernames, DashPay contacts) in the GUI; requires the GUI, the wallet and the Dash Platform SDK's C++ binding (dash-sdk-cxx) built by depends with PLATFORM_GUI=1 (default is no)])],
+    [enable_platform_gui=$enableval],
+    [enable_platform_gui=no])
+AC_ARG_VAR([PLATFORM_CXX_CFLAGS], [C++ compiler flags for dash-sdk-cxx, overriding pkg-config])
+AC_ARG_VAR([PLATFORM_CXX_LIBS], [Linker flags for dash-sdk-cxx, overriding pkg-config (default: the library and the vetted system libraries from the depends dash_sdk_cxx.pc)])
+
 dnl Enable different -fsanitize options
 AC_ARG_WITH([sanitizers],
     [AS_HELP_STRING([--with-sanitizers],
@@ -1926,6 +1934,41 @@ if test "$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_bitcoin_
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-fuzz(-binary) --enable-bench or --enable-tests])
 fi
 
+dnl dash-sdk-cxx, the C++ binding of the Dash Platform SDK, is a Rust static
+dnl library linked into dash-qt (and its tests) only. depends installs
+dnl dash_sdk_cxx.pc, whose Libs are the library and the vetted system libraries
+dnl it needs; depends checks those against rustc's --print=native-static-libs.
+if test "$enable_platform_gui" = "yes"; then
+  if test "$bitcoin_enable_qt" != "yes"; then
+    AC_MSG_ERROR([--enable-platform-gui requires the GUI])
+  fi
+  if test "$enable_wallet" != "yes"; then
+    AC_MSG_ERROR([--enable-platform-gui requires the wallet])
+  fi
+  PKG_CHECK_MODULES([PLATFORM_CXX], [dash_sdk_cxx], [],
+    [AC_MSG_ERROR([--enable-platform-gui requires dash-sdk-cxx (build depends with PLATFORM_GUI=1)])])
+  TEMP_CPPFLAGS="$CPPFLAGS"
+  TEMP_LIBS="$LIBS"
+  CPPFLAGS="$CPPFLAGS $PLATFORM_CXX_CFLAGS"
+  LIBS="$PLATFORM_CXX_LIBS $LIBS"
+  AC_LANG_PUSH([C++])
+  AC_MSG_CHECKING([whether a program using dash-sdk-cxx links])
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <dash/sdk/ffi.h>
+    ]], [[
+      rust::Box<dash_sdk::PlatformClient> client{dash_sdk::new_platform_client(dash_sdk::Config{}, nullptr)};
+      client->shutdown();
+    ]])],
+    [AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])
+     AC_MSG_ERROR([a program using dash-sdk-cxx does not link; see config.log])])
+  AC_LANG_POP([C++])
+  CPPFLAGS="$TEMP_CPPFLAGS"
+  LIBS="$TEMP_LIBS"
+  AC_DEFINE([ENABLE_PLATFORM_GUI], [1], [Define this symbol to enable Dash Platform support in the GUI])
+fi
+AM_CONDITIONAL([ENABLE_PLATFORM_GUI], [test "$enable_platform_gui" = "yes"])
+
 AM_CONDITIONAL([TARGET_DARWIN], [test "$TARGET_OS" = "darwin"])
 AM_CONDITIONAL([BUILD_DARWIN], [test "$BUILD_OS" = "darwin"])
 AM_CONDITIONAL([TARGET_LINUX], [test "$TARGET_OS" = "linux"])
@@ -2121,6 +2164,7 @@ echo "  debug enabled   = $enable_debug"
 echo "  stacktraces     = $enable_stacktraces"
 echo "  crash hooks     = $enable_crashhooks"
 echo "  miner enabled   = $enable_miner"
+echo "  platform gui    = $enable_platform_gui"
 echo "  werror          = $enable_werror"
 echo
 echo "  target os       = $host_os"
