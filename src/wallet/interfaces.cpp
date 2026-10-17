@@ -286,6 +286,10 @@ public:
     {
         return m_wallet->SignPlatformDigest(request, digest);
     }
+    wallet::PlatformKeyResult<CKey> exportInvitationKey(const wallet::InvitationFundingKey& key) override
+    {
+        return m_wallet->ExportInvitationKey(key);
+    }
     wallet::PlatformKeyResult<SecureVector> platformECDHSecret(const wallet::IdentityAuthKey& key,
                                                                const CPubKey& counterparty) override
     {

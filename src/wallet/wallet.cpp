@@ -4091,6 +4091,16 @@ PlatformKeyResult<std::vector<unsigned char>> CWallet::SignPlatformDigest(const 
     return result;
 }
 
+PlatformKeyResult<CKey> CWallet::ExportInvitationKey(const InvitationFundingKey& request) const
+{
+    LOCK(cs_wallet);
+    platformkeys::ExtKey256 key;
+    PlatformKeyResult<CKey> result;
+    result.status = DerivePlatformKey(PlatformKeyRequest{request}, key);
+    if (result.status == PlatformKeyStatus::SUCCESS) result.value = key.key;
+    return result;
+}
+
 PlatformKeyResult<SecureVector> CWallet::PlatformECDHSecret(const IdentityAuthKey& request, const CPubKey& counterparty) const
 {
     LOCK(cs_wallet);

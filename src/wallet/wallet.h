@@ -1116,6 +1116,7 @@ public:
     PlatformKeyResult<CPubKey> GetPlatformPubKey(const PlatformKeyRequest& request) const;
     PlatformKeyResult<std::vector<unsigned char>> SignPlatformDigest(const PlatformKeyRequest& request,
                                                                      const uint256& digest) const;
+    PlatformKeyResult<CKey> ExportInvitationKey(const InvitationFundingKey& key) const;
     PlatformKeyResult<SecureVector> PlatformECDHSecret(const IdentityAuthKey& key, const CPubKey& counterparty) const;
     PlatformKeyResult<uint32_t> PlatformAccountReference(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
     PlatformKeyResult<FriendshipXpub> GetFriendshipReceivingXpub(const FriendshipKeychainRequest& request) const;

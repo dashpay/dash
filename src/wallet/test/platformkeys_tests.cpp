@@ -551,9 +551,10 @@ struct SeededWalletPair : public Dip14WalletSetup {
     std::unique_ptr<interfaces::Wallet> m_iface_b;
 };
 
-//! Identity authentication and funding pubkeys must rederive byte-identical
-//! after a seed-only restore, and must equal the raw DIP-13 derivation from
-//! the known seed (pinning the interface to the vector-backed path math).
+//! Identity authentication and funding pubkeys, and the exported invitation
+//! voucher key, must rederive byte-identical after a seed-only restore, and
+//! must equal the raw DIP-13 derivation from the known seed (pinning the
+//! interface to the vector-backed path math).
 BOOST_FIXTURE_TEST_CASE(recovery_auth_key_rederivation, SeededWalletPair)
 {
     const auto coin_type{static_cast<uint32_t>(Params().ExtCoinType())};
@@ -576,6 +577,18 @@ BOOST_FIXTURE_TEST_CASE(recovery_auth_key_rederivation, SeededWalletPair)
     BOOST_REQUIRE(funding_original);
     BOOST_REQUIRE(funding_restored);
     BOOST_CHECK(funding_original.value == funding_restored.value);
+
+    // An invitation's voucher key is the one exported: the restored wallet
+    // exports the same key, the one the invitation's asset lock pays.
+    const auto voucher{m_iface->exportInvitationKey(InvitationFundingKey{2})};
+    const auto voucher_restored{m_iface_b->exportInvitationKey(InvitationFundingKey{2})};
+    const auto voucher_pubkey{m_iface->getPlatformPubKey(InvitationFundingKey{2})};
+    BOOST_REQUIRE(voucher && voucher_restored && voucher_pubkey);
+    BOOST_CHECK(voucher.value == voucher_restored.value);
+    BOOST_CHECK(voucher.value.GetPubKey() == voucher_pubkey.value);
+    ExtKey256 expected_voucher;
+    BOOST_REQUIRE(DeriveExtKey(Dip14Master(), PlatformKeyPath(coin_type, InvitationFundingKey{2}), expected_voucher));
+    BOOST_CHECK(voucher.value == expected_voucher.key);
 }
 
 //! Independent BIP32 vectors generated from Dip14Seed() with Python's stdlib

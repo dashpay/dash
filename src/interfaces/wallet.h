@@ -165,6 +165,11 @@ public:
     virtual wallet::PlatformKeyResult<std::vector<unsigned char>> signPlatformDigest(const wallet::PlatformKeyRequest& request,
                                                                                      const uint256& digest) = 0;
 
+    //! The private key an invitation's asset lock pays. It is the voucher an
+    //! invitation link hands over, so it is the one Platform key the wallet
+    //! exports.
+    virtual wallet::PlatformKeyResult<CKey> exportInvitationKey(const wallet::InvitationFundingKey& key) = 0;
+
     //! ECDH shared secret between the identity authentication key
     //! and a counterparty public key, using the libsecp256k1 ECDH KDF.
     virtual wallet::PlatformKeyResult<SecureVector> platformECDHSecret(const wallet::IdentityAuthKey& key,
