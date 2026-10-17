@@ -99,6 +99,7 @@ public:
 
     const CKeyID& keyIdOwnerRaw() const { return m_dmn->getKeyIdOwner(); }
     const CKeyID& keyIdVotingRaw() const { return m_dmn->getKeyIdVoting(); }
+    std::vector<CService> platformHTTPSAddrsRaw() const { return m_dmn->getPlatformHTTPSAddrs(); }
     const COutPoint& collateralOutpointRaw() const { return m_dmn->getCollateralOutpoint(); }
     const CScript& scriptOperatorPayoutRaw() const { return m_dmn->getScriptOperatorPayout(); }
     const CScript& scriptPayoutRaw() const { return m_dmn->getScriptPayout(); }
