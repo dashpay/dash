@@ -129,6 +129,23 @@ struct VoteState {
     Identifier winner_identity{}; //!< meaningful only for Winner::IDENTITY
 };
 
+//! A DashPay profile document: its display name and public message; an
+//! empty field is absent. Its avatar fields are not read: Core publishes
+//! none, and leaves those of a profile made elsewhere as they are.
+struct Profile {
+    Identifier owner{};
+    std::string display_name;
+    std::string public_message;
+
+    friend bool operator==(const Profile&, const Profile&) = default;
+};
+
+//! The fields of a profile to publish; an empty one is left as it is.
+struct ProfileFields {
+    std::string display_name;
+    std::string public_message;
+};
+
 enum class ContactDirection : uint8_t {
     SENT,
     RECEIVED,

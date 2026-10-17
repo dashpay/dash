@@ -23,10 +23,13 @@ Result<Names> FromFfi(const dash_sdk::NamesResult& result);
 Result<std::vector<Contest>> FromFfi(const dash_sdk::ContestsResult& result);
 Result<VoteState> FromFfi(const dash_sdk::VoteStateResult& result);
 Result<std::vector<ContactRequest>> FromFfi(const dash_sdk::ContactRequestsResult& result);
+Result<std::vector<Profile>> FromFfi(const dash_sdk::ProfilesResult& result);
+Result<Profile> FromFfi(const dash_sdk::ProfileResult& result);
 
 std::vector<dash_sdk::IdentityKey> ToFfi(const std::vector<IdentityPublicKey>& keys);
 dash_sdk::AssetLockProof ToFfi(const AssetLockProof& proof);
 dash_sdk::ContactRequestInput ToFfi(const ContactRequestInput& input);
+dash_sdk::ProfileFields ToFfi(const ProfileFields& fields);
 dash_sdk::Proxy ToFfi(const std::optional<ProxyConfig>& proxy);
 
 } // namespace platform::marshal

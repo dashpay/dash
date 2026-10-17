@@ -170,6 +170,13 @@ public:
         Submit<VoteState>([this, label] { return marshal::FromFfi(m_sdk->contested_vote_state(label)); }, std::move(cb));
     }
 
+    void getProfiles(const std::vector<Identifier>& owners, Callback<std::vector<Profile>> cb) override
+    {
+        Submit<std::vector<Profile>>(
+            [this, owners] { return marshal::FromFfi(m_sdk->get_profiles({owners.data(), owners.size()})); },
+            std::move(cb));
+    }
+
     void contactRequests(const Identifier& identity, ContactDirection direction, uint64_t since_ms,
                          Callback<std::vector<ContactRequest>> cb) override
     {
@@ -216,6 +223,28 @@ public:
             [this, label, identity, key_id, contest_fund, &wallet = signing.wallet, index = signing.identity_index] {
                 return marshal::FromFfi(m_sdk->register_dpns_name(label, identity, key_id, contest_fund,
                                                                   MakeWalletSigner(wallet, index, std::nullopt)));
+            },
+            std::move(cb), std::move(signing.unlock));
+    }
+
+    void createProfile(const Identifier& owner, uint32_t key_id, const ProfileFields& fields, Signing signing,
+                       Callback<Profile> cb) override
+    {
+        Submit<Profile>(
+            [this, owner, key_id, fields, &wallet = signing.wallet, index = signing.identity_index] {
+                return marshal::FromFfi(m_sdk->create_profile(owner, key_id, marshal::ToFfi(fields),
+                                                              MakeWalletSigner(wallet, index, std::nullopt)));
+            },
+            std::move(cb), std::move(signing.unlock));
+    }
+
+    void updateProfile(const Identifier& owner, uint32_t key_id, const ProfileFields& fields, Signing signing,
+                       Callback<Profile> cb) override
+    {
+        Submit<Profile>(
+            [this, owner, key_id, fields, &wallet = signing.wallet, index = signing.identity_index] {
+                return marshal::FromFfi(m_sdk->update_profile(owner, key_id, marshal::ToFfi(fields),
+                                                              MakeWalletSigner(wallet, index, std::nullopt)));
             },
             std::move(cb), std::move(signing.unlock));
     }

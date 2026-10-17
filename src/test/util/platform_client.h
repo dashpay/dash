@@ -45,6 +45,9 @@ public:
     std::deque<platform::Result<uint64_t>> top_ups;
     std::deque<platform::Result<platform::Identifier>> registered_names;
     std::deque<platform::Result<platform::Identifier>> sent_contact_requests;
+    std::deque<platform::Result<std::vector<platform::Profile>>> profiles;
+    //! The answers to createProfile and updateProfile.
+    std::deque<platform::Result<platform::Profile>> written_profiles;
 
     std::vector<Call> calls;
     //! The asset lock proofs of registerIdentity and topUpIdentity, in call order.
@@ -55,6 +58,16 @@ public:
     std::vector<uint64_t> name_contest_funds;
     //! The input of each sendContactRequest, in call order.
     std::vector<platform::ContactRequestInput> contact_inputs;
+    //! The owners of each getProfiles, in call order.
+    std::vector<std::vector<platform::Identifier>> profile_reads;
+    //! A createProfile or updateProfile, in call order.
+    struct ProfileWrite {
+        bool create{false};
+        platform::Identifier owner{};
+        uint32_t key_id{0};
+        platform::ProfileFields fields{};
+    };
+    std::vector<ProfileWrite> profile_writes;
     bool shut_down{false};
 
     void getIdentity(const platform::Identifier& id, Callback<platform::Identity> cb) override;
@@ -64,6 +77,7 @@ public:
                          Callback<platform::Names> cb) override;
     void pendingContests(const platform::Identifier& identity, Callback<std::vector<platform::Contest>> cb) override;
     void contestedVoteState(const std::string& label, Callback<platform::VoteState> cb) override;
+    void getProfiles(const std::vector<platform::Identifier>& owners, Callback<std::vector<platform::Profile>> cb) override;
     void contactRequests(const platform::Identifier& identity, platform::ContactDirection direction, uint64_t since_ms,
                          Callback<std::vector<platform::ContactRequest>> cb) override;
     void registerIdentity(std::vector<platform::IdentityPublicKey> keys, platform::AssetLockProof proof,
@@ -72,6 +86,10 @@ public:
                        wallet::TopupFundingKey funding, platform::Signing signing, Callback<uint64_t> cb) override;
     void registerName(const std::string& label, const platform::Identifier& identity, uint32_t key_id,
                       uint64_t contest_fund, platform::Signing signing, Callback<platform::Identifier> cb) override;
+    void createProfile(const platform::Identifier& owner, uint32_t key_id, const platform::ProfileFields& fields,
+                       platform::Signing signing, Callback<platform::Profile> cb) override;
+    void updateProfile(const platform::Identifier& owner, uint32_t key_id, const platform::ProfileFields& fields,
+                       platform::Signing signing, Callback<platform::Profile> cb) override;
     void sendContactRequest(const platform::ContactRequestInput& input, platform::Signing signing,
                             Callback<platform::Identifier> cb) override;
     void shutdown() override;
@@ -80,6 +98,8 @@ public:
     void deliverAll();
     //! Run the oldest pending callback only.
     void deliverNext();
+    //! Run the newest pending callback only, so that it answers before older ones.
+    void deliverLast();
     //! Number of recorded calls of a method.
     size_t countCalls(const std::string& method) const;
 

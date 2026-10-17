@@ -98,6 +98,11 @@ ContactRequest FromFfi(const dash_sdk::ContactRequest& request)
     return out;
 }
 
+Profile FromFfi(const dash_sdk::Profile& profile)
+{
+    return {profile.owner, std::string{profile.display_name}, std::string{profile.public_message}};
+}
+
 template <typename Out, typename In>
 std::vector<Out> Each(const rust::Vec<In>& items)
 {
@@ -154,6 +159,16 @@ Result<std::vector<ContactRequest>> FromFfi(const dash_sdk::ContactRequestsResul
     return {FromFfi(result.status), Each<ContactRequest>(result.requests)};
 }
 
+Result<std::vector<Profile>> FromFfi(const dash_sdk::ProfilesResult& result)
+{
+    return {FromFfi(result.status), Each<Profile>(result.profiles)};
+}
+
+Result<Profile> FromFfi(const dash_sdk::ProfileResult& result)
+{
+    return {FromFfi(result.status), FromFfi(result.profile)};
+}
+
 std::vector<dash_sdk::IdentityKey> ToFfi(const std::vector<IdentityPublicKey>& keys)
 {
     std::vector<dash_sdk::IdentityKey> out;
@@ -200,6 +215,14 @@ dash_sdk::ContactRequestInput ToFfi(const ContactRequestInput& input)
     out.signing_key_id = input.signing_key_id;
     out.account_reference = input.account_reference;
     out.account_label = input.account_label;
+    return out;
+}
+
+dash_sdk::ProfileFields ToFfi(const ProfileFields& fields)
+{
+    dash_sdk::ProfileFields out;
+    out.display_name = fields.display_name;
+    out.public_message = fields.public_message;
     return out;
 }
 

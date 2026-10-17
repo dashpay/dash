@@ -4,6 +4,7 @@
 
 #include <test/util/platform_client.h>
 
+#include <tinyformat.h>
 #include <util/strencodings.h>
 
 #include <algorithm>
@@ -62,6 +63,12 @@ void FakePlatformClient::contestedVoteState(const std::string& label, Callback<p
     Answer({"contestedVoteState", label, std::nullopt}, vote_states, std::move(cb));
 }
 
+void FakePlatformClient::getProfiles(const std::vector<Identifier>& owners, Callback<std::vector<platform::Profile>> cb)
+{
+    if (!shut_down) profile_reads.push_back(owners);
+    Answer({"getProfiles", strprintf("%u", owners.size()), std::nullopt}, profiles, std::move(cb));
+}
+
 void FakePlatformClient::contactRequests(const Identifier& identity, platform::ContactDirection direction, uint64_t,
                                          Callback<std::vector<platform::ContactRequest>> cb)
 {
@@ -95,6 +102,22 @@ void FakePlatformClient::registerName(const std::string& label, const Identifier
     Answer({"registerName", label, signing.identity_index}, registered_names, std::move(cb), std::move(signing.unlock));
 }
 
+void FakePlatformClient::createProfile(const Identifier& owner, uint32_t key_id, const platform::ProfileFields& fields,
+                                       platform::Signing signing, Callback<platform::Profile> cb)
+{
+    if (!shut_down) profile_writes.push_back({true, owner, key_id, fields});
+    Answer({"createProfile", HexStr(owner), signing.identity_index}, written_profiles, std::move(cb),
+           std::move(signing.unlock));
+}
+
+void FakePlatformClient::updateProfile(const Identifier& owner, uint32_t key_id, const platform::ProfileFields& fields,
+                                       platform::Signing signing, Callback<platform::Profile> cb)
+{
+    if (!shut_down) profile_writes.push_back({false, owner, key_id, fields});
+    Answer({"updateProfile", HexStr(owner), signing.identity_index}, written_profiles, std::move(cb),
+           std::move(signing.unlock));
+}
+
 void FakePlatformClient::sendContactRequest(const platform::ContactRequestInput& input, platform::Signing signing,
                                             Callback<Identifier> cb)
 {
@@ -121,6 +144,14 @@ void FakePlatformClient::deliverNext()
     if (m_pending.empty()) return;
     auto deliver{std::move(m_pending.front())};
     m_pending.pop_front();
+    deliver();
+}
+
+void FakePlatformClient::deliverLast()
+{
+    if (m_pending.empty()) return;
+    auto deliver{std::move(m_pending.back())};
+    m_pending.pop_back();
     deliver();
 }
 

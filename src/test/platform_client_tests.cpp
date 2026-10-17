@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <platform/client.h>
+#include <platform/marshal.h>
 #include <platform/signer.h>
 
 #include <interfaces/node.h>
@@ -286,6 +287,18 @@ BOOST_AUTO_TEST_CASE(contact_xpub_is_our_receiving_chain)
     wallet::CompactXpub expected;
     BOOST_REQUIRE(wallet::CompactXpubBytes(chain.value, expected));
     BOOST_CHECK(xpub == expected);
+}
+
+//! A profile write carries the display name and the message and no avatar
+//! field: Platform keeps the avatar of a profile made elsewhere.
+BOOST_AUTO_TEST_CASE(profile_write_carries_no_avatar)
+{
+    const auto fields{marshal::ToFfi(ProfileFields{"Alice", "hi"})};
+    BOOST_CHECK_EQUAL(std::string{fields.display_name}, "Alice");
+    BOOST_CHECK_EQUAL(std::string{fields.public_message}, "hi");
+    BOOST_CHECK(fields.avatar_url.empty());
+    BOOST_CHECK(fields.avatar_hash.empty());
+    BOOST_CHECK(fields.avatar_fingerprint.empty());
 }
 
 //! A quorum key is answered only for the Platform LLMQ type and a hash the
