@@ -48,6 +48,13 @@ QString Describe(const platform::Status& status)
     return {};
 }
 
+bool IsAssetLockConsumed(const platform::Status& status)
+{
+    // rs-dpp IdentityAssetLockTransactionOutPointAlreadyConsumedError.
+    constexpr uint32_t CODE_ASSET_LOCK_CONSUMED{10504};
+    return status.kind == platform::StatusKind::CONSENSUS && status.consensus_code == CODE_ASSET_LOCK_CONSUMED;
+}
+
 QString FormatCredits(BitcoinUnit unit, uint64_t credits)
 {
     return BitcoinUnits::formatWithUnit(unit, static_cast<CAmount>(credits / CREDITS_PER_DUFF));

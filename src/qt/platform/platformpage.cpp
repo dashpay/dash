@@ -12,16 +12,21 @@
 #include <qt/platform/contactflow.h>
 #include <qt/platform/contactspage.h>
 #include <qt/platform/identityflow.h>
+#include <qt/platform/invitationflow.h>
 #include <qt/platform/platformui.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
 #include <qt/walletmodel.h>
 
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QTableWidget>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -124,6 +129,31 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     m_contacts = new ContactsPage(this);
     m_contacts->setObjectName("dashPayContactsPage");
 
+    m_invite = new QPushButton(tr("Invite someone to DashPay"), this);
+    m_invite->setObjectName("dashPayInvite");
+    m_invitation_link = new QLineEdit(this);
+    m_invitation_link->setObjectName("dashPayInvitationLink");
+    m_invitation_link->setPlaceholderText(tr("Paste an invitation link"));
+    m_claim = new QPushButton(tr("Claim invitation"), this);
+    m_claim->setObjectName("dashPayClaimInvitation");
+    m_retry_claim = new QPushButton(tr("Try again"), this);
+    m_retry_claim->setObjectName("dashPayRetryInvitation");
+    m_invitation_status = new QLabel(this);
+    m_invitation_status->setObjectName("dashPayInvitationStatus");
+    m_invitation_status->setWordWrap(true);
+    auto* invitation_row{new QHBoxLayout};
+    invitation_row->addWidget(m_invite);
+    invitation_row->addWidget(m_invitation_link);
+    invitation_row->addWidget(m_claim);
+    invitation_row->addWidget(m_retry_claim);
+    invitation_row->addStretch();
+    m_invitations = new QTableWidget(0, 3, this);
+    m_invitations->setObjectName("dashPayInvitations");
+    m_invitations->setHorizontalHeaderLabels({tr("Invitation"), tr("Created"), {}});
+    m_invitations->verticalHeader()->hide();
+    m_invitations->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_invitations->horizontalHeader()->setStretchLastSection(true);
+
     auto* header{new QHBoxLayout};
     header->addWidget(m_username);
     header->addWidget(m_identity);
@@ -142,6 +172,9 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     layout->addWidget(m_username_status);
     layout->addLayout(username_row);
     layout->addWidget(m_contacts);
+    layout->addWidget(m_invitation_status);
+    layout->addLayout(invitation_row);
+    layout->addWidget(m_invitations);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
     GUIUtil::updateFonts();
@@ -163,6 +196,17 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     };
     connect(m_register, &QPushButton::clicked, this, register_name);
     connect(m_username_input, &QLineEdit::returnPressed, this, register_name);
+    connect(m_invite, &QPushButton::clicked, this, [this] { m_invitation_flow->create(); });
+    connect(m_claim, &QPushButton::clicked, this, [this] {
+        // The link is a bearer voucher: it leaves the field at once.
+        QByteArray utf8{m_invitation_link->text().trimmed().toUtf8()};
+        // Not clear(), which keeps the text for undo.
+        m_invitation_link->setText({});
+        const SecureString link{utf8.constData(), static_cast<size_t>(utf8.size())};
+        utf8.fill('\0');
+        m_invitation_flow->claim(link);
+    });
+    connect(m_retry_claim, &QPushButton::clicked, this, [this] { m_invitation_flow->retry(); });
     connect(m_top_up, &QPushButton::clicked, this, [this] {
         bool valid{false};
         const CAmount amount{m_top_up_amount->value(&valid)};
@@ -195,6 +239,7 @@ void PlatformPage::resetService()
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
         m_contacts->setFlow(nullptr);
+        m_invitation_flow.reset();
         m_recovery_flow.reset();
         m_contact_flow.reset();
         m_username_flow.reset();
@@ -217,6 +262,16 @@ void PlatformPage::resetService()
         connect(m_contact_flow.get(), &ContactFlow::payTo, this, &PlatformPage::payTo);
         m_recovery_flow = std::make_unique<RecoveryFlow>(*m_service, *m_identity_flow, *m_username_flow, *m_contact_flow);
         connect(m_recovery_flow.get(), &RecoveryFlow::changed, this, &PlatformPage::refresh);
+        m_invitation_flow = std::make_unique<InvitationFlow>(
+            *m_service, *m_identity_flow, *m_username_flow,
+            [this](CAmount amount, CAmount fee) {
+                return confirmPayment(tr("Fund a DashPay invitation of %1? Whoever you send its link to can claim "
+                                         "it.\n\nNetwork fee: %2\nTotal: %3"),
+                                      amount, fee);
+            },
+            [this](const SecureString& link) { showInvitation(link); },
+            [this](CAmount amount, const auto& inviter) { return confirmClaim(amount, inviter); });
+        connect(m_invitation_flow.get(), &InvitationFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
@@ -224,12 +279,16 @@ void PlatformPage::resetService()
 
 bool PlatformPage::confirmFunding(CAmount amount, CAmount fee)
 {
+    return confirmPayment(tr("Send %1 to Dash Platform as identity credits?\n\nNetwork fee: %2\nTotal: %3"), amount, fee);
+}
+
+bool PlatformPage::confirmPayment(const QString& question, CAmount amount, CAmount fee)
+{
     const BitcoinUnit unit{m_wallet_model->getOptionsModel()->getDisplayUnit()};
     return QMessageBox::question(this, tr("Confirm DashPay payment"),
-                                 tr("Send %1 to Dash Platform as identity credits?\n\nNetwork fee: %2\nTotal: %3")
-                                     .arg(BitcoinUnits::formatWithUnit(unit, amount),
-                                          BitcoinUnits::formatWithUnit(unit, fee),
-                                          BitcoinUnits::formatWithUnit(unit, amount + fee)),
+                                 question.arg(BitcoinUnits::formatWithUnit(unit, amount),
+                                              BitcoinUnits::formatWithUnit(unit, fee),
+                                              BitcoinUnits::formatWithUnit(unit, amount + fee)),
                                  QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Yes;
 }
 
@@ -241,6 +300,47 @@ bool PlatformPage::confirmContest()
                                    "submit and is not returned, even if you do not win the name.")
                                     .arg(PlatformUi::FormatCredits(unit, UsernameFlow::CONTEST_FUND)),
                                 QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Yes;
+}
+
+void PlatformPage::showInvitation(const SecureString& link)
+{
+    QDialog dialog{this};
+    dialog.setWindowTitle(tr("DashPay invitation"));
+    auto* layout{new QVBoxLayout(&dialog)};
+    auto* text{new QLabel(tr("Send this link to the person you invite. Anyone who has it can claim the invitation's "
+                             "credits, and Dash Core shows it only now: copy it before closing."),
+                          &dialog)};
+    text->setWordWrap(true);
+    QString shown{QString::fromUtf8(link.data(), static_cast<int>(link.size()))};
+    auto* field{new QLineEdit(shown, &dialog)};
+    field->setObjectName("dashPayInvitationLinkShown");
+    field->setReadOnly(true);
+    auto* buttons{new QDialogButtonBox(QDialogButtonBox::Close, &dialog)};
+    auto* copy{buttons->addButton(tr("Copy link"), QDialogButtonBox::ActionRole)};
+    connect(copy, &QPushButton::clicked, &dialog, [field] { GUIUtil::setClipboard(field->text()); });
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(text);
+    layout->addWidget(field);
+    layout->addWidget(buttons);
+    dialog.exec();
+    field->setText({});
+    shown.fill(QChar{0});
+}
+
+bool PlatformPage::confirmClaim(CAmount amount, const std::optional<platform::InviterInfo>& inviter)
+{
+    const BitcoinUnit unit{m_wallet_model->getOptionsModel()->getDisplayUnit()};
+    const QString credits{BitcoinUnits::formatWithUnit(unit, amount)};
+    QMessageBox box{QMessageBox::Question, tr("Claim DashPay invitation"),
+                    inviter && !inviter->username.empty()
+                        ? tr("Claim the invitation from %1? It creates your DashPay identity with %2 of credits.")
+                              .arg(QString::fromStdString(inviter->username), credits)
+                        : tr("Claim this invitation? It creates your DashPay identity with %1 of credits.").arg(credits),
+                    QMessageBox::Yes | QMessageBox::Cancel, this};
+    // The inviter's name comes from the link, which anyone can write.
+    box.setTextFormat(Qt::PlainText);
+    box.setDefaultButton(QMessageBox::Cancel);
+    return box.exec() == QMessageBox::Yes;
 }
 
 void PlatformPage::refresh()
@@ -290,9 +390,11 @@ void PlatformPage::refresh()
     using NameStep = UsernameFlow::Step;
     const NameStep name_step{names ? names->step() : NameStep::IDLE};
     const ContactFlow* contacts{m_contact_flow.get()};
+    const InvitationFlow* invitations{m_invitation_flow.get()};
     const bool idle{running && step == Step::IDLE && name_step == NameStep::IDLE && contacts &&
                     contacts->step() == ContactFlow::Step::IDLE && recovery &&
-                    recovery->step() == RecoveryFlow::Step::IDLE};
+                    recovery->step() == RecoveryFlow::Step::IDLE && invitations &&
+                    invitations->step() == InvitationFlow::Step::IDLE};
     //! Nothing in flight and no funding waiting for Platform.
     const bool ready{idle && !funding};
     QString identity_status;
@@ -378,4 +480,51 @@ void PlatformPage::refresh()
     // Contacts find the identity by its username.
     m_contacts->setVisible(running && identity && username);
     m_contacts->refresh(ready);
+
+    using InvitationStep = InvitationFlow::Step;
+    QString invitation_status;
+    switch (invitations ? invitations->step() : InvitationStep::IDLE) {
+    case InvitationStep::IDLE:
+        if (running) invitation_status = invitations->error();
+        break;
+    case InvitationStep::FUNDING:
+        invitation_status = tr("Preparing the invitation's payment…");
+        break;
+    case InvitationStep::WAITING_FOR_LOCK:
+        invitation_status = tr("Waiting for the network to lock the invitation's payment…");
+        break;
+    case InvitationStep::CHECKING:
+        invitation_status = tr("Reading the invitation…");
+        break;
+    case InvitationStep::CLAIMING:
+        invitation_status = tr("Creating your DashPay identity from the invitation…");
+        break;
+    case InvitationStep::RECLAIMING:
+        invitation_status = tr("Adding the invitation's credits to your identity…");
+        break;
+    }
+    m_invitation_status->setText(invitation_status);
+    m_invitation_status->setVisible(!invitation_status.isEmpty());
+    // The inviter's username is what the invited person's wallet shows.
+    m_invite->setVisible(ready && identity && username);
+    // A claim creates the wallet's identity, so only a wallet without one claims.
+    const bool can_claim{ready && flow->lookedUp() && !identity};
+    m_invitation_link->setVisible(can_claim);
+    m_claim->setVisible(can_claim);
+    m_retry_claim->setVisible(can_claim && invitations->retryable());
+
+    const auto funded{running && identity ? invitations->funded() : std::vector<InvitationFlow::Funded>{}};
+    m_invitations->setRowCount(static_cast<int>(funded.size()));
+    int row{0};
+    for (const auto& invitation : funded) {
+        m_invitations->setItem(row, 0, new QTableWidgetItem(BitcoinUnits::formatWithUnit(unit, invitation.amount)));
+        m_invitations->setItem(row, 1, new QTableWidgetItem(GUIUtil::dateTimeStr(invitation.created)));
+        auto* reclaim{new QPushButton(tr("Reclaim"), m_invitations)};
+        reclaim->setObjectName("dashPayReclaimInvitation");
+        reclaim->setEnabled(ready);
+        connect(reclaim, &QPushButton::clicked, this,
+                [this, index = invitation.index] { m_invitation_flow->reclaim(index); });
+        m_invitations->setCellWidget(row++, 2, reclaim);
+    }
+    m_invitations->setVisible(!funded.empty());
 }

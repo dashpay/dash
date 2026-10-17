@@ -79,9 +79,13 @@ void FakePlatformClient::registerIdentity(std::vector<platform::IdentityPublicKe
 }
 
 void FakePlatformClient::topUpIdentity(const Identifier& identity, platform::AssetLockProof proof,
-                                       wallet::TopupFundingKey, platform::Signing signing, Callback<uint64_t> cb)
+                                       wallet::AssetLockFundingKey funding, platform::Signing signing,
+                                       Callback<uint64_t> cb)
 {
-    if (!shut_down) proofs.push_back(std::move(proof));
+    if (!shut_down) {
+        proofs.push_back(std::move(proof));
+        top_up_keys.push_back(funding);
+    }
     Answer({"topUpIdentity", HexStr(identity), signing.identity_index}, top_ups, std::move(cb), std::move(signing.unlock));
 }
 
@@ -101,6 +105,21 @@ void FakePlatformClient::sendContactRequest(const platform::ContactRequestInput&
     if (!shut_down) contact_inputs.push_back(input);
     Answer({"sendContactRequest", HexStr(input.recipient), signing.identity_index}, sent_contact_requests,
            std::move(cb), std::move(signing.unlock));
+}
+
+void FakePlatformClient::invitationClaimStatus(std::shared_ptr<const platform::Invitation> invitation,
+                                               Callback<platform::InvitationClaim> cb)
+{
+    if (!shut_down) checked_invitations.push_back(std::move(invitation));
+    Answer({"invitationClaimStatus", "", std::nullopt}, claim_statuses, std::move(cb));
+}
+
+void FakePlatformClient::claimInvitation(std::shared_ptr<const platform::Invitation> invitation,
+                                         std::vector<platform::IdentityPublicKey> keys, platform::Signing signing,
+                                         Callback<platform::Identity> cb)
+{
+    if (!shut_down) claims.emplace_back(std::move(invitation), std::move(keys));
+    Answer({"claimInvitation", "", signing.identity_index}, claimed_identities, std::move(cb), std::move(signing.unlock));
 }
 
 void FakePlatformClient::shutdown()

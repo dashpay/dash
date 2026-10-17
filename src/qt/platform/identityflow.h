@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 class PlatformService;
 
@@ -86,6 +87,12 @@ public:
     //! ChainLock.
     IdentityFlow(PlatformService& service, Confirm confirm, Proof proof = {});
 
+    //! The keys an identity of this wallet registers, by id.
+    static std::optional<std::vector<platform::IdentityPublicKey>> RegistrationKeys(interfaces::Wallet& wallet);
+    //! The payment `txid` in the wallet; nullptr if the wallet lacks it, or it was
+    //! abandoned or its coins went to another payment.
+    static CTransactionRef SentTx(interfaces::Wallet& wallet, const uint256& txid);
+
     Step step() const { return m_step; }
     //! Whether the identity was looked up since the client started.
     bool lookedUp() const { return m_looked_up; }
@@ -94,6 +101,8 @@ public:
     std::optional<Funding> funding() const;
     //! Why the last step failed; empty when it did not.
     const QString& error() const { return m_error; }
+    //! The proof Platform takes for a committed asset lock, as the flow reads it.
+    std::optional<platform::AssetLockProof> proof(const CTransactionRef& tx) const { return m_proof(tx); }
 
     //! Look up the identity registered under the wallet's MASTER key,
     //! asking for the passphrase if the key must be derived.
@@ -104,6 +113,8 @@ public:
     void topUp(CAmount amount);
     //! Send funding() to Platform again.
     void resume();
+    //! Take `identity`, created or topped up by another flow, as the wallet's.
+    void adopt(platform::Identity identity);
 
 Q_SIGNALS:
     void changed();

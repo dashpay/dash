@@ -29,8 +29,6 @@ using Funding = IdentityFlow::Funding;
 
 //! The asset lock's one credit output.
 constexpr uint32_t CREDIT_OUTPUT{0};
-//! rs-dpp IdentityAssetLockTransactionOutPointAlreadyConsumedError.
-constexpr uint32_t CODE_ASSET_LOCK_CONSUMED{10504};
 //! The funding key index of the next top-up.
 constexpr const char* NEXT_TOP_UP_RECORD{"dashpay/topup-index"};
 
@@ -125,22 +123,6 @@ std::optional<std::array<uint8_t, 20>> MasterKeyHash(interfaces::Wallet& wallet)
     return out;
 }
 
-std::optional<std::vector<IdentityPublicKey>> RegistrationKeys(interfaces::Wallet& wallet)
-{
-    std::vector<IdentityPublicKey> keys;
-    for (const KeySpec& spec : REGISTRATION_KEYS) {
-        const auto pubkey{wallet.getPlatformPubKey(wallet::IdentityAuthKey{IdentityFlow::IDENTITY_INDEX, spec.id})};
-        if (!pubkey) return std::nullopt;
-        IdentityPublicKey key;
-        key.id = spec.id;
-        key.purpose = spec.purpose;
-        key.security_level = spec.security_level;
-        key.data.assign(pubkey.value.begin(), pubkey.value.end());
-        keys.push_back(std::move(key));
-    }
-    return keys;
-}
-
 std::optional<platform::AssetLockProof> NodeProof(interfaces::Node& node, interfaces::Wallet& wallet,
                                                   const CTransactionRef& tx)
 {
@@ -154,6 +136,28 @@ std::optional<platform::AssetLockProof> NodeProof(interfaces::Node& node, interf
 }
 
 } // namespace
+
+std::optional<std::vector<IdentityPublicKey>> IdentityFlow::RegistrationKeys(interfaces::Wallet& wallet)
+{
+    std::vector<IdentityPublicKey> keys;
+    for (const KeySpec& spec : REGISTRATION_KEYS) {
+        const auto pubkey{wallet.getPlatformPubKey(wallet::IdentityAuthKey{IDENTITY_INDEX, spec.id})};
+        if (!pubkey) return std::nullopt;
+        IdentityPublicKey key;
+        key.id = spec.id;
+        key.purpose = spec.purpose;
+        key.security_level = spec.security_level;
+        key.data.assign(pubkey.value.begin(), pubkey.value.end());
+        keys.push_back(std::move(key));
+    }
+    return keys;
+}
+
+CTransactionRef IdentityFlow::SentTx(interfaces::Wallet& wallet, const uint256& txid)
+{
+    const auto [tx, status]{WalletTxOf(wallet, txid)};
+    return status.is_abandoned || status.depth_in_main_chain < 0 ? nullptr : tx;
+}
 
 IdentityFlow::IdentityFlow(PlatformService& service, Confirm confirm, Proof proof) :
     m_service(service),
@@ -324,8 +328,8 @@ void IdentityFlow::resume()
     auto pending{funding()};
     if (m_step != Step::IDLE || !m_service.client() || m_service.writing() || !pending) return;
     interfaces::Wallet& wallet{m_service.walletModel().wallet()};
-    const auto [tx, status]{WalletTxOf(wallet, pending->txid)};
-    if (!tx || status.is_abandoned || status.depth_in_main_chain < 0) {
+    const CTransactionRef tx{SentTx(wallet, pending->txid)};
+    if (!tx) {
         // Never sent, or its coins went to another payment: Platform can't get it.
         wallet.writePlatformData(pending->record, {});
         return finish(tr("The funding payment was not sent or was replaced, so it bought no credits. Its coins are "
@@ -334,6 +338,13 @@ void IdentityFlow::resume()
     auto unlock{beginFunding()};
     if (!unlock) return;
     awaitLock(std::move(*pending), tx, std::move(*unlock));
+}
+
+void IdentityFlow::adopt(platform::Identity identity)
+{
+    m_identity = std::move(identity);
+    m_looked_up = true;
+    Q_EMIT changed();
 }
 
 void IdentityFlow::send()
@@ -380,7 +391,7 @@ void IdentityFlow::sent(const Funding& funding, const platform::Status& status)
         wallet.writePlatformData(funding.record, {});
         return finish();
     }
-    if (status.kind == platform::StatusKind::CONSENSUS && status.consensus_code == CODE_ASSET_LOCK_CONSUMED) {
+    if (PlatformUi::IsAssetLockConsumed(status)) {
         // An earlier attempt was applied. The lookup finds the identity it
         // created, or the balance a top-up raised.
         if (funding.top_up) wallet.writePlatformData(funding.record, {});

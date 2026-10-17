@@ -7,6 +7,7 @@
 
 #include <platform/types.h>
 #include <span.h>
+#include <support/allocators/secure.h>
 #include <wallet/platformtypes.h>
 
 #include <array>
@@ -17,12 +18,30 @@
 #include <string>
 #include <vector>
 
+class CKey;
+
 namespace interfaces {
 class LLMQ;
 class Wallet;
 } // namespace interfaces
 
 namespace platform {
+
+//! A parsed DashPay invitation link. Its voucher key, a bearer secret, stays
+//! inside the SDK and is wiped when the invitation is destroyed.
+class Invitation
+{
+public:
+    struct Sdk;
+    explicit Invitation(std::unique_ptr<Sdk> sdk);
+    ~Invitation();
+    //! The inviter the link names; nullopt for none.
+    std::optional<InviterInfo> inviter() const;
+    const Sdk& sdk() const { return *m_sdk; }
+
+private:
+    const std::unique_ptr<Sdk> m_sdk;
+};
 
 //! Keeps the wallet unlocked while a write signs. The consumer implements it
 //! (dash-qt wraps WalletModel::UnlockContext). The client destroys it on the
@@ -91,7 +110,7 @@ public:
                                   Callback<Identity> cb) = 0;
     //! Add the asset lock paying funding to the identity's balance; the
     //! result is the new balance.
-    virtual void topUpIdentity(const Identifier& identity, AssetLockProof proof, wallet::TopupFundingKey funding,
+    virtual void topUpIdentity(const Identifier& identity, AssetLockProof proof, wallet::AssetLockFundingKey funding,
                                Signing signing, Callback<uint64_t> cb) = 0;
     //! Register a DPNS name, signed with identity key key_id. A contested
     //! name pays at most contest_fund credits into its contest (0: the fund
@@ -100,6 +119,15 @@ public:
                               uint64_t contest_fund, Signing signing, Callback<Identifier> cb) = 0;
     //! The result is the contact request document id.
     virtual void sendContactRequest(const ContactRequestInput& input, Signing signing, Callback<Identifier> cb) = 0;
+    //! What claiming the invitation would do. UNAVAILABLE: try again later.
+    //! A link for another network, or whose funding Platform refuses or
+    //! can't find yet, is REJECTED.
+    virtual void invitationClaimStatus(std::shared_ptr<const Invitation> invitation, Callback<InvitationClaim> cb) = 0;
+    //! Create an identity with keys (key 0 its MASTER key), funded by the
+    //! invitation, whose voucher key signs the asset lock. UNAVAILABLE also
+    //! when the funding is not locked enough yet: try again later.
+    virtual void claimInvitation(std::shared_ptr<const Invitation> invitation, std::vector<IdentityPublicKey> keys,
+                                 Signing signing, Callback<Identity> cb) = 0;
 
     //! Drop queued calls, cancel and wait for running ones, and destroy
     //! every call not yet delivered, unlock scopes included. No callback runs
@@ -121,6 +149,13 @@ std::unique_ptr<PlatformClient> MakeSdkPlatformClient(const ClientConfig& config
 bool IsValidUsername(const std::string& label);
 //! Fails closed: true when the SDK cannot answer.
 bool IsContestedUsername(const std::string& label);
+
+//! The link of an invitation funded by `funding`, whose credit output pays
+//! voucher_key. It holds the key in plain text: show it, never log or store
+//! it. Empty when the SDK refuses the input.
+SecureString EncodeInvitation(const CKey& voucher_key, const AssetLockProof& funding, const InviterInfo& inviter);
+//! nullptr when `link` is not an invitation link.
+std::shared_ptr<const Invitation> ParseInvitation(const SecureString& link);
 
 //! Decrypt a contact request's encryptedPublicKey with the ECDH secret.
 //! The public key is not validated: check IsFullyValid() before use.

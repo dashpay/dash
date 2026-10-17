@@ -13,11 +13,13 @@
 #include <interfaces/wallet.h>
 #include <key.h>
 #include <key_io.h>
+#include <logging.h>
 #include <netbase.h>
 #include <node/blockstorage.h>
 #include <qt/clientfeeds.h>
 #include <qt/platform/contactflow.h>
 #include <qt/platform/identityflow.h>
+#include <qt/platform/invitationflow.h>
 #include <qt/platform/platformpage.h>
 #include <qt/platform/platformservice.h>
 #include <qt/platform/recoveryflow.h>
@@ -26,6 +28,7 @@
 #include <qt/walletmodel.h>
 #include <qt/walletview.h>
 #include <script/standard.h>
+#include <sync.h>
 #include <test/util/platform_client.h>
 #include <test/util/setup_common.h>
 #include <util/settings.h>
@@ -45,6 +48,7 @@
 #include <QTableWidget>
 
 #include <algorithm>
+#include <list>
 #include <memory>
 #include <optional>
 #include <string>
@@ -391,8 +395,54 @@ struct Confirmations {
     }
 };
 
+//! The node has the asset lock's ChainLock at once.
+std::optional<platform::AssetLockProof> ChainProof(const CTransactionRef& tx)
+{
+    return platform::ChainAssetLockProof{1, COutPoint{tx->GetHash(), 0}};
+}
+
+//! Every line logged while it lives.
+struct LogCapture {
+    Mutex mutex;
+    std::vector<std::string> lines GUARDED_BY(mutex);
+    const std::list<std::function<void(const std::string&)>>::iterator callback{
+        LogInstance().PushBackCallback([this](const std::string& line) EXCLUSIVE_LOCKS_REQUIRED(!mutex) {
+            LOCK(mutex);
+            lines.push_back(line);
+        })};
+    ~LogCapture() { LogInstance().DeleteCallback(callback); }
+    bool any(const std::string& text) EXCLUSIVE_LOCKS_REQUIRED(!mutex)
+    {
+        LOCK(mutex);
+        return std::any_of(lines.begin(), lines.end(), [&](const auto& line) { return line.find(text) != line.npos; });
+    }
+};
+
+//! Whether a record of the wallet's database holds `bytes`.
+bool DatabaseHolds(wallet::CWallet& wallet, Span<const unsigned char> bytes)
+{
+    const auto batch{wallet.GetDatabase().MakeBatch()};
+    const auto cursor{batch->GetNewCursor()};
+    DataStream key, value;
+    while (cursor->Next(key, value) == wallet::DatabaseCursor::Status::MORE) {
+        for (const DataStream* record : {&key, &value}) {
+            const auto data{MakeUCharSpan(*record)};
+            if (std::search(data.begin(), data.end(), bytes.begin(), bytes.end()) != data.end()) return true;
+        }
+    }
+    return false;
+}
+
+//! The voucher key a link carries in its pk parameter.
+CKey LinkKey(const SecureString& link)
+{
+    const size_t start{link.find("pk=") + 3};
+    return DecodeSecret(std::string{link.substr(start, link.find('&', start) - start)});
+}
+
 uint256 ProofTxid(const platform::AssetLockProof& proof)
 {
+    if (const auto* chain{std::get_if<platform::ChainAssetLockProof>(&proof)}) return chain->out_point.hash;
     return std::get<platform::InstantAssetLockProof>(proof).transaction->GetHash();
 }
 
@@ -2039,4 +2089,212 @@ void PlatformTests::prunedNodeRefusesTheRescan()
     f.attach(*page);
     QVERIFY(page->recoveryFlow()->prunedFrom().has_value());
     QVERIFY(!page->recoveryFlow()->rescanning());
+}
+
+//! An invitation is funded by an asset lock paying a fresh invitation key,
+//! confirmed with its exact fee first: declining sends nothing. Once the
+//! payment is locked its link is shown, once, naming our username and
+//! carrying the key the asset lock pays. The link and its key are in no
+//! wallet record and no log line; the funded invitation's record is, and it
+//! reclaims the invitation into our identity until Platform reports the
+//! asset lock consumed.
+void PlatformTests::invitationLinkIsShownOnceAndNeverStored()
+{
+    FundedFixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {OurIdentity(), OurIdentity()};
+        client.names = {Names({"alice"})};
+        platform::Result<uint64_t> consumed;
+        consumed.status = {platform::StatusKind::CONSENSUS, 10504, "asset lock outpoint already consumed"};
+        client.top_ups = {Reply<uint64_t>(2'000'000'000), consumed};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    bool locked{false};
+    IdentityFlow identity_flow{service, confirmations.get(),
+                               [&locked](const CTransactionRef& tx) { return locked ? ChainProof(tx) : std::nullopt; }};
+    UsernameFlow username_flow{service, identity_flow, [] { return true; }};
+    std::vector<SecureString> shown;
+    InvitationFlow flow{service,
+                        identity_flow,
+                        username_flow,
+                        confirmations.get(),
+                        [&shown](const SecureString& link) { shown.push_back(link); },
+                        [](CAmount, const auto&) { return true; }};
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.identity() && username_flow.username());
+
+    LogCapture log;
+    const size_t txs{wallet.getWalletTxs().size()};
+    confirmations.accept = false;
+    flow.create();
+    QCOMPARE(confirmations.asked.size(), size_t{1});
+    QCOMPARE(confirmations.asked.back().first, InvitationFlow::AMOUNT);
+    QVERIFY(confirmations.asked.back().second > 0);
+    QCOMPARE(wallet.getWalletTxs().size(), txs);
+    QVERIFY(flow.funded().empty());
+
+    confirmations.accept = true;
+    flow.create();
+    QCOMPARE(wallet.getWalletTxs().size(), txs + 1);
+    auto funded{flow.funded()};
+    QCOMPARE(funded.size(), size_t{1});
+    QCOMPARE(funded[0].index, uint32_t{0});
+    QCOMPARE(funded[0].amount, InvitationFlow::AMOUNT);
+    QVERIFY(CreditScript(wallet, funded[0].txid) == FundingScript(wallet, wallet::InvitationFundingKey{0}));
+    QVERIFY(shown.empty());
+    locked = true;
+    Q_EMIT f.models.client.chainLockChanged();
+    QCOMPARE(shown.size(), size_t{1});
+    QVERIFY(flow.step() == InvitationFlow::Step::IDLE && flow.error().isEmpty());
+    const SecureString link{shown[0]};
+    const auto invitation{platform::ParseInvitation(link)};
+    QVERIFY(invitation && invitation->inviter() && invitation->inviter()->username == "alice");
+    const CKey key{LinkKey(link)};
+    QVERIFY(key.IsValid());
+    QVERIFY(GetScriptForDestination(PKHash{key.GetPubKey()}) == CreditScript(wallet, funded[0].txid));
+
+    QVERIFY(log.any("CommitTransaction"));
+    QVERIFY(!log.any(std::string{link}) && !log.any(EncodeSecret(key)));
+    QVERIFY(DatabaseHolds(*f.wallet, MakeUCharSpan(std::string{InvitationFlow::RECORD_PREFIX})));
+    QVERIFY(!DatabaseHolds(*f.wallet, MakeUCharSpan(link)));
+    QVERIFY(!DatabaseHolds(*f.wallet, MakeUCharSpan(EncodeSecret(key))));
+    QVERIFY(!DatabaseHolds(*f.wallet, Span{key.begin(), key.size()}));
+
+    // A wallet with an identity claims no invitation, its own link included.
+    flow.claim(link);
+    QVERIFY(sources.fake->checked_invitations.empty());
+
+    // Each next invitation pays a key no invitation paid before.
+    flow.create();
+    flow.create();
+    funded = flow.funded();
+    QCOMPARE(funded.size(), size_t{3});
+    QVERIFY(CreditScript(wallet, funded[1].txid) == FundingScript(wallet, wallet::InvitationFundingKey{1}));
+    QVERIFY(CreditScript(wallet, funded[2].txid) == FundingScript(wallet, wallet::InvitationFundingKey{2}));
+    QCOMPARE(shown.size(), size_t{3});
+
+    flow.reclaim(0);
+    QCOMPARE(sources.fake->countCalls("topUpIdentity"), size_t{1});
+    QVERIFY(sources.fake->calls.back().argument == HexStr(identity_flow.identity()->id));
+    QVERIFY(ProofTxid(sources.fake->proofs.back()) == funded[0].txid);
+    QVERIFY(std::get<wallet::InvitationFundingKey>(sources.fake->top_up_keys.back()).invitation_index == 0U);
+    sources.fake->deliverAll();
+    QCOMPARE(identity_flow.identity()->balance, uint64_t{2'000'000'000});
+    QCOMPARE(flow.funded().size(), size_t{2});
+    QVERIFY(flow.error().isEmpty());
+
+    // Claimed meanwhile by the person invited: the record ends all the same.
+    flow.reclaim(1);
+    QVERIFY(std::get<wallet::InvitationFundingKey>(sources.fake->top_up_keys.back()).invitation_index == 1U);
+    sources.fake->deliverAll();
+    QCOMPARE(flow.funded().size(), size_t{1});
+    QVERIFY(!flow.error().isEmpty());
+    // Perhaps by our own reclaim, whose answer was lost: the balance is read again.
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{2});
+}
+
+//! A wallet without an identity claims a pasted link: what it would claim is
+//! read first, and once accepted the parsed link and the keys a Dash Core
+//! identity registers create the wallet's identity. A link that is not an
+//! invitation is refused without a call; one Platform can't use yet says
+//! so, and it is tried again on request with the same parsed link. One
+//! already used is not claimed, and the identity is looked up again, in case
+//! our own claim used it.
+void PlatformTests::invitationClaimCreatesTheIdentity()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    interfaces::Wallet& wallet{f.wallet_model.wallet()};
+    FakeSources sources;
+    sources.script = [](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {NotFound(), NotFound()};
+        platform::InvitationClaim claim;
+        claim.amount_duffs = 1'000'000;
+        platform::InvitationClaim used;
+        used.already_claimed = true;
+        platform::Result<platform::InvitationClaim> unavailable;
+        unavailable.status.kind = platform::StatusKind::UNAVAILABLE;
+        platform::Result<platform::Identity> not_locked;
+        not_locked.status.kind = platform::StatusKind::UNAVAILABLE;
+        client.claim_statuses = {unavailable, Reply(claim), Reply(used), Reply(claim)};
+        client.claimed_identities = {not_locked, Found(9, 999'000'000)};
+    };
+    PlatformService service{f.wallet_model, f.models.client, sources.get()};
+    Confirmations confirmations;
+    IdentityFlow identity_flow{service, confirmations.get(), InstantProof};
+    UsernameFlow username_flow{service, identity_flow, [] { return true; }};
+    std::vector<std::pair<CAmount, std::optional<platform::InviterInfo>>> asked;
+    InvitationFlow flow{service,
+                        identity_flow,
+                        username_flow,
+                        confirmations.get(),
+                        [](const SecureString&) {},
+                        [&asked](CAmount amount, const auto& inviter) {
+                            asked.emplace_back(amount, inviter);
+                            return true;
+                        }};
+    sources.fake->deliverAll();
+    QVERIFY(identity_flow.lookedUp() && !identity_flow.identity());
+
+    flow.claim(SecureString{"dashpay://invite?assetlocktx=11"});
+    QVERIFY(sources.fake->checked_invitations.empty());
+    QVERIFY(!flow.retryable());
+    const QString invalid{flow.error()};
+    QVERIFY(!invalid.isEmpty());
+
+    CKey voucher;
+    voucher.MakeNewKey(/*fCompressed=*/true);
+    const SecureString link{
+        platform::EncodeInvitation(voucher, platform::ChainAssetLockProof{1, COutPoint{uint256::ONE, 0}}, {"bob", {}, {}})};
+    QVERIFY(!link.empty());
+    flow.claim(link);
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->checked_invitations.size(), size_t{1});
+    QVERIFY(sources.fake->claims.empty());
+    QVERIFY(flow.retryable());
+    QVERIFY(!flow.error().isEmpty() && flow.error() != invalid);
+
+    // Platform answers now, but refuses the claim until the funding is locked.
+    flow.retry();
+    sources.fake->deliverAll();
+    QCOMPARE(asked.size(), size_t{1});
+    QCOMPARE(asked[0].first, CAmount{1'000'000});
+    QVERIFY(asked[0].second && asked[0].second->username == "bob");
+    QCOMPARE(sources.fake->claims.size(), size_t{1});
+    QVERIFY(flow.retryable());
+    QVERIFY(!flow.error().isEmpty() && flow.error() != invalid);
+    QVERIFY(!identity_flow.identity());
+
+    // Used meanwhile, by someone else as the lookup finds: nothing to retry.
+    flow.retry();
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->claims.size(), size_t{1});
+    QCOMPARE(sources.fake->countCalls("getIdentityByPublicKeyHash"), size_t{2});
+    QVERIFY(!flow.retryable() && !flow.error().isEmpty());
+
+    flow.claim(link);
+    sources.fake->deliverAll();
+    QCOMPARE(sources.fake->claims.size(), size_t{2});
+    const auto& checked{sources.fake->checked_invitations};
+    QCOMPARE(checked.size(), size_t{4});
+    QVERIFY(checked[1] == checked[0] && checked[2] == checked[0] && checked[3] != checked[0]);
+    QVERIFY(sources.fake->claims[0].first == checked[0] && sources.fake->claims[1].first == checked[3]);
+    for (const auto& [invitation, keys] : sources.fake->claims) {
+        const auto expected{RegisteredKeys()};
+        QCOMPARE(keys.size(), expected.size());
+        for (size_t i = 0; i < keys.size(); ++i) {
+            QCOMPARE(keys[i].id, expected[i].id);
+            QVERIFY(keys[i].purpose == expected[i].purpose && keys[i].security_level == expected[i].security_level);
+            const auto pubkey{wallet.getPlatformPubKey(wallet::IdentityAuthKey{0, keys[i].id})};
+            QVERIFY(pubkey && keys[i].data == std::vector<uint8_t>(pubkey.value.begin(), pubkey.value.end()));
+        }
+    }
+    QVERIFY(std::all_of(sources.fake->calls.begin(), sources.fake->calls.end(),
+                        [](const auto& call) { return call.method != "claimInvitation" || call.identity_index == 0U; }));
+    QVERIFY(identity_flow.identity() && identity_flow.identity()->id[0] == 9);
+    QVERIFY(!flow.retryable() && flow.error().isEmpty());
 }

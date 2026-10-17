@@ -51,6 +51,8 @@ private Q_SLOTS:
     void findMyIdentityRestoresTheWallet();
     void rescanOwedSurvivesARestart();
     void prunedNodeRefusesTheRescan();
+    void invitationLinkIsShownOnceAndNeverStored();
+    void invitationClaimCreatesTheIdentity();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H

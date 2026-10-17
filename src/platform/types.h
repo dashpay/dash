@@ -178,6 +178,21 @@ struct ContactRequestInput {
     std::string account_label; //!< empty: none
 };
 
+//! An invitation's inviter, as its link names them; empty fields are absent.
+struct InviterInfo {
+    std::string username;
+    std::string display_name;
+    std::string avatar_url;
+};
+
+//! What claiming an invitation would do.
+struct InvitationClaim {
+    uint64_t amount_duffs{0};
+    //! Proved true: an identity was created from it. false does not prove
+    //! that its asset lock is unspent.
+    bool already_claimed{false};
+};
+
 //! The SOCKS5 proxy every connection of a client goes through.
 struct ProxyConfig {
     //! A numeric address, or the path of a Unix socket (without "unix:").

@@ -23,6 +23,7 @@ Result<Names> FromFfi(const dash_sdk::NamesResult& result);
 Result<std::vector<Contest>> FromFfi(const dash_sdk::ContestsResult& result);
 Result<VoteState> FromFfi(const dash_sdk::VoteStateResult& result);
 Result<std::vector<ContactRequest>> FromFfi(const dash_sdk::ContactRequestsResult& result);
+Result<InvitationClaim> FromFfi(const dash_sdk::InvitationClaimResult& result);
 
 std::vector<dash_sdk::IdentityKey> ToFfi(const std::vector<IdentityPublicKey>& keys);
 dash_sdk::AssetLockProof ToFfi(const AssetLockProof& proof);

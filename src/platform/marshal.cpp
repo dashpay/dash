@@ -154,6 +154,12 @@ Result<std::vector<ContactRequest>> FromFfi(const dash_sdk::ContactRequestsResul
     return {FromFfi(result.status), Each<ContactRequest>(result.requests)};
 }
 
+Result<InvitationClaim> FromFfi(const dash_sdk::InvitationClaimResult& result)
+{
+    const auto& claim{result.claim};
+    return {FromFfi(result.status), {claim.amount_duffs, claim.already_claimed}};
+}
+
 std::vector<dash_sdk::IdentityKey> ToFfi(const std::vector<IdentityPublicKey>& keys)
 {
     std::vector<dash_sdk::IdentityKey> out;

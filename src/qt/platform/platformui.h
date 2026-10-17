@@ -23,6 +23,9 @@ constexpr uint64_t CREDITS_PER_DUFF{1000};
 //! A failed Platform call as the user reads it; empty for OK and NOT_FOUND,
 //! which are answers.
 QString Describe(const platform::Status& status);
+//! Whether Platform refused an asset lock as already consumed: an earlier
+//! state transition used it.
+bool IsAssetLockConsumed(const platform::Status& status);
 //! A Platform balance in credits as a Dash amount, rounded down to a duff.
 QString FormatCredits(BitcoinUnit unit, uint64_t credits);
 //! The key a document is signed with: the identity's enabled HIGH

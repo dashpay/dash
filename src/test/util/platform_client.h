@@ -45,10 +45,18 @@ public:
     std::deque<platform::Result<uint64_t>> top_ups;
     std::deque<platform::Result<platform::Identifier>> registered_names;
     std::deque<platform::Result<platform::Identifier>> sent_contact_requests;
+    std::deque<platform::Result<platform::InvitationClaim>> claim_statuses;
+    std::deque<platform::Result<platform::Identity>> claimed_identities;
 
     std::vector<Call> calls;
     //! The asset lock proofs of registerIdentity and topUpIdentity, in call order.
     std::vector<platform::AssetLockProof> proofs;
+    //! The funding key of each topUpIdentity, in call order.
+    std::vector<wallet::AssetLockFundingKey> top_up_keys;
+    //! The invitation of each invitationClaimStatus, in call order.
+    std::vector<std::shared_ptr<const platform::Invitation>> checked_invitations;
+    //! The invitation and keys of each claimInvitation, in call order.
+    std::vector<std::pair<std::shared_ptr<const platform::Invitation>, std::vector<platform::IdentityPublicKey>>> claims;
     //! The identity and signing key of each registerName, in call order.
     std::vector<std::pair<platform::Identifier, uint32_t>> name_signers;
     //! The contest fund of each registerName, in call order.
@@ -69,11 +77,16 @@ public:
     void registerIdentity(std::vector<platform::IdentityPublicKey> keys, platform::AssetLockProof proof,
                           platform::Signing signing, Callback<platform::Identity> cb) override;
     void topUpIdentity(const platform::Identifier& identity, platform::AssetLockProof proof,
-                       wallet::TopupFundingKey funding, platform::Signing signing, Callback<uint64_t> cb) override;
+                       wallet::AssetLockFundingKey funding, platform::Signing signing, Callback<uint64_t> cb) override;
     void registerName(const std::string& label, const platform::Identifier& identity, uint32_t key_id,
                       uint64_t contest_fund, platform::Signing signing, Callback<platform::Identifier> cb) override;
     void sendContactRequest(const platform::ContactRequestInput& input, platform::Signing signing,
                             Callback<platform::Identifier> cb) override;
+    void invitationClaimStatus(std::shared_ptr<const platform::Invitation> invitation,
+                               Callback<platform::InvitationClaim> cb) override;
+    void claimInvitation(std::shared_ptr<const platform::Invitation> invitation,
+                         std::vector<platform::IdentityPublicKey> keys, platform::Signing signing,
+                         Callback<platform::Identity> cb) override;
     void shutdown() override;
 
     //! Run the pending callbacks, including those they add.

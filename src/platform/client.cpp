@@ -6,14 +6,17 @@
 
 #include <chainparams.h>
 #include <chainparamsbase.h>
+#include <key.h>
 #include <logging.h>
 #include <platform/marshal.h>
 #include <platform/signer.h>
+#include <support/cleanse.h>
 #include <sync.h>
 #include <util/thread.h>
 
 #include <dash/sdk/ffi.h>
 
+#include <algorithm>
 #include <condition_variable>
 #include <deque>
 #include <exception>
@@ -21,6 +24,25 @@
 #include <utility>
 
 namespace platform {
+
+struct Invitation::Sdk {
+    rust::Box<dash_sdk::Invitation> invitation;
+};
+
+Invitation::Invitation(std::unique_ptr<Sdk> sdk) :
+    m_sdk(std::move(sdk))
+{
+}
+
+Invitation::~Invitation() = default;
+
+std::optional<InviterInfo> Invitation::inviter() const
+{
+    const auto details{m_sdk->invitation->details()};
+    if (!details.has_inviter) return std::nullopt;
+    return InviterInfo{std::string{details.inviter.username}, std::string{details.inviter.display_name},
+                       std::string{details.inviter.avatar_url}};
+}
 
 namespace {
 
@@ -197,13 +219,14 @@ public:
             std::move(cb), std::move(signing.unlock));
     }
 
-    void topUpIdentity(const Identifier& identity, AssetLockProof proof, wallet::TopupFundingKey funding,
+    void topUpIdentity(const Identifier& identity, AssetLockProof proof, wallet::AssetLockFundingKey funding,
                        Signing signing, Callback<uint64_t> cb) override
     {
         Submit<uint64_t>(
             [this, identity, proof = std::move(proof), funding, &wallet = signing.wallet, index = signing.identity_index] {
+                // The reference only comes back to the signer, which signs with `funding`.
                 return marshal::FromFfi(m_sdk->top_up_identity(identity, marshal::ToFfi(proof),
-                                                               /*asset_lock_key_ref=*/funding.funding_index,
+                                                               /*asset_lock_key_ref=*/0,
                                                                MakeWalletSigner(wallet, index, funding)));
             },
             std::move(cb), std::move(signing.unlock));
@@ -227,6 +250,29 @@ public:
                 return marshal::FromFfi(m_sdk->send_contact_request(marshal::ToFfi(input),
                                                                     MakeWalletSigner(wallet, index, std::nullopt),
                                                                     MakeContactKeys(wallet, index, input.sender)));
+            },
+            std::move(cb), std::move(signing.unlock));
+    }
+
+    void invitationClaimStatus(std::shared_ptr<const Invitation> invitation, Callback<InvitationClaim> cb) override
+    {
+        Submit<InvitationClaim>(
+            [this, invitation = std::move(invitation)] {
+                return marshal::FromFfi(m_sdk->invitation_claim_status(*invitation->sdk().invitation));
+            },
+            std::move(cb));
+    }
+
+    void claimInvitation(std::shared_ptr<const Invitation> invitation, std::vector<IdentityPublicKey> keys,
+                         Signing signing, Callback<Identity> cb) override
+    {
+        Submit<Identity>(
+            [this, invitation = std::move(invitation), keys = std::move(keys), &wallet = signing.wallet,
+             index = signing.identity_index] {
+                const auto ffi_keys{marshal::ToFfi(keys)};
+                return marshal::FromFfi(m_sdk->claim_invitation(*invitation->sdk().invitation,
+                                                                {ffi_keys.data(), ffi_keys.size()},
+                                                                MakeWalletSigner(wallet, index, std::nullopt)));
             },
             std::move(cb), std::move(signing.unlock));
     }
@@ -314,6 +360,36 @@ bool IsContestedUsername(const std::string& label)
         return dash_sdk::is_contested_username(label);
     } catch (const std::exception&) {
         return true;
+    }
+}
+
+SecureString EncodeInvitation(const CKey& voucher_key, const AssetLockProof& funding, const InviterInfo& inviter)
+{
+    if (!voucher_key.IsValid()) return {};
+    std::array<uint8_t, 32> key;
+    std::copy(voucher_key.begin(), voucher_key.end(), key.begin());
+    SecureString link;
+    try {
+        dash_sdk::InviterInfo ffi_inviter;
+        ffi_inviter.username = inviter.username;
+        ffi_inviter.display_name = inviter.display_name;
+        ffi_inviter.avatar_url = inviter.avatar_url;
+        const rust::String encoded{dash_sdk::encode_invitation(key, SdkNetwork(), marshal::ToFfi(funding), ffi_inviter)};
+        link.assign(encoded.data(), encoded.size());
+        memory_cleanse(const_cast<char*>(encoded.data()), encoded.size());
+    } catch (const std::exception&) {
+    }
+    memory_cleanse(key.data(), key.size());
+    return link;
+}
+
+std::shared_ptr<const Invitation> ParseInvitation(const SecureString& link)
+{
+    try {
+        return std::make_shared<const Invitation>(
+            std::make_unique<Invitation::Sdk>(Invitation::Sdk{dash_sdk::parse_invitation({link.data(), link.size()})}));
+    } catch (const std::exception&) {
+        return nullptr;
     }
 }
 
