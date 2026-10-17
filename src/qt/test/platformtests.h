@@ -51,6 +51,13 @@ private Q_SLOTS:
     void findMyIdentityRestoresTheWallet();
     void rescanOwedSurvivesARestart();
     void prunedNodeRefusesTheRescan();
+    void profileIsCreatedThenUpdated();
+    void contactProfilesAreReadInOneBatch();
+    void manyContactProfilesAreReadInBatches();
+    void profileWriteFollowsTheClient();
+    void profileWritesTakeTurns();
+    void profileTakesItsTurnDuringThePassphrase();
+    void existingProfilesAreEditedAsTheyAre();
 };
 
 #endif // BITCOIN_QT_TEST_PLATFORMTESTS_H

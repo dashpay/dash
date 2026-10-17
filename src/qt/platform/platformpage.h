@@ -16,6 +16,8 @@ class BitcoinAmountField;
 class ContactFlow;
 class ContactsPage;
 class IdentityFlow;
+class ProfileFlow;
+class ProfilePage;
 class RecoveryFlow;
 class UsernameFlow;
 
@@ -32,8 +34,10 @@ QT_END_NAMESPACE
  *  and says why DashPay can't run when a gate is closed. Once DashPay runs it
  *  recovers and shows the wallet's identity, its username and its balance;
  *  creates, continues or tops up the identity; registers its username, a
- *  premium one through the masternode vote, whose tally it shows; and
- *  keeps its contacts, handing a payment to one to the Send tab. */
+ *  premium one through the masternode vote, whose tally it shows;
+ *  publishes its profile, display name and message; and keeps its
+ *  contacts, with their profiles, handing a payment to one to the Send
+ *  tab. */
 class PlatformPage : public QWidget
 {
     Q_OBJECT
@@ -48,6 +52,7 @@ public:
     IdentityFlow* identityFlow() const { return m_identity_flow.get(); }
     UsernameFlow* usernameFlow() const { return m_username_flow.get(); }
     ContactFlow* contactFlow() const { return m_contact_flow.get(); }
+    ProfileFlow* profileFlow() const { return m_profile_flow.get(); }
     RecoveryFlow* recoveryFlow() const { return m_recovery_flow.get(); }
 
 Q_SIGNALS:
@@ -75,6 +80,8 @@ private:
     std::unique_ptr<ContactFlow> m_contact_flow;
     //! Destroyed before the flows it reads.
     std::unique_ptr<RecoveryFlow> m_recovery_flow;
+    //! Destroyed before the contact flow it reads.
+    std::unique_ptr<ProfileFlow> m_profile_flow;
 
     QLabel* m_username{nullptr};
     QLabel* m_identity{nullptr};
@@ -90,6 +97,7 @@ private:
     QLineEdit* m_username_input{nullptr};
     QPushButton* m_register{nullptr};
     QLabel* m_username_status{nullptr};
+    ProfilePage* m_profile{nullptr};
     ContactsPage* m_contacts{nullptr};
     QPushButton* m_stop{nullptr};
 };

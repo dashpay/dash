@@ -13,6 +13,8 @@
 #include <qt/platform/contactspage.h>
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformui.h>
+#include <qt/platform/profileflow.h>
+#include <qt/platform/profilepage.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
 #include <qt/walletmodel.h>
@@ -121,6 +123,8 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     username_row->addWidget(m_register);
     username_row->addStretch();
 
+    m_profile = new ProfilePage(this);
+    m_profile->setObjectName("dashPayProfilePage");
     m_contacts = new ContactsPage(this);
     m_contacts->setObjectName("dashPayContactsPage");
 
@@ -141,6 +145,7 @@ PlatformPage::PlatformPage(PlatformService::Sources sources, QWidget* parent) :
     layout->addLayout(actions);
     layout->addWidget(m_username_status);
     layout->addLayout(username_row);
+    layout->addWidget(m_profile);
     layout->addWidget(m_contacts);
     layout->addWidget(m_stop, 0, Qt::AlignLeft);
     layout->addStretch();
@@ -195,6 +200,9 @@ void PlatformPage::resetService()
     if (m_service) {
         Q_EMIT serviceChanged(nullptr);
         m_contacts->setFlow(nullptr);
+        m_contacts->setProfiles(nullptr);
+        m_profile->setFlow(nullptr);
+        m_profile_flow.reset();
         m_recovery_flow.reset();
         m_contact_flow.reset();
         m_username_flow.reset();
@@ -217,6 +225,10 @@ void PlatformPage::resetService()
         connect(m_contact_flow.get(), &ContactFlow::payTo, this, &PlatformPage::payTo);
         m_recovery_flow = std::make_unique<RecoveryFlow>(*m_service, *m_identity_flow, *m_username_flow, *m_contact_flow);
         connect(m_recovery_flow.get(), &RecoveryFlow::changed, this, &PlatformPage::refresh);
+        m_profile_flow = std::make_unique<ProfileFlow>(*m_service, *m_identity_flow, *m_contact_flow);
+        m_profile->setFlow(m_profile_flow.get());
+        m_contacts->setProfiles(m_profile_flow.get());
+        connect(m_profile_flow.get(), &ProfileFlow::changed, this, &PlatformPage::refresh);
         Q_EMIT serviceChanged(m_service.get());
     }
     refresh();
@@ -290,9 +302,10 @@ void PlatformPage::refresh()
     using NameStep = UsernameFlow::Step;
     const NameStep name_step{names ? names->step() : NameStep::IDLE};
     const ContactFlow* contacts{m_contact_flow.get()};
+    const ProfileFlow* profile{m_profile_flow.get()};
     const bool idle{running && step == Step::IDLE && name_step == NameStep::IDLE && contacts &&
                     contacts->step() == ContactFlow::Step::IDLE && recovery &&
-                    recovery->step() == RecoveryFlow::Step::IDLE};
+                    recovery->step() == RecoveryFlow::Step::IDLE && profile && profile->step() == ProfileFlow::Step::IDLE};
     //! Nothing in flight and no funding waiting for Platform.
     const bool ready{idle && !funding};
     QString identity_status;
@@ -375,6 +388,8 @@ void PlatformPage::refresh()
     m_recovery_status->setText(recovery_status);
     m_recovery_status->setVisible(!recovery_status.isEmpty());
 
+    m_profile->setVisible(running && identity);
+    m_profile->refresh(ready);
     // Contacts find the identity by its username.
     m_contacts->setVisible(running && identity && username);
     m_contacts->refresh(ready);

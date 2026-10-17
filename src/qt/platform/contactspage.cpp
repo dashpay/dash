@@ -7,6 +7,7 @@
 #include <base58.h>
 #include <qt/guiutil.h>
 #include <qt/platform/contactflow.h>
+#include <qt/platform/profileflow.h>
 
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -87,7 +88,12 @@ void ContactsPage::refresh(bool writable)
     m_list->setRowCount(static_cast<int>(contacts.size()));
     for (int row = 0; row < m_list->rowCount(); ++row) {
         const ContactFlow::Contact& contact{contacts[row]};
-        const QString name{QString::fromStdString(contact.username.value_or(EncodeBase58(contact.id)))};
+        QString name{QString::fromStdString(contact.username.value_or(EncodeBase58(contact.id)))};
+        if (m_profiles) {
+            if (const auto profile{m_profiles->profile(contact.id)}; profile && !profile->display_name.empty()) {
+                name = tr("%1 (%2)").arg(QString::fromStdString(profile->display_name), name);
+            }
+        }
         m_list->setItem(row, 0, new QTableWidgetItem(name));
         QString state;
         switch (contact.state) {

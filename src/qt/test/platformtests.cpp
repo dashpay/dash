@@ -20,6 +20,7 @@
 #include <qt/platform/identityflow.h>
 #include <qt/platform/platformpage.h>
 #include <qt/platform/platformservice.h>
+#include <qt/platform/profileflow.h>
 #include <qt/platform/recoveryflow.h>
 #include <qt/platform/usernameflow.h>
 #include <qt/qvalidatedlineedit.h>
@@ -29,6 +30,7 @@
 #include <test/util/platform_client.h>
 #include <test/util/setup_common.h>
 #include <util/settings.h>
+#include <util/strencodings.h>
 #include <util/system.h>
 #include <util/time.h>
 #include <validation.h>
@@ -47,6 +49,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -477,6 +480,34 @@ struct NoClearnet {
         g_reachable_nets.Add(NET_IPV6);
     }
 };
+
+//! A call that could not reach Platform.
+template <typename T>
+platform::Result<T> Unavailable()
+{
+    platform::Result<T> result;
+    result.status.kind = platform::StatusKind::UNAVAILABLE;
+    return result;
+}
+
+platform::Profile ProfileOf(uint8_t owner, std::string display_name, std::string message = {})
+{
+    platform::Profile profile;
+    profile.owner.fill(owner);
+    profile.display_name = std::move(display_name);
+    profile.public_message = std::move(message);
+    return profile;
+}
+
+//! The row of the contacts list for `id`, or -1.
+int ContactRow(const PlatformPage& page, uint8_t id)
+{
+    const auto contacts{page.contactFlow()->contacts()};
+    for (size_t row = 0; row < contacts.size(); ++row) {
+        if (contacts[row].id[0] == id) return static_cast<int>(row);
+    }
+    return -1;
+}
 } // namespace
 
 //! The route follows Core's rules for its own connections: -proxy (or none)
@@ -2039,4 +2070,440 @@ void PlatformTests::prunedNodeRefusesTheRescan()
     f.attach(*page);
     QVERIFY(page->recoveryFlow()->prunedFrom().has_value());
     QVERIFY(!page->recoveryFlow()->rescanning());
+}
+
+//! The first save creates the identity's profile, the later ones update it:
+//! only the fields that are new, signed with its HIGH authentication key.
+//! Nothing is written for a name or message that is too long, or that
+//! is not new.
+void PlatformTests::profileIsCreatedThenUpdated()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests({})};
+        client.profiles = {Reply(std::vector<platform::Profile>{})};
+        client.written_profiles = {Reply(ProfileOf(5, "Alice", "hi")), Reply(ProfileOf(5, "Alice B", "hi")),
+                                   Reply(ProfileOf(5, "Alice B", "hello"))};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    ProfileFlow& flow{*page.profileFlow()};
+    FakePlatformClient& fake{*sources.fake};
+    QVERIFY(flow.ownRead() && !flow.own());
+    // Only our own profile is read: there are no contacts yet.
+    QCOMPARE(fake.profile_reads.size(), size_t{1});
+    QVERIFY(fake.profile_reads.front() == std::vector<platform::Identifier>{ours.value.id});
+
+    auto* name{page.findChild<QLineEdit*>("dashPayProfileName")};
+    auto* message{page.findChild<QLineEdit*>("dashPayProfileMessage")};
+    QVERIFY(VisibleButton(page, "dashPaySaveProfile"));
+    const auto save = [&](const QString& new_name, const QString& new_message) {
+        name->setText(new_name);
+        message->setText(new_message);
+        VisibleButton(page, "dashPaySaveProfile")->click();
+        fake.deliverAll();
+    };
+    const auto writes = [&] { return fake.profile_writes.size(); };
+
+    // Created, with both fields.
+    save("Alice", "hi");
+    QCOMPARE(writes(), size_t{1});
+    {
+        const auto& write{fake.profile_writes.back()};
+        QVERIFY(write.create);
+        QVERIFY(write.owner == ours.value.id);
+        QCOMPARE(write.key_id, uint32_t{2});
+        QCOMPARE(write.fields.display_name, std::string{"Alice"});
+        QCOMPARE(write.fields.public_message, std::string{"hi"});
+    }
+    QVERIFY(std::any_of(fake.calls.begin(), fake.calls.end(),
+                        [](const auto& call) { return call.method == "createProfile" && call.identity_index == 0; }));
+    QVERIFY(flow.own() == ProfileOf(5, "Alice", "hi"));
+    QVERIFY(flow.error().isEmpty());
+
+    // Updated with the new display name only.
+    save("Alice B", "hi");
+    QCOMPARE(writes(), size_t{2});
+    {
+        const auto& write{fake.profile_writes.back()};
+        QVERIFY(!write.create);
+        QCOMPARE(write.key_id, uint32_t{2});
+        QCOMPARE(write.fields.display_name, std::string{"Alice B"});
+        QVERIFY(write.fields.public_message.empty());
+    }
+
+    // Updated with the new message only.
+    save("Alice B", "hello");
+    QCOMPARE(writes(), size_t{3});
+    {
+        const auto& write{fake.profile_writes.back()};
+        QVERIFY(!write.create);
+        QVERIFY(write.fields.display_name.empty());
+        QCOMPARE(write.fields.public_message, std::string{"hello"});
+    }
+    QVERIFY(flow.own() == ProfileOf(5, "Alice B", "hello"));
+
+    // Refused, with no write: too long, or nothing new.
+    const auto refused = [&](const QString& new_name, const QString& new_message) {
+        const size_t before{writes()};
+        flow.save(new_name, new_message);
+        fake.deliverAll();
+        QCOMPARE(writes(), before);
+        QVERIFY(!flow.error().isEmpty());
+        QVERIFY(flow.step() == ProfileFlow::Step::IDLE);
+    };
+    refused(QString(ProfileFlow::MAX_DISPLAY_NAME + 1, 'n'), "");
+    refused("", QString(ProfileFlow::MAX_PUBLIC_MESSAGE + 1, 'm'));
+    refused("Alice B", "hello");
+    refused("", "");
+    QVERIFY(flow.own() == ProfileOf(5, "Alice B", "hello"));
+}
+
+//! Contact profiles are read in one batch for all the contacts, and shown
+//! in the list as the display name with the username. Reading the contacts
+//! again reads their profiles again, and the answer to a profile read that
+//! a re-read of the contacts overtook is dropped.
+void PlatformTests::contactProfilesAreReadInOneBatch()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    // Bob (0x0b) answered ours; carol (0x0c) has not; dave (0x0d) wrote to us.
+    const auto sent{Requests({Request(5, 0x0b, 1), Request(5, 0x0c, 5)})};
+    const auto received{Requests({Request(0x0b, 5, 2), Request(0x0d, 5, 3)})};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {sent, sent, sent, sent};
+        client.received_requests = {received, received, received, received};
+        const auto contacts_profiles = [](const std::string& bob_name) {
+            return Reply(std::vector<platform::Profile>{ProfileOf(0x0b, bob_name), ProfileOf(0x0d, "Dave")});
+        };
+        // Ours first; then the contacts', with someone else's profile among them.
+        auto first{contacts_profiles("Bob")};
+        first.value.push_back(ProfileOf(0x77, "Stranger"));
+        client.profiles = {Reply(std::vector<platform::Profile>{}), first, contacts_profiles("Bobby"),
+                           contacts_profiles("Stale"), contacts_profiles("Fresh")};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    const ProfileFlow& flow{*page.profileFlow()};
+    const FakePlatformClient& fake{*sources.fake};
+    const auto batch = [&](size_t index) {
+        auto owners{fake.profile_reads.at(index)};
+        std::sort(owners.begin(), owners.end());
+        std::vector<uint8_t> firsts;
+        for (const auto& owner : owners) {
+            firsts.push_back(owner[0]);
+        }
+        return firsts;
+    };
+    // Ours, then all three contacts at once.
+    QCOMPARE(fake.profile_reads.size(), size_t{2});
+    QVERIFY(batch(1) == (std::vector<uint8_t>{0x0b, 0x0c, 0x0d}));
+    platform::Identifier bob, carol, dave, stranger;
+    bob.fill(0x0b);
+    carol.fill(0x0c);
+    dave.fill(0x0d);
+    stranger.fill(0x77);
+    QVERIFY(flow.profile(bob) && flow.profile(bob)->display_name == "Bob");
+    QVERIFY(flow.profile(dave) && !flow.profile(carol) && !flow.profile(stranger));
+
+    const auto* list{page.findChild<QTableWidget*>("dashPayContacts")};
+    const auto row_text = [&](uint8_t id) { return list->item(ContactRow(page, id), 0)->text(); };
+    QVERIFY(row_text(0x0b).contains("Bob") && row_text(0x0d).contains("Dave"));
+    QVERIFY(!row_text(0x0c).contains("Bob") && !row_text(0x0c).contains("Dave"));
+
+    // Reading the contacts again reads their profiles again, once.
+    VisibleButton(page, "dashPayRefreshContacts")->click();
+    sources.fake->deliverAll();
+    QCOMPARE(fake.profile_reads.size(), size_t{3});
+    QVERIFY(batch(2) == (std::vector<uint8_t>{0x0b, 0x0c, 0x0d}));
+    QVERIFY(row_text(0x0b).contains("Bobby"));
+
+    // The contacts are read again while their profiles still are: the answer
+    // to the older read is dropped, and the profiles are read once more.
+    VisibleButton(page, "dashPayRefreshContacts")->click();
+    for (int i = 0; i < 20 && fake.profile_reads.size() < 4; ++i) {
+        sources.fake->deliverNext();
+    }
+    QCOMPARE(fake.profile_reads.size(), size_t{4});
+    VisibleButton(page, "dashPayRefreshContacts")->click();
+    // The contacts are read again before the older profiles answer.
+    for (int i = 0; i < 20 && !page.contactFlow()->swept(); ++i) {
+        sources.fake->deliverLast();
+    }
+    QVERIFY(page.contactFlow()->swept());
+    sources.fake->deliverAll();
+    QCOMPARE(fake.profile_reads.size(), size_t{5});
+    QVERIFY(flow.profile(bob) && flow.profile(bob)->display_name == "Fresh");
+}
+
+//! The profiles of many contacts are read in batches of at most 100 owners,
+//! none twice, and our own with them only once.
+void PlatformTests::manyContactProfilesAreReadInBatches()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    // 150 requests to us, one of them from our own identity (5).
+    std::vector<platform::ContactRequest> incoming;
+    for (uint8_t from = 1; from <= 150; ++from) {
+        incoming.push_back(Request(from, 5, from));
+    }
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests(incoming)};
+        client.profiles = {Reply(std::vector<platform::Profile>{}), Reply(std::vector<platform::Profile>{}),
+                           Reply(std::vector<platform::Profile>{})};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    const auto& reads{sources.fake->profile_reads};
+    // Ours alone, then the 149 others: 100, then 49.
+    QCOMPARE(reads.size(), size_t{3});
+    QCOMPARE(reads[0].size(), size_t{1});
+    QCOMPARE(reads[1].size(), platform::MAX_PROFILE_OWNERS);
+    QCOMPARE(reads[2].size(), size_t{49});
+    std::set<platform::Identifier> seen;
+    for (const auto& read : reads) {
+        seen.insert(read.begin(), read.end());
+    }
+    QCOMPARE(seen.size(), size_t{150});
+}
+
+//! A profile write is a call of the client: network activity off drops one
+//! in flight, it is not sent again, and the profile is read again on the
+//! next client. With no network DashPay can use there is no client, so no
+//! save is offered.
+void PlatformTests::profileWriteFollowsTheClient()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests({})};
+        client.profiles = {Reply(std::vector<platform::Profile>{})};
+        client.written_profiles = {Reply(ProfileOf(5, "Alice"))};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    ProfileFlow& flow{*page.profileFlow()};
+
+    flow.save("Alice", "");
+    QVERIFY(flow.step() == ProfileFlow::Step::SAVING);
+    QCOMPARE(sources.fake->profile_writes.size(), size_t{1});
+    f.setNetworkActive(false);
+    QVERIFY(flow.step() == ProfileFlow::Step::IDLE);
+    f.setNetworkActive(true);
+    QCOMPARE(sources.made.size(), size_t{2});
+    sources.fake->deliverAll();
+    QVERIFY(flow.ownRead() && flow.step() == ProfileFlow::Step::IDLE);
+    QCOMPARE(sources.fake->profile_reads.size(), size_t{1});
+    QCOMPARE(sources.fake->profile_writes.size(), size_t{0});
+
+    FakeSources nowhere;
+    nowhere.settings.ipv4 = nowhere.settings.ipv6 = nowhere.settings.onion = false;
+    PlatformPage offline{nowhere.get()};
+    f.attach(offline);
+    QVERIFY(nowhere.made.empty());
+    offline.profileFlow()->save("Alice", "");
+    QVERIFY(offline.profileFlow()->step() == ProfileFlow::Step::IDLE);
+    QVERIFY(!VisibleButton(offline, "dashPaySaveProfile"));
+}
+
+//! A profile is one more of the wallet's writes: it is not sent while a
+//! contact request is on its way, and the next goes through once it is written.
+void PlatformTests::profileWritesTakeTurns()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    CKey bob_key, carol_key;
+    bob_key.MakeNewKey(/*fCompressed=*/true);
+    carol_key.MakeNewKey(/*fCompressed=*/true);
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({}), Requests({})};
+        client.received_requests = {Requests({}), Requests({})};
+        client.profiles = {Reply(std::vector<platform::Profile>{})};
+        client.resolved_names = {Resolved(0x0b), Resolved(0x0c)};
+        client.identities = {Peer(0x0b, bob_key, Purpose::ENCRYPTION), Peer(0x0c, carol_key, Purpose::ENCRYPTION)};
+        client.sent_contact_requests = {Resolved(1), Resolved(2)};
+        client.written_profiles = {Reply(ProfileOf(5, "Alice"))};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    ProfileFlow& profile{*page.profileFlow()};
+    ContactFlow& contacts{*page.contactFlow()};
+    FakePlatformClient& fake{*sources.fake};
+
+    // A contact is being added: the profile is not written.
+    contacts.add("bob2026");
+    profile.save("Alice", "");
+    QVERIFY(fake.profile_writes.empty());
+    QVERIFY(!profile.error().isEmpty() && profile.step() == ProfileFlow::Step::IDLE);
+    fake.deliverAll();
+    QCOMPARE(fake.contact_inputs.size(), size_t{1});
+
+    // Once the profile is written the next contact request goes through; that
+    // none does while it is being written is checked by the next scenario.
+    profile.save("Alice", "");
+    QCOMPARE(fake.profile_writes.size(), size_t{1});
+    contacts.add("carol2026");
+    fake.deliverNext(); // the profile is written
+    QVERIFY(profile.own() == ProfileOf(5, "Alice"));
+    fake.deliverAll();
+    QCOMPARE(fake.contact_inputs.size(), size_t{2});
+}
+
+//! A profile takes its turn while its passphrase dialog is open: a contact
+//! request that gets as far as its own passphrase there is refused, because
+//! the profile is already on its way, and the profile is then written.
+void PlatformTests::profileTakesItsTurnDuringThePassphrase()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    CKey bob_key;
+    bob_key.MakeNewKey(/*fCompressed=*/true);
+    QVERIFY(f.wallet->EncryptWallet("test passphrase"));
+    // Unlocked to find the identity, locked again for the saves.
+    f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests({})};
+        client.profiles = {Reply(std::vector<platform::Profile>{})};
+        client.resolved_names = {Resolved(0x0b)};
+        client.identities = {Peer(0x0b, bob_key, Purpose::ENCRYPTION)};
+        client.sent_contact_requests = {Resolved(1)};
+        client.written_profiles = {Reply(ProfileOf(5, "Alice"))};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    QVERIFY(page.profileFlow()->ownRead());
+    f.wallet_model.setWalletLocked(/*locked=*/true);
+    QCOMPARE(f.wallet_model.getEncryptionStatus(), WalletModel::Locked);
+    FakePlatformClient& fake{*sources.fake};
+    ContactFlow& contacts{*page.contactFlow()};
+
+    // The contact is waiting for its identity when the profile's dialog opens:
+    // while it is open, the answer arrives.
+    contacts.add("bob2026");
+    fake.deliverNext();
+    QCOMPARE(fake.countCalls("getIdentity"), size_t{1});
+    QObject::connect(&f.wallet_model, &WalletModel::requireUnlock, [&] {
+        f.wallet_model.setWalletLocked(/*locked=*/false, "test passphrase");
+        fake.deliverAll();
+    });
+    page.profileFlow()->save("Alice", "");
+    fake.deliverAll();
+    QVERIFY(fake.contact_inputs.empty());
+    QVERIFY(!contacts.error().isEmpty());
+    QCOMPARE(fake.profile_writes.size(), size_t{1});
+    QVERIFY(page.profileFlow()->own() == ProfileOf(5, "Alice"));
+}
+
+//! What other clients published does not get in the way: a failed read of
+//! the profile is made again with the next change, a profile with a name of
+//! characters beyond the Basic Multilingual Plane and a message with
+//! trailing whitespace can still have one field changed, leaving the other
+//! as it is, and a save Platform does not take keeps its error.
+void PlatformTests::existingProfilesAreEditedAsTheyAre()
+{
+    Fixture f{m_node};
+    QVERIFY(f.models.ok);
+    auto ours{Found(5, 1'000'000)};
+    ours.value.public_keys = RegisteredKeys();
+    std::string emoji;
+    for (int i = 0; i < ProfileFlow::MAX_DISPLAY_NAME; ++i) {
+        emoji += "\xF0\x9F\x98\x80";
+    }
+    bool first_client{true};
+    FakeSources sources;
+    sources.script = [&](FakePlatformClient& client) {
+        client.identities_by_pubkey_hash = {ours};
+        client.names = {Names({"me2026"})};
+        client.sent_requests = {Requests({})};
+        client.received_requests = {Requests({})};
+        // The first client's read fails, the next one's answers.
+        const auto published{Reply(std::vector<platform::Profile>{ProfileOf(5, emoji, "old \n")})};
+        if (first_client) {
+            client.profiles = {Unavailable<std::vector<platform::Profile>>()};
+        } else {
+            client.profiles = {published, published};
+        }
+        first_client = false;
+        client.written_profiles = {Reply(ProfileOf(5, "Other", "old \n")), Unavailable<platform::Profile>()};
+    };
+    PlatformPage page{sources.get()};
+    f.attach(page);
+    sources.fake->deliverAll();
+    // The read failed: the page says so, and offers no save.
+    QVERIFY(!page.profileFlow()->ownRead() && !page.profileFlow()->error().isEmpty());
+    QVERIFY(!VisibleButton(page, "dashPaySaveProfile"));
+    QVERIFY(page.findChild<QLabel*>("dashPayProfileStatus")->isVisibleTo(&page));
+    // The next client reads it again.
+    f.setNetworkActive(false);
+    f.setNetworkActive(true);
+    sources.fake->deliverAll();
+    const FakePlatformClient& fake{*sources.fake};
+    QVERIFY(page.profileFlow()->ownRead() && page.profileFlow()->error().isEmpty());
+    QCOMPARE(fake.profile_reads.size(), size_t{1});
+
+    // The page shows what is published, whole.
+    auto* name_field{page.findChild<QLineEdit*>("dashPayProfileName")};
+    QCOMPARE(name_field->text(), QString::fromStdString(emoji));
+    // Only the display name is changed: the message, shown trimmed, is not sent again.
+    name_field->setText("Other");
+    VisibleButton(page, "dashPaySaveProfile")->click();
+    sources.fake->deliverAll();
+    QCOMPARE(fake.profile_writes.size(), size_t{1});
+    const auto& write{fake.profile_writes.front()};
+    QVERIFY(!write.create);
+    QCOMPARE(write.fields.display_name, std::string{"Other"});
+    QVERIFY(write.fields.public_message.empty());
+    QVERIFY(page.profileFlow()->error().isEmpty());
+
+    // A save Platform does not take keeps its error when the profile is read
+    // again to see where it stands.
+    name_field->setText("Another");
+    VisibleButton(page, "dashPaySaveProfile")->click();
+    sources.fake->deliverAll();
+    QCOMPARE(fake.profile_writes.size(), size_t{2});
+    QCOMPARE(fake.profile_reads.size(), size_t{2});
+    QVERIFY(page.profileFlow()->ownRead());
+    QVERIFY(!page.profileFlow()->error().isEmpty());
+    QVERIFY(page.findChild<QLabel*>("dashPayProfileStatus")->isVisibleTo(&page));
 }
