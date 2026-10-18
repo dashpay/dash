@@ -126,8 +126,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.extra_args = None
         self.network_thread = None
         self.mocktime = 0
-        # Poll sync_blocks() every 0.1s instead of every 1s. It waits for the same condition either way and
-        # only notices sooner that it holds.
+        # Poll sync_blocks() and sync_mempools() every 0.1s instead of every 1s. They wait for the same
+        # condition either way and only notice sooner that it holds.
         self.fast_sync_polling = False
         self.rpc_timeout = 60  # Wait for up to 60 seconds for the RPC server to respond
         self.supports_cli = True
@@ -853,16 +853,26 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             "".join("\n  {!r}".format(b) for b in best_hash),
         ))
 
-    def sync_mempools(self, nodes=None, wait=1, timeout=60, flush_scheduler=True, wait_func=None):
+    def sync_mempools(self, nodes=None, wait=None, timeout=60, flush_scheduler=True, wait_func=None):
         """
         Wait until everybody has the same transactions in their memory
         pools
+
+        With fast_sync_polling (and no explicit wait) the mempools are compared
+        every 0.1s, while wait_func (by default a 3s mocktime bump) still runs
+        at most once per second.
         """
+        poll = wait
+        if wait is None:
+            wait = 1
+            poll = 0.1 if self.fast_sync_polling else wait
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
         stop_time = time.time() + timeout
         if self.mocktime != 0 and wait_func is None:
             wait_func = lambda: self.bump_mocktime(3, nodes=nodes)
+        if wait_func is not None and poll < wait:
+            wait_func = throttled(wait_func, wait)
         while time.time() <= stop_time:
             pool = [set(r.getrawmempool()) for r in rpc_connections]
             if pool.count(pool[0]) == len(rpc_connections):
@@ -875,7 +885,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             assert (all([len(x.getpeerinfo()) for x in rpc_connections]))
             if wait_func is not None:
                 wait_func()
-            time.sleep(wait)
+            time.sleep(poll)
         raise AssertionError("Mempool sync timed out after {}s:{}".format(
             timeout,
             "".join("\n  {!r}".format(m) for m in pool),
