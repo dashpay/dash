@@ -2079,6 +2079,10 @@ class DashTestFramework(BitcoinTestFramework):
             # wait_proc bumps mocktime by a second, keep it from outrunning the wall clock
             wait_proc = throttled(wait_proc)
 
+        # As in wait_for_quorum_phase: a PoSe-banned masternode can stay listed in a reused quarter of a
+        # rotating quorum, but it joins no DKG, so no connection to it is needed
+        online = {mn.proTxHash for mn in mninfos if not check_banned(self.nodes[0], mn)}
+
         def check_quorum_connections():
             def ret():
                 if wait_proc is not None:
@@ -2089,7 +2093,6 @@ class DashTestFramework(BitcoinTestFramework):
             # up as well, or its contributions are lost and wait_for_quorum_phase never sees them;
             # expected_connections only applies to the requested type
             found = False
-            online = {mn.proTxHash for mn in mninfos}
             for mn in mninfos:
                 s = mn.get_node(self).quorum("dkgstatus")
                 for qs in s["session"]:
