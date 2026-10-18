@@ -26,6 +26,7 @@ class LLMQSigningTest(DashTestFramework):
         self.set_dash_llmq_test_params(5, 3)
         for args in self.extra_args:
             args.append("-llmqtestplatformparams=3:2")
+        self.fast_sync_polling = True
 
     def add_options(self, parser):
         self.add_wallet_options(parser)
