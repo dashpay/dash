@@ -126,6 +126,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.extra_args = None
         self.network_thread = None
         self.mocktime = 0
+        # Poll sync_blocks() every 0.1s instead of every 1s. It waits for the same condition either way and
+        # only notices sooner that it holds.
+        self.fast_sync_polling = False
         self.rpc_timeout = 60  # Wait for up to 60 seconds for the RPC server to respond
         self.supports_cli = True
         self.bind_to_localhost_only = True
@@ -826,13 +829,15 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         sync_fun() if sync_fun else self.sync_all()
         return blocks
 
-    def sync_blocks(self, nodes=None, wait=1, timeout=60):
+    def sync_blocks(self, nodes=None, wait=None, timeout=60):
         """
         Wait until everybody has the same tip.
         sync_blocks needs to be called with an rpc_connections set that has least
         one node already synced to the latest, stable tip, otherwise there's a
         chance it might return before all nodes are stably synced.
         """
+        if wait is None:
+            wait = 0.1 if self.fast_sync_polling else 1
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
         stop_time = time.time() + timeout
