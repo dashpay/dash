@@ -42,6 +42,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.set_dash_test_params(6, 5)
         self.set_dash_llmq_test_params(5, 3)
         self.delay_v20_and_mn_rr(height=9999)
+        self.fast_sync_polling = True
 
     def add_options(self, parser):
         self.add_wallet_options(parser)
