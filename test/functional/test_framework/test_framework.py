@@ -2251,6 +2251,50 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.wait_until(check_dkg_session, timeout=timeout)
 
+    def offset_quorum_hash(self, quorum_hash):
+        """With rotation active, the index 1 session of a cycle is based on the block after quorum_hash and runs
+        one block behind the sessions of quorum_hash."""
+        return self.nodes[0].getblockhash(self.nodes[0].getblock(quorum_hash)["height"] + 1)
+
+    def wait_for_offset_quorum_phase(self, quorum_hash, phase, mninfos, messages=True):
+        """Called once the sessions of quorum_hash are in phase (2-6), when the offset session is still in
+        phase - 1 and the next phase block moves it on as well. A member whose worker has not caught up by then
+        aborts the session, so wait for every member of mninfos to be in phase - 1. With messages, also wait
+        until it is ready to move on: in phase 1 its relay connections must be up, because a contribution is
+        relayed only once and only to the members connected at that moment, and in phases 2-5 every member has
+        to hold every message of the phase that its members report having sent. Without messages (some member
+        is offline, so relays can be lost for good) only the phase is awaited. Passes at once without an offset
+        session."""
+        offset_hash = self.offset_quorum_hash(quorum_hash)
+        received = {2: "receivedContributions", 3: "receivedComplaints", 4: "receivedJustifications", 5: "receivedPrematureCommitments"}
+        check_received = received.get(phase - 1) if messages else None
+        self.wait_for_quorum_phase(offset_hash, phase - 1, 0, check_received, None, mninfos, all_types=True)
+        if phase == 2 and messages:
+            llmq_types = {qs["llmqType"] for mn in mninfos for qs in mn.get_node(self).quorum("dkgstatus")["session"]
+                          if qs["status"]["quorumHash"] == offset_hash}
+            if llmq_types:
+                self.wait_for_quorum_connections(offset_hash, 0, mninfos, llmq_type_name=min(llmq_types),
+                                                 wait_proc=lambda: self.bump_mocktime(1), all_types=True)
+
+    def wait_for_offset_quorum_commitments(self, quorum_hash, mninfos, timeout=15):
+        """The offset session finalizes with the block that mines the final commitments of quorum_hash, so wait
+        until no member's offset session is short of finalization and the commitments they produced reached
+        the mining node before mining past its window. A member whose session is done no longer reports it, and
+        an aborted session (e.g. with a member offline) produces no commitment. Passes at once without an offset
+        session."""
+        offset_hash = self.offset_quorum_hash(quorum_hash)
+
+        def check_finalized():
+            for mn in mninfos:
+                for qs in mn.get_node(self).quorum("dkgstatus")["session"]:
+                    status = qs["status"]
+                    if status["quorumHash"] == offset_hash and not status["aborted"] and status["phase"] < 6:
+                        return False
+            return True
+
+        self.wait_until(check_finalized, timeout=timeout)
+        self.wait_for_quorum_commitments_on_miner(offset_hash, mninfos)
+
     def node_quorum_commitment_types(self, node, quorum_hash):
         s = node.quorum("dkgstatus")
         return {c["llmqType"] for c in s.get("minableCommitments", [])
@@ -2369,26 +2413,36 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name=llmq_type_name, all_types=all_types)
+        if self.fast_sync_polling:
+            self.wait_for_offset_quorum_phase(q, 2, mninfos_online, messages=all_types)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name=llmq_type_name, all_types=all_types)
+        if self.fast_sync_polling:
+            self.wait_for_offset_quorum_phase(q, 3, mninfos_online, messages=all_types)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name=llmq_type_name, all_types=all_types)
+        if self.fast_sync_polling:
+            self.wait_for_offset_quorum_phase(q, 4, mninfos_online, messages=all_types)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name=llmq_type_name, all_types=all_types)
+        if self.fast_sync_polling:
+            self.wait_for_offset_quorum_phase(q, 5, mninfos_online, messages=all_types)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online, llmq_type_name=llmq_type_name, all_types=all_types)
+        if self.fast_sync_polling:
+            self.wait_for_offset_quorum_phase(q, 6, mninfos_online, messages=all_types)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online, llmq_type=llmq_type)
@@ -2411,6 +2465,8 @@ class DashTestFramework(BitcoinTestFramework):
             self.verify_upcoming_dkg_predictions(predictions, quorum_info)
 
         if not skip_maturity:
+            if self.fast_sync_polling:
+                self.wait_for_offset_quorum_commitments(q, mninfos_online)
             # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
             self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
 

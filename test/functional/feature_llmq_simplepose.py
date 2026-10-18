@@ -179,6 +179,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, len(self.mninfo), "receivedContributions", self.llmq_size, self.mninfo, all_types=True)
+        self.wait_for_offset_quorum_phase(q, 2, self.mninfo)
 
         self.log.info("Replacing the connections to the masternode with stand-ins")
         mn.get_node(self).setnetworkactive(False)
@@ -194,21 +195,25 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, len(others), "receivedComplaints", expected_complaints, others)
+        self.wait_for_offset_quorum_phase(q, 3, others, messages=False)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, len(others), "receivedJustifications", 0, others)
+        self.wait_for_offset_quorum_phase(q, 4, others, messages=False)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, len(others), "receivedPrematureCommitments", len(others), others)
+        self.wait_for_offset_quorum_phase(q, 5, others, messages=False)
 
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, len(others), None, 0, others)
+        self.wait_for_offset_quorum_phase(q, 6, others, messages=False)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, others)
@@ -224,6 +229,8 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.log.info("Waiting for quorum to appear in the list")
         self.wait_for_quorum_list(q, nodes)
         assert_equal(q, self.nodes[0].quorum("list", 1)["llmq_test"][0])
+
+        self.wait_for_offset_quorum_commitments(q, others)
 
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
@@ -263,22 +270,27 @@ class LLMQSimplePoSeTest(DashTestFramework):
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_members, mninfos_online, all_types=True)
+        self.wait_for_offset_quorum_phase(q, 2, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", None, mninfos_online, all_types=True)
+        self.wait_for_offset_quorum_phase(q, 3, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", None, mninfos_online, all_types=True)
+        self.wait_for_offset_quorum_phase(q, 4, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_members, mninfos_online, all_types=True)
+        self.wait_for_offset_quorum_phase(q, 5, mninfos_online)
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online, all_types=True)
+        self.wait_for_offset_quorum_phase(q, 6, mninfos_online)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, mninfos_online)
@@ -297,6 +309,8 @@ class LLMQSimplePoSeTest(DashTestFramework):
         new_quorum = self.nodes[0].quorum("list", 1)["llmq_test"][0]
         assert_equal(q, new_quorum)
         quorum_info = self.nodes[0].quorum("info", 100, new_quorum)
+
+        self.wait_for_offset_quorum_commitments(q, mninfos_online)
 
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.bump_mocktime(8)
