@@ -129,7 +129,7 @@ void CDKGSessionManager::WriteVerifiedVvecContribution(Consensus::LLMQType llmqT
     for (auto& pubkey : *vvec) {
         s << CBLSPublicKeyVersionWrapper(pubkey, false);
     }
-    db->Write(std::make_tuple(DB_VVEC, llmqType, pQuorumBaseBlockIndex->GetBlockHash(), proTxHash), s);
+    db->Write(std::make_tuple(DB_VVEC, llmqType, pQuorumBaseBlockIndex->GetBlockHash(), proTxHash), Span{s});
 }
 
 void CDKGSessionManager::WriteVerifiedSkContribution(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& proTxHash, const CBLSSecretKey& skContribution)
