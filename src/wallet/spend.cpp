@@ -141,6 +141,18 @@ void CoinsResult::Add(OutputType type, const COutput& out)
     }
 }
 
+/** Dash wallets derive legacy keys by default, so legacy change is preferred when
+ * the wallet can produce it; a wallet made only of imported taproot descriptors
+ * uses its taproot keypool instead. */
+static OutputType TransactionChangeType(const CWallet& wallet)
+{
+    if (wallet.GetScriptPubKeyMan(OutputType::LEGACY, /*internal=*/true)) return OutputType::LEGACY;
+    for (OutputType type : OUTPUT_TYPES) {
+        if (wallet.GetScriptPubKeyMan(type, /*internal=*/true)) return type;
+    }
+    return OutputType::LEGACY;
+}
+
 static OutputType GetOutputType(TxoutType type, bool is_from_p2sh)
 {
     switch (type) {
@@ -911,7 +923,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     coin_selection_params.m_long_term_feerate = wallet.m_consolidate_feerate;
 
     CAmount recipients_sum = 0;
-    ReserveDestination reservedest(&wallet);
+    ReserveDestination reservedest(&wallet, TransactionChangeType(wallet));
     const bool sort_bip69{nChangePosInOut == -1};
     unsigned int outputs_to_subtract_fee_from = 0; // The number of outputs which we are subtracting the fee from
     for (const auto& recipient : vecSend) {

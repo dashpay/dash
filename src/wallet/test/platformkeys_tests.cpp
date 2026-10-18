@@ -272,7 +272,7 @@ struct FriendshipWalletSetup : public TestChain100Setup {
             wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
             auto* spk_man{wallet->AddWalletDescriptor(descriptor, provider, "", /*internal=*/false)};
             BOOST_REQUIRE(spk_man);
-            wallet->AddActiveScriptPubKeyMan(spk_man->GetID(), /*internal=*/false);
+            wallet->AddActiveScriptPubKeyMan(spk_man->GetID(), OutputType::LEGACY, /*internal=*/false);
         }
 
         auto iface{interfaces::MakeWallet(m_context, wallet)};
@@ -404,7 +404,7 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_must_be_unambiguous, Dip14WalletSetu
         for (auto* spk_man : m_wallet->GetActiveScriptPubKeyMans()) first_ids.insert(spk_man->GetID());
         m_wallet->SetupDescriptorScriptPubKeyMans(
             "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "");
-        m_wallet->AddActiveScriptPubKeyMan(*first_ids.begin(), /*internal=*/true);
+        m_wallet->AddActiveScriptPubKeyMan(*first_ids.begin(), OutputType::LEGACY, /*internal=*/true);
     }
 
     const auto ambiguous{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
@@ -457,7 +457,7 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_includes_chaincode, Dip14WalletSetup
         LOCK(m_wallet->cs_wallet);
         auto* spk_man{m_wallet->AddWalletDescriptor(descriptor, provider, "", /*internal=*/true)};
         BOOST_REQUIRE(spk_man);
-        m_wallet->AddActiveScriptPubKeyMan(spk_man->GetID(), /*internal=*/true);
+        m_wallet->AddActiveScriptPubKeyMan(spk_man->GetID(), OutputType::LEGACY, /*internal=*/true);
     }
 
     const auto result{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
@@ -495,7 +495,7 @@ BOOST_FIXTURE_TEST_CASE(invalid_mnemonic_does_not_change_platform_keys, Friendsh
             wallet->AddWalletDescriptor(descriptor, provider, "", /*internal=*/false));
         BOOST_REQUIRE(spk_man);
         BOOST_REQUIRE(spk_man->AddKey(master.key.GetPubKey().GetID(), master.key, bad_mnemonic, ""));
-        wallet->AddActiveScriptPubKeyMan(spk_man->GetID(), /*internal=*/false);
+        wallet->AddActiveScriptPubKeyMan(spk_man->GetID(), OutputType::LEGACY, /*internal=*/false);
     }
 
     auto iface = interfaces::MakeWallet(m_context, wallet);

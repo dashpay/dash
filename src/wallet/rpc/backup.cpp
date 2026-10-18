@@ -1814,11 +1814,11 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
             if (!w_desc.descriptor->GetOutputType()) {
                 warnings.push_back("Unknown output type, cannot set descriptor to active.");
             } else {
-                wallet.AddActiveScriptPubKeyMan(spk_manager->GetID(), internal);
+                wallet.AddActiveScriptPubKeyMan(spk_manager->GetID(), *w_desc.descriptor->GetOutputType(), internal);
             }
         } else {
             if (w_desc.descriptor->GetOutputType()) {
-                wallet.DeactivateScriptPubKeyMan(spk_manager->GetID(), internal);
+                wallet.DeactivateScriptPubKeyMan(spk_manager->GetID(), *w_desc.descriptor->GetOutputType(), internal);
             }
         }
 

@@ -253,8 +253,9 @@ class WalletTaprootTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].getdescriptorinfo(desc)['descriptor'], desc_pub)
         result = addr_gen.importdescriptors([{"desc": desc_pub, "active": True, "timestamp": "now"}])
         assert(result[0]['success'])
+        address_type = "taproot" if "tr" in pattern else "legacy"
         for i in range(4):
-            addr_g = addr_gen.getnewaddress()
+            addr_g = addr_gen.getnewaddress(address_type=address_type)
             if treefn is not None:
                 addr_r = self.make_addr(treefn, keys, i)
                 assert_equal(addr_g, addr_r)
@@ -305,8 +306,9 @@ class WalletTaprootTest(BitcoinTestFramework):
         assert(result[0]['success'])
         result = rpc_online.importdescriptors([{"desc": desc_change, "active": True, "timestamp": "now", "internal": True}])
         assert(result[0]['success'])
+        address_type = "taproot" if "tr" in pattern else "legacy"
         for i in range(4):
-            addr_g = rpc_online.getnewaddress()
+            addr_g = rpc_online.getnewaddress(address_type=address_type)
             if treefn is not None:
                 addr_r = self.make_addr(treefn, keys_pay, i)
                 assert_equal(addr_g, addr_r)
@@ -356,8 +358,9 @@ class WalletTaprootTest(BitcoinTestFramework):
         for key in keys_pay + keys_change:
             result = key_only_wallet.importdescriptors([{"desc": descsum_create(f"pkh({key['xprv']}/*)"), "timestamp":"now"}])
             assert(result[0]["success"])
+        address_type = "taproot" if "tr" in pattern else "legacy"
         for i in range(4):
-            addr_g = psbt_online.getnewaddress()
+            addr_g = psbt_online.getnewaddress(address_type=address_type)
             if treefn is not None:
                 addr_r = self.make_addr(treefn, keys_pay, i)
                 assert_equal(addr_g, addr_r)

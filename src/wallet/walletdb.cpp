@@ -262,16 +262,20 @@ bool WalletBatch::ErasePlatformData(const std::string& key)
     return EraseIC(std::make_pair(DBKeys::PLATFORM_DATA, key));
 }
 
-bool WalletBatch::WriteActiveScriptPubKeyMan(const uint256& id, bool internal)
+// The legacy output type keeps the bare record, so wallets written before other
+// output types existed stay readable both ways; other types append the type byte.
+bool WalletBatch::WriteActiveScriptPubKeyMan(uint8_t type, const uint256& id, bool internal)
 {
     std::string key = internal ? DBKeys::ACTIVEINTERNALSPK : DBKeys::ACTIVEEXTERNALSPK;
-    return WriteIC(key, id);
+    if (type == static_cast<uint8_t>(OutputType::LEGACY)) return WriteIC(key, id);
+    return WriteIC(std::make_pair(key, type), id);
 }
 
-bool WalletBatch::EraseActiveScriptPubKeyMan(bool internal)
+bool WalletBatch::EraseActiveScriptPubKeyMan(uint8_t type, bool internal)
 {
     const std::string key{internal ? DBKeys::ACTIVEINTERNALSPK : DBKeys::ACTIVEEXTERNALSPK};
-    return EraseIC(key);
+    if (type == static_cast<uint8_t>(OutputType::LEGACY)) return EraseIC(key);
+    return EraseIC(std::make_pair(key, type));
 }
 
 bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey, const SecureString& mnemonic, const SecureString& mnemonic_passphrase)
@@ -687,7 +691,8 @@ ReadKeyValue(CWallet* pwallet, DataStream& ssKey, CDataStream& ssValue,
 
             bool internal = strType == DBKeys::ACTIVEINTERNALSPK;
             auto& spk_mans = internal ? wss.m_active_internal_spks : wss.m_active_external_spks;
-            const OutputType type = OutputType::LEGACY;
+            uint8_t type = static_cast<uint8_t>(OutputType::LEGACY);
+            if (!ssKey.empty()) ssKey >> type;
             if (spk_mans.count(static_cast<OutputType>(type)) > 0) {
                 strErr = "Multiple ScriptPubKeyMans specified for a single type";
                 return false;
@@ -992,10 +997,10 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
 
     // Set the active ScriptPubKeyMans
     for (auto spk_man : wss.m_active_external_spks) {
-        pwallet->LoadActiveScriptPubKeyMan(spk_man.second, /*internal=*/false);
+        pwallet->LoadActiveScriptPubKeyMan(spk_man.second, spk_man.first, /*internal=*/false);
     }
     for (auto spk_man : wss.m_active_internal_spks) {
-        pwallet->LoadActiveScriptPubKeyMan(spk_man.second, /*internal=*/true);
+        pwallet->LoadActiveScriptPubKeyMan(spk_man.second, spk_man.first, /*internal=*/true);
     }
 
     // Set the descriptor caches

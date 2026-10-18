@@ -253,8 +253,8 @@ public:
     bool EraseAddressReceiveRequest(const CTxDestination& dest, const std::string& id);
     bool EraseAddressData(const CTxDestination& dest);
 
-    bool WriteActiveScriptPubKeyMan(const uint256& id, bool internal);
-    bool EraseActiveScriptPubKeyMan(bool internal);
+    bool WriteActiveScriptPubKeyMan(uint8_t type, const uint256& id, bool internal);
+    bool EraseActiveScriptPubKeyMan(uint8_t type, bool internal);
 
     DBErrors LoadWallet(CWallet* pwallet);
     DBErrors FindWalletTxHashes(std::vector<uint256>& tx_hashes);
