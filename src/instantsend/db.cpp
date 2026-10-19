@@ -24,6 +24,24 @@ static std::tuple<std::string, uint32_t, uint256> BuildInversedISLockKey(std::st
 {
     return std::make_tuple(std::string{k}, htobe32_internal(std::numeric_limits<uint32_t>::max() - nHeight), islockHash);
 }
+
+/** Reads the iterator's key as an inversed-height key of kind `k`. Keys of other kinds have a
+ *  different layout, so the kind is compared before the rest is deserialized: letting the tuple
+ *  deserializer fail on them instead costs an exception on every loop exit. */
+static bool ReadInversedISLockKey(CDBIterator& it, std::string_view k, std::tuple<std::string, uint32_t, uint256>& key)
+{
+    try {
+        DataStream ss{it.GetKey()};
+        ss >> std::get<0>(key);
+        if (std::get<0>(key) != k) {
+            return false;
+        }
+        ss >> std::get<1>(key) >> std::get<2>(key);
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
 } // anonymous namespace
 
 CInstantSendDb::CInstantSendDb(const util::DbWrapperParams& db_params) :
@@ -147,7 +165,7 @@ Uint256HashMap<InstantSendLockPtr> CInstantSendDb::RemoveConfirmedInstantSendLoc
     Uint256HashMap<InstantSendLockPtr> ret;
     while (it->Valid()) {
         decltype(firstKey) curKey;
-        if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_MINED_BY_HEIGHT_AND_HASH) {
+        if (!ReadInversedISLockKey(*it, DB_MINED_BY_HEIGHT_AND_HASH, curKey)) {
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh_internal(std::get<1>(curKey));
@@ -191,7 +209,7 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
     CDBBatch batch(*db);
     while (it->Valid()) {
         decltype(firstKey) curKey;
-        if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_ARCHIVED_BY_HEIGHT_AND_HASH) {
+        if (!ReadInversedISLockKey(*it, DB_ARCHIVED_BY_HEIGHT_AND_HASH, curKey)) {
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh_internal(std::get<1>(curKey));
@@ -224,7 +242,9 @@ void CInstantSendDb::WriteBlockInstantSendLocks(const gsl::not_null<std::shared_
             WriteInstantSendLockMined(batch, islockHash, pindexConnected->nHeight);
         }
     }
-    db->WriteBatch(batch);
+    if (batch.SizeEstimate() > 0) {
+        db->WriteBatch(batch);
+    }
 }
 
 void CInstantSendDb::RemoveBlockInstantSendLocks(const gsl::not_null<std::shared_ptr<const CBlock>>& pblock,
@@ -241,7 +261,9 @@ void CInstantSendDb::RemoveBlockInstantSendLocks(const gsl::not_null<std::shared
             RemoveInstantSendLockMined(batch, islockHash, pindexDisconnected->nHeight);
         }
     }
-    db->WriteBatch(batch);
+    if (batch.SizeEstimate() > 0) {
+        db->WriteBatch(batch);
+    }
 }
 
 bool CInstantSendDb::KnownInstantSendLock(const uint256& islockHash) const
