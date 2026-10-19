@@ -404,6 +404,8 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_wallet_manager_remove_during_client_access_test
     auto client_entered_future{client_entered.get_future()};
     std::promise<void> release_client;
     auto release_client_future{release_client.get_future()};
+    std::promise<void> remover_started;
+    auto remover_started_future{remover_started.get_future()};
     bool client_found{false};
 
     std::thread client_thread([&] {
@@ -414,10 +416,18 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_wallet_manager_remove_during_client_access_test
     });
 
     client_entered_future.wait();
-    auto remove_future{std::async(std::launch::async, [&] { m_node.cj_walletman->removeWallet(wallet->GetName()); })};
+    auto remove_future{std::async(std::launch::async, [&] {
+        // Signal after this worker is scheduled, immediately before it
+        // contends for the manager-map lock.
+        remover_started.set_value();
+        m_node.cj_walletman->removeWallet(wallet->GetName());
+    })};
+    remover_started_future.wait();
 
     // doForClient holds the manager-map lock while the callback uses the
-    // client, so removal must wait until the callback has released it.
+    // client, so removal must wait until the callback has released it. The
+    // remover-started barrier ensures this checks a running contender rather
+    // than an async task that has not been scheduled yet.
     BOOST_CHECK_EQUAL(remove_future.wait_for(std::chrono::milliseconds{100}), std::future_status::timeout);
 
     release_client.set_value();
