@@ -560,6 +560,11 @@ public:
     }
     bool CreateSchnorrSig(const SigningProvider& provider, std::vector<unsigned char>& sig, const XOnlyPubKey& pubkey, const uint256* leaf_hash, const uint256* tweak, SigVersion sigversion) const override
     {
+        // A signature is only plausible for a key the provider knows, and never for the
+        // unspendable point H; otherwise the estimate takes a key path or a pk(H) leaf
+        // that the real signer cannot use and hides the larger spend it has to produce.
+        KeyOriginInfo info;
+        if (pubkey == XOnlyPubKey::NUMS_H || !provider.GetKeyOriginByXOnly(pubkey, info)) return false;
         // The wallet signs with SIGHASH_ALL, which appends the hash type byte to the 64-byte signature
         sig.assign(65, '\000');
         return true;

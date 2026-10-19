@@ -11,7 +11,7 @@ from decimal import Decimal
 from test_framework.address import output_key_to_p2tr
 from test_framework.key import H_POINT
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error, softfork_active
+from test_framework.util import assert_equal, assert_greater_than_or_equal, assert_raises_rpc_error, softfork_active
 from test_framework.descriptors import descsum_create
 from test_framework.script import (
     CScript,
@@ -322,6 +322,12 @@ class WalletTaprootTest(BitcoinTestFramework):
             res = rpc_online.sendtoaddress(address=self.boring.getnewaddress(), amount=Decimal(ret_amnt) / 100000000, subtractfeefromamount=True, fee_rate=200)
             self.generatetoaddress(self.nodes[0], 1, self.boring.getnewaddress(), sync_fun=self.no_op)
             assert(rpc_online.gettransaction(res)["confirmations"] > 0)
+            if pattern.startswith("tr($H,"):
+                # With an unspendable internal key the wallet knows it has to size a script path spend
+                tx_size = len(self.nodes[0].getrawtransaction(res)) // 2
+                paid_fee_rate = -rpc_online.gettransaction(res)["fee"] * 100000000 / tx_size
+                assert_greater_than_or_equal(paid_fee_rate, 200)
+                assert_greater_than_or_equal(230, paid_fee_rate)
 
         # Cleanup
         txid = rpc_online.sendtoaddress(address=self.boring.getnewaddress(), amount=rpc_online.getbalance(), subtractfeefromamount=True)
