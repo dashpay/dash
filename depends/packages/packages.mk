@@ -18,6 +18,8 @@ sqlite_packages=sqlite
 
 zmq_packages=zeromq
 
+zstd_packages=zstd
+
 upnp_packages=miniupnpc
 natpmp_packages=libnatpmp
 

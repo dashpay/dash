@@ -87,6 +87,7 @@ bench_bench_dash_LDADD = \
   $(MINIUPNPC_LIBS) \
   $(NATPMP_LIBS) \
   $(GMP_LIBS) \
+  $(ZSTD_LIBS) \
   $(BACKTRACE_LIBS)
 
 if ENABLE_ZMQ
