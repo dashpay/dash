@@ -571,8 +571,13 @@ class WalletTaprootTest(BitcoinTestFramework):
         self.log.info("Otherwise the change type follows the recipients")
         assert_equal(self.change_output_type(boring, boring.getnewaddress(address_type="taproot")), "taproot")
         assert_equal(self.change_output_type(boring, boring.getnewaddress(address_type="legacy")), "pubkeyhash")
+        self.log.info("-changetype overrides the change type")
+        self.restart_node(0, extra_args=self.extra_args[0] + ["-changetype=taproot"])
+        boring = self.nodes[0].get_wallet_rpc("boring")
+        assert_equal(self.change_output_type(boring, boring.getnewaddress()), "taproot")
         self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(self.extra_args[0] + ["-addresstype=bogus"], "Error: Unknown address type 'bogus'")
+        self.nodes[0].assert_start_raises_init_error(self.extra_args[0] + ["-changetype=bogus"], "Error: Unknown change type 'bogus'")
         self.start_node(0)
 
 if __name__ == '__main__':

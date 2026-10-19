@@ -143,6 +143,11 @@ void CoinsResult::Add(OutputType type, const COutput& out)
 
 static OutputType TransactionChangeType(const CWallet& wallet, const std::vector<CRecipient>& vecSend)
 {
+    // If -changetype is specified, always use that change type.
+    if (wallet.m_default_change_type) {
+        return *wallet.m_default_change_type;
+    }
+
     const bool has_legacy_spkman(wallet.GetScriptPubKeyMan(OutputType::LEGACY, /*internal=*/true));
     const bool has_taproot_spkman(wallet.GetScriptPubKeyMan(OutputType::TAPROOT, /*internal=*/true));
 

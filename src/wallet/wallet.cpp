@@ -3420,6 +3420,15 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         }
         walletInstance->m_default_address_type = parsed.value();
     }
+
+    if (!args.GetArg("-changetype", "").empty()) {
+        std::optional<OutputType> parsed = ParseOutputType(args.GetArg("-changetype", ""));
+        if (!parsed) {
+            error = strprintf(_("Unknown change type '%s'"), args.GetArg("-changetype", ""));
+            return nullptr;
+        }
+        walletInstance->m_default_change_type = parsed.value();
+    }
     walletInstance->m_mnemonic_bits = args.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS);
     walletInstance->m_notify_tx_changed_script = args.GetArg("-walletnotify", "");
     walletInstance->m_notify_tx_locked_script = args.GetArg("-instantsendnotify", "");

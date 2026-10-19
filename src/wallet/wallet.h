@@ -930,6 +930,10 @@ public:
     CFeeRate m_consolidate_feerate{DEFAULT_CONSOLIDATE_FEERATE};
     //! The type of addresses the wallet hands out unless a request names one
     OutputType m_default_address_type{DEFAULT_ADDRESS_TYPE};
+    /** Default output type for change outputs. When unset, automatically choose type
+     *  based on address type setting and the types of the non-change outputs
+     *  (see -changetype option documentation and implementation in TransactionChangeType for details). */
+    std::optional<OutputType> m_default_change_type{};
 
     /** The maximum fee amount we're willing to pay to prioritize partial spend avoidance. */
     CAmount m_max_aps_fee{DEFAULT_MAX_AVOIDPARTIALSPEND_FEE}; //!< note: this is absolute fee, not fee rate
