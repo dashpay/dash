@@ -552,5 +552,16 @@ class WalletTaprootTest(BitcoinTestFramework):
             lambda k1: key(k1)
         )
 
+        self.log.info("-addresstype sets the default address type of every wallet on the node")
+        self.restart_node(0, extra_args=self.extra_args[0] + ["-addresstype=taproot"])
+        self.nodes[0].loadwallet("boring", load_on_startup=True)
+        boring = self.nodes[0].get_wallet_rpc("boring")
+        assert boring.getaddressinfo(boring.getnewaddress())["desc"].startswith("tr(")
+        assert boring.getaddressinfo(boring.getrawchangeaddress())["desc"].startswith("tr(")
+        self.stop_node(0)
+        self.nodes[0].assert_start_raises_init_error(self.extra_args[0] + ["-addresstype=bogus"], "Error: Unknown address type 'bogus'")
+        self.start_node(0)
+
 if __name__ == '__main__':
     WalletTaprootTest().main()
+

@@ -134,6 +134,8 @@ static const CAmount DEFAULT_CONSOLIDATE_FEERATE{1000}; // 10 sat/vbyte
  * A value > 0 means to do partial spend avoidance if the fee difference against a regular coin selection instance is in the range [0..value].
  */
 static const CAmount DEFAULT_MAX_AVOIDPARTIALSPEND_FEE = 0;
+//! -addresstype default
+static const OutputType DEFAULT_ADDRESS_TYPE{OutputType::LEGACY};
 //! discourage APS fee higher than this amount
 constexpr CAmount HIGH_APS_FEE{COIN / 10000};
 //! Default for -spendzeroconfchange
@@ -927,7 +929,7 @@ public:
      */
     CFeeRate m_consolidate_feerate{DEFAULT_CONSOLIDATE_FEERATE};
     //! The type of addresses the wallet hands out unless a request names one
-    OutputType m_default_address_type{OutputType::LEGACY};
+    OutputType m_default_address_type{DEFAULT_ADDRESS_TYPE};
 
     /** The maximum fee amount we're willing to pay to prioritize partial spend avoidance. */
     CAmount m_max_aps_fee{DEFAULT_MAX_AVOIDPARTIALSPEND_FEE}; //!< note: this is absolute fee, not fee rate

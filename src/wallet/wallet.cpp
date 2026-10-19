@@ -3411,6 +3411,15 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     // should be possible to use std::allocate_shared.
     std::shared_ptr<CWallet> walletInstance(new CWallet(chain, name, std::move(database)), ReleaseWallet);
     walletInstance->m_keypool_size = std::max(args.GetIntArg("-keypool", DEFAULT_KEYPOOL_SIZE), int64_t{1});
+
+    if (!args.GetArg("-addresstype", "").empty()) {
+        std::optional<OutputType> parsed = ParseOutputType(args.GetArg("-addresstype", ""));
+        if (!parsed) {
+            error = strprintf(_("Unknown address type '%s'"), args.GetArg("-addresstype", ""));
+            return nullptr;
+        }
+        walletInstance->m_default_address_type = parsed.value();
+    }
     walletInstance->m_mnemonic_bits = args.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS);
     walletInstance->m_notify_tx_changed_script = args.GetArg("-walletnotify", "");
     walletInstance->m_notify_tx_locked_script = args.GetArg("-instantsendnotify", "");
