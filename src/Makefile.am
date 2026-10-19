@@ -495,6 +495,7 @@ BITCOIN_CORE_H = \
   util/vecdeque.h \
   util/vector.h \
   util/wpipe.h \
+  util/zstd.h \
   validation.h \
   validationinterface.h \
   versionbits.h \
@@ -1108,6 +1109,7 @@ libbitcoin_util_a_SOURCES = \
   util/time.cpp \
   util/tokenpipe.cpp \
   util/wpipe.cpp \
+  util/zstd.cpp \
   $(BITCOIN_CORE_H)
 #
 
@@ -1414,6 +1416,7 @@ libdashkernel_la_SOURCES = \
   util/threadnames.cpp \
   util/time.cpp \
   util/tokenpipe.cpp \
+  util/zstd.cpp \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
