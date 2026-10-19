@@ -90,10 +90,10 @@ struct ScriptHash : public BaseHash<uint160>
     explicit ScriptHash(const CScriptID& script);
 };
 
-struct WitnessV1Taproot : public XOnlyPubKey
+struct TaprootDestination : public XOnlyPubKey
 {
-    WitnessV1Taproot() : XOnlyPubKey() {}
-    explicit WitnessV1Taproot(const XOnlyPubKey& xpk) : XOnlyPubKey(xpk) {}
+    TaprootDestination() : XOnlyPubKey() {}
+    explicit TaprootDestination(const XOnlyPubKey& xpk) : XOnlyPubKey(xpk) {}
 };
 
 /**
@@ -101,10 +101,10 @@ struct WitnessV1Taproot : public XOnlyPubKey
  *  * CNoDestination: no destination set
  *  * PKHash: TxoutType::PUBKEYHASH destination (P2PKH)
  *  * ScriptHash: TxoutType::SCRIPTHASH destination (P2SH)
- *  * WitnessV1Taproot: TxoutType::TAPROOT destination (P2TR)
+ *  * TaprootDestination: TxoutType::TAPROOT destination (P2TR)
  *  A CTxDestination is the internal data type encoded in a Dash address
  */
-using CTxDestination = std::variant<CNoDestination, PKHash, ScriptHash, WitnessV1Taproot>;
+using CTxDestination = std::variant<CNoDestination, PKHash, ScriptHash, TaprootDestination>;
 
 /** Check whether a CTxDestination is a CNoDestination. */
 bool IsValidDestination(const CTxDestination& dest);
@@ -266,7 +266,7 @@ public:
     /** Return whether there were either no leaves, or the leaves form a Huffman tree. */
     bool IsComplete() const { return m_valid && (m_branch.size() == 0 || (m_branch.size() == 1 && m_branch[0].has_value())); }
     /** Compute scriptPubKey (after Finalize()). */
-    WitnessV1Taproot GetOutput();
+    TaprootDestination GetOutput();
     /** Check if a list of depths is legal (will lead to IsComplete()). */
     static bool ValidDepths(const std::vector<int>& depths);
     /** Compute spending data (after Finalize()). */

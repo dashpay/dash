@@ -208,7 +208,7 @@ static bool SignTaprootScript(const SigningProvider& provider, const BaseSignatu
     return false;
 }
 
-static bool SignTaproot(const SigningProvider& provider, const BaseSignatureCreator& creator, const WitnessV1Taproot& output, SignatureData& sigdata, std::vector<valtype>& result)
+static bool SignTaproot(const SigningProvider& provider, const BaseSignatureCreator& creator, const TaprootDestination& output, SignatureData& sigdata, std::vector<valtype>& result)
 {
     TaprootSpendData spenddata;
     TaprootBuilder builder;
@@ -338,7 +338,7 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
         return ok;
     }
     case TxoutType::TAPROOT:
-        return SignTaproot(provider, creator, WitnessV1Taproot(XOnlyPubKey{vSolutions[0]}), sigdata, ret);
+        return SignTaproot(provider, creator, TaprootDestination(XOnlyPubKey{vSolutions[0]}), sigdata, ret);
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }

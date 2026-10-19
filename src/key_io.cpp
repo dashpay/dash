@@ -36,7 +36,7 @@ public:
         return EncodeBase58Check(data);
     }
 
-    std::string operator()(const WitnessV1Taproot& tap) const
+    std::string operator()(const TaprootDestination& tap) const
     {
         std::vector<unsigned char> data = {1};
         data.reserve(53);
@@ -65,8 +65,8 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
             }
             data.reserve(((dec.data.size() - 1) * 5) / 8);
             if (ConvertBits<5, 8, false>([&](unsigned char c) { data.push_back(c); }, dec.data.begin() + 1, dec.data.end()) &&
-                data.size() == WitnessV1Taproot::size()) {
-                WitnessV1Taproot tap;
+                data.size() == TaprootDestination::size()) {
+                TaprootDestination tap;
                 std::copy(data.begin(), data.end(), tap.begin());
                 return tap;
             }

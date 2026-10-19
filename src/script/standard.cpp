@@ -223,7 +223,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
         return true;
     }
     case TxoutType::TAPROOT: {
-        WitnessV1Taproot tap;
+        TaprootDestination tap;
         std::copy(vSolutions[0].begin(), vSolutions[0].end(), tap.begin());
         addressRet = tap;
         return true;
@@ -255,7 +255,7 @@ public:
         return CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
     }
 
-    CScript operator()(const WitnessV1Taproot& tap) const
+    CScript operator()(const TaprootDestination& tap) const
     {
         return CScript() << OP_1 << ToByteVector(tap);
     }
@@ -408,7 +408,7 @@ TaprootBuilder& TaprootBuilder::Finalize(const XOnlyPubKey& internal_key)
     return *this;
 }
 
-WitnessV1Taproot TaprootBuilder::GetOutput() { return WitnessV1Taproot{m_output_key}; }
+TaprootDestination TaprootBuilder::GetOutput() { return TaprootDestination{m_output_key}; }
 
 TaprootSpendData TaprootBuilder::GetSpendData() const
 {

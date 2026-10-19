@@ -293,7 +293,7 @@ public:
         return obj;
     }
 
-    UniValue operator()(const WitnessV1Taproot& tap) const
+    UniValue operator()(const TaprootDestination& tap) const
     {
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("isscript", true);

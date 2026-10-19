@@ -727,7 +727,7 @@ static std::optional<OutputType> OutputTypeFromDestination(const CTxDestination&
         std::holds_alternative<ScriptHash>(dest)) {
         return OutputType::LEGACY;
     }
-    if (std::holds_alternative<WitnessV1Taproot>(dest)) {
+    if (std::holds_alternative<TaprootDestination>(dest)) {
         return OutputType::TAPROOT;
     }
     return std::nullopt;
@@ -917,7 +917,7 @@ protected:
         XOnlyPubKey xpk(keys[0]);
         if (!xpk.IsFullyValid()) return {};
         builder.Finalize(xpk);
-        WitnessV1Taproot output = builder.GetOutput();
+        TaprootDestination output = builder.GetOutput();
         out.tr_trees[output] = builder;
         out.pubkeys.emplace(keys[0].GetID(), keys[0]);
         return Vector(GetScriptForDestination(output));
@@ -962,7 +962,7 @@ protected:
         assert(keys.size() == 1);
         XOnlyPubKey xpk(keys[0]);
         if (!xpk.IsFullyValid()) return {};
-        WitnessV1Taproot output{xpk};
+        TaprootDestination output{xpk};
         return Vector(GetScriptForDestination(output));
     }
 public:

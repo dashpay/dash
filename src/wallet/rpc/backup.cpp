@@ -1775,7 +1775,7 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
         // Check if this is a Taproot descriptor
         CTxDestination dest;
         ExtractDestination(scripts[0], dest);
-        if (std::holds_alternative<WitnessV1Taproot>(dest)) {
+        if (std::holds_alternative<TaprootDestination>(dest)) {
             // Check if Taproot is active
             if (!wallet.chain().isV24Active()) {
                 // Taproot is not active, raise an error
