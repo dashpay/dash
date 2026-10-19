@@ -178,6 +178,10 @@ public:
       */
     CCreditPool GetCreditPool(const CBlockIndex* block) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
 
+    /** Records the credit pool data of a block being connected, so that the next block's pool is
+     *  constructed from it without reading this block back from disk. */
+    void CacheBlockData(const CBlock& block, gsl::not_null<const CBlockIndex*> block_index);
+
 private:
     std::optional<CCreditPool> GetFromCache(const CBlockIndex& block_index) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
     void AddToCache(const uint256& block_hash, int height, const CCreditPool& pool) EXCLUSIVE_LOCKS_REQUIRED(!cache_mutex);
