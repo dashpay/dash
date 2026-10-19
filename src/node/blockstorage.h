@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <vector>
 
+class AutoFile;
 class BlockValidationState;
 class CBlock;
 class CBlockUndo;
@@ -30,6 +31,9 @@ struct CCheckpointData;
 struct FlatFilePos;
 namespace Consensus {
 struct Params;
+}
+namespace util {
+class ZstdFileReader;
 }
 
 namespace node {
@@ -43,6 +47,9 @@ static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 
 /** Size of header written by WriteBlockToDisk before a serialized CBlock */
 static constexpr size_t BLOCK_SERIALIZATION_HEADER_SIZE = CMessageHeader::MESSAGE_START_SIZE + sizeof(unsigned int);
+/** Set in the size field of a block record whose payload is one zstd frame of the serialized CBlock */
+static constexpr uint32_t BLOCK_RECORD_COMPRESSED{0x80000000};
+static constexpr uint32_t BLOCK_RECORD_SIZE_MASK{~BLOCK_RECORD_COMPRESSED};
 
 extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
@@ -266,6 +273,11 @@ public:
 
     void CleanupBlockRevFiles() const;
 };
+
+/** Position of the 8-byte header of the record whose payload starts at pos, null when pos leaves no room for one */
+FlatFilePos RecordHeaderPos(const FlatFilePos& pos);
+/** Read the header of the block record the file is positioned at and return a reader for its payload; a compressed payload is decompressed to at most MaxBlockSize() bytes */
+util::ZstdFileReader OpenRecordPayload(AutoFile& filein);
 
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles);
 } // namespace node

@@ -6,6 +6,7 @@
 
 #include <chain.h>
 #include <clientversion.h>
+#include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <flatfile.h>
 #include <hash.h>
@@ -18,6 +19,7 @@
 #include <util/batchpriority.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
+#include <util/zstd.h>
 #include <validation.h>
 #include <walletinitinterface.h>
 
@@ -821,12 +823,33 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
+FlatFilePos RecordHeaderPos(const FlatFilePos& pos)
+{
+    if (pos.nPos < BLOCK_SERIALIZATION_HEADER_SIZE) return {};
+    return {pos.nFile, pos.nPos - BLOCK_SERIALIZATION_HEADER_SIZE};
+}
+
+/** Size field of the record the file is positioned at; the file is left at the payload */
+static uint32_t ReadRecordSizeField(AutoFile& filein)
+{
+    uint32_t size_field;
+    filein.ignore(CMessageHeader::MESSAGE_START_SIZE);
+    filein >> size_field;
+    return size_field;
+}
+
+util::ZstdFileReader OpenRecordPayload(AutoFile& filein)
+{
+    const uint32_t size_field{ReadRecordSizeField(filein)};
+    return {filein, size_field & BLOCK_RECORD_SIZE_MASK, (size_field & BLOCK_RECORD_COMPRESSED) != 0, MaxBlockSize()};
+}
+
 std::optional<uint256> BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) const
 {
     block.SetNull();
 
     // Open history file to read
-    AutoFile filein{OpenBlockFile(pos, true)};
+    AutoFile filein{OpenBlockFile(RecordHeaderPos(pos), true)};
     if (filein.IsNull()) {
         LogError("ReadBlockFromDisk: OpenBlockFile failed for %s\n", pos.ToString());
         return std::nullopt;
@@ -834,7 +857,8 @@ std::optional<uint256> BlockManager::ReadBlockFromDisk(CBlock& block, const Flat
 
     // Read block
     try {
-        filein >> block;
+        util::ZstdFileReader block_in{OpenRecordPayload(filein)};
+        block_in >> block;
     } catch (const std::exception& e) {
         LogError("ReadBlockFromDisk: Deserialize or I/O error - %s at %s\n", e.what(), pos.ToString());
         return std::nullopt;

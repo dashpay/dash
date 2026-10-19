@@ -5,6 +5,7 @@
 #include <clientversion.h>
 #include <hash.h> // For Hash()
 #include <key.h>  // For CKey
+#include <streams.h>
 #include <sync.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
@@ -27,6 +28,7 @@
 #include <cmath>
 #include <fstream>
 #include <deque>
+#include <ios>
 #include <optional>
 #include <limits>
 #include <map>
@@ -2023,6 +2025,66 @@ BOOST_AUTO_TEST_CASE(util_zstd_roundtrip)
     BOOST_CHECK(util::ZstdDecompress(MakeByteSpan(unsized), data.size()) == data);
 
     BOOST_CHECK(util::ZstdMaxLevel() >= 19);
+
+    // streaming reader over a file holding the frame followed by other data
+    const fs::path path{m_args.GetDataDirBase() / "zstd_frame.dat"};
+    {
+        AutoFile file{fsbridge::fopen(path, "wb")};
+        file.write(compressed);
+        file << uint32_t{0xdeadbeef};
+    }
+    {
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true};
+        std::vector<std::byte> streamed(data.size());
+        for (size_t pos{0}; pos < streamed.size(); pos += 1000) reader.read(Span{streamed}.subspan(pos, 1000));
+        BOOST_CHECK(streamed == data);
+        BOOST_CHECK_THROW(reader.read(Span{streamed}.first(1)), std::ios_base::failure);
+        uint32_t trailer;
+        file >> trailer;
+        BOOST_CHECK_EQUAL(trailer, 0xdeadbeef);
+    }
+    {
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true};
+        std::vector<std::byte> tail(data.size() - 1234);
+        reader.ignore(1234);
+        reader.read(tail);
+        BOOST_CHECK(std::ranges::equal(tail, Span{data}.subspan(1234)));
+    }
+    {
+        // a frame that decompresses to more than the caller allows
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true, /*max_out=*/data.size() - 1};
+        std::vector<std::byte> streamed(data.size());
+        BOOST_CHECK_THROW(reader.read(streamed), std::ios_base::failure);
+    }
+    {
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true, /*max_out=*/data.size()};
+        std::vector<std::byte> streamed(data.size());
+        reader.read(streamed);
+        BOOST_CHECK(streamed == data);
+    }
+    {
+        // the frame cut short by the recorded size
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size() / 2, /*compressed=*/true};
+        std::vector<std::byte> streamed(data.size());
+        BOOST_CHECK_THROW(reader.read(streamed), std::ios_base::failure);
+    }
+    {
+        // a plain record is passed through
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size() + sizeof(uint32_t), /*compressed=*/false};
+        reader.ignore(compressed.size());
+        uint32_t trailer;
+        reader >> trailer;
+        BOOST_CHECK_EQUAL(trailer, 0xdeadbeef);
+        // neither reads nor skips may leave the record
+        BOOST_CHECK_THROW(reader >> trailer, std::ios_base::failure);
+        BOOST_CHECK_THROW(reader.ignore(1), std::ios_base::failure);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
