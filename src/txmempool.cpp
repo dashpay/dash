@@ -1094,6 +1094,9 @@ void CTxMemPool::removeProTxReferences(const uint256& proTxHash)
 
 void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
 {
+    if (mapProTxRefs.empty() && mapProTxCollaterals.empty()) {
+        return;
+    }
     // Remove TXs that refer to a MN for which the collateral was spent
     auto mnList = m_dmnman.GetListAtChainTip();
     for (const auto& in : tx.vin) {
