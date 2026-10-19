@@ -6,6 +6,7 @@
 #define BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 
 #include <util/fs.h>
+#include <util/zstd.h>
 
 #include <cstdint>
 
@@ -25,6 +26,8 @@ struct BlockManagerOpts {
     bool fast_prune{false};
     bool tiny_blk{false};
     bool stop_after_block_import{DEFAULT_STOPAFTERBLOCKIMPORT};
+    //! zstd compression level for newly written block and undo records, 0 to store them uncompressed
+    int block_compression{util::DefaultZstdLevel()};
     const fs::path blocks_dir;
 };
 

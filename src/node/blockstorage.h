@@ -37,6 +37,8 @@ class ZstdFileReader;
 }
 
 namespace node {
+/** Higher levels cost several times more CPU per block for no measurable gain */
+static constexpr int MAX_RECOMMENDED_BLOCK_COMPRESSION_LEVEL{5};
 
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
@@ -114,7 +116,9 @@ private:
 
     FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false) const;
 
-    bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const;
+    bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const;
+    /** Size field of the record already stored at pos */
+    std::optional<uint32_t> StoredBlockSizeField(const FlatFilePos& pos) const;
     bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const;
 
     /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
@@ -247,6 +251,9 @@ public:
 
     /** True if any block files have ever been pruned. */
     bool m_have_pruned = false;
+
+    /** True if any zstd-compressed block or undo record has ever been written, which a build without zstd cannot read. */
+    bool m_have_compressed_records = false;
 
     //! Check whether the block associated with this index entry is pruned or not.
     bool IsBlockPruned(const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);

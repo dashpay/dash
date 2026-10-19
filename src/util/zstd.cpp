@@ -31,6 +31,15 @@ bool ZstdAvailable()
 #endif
 }
 
+int DefaultZstdLevel()
+{
+#ifdef ENABLE_ZSTD
+    return DEFAULT_ZSTD_LEVEL;
+#else
+    return 0;
+#endif
+}
+
 void ZstdFileReader::ReadPlain(Span<std::byte> dst)
 {
     if (dst.size() > m_remaining) throw std::ios_base::failure("ZstdFileReader::read: end of data");

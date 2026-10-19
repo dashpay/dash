@@ -19,8 +19,13 @@ struct ZSTD_DCtx_s;
 
 namespace util {
 
-/** Whether this build links libzstd. Without it nothing is compressed and compressed data cannot be read. */
+static constexpr int DEFAULT_ZSTD_LEVEL{0};
+
+/** Whether this build links libzstd. Without it only level 0 is accepted and compressed data cannot be read. */
 bool ZstdAvailable();
+
+/** DEFAULT_ZSTD_LEVEL, or 0 in builds without zstd. */
+int DefaultZstdLevel();
 
 /** Highest compression level accepted by the linked libzstd, 0 without zstd. */
 int ZstdMaxLevel();
