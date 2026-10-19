@@ -10,6 +10,9 @@ from itertools import product
 from test_framework.authproxy import JSONRPCException
 from test_framework.descriptors import descsum_create
 from test_framework.key import ECKey
+from test_framework.messages import (
+    ser_compact_size,
+)
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
@@ -525,8 +528,10 @@ class WalletSendTest(BitcoinTestFramework):
                 break
         psbt_in = dec["inputs"][input_idx]
         # Calculate the input weight
+        # prevout + sequence + length of scriptSig + scriptsig
         len_scriptsig = len(psbt_in["final_scriptSig"]["hex"]) // 2 if "final_scriptSig" in psbt_in else 0
-        input_weight = 41 + len_scriptsig - 1
+        len_scriptsig += len(ser_compact_size(len_scriptsig))
+        input_weight = 40 + len_scriptsig
 
         # Input weight error conditions
         assert_raises_rpc_error(
