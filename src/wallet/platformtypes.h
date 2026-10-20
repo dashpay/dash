@@ -24,6 +24,7 @@ enum class PlatformKeyStatus : uint8_t {
     INVALID_ARGUMENT,
     IMPORT_ERROR,
     DERIVATION_ERROR,
+    DATABASE_ERROR,
 };
 
 template <typename T>

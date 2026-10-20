@@ -215,6 +215,8 @@ BOOST_AUTO_TEST_CASE(ecdh_symmetry)
 static constexpr const char* REGTEST_MNEMONIC{
     "similar behave slot swim scissors throw planet view ghost laugh drift calm"};
 
+static bool NeverInUse(const CBLSPublicKey&) { return false; }
+
 //! Operator keys must come out identical to DashSync and dashj for the same
 //! recovery phrase: published answers for m/9'/coin'/3'/3'/0 on testnet, plus
 //! mainnet, further indexes and a passphrase computed with the same scheme.
@@ -449,6 +451,11 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_must_be_unambiguous, Dip14WalletSetu
 
     const auto ambiguous{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(ambiguous.status == PlatformKeyStatus::AMBIGUOUS_SOURCE);
+
+    uint32_t index;
+    CBLSSecretKey operator_key;
+    LOCK(m_wallet->cs_wallet);
+    BOOST_CHECK(m_wallet->IssueOperatorKey(NeverInUse, index, operator_key) == PlatformKeyStatus::AMBIGUOUS_SOURCE);
 }
 
 //! An imported root xprv is sufficient for Platform derivation. The mnemonic
@@ -463,6 +470,13 @@ BOOST_FIXTURE_TEST_CASE(xprv_only_wallet_derives_platform_keys, FriendshipWallet
     ExtKey256 expected;
     BOOST_REQUIRE(DeriveExtKey(master, IdentityAuthKeyPath(static_cast<uint32_t>(Params().ExtCoinType()), 0, 0), expected));
     BOOST_CHECK(result.value == expected.key.GetPubKey());
+
+    // Operator keys are the exception: the mobile wallets derive them from
+    // the BIP39 seed, which an imported xprv does not carry.
+    uint32_t index;
+    CBLSSecretKey operator_key;
+    LOCK(wallet->cs_wallet);
+    BOOST_CHECK(wallet->IssueOperatorKey(NeverInUse, index, operator_key) == PlatformKeyStatus::NOT_SUPPORTED);
 }
 
 //! The standardized Platform paths are absolute paths from m. An imported
@@ -567,6 +581,77 @@ BOOST_FIXTURE_TEST_CASE(legacy_wallet_has_no_platform_keys, FriendshipWalletSetu
     auto iface = interfaces::MakeWallet(m_context, wallet);
     const auto result{iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(result.status == PlatformKeyStatus::NOT_SUPPORTED);
+
+    uint32_t index;
+    CBLSSecretKey operator_key;
+    LOCK(wallet->cs_wallet);
+    BOOST_CHECK(wallet->IssueOperatorKey(NeverInUse, index, operator_key) == PlatformKeyStatus::NOT_SUPPORTED);
+}
+
+//! Descriptor wallet restored from the phrase behind the regtest operator-key
+//! vectors.
+struct OperatorKeyWalletSetup : public FriendshipWalletSetup {
+    OperatorKeyWalletSetup() :
+        FriendshipWalletSetup(SecureString{REGTEST_MNEMONIC})
+    {
+    }
+};
+
+//! Issuance is lowest-index-first and retrieval covers issued indexes only. A
+//! seed-only restore (fresh database) hands out the same keys in the same
+//! order, skipping only indexes reported in use, and they are the vector keys
+//! a mobile wallet shows for this phrase.
+BOOST_FIXTURE_TEST_CASE(operator_keys_rederive_after_restore, OperatorKeyWalletSetup)
+{
+    uint32_t index;
+    CBLSSecretKey key_0, key_1, key;
+    {
+        LOCK(m_wallet->cs_wallet);
+        BOOST_CHECK(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::INVALID_ARGUMENT);
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key_0) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(index, 0U);
+        BOOST_CHECK_EQUAL(key_0.ToString(), "60a5ae2824bf8dcd7b37b751b73ba419d0ebfe6f6f58aaf6a26eaa9ec43fd686");
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key_1) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(index, 1U);
+        BOOST_CHECK_EQUAL(key_1.ToString(), "51a5ec2e84ef20a7ab8cb6b7d591711604973abc2528ebb7cd2ae835833eb1c5");
+        BOOST_REQUIRE(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK(key == key_0);
+        BOOST_CHECK(m_wallet->GetOperatorKey(2, key) == PlatformKeyStatus::INVALID_ARGUMENT);
+    }
+
+    // The restored wallet has no issuance record; only the masternode list
+    // tells it that key 0 is taken.
+    const auto [wallet_b, iface_b]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
+    const auto key_0_in_use{[&key_0](const CBLSPublicKey& pubkey) { return pubkey == key_0.GetPublicKey(); }};
+    LOCK(wallet_b->cs_wallet);
+    BOOST_REQUIRE(wallet_b->IssueOperatorKey(key_0_in_use, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 1U);
+    BOOST_CHECK(key == key_1);
+    BOOST_REQUIRE(wallet_b->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK(key == key_0);
+}
+
+//! A locked wallet neither issues nor re-derives, and unlocking gives back
+//! the key issued before encryption.
+BOOST_FIXTURE_TEST_CASE(operator_keys_need_unlocked_wallet, OperatorKeyWalletSetup)
+{
+    uint32_t index;
+    CBLSSecretKey before, key;
+    {
+        LOCK(m_wallet->cs_wallet);
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, before) == PlatformKeyStatus::SUCCESS);
+    }
+    BOOST_REQUIRE(m_wallet->EncryptWallet("passphrase"));
+    BOOST_REQUIRE(m_wallet->IsLocked());
+
+    LOCK(m_wallet->cs_wallet);
+    BOOST_CHECK(m_wallet->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(!key.IsValid());
+
+    BOOST_REQUIRE(m_wallet->Unlock("passphrase"));
+    BOOST_REQUIRE(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK(key == before);
 }
 
 //! Two independent wallet instances restored from the same recovery phrase:

@@ -7,6 +7,7 @@
 #include <wallet/wallet.h>
 
 #include <blockfilter.h>
+#include <bls/bls.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
@@ -4020,6 +4021,58 @@ PlatformKeyStatus CWallet::DerivePlatformKey(const PlatformKeyRequest& request, 
 {
     AssertLockHeld(cs_wallet);
     return DerivePlatformKey(platformkeys::PlatformKeyPath(static_cast<uint32_t>(Params().ExtCoinType()), request), out);
+}
+
+static const std::string OPERATOR_KEY_NEXT_INDEX{"operatorkeys/next_index"};
+
+PlatformKeyStatus CWallet::DeriveOperatorKeys(uint32_t first, uint32_t count, std::vector<CBLSSecretKey>& out) const
+{
+    AssertLockHeld(cs_wallet);
+    const ScriptPubKeyMan* source{nullptr};
+    if (const auto status{GetPlatformKeySource(source)}; status != PlatformKeyStatus::SUCCESS) return status;
+    return source->DeriveOperatorKeys(static_cast<uint32_t>(Params().ExtCoinType()), first, count, out);
+}
+
+std::optional<uint32_t> CWallet::OperatorKeysIssued() const
+{
+    AssertLockHeld(cs_wallet);
+    const auto it{m_platform_data.find(OPERATOR_KEY_NEXT_INDEX)};
+    if (it == m_platform_data.end()) return 0;
+    if (it->second.size() != sizeof(uint32_t)) return std::nullopt;
+    return ReadLE32(it->second.data());
+}
+
+PlatformKeyStatus CWallet::IssueOperatorKey(const std::function<bool(const CBLSPublicKey&)>& in_use, uint32_t& index,
+                                            CBLSSecretKey& secret)
+{
+    AssertLockHeld(cs_wallet);
+    secret.Reset();
+    const auto issued{OperatorKeysIssued()};
+    if (!issued) return PlatformKeyStatus::DATABASE_ERROR;
+    std::vector<CBLSSecretKey> keys;
+    for (index = *issued;; ++index) {
+        if (const auto status{DeriveOperatorKeys(index, 1, keys)}; status != PlatformKeyStatus::SUCCESS) return status;
+        if (!in_use(keys.front().GetPublicKey())) break;
+    }
+    secret = keys.front();
+    std::vector<unsigned char> next_index(sizeof(uint32_t));
+    WriteLE32(next_index.data(), index + 1);
+    if (WritePlatformData(OPERATOR_KEY_NEXT_INDEX, next_index)) return PlatformKeyStatus::SUCCESS;
+    secret.Reset();
+    return PlatformKeyStatus::DATABASE_ERROR;
+}
+
+PlatformKeyStatus CWallet::GetOperatorKey(uint32_t index, CBLSSecretKey& secret) const
+{
+    AssertLockHeld(cs_wallet);
+    secret.Reset();
+    const auto issued{OperatorKeysIssued()};
+    if (!issued) return PlatformKeyStatus::DATABASE_ERROR;
+    if (index >= *issued) return PlatformKeyStatus::INVALID_ARGUMENT;
+    std::vector<CBLSSecretKey> keys;
+    if (const auto status{DeriveOperatorKeys(index, 1, keys)}; status != PlatformKeyStatus::SUCCESS) return status;
+    secret = keys.front();
+    return PlatformKeyStatus::SUCCESS;
 }
 
 PlatformKeyResult<CPubKey> CWallet::GetPlatformPubKey(const PlatformKeyRequest& request) const

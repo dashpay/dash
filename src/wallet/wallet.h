@@ -52,6 +52,7 @@
 
 #include <boost/signals2/signal.hpp>
 
+class CBLSPublicKey;
 class CKey;
 class CScript;
 class CTxDSIn;
@@ -503,6 +504,10 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     PlatformKeyStatus DerivePlatformKey(const platformkeys::Path& path, platformkeys::ExtKey256& out) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    PlatformKeyStatus DeriveOperatorKeys(uint32_t first, uint32_t count, std::vector<CBLSSecretKey>& out) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Operator key indexes below this were issued; nullopt for an unreadable counter record.
+    std::optional<uint32_t> OperatorKeysIssued() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
 public:
     /**
@@ -1106,6 +1111,13 @@ public:
                                                                      const uint256& digest) const;
     PlatformKeyResult<SecureVector> PlatformECDHSecret(const IdentityAuthKey& key, const CPubKey& counterparty) const;
     PlatformKeyResult<FriendshipXpub> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
+    /** Issue the next DIP-3 operator key m/9'/coin'/3'/3'/index from the wallet mnemonic
+     *  (platformkeys::DeriveOperatorKey): the lowest index not issued before whose public key `in_use` rejects.
+     *  The index is recorded as issued before the key is returned. */
+    PlatformKeyStatus IssueOperatorKey(const std::function<bool(const CBLSPublicKey&)>& in_use, uint32_t& index,
+                                       CBLSSecretKey& secret) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Re-derive an operator key issued earlier; INVALID_ARGUMENT for an index not issued yet. */
+    PlatformKeyStatus GetOperatorKey(uint32_t index, CBLSSecretKey& secret) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /* Returns the time of the first created key or, in case of an import, it could be the time of the first received transaction */
     int64_t GetBirthTime() const { return m_birth_time; }

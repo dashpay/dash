@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <bls/bls.h>
 #include <chainparams.h>
 #include <key_io.h>
 #include <logging.h>
@@ -2779,6 +2780,58 @@ PlatformKeyStatus DescriptorScriptPubKeyMan::DerivePlatformKey(const platformkey
         return PlatformKeyStatus::INVALID_SOURCE;
     }
     return platformkeys::DeriveExtKey(root, path, out) ? PlatformKeyStatus::SUCCESS : PlatformKeyStatus::DERIVATION_ERROR;
+}
+
+PlatformKeyStatus DescriptorScriptPubKeyMan::OperatorKeySeed(SecureVector& seed) const
+{
+    std::vector<unsigned char> identifier;
+    if (const auto status{GetPlatformKeySource(identifier)}; status != PlatformKeyStatus::SUCCESS) return status;
+    if (m_storage.IsLocked(false)) return PlatformKeyStatus::WALLET_LOCKED;
+
+    // Only the mnemonic reproduces the BLS tree the mobile wallets derive
+    // from; a wallet built from an imported extended key has no BIP39 seed.
+    // The encrypted path of GetMnemonicString appends one decrypted character
+    // at a time; reserving keeps them out of the small-string buffer, which
+    // the secure allocator does not cover.
+    SecureString mnemonic;
+    SecureString passphrase;
+    mnemonic.reserve(256);
+    passphrase.reserve(256);
+    if (!GetMnemonicString(mnemonic, passphrase) || mnemonic.empty()) return PlatformKeyStatus::NOT_SUPPORTED;
+    CMnemonic::ToSeed(mnemonic, passphrase, seed);
+
+    // The mnemonic is stored beside the descriptor root key; one that does not
+    // reproduce it would hand out keys no backup of this wallet recovers.
+    CExtKey master;
+    master.SetSeed(MakeByteSpan(seed));
+    CExtPubKey root;
+    {
+        LOCK(cs_desc_man);
+        if (!m_wallet_descriptor.descriptor->GetRootExtPubKey(root)) return PlatformKeyStatus::INVALID_SOURCE;
+    }
+    return master.Neuter() == root ? PlatformKeyStatus::SUCCESS : PlatformKeyStatus::INVALID_SOURCE;
+}
+
+PlatformKeyStatus DescriptorScriptPubKeyMan::DeriveOperatorKeys(uint32_t coin_type, uint32_t first, uint32_t count,
+                                                                std::vector<CBLSSecretKey>& out) const
+{
+    out.clear();
+    SecureVector seed;
+    if (const auto status{OperatorKeySeed(seed)}; status != PlatformKeyStatus::SUCCESS) return status;
+    for (uint32_t i{0}; i < count; ++i) {
+        out.push_back(platformkeys::DeriveOperatorKey(seed, coin_type, first + i));
+        if (!out.back().IsValid()) return PlatformKeyStatus::DERIVATION_ERROR;
+    }
+    return PlatformKeyStatus::SUCCESS;
+}
+
+PlatformKeyStatus DescriptorScriptPubKeyMan::OperatorKeyChain(uint32_t coin_type, std::vector<unsigned char>& out) const
+{
+    out.clear();
+    SecureVector seed;
+    if (const auto status{OperatorKeySeed(seed)}; status != PlatformKeyStatus::SUCCESS) return status;
+    out = platformkeys::OperatorKeyChain(seed, coin_type);
+    return out.empty() ? PlatformKeyStatus::DERIVATION_ERROR : PlatformKeyStatus::SUCCESS;
 }
 
 TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
