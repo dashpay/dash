@@ -4,6 +4,8 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <interfaces/wallet.h>
 #include <key.h>
 #include <key_io.h>
@@ -618,6 +620,13 @@ struct OperatorKeyWalletSetup : public FriendshipWalletSetup {
     }
 };
 
+static CBLSPublicKey RegtestOperatorPubKey(uint32_t index)
+{
+    SecureVector seed;
+    CMnemonic::ToSeed(SecureString{REGTEST_MNEMONIC}, SecureString{}, seed);
+    return DeriveOperatorKey(seed, /*coin_type=*/1, index).GetPublicKey();
+}
+
 //! Issuance is lowest-index-first and retrieval covers issued indexes only. A
 //! seed-only restore (fresh database) hands out the same keys in the same
 //! order, skipping only indexes reported in use, and they are the vector keys
@@ -650,6 +659,15 @@ BOOST_FIXTURE_TEST_CASE(operator_keys_rederive_after_restore, OperatorKeyWalletS
     BOOST_CHECK(key == key_1);
     BOOST_REQUIRE(wallet_b->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
     BOOST_CHECK(key == key_0);
+
+    // A key of a registered masternode anywhere in the window marks every
+    // index up to it as used, so the next key lands above it.
+    const auto key_5{RegtestOperatorPubKey(5)};
+    const auto key_5_in_use{[&key_5](const CBLSPublicKey& pubkey) { return pubkey == key_5; }};
+    BOOST_REQUIRE(wallet_b->IssueOperatorKey(key_5_in_use, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 6U);
+    BOOST_REQUIRE(wallet_b->GetOperatorKey(5, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK(key.GetPublicKey() == key_5);
 }
 
 //! A locked wallet neither issues nor re-derives, and unlocking gives back
@@ -673,6 +691,40 @@ BOOST_FIXTURE_TEST_CASE(operator_keys_need_unlocked_wallet, OperatorKeyWalletSet
     BOOST_REQUIRE(m_wallet->Unlock("passphrase"));
     BOOST_REQUIRE(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
     BOOST_CHECK(key == before);
+}
+
+//! A provider transaction seen on the sync path that assigns one of the
+//! lookahead keys moves the counter past it, so a restored wallet learns its
+//! used indexes from a rescan rather than from the masternode list, even
+//! while locked.
+BOOST_FIXTURE_TEST_CASE(operator_key_counter_advances_from_synced_protx, OperatorKeyWalletSetup)
+{
+    uint32_t index;
+    CBLSSecretKey key_0, key;
+    WITH_LOCK(m_wallet->cs_wallet,
+              BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key_0) == PlatformKeyStatus::SUCCESS));
+
+    CProUpRegTx payload;
+    payload.nVersion = ProTxVersion::BasicBLS;
+    payload.pubKeyOperator.Set(key_0.GetPublicKey(), /*specificLegacyScheme=*/false);
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+    SetTxPayload(tx, payload);
+
+    // Restore: the chain is stored while the seed is at hand, then the wallet
+    // is encrypted and locked before the chain is synced.
+    const auto [wallet_b, iface_b]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
+    WITH_LOCK(wallet_b->cs_wallet, BOOST_REQUIRE(wallet_b->SetupOperatorKeyChain() == PlatformKeyStatus::SUCCESS));
+    BOOST_REQUIRE(wallet_b->EncryptWallet("passphrase"));
+    wallet_b->transactionAddedToMempool(MakeTransactionRef(tx), /*nAcceptTime=*/0);
+
+    BOOST_REQUIRE(wallet_b->Unlock("passphrase"));
+    LOCK(wallet_b->cs_wallet);
+    BOOST_REQUIRE(wallet_b->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK(key == key_0);
+    BOOST_REQUIRE(wallet_b->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 1U);
 }
 
 //! Two independent wallet instances restored from the same recovery phrase:
