@@ -467,6 +467,35 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
     return quarterQuorumMembers;
 }
 
+// The quarter a past cycle added is rebuilt from that cycle's snapshot by each of the next three
+// cycles; the result depends only on the cycle base block, so it is kept per block hash.
+std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshotCached(const Consensus::LLMQParams& llmqParams,
+                                                                   const llmq::UtilParameters& util_params,
+                                                                   const CBlockIndex* pCycleQuorumBaseBlockIndex,
+                                                                   const llmq::CQuorumSnapshot& snapshot, int nHeight)
+{
+    static Mutex cs_quarters;
+    static llmq::PerLlmqTypeCache<std::vector<QuorumMembers>> mapQuarterMembers GUARDED_BY(cs_quarters);
+
+    {
+        LOCK(cs_quarters);
+        if (!mapQuarterMembers.IsInitialized()) {
+            mapQuarterMembers.Init(util_params.m_chainman.GetConsensus());
+        }
+        std::vector<QuorumMembers> members;
+        if (mapQuarterMembers.get(llmqParams.type, pCycleQuorumBaseBlockIndex->GetBlockHash(), members)) {
+            return members;
+        }
+    }
+    auto members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman,
+                                                     util_params.m_chainman.GetConsensus(),
+                                                     util_params.m_chainman.m_blockman, pCycleQuorumBaseBlockIndex,
+                                                     snapshot, nHeight);
+    LOCK(cs_quarters);
+    mapQuarterMembers.insert(llmqParams.type, pCycleQuorumBaseBlockIndex->GetBlockHash(), members);
+    return members;
+}
+
 // Computes the members of all quorum indexes of the cycle starting at cycleBaseHeight, which
 // is not required to be mined yet: everything is derived from the cycle's work block. Pass
 // storeSnapshot=false when predicting a future cycle.
@@ -504,12 +533,9 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
             // assert(false);
             break;
         }
-        prev_cycles[idx]->m_members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman,
-                                                                        util_params.m_chainman.GetConsensus(),
-                                                                        util_params.m_chainman.m_blockman,
-                                                                        prev_cycles[idx]->m_cycle_index,
-                                                                        prev_cycles[idx]->m_snap,
-                                                                        cycleBaseHeight);
+        prev_cycles[idx]->m_members = GetQuorumQuarterMembersBySnapshotCached(llmqParams, util_params,
+                                                                              prev_cycles[idx]->m_cycle_index,
+                                                                              prev_cycles[idx]->m_snap, cycleBaseHeight);
     }
 
     auto newQuarterMembers = BuildNewQuorumQuarterMembers(llmqParams, util_params, allMns, previousQuarters, modifier,
