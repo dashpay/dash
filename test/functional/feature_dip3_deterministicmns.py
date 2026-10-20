@@ -17,7 +17,7 @@ from test_framework.test_framework import (
     BitcoinTestFramework,
     MasternodeInfo,
 )
-from test_framework.util import assert_equal, force_finish_mnsync, p2p_port, softfork_active
+from test_framework.util import assert_equal, force_finish_mnsync, get_mnemonic, p2p_port, softfork_active
 
 class DIP3Test(BitcoinTestFramework):
     def add_options(self, parser):
@@ -120,6 +120,11 @@ class DIP3Test(BitcoinTestFramework):
         self.log.info("registering MNs")
         for i in range(self.num_initial_mn):
             mn: MasternodeInfo = self.prepare_mn(self.nodes[0], i + 2, "mn-%d" % i)
+            if i == 0 and self.options.descriptors:
+                self.log.info(f"{mn.friendlyName} takes its operator key from the controller wallet")
+                operator_key = self.nodes[0].bls('operatorkey')
+                mn.keyOperator, mn.pubKeyOperator = operator_key['secret'], operator_key['public']
+                wallet_key_mn = mn
             mns.append(mn)
 
             # start a few MNs before they are registered and a few after they are registered
@@ -145,6 +150,23 @@ class DIP3Test(BitcoinTestFramework):
 
             self.sync_all()
             self.assert_mnlists(mns)
+
+        if self.options.descriptors:
+            self.log.info("A wallet restored from the controller mnemonic skips operator keys that are in the masternode list")
+            mnemonic, passphrase = get_mnemonic(self.nodes[0])
+            controller = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
+            self.nodes[0].createwallet("restored", blank=True)
+            restored = self.nodes[0].get_wallet_rpc("restored")
+            restored.upgradetohd(mnemonic, passphrase)
+            restored_key = restored.bls('operatorkey')
+            assert_equal(restored_key['index'], 1)
+            assert_equal(restored_key, controller.bls('operatorkey'))
+            assert_equal(controller.bls('operatorkey', 0)['secret'], wallet_key_mn.keyOperator)
+            self.log.info("The issued-key counter survives a wallet reload")
+            restored.unloadwallet()
+            self.nodes[0].loadwallet("restored")
+            assert_equal(restored.bls('operatorkey')['index'], 2)
+            restored.unloadwallet()
 
         self.log.info("test that MNs disappear from the list when the ProTx collateral is spent")
         # also make sure "protx info" returns correct historical data for spent collaterals

@@ -54,6 +54,7 @@ using wallet::DEFAULT_DISABLE_WALLET;
 using wallet::GetWalletForJSONRPCRequest;
 using wallet::HELP_REQUIRING_PASSPHRASE;
 using wallet::isminetype;
+using wallet::PlatformKeyStatus;
 #endif // ENABLE_WALLET
 
 // Defined here rather than with the other ToJson() in evo/core_write.cpp: dash-tx never prints
@@ -2460,6 +2461,92 @@ static RPCHelpMan bls_fromsecret()
     };
 }
 
+#ifdef ENABLE_WALLET
+[[noreturn]] static void ThrowOperatorKeyError(PlatformKeyStatus status, uint32_t index)
+{
+    switch (status) {
+    case PlatformKeyStatus::WALLET_LOCKED:
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    case PlatformKeyStatus::NOT_SUPPORTED:
+        throw JSONRPCError(RPC_WALLET_ERROR, "Operator keys need a descriptor wallet with private keys and a mnemonic");
+    case PlatformKeyStatus::AMBIGUOUS_SOURCE:
+        throw JSONRPCError(RPC_WALLET_ERROR, "Active descriptors of this wallet come from different root keys");
+    case PlatformKeyStatus::INVALID_SOURCE:
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet mnemonic does not match the descriptor root key");
+    case PlatformKeyStatus::INVALID_ARGUMENT:
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("operator key %d has not been issued by this wallet", index));
+    case PlatformKeyStatus::DATABASE_ERROR:
+        throw JSONRPCError(RPC_WALLET_ERROR, "Operator key counter could not be read or written");
+    case PlatformKeyStatus::DERIVATION_ERROR:
+        throw JSONRPCError(RPC_WALLET_ERROR, "Operator key derivation failed");
+    case PlatformKeyStatus::SUCCESS:
+    case PlatformKeyStatus::IMPORT_ERROR:
+        break;
+    }
+    NONFATAL_UNREACHABLE();
+}
+
+static RPCHelpMan bls_operatorkey()
+{
+    return RPCHelpMan{
+        "bls operatorkey",
+        "\nIssues the next masternode operator key derived from the wallet mnemonic, or returns a key issued earlier.\n"
+        "Keys follow m/9'/coin'/3'/3'/index with the BLS HD scheme of the DashPay mobile wallets, so restoring\n"
+        "the mnemonic anywhere reproduces the same keys in the same order. Indexes whose key is in the masternode\n"
+        "list at the chain tip are skipped.\n" +
+            HELP_REQUIRING_PASSPHRASE,
+        {
+            {"index", RPCArg::Type::NUM, RPCArg::Optional::OMITTED,
+             "Return the key issued earlier at this index instead of issuing a new one"},
+        },
+        RPCResult{RPCResult::Type::OBJ,
+                  "",
+                  "",
+                  {
+                      {RPCResult::Type::NUM, "index", "Derivation index of the key"},
+                      {RPCResult::Type::STR_HEX, "secret", "BLS secret key"},
+                      {RPCResult::Type::STR_HEX, "public", "BLS public key"},
+                      {RPCResult::Type::STR, "scheme", "BLS scheme, always basic (use bls fromsecret for legacy)"},
+                  }},
+        RPCExamples{HelpExampleCli("bls operatorkey", "") + HelpExampleCli("bls operatorkey", "0")},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            std::shared_ptr<CWallet> const wallet{GetWalletForJSONRPCRequest(request)};
+            if (!wallet) return UniValue::VNULL;
+            EnsureWalletIsUnlocked(*wallet);
+
+            uint32_t index{0};
+            CBLSSecretKey secret;
+            PlatformKeyStatus status;
+            if (request.params[0].isNull()) {
+                const NodeContext& node{EnsureAnyNodeContext(request.context)};
+                const CDeterministicMNList mn_list{CHECK_NONFATAL(node.dmnman)->GetListAtChainTip()};
+                LOCK(wallet->cs_wallet);
+                status = wallet->IssueOperatorKey(
+                    [&mn_list](const CBLSPublicKey& pubkey) { return mn_list.GetMNByOperatorKey(pubkey) != nullptr; },
+                    index, secret);
+            } else {
+                const int64_t requested{request.params[0].getInt<int64_t>()};
+                if (requested < 0 || requested >> 31) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Operator key index out of range");
+                }
+                index = requested;
+                LOCK(wallet->cs_wallet);
+                status = wallet->GetOperatorKey(index, secret);
+            }
+            if (status != PlatformKeyStatus::SUCCESS) ThrowOperatorKeyError(status, index);
+
+            UniValue ret(UniValue::VOBJ);
+            ret.pushKV("index", index);
+            ret.pushKV("secret", secret.ToString());
+            ret.pushKV("public", secret.GetPublicKey().ToString(/*specificLegacyScheme=*/false));
+            ret.pushKV("scheme", "basic");
+            return ret;
+        },
+    };
+}
+#endif // ENABLE_WALLET
+
 static RPCHelpMan bls_help()
 {
     return RPCHelpMan{"bls",
@@ -2467,6 +2554,9 @@ static RPCHelpMan bls_help()
         "To get help on individual commands, use \"help bls command\".\n"
         "\nAvailable commands:\n"
         "  generate          - Create a BLS secret/public key pair\n"
+#ifdef ENABLE_WALLET
+        "  operatorkey       - Issue or return a masternode operator key derived from the wallet mnemonic\n"
+#endif
         "  fromsecret        - Parse a BLS secret key and return the secret/public key pair\n",
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
@@ -2505,6 +2595,7 @@ Span<const CRPCCommand> GetWalletEvoRPCCommands()
         {"evo", &protx_shared_dissolve_prepare},
         {"evo", &protx_shared_update_share},
         {"evo", &protx_shared_update_registrar_prepare},
+        {"evo", &bls_operatorkey},
         {"hidden", &protx_register_legacy},
         {"hidden", &protx_register_fund_legacy},
         {"hidden", &protx_register_prepare_legacy},
