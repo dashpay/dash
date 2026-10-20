@@ -350,11 +350,7 @@ CDeterministicMNList CSpecialTxProcessor::BeginListForBlock(gsl::not_null<const 
     // we iterate the prevList here and update the newList
     // this is only valid as long these have not diverged at this point, which is the case as long as we don't add
     // code above this loop that modifies newList
-    prevList.ForEachMN(/*onlyValid=*/false, [&pindexPrev, &newList, this](const auto& dmn) {
-        if (!dmn.pdmnState->confirmedHash.IsNull()) {
-            // already confirmed
-            return;
-        }
+    prevList.ForEachUnconfirmedMN([&pindexPrev, &newList, this](const auto& dmn) {
         // this works on the previous block, so confirmation will happen one block after nMasternodeMinimumConfirmations
         // has been reached, but the block hash will then point to the block at nMasternodeMinimumConfirmations
         int nConfirmations = pindexPrev->nHeight - dmn.pdmnState->nRegisteredHeight;

@@ -308,21 +308,20 @@ void CDeterministicMNList::PoSePunish(const uint256& proTxHash, int penalty, boo
     UpdateMN(proTxHash, newState);
 }
 
+static bool IsPenalized(const CDeterministicMNState& state)
+{
+    // a banned masternode keeps its penalty until it is revived
+    return state.nPoSePenalty > 0 && !state.IsBanned();
+}
+
 void CDeterministicMNList::DecreaseScores()
 {
-    std::vector<CDeterministicMNCPtr> toDecrease;
-    toDecrease.reserve(GetCounts().total() / 10);
-    // only iterate and decrease for valid ones (not PoSe banned yet)
-    // if a MN ever reaches the maximum, it stays in PoSe banned state until revived
-    ForEachMNShared(/*onlyValid=*/true, [&toDecrease](const auto& dmn) {
-        // There is no reason to check if this MN is banned here since onlyValid=true will only run on non-banned MNs
-        if (dmn->pdmnState->nPoSePenalty > 0) {
-            toDecrease.emplace_back(dmn);
-        }
-    });
-
-    for (const auto& proTxHash : toDecrease) {
-        PoSeDecrease(*proTxHash);
+    // PoSeDecrease updates m_penalized, so walk a copy
+    const auto penalized = m_penalized;
+    for (const auto& proTxHash : penalized) {
+        const auto* dmn = mnMap.find(proTxHash);
+        assert(dmn != nullptr);
+        PoSeDecrease(**dmn);
     }
 }
 
@@ -501,6 +500,12 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
 
     mnMap = mnMap.set(dmn->proTxHash, dmn);
     mnInternalIdMap = mnInternalIdMap.set(dmn->GetInternalId(), dmn->proTxHash);
+    if (dmn->pdmnState->confirmedHash.IsNull()) {
+        m_unconfirmed = m_unconfirmed.insert(dmn->proTxHash);
+    }
+    if (IsPenalized(*dmn->pdmnState)) {
+        m_penalized = m_penalized.insert(dmn->proTxHash);
+    }
     InvalidateSMLCache();
     if (fBumpTotalCount) {
         // nTotalRegisteredCount acts more like a checkpoint, not as a limit,
@@ -578,6 +583,13 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
     }
 
     dmn->pdmnState = pdmnState;
+    if (oldState->confirmedHash.IsNull() != pdmnState->confirmedHash.IsNull()) {
+        m_unconfirmed = pdmnState->confirmedHash.IsNull() ? m_unconfirmed.insert(dmn->proTxHash)
+                                                          : m_unconfirmed.erase(dmn->proTxHash);
+    }
+    if (IsPenalized(*oldState) != IsPenalized(*pdmnState)) {
+        m_penalized = IsPenalized(*pdmnState) ? m_penalized.insert(dmn->proTxHash) : m_penalized.erase(dmn->proTxHash);
+    }
     mnMap = mnMap.set(oldDmn.proTxHash, dmn);
     LOCK(m_cached_sml_mutex);
     if (m_cached_sml && oldDmn.to_sml_entry() != dmn->to_sml_entry()) {
@@ -668,6 +680,8 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
 
     mnMap = mnMap.erase(proTxHash);
     mnInternalIdMap = mnInternalIdMap.erase(dmn->GetInternalId());
+    m_unconfirmed = m_unconfirmed.erase(proTxHash);
+    m_penalized = m_penalized.erase(proTxHash);
     InvalidateSMLCache();
 }
 
