@@ -1300,6 +1300,10 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, const SyncTxS
             }
         }
 
+        // A provider transaction assigning one of this wallet's operator keys
+        // is normally not "ours" by IsMine, so the counter is checked first.
+        AdvanceOperatorKeyCounter(tx);
+
         bool fExisted = mapWallet.count(tx.GetHash()) != 0;
         if (fExisted && !fUpdate) return false;
         if (fExisted || IsMine(tx) || IsFromMe(tx))
@@ -2557,6 +2561,7 @@ DBErrors CWallet::LoadWallet()
             nKeysLeftSinceAutoBackup = 0;
         }
     }
+    RebuildOperatorKeyWindow();
 
     if (m_spk_managers.empty()) {
         assert(m_external_spk_managers == nullptr);
@@ -3372,6 +3377,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
                 args.ForceRemoveArg("mnemonic");
                 args.ForceRemoveArg("mnemonicpassphrase");
                 walletInstance->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
+                if (!mnemonic.empty()) walletInstance->SetupOperatorKeyChain();
                 // SetupDescriptorScriptPubKeyMans already calls SetupGeneration for us so we don't need to call SetupGeneration separately
             } else { // Top up the keypool
                 // Legacy wallets need SetupGeneration here.
@@ -4024,6 +4030,9 @@ PlatformKeyStatus CWallet::DerivePlatformKey(const PlatformKeyRequest& request, 
 }
 
 static const std::string OPERATOR_KEY_NEXT_INDEX{"operatorkeys/next_index"};
+//! Serialized bls::ExtendedPublicKey at m/9'/coin'/3'/3', see platformkeys::OperatorKeyChain.
+static const std::string OPERATOR_KEY_CHAIN{"operatorkeys/chain"};
+static constexpr uint32_t OPERATOR_KEY_WINDOW_SIZE{50};
 
 PlatformKeyStatus CWallet::DeriveOperatorKeys(uint32_t first, uint32_t count, std::vector<CBLSSecretKey>& out) const
 {
@@ -4057,9 +4066,86 @@ PlatformKeyStatus CWallet::IssueOperatorKey(const std::function<bool(const CBLSP
     secret = keys.front();
     std::vector<unsigned char> next_index(sizeof(uint32_t));
     WriteLE32(next_index.data(), index + 1);
-    if (WritePlatformData(OPERATOR_KEY_NEXT_INDEX, next_index)) return PlatformKeyStatus::SUCCESS;
-    secret.Reset();
-    return PlatformKeyStatus::DATABASE_ERROR;
+    if (!WritePlatformData(OPERATOR_KEY_NEXT_INDEX, next_index)) {
+        secret.Reset();
+        return PlatformKeyStatus::DATABASE_ERROR;
+    }
+    SetupOperatorKeyChain();
+    return PlatformKeyStatus::SUCCESS;
+}
+
+bool CWallet::SetupOperatorKeyChain()
+{
+    AssertLockHeld(cs_wallet);
+    if (m_platform_data.find(OPERATOR_KEY_CHAIN) == m_platform_data.end()) {
+        const ScriptPubKeyMan* source{nullptr};
+        if (GetPlatformKeySource(source) != PlatformKeyStatus::SUCCESS) return false;
+        std::vector<unsigned char> chain;
+        if (source->OperatorKeyChain(static_cast<uint32_t>(Params().ExtCoinType()), chain) != PlatformKeyStatus::SUCCESS) {
+            return false;
+        }
+        if (!WritePlatformData(OPERATOR_KEY_CHAIN, chain)) return false;
+    }
+    RebuildOperatorKeyWindow();
+    return true;
+}
+
+void CWallet::RebuildOperatorKeyWindow()
+{
+    AssertLockHeld(cs_wallet);
+    m_operator_key_window.clear();
+    const auto chain{m_platform_data.find(OPERATOR_KEY_CHAIN)};
+    const auto issued{OperatorKeysIssued()};
+    if (chain == m_platform_data.end() || !issued) return;
+    for (uint32_t i{0}; i < OPERATOR_KEY_WINDOW_SIZE; ++i) {
+        const auto pubkey{platformkeys::OperatorPubKey(chain->second, *issued + i)};
+        if (!pubkey.IsValid()) return;
+        const auto bytes{pubkey.ToByteVector(/*specificLegacyScheme=*/false)};
+        m_operator_key_window.insert(m_operator_key_window.end(), bytes.begin(), bytes.end());
+    }
+}
+
+static std::optional<CBLSPublicKey> ProviderOperatorKey(const CTransaction& tx)
+{
+    switch (tx.nType) {
+    case TRANSACTION_PROVIDER_REGISTER:
+        if (const auto payload{GetTxPayload<CProRegTx>(tx)}) return payload->pubKeyOperator.Get();
+        break;
+    case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
+        if (const auto payload{GetTxPayload<CProUpRegTx>(tx)}) return payload->pubKeyOperator.Get();
+        break;
+    case TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR:
+        if (const auto payload{GetTxPayload<CProUpSharedRegTx>(tx)}) return payload->pubKeyOperator.Get();
+        break;
+    }
+    return std::nullopt;
+}
+
+void CWallet::AdvanceOperatorKeyCounter(const CTransaction& tx)
+{
+    AssertLockHeld(cs_wallet);
+    if (m_operator_key_window.empty()) return;
+    const auto pubkey{ProviderOperatorKey(tx)};
+    if (!pubkey) return;
+
+    constexpr size_t KEY_SIZE{CBLSPublicKey::SerSize};
+    const auto target{pubkey->ToByteVector(/*specificLegacyScheme=*/false)};
+    for (size_t offset{0}; offset + KEY_SIZE <= m_operator_key_window.size(); offset += KEY_SIZE) {
+        if (!std::equal(target.begin(), target.end(), m_operator_key_window.begin() + offset)) continue;
+        // The window is rebuilt from the counter whenever the counter moves.
+        const auto issued{OperatorKeysIssued()};
+        if (!Assume(issued)) return;
+        const uint32_t index{*issued + static_cast<uint32_t>(offset / KEY_SIZE)};
+        std::vector<unsigned char> next_index(sizeof(uint32_t));
+        WriteLE32(next_index.data(), index + 1);
+        if (!WritePlatformData(OPERATOR_KEY_NEXT_INDEX, next_index)) {
+            throw std::runtime_error(strprintf("DB error recording operator key %u as used, write failed", index));
+        }
+        WalletLogPrintf("Operator key %u is used by %s; next operator key index is %u\n", index,
+                        tx.GetHash().ToString(), index + 1);
+        RebuildOperatorKeyWindow();
+        return;
+    }
 }
 
 PlatformKeyStatus CWallet::GetOperatorKey(uint32_t index, CBLSSecretKey& secret) const

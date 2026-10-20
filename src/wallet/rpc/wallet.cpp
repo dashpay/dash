@@ -431,6 +431,10 @@ static RPCHelpMan upgradetohd()
 
         if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
             pwallet->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
+            // A supplied mnemonic may already have operator keys on-chain; the
+            // chain record lets the rescan below recognise them and must exist
+            // before encryption locks the seed away.
+            if (!generate_mnemonic) pwallet->SetupOperatorKeyChain();
         } else {
             auto spk_man = pwallet->GetLegacyScriptPubKeyMan();
             if (!spk_man) {

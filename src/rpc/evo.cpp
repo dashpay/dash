@@ -2508,6 +2508,13 @@ static RPCHelpMan bls_operatorkey()
                       {RPCResult::Type::STR_HEX, "secret", "BLS secret key"},
                       {RPCResult::Type::STR_HEX, "public", "BLS public key"},
                       {RPCResult::Type::STR, "scheme", "BLS scheme, always basic (use bls fromsecret for legacy)"},
+                      {RPCResult::Type::ARR,
+                       "warnings",
+                       /*optional=*/true,
+                       "Why the key may have been used before",
+                       {
+                           {RPCResult::Type::STR, "", ""},
+                       }},
                   }},
         RPCExamples{HelpExampleCli("bls operatorkey", "") + HelpExampleCli("bls operatorkey", "0")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
@@ -2541,6 +2548,14 @@ static RPCHelpMan bls_operatorkey()
             ret.pushKV("secret", secret.ToString());
             ret.pushKV("public", secret.GetPublicKey().ToString(/*specificLegacyScheme=*/false));
             ret.pushKV("scheme", "basic");
+            if (request.params[0].isNull() && wallet->chain().havePruned()) {
+                UniValue warnings(UniValue::VARR);
+                warnings.push_back(
+                    "This node is pruned, so provider transactions in pruned blocks were not scanned: a key "
+                    "rotated away before this wallet was restored may be issued again. Issue the key on a "
+                    "node with full blocks or rotate the operator key after registering.");
+                PushWarnings(warnings, ret);
+            }
             return ret;
         },
     };

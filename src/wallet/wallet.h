@@ -508,6 +508,10 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     //! Operator key indexes below this were issued; nullopt for an unreadable counter record.
     std::optional<uint32_t> OperatorKeysIssued() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Move the counter past a window key that a synced provider transaction assigns.
+    void AdvanceOperatorKeyCounter(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Derive the window above the counter from the stored chain; empty without a chain or a readable counter.
+    void RebuildOperatorKeyWindow() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
 public:
     /**
@@ -551,6 +555,9 @@ public:
     // Generic per-wallet key/value records used by Dash Platform integration
     // (opaque to the wallet; persisted as DBKeys::PLATFORM_DATA).
     std::map<std::string, std::vector<unsigned char>> m_platform_data GUARDED_BY(cs_wallet);
+    //! Basic-scheme public keys of the next operator key indexes above the counter, the keypool of this key
+    //! chain. Derived from the stored chain, so it follows the counter with the wallet locked or not.
+    std::vector<unsigned char> m_operator_key_window GUARDED_BY(cs_wallet);
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
@@ -1118,6 +1125,10 @@ public:
                                        CBLSSecretKey& secret) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     /** Re-derive an operator key issued earlier; INVALID_ARGUMENT for an index not issued yet. */
     PlatformKeyStatus GetOperatorKey(uint32_t index, CBLSSecretKey& secret) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Store the extended public key over the operator keys (platformkeys::OperatorKeyChain) unless the wallet
+     *  has one, and build the window of public keys that synced provider transactions are matched against.
+     *  Storing needs the seed, so this runs where a mnemonic enters the wallet and at the first issuance. */
+    bool SetupOperatorKeyChain() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /* Returns the time of the first created key or, in case of an import, it could be the time of the first received transaction */
     int64_t GetBirthTime() const { return m_birth_time; }
