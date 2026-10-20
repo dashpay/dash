@@ -4,8 +4,10 @@
 
 #include <wallet/platformkeys.h>
 
+#include <bls/bls.h>
 #include <secp256k1.h>
 #include <secp256k1_ecdh.h>
+#include <support/cleanse.h>
 
 #include <algorithm>
 #include <cassert>
@@ -79,6 +81,51 @@ Path FriendshipPath(uint32_t coin_type, uint32_t account, Span<const uint8_t> us
         PathElement::Normal256(a),
         PathElement::Normal256(b),
     };
+}
+
+//! m/9'/coin'/3'/3'. Soft derivation below it hashes the parent public key,
+//! and only its legacy serialization reproduces the keys DashSync and dashj
+//! derive.
+static bls::ExtendedPrivateKey OperatorKeyParent(Span<const uint8_t> seed, uint32_t coin_type)
+{
+    constexpr uint32_t HARDENED{0x80000000u};
+    return bls::ExtendedPrivateKey::FromSeed(bls::Bytes(seed.data(), seed.size()))
+        .PrivateChild(FEATURE_PURPOSE | HARDENED, /*fLegacy=*/true)
+        .PrivateChild(coin_type | HARDENED, /*fLegacy=*/true)
+        .PrivateChild(FEATURE_MASTERNODE | HARDENED, /*fLegacy=*/true)
+        .PrivateChild(MASTERNODE_KEY_OPERATOR | HARDENED, /*fLegacy=*/true);
+}
+
+CBLSSecretKey DeriveOperatorKey(Span<const uint8_t> seed, uint32_t coin_type, uint32_t index)
+{
+    if (index >> 31) return {};
+    const auto leaf{OperatorKeyParent(seed, coin_type).PrivateChild(index, /*fLegacy=*/true)};
+    std::array<uint8_t, CBLSSecretKey::SerSize> bytes;
+    leaf.GetPrivateKey().Serialize(bytes.data());
+    const CBLSSecretKey secret(bytes);
+    memory_cleanse(bytes.data(), bytes.size());
+    return secret;
+}
+
+std::vector<uint8_t> OperatorKeyChain(Span<const uint8_t> seed, uint32_t coin_type)
+{
+    return OperatorKeyParent(seed, coin_type).GetExtendedPublicKey(/*fLegacy=*/true).Serialize(/*fLegacy=*/true);
+}
+
+CBLSPublicKey OperatorPubKey(Span<const uint8_t> chain, uint32_t index)
+{
+    CBLSPublicKey pubkey;
+    if (index >> 31 || chain.size() != bls::ExtendedPublicKey::SIZE) return pubkey;
+    try {
+        const auto child{bls::ExtendedPublicKey::FromBytes(bls::Bytes(chain.data(), chain.size()), /*fLegacy=*/true)
+                             .PublicChild(index, /*fLegacy=*/true)
+                             .GetPublicKey()
+                             .Serialize(/*fLegacy=*/false)};
+        pubkey.SetBytes(child, /*specificLegacyScheme=*/false);
+    } catch (const std::exception&) {
+        // Bytes that do not decode as an extended public key yield no key.
+    }
+    return pubkey;
 }
 
 bool DeriveExtKey(const CExtKey& parent, const Path& path, ExtKey256& out)

@@ -16,6 +16,9 @@
 #include <variant>
 #include <vector>
 
+class CBLSPublicKey;
+class CBLSSecretKey;
+
 /**
  * Dash Platform (DIP-9/13/14/15) key derivation for the wallet.
  *
@@ -28,7 +31,9 @@
  *  - DIP-13 identity keys (m/9'/coin'/5'/...)
  *  - DIP-14 256-bit child indexes (CKey::Derive256)
  *  - DIP-15 DashPay friendship keychains (m/9'/coin'/15'/account'/idA/idB)
- *  - dashj DerivationPathFactory.java / FriendKeyChain.java (reference impl)
+ *  - DIP-3 masternode operator keys (m/9'/coin'/3'/3'/index, BLS HD scheme)
+ *  - dashj DerivationPathFactory.java / FriendKeyChain.java /
+ *    BLSDeterministicKey.java (reference impl)
  */
 namespace wallet::platformkeys {
 
@@ -44,10 +49,14 @@ struct PathElement {
 };
 using Path = std::vector<PathElement>;
 
-// DIP-9 feature purpose, and DIP-13/DIP-15 feature types under it.
+// DIP-9 feature purpose, and DIP-3/DIP-13/DIP-15 feature types under it.
 inline constexpr uint32_t FEATURE_PURPOSE{9};
+inline constexpr uint32_t FEATURE_MASTERNODE{3}; // DIP-3
 inline constexpr uint32_t FEATURE_IDENTITIES{5}; // DIP-13
 inline constexpr uint32_t FEATURE_DASHPAY{15};   // DIP-15
+
+// DIP-3 masternode key sub-features: m/9'/coin'/3'/<subfeature>'
+inline constexpr uint32_t MASTERNODE_KEY_OPERATOR{3};
 
 // DIP-13 sub-features: m/9'/coin'/5'/<subfeature>'
 inline constexpr uint32_t IDENTITY_AUTHENTICATION{0};
@@ -86,6 +95,21 @@ Path PlatformKeyPath(uint32_t coin_type, const PlatformKeyRequest& request);
 //! watch-only derivation from an exported xpub); the receiving chain is
 //! (userA = my id, userB = their id), the sending chain is the reverse.
 Path FriendshipPath(uint32_t coin_type, uint32_t account, Span<const uint8_t> user_a_id, Span<const uint8_t> user_b_id);
+
+//! m/9'/coin'/3'/3'/<index> — DIP-3 masternode operator key, derived the way
+//! DashSync and dashj do it: bls::ExtendedPrivateKey from the 64-byte BIP39
+//! seed with legacy child derivation at every step. The leaf index is soft
+//! and must be below 2^31; an invalid key is returned otherwise.
+CBLSSecretKey DeriveOperatorKey(Span<const uint8_t> seed, uint32_t coin_type, uint32_t index);
+
+//! Serialized bls::ExtendedPublicKey at m/9'/coin'/3'/3', the parent of every
+//! operator key. Its soft children are the operator public keys, so it stands
+//! in for the seed wherever only public keys are needed.
+std::vector<uint8_t> OperatorKeyChain(Span<const uint8_t> seed, uint32_t coin_type);
+
+//! Operator public key at `index` under a chain from OperatorKeyChain; invalid
+//! for a malformed chain or an index of 2^31 or above.
+CBLSPublicKey OperatorPubKey(Span<const uint8_t> chain, uint32_t index);
 
 //! Derive the extended key at `path` from a BIP32 extended private key.
 //! Returns false if the parent key or any derivation step is invalid.
