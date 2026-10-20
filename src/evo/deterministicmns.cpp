@@ -308,6 +308,17 @@ void CDeterministicMNList::PoSePunish(const uint256& proTxHash, int penalty, boo
     UpdateMN(proTxHash, newState);
 }
 
+std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetConsecutivelyPaidMNs() const
+{
+    std::vector<CDeterministicMNCPtr> ret;
+    for (const auto& proTxHash : m_consecutively_paid) {
+        const auto* dmn = mnMap.find(proTxHash);
+        assert(dmn != nullptr);
+        ret.push_back(*dmn);
+    }
+    return ret;
+}
+
 static bool IsPenalized(const CDeterministicMNState& state)
 {
     // a banned masternode keeps its penalty until it is revived
@@ -506,6 +517,9 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
     if (IsPenalized(*dmn->pdmnState)) {
         m_penalized = m_penalized.insert(dmn->proTxHash);
     }
+    if (dmn->pdmnState->nConsecutivePayments > 0) {
+        m_consecutively_paid = m_consecutively_paid.insert(dmn->proTxHash);
+    }
     InvalidateSMLCache();
     if (fBumpTotalCount) {
         // nTotalRegisteredCount acts more like a checkpoint, not as a limit,
@@ -589,6 +603,10 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
     }
     if (IsPenalized(*oldState) != IsPenalized(*pdmnState)) {
         m_penalized = IsPenalized(*pdmnState) ? m_penalized.insert(dmn->proTxHash) : m_penalized.erase(dmn->proTxHash);
+    }
+    if ((oldState->nConsecutivePayments > 0) != (pdmnState->nConsecutivePayments > 0)) {
+        m_consecutively_paid = pdmnState->nConsecutivePayments > 0 ? m_consecutively_paid.insert(dmn->proTxHash)
+                                                                   : m_consecutively_paid.erase(dmn->proTxHash);
     }
     mnMap = mnMap.set(oldDmn.proTxHash, dmn);
     LOCK(m_cached_sml_mutex);
@@ -682,6 +700,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
     mnInternalIdMap = mnInternalIdMap.erase(dmn->GetInternalId());
     m_unconfirmed = m_unconfirmed.erase(proTxHash);
     m_penalized = m_penalized.erase(proTxHash);
+    m_consecutively_paid = m_consecutively_paid.erase(proTxHash);
     InvalidateSMLCache();
 }
 

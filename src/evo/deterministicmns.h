@@ -169,10 +169,12 @@ private:
     MnUniquePropertyMap mnUniquePropertyMap;
 
     // Derived from mnMap by AddMN, UpdateMN and RemoveMN: masternodes whose registration is not
-    // confirmed yet, and non-banned masternodes carrying a PoSe penalty. The per-block
-    // confirmation and penalty decay walk only these instead of the whole list.
+    // confirmed yet, non-banned masternodes carrying a PoSe penalty, and masternodes with
+    // consecutive payments. The per-block confirmation, penalty decay and payment counter
+    // reset walk only these instead of the whole list.
     MnHashSet m_unconfirmed;
     MnHashSet m_penalized;
+    MnHashSet m_consecutively_paid;
 
     // This SML could be null
     // This cache is used to improve performance and meant to be reused
@@ -209,7 +211,8 @@ public:
         mnInternalIdMap(other.mnInternalIdMap),
         mnUniquePropertyMap(other.mnUniquePropertyMap),
         m_unconfirmed(other.m_unconfirmed),
-        m_penalized(other.m_penalized)
+        m_penalized(other.m_penalized),
+        m_consecutively_paid(other.m_consecutively_paid)
     {
         LOCK(other.m_cached_sml_mutex);
         m_cached_sml = other.m_cached_sml;
@@ -228,6 +231,7 @@ public:
             mnUniquePropertyMap = other.mnUniquePropertyMap;
             m_unconfirmed = other.m_unconfirmed;
             m_penalized = other.m_penalized;
+            m_consecutively_paid = other.m_consecutively_paid;
 
             LOCK2(m_cached_sml_mutex, other.m_cached_sml_mutex);
             m_cached_sml = other.m_cached_sml;
@@ -277,6 +281,7 @@ public:
         mnInternalIdMap = MnInternalIdMap();
         m_unconfirmed = MnHashSet();
         m_penalized = MnHashSet();
+        m_consecutively_paid = MnHashSet();
         InvalidateSMLCache();
     }
 
@@ -340,6 +345,11 @@ public:
             }
         }
     }
+
+    /**
+     * Masternodes with a positive nConsecutivePayments.
+     */
+    [[nodiscard]] std::vector<CDeterministicMNCPtr> GetConsecutivelyPaidMNs() const;
 
     /**
      * Execute a callback on every masternode whose registration is not confirmed yet.

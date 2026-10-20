@@ -802,19 +802,17 @@ bool CSpecialTxProcessor::FinishListForBlock(const CBlock& block, gsl::not_null<
     }
 
     // reset nConsecutivePayments on non-paid EvoNodes
-    auto newList2 = newList;
-    newList2.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
-        if (dmn.nType != MnType::Evo) return;
-        if (payee != nullptr && dmn.proTxHash == payee->proTxHash && !isMNRewardReallocation) return;
-        if (dmn.pdmnState->nConsecutivePayments == 0) return;
+    for (const auto& dmn : newList.GetConsecutivelyPaidMNs()) {
+        if (dmn->nType != MnType::Evo) continue;
+        if (payee != nullptr && dmn->proTxHash == payee->proTxHash && !isMNRewardReallocation) continue;
         if (debugLogs) {
             LogPrint(BCLog::MNPAYMENTS, "FinishListForBlock -- MN %s, reset nConsecutivePayments %d->0\n",
-                     dmn.proTxHash.ToString(), dmn.pdmnState->nConsecutivePayments);
+                     dmn->proTxHash.ToString(), dmn->pdmnState->nConsecutivePayments);
         }
-        auto newState = std::make_shared<CDeterministicMNState>(*dmn.pdmnState);
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
         newState->nConsecutivePayments = 0;
-        newList.UpdateMN(dmn.proTxHash, newState);
-    });
+        newList.UpdateMN(dmn->proTxHash, newState);
+    }
 
     mnListRet = newList;
 
