@@ -283,6 +283,13 @@ public:
     CBLSSecretKey(const CBLSSecretKey&) = default;
     CBLSSecretKey& operator=(const CBLSSecretKey&) = default;
 
+    bool SerializeTo(Span<unsigned char> bytes) const
+    {
+        if (!IsValid() || bytes.size() != SerSize) return false;
+        impl.Serialize(bytes.data());
+        return true;
+    }
+
     void AggregateInsecure(const CBLSSecretKey& o);
     static CBLSSecretKey AggregateInsecure(Span<CBLSSecretKey> sks);
 
