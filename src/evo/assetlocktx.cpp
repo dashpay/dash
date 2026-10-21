@@ -106,7 +106,7 @@ std::string CAssetLockPayload::ToString() const
 template <typename ScanQuorums, typename GetQuorum>
 static bool VerifyAssetUnlockSig(const CAssetUnlockPayload& payload, ScanQuorums&& scan_quorums,
                                  GetQuorum&& get_quorum, const uint256& msgHash,
-                                 gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state)
+                                 gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state, bool check_sigs)
 {
     // That quourm hash must be active at `requestHeight`,
     // and at the quorumHash must be active in either the current or previous quorum cycle
@@ -142,6 +142,10 @@ static bool VerifyAssetUnlockSig(const CAssetUnlockPayload& payload, ScanQuorums
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-quorum-internal-error");
     }
 
+    if (!check_sigs) {
+        return true;
+    }
+
     const uint256 requestId = ::SerializeHash(std::make_pair(ASSET_UNLOCK_REQUESTID_PREFIX, payload.getIndex()));
 
     if (const llmq::SignHash signHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
@@ -153,24 +157,26 @@ static bool VerifyAssetUnlockSig(const CAssetUnlockPayload& payload, ScanQuorums
 }
 
 bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint256& msgHash,
-                                    gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state) const
+                                    gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state,
+                                    bool check_sigs) const
 {
     return VerifyAssetUnlockSig(*this, [&](Consensus::LLMQType llmq_type, const CBlockIndex* pindex, size_t count) {
         return qman.ScanQuorums(llmq_type, pindex, count);
     }, [&](Consensus::LLMQType llmq_type, const uint256& quorum_hash) {
         return qman.GetQuorum(llmq_type, quorum_hash);
-    }, msgHash, pindexTip, state);
+    }, msgHash, pindexTip, state, check_sigs);
 }
 
 bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const CChain& chain, const uint256& msgHash,
-                                    gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state) const
+                                    gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state,
+                                    bool check_sigs) const
 {
     AssertLockHeld(::cs_main);
     return VerifyAssetUnlockSig(*this, [&](Consensus::LLMQType llmq_type, const CBlockIndex* pindex, size_t count) NO_THREAD_SAFETY_ANALYSIS {
         return qman.ScanQuorums(llmq_type, pindex, count, chain);
     }, [&](Consensus::LLMQType llmq_type, const uint256& quorum_hash) NO_THREAD_SAFETY_ANALYSIS {
         return qman.GetQuorum(llmq_type, quorum_hash, chain);
-    }, msgHash, pindexTip, state);
+    }, msgHash, pindexTip, state, check_sigs);
 }
 
 template <typename VerifySig>
@@ -233,22 +239,23 @@ static bool CheckAssetUnlockTxImpl(const BlockManager& blockman, VerifySig&& ver
 
 bool CheckAssetUnlockTx(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx,
                         gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes,
-                        bool is_v24_active, TxValidationState& state)
+                        bool is_v24_active, TxValidationState& state, bool check_sigs)
 {
     return CheckAssetUnlockTxImpl(blockman, [&](const CAssetUnlockPayload& payload, const uint256& msg_hash,
                                                 const CBlockIndex* pindex, TxValidationState& tx_state) {
-        return payload.VerifySig(qman, msg_hash, pindex, tx_state);
+        return payload.VerifySig(qman, msg_hash, pindex, tx_state, check_sigs);
     }, tx, pindexPrev, indexes, is_v24_active, state);
 }
 
 bool CheckAssetUnlockTx(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CChain& chain,
                         const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                        const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state)
+                        const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state,
+                        bool check_sigs)
 {
     AssertLockHeld(::cs_main);
     return CheckAssetUnlockTxImpl(blockman, [&](const CAssetUnlockPayload& payload, const uint256& msg_hash,
                                                 const CBlockIndex* pindex, TxValidationState& tx_state) NO_THREAD_SAFETY_ANALYSIS {
-        return payload.VerifySig(qman, chain, msg_hash, pindex, tx_state);
+        return payload.VerifySig(qman, chain, msg_hash, pindex, tx_state, check_sigs);
     }, tx, pindexPrev, indexes, is_v24_active, state);
 }
 
