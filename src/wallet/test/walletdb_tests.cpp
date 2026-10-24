@@ -4,6 +4,11 @@
 
 #include <test/util/setup_common.h>
 #include <clientversion.h>
+#include <hash.h>
+#include <key_io.h>
+#include <util/strencodings.h>
+#include <util/message.h>
+#include <wallet/bip39.h>
 #include <streams.h>
 #include <uint256.h>
 #include <wallet/hdchain.h>
@@ -147,6 +152,79 @@ BOOST_AUTO_TEST_CASE(walletdb_platform_data_corruption_policy)
                 DBErrors::NONCRITICAL_ERROR);
     BOOST_CHECK_EQUAL(platform_data.count("platform/identity/0"), 0U);
     BOOST_CHECK(platform_data.at("platform/intact") == std::vector<unsigned char>({0x01, 0x02}));
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_descriptor_orphan_records)
+{
+    CExtKey root;
+    const std::vector<unsigned char> seed(32, 1);
+    root.SetSeed(MakeByteSpan(seed));
+    const CPubKey pubkey{root.key.GetPubKey()};
+    for (const bool legacy_owner : {false, true}) {
+        for (int record = 0; record < 5; ++record) {
+            CWallet wallet(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args, CreateMockWalletDatabase());
+            const uint256 owner{legacy_owner ? wallet.GetOrCreateLegacyScriptPubKeyMan()->GetID() : uint256::TWO};
+            {
+                WalletBatch batch(wallet.GetDatabase());
+                switch (record) {
+                case 0: BOOST_REQUIRE(batch.WriteDescriptorParentCache(root.Neuter(), owner, 0)); break;
+                case 1: BOOST_REQUIRE(batch.WriteDescriptorDerivedCache(root.Neuter(), owner, 0, 0)); break;
+                case 2: BOOST_REQUIRE(batch.WriteDescriptorLastHardenedCache(root.Neuter(), owner, 0)); break;
+                case 3: BOOST_REQUIRE(batch.WriteDescriptorKey(owner, pubkey, root.key.GetPrivKey(), "", "")); break;
+                case 4: BOOST_REQUIRE(batch.WriteCryptedDescriptorKey(owner, pubkey, {1}, {}, {})); break;
+                }
+            }
+            BOOST_CHECK(wallet.LoadWallet() == DBErrors::LOAD_OK);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_descriptor_mnemonic_consistency)
+{
+    const SecureString mnemonic{"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"};
+    const SecureString passphrase{"recovery passphrase"};
+    SecureVector seed;
+    CMnemonic::ToSeed(mnemonic, passphrase, seed);
+    CExtKey root;
+    root.SetSeed(MakeByteSpan(seed));
+    const CPubKey pubkey{root.key.GetPubKey()};
+    const CScript script{GetScriptForDestination(PKHash(pubkey))};
+    for (int scenario = 0; scenario < 4; ++scenario) {
+        CWallet wallet(m_node.chain.get(), m_coinjoin_loader.get(), "", m_args, CreateMockWalletDatabase());
+        FlatSigningProvider provider;
+        std::string error;
+        auto parsed{Parse("pkh(" + HexStr(pubkey) + ")", provider, error, false)};
+        BOOST_REQUIRE_MESSAGE(parsed, error);
+        WalletDescriptor descriptor(std::move(parsed), 0, 0, 1, 0);
+        {
+            WalletBatch batch(wallet.GetDatabase());
+            BOOST_REQUIRE(batch.WriteWalletFlags(WALLET_FLAG_DESCRIPTORS));
+            BOOST_REQUIRE(batch.WriteDescriptor(descriptor.id, descriptor));
+            if (scenario == 0) {
+                const CPrivKey privkey{root.key.GetPrivKey()};
+                std::vector<unsigned char> key_bytes(pubkey.begin(), pubkey.end());
+                key_bytes.insert(key_bytes.end(), privkey.begin(), privkey.end());
+                auto raw_batch{wallet.GetDatabase().MakeBatch()};
+                BOOST_REQUIRE(raw_batch->Write(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(descriptor.id, pubkey)), std::make_pair(privkey, Hash(key_bytes))));
+            } else {
+                BOOST_REQUIRE(batch.WriteDescriptorKey(descriptor.id, pubkey, root.key.GetPrivKey(), scenario == 3 ? SecureString{"different recovery phrase"} : mnemonic, scenario == 2 ? SecureString{"wrong passphrase"} : passphrase));
+            }
+            BOOST_REQUIRE(batch.WriteDescriptorParentCache(root.Neuter(), descriptor.id, 0));
+            BOOST_REQUIRE(batch.WriteDescriptorDerivedCache(root.Neuter(), descriptor.id, 0, 0));
+            BOOST_REQUIRE(batch.WriteDescriptorLastHardenedCache(root.Neuter(), descriptor.id, 0));
+        }
+        const auto result{wallet.LoadWallet()};
+        if (scenario >= 2) {
+            BOOST_CHECK(result == DBErrors::CORRUPT);
+        } else {
+            BOOST_REQUIRE(result == DBErrors::LOAD_OK);
+            LOCK(wallet.cs_wallet);
+            BOOST_CHECK(wallet.IsMine(script) == ISMINE_SPENDABLE);
+            std::string signature;
+            BOOST_CHECK(wallet.SignMessage("descriptor load regression", PKHash(pubkey), signature) == SigningResult::OK);
+            BOOST_CHECK(MessageVerify(EncodeDestination(PKHash(pubkey)), signature, "descriptor load regression") == MessageVerificationResult::OK);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
