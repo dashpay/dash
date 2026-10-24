@@ -170,8 +170,8 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: depends/sources
-          key: depends-sources-${{ hashFiles('depends/packages/*') }}
-          restore-keys: depends-sources-
+          key: depends-sources-v2-${{ hashFiles('depends/packages/*') }}
+          restore-keys: depends-sources-v2-
 
       - name: Restore SDKs cache
         id: sdk-cache
