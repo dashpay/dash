@@ -8,8 +8,8 @@ export LC_ALL=C.UTF-8
 
 # Builds the tree with CMake instead of Autotools, on top of the very same
 # depends prefix the linux64 job uses. HOST and DEP_OPTS must therefore stay in
-# sync with 00_setup_env_native_qt5.sh, otherwise the depends cache cannot be
-# shared and this job would have to build depends from scratch.
+# sync with 00_setup_env_native_previous_releases.sh, otherwise the depends
+# cache cannot be shared and this job would have to build depends from scratch.
 export CONTAINER_NAME=ci_native_cmake
 export HOST=x86_64-pc-linux-gnu
 export PACKAGES="python3-zmq qtbase5-dev qttools5-dev-tools libdbus-1-dev libharfbuzz-dev"

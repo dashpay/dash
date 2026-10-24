@@ -44,7 +44,7 @@ jobs:
     name: Build source (CMake)
     runs-on: ${{ inputs.runs-on }}
     container:
-      image: ${{ inputs.container-path }}
+      image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
       options: --user root
     steps:
       - name: Checkout code
@@ -86,11 +86,16 @@ jobs:
         shell: bash
 
       - name: Rebuild depends prefix
+        env:
+          DEPENDS_HOST: ${{ inputs.depends-host }}
+          DEP_OPTS: ${{ inputs.depends-dep-opts }}
         run: |
           # Use the HOST and DEP_OPTS from the depends build, not this build-target
           # This ensures the build_id matches the cached packages, and it is what
           # writes depends/${HOST}/toolchain.cmake.
-          make -j$(nproc) -C depends HOST="${{ inputs.depends-host }}" ${{ inputs.depends-dep-opts }}
+          # DEP_OPTS may contain shell-quoted values, e.g. CXX='clang++-19 -stdlib=libc++'
+          eval "DEP_OPTS_ARGS=(${DEP_OPTS})"
+          make -j$(nproc) -C depends HOST="${DEPENDS_HOST}" "${DEP_OPTS_ARGS[@]}"
         shell: bash
 
       - name: Restore ccache cache
@@ -103,12 +108,13 @@ jobs:
             ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-
 
       - name: Build source
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
           CCACHE_MAXSIZE="600M"
           CACHE_DIR="/cache"
           mkdir /output
           BASE_OUTDIR="/output"
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/build_src_cmake.sh
           ccache -X 9
@@ -127,15 +133,17 @@ jobs:
           key: ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
 
       - name: Run unit tests
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/test_unittests_cmake.sh
         shell: bash
 
       - name: Run functional smoke tests
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
         run: |
-          BUILD_TARGET="${{ inputs.build-target }}"
           source ./ci/dash/matrix.sh
           ./ci/dash/test_integrationtests_cmake.sh
         shell: bash
