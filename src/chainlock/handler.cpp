@@ -110,7 +110,7 @@ MessageProcessingResult ChainlockHandler::ProcessCoinbaseChainLock(const CBlock&
     }
 
     const auto cbtx = GetTxPayload<CCbTx>(*block.vtx.front(), /*assert_type=*/false);
-    if (!cbtx || cbtx->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || !cbtx->bestCLSignature.IsValid()) {
+    if (!cbtx || cbtx->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || !cbtx->bestCLSignature.Get().IsValid()) {
         return {};
     }
 
@@ -126,7 +126,7 @@ MessageProcessingResult ChainlockHandler::ProcessCoinbaseChainLock(const CBlock&
     if (ancestor == nullptr) {
         return {};
     }
-    const ChainLockSig clsig{height, ancestor->GetBlockHash(), cbtx->bestCLSignature};
+    const ChainLockSig clsig{height, ancestor->GetBlockHash(), cbtx->bestCLSignature.Get()};
     return ProcessNewChainLock(/*from=*/-1, clsig, qman, ::SerializeHash(clsig));
 }
 

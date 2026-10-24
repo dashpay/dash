@@ -19,7 +19,16 @@
 #include <deploymentstatus.h>
 #include <node/blockstorage.h>
 
+#include <algorithm>
+
 using node::ReadBlockFromDisk;
+
+static bool IsNullSignature(const CBLSLazySignature& sig)
+{
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << sig;
+    return std::all_of(ss.begin(), ss.end(), [](std::byte b) { return b == std::byte{0}; });
+}
 
 bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_active, TxValidationState& state)
 {
@@ -49,6 +58,15 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_act
             (!requires_unlock_root && cbTx.nVersion >= CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
         }
+    }
+
+    // The signature is deserialized lazily, so bytes that do not encode a valid
+    // signature are rejected here rather than by the payload parser. The null
+    // check must come first: a failed Get() discards the bytes, after which the
+    // wrapper serializes as null.
+    if (cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE && !IsNullSignature(cbTx.bestCLSignature) &&
+        !cbTx.bestCLSignature.Get().IsValid()) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-payload");
     }
 
     return true;
@@ -203,8 +221,8 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
     }
     const auto payload = GetTxPayload<CCbTx>(*block.vtx[0]);
     if (!payload || payload->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || payload->nHeight != height ||
-        !payload->bestCLSignature.IsValid() || payload->bestCLHeightDiff >= uint32_t(height)) {
+        !payload->bestCLSignature.Get().IsValid() || payload->bestCLHeightDiff >= uint32_t(height)) {
         return std::nullopt;
     }
-    return std::make_pair(payload->bestCLSignature, payload->bestCLHeightDiff);
+    return std::make_pair(payload->bestCLSignature.Get(), payload->bestCLHeightDiff);
 }

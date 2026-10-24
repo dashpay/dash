@@ -71,7 +71,7 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
             } else {
                 certified = activation + 16999;
             }
-            payload.bestCLSignature = signature;
+            payload.bestCLSignature.Set(signature, bls::bls_legacy_scheme.load());
             payload.bestCLHeightDiff = height - certified - 1;
         }
         CMutableTransaction coinbase;
@@ -415,7 +415,7 @@ BOOST_FIXTURE_TEST_CASE(coinbase_chainlock_processing, RegTestingSetup)
 
     CCbTx cbtx;
     cbtx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
-    cbtx.bestCLSignature = CreateRandomBLSSignature();
+    cbtx.bestCLSignature.Set(CreateRandomBLSSignature(), bls::bls_legacy_scheme.load());
     CMutableTransaction tx;
     tx.nVersion = CTransaction::SPECIAL_VERSION;
     tx.nType = TRANSACTION_COINBASE;
@@ -439,7 +439,7 @@ BOOST_FIXTURE_TEST_CASE(coinbase_chainlock_processing, RegTestingSetup)
         set_payload();
         process(&indexes.back());
         const int32_t height = 499 - offset;
-        const ChainLockSig expected{height, hashes[height], cbtx.bestCLSignature};
+        const ChainLockSig expected{height, hashes[height], cbtx.bestCLSignature.Get()};
         BOOST_CHECK(m_node.clhandler->AlreadyHave(CInv{MSG_CLSIG, ::SerializeHash(expected)}));
     }
     const auto seen = m_node.clhandler->SeenChainLockCacheSizeForTesting();
@@ -464,7 +464,7 @@ BOOST_FIXTURE_TEST_CASE(coinbase_chainlock_processing, RegTestingSetup)
     process(&indexes.back());
     BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 0).has_value());
 
-    cbtx.bestCLSignature = {};
+    cbtx.bestCLSignature = CBLSLazySignature{};
     set_payload();
     process(&indexes.back());
     cbtx.nVersion = CCbTx::Version::MERKLE_ROOT_QUORUMS;

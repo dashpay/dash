@@ -1031,6 +1031,9 @@ public:
         assert(consensus.V20Height >= consensus.DIP0003Height);
         // MN_RR reallocate part of reward to CreditPool which exits since V20
         assert(consensus.MN_RRHeight >= consensus.V20Height);
+        // Coinbase chainlocks (V20) are verified once and reused by the next block, so the BLS
+        // scheme must not change after V20 activation
+        assert(consensus.V20Height >= consensus.V19Height);
     }
 
 private:

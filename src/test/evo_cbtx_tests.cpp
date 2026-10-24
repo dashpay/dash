@@ -22,9 +22,11 @@
 #include <llmq/params.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <streams.h>
 #include <uint256.h>
 #include <validation.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <utility>
@@ -66,7 +68,7 @@ BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff,
 
     CCbTx cbTx;
     cbTx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
-    cbTx.bestCLSignature = valid_sig;
+    cbTx.bestCLSignature.Set(valid_sig, legacy_scheme);
 
     // bestCLHeightDiff == nHeight: lower boundary of the rejected range.
     cbTx.bestCLHeightDiff = static_cast<uint32_t>(pindex.nHeight);
@@ -79,6 +81,20 @@ BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff,
     BlockValidationState state_big;
     BOOST_CHECK(!CheckCbTxBestChainlock(cbTx, &pindex, consensus_params, chain, qman, chainlocks, state_big));
     BOOST_CHECK_EQUAL(state_big.GetRejectReason(), "bad-cbtx-cldiff");
+
+    // The signature is deserialized lazily, so the payload parser accepts any bytes in its
+    // place and CheckCbTx rejects an encoding that is not a signature; the valid signature
+    // above and the null encoding pass.
+    TxValidationState tx_state;
+    BOOST_CHECK(CheckCbTx(cbTx, /*pindexPrev=*/nullptr, /*is_v24_active=*/false, tx_state));
+    std::vector<uint8_t> sig_bytes(CBLSSignature::SerSize, 0xff);
+    CDataStream(sig_bytes, SER_NETWORK, PROTOCOL_VERSION) >> cbTx.bestCLSignature;
+    BOOST_CHECK(!CheckCbTx(cbTx, /*pindexPrev=*/nullptr, /*is_v24_active=*/false, tx_state));
+    BOOST_CHECK_EQUAL(tx_state.GetRejectReason(), "bad-cbtx-payload");
+    std::fill(sig_bytes.begin(), sig_bytes.end(), 0);
+    CDataStream(sig_bytes, SER_NETWORK, PROTOCOL_VERSION) >> cbTx.bestCLSignature;
+    TxValidationState null_state;
+    BOOST_CHECK(CheckCbTx(cbTx, /*pindexPrev=*/nullptr, /*is_v24_active=*/false, null_state));
 }
 
 namespace {

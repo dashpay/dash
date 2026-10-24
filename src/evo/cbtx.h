@@ -44,7 +44,7 @@ public:
     uint256 merkleRootMNList;
     uint256 merkleRootQuorums;
     uint32_t bestCLHeightDiff{0};
-    CBLSSignature bestCLSignature;
+    CBLSLazySignature bestCLSignature;
     CAmount creditPoolBalance{0};
     /** Merkle root over the instance hashes of the block's version 2+ asset unlock transactions
      *  (block order; null when there are none). Their txids exclude the quorum signing info, so

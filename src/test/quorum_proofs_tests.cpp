@@ -163,11 +163,12 @@ struct QuorumProofGenerationSetup : TestingSetup {
                 });
                 BOOST_REQUIRE(match != commitments.end());
                 const size_t key = size_t(match - commitments.begin());
-                payload.bestCLSignature = keys[key].Sign(llmq::SignHash{params.type, signer->quorumHash,
-                                                                        chainlock::GenSigRequestId(height - 1),
-                                                                        previous->GetBlockHash()}
-                                                             .Get(),
-                                                         false);
+                payload.bestCLSignature.Set(keys[key].Sign(llmq::SignHash{params.type, signer->quorumHash,
+                                                                           chainlock::GenSigRequestId(height - 1),
+                                                                           previous->GetBlockHash()}
+                                                                .Get(),
+                                                            false),
+                                            bls::bls_legacy_scheme.load());
             }
             const bool mining = height == checkpoint_height - params.dkgInterval || height == checkpoint_height ||
                                 (mine_nonstandard_handoff && height == handoff_height);

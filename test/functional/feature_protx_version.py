@@ -38,6 +38,8 @@ class ProTxVersionTest(DashTestFramework):
             f'-vbparams=v24:{self.mocktime}:999999999999:350:10:8:6:5:0',
         ]] * 2
         self.set_dash_test_params(2, 1, evo_count=2, extra_args=self.extra_args)
+        # regtest requires v20 not earlier than v19
+        self.delay_v20_and_mn_rr(200)
 
     def get_peer_ids(self, node_idx):
         return {peer['id'] for peer in self.nodes[node_idx].getpeerinfo()}

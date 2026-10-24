@@ -163,6 +163,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
     if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return true;
     }
+    const CBLSSignature& cbtx_sig{cbTx.bestCLSignature.Get()};
 
     static Mutex cached_mutex;
     static const CBlockIndex* cached_pindex GUARDED_BY(cached_mutex){nullptr};
@@ -170,17 +171,19 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
 
     auto best_clsig = chainlocks.GetBestChainLock();
     if (best_clsig.getHeight() == pindex->nHeight - 1 && cbTx.bestCLHeightDiff == 0 &&
-        cbTx.bestCLSignature == best_clsig.getSig()) {
+        cbtx_sig == best_clsig.getSig()) {
         // matches our best clsig which still hold values for the previous block
         LOCK(cached_mutex);
-        cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
+        cached_chainlock = std::make_pair(cbtx_sig, cbTx.bestCLHeightDiff);
         cached_pindex = pindex;
         return true;
     }
 
     std::optional<std::pair<CBLSSignature, uint32_t>> prevBlockCoinbaseChainlock{std::nullopt};
+    bool prev_verified_here{false};
     if (LOCK(cached_mutex); cached_pindex == pindex->pprev) {
         prevBlockCoinbaseChainlock = cached_chainlock;
+        prev_verified_here = true;
     }
     if (!prevBlockCoinbaseChainlock.has_value()) {
         prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindex->pprev);
@@ -188,7 +191,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
     // If std::optional prevBlockCoinbaseChainlock is empty, then up to the previous block, coinbase Chainlock is null.
     if (prevBlockCoinbaseChainlock.has_value()) {
         // Previous block Coinbase has a non-null Chainlock: current block's Chainlock must be non-null and at least as new as the previous one
-        if (!cbTx.bestCLSignature.IsValid()) {
+        if (!cbtx_sig.IsValid()) {
             // IsNull() doesn't exist for CBLSSignature: we assume that a non valid BLS sig is null
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-null-clsig");
         }
@@ -198,16 +201,26 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
     }
 
     // IsNull() doesn't exist for CBLSSignature: we assume that a valid BLS sig is non-null
-    if (cbTx.bestCLSignature.IsValid()) {
+    if (cbtx_sig.IsValid()) {
         // Reject out-of-range bestCLHeightDiff that would yield a pre-genesis ancestor height.
         if (cbTx.bestCLHeightDiff >= static_cast<uint32_t>(pindex->nHeight)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
         }
         int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
-        if (best_clsig.getHeight() == curBlockCoinbaseCLHeight && best_clsig.getSig() == cbTx.bestCLSignature) {
+        if (best_clsig.getHeight() == curBlockCoinbaseCLHeight && best_clsig.getSig() == cbtx_sig) {
             // matches our best (but outdated) clsig, no need to verify it again
             LOCK(cached_mutex);
-            cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
+            cached_chainlock = std::make_pair(cbtx_sig, cbTx.bestCLHeightDiff);
+            cached_pindex = pindex;
+            return true;
+        }
+        // The previous block's coinbase chainlock was verified by this process; carried into this
+        // block with the offset grown by one it names the same height, block and signature.
+        if (prev_verified_here && prevBlockCoinbaseChainlock.has_value() &&
+            cbTx.bestCLHeightDiff == prevBlockCoinbaseChainlock->second + 1 &&
+            cbtx_sig == prevBlockCoinbaseChainlock->first) {
+            LOCK(cached_mutex);
+            cached_chainlock = std::make_pair(cbtx_sig, cbTx.bestCLHeightDiff);
             cached_pindex = pindex;
             return true;
         }
@@ -218,13 +231,13 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff-ancestor");
         }
         uint256 curBlockCoinbaseCLBlockHash = pAncestor->GetBlockHash();
-        chainlock::ChainLockSig clsig{curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature};
+        chainlock::ChainLockSig clsig{curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbtx_sig};
         llmq::VerifyRecSigStatus ret = chainlock::VerifyChainLock(consensus_params, chain, qman, clsig);
         if (ret != llmq::VerifyRecSigStatus::Valid) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-invalid-clsig");
         }
         LOCK(cached_mutex);
-        cached_chainlock = std::make_pair(cbTx.bestCLSignature, cbTx.bestCLHeightDiff);
+        cached_chainlock = std::make_pair(cbtx_sig, cbTx.bestCLHeightDiff);
         cached_pindex = pindex;
     } else if (cbTx.bestCLHeightDiff != 0) {
         // Null bestCLSignature is allowed only with bestCLHeightDiff = 0
