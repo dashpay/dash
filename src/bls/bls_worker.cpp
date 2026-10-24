@@ -790,15 +790,6 @@ void CBLSWorker::AsyncVerifySig(const CBLSSignature& sig, const CBLSPublicKey& p
 
     std::unique_lock<std::mutex> l(sigVerifyMutex);
 
-    bool foundDuplicate = std::ranges::any_of(sigVerifyQueue,
-                                              [&msgHash](const auto& job) { return job.msgHash == msgHash; });
-
-    if (foundDuplicate) {
-        // batched/aggregated verification does not allow duplicate hashes, so we push what we currently have and start
-        // with a fresh batch
-        PushSigVerifyBatch();
-    }
-
     sigVerifyQueue.emplace_back(std::move(doneCallback), std::move(cancelCond), sig, pubKey, msgHash);
     if (sigVerifyBatchesInProgress == 0 || sigVerifyQueue.size() >= SIG_VERIFY_BATCH_SIZE) {
         PushSigVerifyBatch();
@@ -823,56 +814,10 @@ void CBLSWorker::PushSigVerifyBatch()
 {
     auto f = [this](int threadId, const std::shared_ptr<std::vector<SigVerifyJob> >& _jobs) {
         auto& jobs = *_jobs;
-        if (jobs.size() == 1) {
-            const auto& job = jobs[0];
+        const bool legacy_scheme = bls::bls_legacy_scheme.load();
+        for (const auto& job : jobs) {
             if (!job.cancelCond()) {
-                bool valid = job.sig.VerifyInsecure(job.pubKey, job.msgHash);
-                job.doneCallback(valid);
-            }
-            std::unique_lock<std::mutex> l(sigVerifyMutex);
-            sigVerifyBatchesInProgress--;
-            if (!sigVerifyQueue.empty()) {
-                PushSigVerifyBatch();
-            }
-            return;
-        }
-
-        CBLSSignature aggSig;
-        std::vector<size_t> indexes;
-        std::vector<CBLSPublicKey> pubKeys;
-        std::vector<uint256> msgHashes;
-        indexes.reserve(jobs.size());
-        pubKeys.reserve(jobs.size());
-        msgHashes.reserve(jobs.size());
-        for (size_t i = 0; i < jobs.size(); i++) {
-            auto& job = jobs[i];
-            if (job.cancelCond()) {
-                continue;
-            }
-            if (pubKeys.empty()) {
-                aggSig = job.sig;
-            } else {
-                aggSig.AggregateInsecure(job.sig);
-            }
-            indexes.emplace_back(i);
-            pubKeys.emplace_back(job.pubKey);
-            msgHashes.emplace_back(job.msgHash);
-        }
-
-        if (!pubKeys.empty()) {
-            bool allValid = aggSig.VerifyInsecureAggregated(pubKeys, msgHashes);
-            if (allValid) {
-                for (size_t i = 0; i < pubKeys.size(); i++) {
-                    jobs[indexes[i]].doneCallback(true);
-                }
-            } else {
-                // one or more sigs were not valid, revert to per-sig verification
-                // TODO this could be improved if we would cache pairing results in some way as the previous aggregated verification already calculated all the pairings for the hashes
-                for (size_t i = 0; i < pubKeys.size(); i++) {
-                    const auto& job = jobs[indexes[i]];
-                    bool valid = job.sig.VerifyInsecure(job.pubKey, job.msgHash);
-                    job.doneCallback(valid);
-                }
+                job.doneCallback(job.sig.VerifyInsecure(job.pubKey, job.msgHash, legacy_scheme));
             }
         }
 
