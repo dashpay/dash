@@ -34,6 +34,7 @@
 #include <index/addressindex.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/govcollateralindex.h>
 #include <index/spentindex.h>
 #include <index/timestampindex.h>
 #include <index/txindex.h>
@@ -298,6 +299,9 @@ void Interrupt(NodeContext& node)
     if (g_txindex) {
         g_txindex->Interrupt();
     }
+    if (node.gov_collateral_index) {
+        node.gov_collateral_index->Interrupt();
+    }
     if (node.address_index) {
         node.address_index->Interrupt();
     }
@@ -423,6 +427,10 @@ void PrepareShutdown(NodeContext& node)
     if (g_txindex) {
         g_txindex->Stop();
         g_txindex.reset();
+    }
+    if (node.gov_collateral_index) {
+        node.gov_collateral_index->Stop();
+        node.gov_collateral_index.reset();
     }
     if (node.address_index) {
         node.address_index->Stop();
@@ -629,7 +637,7 @@ void SetupServerArgs(ArgsManager& argsman)
         llmq::MAX_BLSCHECK_THREADS, llmq::DEFAULT_BLSCHECK_THREADS), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-persistmempool", strprintf("Whether to save the mempool on shutdown and load on restart (default: %u)", DEFAULT_PERSIST_MEMPOOL), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-pid=<file>", strprintf("Specify pid file. Relative paths will be prefixed by a net-specific datadir location. (default: %s)", BITCOIN_PID_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
-    argsman.AddArg("-prune=<n>", strprintf("Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex, -addressindex, -spentindex and -disablegovernance=false. "
+    argsman.AddArg("-prune=<n>", strprintf("Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex, -addressindex and -spentindex. "
             "Warning: Reverting this setting requires re-downloading the entire blockchain. "
             "(default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, >%u = automatically prune block files to stay under the specified target size in MiB)", MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-settings=<file>", strprintf("Specify path to dynamic settings data file. Can be disabled with -nosettings. File is written at runtime and not meant to be edited by users (use %s instead for custom settings). Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME, BITCOIN_SETTINGS_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
@@ -1086,9 +1094,6 @@ void InitParameterInteraction(ArgsManager& args)
 
     int64_t nPruneArg = args.GetIntArg("-prune", 0);
     if (nPruneArg > 0) {
-        if (args.SoftSetBoolArg("-disablegovernance", true)) {
-            LogPrintf("%s: parameter interaction: -prune=%d -> setting -disablegovernance=true\n", __func__, nPruneArg);
-        }
         if (args.SoftSetBoolArg("-txindex", false)) {
             LogPrintf("%s: parameter interaction: -prune=%d -> setting -txindex=false\n", __func__, nPruneArg);
         }
@@ -1257,9 +1262,6 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             return InitError(_("Prune mode is incompatible with -spentindex."));
         if (args.GetBoolArg("-reindex-chainstate", false)) {
             return InitError(_("Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead."));
-        }
-        if (!args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)) {
-            return InitError(_("Prune mode is incompatible with -disablegovernance=false."));
         }
     }
 
@@ -1430,18 +1432,8 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         }
     }
 
-    // Governance needs the transaction index to look up proposal collateral transactions
-    if (!args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE) &&
-        !args.GetBoolArg("-txindex", DEFAULT_TXINDEX) && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) {
-        return InitError(_("Transaction index can't be disabled with governance validation enabled. Either start with "
-                           "-disablegovernance command line switch or enable transaction index."));
-    }
-
     if (args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)) {
-        InitWarning(_("You are starting with governance validation disabled.") +
-            (fPruneMode ?
-                Untranslated(" ") + _("This is expected because you are running a pruned node.") :
-                Untranslated("")));
+        InitWarning(_("You are starting with governance validation disabled."));
     }
 
     // Also report errors from parsing before daemonization
@@ -1728,7 +1720,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.netfulfilledman);
     node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
 
-    const bool is_governance_enabled{!args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)};
+    bool is_governance_enabled{!args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)};
 
     assert(!node.sporkman);
     node.sporkman = std::make_unique<CSporkManager>();
@@ -2159,8 +2151,23 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.clhandler = std::make_unique<chainlock::ChainlockHandler>(*node.chainlocks, chainman, *node.mempool, *node.mn_sync);
     RegisterValidationInterface(node.clhandler.get());
 
+    auto gov_collateral_index{
+        std::make_unique<GovCollateralIndex>(interfaces::MakeChain(node), /*n_cache_size=*/0, false, fReindex)};
+    // The index can't catch up once the node has pruned blocks it hasn't read, e.g. after upgrading a pruned
+    // node, because a new index has to start from the genesis block. Starting it would fail with an init
+    // error, so leave governance off instead.
+    if (WITH_LOCK(::cs_main, return gov_collateral_index->CanSync(chainman.ActiveChainstate()))) {
+        node.gov_collateral_index = std::move(gov_collateral_index);
+    } else if (is_governance_enabled) {
+        is_governance_enabled = false;
+        InitWarning(_("Governance is disabled because this node has already pruned the old blocks it needs to build "
+                      "the governance collateral index. Restart once with -reindex to enable governance; the "
+                      "blockchain will be downloaded again but the node stays pruned."));
+    }
+
     assert(!node.govman);
-    node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.chainman, *node.sbman, *node.dmnman, *node.mn_sync);
+    node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.chainman, *node.sbman, *node.dmnman,
+                                                       *node.mn_sync, node.gov_collateral_index.get());
 
     // ********************************************************* Step 7c: Setup masternode mode or watch-only mode
     assert(!node.active_ctx);
@@ -2301,6 +2308,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         if (!g_txindex->Start()) {
             return false;
         }
+    }
+
+    if (node.gov_collateral_index && !node.gov_collateral_index->Start()) {
+        return false;
     }
 
     if (args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX)) {

@@ -10,12 +10,12 @@
 #include <masternode/sync.h>
 
 #include <chainparams.h>
-#include <index/txindex.h>
 #include <key_io.h>
 #include <logging.h>
 #include <node/interface_ui.h>
 #include <timedata.h>
 #include <tinyformat.h>
+#include <util/moneystr.h>
 #include <util/std23.h>
 #include <util/strencodings.h>
 #include <util/time.h>
@@ -597,7 +597,8 @@ UniValue CGovernanceObject::GetStateJson(const ChainstateManager& chainman, cons
         ret.pushKV("SigningMasternode", outpoint.ToStringShort());
     }
     std::string strError;
-    ret.pushKV(local_valid_key, WITH_LOCK(::cs_main, return IsValidLocally(tip_mn_list, chainman, strError, /*fCheckCollateral=*/false)));
+    ret.pushKV(local_valid_key, WITH_LOCK(::cs_main, return IsValidLocally(tip_mn_list, chainman, /*collateral=*/nullptr,
+                                                                           strError, /*fCheckCollateral=*/false)));
     ret.pushKV("IsValidReason", strError.c_str());
     LOCK(cs);
     ret.pushKV("fCachedValid", fCachedValid);
@@ -689,18 +690,22 @@ void CGovernanceObject::UpdateLocalValidity(const CDeterministicMNList& tip_mn_l
 {
     AssertLockHeld(::cs_main);
     // THIS DOES NOT CHECK COLLATERAL, THIS IS CHECKED UPON ORIGINAL ARRIVAL
-    fCachedLocalValidity = IsValidLocally(tip_mn_list, chainman, strLocalValidityError, false);
+    fCachedLocalValidity = IsValidLocally(tip_mn_list, chainman, /*collateral=*/nullptr, strLocalValidityError, false);
 }
 
 
-bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool fCheckCollateral) const
+bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                                       const governance::CollateralSource* collateral, std::string& strError,
+                                       bool fCheckCollateral) const
 {
     bool fMissingConfirmations = false;
 
-    return IsValidLocally(tip_mn_list, chainman, strError, fMissingConfirmations, fCheckCollateral);
+    return IsValidLocally(tip_mn_list, chainman, collateral, strError, fMissingConfirmations, fCheckCollateral);
 }
 
-bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const
+bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                                       const governance::CollateralSource* collateral, std::string& strError,
+                                       bool& fMissingConfirmations, bool fCheckCollateral) const
 {
     AssertLockHeld(::cs_main);
 
@@ -721,8 +726,8 @@ bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, 
             strError = strprintf("Invalid proposal data, error messages: %s", strValidationError);
             return false;
         }
-        if (fCheckCollateral && !IsCollateralValid(chainman, strError, fMissingConfirmations)) {
-            strError = "Invalid proposal collateral";
+        if (fCheckCollateral && !IsCollateralValid(collateral, chainman, strError, fMissingConfirmations)) {
+            strError = "Invalid proposal collateral: " + strError;
             return false;
         }
         return true;
@@ -771,7 +776,28 @@ CAmount CGovernanceObject::GetMinCollateralFee() const
     }
 }
 
-bool CGovernanceObject::IsCollateralValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const
+namespace {
+std::optional<governance::CollateralInfo> FindCollateral(const governance::CollateralSource* source,
+                                                         const uint256& txid, std::string& strError)
+{
+    if (!source) {
+        strError = "Can't look up collateral, the governance collateral index isn't running";
+        return std::nullopt;
+    }
+    if (!source->IsCollateralSynced()) {
+        strError = "Can't look up collateral until the governance collateral index has synced";
+        return std::nullopt;
+    }
+    auto collateral{source->FindCollateral(txid)};
+    if (!collateral) {
+        strError = strprintf("Can't find collateral tx %s", txid.ToString());
+    }
+    return collateral;
+}
+} // anonymous namespace
+
+bool CGovernanceObject::IsCollateralValid(const governance::CollateralSource* source, const ChainstateManager& chainman,
+                                          std::string& strError, bool& fMissingConfirmations) const
 {
     AssertLockHeld(::cs_main);
 
@@ -779,56 +805,26 @@ bool CGovernanceObject::IsCollateralValid(const ChainstateManager& chainman, std
     fMissingConfirmations = false;
     uint256 nExpectedHash = GetHash();
 
-    CTransactionRef txCollateral;
-    uint256 nBlockHash;
-    if (g_txindex) {
-        g_txindex->FindTx(m_obj.collateralHash, nBlockHash, txCollateral);
-    }
-
-    if (!txCollateral) {
-        strError = strprintf("Can't find collateral tx %s", m_obj.collateralHash.ToString());
+    const std::optional<governance::CollateralInfo> collateral{FindCollateral(source, m_obj.collateralHash, strError)};
+    if (!collateral) {
         LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
         return false;
     }
+    const uint256& nBlockHash{collateral->block_hash};
 
-    if (nBlockHash == uint256()) {
-        strError = strprintf("Collateral tx %s is not mined yet", txCollateral->ToString());
-        LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
-        return false;
-    }
-
-    if (txCollateral->vout.empty()) {
-        strError = "tx vout is empty";
+    if (!collateral->outputs_standard) {
+        strError = strprintf("Invalid Script in collateral tx %s, outputs must be P2PKH or unspendable",
+                             m_obj.collateralHash.ToString());
         LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
         return false;
     }
 
     // LOOK FOR SPECIALIZED GOVERNANCE SCRIPT (PROOF OF BURN)
 
-    CScript findScript;
-    findScript << OP_RETURN << ToByteVector(nExpectedHash);
-
-    CAmount nMinFee = GetMinCollateralFee();
-
-    LogPrint(BCLog::GOBJECT, "CGovernanceObject::IsCollateralValid -- txCollateral->vout.size() = %s, findScript = %s, nMinFee = %lld\n",
-                txCollateral->vout.size(), HexStr(findScript), nMinFee);
-
-    bool foundOpReturn = false;
-    for (const auto& output : txCollateral->vout) {
-        LogPrint(BCLog::GOBJECT, "CGovernanceObject::IsCollateralValid -- txout = %s, output.nValue = %lld, output.scriptPubKey = %s\n",
-                    output.ToString(), output.nValue, HexStr(output.scriptPubKey));
-        if (!output.scriptPubKey.IsPayToPublicKeyHash() && !output.scriptPubKey.IsUnspendable()) {
-            strError = strprintf("Invalid Script %s", txCollateral->ToString());
-            LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
-            return false;
-        }
-        if (output.scriptPubKey == findScript && output.nValue >= nMinFee) {
-            foundOpReturn = true;
-        }
-    }
-
-    if (!foundOpReturn) {
-        strError = strprintf("Couldn't find opReturn %s in %s", nExpectedHash.ToString(), txCollateral->ToString());
+    const CAmount nMinFee = GetMinCollateralFee();
+    if (!collateral->BurnsAtLeast(nExpectedHash, nMinFee)) {
+        strError = strprintf("Couldn't find opReturn %s burning at least %s in collateral tx %s",
+                             nExpectedHash.ToString(), FormatMoney(nMinFee), m_obj.collateralHash.ToString());
         LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
         return false;
     }

@@ -79,10 +79,10 @@ void CompressibleBlockHeader::Compress(const std::vector<CompressibleBlockHeader
     const auto& last_block = previous_blocks.back();
     bit_field.MarkAsCompressed(CompressedHeaderBitField::Flag::PREV_BLOCK_HASH);
 
-    // Compute compressed time diff
-    const int64_t time_diff = nTime - last_block.nTime;
-    if (time_diff <= std::numeric_limits<int16_t>::max() && time_diff >= std::numeric_limits<int16_t>::min()) {
-        time_offset = static_cast<int16_t>(time_diff);
+    // Compute compressed time diff. A header timestamped before its parent is
+    // sent with its full time, so the offset is never negative.
+    if (nTime >= last_block.nTime && nTime - last_block.nTime <= uint32_t{std::numeric_limits<int16_t>::max()}) {
+        time_offset = static_cast<int16_t>(nTime - last_block.nTime);
         bit_field.MarkAsCompressed(CompressedHeaderBitField::Flag::TIMESTAMP);
     }
 

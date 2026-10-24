@@ -2,7 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <arith_uint256.h>
 #include <common/bloom.h>
+#include <governance/collateral.h>
 #include <governance/governance.h>
 #include <governance/net_governance.h>
 #include <governance/object.h>
@@ -33,7 +35,17 @@
 using namespace std::chrono_literals;
 
 namespace {
+//! Knows no collateral, like a synced index on a chain without fee burns
+struct EmptyCollateralSource final : public governance::CollateralSource {
+    std::atomic<bool> synced{true};
+
+    bool IsCollateralSynced() const override { return synced; }
+    std::optional<governance::CollateralInfo> FindCollateral(const uint256&) const override { return std::nullopt; }
+};
+
 struct GovernanceInvSetup : public TestingSetup {
+    EmptyCollateralSource m_collateral;
+
     GovernanceInvSetup() : TestingSetup{CBaseChainParams::MAIN}
     {
         // ConfirmInventoryRequest and the NetGovernance object/vote handlers
@@ -46,7 +58,8 @@ struct GovernanceInvSetup : public TestingSetup {
         // Note: mn_metaman is left unloaded. Reaching CGovernanceObject::ProcessVote asserts
         // metaman.IsValid(), so a test that delivers a vote whose parent object exists must
         // load it first (see invalid_vote_is_scored_alike_with_and_without_a_parent_object).
-        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.sbman, *m_node.dmnman, *m_node.mn_sync);
+        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.sbman,
+                                                             *m_node.dmnman, *m_node.mn_sync, &m_collateral);
         // Match runtime preconditions: NetGovernance::AlreadyHave claims we
         // already have the inv when governance isn't loaded (e.g.
         // -disablegovernance), so ConfirmInventoryRequest would never run.
@@ -93,12 +106,12 @@ size_t CountQueuedMessages(const CNode& peer, const std::string& msg_type)
     return count;
 }
 
-size_t CountQueuedInventory(const CNode& peer, const CInv& expected_inv)
+size_t CountQueuedInventory(const CNode& peer, const CInv& expected_inv, const std::string& msg_type = NetMsgType::INV)
 {
     LOCK(peer.cs_vSend);
     size_t count{0};
     for (const auto& msg : peer.vSendMsg) {
-        if (msg.m_type != NetMsgType::INV) {
+        if (msg.m_type != msg_type) {
             continue;
         }
         CDataStream stream{msg.data, SER_NETWORK, PROTOCOL_VERSION};
@@ -132,13 +145,19 @@ std::unique_ptr<CNode> MakeGovernanceInvPeer(NodeId id)
     return peer;
 }
 
-void ProcessInv(PeerManager& peerman, CNode& peer, const CInv& inv)
+void ProcessInvs(PeerManager& peerman, CNode& peer, const std::vector<CInv>& invs)
     EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex)
 {
     CDataStream inv_stream{SER_NETWORK, PROTOCOL_VERSION};
-    inv_stream << std::vector<CInv>{inv};
+    inv_stream << invs;
     std::atomic<bool> interrupt_dummy{false};
     peerman.ProcessMessage(peer, NetMsgType::INV, inv_stream, GetTime<std::chrono::microseconds>(), interrupt_dummy);
+}
+
+void ProcessInv(PeerManager& peerman, CNode& peer, const CInv& inv)
+    EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex)
+{
+    ProcessInvs(peerman, peer, {inv});
 }
 
 CGovernanceObject MakeGovernanceObject(int64_t creation_time, const uint256& collateral_hash)
@@ -364,6 +383,94 @@ BOOST_AUTO_TEST_CASE(governance_objects_require_peer_announcement_or_request)
     m_node.peerman->FinalizeNode(*announcing_peer);
     m_node.peerman->FinalizeNode(*second_announcing_peer);
     m_node.peerman->FinalizeNode(*unsolicited_peer);
+    chainstate.ResetIbd();
+}
+
+BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
+{
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+
+    TestChainState& chainstate =
+        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
+    chainstate.JumpOutOfIbd();
+
+    NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
+                          *m_node.netfulfilledman, *m_node.connman);
+    auto peer{MakeGovernanceInvPeer(/*id=*/31)};
+    m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
+    auto flooding_peer{MakeGovernanceInvPeer(/*id=*/32)};
+    m_node.peerman->InitializeNode(*flooding_peer, NODE_NETWORK);
+
+    // Its collateral doesn't exist, so the object is invalid once collateral can be looked up
+    const CGovernanceObject govobj{MakeGovernanceObject(GetTime<std::chrono::seconds>().count(), uint256S("31"))};
+    const CInv object_inv{MSG_GOVERNANCE_OBJECT, govobj.GetHash()};
+
+    // An index that hasn't synced yet would report every collateral as missing
+    m_collateral.synced = false;
+    BOOST_REQUIRE(m_node.govman->IsCollateralSourceBehind());
+
+    // The announcement is held instead of requested
+    ProcessInv(*m_node.peerman, *peer, object_inv);
+    m_node.peerman->SendMessages(peer.get());
+    BOOST_CHECK_EQUAL(CountQueuedInventory(*peer, object_inv, NetMsgType::GETDATA), 0U);
+    BOOST_CHECK(!WITH_LOCK(::cs_main, return m_node.peerman->PeerConsumeObjectRequest(peer->GetId(), object_inv)));
+    ProcessGovernanceObject(net_gov, *peer, govobj);
+    BOOST_CHECK(!m_node.govman->HaveObjectForHash(govobj.GetHash()));
+    BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 0);
+
+    // The peer's transaction announcements take up all the announcements it may have pending
+    // (MAX_PEER_OBJECT_ANNOUNCEMENTS)
+    std::vector<CInv> tx_invs;
+    for (uint64_t i = 0; i < 2 * MAX_INV_SZ; ++i) {
+        tx_invs.emplace_back(MSG_TX, ArithToUint256(arith_uint256{i}));
+    }
+    ProcessInvs(*m_node.peerman, *peer, {tx_invs.begin(), tx_invs.begin() + MAX_INV_SZ});
+    ProcessInvs(*m_node.peerman, *peer, {tx_invs.begin() + MAX_INV_SZ, tx_invs.end()});
+
+    // As many announcements as a peer may have pending are held, in INVs of MAX_INV_SZ
+    std::vector<CInv> vote_invs;
+    for (uint64_t i = 0; i < 2 * MAX_INV_SZ; ++i) {
+        vote_invs.emplace_back(MSG_GOVERNANCE_OBJECT_VOTE, ArithToUint256(arith_uint256{i}));
+        if (vote_invs.size() == MAX_INV_SZ) {
+            ProcessInvs(*m_node.peerman, *flooding_peer, vote_invs);
+            vote_invs.clear();
+        }
+    }
+    BOOST_CHECK(!flooding_peer->fDisconnect);
+    // One more can't be held, and the peer won't announce it again on this connection, so the peer is disconnected
+    // right away, before governance sync could ask it for anything that would stop a new connection from being asked
+    ProcessInv(*m_node.peerman, *flooding_peer, CInv{MSG_GOVERNANCE_OBJECT_VOTE, ArithToUint256(arith_uint256{2 * MAX_INV_SZ})});
+    BOOST_CHECK(flooding_peer->fDisconnect);
+    BOOST_CHECK(m_node.govman->IsCollateralSourceBehind());
+
+    // Still held after the index has synced while the blockchain isn't synced, which governance also waits for
+    m_collateral.synced = true;
+    m_node.mn_sync->Reset(/*fForce=*/true, /*fNotifyReset=*/false);
+    m_node.peerman->SendMessages(peer.get());
+    BOOST_CHECK_EQUAL(CountQueuedInventory(*peer, object_inv, NetMsgType::GETDATA), 0U);
+
+    // Once both have synced, it still waits while the peer has no room for another pending announcement
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+    m_node.peerman->SendMessages(peer.get());
+    BOOST_CHECK_EQUAL(CountQueuedInventory(*peer, object_inv, NetMsgType::GETDATA), 0U);
+    BOOST_CHECK(!peer->fDisconnect);
+
+    // Then the object is requested from the same peer without it announcing the object again, and is rejected and
+    // punished
+    for (const CInv& tx_inv : tx_invs) {
+        WITH_LOCK(::cs_main, m_node.peerman->PeerForgetObjectRequest(tx_inv));
+    }
+    m_node.peerman->SendMessages(peer.get());
+    BOOST_CHECK_EQUAL(CountQueuedInventory(*peer, object_inv, NetMsgType::GETDATA), 1U);
+    ProcessGovernanceObject(net_gov, *peer, govobj);
+    BOOST_CHECK(!m_node.govman->HaveObjectForHash(govobj.GetHash()));
+    BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 20);
+
+    BOOST_CHECK(!peer->fDisconnect);
+
+    m_node.peerman->FinalizeNode(*flooding_peer);
+    m_node.peerman->FinalizeNode(*peer);
     chainstate.ResetIbd();
 }
 

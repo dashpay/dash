@@ -14,7 +14,7 @@
 
 #include <chainparams.h>
 #include <core_io.h>
-#include <index/txindex.h>
+#include <index/govcollateralindex.h>
 #include <node/context.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
@@ -56,6 +56,29 @@ static vote_outcome_enum_t ParseVoteOutcome(const UniValue& param)
                            "Invalid vote outcome. Please use one of the following: 'yes', 'no' or 'abstain'");
     }
     return outcome;
+}
+
+static void BlockUntilCollateralIndexSynced(const NodeContext& node)
+{
+    if (node.gov_collateral_index) {
+        node.gov_collateral_index->BlockUntilSyncedToCurrentChain();
+    }
+}
+
+//! Checking and relaying a proposal needs governance and an index to find its collateral in.
+static void EnsureCanSubmitProposals(const NodeContext& node, const std::string& consequence)
+{
+    if (!CHECK_NONFATAL(node.govman)->IsValid() || !node.gov_collateral_index) {
+        throw JSONRPCError(RPC_MISC_ERROR,
+                           "Governance is disabled on this node, so it can't check or relay proposals. Restart without "
+                           "-disablegovernance, or once with -reindex if the node warned that it has already pruned "
+                           "the blocks the governance collateral index needs. " + consequence);
+    }
+    if (!node.gov_collateral_index->BlockUntilSyncedToCurrentChain()) {
+        throw JSONRPCError(RPC_MISC_ERROR, "This node is still building its governance collateral index (see "
+                                           "getindexinfo), so it can't look up proposal collateral yet. Try again "
+                                           "once the index has synced.");
+    }
 }
 
 static RPCHelpMan gobject_count()
@@ -118,7 +141,8 @@ static RPCHelpMan gobject_deserialize()
 static RPCHelpMan gobject_check()
 {
     return RPCHelpMan{"gobject check",
-        "Validate governance object data (proposal only)\n",
+        "Validate governance object data (proposal only)\n"
+        "This only checks the proposal data. It does not check the collateral or whether this node can submit the proposal.\n",
         {
             {"hex_data", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "data in hex string format"},
         },
@@ -183,6 +207,9 @@ static RPCHelpMan gobject_prepare()
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return UniValue::VNULL;
 
+    EnsureCanSubmitProposals(EnsureAnyNodeContext(request.context),
+                             "Preparing a proposal now would burn its fee with no way to submit it from this node.");
+
     EnsureWalletIsUnlocked(*wallet);
 
     // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
@@ -224,19 +251,18 @@ static RPCHelpMan gobject_prepare()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Trigger objects need not be prepared (however only masternodes can create them)");
     }
 
-    if (g_txindex) {
-        g_txindex->BlockUntilSyncedToCurrentChain();
-    }
-
-    LOCK(wallet->cs_wallet);
-
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const ChainstateManager& chainman = EnsureChainman(node);
+
+    BlockUntilCollateralIndexSynced(node);
+
+    LOCK(wallet->cs_wallet);
 
     {
         LOCK(cs_main);
         std::string strError;
-        if (!govobj.IsValidLocally(CHECK_NONFATAL(node.dmnman)->GetListAtChainTip(), chainman, strError, false))
+        if (!govobj.IsValidLocally(CHECK_NONFATAL(node.dmnman)->GetListAtChainTip(), chainman, /*collateral=*/nullptr,
+                                   strError, false))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
     }
 
@@ -347,6 +373,8 @@ static RPCHelpMan gobject_submit()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const ChainstateManager& chainman = EnsureChainman(node);
 
+    EnsureCanSubmitProposals(node, "The parameters can be submitted unchanged from any node that can.");
+
     if(!node.mn_sync->IsBlockchainSynced()) {
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Must wait for client to sync with masternode network. Try again in a minute or so.");
     }
@@ -408,14 +436,14 @@ static RPCHelpMan gobject_submit()
     const CTxMemPool& mempool = EnsureMemPool(node);
     bool fMissingConfirmations;
     {
-        if (g_txindex) {
-            g_txindex->BlockUntilSyncedToCurrentChain();
-        }
+        BlockUntilCollateralIndexSynced(node);
 
         LOCK2(cs_main, mempool.cs);
 
         std::string strError;
-        if (!govobj.IsValidLocally(node.dmnman->GetListAtChainTip(), chainman, strError, fMissingConfirmations, true) && !fMissingConfirmations) {
+        if (!govobj.IsValidLocally(node.dmnman->GetListAtChainTip(), chainman, node.gov_collateral_index.get(), strError,
+                                   fMissingConfirmations, true) &&
+            !fMissingConfirmations) {
             LogPrintf("gobject(submit) -- Object submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
         }
@@ -621,10 +649,6 @@ static RPCHelpMan gobject_vote_alias()
 static UniValue ListObjects(CGovernanceManager& govman, const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
                             const std::string& strCachedSignal, const std::string& strType, int nStartTime)
 {
-    if (g_txindex) {
-        g_txindex->BlockUntilSyncedToCurrentChain();
-    }
-
     std::vector<CGovernanceObject> objs;
     govman.GetAllNewerThan(objs, nStartTime);
     govman.UpdateLastDiffTime(GetTime());
@@ -702,6 +726,8 @@ static RPCHelpMan gobject_list_helper(const bool make_a_diff)
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const ChainstateManager& chainman = EnsureChainman(node);
 
+    BlockUntilCollateralIndexSynced(node);
+
     const int64_t last_time = make_a_diff ? node.govman->GetLastDiffTime() : 0;
     return ListObjects(*CHECK_NONFATAL(node.govman), CHECK_NONFATAL(node.dmnman)->GetListAtChainTip(), chainman,
                        strCachedSignal, strType, last_time);
@@ -741,12 +767,10 @@ static RPCHelpMan gobject_get()
         RPCExamples{""},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    if (g_txindex) {
-        g_txindex->BlockUntilSyncedToCurrentChain();
-    }
-
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     const ChainstateManager& chainman = EnsureChainman(node);
+
+    BlockUntilCollateralIndexSynced(node);
 
     uint256 hash(ParseHashV(request.params[0], "GovObj hash"));
     auto pGovObj = CHECK_NONFATAL(node.govman)->FindConstGovernanceObject(hash);

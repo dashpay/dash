@@ -34,6 +34,7 @@ class CScheduler;
 class CSpecialTxProcessor;
 class CSporkManager;
 class CTxMemPool;
+class GovCollateralIndex;
 class NetGroupManager;
 class PeerManager;
 class SpentIndex;
@@ -122,6 +123,7 @@ struct NodeContext {
     std::unique_ptr<llmq::ObserverContext> observer_ctx;
     //! Dash indexes
     std::unique_ptr<AddressIndex> address_index;
+    std::unique_ptr<GovCollateralIndex> gov_collateral_index;
     std::unique_ptr<SpentIndex> spent_index;
     std::unique_ptr<TimestampIndex> timestamp_index;
 

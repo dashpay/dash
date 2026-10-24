@@ -2,28 +2,33 @@
 # Copyright (c) 2018-2025 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Tests around dash governance."""
+"""Tests around dash governance.
+
+Node 1 is pruned, so it can't run -txindex and looks proposal collateral up in the governance collateral index.
+"""
 
 import json
+import os
+import shutil
 
-from test_framework.messages import uint256_to_string
+from test_framework.messages import CBlock, from_hex, uint256_to_string
 from test_framework.test_framework import (
     DashTestFramework,
     MasternodeInfo,
 )
-from test_framework.governance import have_trigger_for_height, prepare_object
-from test_framework.util import assert_equal, satoshi_round
+from test_framework.governance import EXPECTED_STDERR_GOV_PRUNED_TOO_FAR, have_trigger_for_height, prepare_object
+from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync, satoshi_round
 
 GOVERNANCE_UPDATE_MIN = 60 * 60 # src/governance/object.h
+MIN_BLOCKS_TO_KEEP = 288 # src/validation.h
+BUDGET_ARGS = ["-budgetparams=10:10:10"]
 
 class DashGovernanceTest (DashTestFramework):
     def add_options(self, parser):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        self.set_dash_test_params(6, 5, [[
-            "-budgetparams=10:10:10",
-        ]] * 6)
+        self.set_dash_test_params(7, 5, [BUDGET_ARGS, BUDGET_ARGS + ["-prune=550", "-fastprune"]] + [BUDGET_ARGS] * 5)
         self.delay_v20_and_mn_rr(height=160)
 
     def check_superblockbudget(self, v20_active):
@@ -57,6 +62,24 @@ class DashGovernanceTest (DashTestFramework):
                     assert False
 
         assert_equal(payments_found, 2)
+
+    def check_budget_cannot_be_kept_by_the_miner(self, node):
+        """A superblock whose miner keeps the budget stays within the superblock limits, so only a node that knows
+        the trigger can tell it is invalid."""
+        self.bump_mocktime(1)
+        payment_scripts = {bytes.fromhex(payment["script"]) for payment in self.nodes[0].getblocktemplate()["superblock"]}
+        assert len(payment_scripts) > 0
+        miner_address = self.nodes[0].getnewaddress()
+        miner_script = bytes.fromhex(self.nodes[0].getaddressinfo(miner_address)["scriptPubKey"])
+        block = from_hex(CBlock(), self.generateblock(self.nodes[0], output=miner_address, transactions=[], submit=False)["hex"])
+        coinbase = block.vtx[0]
+        budget = sum(txout.nValue for txout in coinbase.vout if txout.scriptPubKey in payment_scripts)
+        coinbase.vout = [txout for txout in coinbase.vout if txout.scriptPubKey not in payment_scripts]
+        next(txout for txout in coinbase.vout if txout.scriptPubKey == miner_script).nValue += budget
+        coinbase.rehash()
+        block.hashMerkleRoot = block.calc_merkle_root()
+        block.solve()
+        assert_equal(node.submitblock(block.serialize().hex()), "bad-cb-amount")
 
     def run_test(self):
         self.log.info("Start testing...")
@@ -93,6 +116,12 @@ class DashGovernanceTest (DashTestFramework):
 
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 0)
 
+        pruned_node = self.nodes[1]
+        assert pruned_node.getblockchaininfo()["pruned"]
+        assert "txindex" not in pruned_node.getindexinfo()
+        # Funds a proposal on the pruned node
+        self.nodes[0].sendtoaddress(pruned_node.getnewaddress(), 10)
+
         self.log.info("Check 1st superblock before v20")
         self.bump_mocktime(3)
         self.generate(self.nodes[0], 2, sync_fun=self.sync_blocks())
@@ -119,12 +148,20 @@ class DashGovernanceTest (DashTestFramework):
         p0_collateral_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_0", self.p0_amount, self.p0_payout_address)
         p1_collateral_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_1", self.p1_amount, self.p1_payout_address)
         p2_collateral_prepare = prepare_object(self.nodes[0], 1, uint256_to_string(0), proposal_time, 1, "Proposal_2", self.p2_amount, self.p2_payout_address)
+        # The pruned node prepares a proposal too, but only submits it once the block with its collateral is pruned
+        assert_equal(pruned_node.getbalance(), 10)
+        p3_collateral_prepare = prepare_object(pruned_node, 1, uint256_to_string(0), proposal_time, 1, "Proposal_3", 1, pruned_node.getnewaddress())
+        self.sync_mempools([self.nodes[0], pruned_node])
 
         self.bump_mocktime(6)
         self.generate(self.nodes[0], 6, sync_fun=self.sync_blocks())
 
         assert_equal(len(self.nodes[0].gobject("list-prepared")), 3)
         assert_equal(len(self.nodes[0].gobject("list")), 0)
+
+        self.log.info("A proposal whose collateral burns for another proposal is rejected with the reason")
+        assert_raises_rpc_error(-32603, "Invalid proposal collateral: Couldn't find opReturn", pruned_node.gobject, "submit", "0", 1,
+                                proposal_time, p0_collateral_prepare["hex"], p1_collateral_prepare["collateralHash"])
 
         self.log.info("Submit objects")
         self.p0_hash = self.nodes[0].gobject("submit", "0", 1, proposal_time, p0_collateral_prepare["hex"], p0_collateral_prepare["collateralHash"])
@@ -278,12 +315,21 @@ class DashGovernanceTest (DashTestFramework):
         self.log.info("let all fulfilled requests expire for re-sync to work correctly")
         self.bump_mocktime(5 * 60)
 
-        for node in self.nodes:
+        def resync_gov(node):
             # Force sync
             node.mnsync("reset")
             # fast-forward to governance sync
             node.mnsync("next")
             self.wait_until(lambda: sync_gov(node))
+
+        # Node 0 asks one peer every few seconds, so with the pruned node as an extra peer its governance sync would
+        # time out before it asks the reconnected payee. The pruned node syncs from node 0 afterwards instead.
+        self.disconnect_nodes(0, 1)
+        for node in self.nodes:
+            if node is not self.nodes[1]:
+                resync_gov(node)
+        self.connect_nodes(0, 1)
+        resync_gov(self.nodes[1])
 
         self.log.info("Should see two triggers now")
         self.wait_until(lambda: len(isolated.gobject("list", "valid", "triggers")) == 2, timeout=5)
@@ -312,18 +358,19 @@ class DashGovernanceTest (DashTestFramework):
             assert_equal(node.gobject("count")["votes"], 25)
 
         self.log.info("Remember vote count")
-        before = self.nodes[1].gobject("count")["votes"]
+        mn_node = self.nodes[self.mninfo[0].nodeIdx]
+        before = mn_node.gobject("count")["votes"]
 
         self.log.info("Bump mocktime to let MNs vote again")
         self.bump_mocktime(GOVERNANCE_UPDATE_MIN + 1, update_schedulers=False)
 
         self.log.info("Move another block inside the Superblock maturity window")
-        with self.nodes[1].assert_debug_log(["VoteGovernanceTriggers --"]):
+        with mn_node.assert_debug_log(["VoteGovernanceTriggers --"]):
             self.bump_mocktime(1)
             self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
 
         self.log.info("Vote count should not change even though MNs are allowed to vote again")
-        assert_equal(before, self.nodes[1].gobject("count")["votes"])
+        assert_equal(before, mn_node.gobject("count")["votes"])
         self.log.info("Revert mocktime back to avoid issues in tests below")
         self.bump_mocktime(GOVERNANCE_UPDATE_MIN * -1, update_schedulers=False)
 
@@ -342,7 +389,7 @@ class DashGovernanceTest (DashTestFramework):
 
         self.log.info("Move a few block past the recent superblock height and make sure we have no new votes")
         for _ in range(5):
-            with self.nodes[1].assert_debug_log(expected_msgs=[""], unexpected_msgs=[f"Voting NO-FUNDING for trigger:{winning_trigger_hash} success"]):
+            with mn_node.assert_debug_log(expected_msgs=[""], unexpected_msgs=[f"Voting NO-FUNDING for trigger:{winning_trigger_hash} success"]):
                 self.bump_mocktime(1)
                 self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
             # Votes on both triggers should NOT change
@@ -364,9 +411,12 @@ class DashGovernanceTest (DashTestFramework):
             self.wait_until(lambda: have_trigger_for_height(self.nodes, 180), timeout=1, do_assert=False)
         self.log.info("Wait for new trigger and votes")
         self.wait_until(lambda: have_trigger_for_height(self.nodes, 180))
+        self.log.info("The pruned node checks superblock payments in full")
+        self.check_budget_cannot_be_kept_by_the_miner(pruned_node)
         self.log.info("Mine superblock")
-        self.bump_mocktime(1)
-        self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
+        with pruned_node.assert_debug_log(["-- nOutputs = "], ["max bounds only"]):
+            self.bump_mocktime(1)
+            self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks())
         assert_equal(self.nodes[0].getblockcount(), 180)
         assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], True)
 
@@ -388,6 +438,73 @@ class DashGovernanceTest (DashTestFramework):
             assert_equal(self.nodes[0].getdeploymentinfo()["deployments"]["v20"]["active"], True)
             self.check_superblockbudget(True)
             self.check_superblock()
+
+        self.test_pruned_node(p3_collateral_prepare)
+
+    def test_pruned_node(self, proposal):
+        pruned_node = self.nodes[1]
+
+        def submit():
+            return pruned_node.gobject("submit", "0", 1, proposal["createdAt"], proposal["hex"], proposal["collateralHash"])
+
+        self.log.info("The pruned node finds collateral whose block it has pruned")
+        collateral_height = self.nodes[0].getrawtransaction(proposal["collateralHash"], True)["height"]
+        # Otherwise the masternodes keep creating triggers, and the burst of blocks below may leave out a superblock
+        # that one node already knows the trigger for but the other doesn't
+        for mn in self.mninfo:
+            self.isolate_node(mn.nodeIdx)
+        # Each -fastprune block file holds dozens of blocks, so mine enough to prune the collateral's whole file
+        self.bump_mocktime(MIN_BLOCKS_TO_KEEP + 150)
+        self.generate(self.nodes[0], MIN_BLOCKS_TO_KEEP + 150, sync_fun=lambda: self.sync_blocks(self.nodes[0:2]))
+        pruned_node.pruneblockchain(pruned_node.getblockcount() - MIN_BLOCKS_TO_KEEP)
+        assert pruned_node.getblockchaininfo()["pruneheight"] > collateral_height
+        assert_raises_rpc_error(-1, "Block not available (pruned data)", pruned_node.getblock,
+                                pruned_node.getblockhash(collateral_height))
+        proposal_hash = submit()
+        self.wait_until(lambda: proposal_hash in self.nodes[0].gobject("list", "valid", "proposals"))
+
+        self.log.info("Governance objects survive a restart of the pruned node")
+        self.restart_node(1)
+        force_finish_mnsync(pruned_node)
+        self.connect_nodes(0, 1)
+        assert proposal_hash in pruned_node.gobject("list", "valid", "proposals")
+        self.log.info("The reopened index still finds the pruned collateral")
+        self.wait_until(lambda: pruned_node.getindexinfo()["govcollateralindex"]["synced"])
+        assert_equal(submit(), proposal_hash)
+
+        self.log.info("A node that pruned before it had the index starts with governance off instead of failing")
+        self.stop_node(1)
+        shutil.rmtree(os.path.join(pruned_node.chain_path, "indexes", "govcollateralindex"))
+        self.start_node(1)
+        assert "govcollateralindex" not in pruned_node.getindexinfo()
+        assert_raises_rpc_error(-1, "Preparing a proposal now would burn its fee", pruned_node.gobject, "prepare",
+                                "0", 1, proposal["createdAt"], proposal["hex"])
+        assert_raises_rpc_error(-1, "Governance is disabled on this node", submit)
+        self.stop_node(1, expected_stderr=EXPECTED_STDERR_GOV_PRUNED_TOO_FAR)
+
+        self.log.info("A -reindex downloads the chain again, builds the index and turns governance back on")
+        self.start_node(1, extra_args=self.extra_args[1] + ["-reindex"])
+        self.connect_nodes(0, 1)
+        self.sync_blocks(self.nodes[0:2])
+        assert pruned_node.getblockchaininfo()["pruned"]
+        self.wait_until(lambda: pruned_node.getindexinfo()["govcollateralindex"]["synced"])
+        self.bump_mocktime(5 * 60)
+
+        def governance_synced():
+            self.bump_mocktime(1)
+            return pruned_node.mnsync("status")["IsSynced"]
+        self.wait_until(governance_synced)
+        self.wait_until(lambda: proposal_hash in pruned_node.gobject("list", "valid", "proposals"))
+
+        self.log.info("The governance collateral index runs and finds collateral during -reindex-chainstate")
+        node = self.nodes[0]
+        height = node.getblockcount()
+        self.restart_node(0, extra_args=self.extra_args[0] + ["-reindex-chainstate"])
+        self.wait_until(lambda: node.getblockcount() == height)
+        self.wait_until(lambda: node.getindexinfo()["govcollateralindex"]["synced"])
+        force_finish_mnsync(node)
+        assert_equal(node.gobject("submit", "0", 1, proposal["createdAt"], proposal["hex"], proposal["collateralHash"]),
+                     proposal_hash)
 
 
 if __name__ == '__main__':

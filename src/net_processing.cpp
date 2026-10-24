@@ -440,6 +440,9 @@ struct Peer {
     /** Whether we've sent this peer a getheaders in response to an inv prior to initial-headers-sync completing */
     bool m_inv_triggered_getheaders_before_sync GUARDED_BY(NetEventsInterface::g_msgproc_mutex){false};
 
+    /** Announcements from this peer that a handler can't process yet (see NetHandler::DeferAnnouncement) */
+    std::deque<CInv> m_deferred_announcements GUARDED_BY(NetEventsInterface::g_msgproc_mutex);
+
     /** Protects m_getdata_requests **/
     Mutex m_getdata_requests_mutex;
     /** Work queue of items requested by this peer **/
@@ -691,8 +694,9 @@ private:
     void RelayInvFiltered(const CInv& inv, const uint256& relatedTxHash) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 
     /** Register with m_object_request that an inv has been received from a peer, computing the
-     *  request delay from the peer's preferredness and in-flight load. */
-    void AddObjectAnnouncement(const CNode& node, const CInv& inv, std::chrono::microseconds current_time)
+     *  request delay from the peer's preferredness and in-flight load. Returns false if the peer has too
+     *  many announcements pending to register another one. */
+    bool AddObjectAnnouncement(const CNode& node, const CInv& inv, std::chrono::microseconds current_time)
         EXCLUSIVE_LOCKS_REQUIRED(!m_object_request_mutex, ::cs_main);
 
     /** Delete all announcements of a transaction across all peers, under the inv types it may
@@ -1004,6 +1008,7 @@ private:
 
     bool AlreadyHave(const CInv& inv)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main, !m_recent_confirmed_transactions_mutex);
+    bool DeferAnnouncement(const CInv& inv) const;
 
     /**
      * Filter for transactions that were recently rejected by the mempool.
@@ -1655,17 +1660,17 @@ bool IsGetDataOnlyObject(int invType)
     }
 }
 
-void PeerManagerImpl::AddObjectAnnouncement(const CNode& node, const CInv& inv, std::chrono::microseconds current_time)
+bool PeerManagerImpl::AddObjectAnnouncement(const CNode& node, const CInv& inv, std::chrono::microseconds current_time)
 {
     AssertLockHeld(cs_main);
 
     const CNodeState* state = State(node.GetId());
-    if (state == nullptr) return;
+    if (state == nullptr) return true;
 
     LOCK(m_object_request_mutex);
     if (m_object_request.Count(node.GetId()) >= MAX_PEER_OBJECT_ANNOUNCEMENTS) {
         // Too many queued announcements from this peer
-        return;
+        return false;
     }
 
     // Decide the TxRequestTracker parameters for this announcement:
@@ -1684,6 +1689,7 @@ void PeerManagerImpl::AddObjectAnnouncement(const CNode& node, const CInv& inv, 
     if (overloaded) delay += OVERLOADED_PEER_OBJECT_DELAY;
 
     m_object_request.ReceivedInv(node.GetId(), inv, preferred, current_time + delay);
+    return true;
 }
 
 void PeerManagerImpl::ForgetTx(const uint256& txid)
@@ -2477,6 +2483,12 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
 
     // Don't know what it is, just say we already got one
     return true;
+}
+
+bool PeerManagerImpl::DeferAnnouncement(const CInv& inv) const
+{
+    return std::any_of(m_handlers.begin(), m_handlers.end(),
+                       [&](const auto& handler) { return handler->DeferAnnouncement(inv); });
 }
 
 bool PeerManagerImpl::AlreadyHaveBlock(const uint256& block_hash)
@@ -4588,8 +4600,9 @@ void PeerManagerImpl::ProcessMessage(
                     return;
                 }
 
-                const bool fAlreadyHave = AlreadyHave(inv);
-                LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom.GetId());
+                const bool deferred = DeferAnnouncement(inv);
+                const bool fAlreadyHave = !deferred && AlreadyHave(inv);
+                LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), deferred ? "deferred" : fAlreadyHave ? "have" : "new", pfrom.GetId());
                 ::g_stats_client->inc(strprintf("message.received.inv_%s", inv.GetCommand()), 1.0f);
 
                 static std::set<int> allowWhileInIBDObjs = {
@@ -4597,7 +4610,16 @@ void PeerManagerImpl::ProcessMessage(
                 };
 
                 AddKnownInv(*peer, inv.hash);
-                if (!fAlreadyHave) {
+                if (deferred) {
+                    if (peer->m_deferred_announcements.size() >= MAX_PEER_OBJECT_ANNOUNCEMENTS) {
+                        // The peer won't announce this one again on this connection. A new connection gets it from
+                        // the handler's sync, which can't have asked this one yet while it holds announcements.
+                        LogPrint(BCLog::NET, "peer=%d announced more objects than can be held, disconnecting\n", pfrom.GetId());
+                        pfrom.fDisconnect = true;
+                        return;
+                    }
+                    peer->m_deferred_announcements.push_back(inv);
+                } else if (!fAlreadyHave) {
                     if (reject_tx_invs && inv.type == MSG_ISDLOCK) {
                         if (pfrom.GetCommonVersion() <= ADDRV2_PROTO_VERSION) {
                             // It's ok to receive these invs, we just ignore them
@@ -6913,6 +6935,21 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
             }
         }
     } // release cs_main
+
+    // Handlers defer by state, so the oldest held announcement tells whether any can be requested now
+    if (!peer->m_deferred_announcements.empty() && !DeferAnnouncement(peer->m_deferred_announcements.front())) {
+        // In the order they were announced, as many as the peer's pending announcements leave room for. The rest
+        // wait until its earlier announcements have been requested. The handler's state can change meanwhile, e.g.
+        // on an mnsync reset, and AlreadyHave() would then claim the rest without requesting them.
+        LOCK(cs_main);
+        auto& held{peer->m_deferred_announcements};
+        auto released{held.begin()};
+        while (released != held.end() && !DeferAnnouncement(*released) &&
+               (AlreadyHave(*released) || AddObjectAnnouncement(*pto, *released, current_time))) {
+            ++released;
+        }
+        held.erase(held.begin(), released);
+    }
 
     //
     // Message: getdata (non-blocks)
