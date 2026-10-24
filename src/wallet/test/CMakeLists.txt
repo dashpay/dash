@@ -11,6 +11,7 @@ target_sources(test_bitcoin
     bip39_tests.cpp
     coinjoin_tests.cpp
     coinselector_tests.cpp
+    group_outputs_tests.cpp
     init_tests.cpp
     ismine_tests.cpp
     platformkeys_tests.cpp

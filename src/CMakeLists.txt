@@ -53,12 +53,6 @@ set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_EXHAUSTIVE_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
 set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-include(GetTargetInterface)
-# -fsanitize and related flags apply to both C++ and C,
-# so we can pass them down to libsecp256k1 as CFLAGS.
-get_target_interface(core_sanitizer_cxx_flags "" sanitize_interface COMPILE_OPTIONS)
-set(SECP256K1_LATE_CFLAGS ${core_sanitizer_cxx_flags} CACHE STRING "" FORCE)
-unset(core_sanitizer_cxx_flags)
 # We want to build libsecp256k1 with the most tested RelWithDebInfo configuration.
 enable_language(C)
 foreach(config IN LISTS CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
@@ -265,7 +259,6 @@ target_link_libraries(bitcoin_common
     core_interface
     bitcoin_consensus
     bitcoin_util
-    leveldb
     univalue
     dashbls
     secp256k1
@@ -369,6 +362,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   kernel/coinstats.cpp
   kernel/context.cpp
   kernel/cs_main.cpp
+  kernel/disconnected_transactions.cpp
   kernel/mempool_persist.cpp
   instantsend/db.cpp
   instantsend/instantsend.cpp
@@ -410,8 +404,10 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   node/chainstate.cpp
   node/chainstatemanager_args.cpp
   node/coin.cpp
+  node/coins_view_args.cpp
   node/connection_types.cpp
   node/context.cpp
+  node/database_args.cpp
   node/eviction.cpp
   node/interface_ui.cpp
   node/interfaces.cpp
@@ -419,6 +415,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   node/mempool_persist_args.cpp
   node/miner.cpp
   node/minisketchwrapper.cpp
+  node/peerman_args.cpp
   node/psbt.cpp
   node/sync_manager.cpp
   node/transaction.cpp

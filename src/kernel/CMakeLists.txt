@@ -59,6 +59,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   coinstats.cpp
   context.cpp
   cs_main.cpp
+  disconnected_transactions.cpp
   mempool_persist.cpp
   ../key.cpp
   ../key_io.cpp
@@ -82,6 +83,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../netbase.cpp
   ../node/blockstorage.cpp
   ../node/chainstate.cpp
+  ../node/database_args.cpp
   ../node/interface_ui.cpp
   ../node/transaction.cpp
   ../node/utxo_snapshot.cpp

@@ -26,7 +26,6 @@ target_link_libraries(test_util
     core_interface
     $<TARGET_NAME_IF_EXISTS:Boost::headers>
     dashbls
-    leveldb
   PUBLIC
     univalue
 )

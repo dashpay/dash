@@ -77,6 +77,7 @@ add_executable(test_bitcoin
   descriptor_tests.cpp
   dip0020opcodes_tests.cpp
   dip14_tests.cpp
+  disconnected_transactions.cpp
   dynamic_activation_thresholds_tests.cpp
   evo_assetlocks_tests.cpp
   evo_cbtx_tests.cpp
