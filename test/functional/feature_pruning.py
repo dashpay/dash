@@ -41,6 +41,7 @@ DEPLOYMENT_ARGS = [
     "-testactivationheight=dip0008@2000",
     "-testactivationheight=v20@2000",
     "-testactivationheight=mn_rr@2000",
+    "-blockcompression=0",
 ]
 
 def mine_large_blocks(node, n):

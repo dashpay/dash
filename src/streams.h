@@ -198,6 +198,14 @@ public:
         memcpy(dst.data(), m_data.data(), dst.size());
         m_data = m_data.subspan(dst.size());
     }
+
+    void ignore(size_t n)
+    {
+        if (n > m_data.size()) {
+            throw std::ios_base::failure("SpanReader::ignore(): end of data");
+        }
+        m_data = m_data.subspan(n);
+    }
 };
 
 /** Double ended buffer combining vector and stream-like interfaces.

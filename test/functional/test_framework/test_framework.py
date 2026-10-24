@@ -1161,6 +1161,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Checks whether the zmq module was compiled."""
         return self.config["components"].getboolean("ENABLE_ZMQ")
 
+    def is_zstd_compiled(self):
+        """Checks whether zstd block compression was compiled."""
+        return self.config["components"].getboolean("ENABLE_ZSTD")
+
     def is_usdt_compiled(self):
         """Checks whether the USDT tracepoints were compiled."""
         return self.config["components"].getboolean("ENABLE_USDT_TRACEPOINTS")

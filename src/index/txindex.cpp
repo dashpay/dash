@@ -4,12 +4,14 @@
 
 #include <index/txindex.h>
 
+#include <clientversion.h>
 #include <index/disktxpos.h>
 #include <node/blockstorage.h>
+#include <streams.h>
 #include <util/system.h>
 #include <validation.h>
 
-using node::OpenBlockFile;
+using node::ReadRawBlockFromDisk;
 
 constexpr uint8_t DB_TXINDEX{'t'};
 
@@ -79,19 +81,21 @@ bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CTransactionRe
         return false;
     }
 
-    AutoFile file{OpenBlockFile(postx, true)};
-    if (file.IsNull()) {
-        LogError("%s: OpenBlockFile failed\n", __func__);
+    const auto block_data{ReadRawBlockFromDisk(postx)};
+    if (!block_data) {
+        LogError("%s: ReadRawBlockFromDisk failed\n", __func__);
         return false;
     }
+    const Span<const unsigned char> data{MakeUCharSpan(*block_data)};
     CBlockHeader header;
     try {
-        file >> header;
-        if (fseek(file.Get(), postx.nTxOffset, SEEK_CUR)) {
-            LogError("%s: fseek(...) failed\n", __func__);
+        SpanReader{SER_DISK, CLIENT_VERSION, data} >> header;
+        const size_t tx_begin{::GetSerializeSize(header, CLIENT_VERSION) + postx.nTxOffset};
+        if (tx_begin > data.size()) {
+            LogError("%s: tx offset %u out of range\n", __func__, postx.nTxOffset);
             return false;
         }
-        file >> tx;
+        SpanReader{SER_DISK, CLIENT_VERSION, data.subspan(tx_begin)} >> tx;
     } catch (const std::exception& e) {
         LogError("%s: Deserialize or I/O error - %s\n", __func__, e.what());
         return false;

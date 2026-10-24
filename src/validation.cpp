@@ -57,6 +57,7 @@
 #include <util/time.h>
 #include <util/trace.h>
 #include <util/translation.h>
+#include <util/zstd.h>
 #include <util/system.h>
 #include <validationinterface.h>
 #include <warnings.h>
@@ -93,6 +94,8 @@ using kernel::ComputeUTXOStats;
 using kernel::LoadMempool;
 
 using fsbridge::FopenFn;
+using node::BLOCK_RECORD_COMPRESSED;
+using node::BLOCK_RECORD_SIZE_MASK;
 using node::BlockManager;
 using node::BlockMap;
 using node::CBlockIndexHeightOnlyComparator;
@@ -5672,6 +5675,7 @@ void ChainstateManager::LoadExternalBlockFile(
             nRewind++; // start one byte further next time, in case of failure
             blkdat.SetLimit(); // remove former limit
             unsigned int nSize = 0;
+            bool compressed{false};
             try {
                 // locate a header
                 unsigned char buf[CMessageHeader::MESSAGE_START_SIZE];
@@ -5682,8 +5686,11 @@ void ChainstateManager::LoadExternalBlockFile(
                     continue;
                 }
                 // read size
-                blkdat >> nSize;
-                if (nSize < 80 || nSize > nMaxBlockSize)
+                uint32_t size_field{0};
+                blkdat >> size_field;
+                compressed = (size_field & BLOCK_RECORD_COMPRESSED) != 0;
+                nSize = size_field & BLOCK_RECORD_SIZE_MASK;
+                if ((!compressed && nSize < 80) || nSize > nMaxBlockSize)
                     continue;
             } catch (const std::exception&) {
                 // no valid block header found; don't complain
@@ -5691,18 +5698,27 @@ void ChainstateManager::LoadExternalBlockFile(
                 break;
             }
             try {
-                // read block header
+                // read block record
                 const uint64_t nBlockPos{blkdat.GetPos()};
                 if (dbp)
                     dbp->nPos = nBlockPos;
                 blkdat.SetLimit(nBlockPos + nSize);
-                CBlockHeader header;
-                blkdat >> header;
-                const uint256 hash{header.GetHash()};
-                // Skip the rest of this block (this may read from disk into memory); position to the marker before the
-                // next block, but it's still possible to rewind to the start of the current block (without a disk read).
+                std::vector<std::byte> block_data(nSize);
+                blkdat.read(block_data);
+                // Position to the marker before the next block, but it's still possible to rewind to the start of the
+                // current block (without a disk read).
                 nRewind = nBlockPos + nSize;
-                blkdat.SkipTo(nRewind);
+                if (compressed) {
+                    auto decompressed{util::ZstdDecompress(block_data, nMaxBlockSize)};
+                    if (!decompressed) {
+                        LogPrint(BCLog::REINDEX, "%s: Could not decompress block at file offset 0x%x\n", __func__, nBlockPos);
+                        continue;
+                    }
+                    block_data = std::move(*decompressed);
+                }
+                CBlockHeader header;
+                SpanReader{SER_DISK, CLIENT_VERSION, MakeUCharSpan(block_data)} >> header;
+                const uint256 hash{header.GetHash()};
 
                 std::shared_ptr<CBlock> pblock{}; // needs to remain available after the cs_main lock is released to avoid duplicate reads from disk
 
@@ -5721,11 +5737,9 @@ void ChainstateManager::LoadExternalBlockFile(
                     // process in case the block isn't known yet
                     const CBlockIndex* pindex = m_blockman.LookupBlockIndex(hash);
                     if (!pindex || (pindex->nStatus & BLOCK_HAVE_DATA) == 0) {
-                        // This block can be processed immediately; rewind to its start, read and deserialize it.
-                        blkdat.SetPos(nBlockPos);
+                        // This block can be processed immediately; deserialize it.
                         pblock = std::make_shared<CBlock>();
-                        blkdat >> *pblock;
-                        nRewind = blkdat.GetPos();
+                        SpanReader{SER_DISK, CLIENT_VERSION, MakeUCharSpan(block_data)} >> *pblock;
 
                         BlockValidationState state;
                         if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, &hash)) {

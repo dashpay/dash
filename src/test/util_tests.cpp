@@ -22,6 +22,7 @@
 #include <util/string.h>
 #include <util/time.h>
 #include <util/vector.h>
+#include <util/zstd.h>
 
 #include <array>
 #include <cmath>
@@ -1978,6 +1979,40 @@ BOOST_AUTO_TEST_CASE(padding_test)
 
     /* An empty string should be padded if non-zero length specified */
     BOOST_CHECK_EQUAL(PadString("", 1), " ");
+}
+
+BOOST_AUTO_TEST_CASE(util_zstd_roundtrip)
+{
+    std::vector<std::byte> data(10000);
+    for (size_t i{0}; i < data.size(); ++i) data[i] = std::byte(i % 7);
+    if (!util::ZstdAvailable()) {
+        BOOST_CHECK(util::ZstdCompress(data, 3).empty());
+        BOOST_CHECK(!util::ZstdDecompress(data, data.size()));
+        BOOST_CHECK_EQUAL(util::ZstdMaxLevel(), 0);
+        BOOST_CHECK_EQUAL(util::ZstdLevel(), 0);
+        return;
+    }
+
+    const auto compressed{util::ZstdCompress(data, 3)};
+    BOOST_CHECK(!compressed.empty());
+    BOOST_CHECK(compressed.size() < data.size());
+
+    const auto restored{util::ZstdDecompress(compressed, data.size())};
+    BOOST_REQUIRE(restored);
+    BOOST_CHECK(*restored == data);
+
+    const auto empty{util::ZstdCompress({}, 3)};
+    BOOST_CHECK(!empty.empty());
+    const auto restored_empty{util::ZstdDecompress(empty, 0)};
+    BOOST_REQUIRE(restored_empty);
+    BOOST_CHECK(restored_empty->empty());
+
+    // content size above the caller's bound, truncated frame, garbage
+    BOOST_CHECK(!util::ZstdDecompress(compressed, data.size() - 1));
+    BOOST_CHECK(!util::ZstdDecompress(Span{compressed}.first(compressed.size() / 2), data.size()));
+    BOOST_CHECK(!util::ZstdDecompress(data, data.size()));
+
+    BOOST_CHECK(util::ZstdMaxLevel() >= 19);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
