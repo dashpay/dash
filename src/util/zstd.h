@@ -19,7 +19,8 @@ struct ZSTD_DCtx_s;
 
 namespace util {
 
-static constexpr int DEFAULT_ZSTD_LEVEL{0};
+/** Temporarily 3, so that a local run of the whole functional suite at this commit uses compression by default as v25 will; the next commit sets it back to 0 for 24.x */
+static constexpr int DEFAULT_ZSTD_LEVEL{3};
 
 /** Whether this build links libzstd. Without it only level 0 is accepted and compressed data cannot be read. */
 bool ZstdAvailable();
