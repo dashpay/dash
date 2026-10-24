@@ -11,6 +11,7 @@ TEST_UTIL_H = \
   test/util/blockfilter.h \
   test/util/chainstate.h \
   test/util/coins.h \
+  test/util/evo_snapshot.h \
   test/util/json.h \
   test/util/index.h \
   test/util/llmq_tests.h \

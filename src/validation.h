@@ -12,6 +12,7 @@
 #include <chain.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
+#include <evo/viewcache.h>
 #include <kernel/chainparams.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
@@ -49,6 +50,9 @@
 class Chainstate;
 class CChainParams;
 class CEvoDB;
+namespace evo {
+struct EvoSnapshotCapturePlan;
+} // namespace evo
 class CTxMemPool;
 class TxValidationState;
 class CSpecialTxProcessor;
@@ -385,6 +389,19 @@ bool TestBlockValidity(BlockValidationState& state,
                        bool fCheckPOW = true,
                        bool fCheckMerkleRoot = true) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
+/** Whether `state` reports that a chainstate stalled on this node's own Evo
+ *  state. The block is not known to be invalid and storage is not known to be
+ *  broken, so callers must neither abort nor treat the block as bad; the
+ *  chainstate stays where it is until its Evo state changes. */
+inline bool IsLocalEvoStateError(const BlockValidationState& state)
+{
+    return state.IsError() && state.GetLocalEvoStateResult() != LocalEvoStateResult::NONE;
+}
+
+/** Tell the user, through the misc warning, that some snapshot state cannot be
+ *  used yet. `detail` says what is affected. */
+void WarnLocalEvoStateUnavailable(const std::string& source, const std::string& detail);
+
 enum class VerifyDBResult {
     SUCCESS,
     CORRUPTED_BLOCK_DB,
@@ -524,6 +541,24 @@ protected:
     //! Cached result of LookupBlockIndex(*m_from_snapshot_blockhash)
     const CBlockIndex* m_cached_snapshot_base GUARDED_BY(::cs_main) {nullptr};
 
+    //! The blocks this chainstate stalled on because of its own Evo state (see
+    //! IsLocalEvoStateError). Trying one again cannot succeed until that state
+    //! changes, so ConnectTip and DisconnectTip refuse it at once instead of
+    //! revalidating it, and candidate selection passes over the branches that
+    //! need it. Cleared on restart and ignored once the chainstate's Evo view
+    //! changes; snapshot completion keeps them and asks for a restart.
+    struct EvoStall {
+        EvoViewToken view;
+        LocalEvoStateResult result;
+        std::string reject_reason;
+    };
+    std::map<const CBlockIndex*, EvoStall> m_evo_stalls GUARDED_BY(::cs_main);
+    //! Every stalled block is in the block index, so the stalls are bounded
+    //! like the block candidates; this many only earns a warning.
+    static constexpr size_t MANY_EVO_STALLS{32};
+    bool m_evo_stall_warned GUARDED_BY(::cs_main){false};
+    bool m_many_evo_stalls_warned GUARDED_BY(::cs_main){false};
+
 public:
     //! Reference to a BlockManager instance which itself is shared across all
     //! Chainstate instances.
@@ -542,9 +577,18 @@ public:
                          const chainlock::Chainlocks& chainlocks,
                          llmq::CInstantSendManager* isman,
                          std::optional<uint256> from_snapshot_blockhash = std::nullopt);
+    //! A chainstate that goes away takes the warning of its stalls along.
+    ~Chainstate();
 
     //! Return the stable EvoDB identity corresponding to this chainstate's coins DB.
     ::EvoDbIdentity EvoDbIdentity() const;
+    //! The Evo view this chainstate reads and writes. Every Chainstate method
+    //! that touches Evo state binds it at entry.
+    EvoViewToken EvoView() const;
+    //! Whether the calling thread is bound to this chainstate's Evo view.
+    //! Managers taking an explicit Chainstate check it, in release builds
+    //! too, before they touch Evo state.
+    bool IsEvoViewBound() const;
 
     std::string EvoDbInconsistencyMessage();
 
@@ -674,6 +718,11 @@ public:
      *  the snapshot base block. No-op on any other block or chainstate, so
      *  ordinary block connection never pays for hashing the full list. */
     void RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDeterministicMNList& mn_list);
+    /** Record what the background chainstate's connection of `block` gives
+     *  the snapshot's body-derived evo inputs. No-op on any other chainstate
+     *  or block. */
+    bool CaptureSnapshotInputs(const CBlock& block, const CBlockIndex* pindex, BlockValidationState& state)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Prune blockfiles from the disk if necessary and then flush chainstate changes
     //! if we pruned.
@@ -788,9 +837,23 @@ private:
 
     bool ActivateBestChainStep(BlockValidationState& state, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
     bool ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+    //! The stall recorded for `pindex`, unless it no longer applies.
+    const EvoStall* FindEvoStall(const CBlockIndex* pindex) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    //! Fail with the recorded stall if this chainstate stalled on `pindex`.
+    bool RefuseStalledBlock(const CBlockIndex* pindex, BlockValidationState& state) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    //! A block this chainstate stalled on that reaching `candidate` needs
+    //! connected, or disconnected; nullptr if there is none.
+    const CBlockIndex* EvoStallObstructing(const CBlockIndex* candidate) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    //! Remember a local Evo state stall at `pindex`, warning about the first one.
+    void RecordEvoStall(const CBlockIndex* pindex, const BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    std::string EvoStallWarningSource() const;
 
     void InvalidBlockFound(CBlockIndex* pindex, const BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-    CBlockIndex* FindMostWorkChain() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    //! The best candidate no local Evo stall obstructs. Sets
+    //! `*evo_stall_obstruction` to the stalled block in the way of the first
+    //! better candidate it passed over.
+    CBlockIndex* FindMostWorkChain(const CBlockIndex** evo_stall_obstruction = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     bool RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& inputs) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
@@ -858,6 +921,64 @@ enum class SnapshotCompletionResult {
     // Dash's derived Evo state or per-chainstate best-block markers did not
     // converge at the snapshot base block.
     EVO_STATE_MISMATCH,
+
+    // The background chainstate lacks data it needs to rebuild the evo
+    // section, so the snapshot is neither validated nor rejected yet.
+    EVO_DATA_UNAVAILABLE,
+};
+
+/** VersionBitsCache partitioned by Evo view. EHF signals that gate deployment
+ *  states are Evo state, so a state computed under one view is never served to
+ *  another. The calling thread's view also selects the EHF signals that
+ *  SignalHeight reads, so the partition and its inputs always agree. */
+class EvoViewVersionBitsCache
+{
+public:
+    //! Bind the EvoDB whose views key the partitions.
+    void SetEvoDb(const CEvoDB* evodb) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        LOCK(m_mutex);
+        m_evodb = evodb;
+    }
+
+    std::shared_ptr<VersionBitsCache> ForCurrentView() const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+
+    BIP9Stats Statistics(const CBlockIndex* pindex, const Consensus::Params& params, Consensus::DeploymentPos pos,
+                         std::vector<bool>* signalling_blocks = nullptr) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        return ForCurrentView()->Statistics(pindex, params, pos, signalling_blocks);
+    }
+    static uint32_t Mask(const Consensus::Params& params, Consensus::DeploymentPos pos)
+    {
+        return VersionBitsCache::Mask(params, pos);
+    }
+    ThresholdState State(const CBlockIndex* pindexPrev, const Consensus::Params& params,
+                         Consensus::DeploymentPos pos) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        return ForCurrentView()->State(pindexPrev, params, pos);
+    }
+    int StateSinceHeight(const CBlockIndex* pindexPrev, const Consensus::Params& params,
+                         Consensus::DeploymentPos pos) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        return ForCurrentView()->StateSinceHeight(pindexPrev, params, pos);
+    }
+    int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params) const
+        EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        return ForCurrentView()->ComputeBlockVersion(pindexPrev, params);
+    }
+    void Clear() EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        LOCK(m_mutex);
+        m_parts.Clear();
+    }
+
+private:
+    mutable Mutex m_mutex;
+    const CEvoDB* m_evodb GUARDED_BY(m_mutex){nullptr};
+    // Shared, so a partition dropped by another thread outlives its users.
+    mutable EvoViewCache<std::shared_ptr<VersionBitsCache>> m_parts GUARDED_BY(m_mutex){
+        [] { return std::make_shared<VersionBitsCache>(); }};
 };
 
 /**
@@ -948,7 +1069,7 @@ private:
         const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     friend Chainstate;
 
-    std::array<ThresholdConditionCache, VERSIONBITS_NUM_BITS> m_warningcache GUARDED_BY(::cs_main);
+    EvoViewCache<std::array<ThresholdConditionCache, VERSIONBITS_NUM_BITS>> m_warningcache GUARDED_BY(::cs_main);
 
     //! Returns nullptr if no snapshot has been loaded.
     const CBlockIndex* GetSnapshotBaseBlock() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -1051,6 +1172,28 @@ public:
     //! The total number of bytes available for us to use across all in-memory
     //! coins caches. This will be split somehow across chainstates.
     int64_t m_total_coinstip_cache{0};
+
+private:
+    std::unique_ptr<evo::EvoSnapshotCapturePlan> m_evo_capture_plan GUARDED_BY(::cs_main);
+    bool m_evo_capture_plan_loaded GUARDED_BY(::cs_main){false};
+
+public:
+    //! Make snapshot activation stop right before it publishes the seeded Evo
+    //! generation, without cleaning up, as if the process died there.
+    bool m_stop_before_evo_publication_for_testing{false};
+    //! Likewise, right after publication, before the snapshot directory
+    //! records its base block.
+    bool m_stop_after_evo_publication_for_testing{false};
+
+    //! The body-derived inputs of the live snapshot's evo section, from the
+    //! retained section; null without one, or while its base is unknown.
+    const evo::EvoSnapshotCapturePlan* EvoCapturePlan() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Keep the bodies of the snapshot base and of every block above the
+    //! background chainstate's tip, whose evo inputs it has yet to capture.
+    void UpdateSnapshotPruneLock() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void ReleaseSnapshotPruneLock() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Erase the evo inputs captured for the snapshot and drop their plan.
+    void ForgetEvoCaptures() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     //
     //! The total number of bytes available for us to use across all leveldb
     //! coins databases. This will be split somehow across chainstates.
@@ -1098,8 +1241,17 @@ public:
             [](bilingual_str msg) { AbortNode(msg.original, msg); })
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    /** Reject the active assumeutxo snapshot chainstate, revert to the
+     * background chainstate and shut down. Returns false when no usable
+     * snapshot is active or an EvoDB transaction must unwind first. */
+    bool HandleSnapshotStateMismatch(
+        const std::string& reason,
+        std::function<void(bilingual_str)> shutdown_fnc = [](bilingual_str msg) { AbortNode(msg.original, msg); });
+
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;
+    //! The EvoDB shared by the chainstates, once one is initialized.
+    const CEvoDB* EvoDb() const { return m_evodb.load(); }
     CChain& ActiveChain() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) { return ActiveChainstate().m_chain; }
     int ActiveHeight() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) { return ActiveChain().Height(); }
     CBlockIndex* ActiveTip() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) { return ActiveChain().Tip(); }
@@ -1116,9 +1268,11 @@ public:
     }
 
     /**
-     * Track versionbit status
+     * Track versionbit status. EHF-gated deployments depend on Evo state, so
+     * the cache is partitioned by the calling operation's Evo view.
      */
-    mutable VersionBitsCache m_versionbitscache;
+    mutable EvoViewVersionBitsCache m_versionbitscache;
+    std::atomic<const CEvoDB*> m_evodb{nullptr};
 
     //! @returns true if a snapshot-based chainstate is in use. Also implies
     //!          that a background validation chainstate is also in use.
@@ -1276,13 +1430,13 @@ public:
 template<typename DEP>
 bool DeploymentActiveAfter(const CBlockIndex* pindexPrev, const ChainstateManager& chainman, DEP dep)
 {
-    return DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), dep, chainman.m_versionbitscache);
+    return DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), dep, *chainman.m_versionbitscache.ForCurrentView());
 }
 
 template<typename DEP>
 bool DeploymentActiveAt(const CBlockIndex& index, const ChainstateManager& chainman, DEP dep)
 {
-    return DeploymentActiveAt(index, chainman.GetConsensus(), dep, chainman.m_versionbitscache);
+    return DeploymentActiveAt(index, chainman.GetConsensus(), dep, *chainman.m_versionbitscache.ForCurrentView());
 }
 
 template<typename DEP>

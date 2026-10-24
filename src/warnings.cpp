@@ -15,16 +15,32 @@
 #include <util/translation.h>
 #include <hash.h>
 
+#include <atomic>
+#include <map>
 #include <vector>
 
 static GlobalMutex g_warnings_mutex;
 static bilingual_str g_misc_warnings GUARDED_BY(g_warnings_mutex);
 static bool fLargeWorkInvalidChainFound GUARDED_BY(g_warnings_mutex) = false;
+static std::map<std::string, bilingual_str> g_evo_state_warnings GUARDED_BY(g_warnings_mutex);
 
 void SetMiscWarning(const bilingual_str& warning)
 {
     LOCK(g_warnings_mutex);
     g_misc_warnings = warning;
+}
+
+//! Whether any snapshot-state warning is set, so clearing one is free while none is.
+static std::atomic<bool> g_any_evo_state_warning{false};
+
+bool SetEvoStateWarning(const std::string& source, const std::optional<bilingual_str>& warning)
+{
+    if (!warning && !g_any_evo_state_warning.load()) return false;
+    LOCK(g_warnings_mutex);
+    const bool changed{warning ? (g_evo_state_warnings.insert_or_assign(source, *warning), true)
+                               : g_evo_state_warnings.erase(source) > 0};
+    g_any_evo_state_warning = !g_evo_state_warnings.empty();
+    return changed;
 }
 
 void SetfLargeWorkInvalidChainFound(bool flag)
@@ -50,6 +66,11 @@ bilingual_str GetWarnings(bool verbose)
     if (!g_misc_warnings.empty()) {
         warnings_concise = g_misc_warnings;
         warnings_verbose.emplace_back(warnings_concise);
+    }
+
+    for (const auto& [_, warning] : g_evo_state_warnings) {
+        warnings_concise = warning;
+        warnings_verbose.emplace_back(warning);
     }
 
     if (fLargeWorkInvalidChainFound) {

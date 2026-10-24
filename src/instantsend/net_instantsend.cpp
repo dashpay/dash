@@ -20,6 +20,7 @@
 #include <util/thread.h>
 #include <validation.h>
 
+#include <algorithm>
 #include <chrono>
 #include <set>
 
@@ -403,7 +404,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
     // We only need the ISLOCK from now on to detect conflicts
     TruncateRecoveredSigsForInputs(*islock);
-    ResolveBlockConflicts(hash, *islock);
+    ResolveBlockConflicts(hash, islock);
 
     if (found_transaction) {
         RemoveMempoolConflictsForLock(hash, *islock);
@@ -426,18 +427,20 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
 void NetInstantSend::WorkThreadMain()
 {
     while (!workInterrupt) {
-        bool fMoreWork = [&]() -> bool {
-            if (!m_is_manager.IsInstantSendEnabled()) return false;
+        bool fMoreWork{false};
+        RunActiveEvoRound(m_chainman.EvoDb(), "isman", [&] {
+            if (!m_is_manager.IsInstantSendEnabled()) return;
 
             auto [more_work, locks] = m_is_manager.FetchPendingLocks();
             if (!locks.empty()) {
                 ProcessPendingISLocks(std::move(locks));
             }
+            RetryUnresolvedConflicts();
             if (m_signer) {
                 m_signer->ProcessPendingRetryLockTxs(m_is_manager.PrepareTxToRetry());
             }
-            return more_work;
-        }();
+            fMoreWork = more_work;
+        });
 
         if (!fMoreWork && !workInterrupt.sleep_for(WORK_THREAD_SLEEP_INTERVAL)) {
             return;
@@ -513,6 +516,7 @@ void NetInstantSend::SynchronousUpdatedBlockTip(const CBlockIndex* pindexNew, co
 
 void NetInstantSend::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
 {
+    m_retry_conflicts = true;
     bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (m_chainlocks.IsEnabled() && fDIP0008Active) {
@@ -579,12 +583,13 @@ void NetInstantSend::BlockDisconnected(const std::shared_ptr<const CBlock>& pblo
 
 void NetInstantSend::NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig)
 {
+    m_retry_conflicts = true;
     HandleFullyConfirmedBlock(pindex);
 }
 
-void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
+void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLockPtr& islock)
 {
-    auto conflicts = m_is_manager.RetrieveISConflicts(islockHash, islock);
+    auto conflicts = m_is_manager.RetrieveISConflicts(islockHash, *islock);
 
     // Lets see if any of the conflicts was already mined into a ChainLocked block
     bool hasChainLockedConflict = false;
@@ -602,44 +607,105 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
     // consensus and its better to sacrifice individual ISLOCKs then to sacrifice whole ChainLocks.
     if (hasChainLockedConflict) {
         LogPrintf("NetInstantSend::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock\n",
-                  __func__, islock.txid.ToString(), islockHash.ToString());
-        m_is_manager.RemoveConflictingLock(islockHash, islock);
+                  __func__, islock->txid.ToString(), islockHash.ToString());
+        m_is_manager.RemoveConflictingLock(islockHash, *islock);
         return;
     }
 
-    bool hasTxForLock = m_is_manager.HasTxForLock(islockHash);
-
-    bool activateBestChain = false;
+    UnresolvedConflicts unresolved{.islock = islock, .has_tx_for_lock = m_is_manager.HasTxForLock(islockHash)};
     for (const auto& p : conflicts) {
-        const auto* pindex = p.first;
         ClearConflicting(p.second);
+        unresolved.blocks.push_back(p.first->GetBlockHash());
+    }
+    InvalidateConflictingBlocks(islockHash, std::move(unresolved));
+}
 
-        LogPrintf("NetInstantSend::%s -- invalidating block %s\n", __func__, pindex->GetBlockHash().ToString());
+namespace {
+//! Clears, when it goes out of scope, the failure flags an invalidation set,
+//! unless that invalidation is meant to last.
+class ResetTemporaryInvalidation
+{
+public:
+    ResetTemporaryInvalidation(const ChainstateManager& chainman, CBlockIndex* pindex, bool temporary) :
+        m_chainman{chainman},
+        m_pindex{pindex},
+        m_temporary{temporary}
+    {
+    }
+    ResetTemporaryInvalidation(const ResetTemporaryInvalidation&) = delete;
+    ResetTemporaryInvalidation& operator=(const ResetTemporaryInvalidation&) = delete;
+    ~ResetTemporaryInvalidation()
+    {
+        if (!m_temporary) return;
+        LogPrintf("NetInstantSend::InvalidateConflictingBlocks -- resetting block %s\n",
+                  m_pindex->GetBlockHash().ToString());
+        LOCK(::cs_main);
+        m_chainman.ActiveChainstate().ResetBlockFailureFlags(m_pindex);
+    }
+
+private:
+    const ChainstateManager& m_chainman;
+    CBlockIndex* const m_pindex{nullptr};
+    const bool m_temporary{false};
+};
+} // namespace
+
+void NetInstantSend::InvalidateConflictingBlocks(const uint256& islockHash, UnresolvedConflicts conflicts)
+{
+    // A chainstate that stalled on its own Evo state cannot move away from a
+    // conflicting block yet. Keep what is left for a later attempt.
+    const auto defer{[&](const BlockValidationState& state) {
+        if (!IsLocalEvoStateError(state)) {
+            // This should not have happened and we are in a state were it's not safe to continue anymore
+            assert(false);
+        }
+        LogPrintf("NetInstantSend::InvalidateConflictingBlocks -- islock=%s: chainstate stalled, retrying later\n",
+                  islockHash.ToString());
+        m_unresolved_conflicts.insert_or_assign(islockHash, std::move(conflicts));
+    }};
+
+    while (!conflicts.blocks.empty()) {
+        const uint256 block_hash{conflicts.blocks.back()};
+        LogPrintf("NetInstantSend::%s -- invalidating block %s\n", __func__, block_hash.ToString());
 
         BlockValidationState state;
         // need non-const pointer
-        auto pindex2 = WITH_LOCK(::cs_main, return m_chainman.ActiveChainstate().m_blockman.LookupBlockIndex(pindex->GetBlockHash()));
+        auto pindex2 = WITH_LOCK(::cs_main, return m_chainman.ActiveChainstate().m_blockman.LookupBlockIndex(block_hash));
+        // Without the locked transaction the invalidation is only temporary:
+        // however InvalidateBlock ends, a stall partway through included, the
+        // blocks it marked invalid are valid again afterwards.
+        const ResetTemporaryInvalidation reset{m_chainman, pindex2, !conflicts.has_tx_for_lock};
         if (!m_chainman.ActiveChainstate().InvalidateBlock(state, pindex2)) {
             LogPrintf("NetInstantSend::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
+            return defer(state);
         }
-        if (hasTxForLock) {
-            activateBestChain = true;
-        } else {
-            LogPrintf("NetInstantSend::%s -- resetting block %s\n", __func__, pindex2->GetBlockHash().ToString());
-            LOCK(::cs_main);
-            m_chainman.ActiveChainstate().ResetBlockFailureFlags(pindex2);
-        }
+        if (conflicts.has_tx_for_lock) conflicts.activate_best_chain = true;
+        conflicts.blocks.pop_back();
     }
 
-    if (activateBestChain) {
+    if (conflicts.activate_best_chain) {
         BlockValidationState state;
         if (!m_chainman.ActiveChainstate().ActivateBestChain(state)) {
             LogPrintf("NetInstantSend::%s -- ActivateBestChain failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
+            return defer(state);
         }
+    }
+}
+
+void NetInstantSend::RetryUnresolvedConflicts()
+{
+    if (!m_retry_conflicts.exchange(false) || m_unresolved_conflicts.empty()) return;
+    auto unresolved{std::exchange(m_unresolved_conflicts, {})};
+    for (auto& [islock_hash, conflicts] : unresolved) {
+        const bool chainlocked{std::ranges::any_of(conflicts.blocks, [&](const uint256& block_hash) {
+            const CBlockIndex* pindex{WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(block_hash))};
+            return pindex && m_chainlocks.HasChainLock(pindex->nHeight, block_hash);
+        })};
+        if (chainlocked) {
+            m_is_manager.RemoveConflictingLock(islock_hash, *conflicts.islock);
+            continue;
+        }
+        InvalidateConflictingBlocks(islock_hash, std::move(conflicts));
     }
 }
 

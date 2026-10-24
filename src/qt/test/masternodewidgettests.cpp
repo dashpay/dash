@@ -8,13 +8,16 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <evo/deterministicmns.h>
 #include <evo/providertx.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <evo/types.h>
 #include <interfaces/node.h>
 #include <interfaces/providertx.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
+#include <primitives/transaction.h>
 #include <qt/clientmodel.h>
 #include <qt/masternodelist.h>
 #include <qt/masternodeoperationrunner.h>
@@ -24,7 +27,6 @@
 #include <qt/qvalidatedlineedit.h>
 #include <qt/sharedmnwidgets.h>
 #include <qt/walletmodel.h>
-#include <primitives/transaction.h>
 #include <random.h>
 #include <script/script.h>
 #include <script/standard.h>
@@ -34,6 +36,7 @@
 #include <validation.h>
 #include <wallet/test/util.h>
 #include <wallet/wallet.h>
+#include <warnings.h>
 
 #include <QAbstractButton>
 #include <QApplication>
@@ -109,7 +112,10 @@ public:
     };
 
     std::pair<interfaces::MnListPtr, const CBlockIndex*> getListAtChainTip() override { return {}; }
-    interfaces::ProviderTxCapabilities getProviderTxCapabilities() override { return {}; }
+    std::optional<interfaces::ProviderTxCapabilities> getProviderTxCapabilities() override
+    {
+        return interfaces::ProviderTxCapabilities{};
+    }
     std::optional<interfaces::ProviderTxError> validateProviderNetInfo(const interfaces::ProviderNetInfo&, MnType,
                                                                        uint16_t, bool) override
     {
@@ -649,6 +655,21 @@ void MasternodeWidgetTests::registeredCollateralExclusion()
     const COutPoint collateral{funding_tx->GetHash(), 0};
     QCOMPARE(wizard.m_col_utxo_combo->currentData().toString(), QString::fromStdString(collateral.hash.ToString()));
 
+    // While the masternode list cannot be read, a registered collateral cannot
+    // be told from a free one: the wizard keeps its candidates and says why.
+    {
+        auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+        const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+        test.m_node.dmnman->SetListSnapshotMissHookForTesting(
+            [](const CBlockIndex*) { throw BlockDataUnavailableError("masternode list unavailable"); });
+        wizard.refreshCollateralCandidates();
+        test.m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+        consensus.DIP0003Height = dip3_height;
+        QCOMPARE(wizard.m_col_utxo_combo->count(), 1);
+        QCOMPARE(wizard.m_error_label->text(), MasternodeWidgetUtil::masternodeStateUnavailableText());
+        SetMiscWarning(Untranslated(""));
+    }
+
     wizard.refreshCollateralCandidates({collateral});
     QCOMPARE(wizard.m_col_utxo_combo->count(), 0);
     QVERIFY(!wizard.m_col_utxo_none->isHidden());
@@ -960,7 +981,7 @@ void MasternodeWidgetTests::masternodeListRegistrationAvailability()
     // never see happen.
     auto* const shared_button{list.findChild<QPushButton*>("btnSharedMasternode")};
     QVERIFY(shared_button != nullptr);
-    const bool v24_active{m_node.isV24Active()};
+    const bool v24_active{m_node.isV24Active().value()};
     const QString shared_tooltip{shared_button->toolTip()};
     QCOMPARE(shared_button->isEnabled(), v24_active);
     QVERIFY(shared_tooltip.contains(v24_active ? "Create or continue" : "v24 hard fork", Qt::CaseInsensitive));
@@ -1264,7 +1285,7 @@ void MasternodeWidgetTests::wizardInteractionLifecycle()
     // endpoint semantics.
     wizard.m_type_evo->setChecked(true);
     wizard.rebuildOrder();
-    const uint16_t current_version{m_node.evo().getProviderTxCapabilities().version};
+    const uint16_t current_version{m_node.evo().getProviderTxCapabilities().value().version};
     wizard.m_platform_provider_version = current_version == std::numeric_limits<uint16_t>::max()
                                              ? static_cast<uint16_t>(current_version - 1)
                                              : static_cast<uint16_t>(current_version + 1);

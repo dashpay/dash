@@ -509,6 +509,10 @@ TestChainSetup::TestChainSetup(
             {   18, uint256S("0x79ffbee99c3f8448a5484564cba47830415dc96d1aed025576d8246dd24f1b0e") },
             /*TestChain100Setup=*/
             {  100, uint256S("0x6ffb83129c19ebdf1ae3771be6a67fe34b35f4c956326b9ba152fac1649f65ae") },
+            /*SnapshotActivationChainSetup=*/
+            {  102, uint256S("0x37876f3493ac152f9a0bdf0049d85969fe3ba82745733a81c8e1afeefa16ab3b") },
+            /*CreditWindowLateV20Setup=*/
+            {  104, uint256S("0x7da687196d19e677f76e812032881eaac5d7e3453542de561c90e9e6c5f9110c") },
             /*TestChainV19BeforeActivationSetup=*/
             {  103, uint256S("0x13adad9565d0ca558f5675c50e3828f4354d26b64de044ebc88686056f30faab") },
             /*TestChainDIP3BeforeActivationSetup=*/
@@ -620,6 +624,7 @@ CBlock TestChainSetup::CreateBlock(
     // Manually update CbTx as we modified the block here
     if (block.vtx[0]->nType == TRANSACTION_COINBASE) {
         LOCK(cs_main);
+        const EvoViewScope evo_view{chainstate.EvoView()};
         auto cbTx = GetTxPayload<CCbTx>(*block.vtx[0]);
         Assert(cbTx.has_value());
         BlockValidationState state;
