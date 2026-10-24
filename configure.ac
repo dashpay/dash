@@ -1717,6 +1717,7 @@ if test "$use_zstd" = "yes" && test "$suppress_external_warnings" != "no"; then
 fi
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "$use_zmq" = "yes"])
+AM_CONDITIONAL([ENABLE_ZSTD], [test "$use_zstd" = "yes"])
 
 dnl libmultiprocess library check
 
