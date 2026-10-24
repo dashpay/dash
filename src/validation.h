@@ -12,6 +12,7 @@
 #include <chain.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
+#include <evo/types.h>
 #include <kernel/chainparams.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
@@ -714,7 +715,7 @@ public:
      *  triggered superblock, the payments governance expects at that height. */
     bool IsBlockValueValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, CAmount blockReward, std::string& strErrorRet) const;
     /** Dash: the coinbase must carry every payment owed to the masternode list at the previous block. */
-    bool IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, CAmount blockSubsidy, CAmount feeReward) const;
+    bool IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, const CDeterministicMNCPtr& payee, CAmount blockSubsidy, CAmount feeReward) const;
 
     // Apply the effects of a block disconnection on the UTXO set.
     bool DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);

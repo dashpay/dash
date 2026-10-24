@@ -100,9 +100,11 @@ public:
 
     // Variant that takes an explicit starting list instead of loading from GetListForBlock
     // Used for rebuilding diffs from trusted snapshots
+    // payeeRet, when given, receives the masternode the block pays as selected from prevList
     bool RebuildListFromBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev, bool is_v24_active,
                               const CDeterministicMNList& prevList, const CCoinsViewCache& view, bool debugLogs,
-                              BlockValidationState& state, CDeterministicMNList& mnListRet);
+                              BlockValidationState& state, CDeterministicMNList& mnListRet,
+                              CDeterministicMNCPtr* payeeRet = nullptr);
 
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const;
@@ -121,8 +123,9 @@ private:
                        const CCoinsViewCache& view, bool debugLogs, CDeterministicMNList& newList,
                        BlockValidationState& state) const;
     bool FinishListForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
-                            const CDeterministicMNList& prevList, bool debugLogs, CDeterministicMNList newList,
-                            BlockValidationState& state, CDeterministicMNList& mnListRet) const;
+                            const CDeterministicMNList& prevList, const CDeterministicMNCPtr& payee, bool debugLogs,
+                            CDeterministicMNList newList, BlockValidationState& state,
+                            CDeterministicMNList& mnListRet) const;
 
     bool CheckSpecialTxInner(const CChain* chain, const CTransaction& tx, const CBlockIndex* pindexPrev,
                              SpecialTxRules rules, const CCoinsViewCache& view, const std::optional<CRangesSet>& indexes,
@@ -160,6 +163,7 @@ private:
     bool m_is_v24_active;
     const CCoinsViewCache* m_view;
     bool m_debug_logs;
+    CDeterministicMNCPtr m_payee;
     CDeterministicMNList m_list;
 };
 

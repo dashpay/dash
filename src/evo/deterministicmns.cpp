@@ -22,6 +22,7 @@
 #include <uint256.h>
 #include <util/helpers.h>
 
+#include <immer/algorithm.hpp>
 #include <univalue.h>
 
 #include <functional>
@@ -337,27 +338,18 @@ CDeterministicMNListDiff CDeterministicMNList::BuildDiff(const CDeterministicMNL
 {
     CDeterministicMNListDiff diffRet;
 
-    for (const auto& p : to.mnMap) {
-        const auto& toPtr = p.second;
-        auto fromPtr = GetMN(toPtr->proTxHash);
-        if (fromPtr == nullptr) {
-            diffRet.addedMNs.emplace_back(toPtr);
-        } else if (fromPtr != toPtr || fromPtr->pdmnState != toPtr->pdmnState) {
-            CDeterministicMNStateDiff stateDiff(*fromPtr->pdmnState, *toPtr->pdmnState);
-            if (stateDiff.fields) {
-                diffRet.updatedMNs.emplace(toPtr->GetInternalId(), std::move(stateDiff));
-            }
-        }
-    }
-    if (mnMap.size() + diffRet.addedMNs.size() != to.mnMap.size()) {
-        for (auto& fromPtr : mnMap) {
-            const auto toPtr = to.GetMN(fromPtr.second->proTxHash);
-            if (toPtr == nullptr) {
-                diffRet.removedMns.emplace(fromPtr.second->GetInternalId());
-                if (mnMap.size() + diffRet.addedMNs.size() - diffRet.removedMns.size() == to.mnMap.size()) break;
-            }
-        };
-    }
+    // Visits only the subtrees the two maps do not share, so a list derived from this one by a
+    // few updates is diffed in time proportional to those updates.
+    immer::diff(mnMap, to.mnMap,
+                immer::make_differ(
+                    [&diffRet](const auto& added) { diffRet.addedMNs.emplace_back(added.second); },
+                    [&diffRet](const auto& removed) { diffRet.removedMns.emplace(removed.second->GetInternalId()); },
+                    [&diffRet](const auto& from, const auto& to_entry) {
+                        CDeterministicMNStateDiff stateDiff(*from.second->pdmnState, *to_entry.second->pdmnState);
+                        if (stateDiff.fields) {
+                            diffRet.updatedMNs.emplace(to_entry.second->GetInternalId(), std::move(stateDiff));
+                        }
+                    }));
 
     // added MNs need to be sorted by internalId so that these are added in correct order when the diff is applied later
     // otherwise internalIds will not match with the original list
@@ -687,8 +679,8 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaM
 CDeterministicMNManager::~CDeterministicMNManager() = default;
 
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex,
-                                           BlockValidationState& state, const CDeterministicMNList& newList,
-                                           MNListUpdates& updatesRet)
+                                           BlockValidationState& state, const CDeterministicMNList& oldList,
+                                           const CDeterministicMNList& newList, MNListUpdates& updatesRet)
 {
     AssertLockHeld(::cs_main);
 
@@ -697,7 +689,6 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
         return true;
     }
 
-    CDeterministicMNList oldList;
     CDeterministicMNListDiff diff;
 
     int nHeight = pindex->nHeight;
@@ -707,7 +698,6 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
 
         LOCK(cs);
 
-        oldList = GetListForBlockInternal(pindex->pprev);
         diff = oldList.BuildDiff(newList);
 
         // A WriteDerived mismatch is local EvoDB corruption, not a statement
@@ -756,7 +746,9 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-dmn-block");
     }
 
-    updatesRet = {.old_list = oldList, .new_list = newList, .diff = diff};
+    updatesRet.old_list = oldList;
+    updatesRet.new_list = newList;
+    updatesRet.diff = diff;
 
     if (::g_stats_client->active()) {
         const auto counts{newList.GetCounts()};
@@ -805,7 +797,9 @@ bool CDeterministicMNManager::UndoBlock(gsl::not_null<const CBlockIndex*> pindex
         curList.ApplyDiff(pindex, diff);
 
         auto inversedDiff{curList.BuildDiff(prevList)};
-        updatesRet = {.old_list = curList, .new_list = prevList, .diff = inversedDiff};
+        updatesRet.old_list = curList;
+        updatesRet.new_list = prevList;
+        updatesRet.diff = inversedDiff;
     }
 
     const auto& consensusParams = Params().GetConsensus();

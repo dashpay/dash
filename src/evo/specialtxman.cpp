@@ -755,12 +755,11 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
 }
 
 bool CSpecialTxProcessor::FinishListForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
-                                             const CDeterministicMNList& prevList, bool debugLogs,
-                                             CDeterministicMNList newList, BlockValidationState& state,
+                                             const CDeterministicMNList& prevList, const CDeterministicMNCPtr& payee,
+                                             bool debugLogs, CDeterministicMNList newList, BlockValidationState& state,
                                              CDeterministicMNList& mnListRet) const
 {
     const int nHeight = pindexPrev->nHeight + 1;
-    auto payee = prevList.GetMNPayee(pindexPrev);
     const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_MN_RR)};
 
     // we skip the coinbase
@@ -832,9 +831,13 @@ bool CSpecialTxProcessor::FinishListForBlock(const CBlock& block, gsl::not_null<
 bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindexPrev,
                                                bool is_v24_active, const CDeterministicMNList& prevList,
                                                const CCoinsViewCache& view, bool debugLogs, BlockValidationState& state,
-                                               CDeterministicMNList& mnListRet)
+                                               CDeterministicMNList& mnListRet, CDeterministicMNCPtr* payeeRet)
 {
     CDeterministicMNList newList = BeginListForBlock(pindexPrev, prevList);
+    const CDeterministicMNCPtr payee{prevList.GetMNPayee(pindexPrev)};
+    if (payeeRet != nullptr) {
+        *payeeRet = payee;
+    }
 
     // we skip the coinbase
     for (int i = 1; i < static_cast<int>(block.vtx.size()); i++) {
@@ -843,7 +846,7 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
         }
     }
 
-    return FinishListForBlock(block, pindexPrev, prevList, debugLogs, newList, state, mnListRet);
+    return FinishListForBlock(block, pindexPrev, prevList, payee, debugLogs, newList, state, mnListRet);
 }
 
 CMNListBuilder::CMNListBuilder(const CSpecialTxProcessor& processor, const CDeterministicMNList& prevList,
@@ -855,6 +858,7 @@ CMNListBuilder::CMNListBuilder(const CSpecialTxProcessor& processor, const CDete
     m_is_v24_active{is_v24_active},
     m_view{&view},
     m_debug_logs{debugLogs},
+    m_payee{prevList.GetMNPayee(pindexPrev)},
     m_list{processor.BeginListForBlock(pindexPrev, prevList)}
 {
 }
@@ -874,7 +878,8 @@ bool CMNListBuilder::ApplyTx(const CTransaction& tx, BlockValidationState& state
 
 bool CMNListBuilder::Finish(const CBlock& block, BlockValidationState& state, CDeterministicMNList& mnListRet) const
 {
-    return m_processor->FinishListForBlock(block, m_pindex_prev, m_prev_list, m_debug_logs, m_list, state, mnListRet);
+    return m_processor->FinishListForBlock(block, m_pindex_prev, m_prev_list, m_payee, m_debug_logs, m_list, state,
+                                           mnListRet);
 }
 
 uint256 CSpecialTxProcessor::GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const
@@ -997,13 +1002,14 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             // ConnectBlock validates masternode payments against the list at the
             // previous block, also under fJustCheck where ProcessBlock is skipped.
             updatesRet.old_list = m_dmnman.GetListForBlock(pindex->pprev);
-            if (!BuildNewListFromBlock(block, pindex->pprev, rules.v24, view, true, state, mn_list)) {
+            if (!RebuildListFromBlock(block, pindex->pprev, rules.v24, updatesRet.old_list, view, true, state, mn_list,
+                                      &updatesRet.payee)) {
                 // pass the state returned by the function above
                 return false;
             }
             mn_list.SetBlockHash(pindex->GetBlockHash());
 
-            if (!fJustCheck && !m_dmnman.ProcessBlock(block, pindex, state, mn_list, updatesRet)) {
+            if (!fJustCheck && !m_dmnman.ProcessBlock(block, pindex, state, updatesRet.old_list, mn_list, updatesRet)) {
                 // pass the state returned by the function above
                 return false;
             }

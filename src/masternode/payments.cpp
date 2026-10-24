@@ -208,7 +208,8 @@ bool IsSuperblockValid(const SuperblockStatus& superblock, const CTransaction& t
 }
 
 bool GetMasternodePayments(const CDeterministicMNList& mn_list, const CBlockIndex* pindexPrev,
-                           const CAmount blockSubsidy, const CAmount feeReward, MnRewardEra era,
+                           const CDeterministicMNCPtr& dmnPayee, const CAmount blockSubsidy, const CAmount feeReward,
+                           MnRewardEra era,
                            const Consensus::Params& consensus_params,
                            std::vector<CTxOut>& voutMasternodePaymentsRet)
 {
@@ -230,11 +231,10 @@ bool GetMasternodePayments(const CDeterministicMNList& mn_list, const CBlockInde
         LogPrint(BCLog::MNPAYMENTS, "%s -- MN reward %lld reallocated to credit pool\n", __func__, platformReward);
         voutMasternodePaymentsRet.emplace_back(platformReward, CScript() << OP_RETURN);
     }
-    if (mn_list.GetCounts().total() == 0) {
+    if (mn_list.GetAllMNsCount() == 0) {
         LogPrint(BCLog::MNPAYMENTS, "%s -- no masternode registered to receive a payment\n", __func__);
         return true;
     }
-    const auto dmnPayee = mn_list.GetMNPayee(pindexPrev);
     if (!dmnPayee) {
         return false;
     }

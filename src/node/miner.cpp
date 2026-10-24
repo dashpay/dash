@@ -190,7 +190,7 @@ void BlockAssembler::FillBlockPayments(CMutableTransaction& txNew, const CBlockI
     }
 
     const MnRewardEra era{GetMnRewardEraAfter(pindexPrev, m_chainstate.m_chainman)};
-    if (!GetMasternodePayments(mn_list, pindexPrev, blockSubsidy, feeReward, era, chainparams.GetConsensus(), voutMasternodePaymentsRet)) {
+    if (!GetMasternodePayments(mn_list, pindexPrev, mn_list.GetMNPayee(pindexPrev), blockSubsidy, feeReward, era, chainparams.GetConsensus(), voutMasternodePaymentsRet)) {
         LogPrintf("%s -- ERROR Failed to get payee\n", __func__);
         LogPrint(BCLog::MNPAYMENTS, "%s -- No masternode to pay (MN list probably empty)\n", __func__);
     } else {

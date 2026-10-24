@@ -2645,7 +2645,7 @@ bool Chainstate::IsBlockValueValid(const CBlock& block, const CBlockIndex* pinde
     return true;
 }
 
-bool Chainstate::IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, const CAmount blockSubsidy, const CAmount feeReward) const
+bool Chainstate::IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, const CDeterministicMNCPtr& payee, const CAmount blockSubsidy, const CAmount feeReward) const
 {
     const Consensus::Params& consensus_params{m_chainman.GetConsensus()};
     const CTransaction& txNew{*block.vtx[0]};
@@ -2657,7 +2657,7 @@ bool Chainstate::IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pinde
 
     std::vector<CTxOut> voutMasternodePayments;
     const MnRewardEra era{GetMnRewardEraAfter(pindex->pprev, m_chainman)};
-    if (!GetMasternodePayments(mn_list, pindex->pprev, blockSubsidy, feeReward, era, consensus_params, voutMasternodePayments)) {
+    if (!GetMasternodePayments(mn_list, pindex->pprev, payee, blockSubsidy, feeReward, era, consensus_params, voutMasternodePayments)) {
         LogPrintf("%s -- ERROR! Failed to get payees for block at height %s\n", __func__, nBlockHeight);
         return true;
     }
@@ -3071,7 +3071,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<SecondsDouble>(time_value_valid),
              Ticks<MillisecondsDouble>(time_value_valid) / num_blocks_total);
 
-    if (!IsBlockPayeeValid(block, pindex, mnlist_updates.old_list, blockSubsidy, feeReward)) {
+    if (!IsBlockPayeeValid(block, pindex, mnlist_updates.old_list, mnlist_updates.payee, blockSubsidy, feeReward)) {
         // NOTE: Do not punish, the node might be missing governance data
         LogPrintf("ERROR: ConnectBlock(DASH): couldn't find masternode or superblock payments\n");
         return state.Invalid(BlockValidationResult::BLOCK_RESULT_UNSET, "bad-cb-payee");

@@ -6,6 +6,7 @@
 #define BITCOIN_MASTERNODE_PAYMENTS_H
 
 #include <consensus/amount.h>
+#include <evo/types.h>
 #include <primitives/transaction.h>
 
 #include <vector>
@@ -65,7 +66,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::P
  * output in that case.
  */
 bool GetMasternodePayments(const CDeterministicMNList& mn_list, const CBlockIndex* pindexPrev,
-                           CAmount blockSubsidy, CAmount feeReward, MnRewardEra era,
+                           const CDeterministicMNCPtr& dmnPayee, CAmount blockSubsidy, CAmount feeReward, MnRewardEra era,
                            const Consensus::Params& consensus_params,
                            std::vector<CTxOut>& voutMasternodePaymentsRet);
 
