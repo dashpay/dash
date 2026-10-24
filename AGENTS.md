@@ -3,9 +3,6 @@
 This file is for automated coding agents working in Dash Core. Keep it
 practical: prefer local source, tests, and project history over guesses.
 
-`AGENTS.md` and `CLAUDE.md` intentionally contain the same guidance. When one
-changes, update the other in the same commit.
-
 ## First Principles
 
 - Understand the code path before editing. Read callers, callees, tests, and
