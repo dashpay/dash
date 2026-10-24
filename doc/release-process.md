@@ -64,7 +64,7 @@ git shortlog --no-merges v(current version, e.g. 19.3.0)..v(new version, e.g. 20
 Generate list of authors:
 
 ```sh
-git log --format='- %aN' v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0) | sort -fiu
+git log --format='- %aN' v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0) | grep -v 'merge-script' | sort -fiu
 ```
 
 Tag version (or release candidate) in git
@@ -119,9 +119,10 @@ _Note: we ship releases for only some supported HOSTs so consider providing limi
 pushd guix.sigs
 git add "${VERSION}/${SIGNER}/noncodesigned.SHA256SUMS{,.asc}"
 git commit -a
-git push  # Assuming you can push to the guix.sigs tree
 popd
 ```
+
+Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpay/guix.sigs).
 
 ## Codesigning
 
@@ -187,9 +188,10 @@ popd
 pushd ./guix.sigs
 git add "${VERSION}/${SIGNER}"/all.SHA256SUMS{,.asc}
 git commit -m "Add attestations by ${SIGNER} for ${VERSION} codesigned"
-git push  # Assuming you can push to the guix.sigs tree
 popd
 ```
+
+Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpay/guix.sigs).
 
 ## After 3 or more people have guix-built and their results match
 
