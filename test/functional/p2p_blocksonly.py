@@ -71,6 +71,8 @@ class P2PBlocksOnly(BitcoinTestFramework):
             first_peer.send_message(msg_tx(tx))
             self.log.info('Check that the peer with relay-permission is still connected after sending the transaction')
             assert_equal(first_peer.is_connected, True)
+            # Let the node take the tx before mocktime moves, or its relay is scheduled past the bump
+            first_peer.sync_with_ping()
             self.bump_mocktime(60)
             second_peer.wait_for_tx(txid)
             assert_equal(self.nodes[0].getmempoolinfo()['size'], 1)

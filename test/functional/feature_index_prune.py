@@ -53,15 +53,34 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.connect_nodes(0,3)
         self.connect_nodes(0,4)
 
+    def sync_all_fast(self):
+        self.sync_blocks(wait=0.05)
+        self.sync_mempools()
+
     def mine_batches(self, blocks):
         n = blocks // 250
         for _ in range(n):
-            self.generate(self.nodes[0], 250)
-        self.generate(self.nodes[0], blocks % 250)
+            self.generate(self.nodes[0], 250, sync_fun=self.sync_all_fast)
+        self.generate(self.nodes[0], blocks % 250, sync_fun=self.sync_all_fast)
+
+    def stop_pruned_nodes(self):
+        for node in self.nodes[:4]:
+            node.stop_node(wait_until_stopped=False)
+        for node in self.nodes[:4]:
+            node.wait_until_stopped(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+
+    def start_pruned_nodes(self, extra_args):
+        for node, args in zip(self.nodes[:4], extra_args):
+            node.start(args)
+        for node in self.nodes[:4]:
+            node.wait_for_rpc_connection()
+
+    def restart_pruned_nodes(self, extra_args):
+        self.stop_pruned_nodes()
+        self.start_pruned_nodes(extra_args)
 
     def restart_without_indices(self):
-        for i in range(4):
-            self.restart_node(i, extra_args=["-fastprune", "-prune=1"] + DEPLOYMENT_ARGS, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.restart_pruned_nodes([["-fastprune", "-prune=1"] + DEPLOYMENT_ARGS for _ in range(4)])
         self.reconnect_nodes()
 
     def assert_timestampindex_covers(self, height):
@@ -114,7 +133,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
             assert node.gettxoutsetinfo(hash_type="muhash", hash_or_height=height_hash)['muhash']
 
         # mine and sync index up to a height that will later be the pruneheight
-        self.generate(self.nodes[0], 51)
+        self.generate(self.nodes[0], 51, sync_fun=self.sync_all_fast)
         self.sync_index(height=751)
 
         self.restart_without_indices()
@@ -133,8 +152,8 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         for i in range(4):
             pruneheight_2 = self.nodes[i].pruneblockchain(1000)
             assert_equal(pruneheight_2, 735)
-            # Restart the nodes again with the indices activated
-            self.restart_node(i, extra_args=self.extra_args[i], expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        # Restart the nodes again with the indices activated
+        self.restart_pruned_nodes(self.extra_args[:4])
 
         self.log.info("make sure that we can continue with the partially synced indices after having pruned up to the index height")
         self.sync_index(height=1500)
@@ -146,7 +165,7 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         for i in range(4):
             pruneheight_3 = self.nodes[i].pruneblockchain(2000)
             assert_greater_than(pruneheight_3, pruneheight_2)
-            self.stop_node(i, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_pruned_nodes()
 
         self.log.info("make sure we get an init error when starting the nodes again with the indices")
         filter_msg = "Error: basic block filter index best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
@@ -157,13 +176,12 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
             self.nodes[i].assert_start_raises_init_error(extra_args=self.extra_args[i], expected_msg=f"{EXPECTED_STDERR_NO_GOV_PRUNE}\n{msg}")
 
         self.log.info("make sure the nodes start again with the indices and an additional -reindex arg")
+        self.start_pruned_nodes([args + ["-reindex"] for args in self.extra_args[:4]])
         for i in range(4):
-            restart_args = self.extra_args[i]+["-reindex"]
-            self.restart_node(i, extra_args=restart_args, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
             # The nodes need to be reconnected to the non-pruning node upon restart, otherwise they will be stuck
             self.connect_nodes(i, 4)
 
-        self.sync_blocks(timeout=300)
+        self.sync_blocks(wait=0.05, timeout=300)
         self.sync_index(height=2500)
 
         for node in [self.nodes[0], self.nodes[1], self.nodes[3]]:
@@ -174,10 +192,11 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         self.log.info("ensure that prune locks don't prevent indices from failing in a reorg scenario")
         with self.nodes[0].assert_debug_log(['basic block filter index prune lock moved back to 2480']):
             self.nodes[4].invalidateblock(self.nodes[0].getblockhash(2480))
-            self.generate(self.nodes[4], 30)
+            self.generate(self.nodes[4], 30, sync_fun=self.sync_all_fast)
 
-        for idx in range(self.num_nodes):
-            self.nodes[idx].stop_node(expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE if idx != 4 else "")
+        self.nodes[4].stop_node(wait_until_stopped=False)
+        self.stop_pruned_nodes()
+        self.nodes[4].wait_until_stopped()
 
         self.log.info("ensure -prune is incompatible with -addressindex and -spentindex at startup")
         # Reuse the unrestricted control node datadir for these init-error checks; -prune

@@ -325,7 +325,9 @@ class FastGEMul:
         table = [P, 2*P, 4*P, (2^3)*P, (2^4)*P, ..., (2^255)*P]
 
     During multiplication, the points corresponding to each bit set in the scalar are added up,
-    i.e. on average ~128 point additions take place.
+    i.e. on average ~128 point additions take place. The running sum is kept in Jacobian
+    coordinates (x = X/Z^2, y = Y/Z^3) over plain integers, so that only the conversion of the
+    result back to a GE needs a field inversion.
     """
 
     def __init__(self, p):
@@ -333,14 +335,38 @@ class FastGEMul:
         for _ in range(255):
             p = p + p
             self.table.append(p)
+        self.table_xy = [(int(q.x), int(q.y)) for q in self.table]
 
     def mul(self, a):
-        result = GE()
         a = a % GE.ORDER
+        m = FE.SIZE
+        acc = None  # running sum (X, Y, Z), None while it is infinity
         for bit in range(a.bit_length()):
-            if a & (1 << bit):
-                result += self.table[bit]
-        return result
+            if not a & (1 << bit):
+                continue
+            x2, y2 = self.table_xy[bit]
+            if acc is None:
+                acc = (x2, y2, 1)
+                continue
+            # Add the affine point (x2, y2) to (X1, Y1, Z1): "add-1998-cmo-2" with Z2 = 1
+            X1, Y1, Z1 = acc
+            Z1Z1 = Z1 * Z1 % m
+            H = (x2 * Z1Z1 - X1) % m
+            R = (y2 * Z1 * Z1Z1 - Y1) % m
+            # The running sum is s*P with 0 < s < 2^bit, and s + 2^bit <= a < ORDER, so it is
+            # never +-(2^bit)*P: the two points always have distinct x coordinates.
+            assert H != 0
+            HH = H * H % m
+            HHH = H * HH % m
+            V = X1 * HH % m
+            X3 = (R * R - HHH - 2 * V) % m
+            acc = (X3, (R * (V - X3) - Y1 * HHH) % m, Z1 * H % m)
+        if acc is None:
+            return GE()
+        X, Y, Z = acc
+        zinv = pow(Z, -1, m)
+        zinv2 = zinv * zinv % m
+        return GE(X * zinv2 % m, Y * zinv2 * zinv % m)
 
 # Precomputed table with multiples of G for fast multiplication
 FAST_G = FastGEMul(G)

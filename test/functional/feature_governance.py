@@ -25,6 +25,7 @@ class DashGovernanceTest (DashTestFramework):
             "-budgetparams=10:10:10",
         ]] * 6)
         self.delay_v20_and_mn_rr(height=160)
+        self.fast_sync_polling = True
 
     def check_superblockbudget(self, v20_active):
         v20_state = self.nodes[0].getdeploymentinfo()["deployments"]["v20"]
@@ -57,6 +58,26 @@ class DashGovernanceTest (DashTestFramework):
                     assert False
 
         assert_equal(payments_found, 2)
+
+    def sync_governance_signers(self, nodes):
+        # Masternodes create and vote on triggers only from the UpdatedBlockTip validation callback,
+        # so once every node is at the same tip and has drained its validation queue they are done
+        # acting on that tip.
+        self.sync_blocks(nodes)
+        for node in nodes:
+            node.syncwithvalidationinterfacequeue()
+
+    @staticmethod
+    def valid_triggers(node):
+        return set(node.gobject("list", "valid", "triggers").keys())
+
+    def count_own_trigger_votes(self, mns, trigger_hash):
+        # Each masternode's own vote is visible on its own node, without relying on relay.
+        count = 0
+        for mn in mns:
+            collateral = self.nodes[0].protx("info", mn.proTxHash)
+            count += len(mn.get_node(self).gobject("getcurrentvotes", trigger_hash, collateral["collateralHash"], str(collateral["collateralIndex"])))
+        return count
 
     def run_test(self):
         self.log.info("Start testing...")
@@ -212,8 +233,9 @@ class DashGovernanceTest (DashTestFramework):
         self.wait_until(lambda: len(isolated.gobject("list", "valid", "triggers")) == 1, timeout=5)
         isolated_trigger_hash = list(isolated.gobject("list", "valid", "triggers").keys())[0]
         self.wait_until(lambda: list(isolated.gobject("list", "valid", "triggers").values())[0]['YesCount'] == 1, timeout=5)
-        more_votes = self.wait_until(lambda: list(isolated.gobject("list", "valid", "triggers").values())[0]['YesCount'] > 1, timeout=5, do_assert=False)
-        assert_equal(more_votes, False)
+        # The isolated node has no peers, so its own signer is the only possible source of more votes
+        self.sync_governance_signers([isolated])
+        assert_equal(list(isolated.gobject("list", "valid", "triggers").values())[0]['YesCount'], 1)
         # Isolated node created a trigger and voted YES for it (16 votes total)
         assert_equal(isolated.gobject("count")["votes"], 16)
         # Non-isolated nodes don't see this (still 15 votes total)
@@ -227,8 +249,11 @@ class DashGovernanceTest (DashTestFramework):
         self.check_superblockbudget(False)
 
         self.log.info("The 'winner' should submit new trigger and vote for it, but it's isolated so no triggers should be found")
-        has_trigger = self.wait_until(lambda: len(self.nodes[0].gobject("list", "valid", "triggers")) >= 1, timeout=5, do_assert=False)
-        assert_equal(has_trigger, False)
+        non_isolated = [node for node in self.nodes if node is not isolated]
+        non_isolated_mns = [mn for mn in self.mninfo if mn.nodeIdx != payee_idx]
+        self.sync_governance_signers(non_isolated)
+        for node in non_isolated:
+            assert_equal(self.valid_triggers(node), set())
 
         self.log.info("Move 1 block inside the Superblock maturity window on non-isolated nodes")
         self.bump_mocktime(1)
@@ -238,8 +263,11 @@ class DashGovernanceTest (DashTestFramework):
         self.wait_until(lambda: len(self.nodes[0].gobject("list", "valid", "triggers")) == 1, timeout=5)
         winning_trigger_hash = list(self.nodes[0].gobject("list", "valid", "triggers").keys())[0]
         self.wait_until(lambda: list(self.nodes[0].gobject("list", "valid", "triggers").values())[0]['YesCount'] == 1, timeout=5)
-        more_votes = self.wait_until(lambda: list(self.nodes[0].gobject("list", "valid", "triggers").values())[0]['YesCount'] > 1, timeout=5, do_assert=False)
-        assert_equal(more_votes, False)
+        self.sync_governance_signers(non_isolated)
+        # Every masternode must know the trigger before the next block so that it votes for it there
+        self.wait_until(lambda: all(winning_trigger_hash in self.valid_triggers(node) for node in non_isolated), timeout=5)
+        # Only the trigger's creator may have voted on it at this height
+        assert_equal(self.count_own_trigger_votes(non_isolated_mns, winning_trigger_hash), 1)
         # Non-isolated node created a trigger and voted YES for it (16 votes total)
         assert_equal(self.nodes[0].gobject("count")["votes"], 16)
         # Isolated node don't see this (still 16 votes total)
@@ -258,8 +286,17 @@ class DashGovernanceTest (DashTestFramework):
 
         self.log.info("Every non-isolated MN should vote for the same trigger now, no new triggers should be created")
         self.wait_until(lambda: list(self.nodes[0].gobject("list", "valid", "triggers").values())[0]['YesCount'] == self.mn_count - 1, timeout=5)
-        more_triggers = self.wait_until(lambda: len(self.nodes[0].gobject("list", "valid", "triggers")) > 1, timeout=5, do_assert=False)
-        assert_equal(more_triggers, False)
+        self.sync_governance_signers(non_isolated)
+        for node in non_isolated:
+            assert self.valid_triggers(node) <= {winning_trigger_hash}
+
+        # Let these votes finish relaying before the isolated node reconnects: if it is offered a vote
+        # before the trigger itself, the vote is only kept as an orphan and may be dropped.
+        self.wait_until(lambda: all(node.gobject("get", winning_trigger_hash)["FundingResult"]["YesCount"] == self.mn_count - 1 for node in non_isolated), timeout=5)
+        for node in non_isolated:
+            # Run the pending once-a-second relay flush now; mockscheduler returns after a validation queue
+            # sync, which is scheduled after the advanced relay task and so runs after it
+            node.mockscheduler(1)
         # All 4 non-isolated nodes voted YES for a trigger created by a non-isolated node earlier (19 votes total)
         assert_equal(self.nodes[0].gobject("count")["votes"], 19)
         # Isolated node don't see this (still 16 votes total)
@@ -288,8 +325,21 @@ class DashGovernanceTest (DashTestFramework):
         self.log.info("Should see two triggers now")
         self.wait_until(lambda: len(isolated.gobject("list", "valid", "triggers")) == 2, timeout=5)
         self.wait_until(lambda: len(self.nodes[0].gobject("list", "valid", "triggers")) == 2, timeout=5)
-        more_triggers = self.wait_until(lambda: len(self.nodes[0].gobject("list", "valid", "triggers")) > 2, timeout=5, do_assert=False)
-        assert_equal(more_triggers, False)
+        # Every masternode must know both triggers before the next block so that it votes on them there
+        both_triggers = {winning_trigger_hash, isolated_trigger_hash}
+        self.wait_until(lambda: all(both_triggers <= self.valid_triggers(node) for node in self.nodes), timeout=5)
+
+        def yes_votes_known(node, trigger_hash, yes_count):
+            # Votes are relayed by a once-a-second scheduler task, which only runs when mocktime moves
+            self.bump_mocktime(1)
+            return node.gobject("get", trigger_hash)["FundingResult"]["YesCount"] == yes_count
+
+        for node in self.nodes:
+            self.wait_until(lambda: yes_votes_known(node, winning_trigger_hash, self.mn_count - 1), timeout=5)
+            self.wait_until(lambda: yes_votes_known(node, isolated_trigger_hash, 1), timeout=5)
+        self.sync_governance_signers(self.nodes)
+        for node in self.nodes:
+            assert_equal(self.valid_triggers(node), both_triggers)
 
         self.log.info("Move another block inside the Superblock maturity window")
         self.bump_mocktime(1)
