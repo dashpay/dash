@@ -11,6 +11,7 @@
 #include <versionbits.h>
 
 #include <bls/bls.h>
+#include <evo/viewcache.h>
 #include <unordered_lru_cache.h>
 
 #include <gsl/pointers.h>
@@ -104,7 +105,8 @@ private:
     static constexpr size_t MNHFCacheSize = 1000;
     Mutex cs_cache;
     // versionBit <-> height
-    Uint256LruHashMap<Signals> mnhfCache GUARDED_BY(cs_cache){MNHFCacheSize};
+    EvoViewCache<Uint256LruHashMap<Signals>> mnhfCache GUARDED_BY(cs_cache){
+        [] { return Uint256LruHashMap<Signals>{MNHFCacheSize}; }};
 
 public:
     CMNHFManager() = delete;
@@ -130,18 +132,30 @@ public:
     // Implements interface
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
-    bool ForceSignalDBUpdate(const CBlockIndex* tip) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
-
-private:
-    void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    //! Recompute and persist the signals at `tip` under `view`, the view of
+    //! the chainstate whose tip it is. Signals this node's Evo state cannot
+    //! rebuild are left to be rebuilt on demand.
+    bool ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+    /** Seed the signal record of a snapshot base into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedSignals(const EvoViewToken& view, const CBlockIndex* pindex, const Signals& signals)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
     /**
-     * This function returns list of signals available on previous block.
-     * if the signals for previous block is not available in cache it would read blocks from disk
-     * until state won't be recovered.
+     * The raw signal record of a block, before GetSignalsStage() filters it.
+     * If neither the cache nor EvoDB has it, it is rebuilt from block data,
+     * persisting the rebuilt records only inside a block-scoped transaction.
+     * A body the rebuild needs and this node lacks raises
+     * BlockDataUnavailableError.
      * NOTE: that some signals could expired between blocks.
      */
     Signals GetForBlock(const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+
+private:
+    void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    //! Persist the signals at `pindex` when a block-scoped transaction can commit them.
+    void MaybePersist(const Signals& signals, const CBlockIndex* const pindex);
 
     /**
      * This function access to in-memory cache or to evo db but does not calculate anything

@@ -5,8 +5,13 @@
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/providertx.h>
+#include <evo/snapshot_config.h>
+#include <evo/snapshot_types.h>
+#include <governance/governance.h>
+#include <governance/object.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <interfaces/chain.h>
@@ -20,11 +25,15 @@
 #include <test/util/setup_common.h>
 #include <util/std23.h>
 #include <util/strencodings.h>
+#include <util/translation.h>
 #include <validation.h>
 #include <version.h>
+#include <warnings.h>
 
 #include <algorithm>
 #include <array>
+#include <optional>
+#include <utility>
 
 #include <boost/test/unit_test.hpp>
 
@@ -80,12 +89,57 @@ BOOST_AUTO_TEST_CASE(findBlock)
 BOOST_AUTO_TEST_CASE(providerTxCapabilities)
 {
     auto node{interfaces::MakeNode(m_node)};
-    const auto capabilities{node->evo().getProviderTxCapabilities()};
+    const auto capabilities{node->evo().getProviderTxCapabilities().value()};
     const uint16_t expected_version{
         WITH_LOCK(::cs_main, return DeploymentToProtxVersion(Assert(m_node.chainman)->ActiveChain().Tip(),
                                                              *Assert(m_node.chainman)))};
     BOOST_CHECK_EQUAL(capabilities.version, expected_version);
     BOOST_CHECK_EQUAL(capabilities.extended_addresses, expected_version >= ProTxVersion::ExtAddr);
+}
+
+// When this node cannot read its Evo state during dual operation, GUI-facing
+// operations report it through their own failure channel and the misc
+// warning; the error never reaches the caller.
+BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain().Tip())};
+    Assert(m_node.dmnman)->UpdatedBlockTip(tip);
+    BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+
+    // With DIP3 counted from genesis the tip's masternode list must be read
+    // from EvoDB, and that read fails as unavailable.
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting([](const CBlockIndex*) {
+        throw BlockDataUnavailableError("masternode list unavailable");
+    });
+    interfaces::GOV::GovernanceInfo info;
+    BOOST_CHECK_NO_THROW(info = node->gov().getGovernanceInfo());
+    BOOST_CHECK(!info.fundingthreshold.has_value());
+    BOOST_CHECK_EQUAL(info.superblockcycle, Params().GetConsensus().nSuperblockCycle);
+    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") != std::string::npos);
+
+    std::optional<std::vector<COutPoint>> collaterals{std::vector<COutPoint>{}};
+    BOOST_CHECK_NO_THROW(collaterals = m_node.chain->listMNCollaterials({}));
+    BOOST_CHECK(!collaterals.has_value());
+
+    // The current votes on a known object depend on the masternode list too.
+    m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.sbman,
+                                                         *m_node.dmnman, *m_node.mn_sync);
+    const CGovernanceObject proposal{uint256(), /*nRevisionIn=*/1, GetTime(), GetRandHash(), /*strDataHexIn=*/{}};
+    m_node.govman->AddGovernanceObjectForTesting(proposal);
+    std::optional<std::vector<CGovernanceVote>> votes{std::vector<CGovernanceVote>{}};
+    BOOST_CHECK_NO_THROW(votes = node->gov().getCurrentVotes(proposal.GetHash()));
+    BOOST_CHECK(!votes.has_value());
+
+    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(nullptr);
+    consensus.DIP0003Height = dip3_height;
+    SetMiscWarning(Untranslated(""));
 }
 
 BOOST_AUTO_TEST_CASE(providerNetInfoValidation)
@@ -298,9 +352,9 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorums)
     BOOST_REQUIRE(window > static_cast<size_t>(llmq_params->signingActiveQuorumCount));
 
     // No commitments yet.
-    BOOST_CHECK(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)).empty());
+    BOOST_CHECK(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)).value().empty());
     // Unconfigured LLMQ type.
-    BOOST_CHECK(node->llmq().getPlatformQuorums(0xEE).empty());
+    BOOST_CHECK(node->llmq().getPlatformQuorums(0xEE).value().empty());
 
     // One more valid commitment than the window can hold, quorum bases at heights 10..50.
     constexpr std::array<int, 5> base_heights{10, 20, 30, 40, 50};
@@ -335,7 +389,7 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorums)
     };
 
     // Newest-first and truncated to the window: bases 50, 40, 30, 20; base 10 falls out.
-    check_quorums(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)), {4, 3, 2, 1});
+    check_quorums(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)).value(), {4, 3, 2, 1});
 
     // A commitment whose public key is invalid consumes its window slot but exports nothing.
     {
@@ -348,7 +402,7 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorums)
                                               /*mined_height=*/61, /*quorum_height=*/60);
         db_tx->Commit();
     }
-    check_quorums(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)), {4, 3, 2});
+    check_quorums(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)).value(), {4, 3, 2});
 }
 
 // getInstantSendLock returns the network-serialized islock for a locked txid, and an empty vector

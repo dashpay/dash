@@ -228,8 +228,8 @@ public:
     //! Lock all existing dust UTXOs that match the current threshold.
     virtual void lockExistingDustOutputs() = 0;
 
-    //! List protx coins.
-    virtual std::vector<COutPoint> listProTxCoins() = 0;
+    //! List protx coins, or nullopt when the masternode list is not available.
+    virtual std::optional<std::vector<COutPoint>> listProTxCoins() = 0;
 
     //! Create transaction.
     virtual util::Result<CTransactionRef> createTransaction(const std::vector<wallet::CRecipient>& recipients,

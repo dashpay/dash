@@ -28,6 +28,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot_config.h>
 #include <evo/specialtxman.h>
 #include <gsl/pointers.h>
 
@@ -48,10 +49,30 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
     fs::path invalid{snapshot};
     invalid += SNAPSHOT_INVALID_SUFFIX;
 
+    // A persisted rejection whose coins directory was not invalidated yet:
+    // finish the invalidation, then drop the rejected generation. A live
+    // generation owns the snapshot directory, so the rejected one's is gone.
+    if (evodb.HasRejectedGeneration()) {
+        if (fs::exists(snapshot) && !evodb.GetSnapshotGeneration()) {
+            LogPrintf("[snapshot] completing interrupted invalid-snapshot coins invalidation\n");
+            try {
+                RenameDurably(snapshot, invalid);
+            } catch (const fs::filesystem_error& e) {
+                error = strprintf(_("Failed to finish interrupted invalid snapshot cleanup: %s"), e.what());
+                return false;
+            }
+        }
+        if (!evodb.CollectRejectedGenerations()) {
+            error = _("Failed to remove rejected assumeutxo snapshot state from the Evo database.");
+            return false;
+        }
+    }
+
     uint256 snapshot_tip;
     const bool has_snapshot_tip{evodb.ReadBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_tip)};
     uint256 ignored;
-    const bool has_metadata{has_snapshot_tip || evodb.HasDualChainstateMarker() ||
+    const auto journal{evodb.ReadPromotionJournal()};
+    const bool has_metadata{has_snapshot_tip || journal || evodb.HasDualChainstateMarker() ||
                             evodb.ReadSnapshotBaseMNListHash(ignored)};
 
     // The first validated-cleanup rename completed. Roll it back so the normal
@@ -69,28 +90,27 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
 
     // Both validated-cleanup renames completed. The NORMAL coins directory now
     // contains the snapshot tip, while lifecycle markers still describe the dual
-    // state. Match those durable facts before promoting the markers.
+    // state. Match those durable facts before finishing.
     if (fs::exists(normal) && !fs::exists(snapshot) && has_metadata) {
-        uint256 coins_tip;
-        try {
-            CCoinsViewDB coins_db{DBParams{.path = normal, .cache_bytes = 1 << 20, .obfuscate = true}, CoinsViewOptions{}};
-            coins_tip = coins_db.GetBestBlock();
-        } catch (const std::exception& e) {
-            error = strprintf(_("Failed to inspect interrupted snapshot cleanup: %s"), e.what());
-            return false;
-        }
-        // Caution: this condition can also match a crash between an
-        // invalid-snapshot rename and its marker discard when validation
-        // failed with the background tip AT the base block (HASH_MISMATCH /
-        // EVO_STATE_MISMATCH): the background coins tip and the SNAPSHOT
-        // marker both hold the base hash. Taking the promote branch there is
-        // deliberate and equivalent: PromoteSnapshotMarkers rewrites the
-        // NORMAL best-block with the value it already has and erases the same
-        // marker set DiscardSnapshotMarkers would. Keep the two functions'
-        // side effects equivalent under that overlap, or disambiguate here.
-        if (has_snapshot_tip && coins_tip == snapshot_tip) {
-            LogPrintf("[snapshot] completing interrupted snapshot marker promotion\n");
-            if (!evodb.PromoteSnapshotMarkers(snapshot_tip)) {
+        // A promotion is journaled before its first rename, so only a
+        // journaled cleanup may promote; anything else is an interrupted
+        // invalid-snapshot cleanup.
+        if (journal) {
+            uint256 coins_tip;
+            try {
+                CCoinsViewDB coins_db{DBParams{.path = normal, .cache_bytes = 1 << 20, .obfuscate = true},
+                                      CoinsViewOptions{}};
+                coins_tip = coins_db.GetBestBlock();
+            } catch (const std::exception& e) {
+                error = strprintf(_("Failed to inspect interrupted snapshot cleanup: %s"), e.what());
+                return false;
+            }
+            if (coins_tip != journal->tip) {
+                error = _("Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.");
+                return false;
+            }
+            LogPrintf("[snapshot] completing interrupted snapshot EvoDB promotion\n");
+            if (!evodb.PromoteSnapshotMarkers(journal->tip)) {
                 error = _("Failed to finish interrupted snapshot marker promotion.");
                 return false;
             }
@@ -105,8 +125,7 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
         }
 
         // Invalid snapshot rename completed, but the synced marker discard did
-        // not. A stale _INVALID directory cannot mask a completed valid swap:
-        // the coins/snapshot-tip match above always takes precedence.
+        // not.
         if (fs::exists(invalid)) {
             LogPrintf("[snapshot] completing interrupted invalid-snapshot marker cleanup\n");
             if (!evodb.DiscardSnapshotMarkers()) {
@@ -132,7 +151,9 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
         }
     }
 
-    // No metadata is otherwise the already-promoted/no-snapshot state and needs no work.
+    // No metadata is otherwise the already-promoted/no-snapshot state and needs
+    // no work. A journal with both coins directories still in place records a
+    // promotion that renamed nothing yet: completion re-runs and redoes it.
     return true;
 }
 
@@ -217,6 +238,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
     // block tree into BlockIndex()!
 
     for (Chainstate* chainstate : chainman.GetAll()) {
+        const EvoViewScope evo_view{chainstate->EvoView()};
         LogPrintf("Initializing chainstate %s\n", chainstate->ToString());
 
         chainstate->InitCoinsDB(
@@ -267,7 +289,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         }
     }
 
-    if (!special_tx.m_mnhfman->ForceSignalDBUpdate(chainman.ActiveTip())) {
+    if (!special_tx.m_mnhfman->ForceSignalDBUpdate(chainman.ActiveChainstate().EvoView(), chainman.ActiveTip())) {
         return {ChainstateLoadStatus::FAILURE, _("Error upgrading evo database for EHF")};
     }
 
@@ -307,6 +329,13 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
 
     LOCK(cs_main);
 
+    if (!options.reindex && !options.reindex_chainstate) {
+        if (auto result{evodb.LoadSnapshotGenerations(
+                EvoSnapshotConsensusConfig::FromParams(chainman.GetParams()).Fingerprint())};
+            !result) {
+            return {ChainstateLoadStatus::FAILURE, util::ErrorString(result)};
+        }
+    }
     if (!options.dash_dbs_in_memory && !options.reindex && !options.reindex_chainstate) {
         bilingual_str recovery_error;
         if (!RecoverSnapshotCleanup(evodb, options.data_dir, recovery_error)) {
@@ -333,6 +362,15 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     bilingual_str snapshot_error;
     if (!chainman.DetectSnapshotChainstate(options.mempool, snapshot_error)) {
         return {ChainstateLoadStatus::FAILURE, snapshot_error};
+    }
+    // A crash between publishing a generation and persisting the snapshot
+    // directory's base block leaves a generation that no chainstate uses.
+    if (evodb.GetSnapshotGeneration() && !chainman.IsSnapshotActive()) {
+        if (evodb.ReadPromotionJournal() || !evodb.DiscardSnapshotMarkers()) {
+            return {ChainstateLoadStatus::FAILURE,
+                    _("Snapshot EvoDB state has no snapshot chainstate. Reindex is required.")};
+        }
+        LogPrintf("[snapshot] discarded a snapshot EvoDB generation that never activated\n");
     }
 
     auto [init_status, init_error] = CompleteChainstateInitialization(chainman, cache_sizes, options, evodb, dmnman,
@@ -403,6 +441,7 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
     LOCK(cs_main);
 
     for (Chainstate* chainstate : chainman.GetAll()) {
+        const EvoViewScope evo_view{chainstate->EvoView()};
         if (!is_coinsview_empty(chainstate)) {
             const CBlockIndex* tip = chainstate->m_chain.Tip();
             if (tip && tip->nTime > GetTime() + MAX_FUTURE_BLOCK_TIME) {

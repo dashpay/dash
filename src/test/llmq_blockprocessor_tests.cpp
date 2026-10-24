@@ -22,6 +22,7 @@
 #include <llmq/context.h>
 #include <msg_result.h>
 #include <protocol.h>
+#include <random.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -133,6 +134,133 @@ BOOST_FIXTURE_TEST_CASE(unrequested_qfcommit_is_dropped_and_scored, TestChain100
     m_node.peerman->FinalizeNode(*unsolicited_peer);
     m_node.peerman->FinalizeNode(*announcing_peer);
     SetMockTime(0s);
+}
+
+
+// The ordinary scanner over a complete history, written out the way
+// CQuorumBlockProcessor walks its index: newest first without rotation;
+// with it, the cycle-th newest record of every index in ascending order, one
+// cycle after another, until a cycle yields nothing.
+std::vector<const CBlockIndex*> OrdinaryScan(bool indexed,
+                                             const std::vector<std::vector<std::pair<int, const CBlockIndex*>>>& history,
+                                             int cutoff, size_t count)
+{
+    std::vector<const CBlockIndex*> ret;
+    const auto nth_eligible = [&](size_t index, size_t nth) -> const CBlockIndex* {
+        for (const auto& [mined, block] : history[index]) {
+            if (mined > cutoff) continue;
+            if (nth == 0) return block;
+            --nth;
+        }
+        return nullptr;
+    };
+    if (!indexed) {
+        for (size_t nth{0}; ret.size() < count; ++nth) {
+            const CBlockIndex* block{nth_eligible(0, nth)};
+            if (block == nullptr) break;
+            ret.push_back(block);
+        }
+        return ret;
+    }
+    for (size_t cycle{0}; ret.size() < count; ++cycle) {
+        std::vector<const CBlockIndex*> cycle_ret;
+        for (size_t index{0}; index < history.size(); ++index) {
+            if (const CBlockIndex * block{nth_eligible(index, cycle)}) cycle_ret.push_back(block);
+        }
+        if (cycle_ret.empty()) break;
+        const size_t need{count - ret.size()};
+        ret.insert(ret.end(), cycle_ret.begin(), cycle_ret.begin() + std::min(need, cycle_ret.size()));
+    }
+    return ret;
+}
+
+// A snapshot carries the canonical selection of a scan's history: the newest
+// K records without rotation, the newest two of each quorum index with it,
+// marked END when it holds fewer. On small generated histories, a scan the
+// carried records prove must return exactly what the ordinary scanner returns
+// over the complete history, at every cutoff and count, and coverage never
+// shrinks as the cutoff rises within one fixed context.
+BOOST_AUTO_TEST_CASE(scan_proofs_agree_with_full_scans)
+{
+    FastRandomContext rng{/*fDeterministic=*/true};
+    size_t proven_count{0};
+    size_t refused_count{0};
+    size_t multi_rank_proofs{0};
+    for (int round{0}; round < 300; ++round) {
+        const bool indexed{round % 2 == 1};
+        const size_t sequence_count{indexed ? 2 + rng.randrange(3) : 1};
+        const size_t selected{indexed ? 2 : 1 + rng.randrange(4)};
+        const int base{10 + static_cast<int>(rng.randrange(30))};
+        // Distinct stand-in quorum blocks for every record of this round.
+        std::vector<CBlockIndex> blocks(sequence_count * static_cast<size_t>(base));
+        size_t next_block{0};
+        // Mined heights per sequence, newest first.
+        std::vector<std::vector<std::pair<int, const CBlockIndex*>>> history(sequence_count);
+        for (auto& sequence : history) {
+            for (int height{1}; height <= base; ++height) {
+                if (rng.randrange(3) == 0) sequence.emplace_back(height, &blocks[next_block++]);
+            }
+            std::reverse(sequence.begin(), sequence.end());
+        }
+        std::vector<std::vector<std::pair<int, const CBlockIndex*>>> carried(sequence_count);
+        std::vector<ScanSequenceEnd> ends;
+        for (size_t i{0}; i < sequence_count; ++i) {
+            for (const auto& record : history[i]) {
+                if (carried[i].size() < selected) carried[i].push_back(record);
+            }
+            ends.push_back(carried[i].size() < selected ? ScanSequenceEnd::END : ScanSequenceEnd::UNKNOWN);
+        }
+        for (size_t count{1}; count <= 3 * sequence_count + 1; ++count) {
+            bool was_covered{false};
+            for (int cutoff{0}; cutoff <= base; ++cutoff) {
+                std::vector<ScanSequence> proof;
+                for (size_t i{0}; i < sequence_count; ++i) {
+                    ScanSequence sequence{{}, ends[i]};
+                    for (const auto& [mined, block] : carried[i]) {
+                        if (mined <= cutoff) sequence.records.push_back(block);
+                    }
+                    proof.push_back(std::move(sequence));
+                }
+                const auto expected{OrdinaryScan(indexed, history, cutoff, count)};
+                const auto proven{TraverseScanSequences(indexed, proof, count)};
+                if (proven) {
+                    BOOST_CHECK(*proven == expected);
+                    ++proven_count;
+                    const auto populated{std::count_if(proof.begin(), proof.end(), [](const auto& sequence) {
+                        return sequence.records.size() >= 2;
+                    })};
+                    if (indexed && populated >= 2 && expected.size() > sequence_count) ++multi_rank_proofs;
+                } else {
+                    BOOST_CHECK(!was_covered);
+                    ++refused_count;
+                }
+                was_covered = was_covered || proven.has_value();
+            }
+        }
+    }
+    BOOST_CHECK_GT(proven_count, 0U);
+    BOOST_CHECK_GT(refused_count, 0U);
+    BOOST_CHECK_GT(multi_rank_proofs, 0U);
+}
+
+// The rotating counterexample: four quorum indexes, index 0 never formed,
+// indexes 1-3 carrying [new, old] with older ones omitted, and a cutoff
+// between new and old. Rank 0 yields the three old records; rank 1 needs index
+// 1's next one, which is not carried, so the scan is not proven rather than
+// returning three (or the wrong four).
+BOOST_AUTO_TEST_CASE(rotating_scan_counterexample_is_not_covered)
+{
+    std::vector<CBlockIndex> blocks(6);
+    std::vector<ScanSequence> sequences{{{}, ScanSequenceEnd::END}};
+    for (size_t i{0}; i < 3; ++i) {
+        // After the cutoff drops each index's newest record, its old one is
+        // eligible and the carried sequence goes on beyond it.
+        sequences.push_back({{&blocks[2 * i + 1]}, ScanSequenceEnd::UNKNOWN});
+    }
+    BOOST_CHECK(!TraverseScanSequences(/*indexed=*/true, sequences, 4).has_value());
+    const auto three{TraverseScanSequences(/*indexed=*/true, sequences, 3)};
+    BOOST_REQUIRE(three.has_value());
+    BOOST_CHECK(*three == (std::vector<const CBlockIndex*>{&blocks[1], &blocks[3], &blocks[5]}));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

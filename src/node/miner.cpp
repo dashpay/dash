@@ -27,13 +27,14 @@
 
 #include <chainlock/chainlock.h>
 #include <chainlock/handler.h>
-#include <evo/specialtx.h>
 #include <evo/cbtx.h>
 #include <evo/creditpool.h>
+#include <evo/deterministicmns.h>
 #include <evo/mnhftx.h>
 #include <evo/providertx.h>
-#include <evo/deterministicmns.h>
 #include <evo/simplifiedmns.h>
+#include <evo/snapshot_types.h>
+#include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <instantsend/instantsend.h>
 #include <llmq/blockprocessor.h>
@@ -114,8 +115,8 @@ void BlockAssembler::resetBlock()
 }
 
 // Helper to calculate best chainlock
-static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
-                                  uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
+static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CSpecialTxProcessor& special_tx,
+                                  const CBlockIndex* pindexPrev, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
 {
     auto best_clsig = chainlocks.GetBestChainLock();
     if (best_clsig.getHeight() < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)) {
@@ -129,7 +130,17 @@ static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const
         return true;
     }
 
-    auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
+    // The same reader block validation uses, so a snapshot chainstate mining on
+    // its base sees the carried ChainLock rather than "none".
+    const CoinbaseChainlock previous{special_tx.GetCoinbaseChainlock(pindexPrev)};
+    if (previous.status == CoinbaseChainlock::Status::UNAVAILABLE) {
+        throw BlockDataUnavailableError(
+            strprintf("coinbase ChainLock of block %s is not available", pindexPrev->GetBlockHash().ToString()));
+    }
+    std::optional<std::pair<CBLSSignature, uint32_t>> prevBlockCoinbaseChainlock;
+    if (previous.status == CoinbaseChainlock::Status::CERTIFIED) {
+        prevBlockCoinbaseChainlock = std::make_pair(previous.signature, previous.height_diff);
+    }
     if (prevBlockCoinbaseChainlock.has_value()) {
         // Previous block Coinbase contains a non-null CL: We must insert the same sig or a better (newest) one
         if (best_clsig.IsNull()) {
@@ -220,6 +231,7 @@ void BlockAssembler::FillBlockPayments(CMutableTransaction& txNew, const CBlockI
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    const EvoViewScope evo_view{m_chainstate.EvoView()};
     const auto time_start{SteadyClock::now()};
 
     resetBlock();
@@ -354,7 +366,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, state.ToString()));
             }
             if (fV20Active_context) {
-                if (CalcCbTxBestChainlock(m_chainlocks, pindexPrev, cbTx.bestCLHeightDiff, cbTx.bestCLSignature)) {
+                if (CalcCbTxBestChainlock(m_chainlocks, m_chainstate.m_special_tx, pindexPrev, cbTx.bestCLHeightDiff,
+                                          cbTx.bestCLSignature)) {
                     LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());
                 } else {
                     // not an error
@@ -811,6 +824,8 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 std::string error;
                 try {
                     if (!package_mn_list->ApplyTx(tx, state)) error = state.ToString();
+                } catch (const evo::LocalStateError&) {
+                    throw;
                 } catch (const std::runtime_error& e) {
                     // AddMN()/UpdateMN() report a unique-property conflict by throwing
                     error = e.what();
