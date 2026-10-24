@@ -4,6 +4,8 @@
 
 #include <evo/cbtx.h>
 
+#include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -190,6 +192,15 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
 
     CBlock block;
     if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        // A snapshot view lacks the bodies at or below its base, where a
+        // coinbase ChainLock that cannot be read cannot be told from none.
+        if (const auto view{EvoViewScope::InnermostAny()};
+            view && view->identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view->base_height &&
+            !WITH_LOCK(::cs_main, return pindex->nStatus & BLOCK_HAVE_DATA)) {
+            throw BlockDataUnavailableError(
+                strprintf("coinbase of block %s at or below the snapshot base is not available",
+                          pindex->GetBlockHash().ToString()));
+        }
         return std::nullopt;
     }
 

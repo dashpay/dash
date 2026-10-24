@@ -104,6 +104,11 @@ struct NodeContext {
     std::unique_ptr<CJWalletManager> cj_walletman;
     std::unique_ptr<CDSTXManager> dstxman;
     std::unique_ptr<CEvoDB> evodb;
+    //! The Evo database for dispatchers that start before the block databases
+    //! load (the scheduler, REST) to bind to. Startup publishes it once loading,
+    //! retries included, has finished and withdraws it before destroying it,
+    //! after those dispatchers have stopped. Until then their work runs unbound.
+    std::atomic<const CEvoDB*> evodb_for_dispatch{nullptr};
     std::unique_ptr<CSpecialTxProcessor> special_tx;
     std::unique_ptr<CDeterministicMNManager> dmnman;
     std::unique_ptr<llmq::CInstantSendManager> isman;
