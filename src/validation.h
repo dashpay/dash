@@ -711,10 +711,16 @@ public:
     bool ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     /** Dash: the coinbase may pay out at most the block reward plus, on a
-     *  triggered superblock, the payments governance expects at that height. */
-    bool IsBlockValueValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, CAmount blockReward, std::string& strErrorRet) const;
-    /** Dash: the coinbase must carry every payment owed to the masternode list at the previous block. */
-    bool IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list, CAmount blockSubsidy, CAmount feeReward) const;
+     *  triggered superblock, the payments governance expects at that height.
+     *  If requested, returns only the payments of a successfully validated trigger. */
+    bool IsBlockValueValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list,
+                           CAmount blockReward, std::string& strErrorRet,
+                           std::optional<std::vector<CTxOut>>* superblock_payments_ret = nullptr) const;
+    /** Dash: the coinbase must carry every payment owed to the masternode list at the previous block.
+     *  If validated superblock payments are supplied, match both categories to distinct outputs. */
+    bool IsBlockPayeeValid(const CBlock& block, const CBlockIndex* pindex, const CDeterministicMNList& mn_list,
+                           CAmount blockSubsidy, CAmount feeReward,
+                           const std::vector<CTxOut>* superblock_payments = nullptr) const;
 
     // Apply the effects of a block disconnection on the UTXO set.
     bool DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
