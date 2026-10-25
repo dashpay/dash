@@ -2,7 +2,8 @@ Block storage
 -------------
 
 Block files (`blocks/blk*.dat`) can now be written zstd-compressed, one frame per record, which
-saves about a fifth of the space of new block files.
+saves about a fifth of the space of new block files. Block undo data (`blocks/rev*.dat`) is
+compressed the same way, which saves about a quarter.
 The new `-blockcompression=<level>` option selects the zstd level.
 It defaults to 0 in this release, which stores records exactly as before, so nothing changes
 on disk unless the option is set. Level 3 is the recommended setting when opting in; levels above 5

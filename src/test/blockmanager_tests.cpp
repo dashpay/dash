@@ -4,14 +4,20 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
+#include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <consensus/merkle.h>
+#include <hash.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <pow.h>
 #include <script/script.h>
 #include <streams.h>
+#include <test/util/random.h>
+#include <tinyformat.h>
+#include <undo.h>
 #include <util/chaintype.h>
+#include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/zstd.h>
 #include <validation.h>
@@ -29,6 +35,16 @@ using node::MAX_BLOCKFILE_SIZE;
 static uint32_t ReadSizeField(const BlockManager& blockman, const FlatFilePos& pos)
 {
     AutoFile file{blockman.OpenBlockFile(FlatFilePos{pos.nFile, pos.nPos - sizeof(uint32_t)}, true)};
+    uint32_t size_field;
+    file >> size_field;
+    return size_field;
+}
+
+/** Size field of the undo record whose payload starts at pos */
+static uint32_t ReadUndoSizeField(const fs::path& blocks_dir, const FlatFilePos& pos)
+{
+    AutoFile file{fsbridge::fopen(blocks_dir / fs::PathFromString(strprintf("rev%05u.dat", pos.nFile)), "rb")};
+    BOOST_REQUIRE_EQUAL(FileSeek64(file.Get(), pos.nPos - sizeof(uint32_t), SEEK_SET), 0);
     uint32_t size_field;
     file >> size_field;
     return size_field;
@@ -137,6 +153,102 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
         file << block;
     }
     BOOST_CHECK(plain_blockman.ReadBlockFromDisk(read_block, legacy_pos) == block.GetHash());
+}
+
+BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
+{
+    if (!util::ZstdAvailable()) return;
+    const auto params{CreateChainParams(ArgsManager{}, ChainType::REGTEST)};
+    const fs::path blocks_dir{m_args.GetBlocksDirPath()};
+    const BlockManager::Options blockman_opts{
+        .chainparams = *params,
+        .block_compression = 3,
+        .blocks_dir = blocks_dir,
+    };
+    BlockManager blockman{blockman_opts};
+    // undo data goes next to the block file, so block file 0 has to exist
+    BOOST_REQUIRE(!blockman.SaveBlockToDisk(params->GenesisBlock(), 0, nullptr).IsNull());
+
+    // undo data of 8000 spent outputs, half random so that it compresses to several zstd chunks
+    CBlockUndo undo;
+    undo.vtxundo.emplace_back();
+    for (int i{0}; i < 8000; ++i) {
+        const CScript script{CScript() << ToByteVector(InsecureRand256()) << std::vector<unsigned char>(32, 0x42)};
+        undo.vtxundo.back().vprevout.emplace_back(CTxOut{i * COIN, script}, /*nHeightIn=*/100, /*fCoinBaseIn=*/false);
+    }
+    const auto serialized_size{::GetSerializeSize(undo, CLIENT_VERSION)};
+
+    const uint256 prev_hash{params->GenesisBlock().GetHash()};
+    CBlockIndex prev{params->GenesisBlock()};
+    prev.phashBlock = &prev_hash;
+    const auto write_undo{[&](BlockManager& manager, CBlockIndex& index, const CBlockUndo& data) {
+        LOCK(::cs_main);
+        index.pprev = &prev;
+        index.nFile = 0;
+        BlockValidationState state;
+        BOOST_REQUIRE(manager.WriteUndoDataForBlock(data, state, index));
+        return index.GetUndoPos();
+    }};
+    const auto check_read{[&](const BlockManager& manager, const CBlockIndex& index, const CBlockUndo& expected) {
+        CBlockUndo read_undo;
+        BOOST_CHECK(manager.UndoReadFromDisk(read_undo, index));
+        BOOST_CHECK(SerializeHash(read_undo) == SerializeHash(expected));
+    }};
+
+    CBlockIndex index{params->GenesisBlock()};
+    const FlatFilePos pos{write_undo(blockman, index, undo)};
+    const uint32_t size_field{ReadUndoSizeField(blocks_dir, pos)};
+    BOOST_CHECK(size_field & BLOCK_RECORD_COMPRESSED);
+    BOOST_CHECK((size_field & BLOCK_RECORD_SIZE_MASK) < serialized_size);
+    // the undo file accounts for the stored record followed by its checksum
+    BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nUndoSize, pos.nPos + (size_field & BLOCK_RECORD_SIZE_MASK) + uint256::size());
+    check_read(blockman, index, undo);
+
+    // compression enabled, but the record does not shrink: it is stored plain
+    const CBlockUndo empty_undo;
+    CBlockIndex empty_index{params->GenesisBlock()};
+    const FlatFilePos empty_pos{write_undo(blockman, empty_index, empty_undo)};
+    BOOST_CHECK_EQUAL(ReadUndoSizeField(blocks_dir, empty_pos), ::GetSerializeSize(empty_undo, CLIENT_VERSION));
+    BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nUndoSize, empty_pos.nPos + ::GetSerializeSize(empty_undo, CLIENT_VERSION) + uint256::size());
+    check_read(blockman, empty_index, empty_undo);
+
+    // a frame followed by bytes the decompressor never needs (here a 200 KB skippable frame) still finds its checksum
+    DataStream undo_data;
+    undo_data << undo;
+    std::vector<std::byte> payload{util::ZstdCompress(MakeByteSpan(undo_data), 3)};
+    DataStream skippable;
+    skippable << uint32_t{0x184D2A50} << uint32_t{200000};
+    payload.insert(payload.end(), skippable.begin(), skippable.end());
+    payload.resize(payload.size() + 200000);
+    HashWriter hasher{};
+    hasher << prev_hash;
+    hasher.write(MakeByteSpan(undo_data));
+    CBlockIndex trailing_index{params->GenesisBlock()};
+    {
+        AutoFile file{fsbridge::fopen(blocks_dir / "rev00000.dat", "rb+")};
+        BOOST_REQUIRE_EQUAL(FileSeek64(file.Get(), blockman.GetBlockFileInfo(0)->nUndoSize, SEEK_SET), 0);
+        file << params->MessageStart() << (static_cast<uint32_t>(payload.size()) | BLOCK_RECORD_COMPRESSED);
+        LOCK(::cs_main);
+        trailing_index.pprev = &prev;
+        trailing_index.nFile = 0;
+        trailing_index.nUndoPos = FileTell64(file.Get());
+        trailing_index.nStatus |= BLOCK_HAVE_UNDO;
+        file.write(payload);
+        file << hasher.GetHash();
+    }
+    check_read(blockman, trailing_index, undo);
+
+    // compression disabled: the record holds the serialized undo data (written from the start of the undo file again)
+    const BlockManager::Options plain_opts{
+        .chainparams = *params,
+        .block_compression = 0,
+        .blocks_dir = blocks_dir,
+    };
+    BlockManager plain_blockman{plain_opts};
+    BOOST_REQUIRE(!plain_blockman.SaveBlockToDisk(params->GenesisBlock(), 0, nullptr).IsNull());
+    CBlockIndex plain_index{params->GenesisBlock()};
+    BOOST_CHECK_EQUAL(ReadUndoSizeField(blocks_dir, write_undo(plain_blockman, plain_index, undo)), serialized_size);
+    check_read(plain_blockman, plain_index, undo);
 }
 
 BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain100Setup)
