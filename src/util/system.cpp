@@ -19,7 +19,6 @@
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
-#include <util/getuniquepath.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/syserror.h>

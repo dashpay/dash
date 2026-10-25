@@ -450,7 +450,6 @@ BITCOIN_CORE_H = \
   util/fees.h \
   util/fs.h \
   util/fs_helpers.h \
-  util/getuniquepath.h \
   util/golombrice.h \
   util/hash_type.h \
   util/hasher.h \
@@ -1067,7 +1066,6 @@ libbitcoin_util_a_SOURCES = \
   util/fees.cpp \
   util/fs.cpp \
   util/fs_helpers.cpp \
-  util/getuniquepath.cpp \
   util/hasher.cpp \
   util/message.cpp \
   util/moneystr.cpp \
@@ -1377,7 +1375,6 @@ libdashkernel_la_SOURCES = \
   util/check.cpp \
   util/fs.cpp \
   util/fs_helpers.cpp \
-  util/getuniquepath.cpp \
   util/hasher.cpp \
   util/message.cpp \
   util/moneystr.cpp \
