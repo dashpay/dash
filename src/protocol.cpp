@@ -9,8 +9,6 @@
 
 #include <atomic>
 
-static std::atomic<bool> g_initial_block_download_completed(false);
-
 #define MAKE_MSG(var_name, p2p_name_str)   \
         const char* var_name=p2p_name_str; \
         static_assert(std::size(p2p_name_str) <= CMessageHeader::COMMAND_SIZE + 1, "p2p_name_str cannot be greater than COMMAND_SIZE"); // Includes +1 for null termination character.
@@ -245,18 +243,6 @@ bool CMessageHeader::IsCommandValid() const
     }
 
     return true;
-}
-
-
-ServiceFlags GetDesirableServiceFlags(ServiceFlags services) {
-    if ((services & NODE_NETWORK_LIMITED) && g_initial_block_download_completed) {
-        return ServiceFlags(NODE_NETWORK_LIMITED);
-    }
-    return ServiceFlags(NODE_NETWORK);
-}
-
-void SetServiceFlagsIBDCache(bool state) {
-    g_initial_block_download_completed = state;
 }
 
 CInv::CInv()
