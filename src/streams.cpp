@@ -4,6 +4,7 @@
 
 #include <span.h>
 #include <streams.h>
+#include <util/fs_helpers.h>
 
 #include <array>
 
@@ -13,7 +14,7 @@ std::size_t AutoFile::detail_fread(Span<std::byte> dst)
     if (m_xor.empty()) {
         return std::fread(dst.data(), 1, dst.size(), m_file);
     } else {
-        const auto init_pos{std::ftell(m_file)};
+        const auto init_pos{FileTell64(m_file)};
         if (init_pos < 0) throw std::ios_base::failure("AutoFile::read: ftell failed");
         std::size_t ret{std::fread(dst.data(), 1, dst.size(), m_file)};
         util::Xor(dst.subspan(0, ret), m_xor, init_pos);
@@ -49,7 +50,7 @@ void AutoFile::write(Span<const std::byte> src)
             throw std::ios_base::failure("AutoFile::write: write failed");
         }
     } else {
-        auto current_pos{std::ftell(m_file)};
+        auto current_pos{FileTell64(m_file)};
         if (current_pos < 0) throw std::ios_base::failure("AutoFile::write: ftell failed");
         std::array<std::byte, 4096> buf;
         while (src.size() > 0) {
