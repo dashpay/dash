@@ -2341,7 +2341,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
     }
 
     for (CNode* pnode : nodes) {
-        bool select_recv = !pnode->fHasRecvData;
+        bool select_recv = !pnode->fHasRecvData && !pnode->fPauseRecv;
         bool select_send = !pnode->fCanSendData;
         if (!select_recv && !select_send) continue;
 
