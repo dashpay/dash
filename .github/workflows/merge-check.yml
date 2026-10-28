@@ -4,6 +4,10 @@ permissions:
   contents: read
   statuses: write
 
+concurrency:
+  group: merge-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # Check branch pushes to protect develop and release branches, and check PR
 # merge refs so the required status is reported before a PR is merged. PR merge
 # conflicts are already handled by GitHub and label-merge-conflicts.yml.
@@ -22,6 +26,21 @@ jobs:
   merge_check:
     runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
+      - name: Mark merge check pending
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const sha = context.eventName === 'pull_request_target'
+              ? context.payload.pull_request.head.sha
+              : context.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state: 'pending',
+              context: 'check_merge',
+            });
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -56,7 +75,7 @@ jobs:
           fi
 
       - name: Publish merge check status
-        if: always()
+        if: always() && !cancelled()
         uses: actions/github-script@v8
         with:
           script: |
