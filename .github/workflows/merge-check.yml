@@ -30,7 +30,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          EVENT_PREVIOUS_HEAD_SHA: ${{ github.event.changes.head.sha.from }}
+          EVENT_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
           PENDING_FILE: ${{ runner.temp }}/merge-check-pending
         with:
           script: |
@@ -111,7 +111,7 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref || github.ref_name }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_PREVIOUS_HEAD_SHA: ${{ github.event.changes.head.sha.from }}
+          PR_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
           PR_ACTION: ${{ github.event.action }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -185,7 +185,7 @@ jobs:
             pull_requests="$(gh api --paginate \
               "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
               --jq '.[] | select((.head.sha == env.PR_HEAD_SHA or .head.sha == env.PR_PREVIOUS_HEAD_SHA) and (.base.ref == "develop" or (.base.ref | test("^v.*\\.x$")))) | [.number, .base.ref, .head.sha] | @tsv')" || exit 1
-            if [[ "${GITHUB_EVENT_ACTION:-}" != "closed" && -z "${pull_requests}" ]]; then
+            if [[ "${PR_ACTION:-}" != "closed" && -z "${pull_requests}" ]]; then
               pull_requests="${PR_NUMBER}"$'\t'"${PR_BASE_REF}"$'\t'"${PR_HEAD_SHA}"
             fi
             while IFS=$'\t' read -r number base_ref head_sha; do
@@ -233,6 +233,25 @@ jobs:
               : 'failure';
             if (fs.existsSync(process.env.STALE_FILE)
               && fs.readFileSync(process.env.STALE_FILE, 'utf8').trim() === 'true') {
+              if (fs.existsSync(process.env.PENDING_FILE)) {
+                for (const line of fs.readFileSync(process.env.PENDING_FILE, 'utf8').trim().split('\n')) {
+                  if (!line) continue;
+                  const [, checkId] = line.split('\t');
+                  if (!checkId) continue;
+                  await github.rest.checks.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    check_run_id: Number(checkId),
+                    status: 'completed',
+                    conclusion: 'failure',
+                    completed_at: new Date().toISOString(),
+                    output: {
+                      title: 'Merge check superseded',
+                      summary: 'The protected base changed during validation; a newer run must replace this result.',
+                    },
+                  });
+                }
+              }
               return;
             }
             const closed = context.eventName === 'pull_request_target'
@@ -286,6 +305,8 @@ jobs:
               const checkId = checkIds.get(sha);
               if (checkId) {
                 await github.rest.checks.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
                   check_run_id: checkId,
                   ...params,
                 });
