@@ -88,7 +88,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           git fetch --no-tags origin "+master:master"
           RESULTS_FILE="${RUNNER_TEMP}/merge-check-results"
           : > "${RESULTS_FILE}"
