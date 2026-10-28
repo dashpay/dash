@@ -2,7 +2,7 @@ name: Check Merge Fast-Forward Only
 
 permissions:
   contents: read
-  statuses: write
+  checks: write
 
 concurrency:
   group: merge-check-${{ github.event.pull_request.number || github.ref }}
@@ -20,7 +20,7 @@ on:
     branches:
       - develop
       - 'v*.x'
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, edited, closed]
 
 jobs:
   merge_check:
@@ -29,8 +29,8 @@ jobs:
       - name: Mark merge checks pending
         uses: actions/github-script@v8
         env:
-          BASE_REF: ${{ github.ref_name }}
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
           PENDING_FILE: ${{ runner.temp }}/merge-check-pending
         with:
           script: |
@@ -50,23 +50,49 @@ jobs:
                 || /^v.*\.x$/.test(pull.base.ref);
               const relevant = context.eventName === 'push'
                 ? protectedBase
-                : protectedBase && pull.head.sha === process.env.EVENT_HEAD_SHA;
+                : protectedBase && (pull.head.sha === process.env.EVENT_HEAD_SHA
+                  || pull.head.sha === process.env.EVENT_PREVIOUS_HEAD_SHA);
               if (relevant) {
                 heads.add(pull.head.sha);
               }
             }
-            if (context.eventName === 'pull_request_target') {
+            if (context.eventName === 'pull_request_target'
+              && context.payload.action !== 'closed') {
               heads.add(process.env.EVENT_HEAD_SHA);
             }
-            fs.writeFileSync(process.env.PENDING_FILE, `${[...heads].join('\n')}\n`);
+
+            const checkIds = new Map();
+            const writePendingFile = () => {
+              fs.writeFileSync(process.env.PENDING_FILE,
+                [...heads].map((sha) => `${sha}\t${checkIds.get(sha) || ''}`).join('\n') + '\n');
+            };
+            writePendingFile();
             for (const sha of heads) {
-              await github.rest.repos.createCommitStatus({
+              const existing = await github.paginate(github.rest.checks.listForRef, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                sha,
-                state: 'pending',
-                context: 'check_merge',
+                ref: sha,
+                check_name: 'check_merge',
+                per_page: 100,
               });
+              const params = {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'check_merge',
+                head_sha: sha,
+                external_id: `${process.env.GITHUB_RUN_ID}:${sha}`,
+                status: 'in_progress',
+                started_at: new Date().toISOString(),
+                output: {
+                  title: 'Checking merge fast-forward status',
+                  summary: 'The merge check is in progress.',
+                },
+              };
+              const check = existing.length
+                ? await github.rest.checks.update({ check_run_id: existing[0].id, ...params })
+                : await github.rest.checks.create(params);
+              checkIds.set(sha, check.data.id);
+              writePendingFile();
             }
 
       - name: Checkout repository
@@ -86,12 +112,29 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref || github.ref_name }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
+          PR_ACTION: ${{ github.event.action }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin "+master:master"
           RESULTS_FILE="${RUNNER_TEMP}/merge-check-results"
+          SNAPSHOTS_FILE="${RUNNER_TEMP}/merge-check-base-snapshots"
+          STALE_FILE="${RUNNER_TEMP}/merge-check-stale"
           : > "${RESULTS_FILE}"
+          : > "${SNAPSHOTS_FILE}"
+          : > "${STALE_FILE}"
+          declare -A base_snapshots
+
+          record_base_snapshot() {
+            local base_ref="$1"
+            local base_sha
+            if [[ -z "${base_snapshots[${base_ref}]+x}" ]]; then
+              base_sha="$(git ls-remote origin "refs/heads/${base_ref}" | awk '{print $1}')"
+              base_snapshots["${base_ref}"]="${base_sha}"
+              printf '%s\t%s\n' "${base_ref}" "${base_sha}" >> "${SNAPSHOTS_FILE}"
+            fi
+          }
 
           check_pull_request() {
             local number="$1"
@@ -100,6 +143,7 @@ jobs:
             local state=success
             local merge_sha
 
+            record_base_snapshot "${base_ref}"
             git fetch --no-tags origin "+${base_ref}:base_branch"
             git fetch --no-tags origin "+pull/${number}/head:pr_head"
             if [[ "$(git rev-parse pr_head)" != "${head_sha}" ]]; then
@@ -120,6 +164,7 @@ jobs:
             printf '%s\t%s\t%s\n' "${number}" "${head_sha}" "${state}" >> "${RESULTS_FILE}"
           }
 
+          check_failed=false
           if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
             branch_state=success
             git checkout --detach master
@@ -134,12 +179,14 @@ jobs:
               [[ -z "${number}" ]] && continue
               check_pull_request "${number}" "${base_ref}" "${head_sha}"
             done <<< "${pull_requests}"
-            [[ "${branch_state}" == success ]]
+            if [[ "${branch_state}" != success ]]; then
+              check_failed=true
+            fi
           else
             pull_requests="$(gh api --paginate \
               "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
-              --jq '.[] | select(.head.sha == env.PR_HEAD_SHA and (.base.ref == "develop" or (.base.ref | test("^v.*\\.x$")))) | [.number, .base.ref, .head.sha] | @tsv')" || exit 1
-            if [[ -z "${pull_requests}" ]]; then
+              --jq '.[] | select((.head.sha == env.PR_HEAD_SHA or .head.sha == env.PR_PREVIOUS_HEAD_SHA) and (.base.ref == "develop" or (.base.ref | test("^v.*\\.x$")))) | [.number, .base.ref, .head.sha] | @tsv')" || exit 1
+            if [[ "${GITHUB_EVENT_ACTION:-}" != "closed" && -z "${pull_requests}" ]]; then
               pull_requests="${PR_NUMBER}"$'\t'"${PR_BASE_REF}"$'\t'"${PR_HEAD_SHA}"
             fi
             while IFS=$'\t' read -r number base_ref head_sha; do
@@ -147,19 +194,32 @@ jobs:
               check_pull_request "${number}" "${base_ref}" "${head_sha}"
             done <<< "${pull_requests}"
             if grep -q $'\tfailure$' "${RESULTS_FILE}"; then
-              exit 1
+              check_failed=true
             fi
           fi
 
-      - name: Publish merge check statuses
+          while IFS=$'\t' read -r base_ref base_sha; do
+            [[ -z "${base_ref}" ]] && continue
+            current_sha="$(git ls-remote origin "refs/heads/${base_ref}" | awk '{print $1}')"
+            if [[ "${current_sha}" != "${base_sha}" ]]; then
+              echo true > "${STALE_FILE}"
+            fi
+          done < "${SNAPSHOTS_FILE}"
+          if [[ "${check_failed}" == true ]]; then
+            exit 1
+          fi
+
+      - name: Publish merge check runs
         if: always() && !cancelled()
         uses: actions/github-script@v8
         env:
           RESULTS_FILE: ${{ runner.temp }}/merge-check-results
           PENDING_FILE: ${{ runner.temp }}/merge-check-pending
+          STALE_FILE: ${{ runner.temp }}/merge-check-stale
         with:
           script: |
             const fs = require('fs');
+            const checkIds = new Map();
             const pending = new Set();
             const states = new Map();
             const addState = (sha, state) => {
@@ -172,6 +232,12 @@ jobs:
             const stepState = '${{ steps.merge_check.outcome }}' === 'success'
               ? 'success'
               : 'failure';
+            if (fs.existsSync(process.env.STALE_FILE)
+              && fs.readFileSync(process.env.STALE_FILE, 'utf8').trim() === 'true') {
+              return;
+            }
+            const closed = context.eventName === 'pull_request_target'
+              && context.payload.action === 'closed';
             if (context.eventName === 'push') {
               addState(context.sha, stepState);
             }
@@ -182,15 +248,18 @@ jobs:
                 addState(sha, state);
               }
             }
-            if (context.eventName === 'pull_request_target') {
+            if (context.eventName === 'pull_request_target' && !closed) {
               addState(context.payload.pull_request.head.sha, stepState);
             }
             if (fs.existsSync(process.env.PENDING_FILE)) {
-              for (const sha of fs.readFileSync(process.env.PENDING_FILE, 'utf8').trim().split('\n')) {
-                if (sha) pending.add(sha);
+              for (const line of fs.readFileSync(process.env.PENDING_FILE, 'utf8').trim().split('\n')) {
+                if (!line) continue;
+                const [sha, checkId] = line.split('\t');
+                pending.add(sha);
+                if (checkId) checkIds.set(sha, Number(checkId));
               }
             }
-            if (pending.size === 0) {
+            if (pending.size === 0 && !closed) {
               pending.add(context.eventName === 'push'
                 ? context.sha
                 : context.payload.pull_request.head.sha);
@@ -201,11 +270,32 @@ jobs:
               }
             }
             for (const [sha, state] of states) {
-              await github.rest.repos.createCommitStatus({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                sha,
-                state,
-                context: 'check_merge',
-              });
+              const params = {
+                name: 'check_merge',
+                head_sha: sha,
+                status: 'completed',
+                conclusion: state,
+                completed_at: new Date().toISOString(),
+                output: {
+                  title: state === 'success'
+                    ? 'Merge fast-forward check passed'
+                    : 'Merge fast-forward check failed',
+                  summary: state === 'success'
+                    ? 'The protected base can fast-forward to the checked commit.'
+                    : 'The protected base cannot fast-forward to the checked commit.',
+                },
+              };
+              const checkId = checkIds.get(sha);
+              if (checkId) {
+                await github.rest.checks.update({
+                  check_run_id: checkId,
+                  ...params,
+                });
+              } else {
+                await github.rest.checks.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ...params,
+                });
+              }
             }
