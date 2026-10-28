@@ -56,8 +56,12 @@ jobs:
                 heads.add(pull.head.sha);
               }
             }
+            const targetBase = context.payload.pull_request?.base?.ref;
+            const targetIsProtected = targetBase === 'develop'
+              || /^v.*\.x$/.test(targetBase || '');
             if (context.eventName === 'pull_request_target'
-              && context.payload.action !== 'closed') {
+              && context.payload.action !== 'closed'
+              && targetIsProtected) {
               heads.add(process.env.EVENT_HEAD_SHA);
             }
 
