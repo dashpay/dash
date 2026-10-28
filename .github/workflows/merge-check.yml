@@ -30,7 +30,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          EVENT_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
+          EVENT_PREVIOUS_HEAD_SHA: ${{ github.event.changes.head.sha.from }}
           PENDING_FILE: ${{ runner.temp }}/merge-check-pending
         with:
           script: |
@@ -111,7 +111,7 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref || github.ref_name }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
+          PR_PREVIOUS_HEAD_SHA: ${{ github.event.changes.head.sha.from }}
           PR_ACTION: ${{ github.event.action }}
           GH_TOKEN: ${{ github.token }}
         run: |
