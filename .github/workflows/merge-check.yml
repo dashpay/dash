@@ -3,11 +3,15 @@ name: Check Merge Fast-Forward Only
 permissions:
   contents: read
 
-# Whether master can fast-forward is a property of the branch, not of any one
-# PR, so check it when develop or a release branch moves. PR merge conflicts
-# are already handled by GitHub and label-merge-conflicts.yml.
+# Check branch pushes to protect develop and release branches, and check PR
+# merge refs so the required status is reported before a PR is merged. PR merge
+# conflicts are already handled by GitHub and label-merge-conflicts.yml.
 on:
   push:
+    branches:
+      - develop
+      - 'v*.x'
+  pull_request:
     branches:
       - develop
       - 'v*.x'
