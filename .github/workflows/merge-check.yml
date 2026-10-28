@@ -31,8 +31,10 @@ jobs:
         env:
           BASE_REF: ${{ github.ref_name }}
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PENDING_FILE: ${{ runner.temp }}/merge-check-pending
         with:
           script: |
+            const fs = require('fs');
             const heads = new Set();
             if (context.eventName === 'push') {
               heads.add(context.sha);
@@ -56,6 +58,7 @@ jobs:
             if (context.eventName === 'pull_request_target') {
               heads.add(process.env.EVENT_HEAD_SHA);
             }
+            fs.writeFileSync(process.env.PENDING_FILE, `${[...heads].join('\n')}\n`);
             for (const sha of heads) {
               await github.rest.repos.createCommitStatus({
                 owner: context.repo.owner,
@@ -73,7 +76,6 @@ jobs:
           persist-credentials: false
 
       - name: Set up Git
-        if: github.event_name == 'pull_request_target'
         run: |
           git config user.name "GitHub Action"
           git config user.email "noreply@example.com"
@@ -154,9 +156,11 @@ jobs:
         uses: actions/github-script@v8
         env:
           RESULTS_FILE: ${{ runner.temp }}/merge-check-results
+          PENDING_FILE: ${{ runner.temp }}/merge-check-pending
         with:
           script: |
             const fs = require('fs');
+            const pending = new Set();
             const states = new Map();
             const addState = (sha, state) => {
               if (states.get(sha) === 'failure' || state === 'failure') {
@@ -180,6 +184,21 @@ jobs:
             }
             if (context.eventName === 'pull_request_target') {
               addState(context.payload.pull_request.head.sha, stepState);
+            }
+            if (fs.existsSync(process.env.PENDING_FILE)) {
+              for (const sha of fs.readFileSync(process.env.PENDING_FILE, 'utf8').trim().split('\n')) {
+                if (sha) pending.add(sha);
+              }
+            }
+            if (pending.size === 0) {
+              pending.add(context.eventName === 'push'
+                ? context.sha
+                : context.payload.pull_request.head.sha);
+            }
+            for (const sha of pending) {
+              if (!states.has(sha)) {
+                addState(sha, 'failure');
+              }
             }
             for (const [sha, state] of states) {
               await github.rest.repos.createCommitStatus({
