@@ -15,6 +15,7 @@ on:
     branches:
       - develop
       - 'v*.x'
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   check_merge:
