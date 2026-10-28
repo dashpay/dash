@@ -8,8 +8,8 @@ concurrency:
   group: merge-check-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# Check branch pushes to protect develop and release branches, refresh statuses
-# for open PRs when their base moves, and check PR merge refs. PR merge
+# Check branch pushes to protect develop and release branches, refresh checks for
+# open PRs when their base moves, and check PR merge refs. PR merge
 # conflicts are already handled by GitHub and label-merge-conflicts.yml.
 on:
   push:
