@@ -70,11 +70,6 @@ void CBLSWorker::Stop()
     workerPool.stop(true);
 }
 
-void CBLSWorker::PushJob(std::function<void()> job)
-{
-    workerPool.push([job = std::move(job)](int) { job(); });
-}
-
 #ifndef BUILD_BITCOIN_INTERNAL
 bool CBLSWorker::GenerateContributions(int quorumThreshold, Span<CBLSId> ids, BLSVerificationVectorPtr& vvecRet, std::vector<CBLSSecretKey>& skSharesRet)
 {
