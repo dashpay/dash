@@ -8,8 +8,8 @@ concurrency:
   group: merge-check-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# Check branch pushes to protect develop and release branches, and check PR
-# merge refs so the required status is reported before a PR is merged. PR merge
+# Check branch pushes to protect develop and release branches, refresh statuses
+# for open PRs when their base moves, and check PR merge refs. PR merge
 # conflicts are already handled by GitHub and label-merge-conflicts.yml.
 on:
   push:
@@ -26,20 +26,45 @@ jobs:
   merge_check:
     runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
-      - name: Mark merge check pending
+      - name: Mark merge checks pending
         uses: actions/github-script@v8
+        env:
+          BASE_REF: ${{ github.ref_name }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            const sha = context.eventName === 'pull_request_target'
-              ? context.payload.pull_request.head.sha
-              : context.sha;
-            await github.rest.repos.createCommitStatus({
+            const heads = new Set();
+            if (context.eventName === 'push') {
+              heads.add(context.sha);
+            }
+            const pulls = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha,
-              state: 'pending',
-              context: 'check_merge',
+              state: 'open',
+              per_page: 100,
             });
+            for (const pull of pulls) {
+              const protectedBase = pull.base.ref === 'develop'
+                || /^v.*\.x$/.test(pull.base.ref);
+              const relevant = context.eventName === 'push'
+                ? protectedBase
+                : protectedBase && pull.head.sha === process.env.EVENT_HEAD_SHA;
+              if (relevant) {
+                heads.add(pull.head.sha);
+              }
+            }
+            if (context.eventName === 'pull_request_target') {
+              heads.add(process.env.EVENT_HEAD_SHA);
+            }
+            for (const sha of heads) {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha,
+                state: 'pending',
+                context: 'check_merge',
+              });
+            }
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -56,39 +81,112 @@ jobs:
       - name: Check merge --ff-only
         id: merge_check
         env:
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || github.ref_name }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -uo pipefail
           git fetch --no-tags origin "+master:master"
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
-            git fetch --no-tags origin "+${PR_BASE_REF}:base_branch"
-            git fetch --no-tags origin "+pull/${PR_NUMBER}/head:pr_head"
-            test "$(git rev-parse pr_head)" = "${PR_HEAD_SHA}"
-            git checkout base_branch
-            git merge --no-edit --no-ff "${PR_HEAD_SHA}"
-            git checkout master
-            git merge --ff-only base_branch
+          RESULTS_FILE="${RUNNER_TEMP}/merge-check-results"
+          : > "${RESULTS_FILE}"
+
+          check_pull_request() {
+            local number="$1"
+            local base_ref="$2"
+            local head_sha="$3"
+            local state=success
+            local merge_sha
+
+            git fetch --no-tags origin "+${base_ref}:base_branch"
+            git fetch --no-tags origin "+pull/${number}/head:pr_head"
+            if [[ "$(git rev-parse pr_head)" != "${head_sha}" ]]; then
+              state=failure
+            else
+              git checkout --detach base_branch
+              if git merge --no-edit --no-ff "${head_sha}"; then
+                merge_sha="$(git rev-parse HEAD)"
+                git checkout --detach master
+                if ! git merge --ff-only "${merge_sha}"; then
+                  state=failure
+                fi
+              else
+                git merge --abort || git reset --hard base_branch
+                state=failure
+              fi
+            fi
+            printf '%s\t%s\t%s\n' "${number}" "${head_sha}" "${state}" >> "${RESULTS_FILE}"
+          }
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            branch_state=success
+            git checkout --detach master
+            if ! git merge --ff-only "${GITHUB_SHA}"; then
+              branch_state=failure
+            fi
+
+            pull_requests="$(gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+              --jq '.[] | select(.base.ref == "develop" or (.base.ref | test("^v.*\\.x$"))) | [.number, .base.ref, .head.sha] | @tsv')" || exit 1
+            while IFS=$'\t' read -r number base_ref head_sha; do
+              [[ -z "${number}" ]] && continue
+              check_pull_request "${number}" "${base_ref}" "${head_sha}"
+            done <<< "${pull_requests}"
+            [[ "${branch_state}" == success ]]
           else
-            git checkout master
-            git merge --ff-only "${GITHUB_SHA}"
+            pull_requests="$(gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+              --jq '.[] | select(.head.sha == env.PR_HEAD_SHA and (.base.ref == "develop" or (.base.ref | test("^v.*\\.x$")))) | [.number, .base.ref, .head.sha] | @tsv')" || exit 1
+            if [[ -z "${pull_requests}" ]]; then
+              pull_requests="${PR_NUMBER}"$'\t'"${PR_BASE_REF}"$'\t'"${PR_HEAD_SHA}"
+            fi
+            while IFS=$'\t' read -r number base_ref head_sha; do
+              [[ -z "${number}" ]] && continue
+              check_pull_request "${number}" "${base_ref}" "${head_sha}"
+            done <<< "${pull_requests}"
+            if grep -q $'\tfailure$' "${RESULTS_FILE}"; then
+              exit 1
+            fi
           fi
 
-      - name: Publish merge check status
+      - name: Publish merge check statuses
         if: always() && !cancelled()
         uses: actions/github-script@v8
+        env:
+          RESULTS_FILE: ${{ runner.temp }}/merge-check-results
         with:
           script: |
-            const sha = context.eventName === 'pull_request_target'
-              ? context.payload.pull_request.head.sha
-              : context.sha;
-            const state = '${{ steps.merge_check.outcome }}' === 'success'
+            const fs = require('fs');
+            const states = new Map();
+            const addState = (sha, state) => {
+              if (states.get(sha) === 'failure' || state === 'failure') {
+                states.set(sha, 'failure');
+              } else {
+                states.set(sha, state);
+              }
+            };
+            const stepState = '${{ steps.merge_check.outcome }}' === 'success'
               ? 'success'
               : 'failure';
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha,
-              state,
-              context: 'check_merge',
-            });
+            if (context.eventName === 'push') {
+              addState(context.sha, stepState);
+            }
+            if (fs.existsSync(process.env.RESULTS_FILE)) {
+              for (const line of fs.readFileSync(process.env.RESULTS_FILE, 'utf8').trim().split('\n')) {
+                if (!line) continue;
+                const [, sha, state] = line.split('\t');
+                addState(sha, state);
+              }
+            }
+            if (context.eventName === 'pull_request_target') {
+              addState(context.payload.pull_request.head.sha, stepState);
+            }
+            for (const [sha, state] of states) {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha,
+                state,
+                context: 'check_merge',
+              });
+            }
