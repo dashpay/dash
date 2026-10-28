@@ -41,10 +41,10 @@ jobs:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          git fetch --no-tags origin master:master
+          git fetch --no-tags origin "+master:master"
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
-            git fetch --no-tags origin "${PR_BASE_REF}:base_branch"
-            git fetch --no-tags origin "pull/${PR_NUMBER}/head:pr_head"
+            git fetch --no-tags origin "+${PR_BASE_REF}:base_branch"
+            git fetch --no-tags origin "+pull/${PR_NUMBER}/head:pr_head"
             test "$(git rev-parse pr_head)" = "${PR_HEAD_SHA}"
             git checkout base_branch
             git merge --no-edit --no-ff "${PR_HEAD_SHA}"
@@ -57,14 +57,19 @@ jobs:
 
       - name: Publish merge check status
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          STATUS_SHA: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
-          STATUS_STATE: ${{ steps.merge_check.outcome == 'success' && 'success' || 'failure' }}
-        run: |
-          gh api \
-            --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            "/repos/${GITHUB_REPOSITORY}/statuses/${STATUS_SHA}" \
-            -f state="${STATUS_STATE}" \
-            -f context='check_merge'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const sha = context.eventName === 'pull_request_target'
+              ? context.payload.pull_request.head.sha
+              : context.sha;
+            const state = '${{ steps.merge_check.outcome }}' === 'success'
+              ? 'success'
+              : 'failure';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state,
+              context: 'check_merge',
+            });
