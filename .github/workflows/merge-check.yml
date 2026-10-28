@@ -86,7 +86,12 @@ jobs:
                 },
               };
               const check = existing.length
-                ? await github.rest.checks.update({ check_run_id: existing[0].id, ...params })
+                ? await github.rest.checks.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    check_run_id: existing[0].id,
+                    ...params,
+                  })
                 : await github.rest.checks.create({ ...params, head_sha: sha });
               checkIds.set(sha, check.data.id);
               writePendingFile();
