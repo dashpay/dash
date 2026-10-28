@@ -79,7 +79,6 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 name: 'check_merge',
-                head_sha: sha,
                 external_id: `${process.env.GITHUB_RUN_ID}:${sha}`,
                 status: 'in_progress',
                 started_at: new Date().toISOString(),
@@ -90,7 +89,7 @@ jobs:
               };
               const check = existing.length
                 ? await github.rest.checks.update({ check_run_id: existing[0].id, ...params })
-                : await github.rest.checks.create(params);
+                : await github.rest.checks.create({ ...params, head_sha: sha });
               checkIds.set(sha, check.data.id);
               writePendingFile();
             }
@@ -272,7 +271,6 @@ jobs:
             for (const [sha, state] of states) {
               const params = {
                 name: 'check_merge',
-                head_sha: sha,
                 status: 'completed',
                 conclusion: state,
                 completed_at: new Date().toISOString(),
@@ -296,6 +294,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   ...params,
+                  head_sha: sha,
                 });
               }
             }
