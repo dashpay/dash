@@ -2,6 +2,7 @@ name: Check Merge Fast-Forward Only
 
 permissions:
   contents: read
+  pull-requests: read
   checks: write
 
 concurrency:
@@ -33,6 +34,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           PENDING_FILE: ${{ runner.temp }}/merge-check-pending
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
             const fs = require('fs');
@@ -114,6 +116,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          git checkout --detach HEAD
           git fetch --no-tags origin "+master:master"
           RESULTS_FILE="${RUNNER_TEMP}/merge-check-results"
           SNAPSHOTS_FILE="${RUNNER_TEMP}/merge-check-base-snapshots"
