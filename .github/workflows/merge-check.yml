@@ -11,7 +11,7 @@ on:
     branches:
       - develop
       - 'v*.x'
-  pull_request:
+  pull_request_target:
     branches:
       - develop
       - 'v*.x'
@@ -27,8 +27,26 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Set up Git
+        if: github.event_name == 'pull_request_target'
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "noreply@example.com"
+
       - name: Check merge --ff-only
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           git fetch --no-tags origin master:master
-          git checkout master
-          git merge --ff-only "${GITHUB_SHA}"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
+            git fetch --no-tags origin "${PR_BASE_REF}:base_branch"
+            git fetch --no-tags origin "pull/${PR_NUMBER}/head:pr_head"
+            git checkout base_branch
+            git merge --no-edit --no-ff pr_head
+            git checkout master
+            git merge --ff-only base_branch
+          else
+            git checkout master
+            git merge --ff-only "${GITHUB_SHA}"
+          fi
