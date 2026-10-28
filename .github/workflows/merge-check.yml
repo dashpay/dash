@@ -11,7 +11,7 @@ on:
     branches:
       - develop
       - 'v*.x'
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] fetches the PR head only to test a merge; runs no PR code
     branches:
       - develop
       - 'v*.x'
