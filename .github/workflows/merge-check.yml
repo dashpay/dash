@@ -16,21 +16,22 @@ on:
     branches:
       - develop
       - 'v*.x'
-  pull_request_target: # zizmor: ignore[dangerous-triggers] fetches the PR head only to test a merge; runs no PR code
-    branches:
-      - develop
-      - 'v*.x'
+  pull_request_target: # zizmor: ignore[dangerous-triggers] fetches PR heads only to test merges; runs no PR code
     types: [opened, synchronize, reopened, edited, closed]
 
 jobs:
   merge_check:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.base.ref == 'develop' ||
+      (startsWith(github.event.pull_request.base.ref, 'v') && endsWith(github.event.pull_request.base.ref, '.x')) ||
+      github.event.action == 'edited' ||
+      github.event.action == 'closed'
     runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Mark merge checks pending
         uses: actions/github-script@v8
         env:
-          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          EVENT_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
           PENDING_FILE: ${{ runner.temp }}/merge-check-pending
         with:
           script: |
@@ -48,10 +49,7 @@ jobs:
             for (const pull of pulls) {
               const protectedBase = pull.base.ref === 'develop'
                 || /^v.*\.x$/.test(pull.base.ref);
-              const relevant = context.eventName === 'push'
-                ? protectedBase
-                : protectedBase && (pull.head.sha === process.env.EVENT_HEAD_SHA
-                  || pull.head.sha === process.env.EVENT_PREVIOUS_HEAD_SHA);
+              const relevant = protectedBase;
               if (relevant) {
                 heads.add(pull.head.sha);
               }
@@ -108,11 +106,6 @@ jobs:
       - name: Check merge --ff-only
         id: merge_check
         env:
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref || github.ref_name }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_PREVIOUS_HEAD_SHA: ${{ github.event.before }}
-          PR_ACTION: ${{ github.event.action }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -184,10 +177,7 @@ jobs:
           else
             pull_requests="$(gh api --paginate \
               "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
-              --jq '.[] | select((.head.sha == env.PR_HEAD_SHA or .head.sha == env.PR_PREVIOUS_HEAD_SHA) and (.base.ref == "develop" or (.base.ref | test("^v.*\\.x$")))) | [.number, .base.ref, .head.sha] | @tsv')" || exit 1
-            if [[ "${PR_ACTION:-}" != "closed" && -z "${pull_requests}" ]]; then
-              pull_requests="${PR_NUMBER}"$'\t'"${PR_BASE_REF}"$'\t'"${PR_HEAD_SHA}"
-            fi
+              --jq '.[] | select(.base.ref == "develop" or (.base.ref | test("^v.*\\.x$"))) | [.number, .base.ref, .head.sha] | @tsv')" || exit 1
             while IFS=$'\t' read -r number base_ref head_sha; do
               [[ -z "${number}" ]] && continue
               check_pull_request "${number}" "${base_ref}" "${head_sha}"
@@ -256,6 +246,9 @@ jobs:
             }
             const closed = context.eventName === 'pull_request_target'
               && context.payload.action === 'closed';
+            const targetIsProtected = context.eventName === 'pull_request_target'
+              && (context.payload.pull_request.base.ref === 'develop'
+                || /^v.*\.x$/.test(context.payload.pull_request.base.ref));
             if (context.eventName === 'push') {
               addState(context.sha, stepState);
             }
@@ -266,7 +259,8 @@ jobs:
                 addState(sha, state);
               }
             }
-            if (context.eventName === 'pull_request_target' && !closed) {
+            if (targetIsProtected && !closed
+              && !states.has(context.payload.pull_request.head.sha)) {
               addState(context.payload.pull_request.head.sha, stepState);
             }
             if (fs.existsSync(process.env.PENDING_FILE)) {
