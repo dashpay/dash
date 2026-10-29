@@ -184,13 +184,13 @@ Before activation there is no behavior change. (#7437, #7340)
   also covers the EvoNode's `platformNodeID`. The digest of a regular shared
   registration is unchanged. (#7807)
 
-### Relay policy changes
+### Shared masternode relay policy
 
 - The template output relays only as the declared collateral output of a shared
   registration, and a template prevout is accepted only inside a ProDisTx; both
   remain nonstandard everywhere else.
 
-### New RPCs
+### Shared masternode RPCs
 
 - `protx shared_register_prepare` builds an unsigned shared registration from a
   caller-supplied funding transaction. The result echoes the decoded terms and
@@ -221,7 +221,7 @@ Before activation there is no behavior change. (#7437, #7340)
   reward scripts are not valid in update transactions.
 - `protx shared_update_registrar_prepare` builds an unsigned ProUpSharedRegTx.
 
-### Updated RPCs
+### Updated masternode list RPCs
 
 - `masternodelist` and `masternode list` report comma-separated share owner
   addresses in `owneraddress` for shared masternodes. The `json` and `recent`
@@ -229,7 +229,7 @@ Before activation there is no behavior change. (#7437, #7340)
   masternode state omit the singular `ownerAddress` field in `protx` and decoded
   transaction output; each participant's owner address is in `shares`. (#7437)
 
-### GUI changes
+### Shared masternode GUI
 
 - The Masternodes tab gains a "Shared Masternode…" wizard for registering a
   masternode funded by several people. The coordinator enters the participants,
@@ -670,7 +670,7 @@ and RPC parameters.
   longer returned by RPCs `getmempoolentry`, `getrawmempool(verbose=true)`,
   `getmempoolancestors(verbose=true)` and `getmempooldescendants(verbose=true)`.
   The same fee fields can be accessed through the `fees` object in the result.
-  (#7551)
+  The top-level fee fields were previously deprecated in v22.1.0. (#7551)
 - The `validateaddress` RPC now returns an `error_locations` array for invalid
   addresses, with the indices of invalid character locations in the address (if
   known). For example, this will attempt to locate up to two Bech32 errors, and
@@ -696,7 +696,7 @@ and RPC parameters.
   `importdescriptors` RPC call is easiest to use `h` as the marker:
   `'["desc": ".../0h/..."]'`. With this change `listdescriptors` will use `h`,
   so you can copy-paste the result, without having to add escape characters or
-  switch `'` to 'h' manually. Note that this changes the descriptor checksum.
+  switch `'` to `h` manually. Note that this changes the descriptor checksum.
   For legacy wallets the `hdkeypath` field in `getaddressinfo` is unchanged, nor
   is the serialization format of wallet dumps. (#7237, #7338)
 
@@ -767,7 +767,7 @@ and RPC parameters.
   threshold of one — and the implementation has been removed. (#7505)
 - The `-rescan` startup parameter has been removed. Wallets which require
   rescanning due to corruption will still be rescanned on startup. Otherwise,
-  please use the `rescanblockchain` RPC to trigger a rescan.
+  please use the `rescanblockchain` RPC to trigger a rescan. (#7037)
 
 ## Wallet
 
@@ -890,7 +890,7 @@ and RPC parameters.
 ## Build system
 
 - macOS binaries now target macOS 14 (Sonoma) (see [Compatibility](#compatibility)).
-- The `--enable-gprof` configure option has been removed.
+- The `--enable-gprof` configure option has been removed. (#7452)
 
 ## Library
 
