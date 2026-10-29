@@ -94,10 +94,12 @@ Activation proceeds as follows:
 3. If the threshold is reached within a window, the hard fork locks in, and it
    activates one window later.
 
-The earliest possible activation is therefore roughly two to three weeks after
-November 9, 2026.
-
-Earliest possible activation: TBD-EARLIEST-DATE
+Mainnet is expected to be near block 2,569,500 on November 9, 2026, so the
+first window boundary after the signal is block 2,572,416 (around November 14).
+If that window reaches the threshold, `v24` locks in at block 2,576,448 and
+activates at block 2,580,480, around November 28, 2026. That is the earliest
+possible activation; every window that misses the threshold delays it by about
+one week. The dates are estimates based on 2.5-minute blocks.
 
 All masternodes must upgrade before the start date. All other nodes must
 upgrade before activation, or they will follow an invalid chain.
@@ -540,6 +542,9 @@ and RPC parameters.
   cache format version was bumped for this: on the first start after upgrading,
   the existing cache is discarded and governance objects and votes are synced
   again from the network. (#7831)
+- This release includes the fixes shipped in Dash Core v23.1.9, including the
+  consensus rule that rejects transactions with a negative `nVersion` once DIP3
+  is active.
 - This release also contains many robustness and denial-of-service hardening
   fixes in the P2P, LLMQ, governance and CoinJoin message handlers.
 
