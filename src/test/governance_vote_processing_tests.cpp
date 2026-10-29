@@ -385,11 +385,17 @@ BOOST_AUTO_TEST_CASE(orphan_votes_are_limited_per_masternode)
     BOOST_REQUIRE(stored != nullptr);
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 0);
 
-    // Orphans whose parent never arrives expire and give the share back.
+    // Orphans whose parent never arrives expire and give the share back, both on cleanup and when
+    // they are loaded from disk.
     SetMockTime(GetTime<std::chrono::seconds>() + 11min);
+    CDataStream saved_expired{SER_DISK, CLIENT_VERSION};
+    saved_expired << govman;
     govman.CheckAndRemove();
     const CGovernanceVote after_expiry{make_orphan(ArithToUint256(governance::MAX_ORPHAN_VOTES_PER_MN + 1))};
     BOOST_CHECK_EQUAL(process_orphan(after_expiry), after_expiry.GetParentHash());
+    saved_expired >> govman;
+    const CGovernanceVote after_reload{make_orphan(ArithToUint256(governance::MAX_ORPHAN_VOTES_PER_MN + 2))};
+    BOOST_CHECK_EQUAL(process_orphan(after_reload), after_reload.GetParentHash());
 }
 
 // When the cache is full the oldest orphan is evicted, and its masternode must get that part of its

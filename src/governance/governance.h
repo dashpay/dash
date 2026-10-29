@@ -91,11 +91,15 @@ public:
     {
         // Re-insert rather than adopt the stored cache: the file carries the capacity of whichever
         // version wrote it, and not the per-masternode counts. Oldest first, to keep the order.
+        // Skip expired entries, which earlier versions kept while unsynced, so they cannot take up a
+        // masternode's share ahead of its live votes.
         CacheMultiMap<uint256, OrphanVote> stored;
         s >> stored;
         Clear();
+        const auto now{Now<NodeSeconds>()};
         const auto& items = stored.GetItemList();
         for (auto it = items.rbegin(); it != items.rend(); ++it) {
+            if (it->value.expiration < now) continue;
             (void)Insert(it->key, it->value);
         }
     }
