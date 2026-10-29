@@ -60,6 +60,21 @@ bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKe
     return true;
 }
 
+bool IsEarlyPenaltyValid(uint32_t early_period_blocks, CAmount early_penalty, CAmount min_share_amount,
+                         TxValidationState& state)
+{
+    if (early_penalty < 0 || early_penalty >= min_share_amount) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-penalty");
+    }
+    // Without an early period the penalty is never required, but it would still act as the
+    // unilateral bonus ceiling, so a stolen share owner key could drain that much of the actor's
+    // share for the life of the masternode
+    if (early_period_blocks == 0 && early_penalty != 0) {
+        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-penalty");
+    }
+    return true;
+}
+
 bool IsShareListTriviallyValid(const CollateralShares& shares, uint32_t early_period_blocks, CAmount early_penalty,
                                CAmount required_collateral, const CKeyID& keyIDVoting, TxValidationState& state)
 {
@@ -117,16 +132,7 @@ bool IsShareListTriviallyValid(const CollateralShares& shares, uint32_t early_pe
     if (total_amount != required_collateral) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-amount-sum");
     }
-    if (early_penalty < 0 || early_penalty >= min_amount) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-penalty");
-    }
-    // Without an early period the penalty is never required, but it would still act as the
-    // unilateral bonus ceiling, so a stolen share owner key could drain that much of the actor's
-    // share for the life of the masternode
-    if (early_period_blocks == 0 && early_penalty != 0) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-shares-penalty");
-    }
-    return true;
+    return IsEarlyPenaltyValid(early_period_blocks, early_penalty, min_amount, state);
 }
 
 bool IsShareListVotingKeySafe(const CollateralShares& shares, const CKeyID& keyIDVoting)
