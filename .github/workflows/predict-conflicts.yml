@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   predict_conflicts:
-    runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_PREDICT_CONFLICTS || vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     concurrency:
       group: predict-conflicts
       cancel-in-progress: false
