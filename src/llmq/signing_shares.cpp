@@ -437,7 +437,20 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode& pfrom, const
     LOCK(cs);
     auto& nodeState = nodeStates[pfrom.GetId()];
     for (const auto& s : sigSharesToProcess) {
-        TryAddPendingIncomingSigShare(pfrom.GetId(), nodeState, s);
+        if (TryAddPendingIncomingSigShare(pfrom.GetId(), nodeState, s)) {
+            continue;
+        }
+        const auto key{s.GetKey()};
+        const auto* requested = sigSharesRequested.Get(key);
+        if (requested == nullptr || requested->first != pfrom.GetId() || nodeState.pendingIncomingSigShares.Has(key)) {
+            continue;
+        }
+        // We asked this node for the share but had no room for it. Make it requestable again, from this node
+        // too, instead of waiting for the request to time out and for another node to have announced it.
+        sigSharesRequested.Erase(key);
+        if (auto* session = nodeState.GetSessionBySignHash(key.first)) {
+            session->announced.Set(key.second, true);
+        }
     }
     return true;
 }
