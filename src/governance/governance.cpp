@@ -19,6 +19,7 @@
 #include <net.h>
 #include <node/interface_ui.h>
 #include <protocol.h>
+#include <random.h>
 #include <timedata.h>
 #include <util/check.h>
 #include <util/time.h>
@@ -386,6 +387,14 @@ void CGovernanceManager::AddGovernanceObjectForTesting(const CGovernanceObject& 
     AssertLockNotHeld(cs_store);
     LOCK(cs_store);
     mapObjects.emplace(govobj.GetHash(), std::make_shared<CGovernanceObject>(govobj));
+}
+
+void CGovernanceManager::AddOrphanVoteForTesting(const CGovernanceVote& vote)
+{
+    AssertLockNotHeld(cs_store);
+    LOCK(cs_store);
+    cmmapOrphanVotes.Insert(vote.GetParentHash(),
+                            governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME});
 }
 
 void CGovernanceManager::CheckAndRemove()
@@ -1157,6 +1166,12 @@ std::vector<uint256> CGovernanceManager::GetOrphanVoteObjectHashes()
         if (mapObjects.find(nHash) == mapObjects.end()) {
             vecHashesFiltered.push_back(nHash);
         }
+    }
+
+    // A random subset, so that parent hashes ground to sort first cannot pin which ones are requested
+    if (vecHashesFiltered.size() > MAX_ORPHAN_OBJECT_REQUESTS) {
+        Shuffle(vecHashesFiltered.begin(), vecHashesFiltered.end(), FastRandomContext());
+        vecHashesFiltered.resize(MAX_ORPHAN_OBJECT_REQUESTS);
     }
 
     return vecHashesFiltered;
