@@ -4,6 +4,7 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 24.x    | :white_check_mark: |
 | 23.x    | :white_check_mark: |
 | < 23    | :x:                |
 
