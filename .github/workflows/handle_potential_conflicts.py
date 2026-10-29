@@ -4,14 +4,14 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 """
-Validate candidate PR conflicts and maintain advisory PR comments.
+Find open PRs that conflict with each other and maintain advisory PR comments.
 
 Usage:
-    $ ./handle_potential_conflicts.py --pr-number <number>
+    $ ./handle_potential_conflicts.py [--dry-run]
 
-The overlap pass only finds same-base PRs that touch the same files. This
-script checks whether each candidate PR can still merge after the current PR is
-pre-merged, then updates one managed comment per affected PR.
+Each run checks every pair of open, ready-for-review PRs that share a base
+branch and touch the same files, then rewrites one managed comment per PR from
+the results. A pair the run cannot check keeps what the comments already say.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ import re
 import sys
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote
 
@@ -35,15 +36,17 @@ COMMENT_START = f"<!-- {COMMENT_MARKER}"
 COMMENT_END = "-->"
 TRUSTED_COMMENT_AUTHORS = {"github-actions[bot]"}
 MAX_FILE_DETAILS = 12
+# How long a PR that was closed or made a draft keeps being checked for a comment to delete.
+CLEANUP_WINDOW = timedelta(days=1)
 # Error statuses, network errors and timeouts are OSError; a malformed body is ValueError.
 REQUEST_ERRORS = (OSError, http.client.HTTPException, ValueError)
 
 
 @dataclass
 class ManagedComment:
-    comment_id: int | None
+    comment_id: int
     body: str
-    state: dict[str, Any]
+    listed_prs: set[int]
 
 
 def github_headers() -> dict[str, str]:
@@ -119,85 +122,53 @@ def github_delete(path: str) -> None:
     http_request("DELETE", api_url(path), github_headers())
 
 
-def normalize_state_item(item: Any) -> dict[str, Any] | None:
-    if not isinstance(item, dict):
-        return None
-
-    try:
-        number = int(item["number"])
-    except (KeyError, TypeError, ValueError):
-        return None
-
-    files = item.get("files", [])
-    if not isinstance(files, list):
-        files = []
-
-    return {
-        "number": number,
-        "title": " ".join(str(item.get("title", "Unknown title")).split()),
-        "url": str(item.get("url") or f"https://github.com/{repo_name()}/pull/{number}"),
-        "files": [str(filename) for filename in files],
-    }
-
-
-def normalize_state(state: Any) -> dict[str, Any]:
+def listed_prs_from_state(state: Any) -> set[int]:
     if not isinstance(state, dict):
-        state = {}
+        return set()
 
-    outbound = state.get("outbound", [])
-    inbound = state.get("inbound", {})
+    if "conflicts" in state:
+        entries = state["conflicts"]
+    else:
+        # Comments written when each PR event ran its own check stored both merge orders.
+        outbound = state.get("outbound")
+        inbound = state.get("inbound")
+        entries = [
+            *(outbound if isinstance(outbound, list) else []),
+            *(inbound.values() if isinstance(inbound, dict) else []),
+        ]
 
-    if not isinstance(outbound, list):
-        outbound = []
-    if not isinstance(inbound, dict):
-        inbound = {}
-
-    normalized_outbound = []
-    for item in outbound:
-        normalized_item = normalize_state_item(item)
-        if normalized_item is not None:
-            normalized_outbound.append(normalized_item)
-
-    normalized_inbound = {}
-    for key, value in inbound.items():
-        normalized_item = normalize_state_item(value)
-        if normalized_item is not None:
-            normalized_inbound[str(key)] = normalized_item
-
-    return {
-        "outbound": normalized_outbound,
-        "inbound": normalized_inbound,
-    }
+    numbers = set()
+    for entry in entries if isinstance(entries, list) else []:
+        try:
+            numbers.add(int(entry["number"] if isinstance(entry, dict) else entry))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return numbers
 
 
-def extract_state(body: str) -> dict[str, Any]:
+def extract_listed_prs(body: str) -> set[int]:
     # The state block is rendered last, but comments written before that change
     # start with it. Anchor on the last marker unless the body opens with one,
     # so marker-like text in advisory content cannot shadow the real block.
     marker_index = 0 if body.startswith(COMMENT_START) else body.rfind(COMMENT_START)
     if marker_index == -1:
-        return normalize_state({})
+        return set()
 
     json_start = body.find("\n", marker_index)
     marker_end = body.find(COMMENT_END, marker_index)
     if json_start == -1 or marker_end == -1 or json_start > marker_end:
-        return normalize_state({})
+        return set()
 
     encoded_state = body[json_start:marker_end].strip()
     if not encoded_state:
-        return normalize_state({})
+        return set()
 
     try:
         raw_state = base64.b64decode(encoded_state).decode("utf8")
-        return normalize_state(json.loads(raw_state))
-    except (ValueError, json.JSONDecodeError):
+        return listed_prs_from_state(json.loads(raw_state))
+    except ValueError:
         print("Warning: managed conflict comment has invalid state; replacing it", file=sys.stderr)
-        return normalize_state({})
-
-
-def state_is_empty(state: dict[str, Any]) -> bool:
-    normalized = normalize_state(state)
-    return not normalized["outbound"] and not normalized["inbound"]
+        return set()
 
 
 def compact_title(title: str) -> str:
@@ -233,36 +204,18 @@ def format_pr_line(item: dict[str, Any]) -> str:
     return f"- [#{number}: {title}]({url}){format_files(files)}"
 
 
-def render_comment_body(state: dict[str, Any]) -> str:
-    state = normalize_state(state)
-    state_json = json.dumps(state, sort_keys=True, separators=(",", ":"))
+def render_comment_body(conflicts: list[dict[str, Any]]) -> str:
+    conflicts = sorted(conflicts, key=lambda item: int(item["number"]))
+    state_json = json.dumps({"conflicts": [int(item["number"]) for item in conflicts]}, separators=(",", ":"))
     state_encoded = base64.b64encode(state_json.encode("utf8")).decode("ascii")
     lines = [
         "## Potential PR merge conflicts",
         "",
-        "This is advisory only. It does not block CI, but it marks PRs that will likely need a rebase depending on merge order.",
+        "This is advisory only. It does not block CI. This PR and each open PR below change the same files and "
+        "cannot be merged together cleanly, so whichever of the two merges second will likely need a rebase:",
+        "",
     ]
-
-    if state["outbound"]:
-        lines.extend([
-            "",
-            "### If this PR merges first",
-            "",
-            "These open PRs will likely need a rebase:",
-            "",
-        ])
-        lines.extend(format_pr_line(item) for item in sorted(state["outbound"], key=lambda item: int(item["number"])))
-
-    if state["inbound"]:
-        lines.extend([
-            "",
-            "### If these PRs merge first",
-            "",
-            "This PR will likely need a rebase:",
-            "",
-        ])
-        inbound_items = sorted(state["inbound"].values(), key=lambda item: int(item["number"]))
-        lines.extend(format_pr_line(item) for item in inbound_items)
+    lines.extend(format_pr_line(item) for item in conflicts)
 
     # The state block goes last so notification previews start with the advisory text.
     lines.extend([
@@ -272,15 +225,7 @@ def render_comment_body(state: dict[str, Any]) -> str:
         COMMENT_END,
     ])
 
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def get_pr_json(pr_num: int) -> dict[str, Any] | None:
-    try:
-        return github_get(f"pulls/{pr_num}")
-    except REQUEST_ERRORS as e:
-        print(f"Warning: Error fetching PR {pr_num}: {e}", file=sys.stderr)
-        return None
+    return "\n".join(lines) + "\n"
 
 
 def list_issue_comments(pr_num: int) -> list[dict[str, Any]]:
@@ -304,51 +249,30 @@ def find_managed_comments(pr_num: int) -> list[ManagedComment]:
         body = comment.get("body") or ""
         if COMMENT_START in body:
             managed_comments.append(ManagedComment(
-                comment_id=comment.get("id"),
+                comment_id=comment["id"],
                 body=body,
-                state=extract_state(body),
+                listed_prs=extract_listed_prs(body),
             ))
 
     return managed_comments
 
 
-def select_managed_comment(managed_comments: list[ManagedComment]) -> ManagedComment:
-    if managed_comments:
-        return managed_comments[-1]
-    return ManagedComment(comment_id=None, body="", state=normalize_state({}))
-
-
-def get_managed_comment(pr_num: int) -> ManagedComment:
-    return select_managed_comment(find_managed_comments(pr_num))
-
-
-def save_managed_comment(pr_num: int, state: dict[str, Any]) -> None:
-    managed_comments = find_managed_comments(pr_num)
-    managed_comment = select_managed_comment(managed_comments)
-    state = normalize_state(state)
-
-    if state_is_empty(state):
-        for comment in managed_comments:
-            if comment.comment_id is not None:
-                github_delete(f"issues/comments/{comment.comment_id}")
-        if managed_comments:
-            print(f"Deleted stale conflict comments on PR #{pr_num}", file=sys.stderr)
-        return
-
-    body = render_comment_body(state)
-    if managed_comment.comment_id is None:
-        github_post(f"issues/{pr_num}/comments", {"body": body})
-        print(f"Created conflict comment on PR #{pr_num}", file=sys.stderr)
-    elif managed_comment.body != body:
-        github_patch(f"issues/comments/{managed_comment.comment_id}", {"body": body})
-        print(f"Updated conflict comment on PR #{pr_num}", file=sys.stderr)
-    else:
-        print(f"Conflict comment on PR #{pr_num} is already up to date", file=sys.stderr)
+def save_managed_comment(pr_num: int, managed_comments: list[ManagedComment], conflicts: list[dict[str, Any]]) -> None:
+    """Make the PR's managed comment list `conflicts`, or delete it if there are none."""
+    kept = managed_comments[-1] if conflicts and managed_comments else None
+    if conflicts:
+        body = render_comment_body(conflicts)
+        if kept is None:
+            github_post(f"issues/{pr_num}/comments", {"body": body})
+            print(f"Created conflict comment on PR #{pr_num}", file=sys.stderr)
+        elif kept.body != body:
+            github_patch(f"issues/comments/{kept.comment_id}", {"body": body})
+            print(f"Updated conflict comment on PR #{pr_num}", file=sys.stderr)
 
     for comment in managed_comments:
-        if comment.comment_id is not None and comment.comment_id != managed_comment.comment_id:
+        if comment is not kept:
             github_delete(f"issues/comments/{comment.comment_id}")
-            print(f"Deleted duplicate conflict comment on PR #{pr_num}", file=sys.stderr)
+            print(f"Deleted {'duplicate' if conflicts else 'stale'} conflict comment on PR #{pr_num}", file=sys.stderr)
 
 
 def build_pr_item(pr_json: dict[str, Any], files: list[str]) -> dict[str, Any]:
@@ -358,13 +282,6 @@ def build_pr_item(pr_json: dict[str, Any], files: list[str]) -> dict[str, Any]:
         "url": pr_json.get("html_url") or f"https://github.com/{repo_name()}/pull/{pr_json['number']}",
         "files": sorted(set(str(filename) for filename in files)),
     }
-
-
-def item_number(item: dict[str, Any]) -> int | None:
-    try:
-        return int(item["number"])
-    except (KeyError, TypeError, ValueError):
-        return None
 
 
 def file_names_from_pr_file(file_info: dict[str, Any]) -> set[str]:
@@ -381,45 +298,25 @@ def file_names_from_pr_file(file_info: dict[str, Any]) -> set[str]:
     return names
 
 
-def get_pr_files(pr_num: int) -> set[str]:
+def get_pr_files(pr_num: int) -> set[str] | None:
     files = set()
-    for file_info in github_get_paginated(f"pulls/{pr_num}/files?per_page=100"):
-        files.update(file_names_from_pr_file(file_info))
+    try:
+        for file_info in github_get_paginated(f"pulls/{pr_num}/files?per_page=100"):
+            files.update(file_names_from_pr_file(file_info))
+    except REQUEST_ERRORS as e:
+        print(f"Warning: Error fetching the files of PR {pr_num}: {e}", file=sys.stderr)
+        return None
     return files
 
 
-def discover_conflict_candidates(our_pr_json: dict[str, Any]) -> list[dict[str, Any]]:
-    """Find same-base open PRs that touch at least one of the same files."""
-    our_pr_num = int(our_pr_json["number"])
-    our_base = our_pr_json["base"]["ref"]
-    our_files = get_pr_files(our_pr_num)
-
-    if not our_files:
-        print(f"PR #{our_pr_num} has no changed files", file=sys.stderr)
-        return []
-
-    candidates = []
-    open_prs = github_get_paginated(f"pulls?state=open&base={quote(our_base, safe='')}&per_page=100")
-    for pr_json in open_prs:
-        conflict_pr_num = int(pr_json["number"])
-        if conflict_pr_num == our_pr_num:
-            continue
-        if pr_json.get("draft", False):
-            print(f"PR #{conflict_pr_num} is a draft. Skipping conflict check", file=sys.stderr)
-            continue
-
-        conflict_files = get_pr_files(conflict_pr_num)
-        overlap = sorted(our_files & conflict_files)
-        if not overlap:
-            continue
-
-        candidates.append({
-            "number": conflict_pr_num,
-            "files": sorted(conflict_files),
-            "conflicts": overlap,
-        })
-
-    return candidates
+def pr_needs_rebase(pr_num: int) -> bool | None:
+    """Return None if the PR could not be fetched or GitHub has not yet checked it against its base."""
+    try:
+        mergeable_state = github_get(f"pulls/{pr_num}").get("mergeable_state")
+    except REQUEST_ERRORS as e:
+        print(f"Warning: Error fetching PR {pr_num}: {e}", file=sys.stderr)
+        return None
+    return None if mergeable_state == "unknown" else mergeable_state == "dirty"
 
 
 def branches_can_merge(our_pr_label: str, conflict_pr_label: str) -> bool | None:
@@ -444,193 +341,106 @@ def branches_can_merge(our_pr_label: str, conflict_pr_label: str) -> bool | None
     return None
 
 
-def validate_conflicts(candidates: list[dict[str, Any]], our_pr_json: dict[str, Any]) -> list[dict[str, Any]]:
-    our_pr_label = our_pr_json["head"]["label"]
-    validated_conflicts = []
+def find_conflicts(prs: list[dict[str, Any]]) -> tuple[dict[int, list[dict[str, Any]]], dict[int, dict[int, dict[str, Any]]]]:
+    """Return the PRs each PR conflicts with, and the PRs each one overlaps but could not be checked against."""
+    files = {int(pr["number"]): get_pr_files(int(pr["number"])) for pr in prs}
+    conflicts: dict[int, list[dict[str, Any]]] = {number: [] for number in files}
+    unchecked: dict[int, dict[int, dict[str, Any]]] = {number: {} for number in files}
+    needs_rebase: dict[int, bool | None] = {}
 
-    for conflict in candidates:
-        if "number" not in conflict:
-            print("Warning: Skipping conflict entry without 'number' field", file=sys.stderr)
-            continue
+    for index, pr in enumerate(prs):
+        for other in prs[index + 1:]:
+            if pr["base"]["ref"] != other["base"]["ref"]:
+                continue
+            a, b = int(pr["number"]), int(other["number"])
+            files_a, files_b = files[a], files[b]
+            if files_a is None or files_b is None:
+                # Without both file lists the overlap is unknown, so the pair stays unchecked.
+                overlap = []
+            else:
+                overlap = sorted(files_a & files_b)
+                if not overlap:
+                    continue
 
-        conflict_pr_num = int(conflict["number"])
-        conflict_pr_json = get_pr_json(conflict_pr_num)
-        if conflict_pr_json is None:
-            print(f"Warning: Failed to fetch PR {conflict_pr_num}, skipping", file=sys.stderr)
-            continue
+            can_merge = None
+            if overlap:
+                for number in (a, b):
+                    if number not in needs_rebase:
+                        needs_rebase[number] = pr_needs_rebase(number)
+                # A PR that already needs a rebase is checked again once it is rebased.
+                if needs_rebase[a] is False and needs_rebase[b] is False:
+                    # A merge conflict is symmetric, so one check covers both merge orders.
+                    can_merge = branches_can_merge(pr["head"]["label"], other["head"]["label"])
 
-        if "head" not in conflict_pr_json or "label" not in conflict_pr_json["head"]:
-            print(f"Warning: Invalid PR data structure for PR {conflict_pr_num}, skipping", file=sys.stderr)
-            continue
+            if can_merge is None:
+                unchecked[a][b] = build_pr_item(other, overlap)
+                unchecked[b][a] = build_pr_item(pr, overlap)
+            elif not can_merge:
+                conflicts[a].append(build_pr_item(other, overlap))
+                conflicts[b].append(build_pr_item(pr, overlap))
 
-        if conflict_pr_json.get("mergeable_state") == "dirty":
-            print(f"PR #{conflict_pr_num} already needs rebase. Skipping conflict check", file=sys.stderr)
-            continue
-
-        if conflict_pr_json.get("draft", False):
-            print(f"PR #{conflict_pr_num} is a draft. Skipping conflict check", file=sys.stderr)
-            continue
-
-        can_merge = branches_can_merge(our_pr_label, conflict_pr_json["head"]["label"])
-        if can_merge is True:
-            print(f"PR #{conflict_pr_num} still merges after PR #{our_pr_json['number']}", file=sys.stderr)
-            continue
-        if can_merge is None:
-            continue
-
-        files = conflict.get("conflicts", [])
-        item = build_pr_item(conflict_pr_json, files if isinstance(files, list) else [])
-        validated_conflicts.append(item)
-
-    return validated_conflicts
-
-
-def update_comments(our_pr_json: dict[str, Any], validated_conflicts: list[dict[str, Any]]) -> None:
-    our_pr_num = int(our_pr_json["number"])
-    our_managed_comment = get_managed_comment(our_pr_num)
-    previous_outbound_numbers = {
-        number
-        for item in our_managed_comment.state["outbound"]
-        if isinstance(item, dict)
-        for number in [item_number(item)]
-        if number is not None
-    }
-    current_outbound_numbers = {int(item["number"]) for item in validated_conflicts}
-
-    our_state = normalize_state(our_managed_comment.state)
-    our_state["outbound"] = validated_conflicts
-    save_managed_comment(our_pr_num, our_state)
-
-    targets_to_update = previous_outbound_numbers | current_outbound_numbers
-    our_item_by_target = {
-        int(item["number"]): build_pr_item(our_pr_json, [str(filename) for filename in item.get("files", [])])
-        for item in validated_conflicts
-    }
-
-    for target_pr_num in sorted(targets_to_update):
-        target_comment = get_managed_comment(target_pr_num)
-        target_state = normalize_state(target_comment.state)
-        inbound = target_state["inbound"]
-
-        if target_pr_num in our_item_by_target:
-            inbound[str(our_pr_num)] = our_item_by_target[target_pr_num]
-        else:
-            inbound.pop(str(our_pr_num), None)
-
-        target_state["inbound"] = inbound
-        save_managed_comment(target_pr_num, target_state)
+    return conflicts, unchecked
 
 
-def remove_outbound_reference(state: dict[str, Any], pr_num: int) -> dict[str, Any]:
-    state = normalize_state(state)
-    outbound = []
-
-    for item in state["outbound"]:
-        if not isinstance(item, dict):
-            continue
-        if item_number(item) == pr_num:
-            continue
-        outbound.append(item)
-
-    state["outbound"] = outbound
-    return state
-
-
-def cleanup_closed_pr_comments(pr_num: int) -> None:
-    managed_comment = get_managed_comment(pr_num)
-    state = normalize_state(managed_comment.state)
-    outbound_numbers = {
-        number
-        for item in state["outbound"]
-        if isinstance(item, dict)
-        for number in [item_number(item)]
-        if number is not None
-    }
-    inbound_numbers = {
-        int(number)
-        for number in state["inbound"]
-        if str(number).isdigit()
-    }
-
-    for target_pr_num in sorted(outbound_numbers):
-        target_comment = get_managed_comment(target_pr_num)
-        target_state = normalize_state(target_comment.state)
-        target_state["inbound"].pop(str(pr_num), None)
-        save_managed_comment(target_pr_num, target_state)
-
-    for source_pr_num in sorted(inbound_numbers):
-        source_comment = get_managed_comment(source_pr_num)
-        source_state = remove_outbound_reference(source_comment.state, pr_num)
-        save_managed_comment(source_pr_num, source_state)
-
-    deleted_comment = False
-    for comment in find_managed_comments(pr_num):
-        if comment.comment_id is not None:
-            github_delete(f"issues/comments/{comment.comment_id}")
-            deleted_comment = True
-    if deleted_comment:
-        print(f"Deleted conflict comment on closed PR #{pr_num}", file=sys.stderr)
+def recently_updated(pr: dict[str, Any], since: datetime) -> bool:
+    return datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00")) >= since
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate potential PR conflicts and maintain advisory comments.",
-    )
-    parser.add_argument(
-        "--pr-number",
-        type=int,
-        required=True,
-        help="Pull request number to inspect.",
+        description="Find conflicting open PRs and maintain advisory comments.",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print the current PR comment body instead of creating, updating, or deleting comments.",
-    )
-    parser.add_argument(
-        "--cleanup-closed",
-        action="store_true",
-        help="Remove advisory state for a PR that has been closed.",
+        help="Print the comment bodies instead of creating, updating, or deleting comments.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    our_pr_num = args.pr_number
+    open_prs = github_get_paginated("pulls?state=open&per_page=100")
+    ready_prs = [pr for pr in open_prs if not pr.get("draft", False)]
+    # Closing a PR or making it a draft updates it, so this finds every PR that left the
+    # checked set lately, even if no comment lists it or an earlier run failed to clean it.
+    since = datetime.now(timezone.utc) - CLEANUP_WINDOW
+    closed_prs = github_get("pulls?state=closed&sort=updated&direction=desc&per_page=100")
+    left_prs = [pr for pr in open_prs if pr.get("draft", False)] + closed_prs
+    recently_left = {int(pr["number"]) for pr in left_prs if recently_updated(pr, since)}
+    conflicts, unchecked = find_conflicts(ready_prs)
 
-    if args.cleanup_closed:
+    failed = []
+    previously_listed = set()
+    for number, items in sorted(conflicts.items()):
+        try:
+            managed_comments = find_managed_comments(number)
+            listed = set().union(*(comment.listed_prs for comment in managed_comments))
+            previously_listed |= listed
+            # Keep what the comment already says about PRs this run could not check.
+            items = items + [item for other, item in unchecked[number].items() if other in listed]
+            if args.dry_run:
+                print(f"PR #{number}:\n{render_comment_body(items) if items else 'no comment'}\n")
+            else:
+                save_managed_comment(number, managed_comments, items)
+        except REQUEST_ERRORS as e:
+            print(f"Warning: could not update the conflict comment on PR #{number}: {e}", file=sys.stderr)
+            failed.append(number)
+
+    # Drafts and closed PRs are not checked; clear any comment they still have
+    # from when they were open and ready for review.
+    for number in sorted((previously_listed | recently_left) - conflicts.keys()):
         if args.dry_run:
-            print(f"Would clean advisory conflict comments for closed PR #{our_pr_num}")
-        else:
-            cleanup_closed_pr_comments(our_pr_num)
-        return
+            print(f"PR #{number}: delete any conflict comment\n")
+            continue
+        try:
+            save_managed_comment(number, find_managed_comments(number), [])
+        except REQUEST_ERRORS as e:
+            print(f"Warning: could not delete the conflict comment on PR #{number}: {e}", file=sys.stderr)
+            failed.append(number)
 
-    our_pr_json = get_pr_json(our_pr_num)
-
-    if our_pr_json is None:
-        print(f"Error: Failed to fetch PR {our_pr_num}", file=sys.stderr)
-        sys.exit(1)
-
-    if "head" not in our_pr_json or "label" not in our_pr_json["head"]:
-        print(f"Error: Invalid PR data structure for PR {our_pr_num}", file=sys.stderr)
-        sys.exit(1)
-
-    if our_pr_json.get("draft", False):
-        if args.dry_run:
-            print(f"Would clean advisory conflict comments for draft PR #{our_pr_num}")
-        else:
-            cleanup_closed_pr_comments(our_pr_num)
-        return
-
-    candidates = discover_conflict_candidates(our_pr_json)
-    validated_conflicts = validate_conflicts(candidates, our_pr_json)
-    print(f"Conflicting PRs after validation: {[item['number'] for item in validated_conflicts]}", file=sys.stderr)
-
-    if args.dry_run:
-        print(render_comment_body({"outbound": validated_conflicts, "inbound": {}}))
-    else:
-        update_comments(our_pr_json, validated_conflicts)
+    if failed:
+        sys.exit(f"Error: could not update conflict comments on PRs {failed}")
 
 
 if __name__ == "__main__":
