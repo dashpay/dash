@@ -19,6 +19,7 @@
 #include <node/blockstorage.h>
 #include <pow.h>
 #include <rpc/server.h>
+#include <set>
 #include <streams.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
@@ -109,6 +110,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
     CBlockIndex* saved_tip;
     int checkpoint_height;
     int handoff_height{0};
+    int contested_selections{0};
     bool mine_nonstandard_handoff{false};
     std::vector<llmq::CFinalCommitment> commitments;
     std::vector<CBLSSecretKey> keys;
@@ -132,6 +134,36 @@ struct QuorumProofGenerationSetup : TestingSetup {
     {
         WITH_LOCK(cs_main, m_node.chainman->ActiveChain().SetTip(*saved_tip));
         const_cast<Consensus::Params&>(Params().GetConsensus()) = saved_consensus;
+    }
+
+    // ChainLock and InstantSend verification select from ScanQuorums while proofs select from
+    // ScanCommitments, so both must return the same quorums and name the same signer. Widening the
+    // pool beyond the fixture's single active quorum makes the choice between them non-trivial once
+    // two quorums are mined. Returns whether there was more than one candidate to choose from.
+    bool CheckSelectorsAgree(const Consensus::LLMQParams& params, const CBlockIndex* start)
+    {
+        const auto& qman = *m_node.llmq_ctx->qman;
+        for (const size_t count : {1, 2, 3}) {
+            const auto quorums = qman.ScanQuorums(params.type, start, count);
+            const auto scanned = qman.ScanCommitments(params.type, start, count);
+            BOOST_REQUIRE_EQUAL(quorums.size(), scanned.size());
+            for (size_t i = 0; i < quorums.size(); ++i) {
+                BOOST_CHECK(quorums[i]->qc->quorumHash == scanned[i].quorumHash);
+            }
+        }
+        auto pool = params;
+        pool.signingActiveQuorumCount = 2;
+        std::set<uint256> chosen;
+        for (int i = 0; i < 64; ++i) {
+            const uint256 id = ::SerializeHash(i);
+            const auto quorum = llmq::SelectQuorumForSigning(pool, qman, id, start);
+            const auto commitment = llmq::SelectCommitmentForSigning(pool, qman, id, start);
+            BOOST_REQUIRE(quorum && commitment);
+            BOOST_CHECK(quorum->qc->quorumHash == commitment->quorumHash);
+            chosen.insert(commitment->quorumHash);
+        }
+        BOOST_CHECK_EQUAL(chosen.size(), qman.ScanCommitments(pool.type, start, pool.signingActiveQuorumCount).size());
+        return chosen.size() > 1;
     }
 
     void CreateHistory()
@@ -158,6 +190,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
                                                                      chainlock::GenSigRequestId(height - 1),
                                                                      chain[height - 1 - llmq::SIGN_HEIGHT_OFFSET]);
                 BOOST_REQUIRE(signer);
+                if (CheckSelectorsAgree(params, chain[height - 1 - llmq::SIGN_HEIGHT_OFFSET])) ++contested_selections;
                 const auto match = std::find_if(commitments.begin(), commitments.end(), [&](const auto& entry) {
                     return entry.quorumHash == signer->quorumHash;
                 });
@@ -325,6 +358,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     // removes that quorum's key from every proof.
     mine_nonstandard_handoff = true;
     CreateHistory();
+    BOOST_CHECK_GT(contested_selections, 0);
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
     chainlock::CoinbaseChainLockReader reader(chain.Tip());

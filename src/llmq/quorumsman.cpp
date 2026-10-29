@@ -751,20 +751,21 @@ CBlockIndex* SelectQuorumForSigningStartBlock(const CChain& active_chain, int si
     return active_chain[startBlockHeight];
 }
 
-CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
-                                   const uint256& selectionHash, const CBlockIndex* pindexStart)
-{
-    if (pindexStart == nullptr) {
-        return nullptr;
-    }
-    size_t poolSize = llmq_params.signingActiveQuorumCount;
+static const CFinalCommitment& SigningCandidateCommitment(const CQuorumCPtr& quorum) { return *quorum->qc; }
+static const CFinalCommitment& SigningCandidateCommitment(const CFinalCommitment& commitment) { return commitment; }
 
-    // don't remove connections for the currently in-progress DKG round
-    if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
-        auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
-        if (quorums.empty()) {
-            return nullptr;
-        }
+//! Index of the candidate that signs for selectionHash, or std::nullopt if none qualifies.
+//! Shared by SelectQuorumForSigning and SelectCommitmentForSigning so both pick the same signer.
+template <typename Candidate>
+static std::optional<size_t> SelectSigningCandidate(const Consensus::LLMQParams& llmq_params, bool rotation,
+                                                    const uint256& selectionHash,
+                                                    const std::vector<Candidate>& candidates)
+{
+    if (candidates.empty()) {
+        return std::nullopt;
+    }
+
+    if (rotation) {
         //log2 int
         int n = std::log2(llmq_params.signingActiveQuorumCount);
         //Extract last 64 bits of selectionHash
@@ -772,36 +773,41 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
         //Take last n bits of b
         uint64_t signer = (((1ull << n) - 1) & (b >> (64 - n - 1)));
 
-        if (signer > quorums.size()) {
-            return nullptr;
+        if (signer > candidates.size()) {
+            return std::nullopt;
         }
-        auto itQuorum = std::find_if(quorums.begin(),
-                                     quorums.end(),
-                                     [signer](const CQuorumCPtr& obj) {
-                                         return uint64_t(obj->qc->quorumIndex) == signer;
-                                     });
-        if (itQuorum == quorums.end()) {
-            return nullptr;
+        auto it = std::find_if(candidates.begin(), candidates.end(), [signer](const Candidate& candidate) {
+            return uint64_t(SigningCandidateCommitment(candidate).quorumIndex) == signer;
+        });
+        if (it == candidates.end()) {
+            return std::nullopt;
         }
-        return *itQuorum;
-    } else {
-        auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
-        if (quorums.empty()) {
-            return nullptr;
-        }
-
-        std::vector<std::pair<uint256, size_t>> scores;
-        scores.reserve(quorums.size());
-        for (const auto i : util::irange(quorums.size())) {
-            CHashWriter h(SER_NETWORK, 0);
-            h << llmq_params.type;
-            h << quorums[i]->qc->quorumHash;
-            h << selectionHash;
-            scores.emplace_back(h.GetHash(), i);
-        }
-        std::sort(scores.begin(), scores.end());
-        return quorums[scores.front().second];
+        return size_t(it - candidates.begin());
     }
+
+    std::vector<std::pair<uint256, size_t>> scores;
+    scores.reserve(candidates.size());
+    for (const auto i : util::irange(candidates.size())) {
+        CHashWriter h(SER_NETWORK, 0);
+        h << llmq_params.type;
+        h << SigningCandidateCommitment(candidates[i]).quorumHash;
+        h << selectionHash;
+        scores.emplace_back(h.GetHash(), i);
+    }
+    std::sort(scores.begin(), scores.end());
+    return scores.front().second;
+}
+
+CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
+                                   const uint256& selectionHash, const CBlockIndex* pindexStart)
+{
+    if (pindexStart == nullptr) {
+        return nullptr;
+    }
+    const bool rotation = IsQuorumRotationEnabled(llmq_params, pindexStart);
+    auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, llmq_params.signingActiveQuorumCount);
+    const auto selected = SelectSigningCandidate(llmq_params, rotation, selectionHash, quorums);
+    return selected ? quorums[*selected] : nullptr;
 }
 
 CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
@@ -830,50 +836,13 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CQuoru
 std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
                                                            const uint256& selectionHash, const CBlockIndex* pindexStart)
 {
-    size_t poolSize = llmq_params.signingActiveQuorumCount;
-
-    if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
-        auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, poolSize);
-        if (commitments.empty()) {
-            return std::nullopt;
-        }
-        //log2 int
-        int n = std::log2(llmq_params.signingActiveQuorumCount);
-        //Extract last 64 bits of selectionHash
-        uint64_t b = selectionHash.GetUint64(3);
-        //Take last n bits of b
-        uint64_t signer = (((1ull << n) - 1) & (b >> (64 - n - 1)));
-
-        if (signer > commitments.size()) {
-            return std::nullopt;
-        }
-        auto it = std::find_if(commitments.begin(),
-                                     commitments.end(),
-                                     [signer](const CFinalCommitment& obj) {
-                                         return uint64_t(obj.quorumIndex) == signer;
-                                     });
-        if (it == commitments.end()) {
-            return std::nullopt;
-        }
-        return *it;
-    } else {
-        auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, poolSize);
-        if (commitments.empty()) {
-            return std::nullopt;
-        }
-
-        std::vector<std::pair<uint256, size_t>> scores;
-        scores.reserve(commitments.size());
-        for (const auto i : util::irange(commitments.size())) {
-            CHashWriter h(SER_NETWORK, 0);
-            h << llmq_params.type;
-            h << commitments[i].quorumHash;
-            h << selectionHash;
-            scores.emplace_back(h.GetHash(), i);
-        }
-        std::sort(scores.begin(), scores.end());
-        return commitments[scores.front().second];
+    const bool rotation = IsQuorumRotationEnabled(llmq_params, pindexStart);
+    auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, llmq_params.signingActiveQuorumCount);
+    const auto selected = SelectSigningCandidate(llmq_params, rotation, selectionHash, commitments);
+    if (!selected) {
+        return std::nullopt;
     }
+    return std::move(commitments[*selected]);
 }
 
 VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain& active_chain, const CQuorumManager& qman,
