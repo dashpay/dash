@@ -4655,9 +4655,7 @@ bool CWallet::MigrateToSQLite(bilingual_str& error)
     bool began = batch->TxnBegin();
     assert(began); // This is a critical error, the new db could not be written to. The original db exists as a backup, but we should not continue execution.
     for (const auto& [key, value] : records) {
-        DataStream ss_key{key};
-        DataStream ss_value{value};
-        if (!batch->Write(ss_key, ss_value)) {
+        if (!batch->Write(MakeUCharSpan(key), MakeUCharSpan(value))) {
             batch->TxnAbort();
             m_database->Close();
             fs::remove(m_database->Filename());
@@ -4692,6 +4690,13 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
     if (!legacy_spkm) {
         error = _("Error: This wallet is already a descriptor wallet");
         return false;
+    }
+
+    // Get all invalid or non-watched scripts that will not be migrated
+    std::set<CTxDestination> not_migrated_dests;
+    for (const auto& script : legacy_spkm->GetNotMineScriptPubKeys()) {
+        CTxDestination dest;
+        if (ExtractDestination(script, dest)) not_migrated_dests.emplace(dest);
     }
 
     for (auto& desc_spkm : data.desc_spkms) {
@@ -4817,6 +4822,13 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
                         continue;
                     }
                 }
+
+                // Skip invalid/non-watched scripts that will not be migrated
+                if (not_migrated_dests.count(addr_pair.first) > 0) {
+                    dests_to_delete.push_back(addr_pair.first);
+                    continue;
+                }
+
                 // Not ours, not in watchonly wallet, and not in solvable
                 error = _("Error: Address book data in wallet cannot be identified to belong to migrated wallets");
                 return false;
