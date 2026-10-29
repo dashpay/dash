@@ -369,6 +369,10 @@ BOOST_FIXTURE_TEST_CASE(client_rejects_invalid_queues, RegisteredMasternodeSetup
 
     BOOST_TEST_CONTEXT("invalid denomination") check_rejected(MakeQueue(/*denom=*/999), operator_key, 10);
 
+    auto ready_invalid{MakeQueue(/*denom=*/999)};
+    ready_invalid.fReady = true;
+    BOOST_TEST_CONTEXT("invalid denomination, ready") check_rejected(ready_invalid, operator_key, 10);
+
     auto no_protx{MakeQueue(denom)};
     no_protx.m_protxHash.SetNull();
     BOOST_TEST_CONTEXT("no masternode") check_rejected(no_protx, operator_key, 100);
