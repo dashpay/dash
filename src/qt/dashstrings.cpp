@@ -36,6 +36,18 @@ QT_TRANSLATE_NOOP("dash-core", ""
 "%s uses exact denominated amounts to send funds, you might simply need to "
 "mix some more coins."),
 QT_TRANSLATE_NOOP("dash-core", ""
+"-reindex-chainstate option is not compatible with -blockfilterindex. Please "
+"temporarily disable blockfilterindex while using -reindex-chainstate, or "
+"replace -reindex-chainstate with -reindex to fully rebuild all indexes."),
+QT_TRANSLATE_NOOP("dash-core", ""
+"-reindex-chainstate option is not compatible with -coinstatsindex. Please "
+"temporarily disable coinstatsindex while using -reindex-chainstate, or "
+"replace -reindex-chainstate with -reindex to fully rebuild all indexes."),
+QT_TRANSLATE_NOOP("dash-core", ""
+"-reindex-chainstate option is not compatible with -txindex. Please "
+"temporarily disable txindex while using -reindex-chainstate, or replace "
+"-reindex-chainstate with -reindex to fully rebuild all indexes."),
+QT_TRANSLATE_NOOP("dash-core", ""
 "Cannot downgrade wallet from version %i to version %i. Wallet version "
 "unchanged."),
 QT_TRANSLATE_NOOP("dash-core", ""
@@ -440,12 +452,8 @@ QT_TRANSLATE_NOOP("dash-core", "SQLiteDatabase: Failed to read database verifica
 QT_TRANSLATE_NOOP("dash-core", "SQLiteDatabase: Unexpected application id. Expected %u, got %u"),
 QT_TRANSLATE_NOOP("dash-core", "Section [%s] is not recognized."),
 QT_TRANSLATE_NOOP("dash-core", "Session not complete!"),
-QT_TRANSLATE_NOOP("dash-core", "Sets a window title which is appended to \"Dash Core - \""),
 QT_TRANSLATE_NOOP("dash-core", "Settings file could not be read"),
 QT_TRANSLATE_NOOP("dash-core", "Settings file could not be written"),
-QT_TRANSLATE_NOOP("dash-core", "Signer did not echo address"),
-QT_TRANSLATE_NOOP("dash-core", "Signer echoed unexpected address %s"),
-QT_TRANSLATE_NOOP("dash-core", "Signer returned error: %s"),
 QT_TRANSLATE_NOOP("dash-core", "Signing transaction failed"),
 QT_TRANSLATE_NOOP("dash-core", "Snapshot chainstate EvoDB marker is missing. Reindex is required."),
 QT_TRANSLATE_NOOP("dash-core", "Socket not initialized, cannot send message"),
@@ -463,7 +471,6 @@ QT_TRANSLATE_NOOP("dash-core", "The source code is available from %s."),
 QT_TRANSLATE_NOOP("dash-core", "The specified config file %s does not exist"),
 QT_TRANSLATE_NOOP("dash-core", "The transaction amount is too small to pay the fee"),
 QT_TRANSLATE_NOOP("dash-core", "The wallet will avoid paying less than the minimum relay fee."),
-QT_TRANSLATE_NOOP("dash-core", "There is no ScriptPubKeyManager for this address"),
 QT_TRANSLATE_NOOP("dash-core", "This is expected because you are running a pruned node."),
 QT_TRANSLATE_NOOP("dash-core", "This is experimental software."),
 QT_TRANSLATE_NOOP("dash-core", "This is the minimum transaction fee you pay on every transaction."),

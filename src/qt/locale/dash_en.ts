@@ -424,7 +424,7 @@
 <context>
     <name>BitcoinApplication</name>
     <message>
-        <location filename="../bitcoin.cpp" line="+272"/>
+        <location filename="../bitcoin.cpp" line="+271"/>
         <source>Settings file %1 might be corrupt or invalid.</source>
         <translation>Settings file %1 might be corrupt or invalid.</translation>
     </message>
@@ -1388,7 +1388,7 @@
         <translation>Copy change</translation>
     </message>
     <message>
-        <location line="+143"/>
+        <location line="+138"/>
         <source>Wallet error</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1438,7 +1438,7 @@
         <translation>Show spendable coins only</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+20"/>
         <location line="+75"/>
         <source>(no label)</source>
         <translation>(no label)</translation>
@@ -2255,12 +2255,7 @@
         </translation>
     </message>
     <message>
-        <location line="+17"/>
-        <source>Choose data directory</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+55"/>
+        <location line="+72"/>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>At least %1 GB of data will be stored in this directory, and it will grow over time.</translation>
     </message>
@@ -4597,7 +4592,7 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>OptionsModel</name>
     <message>
-        <location filename="../optionsmodel.cpp" line="+212"/>
+        <location filename="../optionsmodel.cpp" line="+211"/>
         <source>Could not read setting &quot;%1&quot;, %2.</source>
         <translation>Could not read setting &quot;%1&quot;, %2.</translation>
     </message>
@@ -4749,7 +4744,7 @@ https://explore.transifex.com/dash/dash/</translation>
         <translation>out of sync</translation>
     </message>
     <message>
-        <location line="+361"/>
+        <location line="+351"/>
         <source>Automatic backups are disabled, no mixing available!</source>
         <translation>Automatic backups are disabled, no mixing available!</translation>
     </message>
@@ -4760,7 +4755,7 @@ https://explore.transifex.com/dash/dash/</translation>
         <translation>No inputs detected</translation>
     </message>
     <message>
-        <location line="-244"/>
+        <location line="-234"/>
         <source>%1 Balance</source>
         <translation>%1 Balance</translation>
     </message>
@@ -4770,7 +4765,7 @@ https://explore.transifex.com/dash/dash/</translation>
         <translation>Discreet mode activated for the Overview tab. To unmask the values, uncheck Settings-&gt;Discreet mode.</translation>
     </message>
     <message numerus="yes">
-        <location line="+208"/>
+        <location line="+198"/>
         <location line="+17"/>
         <location line="+6"/>
         <location line="+11"/>
@@ -4852,13 +4847,13 @@ https://explore.transifex.com/dash/dash/</translation>
     <message>
         <location line="-131"/>
         <location line="+55"/>
-        <location line="+119"/>
+        <location line="+113"/>
         <location line="+3"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location line="-158"/>
+        <location line="-152"/>
         <source>Very low number of keys left since last automatic backup!</source>
         <translation>Very low number of keys left since last automatic backup!</translation>
     </message>
@@ -4909,8 +4904,8 @@ https://explore.transifex.com/dash/dash/</translation>
     <name>PSBTOperationsDialog</name>
     <message>
         <location filename="../forms/psbtoperationsdialog.ui" line="+14"/>
-        <source>PSBT Operations</source>
-        <translation type="unfinished"></translation>
+        <source>Dialog</source>
+        <translation>Dialog</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -4938,7 +4933,7 @@ https://explore.transifex.com/dash/dash/</translation>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../psbtoperationsdialog.cpp" line="+60"/>
+        <location filename="../psbtoperationsdialog.cpp" line="+61"/>
         <source>Failed to load transaction: %1</source>
         <translation>Failed to load transaction: %1</translation>
     </message>
@@ -6162,42 +6157,12 @@ Do you wish to continue?</translation>
         <translation>Unroutable</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>IPv4</source>
-        <comment>network name</comment>
-        <extracomment>Name of IPv4 network in peer info</extracomment>
-        <translation type="unfinished">IPv4</translation>
+        <location line="+6"/>
+        <source>Internal</source>
+        <translation>Internal</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>IPv6</source>
-        <comment>network name</comment>
-        <extracomment>Name of IPv6 network in peer info</extracomment>
-        <translation type="unfinished">IPv6</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Onion</source>
-        <comment>network name</comment>
-        <extracomment>Name of Tor network in peer info</extracomment>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>I2P</source>
-        <comment>network name</comment>
-        <extracomment>Name of I2P network in peer info</extracomment>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>CJDNS</source>
-        <comment>network name</comment>
-        <extracomment>Name of CJDNS network in peer info</extracomment>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+13"/>
         <source>Inbound</source>
         <extracomment>An inbound connection from a peer. An inbound connection is a connection initiated by a peer.</extracomment>
         <translation>Inbound</translation>
@@ -8865,7 +8830,7 @@ For more information on using this console, type %6.
     <name>SendCoinsDialog</name>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="+14"/>
-        <location filename="../sendcoinsdialog.cpp" line="+873"/>
+        <location filename="../sendcoinsdialog.cpp" line="+869"/>
         <source>Send Coins</source>
         <translation>Send Coins</translation>
     </message>
@@ -9001,7 +8966,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <location line="+165"/>
-        <location filename="../sendcoinsdialog.cpp" line="-726"/>
+        <location filename="../sendcoinsdialog.cpp" line="-722"/>
         <source>Confirm the send action</source>
         <translation>Confirm the send action</translation>
     </message>
@@ -9166,45 +9131,27 @@ For more information on using this console, type %6.
         <translation>or</translation>
     </message>
     <message>
-        <location line="+21"/>
-        <source>Unsigned Transaction</source>
-        <comment>PSBT copied</comment>
-        <extracomment>Caption of &quot;PSBT has been copied&quot; messagebox</extracomment>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>PSBT saved to disk</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+49"/>
+        <location line="+96"/>
         <source>Confirm send coins</source>
         <translation>Confirm send coins</translation>
     </message>
     <message>
-        <location line="-59"/>
+        <location line="-56"/>
         <source>Save Transaction Data</source>
         <translation>Save Transaction Data</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
         <source>PSBT saved</source>
-        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT saved</translation>
     </message>
     <message>
-        <location line="+278"/>
+        <location line="+276"/>
         <source>Watch-only balance:</source>
         <translation>Watch-only balance:</translation>
     </message>
     <message>
-        <location line="-582"/>
+        <location line="-578"/>
         <source>Creates a Partially Signed Blockchain Transaction (PSBT) for use with e.g. an offline %1 wallet, or a PSBT-compatible hardware wallet.</source>
         <translation>Creates a Partially Signed Blockchain Transaction (PSBT) for use with e.g. an offline %1 wallet, or a PSBT-compatible hardware wallet.</translation>
     </message>
@@ -9275,7 +9222,7 @@ For more information on using this console, type %6.
         <translation>To review recipient list click &quot;Show Details…&quot;</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+58"/>
         <source>Sign failed</source>
         <translation>Sign failed</translation>
     </message>
@@ -9286,19 +9233,19 @@ For more information on using this console, type %6.
         <translation>External signer not found</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+5"/>
         <source>External signer failure</source>
         <extracomment>&quot;External signer&quot; means using devices such as hardware wallets.</extracomment>
         <translation>External signer failure</translation>
     </message>
     <message>
-        <location line="-34"/>
+        <location line="-32"/>
         <source>Partially Signed Transaction (Binary)</source>
         <extracomment>Expanded name of the binary PSBT file format. See: BIP 174.</extracomment>
         <translation>Partially Signed Transaction (Binary)</translation>
     </message>
     <message>
-        <location line="+283"/>
+        <location line="+280"/>
         <source>External balance:</source>
         <translation>External balance:</translation>
     </message>
@@ -9332,14 +9279,8 @@ For more information on using this console, type %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>A fee higher than %1 is considered an absurdly high fee.</translation>
     </message>
-    <message>
-        <location line="+80"/>
-        <location line="+34"/>
-        <source>%1/kB</source>
-        <translation type="unfinished">%1 kB {1/?}</translation>
-    </message>
     <message numerus="yes">
-        <location line="+10"/>
+        <location line="+124"/>
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation>
             <numerusform>Estimated to begin confirmation within %n block.</numerusform>
@@ -11590,7 +11531,7 @@ For more information on using this console, type %6.
 <context>
     <name>TransactionDesc</name>
     <message>
-        <location filename="../transactiondesc.cpp" line="+56"/>
+        <location filename="../transactiondesc.cpp" line="+55"/>
         <source>0/unconfirmed, %1</source>
         <extracomment>Text explaining the current status of a transaction, shown in the status field of the details window for this transaction. This status represents an unconfirmed transaction that is in the memory pool.</extracomment>
         <translation>0/unconfirmed, %1</translation>
@@ -11710,19 +11651,17 @@ For more information on using this console, type %6.
     </message>
     <message>
         <location line="-82"/>
-        <location line="+89"/>
         <source>own address</source>
         <translation>own address</translation>
     </message>
     <message>
-        <location line="-89"/>
+        <location line="+0"/>
         <location line="+63"/>
-        <location line="+28"/>
         <source>watch-only</source>
         <translation>watch-only</translation>
     </message>
     <message>
-        <location line="-89"/>
+        <location line="-61"/>
         <source>label</source>
         <translation>label</translation>
     </message>
@@ -12668,17 +12607,12 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Send Coins</translation>
     </message>
     <message>
-        <location line="+321"/>
-        <source>Signer error</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+322"/>
         <source>Can&apos;t display address</source>
         <translation>Can&apos;t display address</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>default wallet</source>
         <translation>default wallet</translation>
     </message>
@@ -12766,7 +12700,7 @@ Go to File &gt; Open Wallet to load a wallet.
 <context>
     <name>dash-core</name>
     <message>
-        <location filename="../dashstrings.cpp" line="+198"/>
+        <location filename="../dashstrings.cpp" line="+210"/>
         <source>This error could occur if this wallet was not shutdown cleanly and was last loaded using a build with a newer version of Berkeley DB. If so, please use the software that last loaded this wallet</source>
         <translation>This error could occur if this wallet was not shutdown cleanly and was last loaded using a build with a newer version of Berkeley DB. If so, please use the software that last loaded this wallet</translation>
     </message>
@@ -12983,7 +12917,7 @@ Unable to restore backup of wallet.</source>
         <translation>Rescanning…</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+17"/>
         <source>Starting network threads…</source>
         <translation>Starting network threads…</translation>
     </message>
@@ -13008,7 +12942,7 @@ Unable to restore backup of wallet.</source>
         <translation>Synchronizing governance objects…</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Transaction change output index out of range</source>
         <translation>Transaction change output index out of range</translation>
     </message>
@@ -13028,7 +12962,7 @@ Unable to restore backup of wallet.</source>
         <translation>User Agent comment (%s) contains unsafe characters.</translation>
     </message>
     <message>
-        <location line="-219"/>
+        <location line="-214"/>
         <source>Can&apos;t find random Masternode.</source>
         <translation>Can&apos;t find random Masternode.</translation>
     </message>
@@ -13058,22 +12992,17 @@ Unable to restore backup of wallet.</source>
         <translation>Invalid script detected.</translation>
     </message>
     <message>
-        <location line="-367"/>
+        <location line="-379"/>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s file contains all private keys from this wallet. Do not share it with anyone!</translation>
     </message>
     <message>
-        <location line="-10"/>
-        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+5"/>
         <source>%s request to listen on port %u. This port is considered &quot;bad&quot; and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
         <translation>%s request to listen on port %u. This port is considered &quot;bad&quot; and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+27"/>
         <source>Disk space for %s may not accommodate the block files. Approximately %u GB of data will be stored in this directory.</source>
         <translation>Disk space for %s may not accommodate the block files. Approximately %u GB of data will be stored in this directory.</translation>
     </message>
@@ -13498,27 +13427,7 @@ Unable to restore backup of wallet.</source>
         <translation>Section [%s] is not recognized.</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Sets a window title which is appended to &quot;Dash Core - &quot;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Signer did not echo address</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Signer echoed unexpected address %s</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Signer returned error: %s</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+5"/>
         <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -13546,11 +13455,6 @@ Unable to restore backup of wallet.</source>
         <location line="+9"/>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>The wallet will avoid paying less than the minimum relay fee.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>There is no ScriptPubKeyManager for this address</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13658,17 +13562,37 @@ Unable to restore backup of wallet.</source>
         <translation>You can not start a masternode with wallet enabled.</translation>
     </message>
     <message>
-        <location line="-505"/>
+        <location line="-512"/>
         <source>The %s developers</source>
         <translation>The %s developers</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+4"/>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>%s uses exact denominated amounts to send funds, you might simply need to mix some more coins.</source>
         <translation>%s uses exact denominated amounts to send funds, you might simply need to mix some more coins.</translation>
     </message>
     <message>
         <location line="+3"/>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
         <translation>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</translation>
     </message>
@@ -14185,7 +14109,7 @@ Please try running the latest software version.
         <translation>Session not complete!</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+3"/>
         <source>Signing transaction failed</source>
         <translation>Signing transaction failed</translation>
     </message>
@@ -14195,12 +14119,12 @@ Please try running the latest software version.
         <translation>Specified blocks directory &quot;%s&quot; does not exist.</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-54"/>
         <source>Last queue was created too recently.</source>
         <translation>Last queue was created too recently.</translation>
     </message>
     <message>
-        <location line="-384"/>
+        <location line="-396"/>
         <source>%s corrupt. Try using the wallet tool dash-wallet to salvage or restoring a backup.</source>
         <translation>%s corrupt. Try using the wallet tool dash-wallet to salvage or restoring a backup.</translation>
     </message>
@@ -14210,7 +14134,7 @@ Please try running the latest software version.
         <translation>%s is set very high! Fees this large could be paid on a single transaction.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+26"/>
         <source>Cannot provide specific connections and have addrman find outgoing connections at the same time.</source>
         <translation>Cannot provide specific connections and have addrman find outgoing connections at the same time.</translation>
     </message>
@@ -14265,7 +14189,7 @@ Please try running the latest software version.
         <translation>Port must be between %d and %d, supplied %d</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+20"/>
         <source>Socket not initialized, cannot send message</source>
         <translation>Socket not initialized, cannot send message</translation>
     </message>
@@ -14285,7 +14209,7 @@ Please try running the latest software version.
         <translation>The transaction amount is too small to pay the fee</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>This is experimental software.</source>
         <translation>This is experimental software.</translation>
     </message>
@@ -14425,7 +14349,7 @@ Please try running the latest software version.
         <translation>Your entries added successfully.</translation>
     </message>
     <message>
-        <location line="-74"/>
+        <location line="-70"/>
         <source>Settings file could not be read</source>
         <translation>Settings file could not be read</translation>
     </message>
