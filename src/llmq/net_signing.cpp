@@ -234,8 +234,6 @@ bool NetSigning::ProcessPendingRecoveredSigs()
         return false;
     }
 
-    // It's ok to perform insecure batched verification here as we verify against the quorum public keys, which are not
-    // craftable by individual entities, making the rogue public key attack impossible
     CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, false);
 
     size_t verifyCount = 0;
@@ -398,8 +396,6 @@ void NetSigning::ProcessPendingSigShares(
     std::unordered_map<NodeId, std::vector<CSigShare>>&& sigSharesByNodes,
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>&& quorums)
 {
-    // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
-    // which are not craftable by individual entities, making the rogue public key attack impossible
     CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
 
     cxxtimer::Timer prepareTimer(true);

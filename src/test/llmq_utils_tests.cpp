@@ -5,12 +5,17 @@
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
+#include <active/masternode.h>
+#include <bls/bls_worker.h>
+#include <chain.h>
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <dbwrapper.h>
+#include <evo/deterministicmns.h>
 #include <llmq/context.h>
 #include <llmq/net_signing.h>
 #include <llmq/params.h>
+#include <llmq/quorums.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
@@ -55,6 +60,76 @@ BOOST_FIXTURE_TEST_CASE(platform_recovered_sigs_preserve_each_message, TestingSe
         BOOST_CHECK(stored.GetHash() == sig->GetHash());
         BOOST_CHECK(sigman.HasRecoveredSigForSigning(type, id, sig->getMsgHash()));
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(every_reconstructed_signature_is_verified, RegTestingSetup)
+{
+    const bool previous_scheme = bls::bls_legacy_scheme.load();
+    for (bool legacy_scheme : {true, false}) {
+        bls::bls_legacy_scheme.store(legacy_scheme);
+        for (bool single_member : {false, true}) {
+            auto params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST);
+            if (single_member) {
+                params.size = 1;
+                params.threshold = 1;
+            }
+            CBLSWorker worker;
+            CBlockIndex base_index;
+            std::vector<CBLSSecretKey> coefficients(params.threshold);
+            std::vector<CBLSPublicKey> verification_vector;
+            for (auto& coefficient : coefficients) {
+                coefficient.MakeNewKey();
+                verification_vector.push_back(coefficient.GetPublicKey());
+            }
+            auto commitment = std::make_unique<CFinalCommitment>(params, GetTestQuorumHash(10));
+            commitment->validMembers.assign(params.size, true);
+            commitment->quorumPublicKey = verification_vector.front();
+            commitment->quorumVvecHash = ::SerializeHash(verification_vector);
+            std::vector<CDeterministicMNCPtr> members;
+            for (int i = 0; i < params.size; ++i) {
+                auto member = std::make_shared<CDeterministicMN>(i + 1);
+                member->proTxHash = GetTestQuorumHash(i + 1);
+                members.push_back(std::move(member));
+            }
+            auto quorum = std::make_shared<CQuorum>(params, worker, std::move(commitment), &base_index, uint256{}, members);
+            BOOST_REQUIRE(quorum->SetVerificationVector(verification_vector));
+            const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums{
+                {{params.type, quorum->qc->quorumHash}, quorum}};
+            CActiveMasternodeManager active_mn(*m_node.connman, *m_node.dmnman, coefficients.front());
+            CSigSharesManager shares_manager(*m_node.connman, *m_node.chainman, *m_node.llmq_ctx->sigman, active_mn,
+                                            *m_node.llmq_ctx->qman, *m_node.sporkman);
+            const auto message = GetTestQuorumHash(21);
+            for (uint32_t scenario = 0; scenario < 4; ++scenario) {
+                const bool valid = scenario == 0 || scenario == 3;
+                const auto request_id = GetTestQuorumHash(20 + scenario);
+                std::vector<CSigShare> shares;
+                for (int i = 0; i < params.threshold; ++i) {
+                    CBLSSecretKey member_key = coefficients.front();
+                    if (!single_member) {
+                        BOOST_REQUIRE(member_key.SecretKeyShare(coefficients, CBLSId(members[i]->proTxHash)));
+                    }
+                    if (scenario == 1) member_key.MakeNewKey();
+                    CBLSLazySignature signature;
+                    signature.Set(member_key.Sign(SignHash(params.type, quorum->qc->quorumHash, request_id, message).Get(),
+                                                  legacy_scheme), legacy_scheme);
+                    BOOST_REQUIRE(signature.Get().VerifyInsecure(member_key.GetPublicKey(),
+                                                                  SignHash(params.type, quorum->qc->quorumHash, request_id, message).Get()));
+                    const auto share_message = scenario == 2 ? GetTestQuorumHash(30) : message;
+                    shares.emplace_back(params.type, quorum->qc->quorumHash, request_id, share_message, i, signature);
+                    shares.back().UpdateKey();
+                }
+                const auto recovered = shares_manager.ProcessPendingSigShares(shares, quorums);
+                if (valid) {
+                    BOOST_REQUIRE_EQUAL(recovered.size(), 1);
+                    BOOST_CHECK(recovered.front()->sig.Get().VerifyInsecure(quorum->qc->quorumPublicKey,
+                                                                           recovered.front()->buildSignHash().Get()));
+                } else {
+                    BOOST_CHECK(recovered.empty());
+                }
+            }
+        }
+    }
+    bls::bls_legacy_scheme.store(previous_scheme);
 }
 
 BOOST_AUTO_TEST_CASE(platform_recovered_sigs_persistence_and_expiry)
