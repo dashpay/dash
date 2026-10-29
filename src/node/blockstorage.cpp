@@ -15,6 +15,7 @@
 #include <streams.h>
 #include <undo.h>
 #include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <util/system.h>
 #include <validation.h>
 #include <walletinitinterface.h>
@@ -521,12 +522,12 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     fileout << messageStart << nSize;
 
     // Write undo data
-    long fileOutPos = ftell(fileout.Get());
+    const int64_t fileOutPos{FileTell64(fileout.Get())};
     if (fileOutPos < 0) {
         LogError("%s: ftell failed\n", __func__);
         return false;
     }
-    pos.nPos = (unsigned int)fileOutPos;
+    pos.nPos = fileOutPos;
     fileout << blockundo;
 
     // calculate & write checksum
@@ -760,12 +761,12 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     fileout << messageStart << nSize;
 
     // Write block
-    long fileOutPos = ftell(fileout.Get());
+    const int64_t fileOutPos{FileTell64(fileout.Get())};
     if (fileOutPos < 0) {
         LogError("WriteBlockToDisk: ftell failed\n");
         return false;
     }
-    pos.nPos = (unsigned int)fileOutPos;
+    pos.nPos = fileOutPos;
     fileout << block;
 
     return true;

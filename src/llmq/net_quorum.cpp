@@ -336,8 +336,11 @@ bool NetQuorum::ProcessContribQDATA(const CNode& pfrom, CDataStream& vRecv,
     std::vector<CBLSSecretKey> vecSecretKeys;
     vecSecretKeys.resize(vecEncrypted.size());
     for (const auto i : util::irange(vecEncrypted.size())) {
-        if (!m_nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i], PROTOCOL_VERSION)) {
-            m_peer_manager->PeerMisbehaving(pfrom.GetId(), 10, "failed to decrypt");
+        if (!m_nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i], PROTOCOL_VERSION) ||
+            !vecSecretKeys[i].IsValid()) {
+            // Reject an undecryptable or structurally-invalid (e.g. all-zero) share before
+            // it reaches AggregateSecretKeys()/AggregateInsecure(), which asserts validity.
+            m_peer_manager->PeerMisbehaving(pfrom.GetId(), 10, "invalid contribution share");
             return false;
         }
     }

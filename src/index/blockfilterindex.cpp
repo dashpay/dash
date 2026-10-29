@@ -492,7 +492,7 @@ bool BlockFilterIndex::LookupFilterRange(int start_height, const CBlockIndex* st
         if (!file || entry.pos.nFile != file_num) {
             file = std::make_unique<AutoFile>(m_filter_fileseq->Open(entry.pos, true));
             file_num = entry.pos.nFile;
-        } else if (fseek(file->Get(), entry.pos.nPos, SEEK_SET) != 0) {
+        } else if (FileSeek64(file->Get(), entry.pos.nPos, SEEK_SET) != 0) {
             LogError("%s: unable to seek to position %u in filter file %d\n",
                      __func__, entry.pos.nPos, entry.pos.nFile);
             return false;
