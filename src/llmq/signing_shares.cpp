@@ -48,6 +48,12 @@ void CSigShare::UpdateKey()
     key.second = quorumMember;
 }
 
+void PushSigShareToBatchVerifier(SigShareBatchVerifier& batchVerifier, NodeId from, const CSigShare& sigShare,
+                                 const CBLSSignature& sig, const CBLSPublicKey& pubKeyShare)
+{
+    batchVerifier.PushMessage(from, {from, sigShare.GetKey()}, sigShare.GetSignHash(), sig, pubKeyShare);
+}
+
 std::string CSigSesAnn::ToString() const
 {
     return strprintf("sessionId=%d, llmqType=%d, quorumHash=%s, id=%s, msgHash=%s",
