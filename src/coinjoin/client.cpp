@@ -402,10 +402,16 @@ bool CCoinJoinClientSession::SendDenominate(const std::vector<std::pair<CTxDSIn,
                      vecTxDSInTmp.size(), vecTxOutTmp.size(), tx.ToString());
 
     // store our entry for later use
-    LOCK(cs_coinjoin);
-    vecEntries.emplace_back(vecTxDSInTmp, vecTxOutTmp, CTransaction(txMyCollateral));
-    RelayIn(vecEntries.back(), connman);
-    nTimeLastSuccessfulStep = GetTime();
+    {
+        LOCK(cs_coinjoin);
+        vecEntries.emplace_back(vecTxDSInTmp, vecTxOutTmp, CTransaction(txMyCollateral));
+        RelayIn(vecEntries.back(), connman);
+        nTimeLastSuccessfulStep = GetTime();
+    }
+
+    // The masternode has now seen our output scripts. Returning them to the keypool if the session
+    // fails would hand them out again, letting it link their next use to the inputs sent with them.
+    keyHolderStorage.KeepAll();
 
     return true;
 }
