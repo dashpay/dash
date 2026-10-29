@@ -2599,7 +2599,7 @@ size_t CConnman::SocketRecvData(CNode *pnode)
         if (!pnode->m_sock)
             return 0;
         nBytes = recv(pnode->m_sock->Get(), (char*)pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
-        if (nBytes < (int)sizeof(pchBuf)) {
+        if (nBytes < 0 && WSAGetLastError() == WSAEWOULDBLOCK) {
             pnode->fHasRecvData = false;
         }
     }
