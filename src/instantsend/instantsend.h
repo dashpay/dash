@@ -141,13 +141,13 @@ private:
     void RemoveNonLockedTx(const uint256& txid, bool retryChildren)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_timingsTxSeen);
     void RemoveConflictedTx(const CTransaction& tx)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_timingsTxSeen);
     void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
 
     void RemoveMempoolConflictsForLock(const uint256& hash, const instantsend::InstantSendLock& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_timingsTxSeen);
     void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen, !cs_height_cache);
 
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_timingsTxSeen);
@@ -167,7 +167,7 @@ public:
     CSigningManager& Sigman() { return sigman; }
     [[nodiscard]] std::variant<uint256, CTransactionRef, std::monostate> ProcessInstantSendLock(
         NodeId from, const uint256& hash, const instantsend::InstantSendLockPtr& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen, !cs_height_cache);
 
     void TransactionAddedToMempool(const CTransactionRef& tx)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen);
@@ -183,9 +183,9 @@ public:
     instantsend::InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
 
     void NotifyChainLock(const CBlockIndex* pindexChainLock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_timingsTxSeen);
     void UpdatedBlockTip(const CBlockIndex* pindexNew)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_height_cache);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_timingsTxSeen, !cs_height_cache);
 
     void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
