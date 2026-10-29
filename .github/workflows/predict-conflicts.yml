@@ -24,7 +24,7 @@ jobs:
   predict_conflicts:
     # Forks also run scheduled workflows.
     if: github.repository == 'dashpay/dash'
-    runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_PREDICT_CONFLICTS || vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     concurrency:
       group: predict-conflicts
