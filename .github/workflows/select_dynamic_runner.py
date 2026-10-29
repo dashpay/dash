@@ -25,6 +25,11 @@ REQUEST_TIMEOUT_SECONDS = 10
 # Prefixes — any label starting with one of these indicates a non-GitHub-hosted runner
 NON_GITHUB_HOSTED_RUNNER_PREFIXES = ("blacksmith-",)
 SELF_HOSTED_LABEL = "self-hosted"
+# GitHub's own runner image labels, such as ubuntu-24.04, ubuntu-24.04-arm,
+# ubuntu-latest or windows-11-arm. A bare label like ubuntu-core does not match.
+GITHUB_HOSTED_IMAGE_LABEL = re.compile(
+    r"(ubuntu|windows|macos)-(latest|slim|\d[\d.]*)(-[a-z0-9]+)*", re.IGNORECASE
+)
 # Any queued GitHub-hosted job at all is enough to prefer our own hardware for
 # the arm64 pre-lint jobs.
 SELFHOSTED_BACKLOG_THRESHOLD = 0
@@ -336,28 +341,30 @@ def select_tier_runner(
     selfhosted_label: str,
     selfhosted_queued: int,
     selfhosted_queue_limit: int,
+    default_runner: str,
     blacksmith_runner: str,
     label_override: bool,
     measurement_error: Optional[str],
     disabled_reason: str,
 ) -> Tuple[str, str]:
-    """Pick an amd64 tier's runner: GitHub-hosted, then self-hosted, then Blacksmith.
+    """Pick an amd64 tier's runner: default, then self-hosted, then Blacksmith.
 
-    Runs that may not use our own hardware stay GitHub-hosted, so Blacksmith
-    is only ever paid for trusted runs or an explicit blacksmith-ci label.
-    blacksmith_runner is GitHub-hosted when RUNNER_AMD64 is unset.
+    default_runner is RUNNER_DEFAULT_AMD64, GitHub-hosted unless set. Runs
+    that may not use our own hardware stay on it, so Blacksmith is only ever
+    paid for trusted runs or an explicit blacksmith-ci label.
+    blacksmith_runner is default_runner when RUNNER_AMD64 is unset.
     """
     if label_override:
         return blacksmith_runner, "label:blacksmith-ci"
 
     if measurement_error is not None:
-        return DEFAULT_RUNNER_AMD64, "metric-unavailable"
+        return default_runner, "metric-unavailable"
 
     if hosted_available:
-        return DEFAULT_RUNNER_AMD64, hosted_reason
+        return default_runner, hosted_reason
 
     if not allowed:
-        return DEFAULT_RUNNER_AMD64, "actor-not-allowed"
+        return default_runner, "actor-not-allowed"
 
     if not selfhosted_label:
         return blacksmith_runner, disabled_reason
@@ -390,6 +397,8 @@ def select_runners(
     runner_selfhosted_build_var: str = "",
     build_hosted_queue_limit: int = DEFAULT_BUILD_HOSTED_QUEUE_LIMIT,
     build_selfhosted_queue_limit: int = DEFAULT_BUILD_SELFHOSTED_QUEUE_LIMIT,
+    runner_default_amd64_var: str = "",
+    runner_default_arm64_var: str = "",
 ) -> Dict[str, str]:
     label_names = [
         label.get("name", "")
@@ -404,6 +413,14 @@ def select_runners(
     selfhosted_queued: Dict[str, int] = {}
     measurement_error = None
 
+    # A default runner set to a label other than one of GitHub's images names
+    # our own hardware, so its queued jobs must not count towards the backlog.
+    moved_default_labels = tuple(
+        label
+        for label in (runner_default_amd64_var, runner_default_arm64_var)
+        if label and not GITHUB_HOSTED_IMAGE_LABEL.fullmatch(label)
+    )
+
     try:
         backlog_count_value, selfhosted_queued = count_queued_jobs(
             fetch_json,
@@ -412,7 +429,7 @@ def select_runners(
                 runner_selfhosted_arm64_var,
                 runner_selfhosted_fast_var,
                 runner_selfhosted_build_var,
-            ),
+            ) + moved_default_labels,
         )
         backlog_count = str(backlog_count_value)
     except Exception as exc:  # noqa: BLE001
@@ -447,21 +464,22 @@ def select_runners(
         measurement_error is None and backlog_count_value > arm64_threshold
     )
 
-    runner_amd64 = DEFAULT_RUNNER_AMD64
-    runner_arm64 = DEFAULT_RUNNER_ARM64
+    default_amd64 = runner_default_amd64_var or DEFAULT_RUNNER_AMD64
+    runner_amd64 = default_amd64
+    runner_arm64 = runner_default_arm64_var or DEFAULT_RUNNER_ARM64
     fallback_parts: List[str] = []
 
     if use_blacksmith_amd64:
         if runner_amd64_var:
             runner_amd64 = runner_amd64_var
         else:
-            fallback_parts.append("amd64-github-fallback")
+            fallback_parts.append("amd64-default-fallback")
 
     if use_blacksmith_arm64:
         if runner_arm64_var:
             runner_arm64 = runner_arm64_var
         else:
-            fallback_parts.append("arm64-github-fallback")
+            fallback_parts.append("arm64-default-fallback")
 
     if measurement_error is not None:
         decision_parts.append("error:{}".format(measurement_error[:180]))
@@ -499,7 +517,7 @@ def select_runners(
     )
 
     trusted = is_amd64_selfhosted_allowed(event_name, event, actor, allowed_authors)
-    blacksmith_amd64 = runner_amd64_var or DEFAULT_RUNNER_AMD64
+    blacksmith_amd64 = runner_amd64_var or default_amd64
 
     def tier(
         hosted_available: bool,
@@ -515,6 +533,7 @@ def select_runners(
             selfhosted_label=selfhosted_label,
             selfhosted_queued=selfhosted_queued.get(selfhosted_label.lower(), 0),
             selfhosted_queue_limit=queue_limit,
+            default_runner=default_amd64,
             blacksmith_runner=blacksmith_amd64,
             label_override=label_override,
             measurement_error=measurement_error,
@@ -647,6 +666,16 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         help="Queued job threshold for switching arm64 jobs to Blacksmith",
     )
     parser.add_argument(
+        "--runner-default-amd64-var",
+        default=os.environ.get("RUNNER_DEFAULT_AMD64_VAR", ""),
+        help="amd64 runner label used without escalation; empty means {}".format(DEFAULT_RUNNER_AMD64),
+    )
+    parser.add_argument(
+        "--runner-default-arm64-var",
+        default=os.environ.get("RUNNER_DEFAULT_ARM64_VAR", ""),
+        help="arm64 runner label used without escalation; empty means {}".format(DEFAULT_RUNNER_ARM64),
+    )
+    parser.add_argument(
         "--runner-amd64-var",
         default=os.environ.get("RUNNER_AMD64_VAR", ""),
         help="Blacksmith runner label for amd64",
@@ -756,6 +785,8 @@ def main(argv: Sequence[str]) -> int:
         runner_selfhosted_build_var=args.runner_selfhosted_build_var,
         build_hosted_queue_limit=args.build_hosted_queue_limit,
         build_selfhosted_queue_limit=args.build_selfhosted_queue_limit,
+        runner_default_amd64_var=args.runner_default_amd64_var,
+        runner_default_arm64_var=args.runner_default_arm64_var,
     )
 
     write_github_output(os.environ.get("GITHUB_OUTPUT"), outputs)

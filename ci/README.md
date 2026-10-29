@@ -58,7 +58,8 @@ label share its queue.
   both tiers unless it has the `blacksmith-ci` label.
 - A `blacksmith-ci` label sends both tiers to `RUNNER_AMD64`. Otherwise a
   failed backlog measurement keeps both GitHub-hosted.
-- With `RUNNER_AMD64` unset, the Blacksmith step is GitHub-hosted.
+- With `RUNNER_AMD64` unset, the Blacksmith step uses `RUNNER_DEFAULT_AMD64`
+  (or `ubuntu-24.04` when that variable is unset).
 - Unsetting a tier's label variable skips only that tier's self-hosted step,
   for example to keep the build tier off a busy pool while the fast tier keeps
   using it. Jobs already queued for the label must be cancelled and re-run.
@@ -78,3 +79,43 @@ tier's label also runs Docker Buildx for the container builds, which push to
 GHCR, and `make -C depends download` directly on the host for cache-sources. These runs
 execute pull request code with access to that Docker daemon, so give each job
 a fresh, single-use machine.
+
+### Runner variables
+
+Every workflow job picks its runner label from a repository or organization
+variable, so a fork can move CI to other runners without editing workflows.
+Unset variables keep the defaults below.
+
+| Variable | Workflow | Default |
+|---|---|---|
+| `RUNNER_DEFAULT_AMD64` | `build.yml` amd64 jobs | `ubuntu-24.04` |
+| `RUNNER_DEFAULT_ARM64` | `build.yml` arm64 jobs and ccache pruning | `ubuntu-24.04-arm` |
+| `RUNNER_AMD64`, `RUNNER_ARM64` | `build.yml` runs moved off the default runners by the backlog, the `blacksmith-ci` label or an amd64 tier's last step | the defaults above |
+| `RUNNER_CHECK_SKIP` | `build.yml` `Check skip conditions`, the depends `Check cache` jobs and the existing-container checks | `ubuntu-24.04-arm` |
+| `RUNNER_CACHE_DEPENDS_SOURCES` | scheduled `cache-depends-sources.yml` | `ubuntu-24.04-arm` |
+| `RUNNER_GUIX_BUILD` | `guix-build.yml` | `ubuntu-24.04-arm` |
+| `RUNNER_CLANG_DIFF_FORMAT` | `clang-diff-format.yml` | `ubuntu-latest` |
+| `RUNNER_PREVENT_MASTER_PR` | `prevent-master-pr.yml` | `ubuntu-latest` |
+| `RUNNER_LABEL_MERGE_CONFLICTS` | `label-merge-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_MERGE_CHECK` | `merge-check.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_PREDICT_CONFLICTS` | `predict-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_SEMANTIC_PULL_REQUEST` | `semantic-pull-request.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_DOCKER_RELEASE` | `release_docker_hub.yml` | `ubuntu-22.04` |
+
+`RUNNER_DEFAULT_AMD64` and `RUNNER_AMD64` must name x86_64 runners, and
+`RUNNER_DEFAULT_ARM64` and `RUNNER_ARM64` aarch64 runners, because the
+container images and depends cache keys are per architecture.
+`RUNNER_DEFAULT_AMD64` also stands in for GitHub-hosted in the amd64 tiers
+above: it is each tier's first step, where untrusted runs stay, and its
+Blacksmith step while `RUNNER_AMD64` is unset.
+
+The backlog that moves runs to `RUNNER_AMD64`/`RUNNER_ARM64` counts queued
+jobs in the dashpay repositories listed in `select_dynamic_runner.py`, and
+treats every label that is not `self-hosted`, a self-hosted label below, a
+`blacksmith-` label or a default runner set to something other than one of
+GitHub's image labels (such as `ubuntu-24.04` or `ubuntu-latest`) as
+GitHub-hosted. A fork that sets the default runners
+does not need to set `RUNNER_AMD64`/`RUNNER_ARM64`.
+
+The self-hosted labels (`RUNNER_SELFHOSTED_FAST`, `RUNNER_SELFHOSTED_BUILD`,
+`RUNNER_SELFHOSTED_ARM64`) are described above and in `build.yml`.
