@@ -123,9 +123,8 @@ private:
     CEvoDB& evoDb;
     const ChainstateManager& m_chainman;
 
-    static constexpr int DISK_SNAPSHOT_PERIOD = 576; // once per day
-
 public:
+    static constexpr int DISK_SNAPSHOT_PERIOD = 576; // once per day
     static constexpr CAmount LimitAmountLow = 100 * COIN;
     static constexpr CAmount LimitAmountHigh = 1000 * COIN;
     static constexpr CAmount LimitAmountV22 = 2000 * COIN;

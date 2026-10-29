@@ -243,6 +243,7 @@ public:
         nDefaultPlatformP2PPort = 26656;
         nDefaultPlatformHTTPPort = 443;
         nPruneAfterHeight = 100000;
+        m_min_blocks_to_keep = 2304; // four days
         m_assumed_blockchain_size = 57;
         m_assumed_chain_state_size = 1;
 
@@ -446,7 +447,8 @@ public:
         nDefaultPort = 19999;
         nDefaultPlatformP2PPort = 22000;
         nDefaultPlatformHTTPPort = 22001;
-        nPruneAfterHeight = 1000;
+        nPruneAfterHeight = 3000;
+        m_min_blocks_to_keep = 2304; // four days
         m_assumed_blockchain_size = 10;
         m_assumed_chain_state_size = 1;
 
@@ -628,7 +630,8 @@ public:
         nDefaultPort = 19799;
         nDefaultPlatformP2PPort = 22100;
         nDefaultPlatformHTTPPort = 22101;
-        nPruneAfterHeight = 1000;
+        nPruneAfterHeight = 3000;
+        m_min_blocks_to_keep = 2304; // four days
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
 
@@ -873,6 +876,7 @@ public:
         nDefaultPlatformP2PPort = 22200;
         nDefaultPlatformHTTPPort = 22201;
         nPruneAfterHeight = args.GetBoolArg("-fastprune", false) ? 100 : 1000;
+        m_min_blocks_to_keep = 288;
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
 
