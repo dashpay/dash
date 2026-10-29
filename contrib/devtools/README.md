@@ -174,7 +174,9 @@ optimize-pngs.py
 ================
 
 A script to optimize png files in the dash
-repository (requires pngcrush).
+repository (requires pngcrush and zopflipng).
+
+    ./contrib/devtools/optimize-pngs.py src/qt/res/animation/ src/qt/res/icons/ src/qt/res/images/ share/pixmaps/
 
 update-translations.py
 ======================
@@ -182,9 +184,12 @@ update-translations.py
 Run this script from the root of the repository to update all translations from transifex.
 It will do the following automatically:
 
+- remove current translations
 - fetch all translations
 - post-process them into valid and committable format
-- add missing translations to the build system (TODO)
+- drop untranslated languages
+- update git for added translations
+- update build system
 
 See doc/translation-process.md for more information.
 
