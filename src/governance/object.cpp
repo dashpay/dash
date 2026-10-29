@@ -837,11 +837,9 @@ bool CGovernanceObject::IsCollateralValid(const ChainstateManager& chainman, std
 
     AssertLockHeld(::cs_main);
     int nConfirmationsIn = 0;
-    if (nBlockHash != uint256()) {
-        const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(nBlockHash);
-        if (pindex && chainman.ActiveChain().Contains(pindex)) {
-            nConfirmationsIn += chainman.ActiveChain().Height() - pindex->nHeight + 1;
-        }
+    const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(nBlockHash);
+    if (pindex && chainman.ActiveChain().Contains(pindex)) {
+        nConfirmationsIn += chainman.ActiveChain().Height() - pindex->nHeight + 1;
     }
 
     if (nConfirmationsIn < GOVERNANCE_FEE_CONFIRMATIONS) {
