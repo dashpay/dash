@@ -65,7 +65,10 @@ a fresh, single-use machine.
 
 Every workflow job picks its runner label from a repository or organization
 variable, so a fork can move CI to other runners without editing workflows.
-Unset variables keep the defaults below.
+Unset variables keep the defaults below. Most of these workflows run pull
+request code, and only the self-hosted rungs below apply an author allowlist,
+so a self-hosted label named by any other variable must be an isolated,
+single-use machine.
 
 | Variable | Workflow | Default |
 |---|---|---|
@@ -86,6 +89,14 @@ Unset variables keep the defaults below.
 `RUNNER_DEFAULT_AMD64` and `RUNNER_AMD64` must name x86_64 runners, and
 `RUNNER_DEFAULT_ARM64` and `RUNNER_ARM64` aarch64 runners, because the
 container images and depends cache keys are per architecture.
+`RUNNER_GUIX_BUILD` must resolve to runners of a single architecture, because
+its build jobs run the image its image job builds.
+
+The depends `Check cache` jobs run on `RUNNER_CHECK_SKIP`, and a cache hit
+there skips the depends build. Blacksmith runners use their own cache rather
+than GitHub's, so `RUNNER_CHECK_SKIP` and the runners that build depends must
+use the same one: with Blacksmith default runners, set `RUNNER_CHECK_SKIP` to
+a Blacksmith label and leave `RUNNER_SELFHOSTED_FAST` unset.
 
 The backlog that moves runs to `RUNNER_AMD64`/`RUNNER_ARM64` counts queued
 jobs in the dashpay repositories listed in `select_dynamic_runner.py`, and
