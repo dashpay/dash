@@ -15,6 +15,8 @@
 
 #include <chain.h>
 #include <deploymentstatus.h>
+#include <hash.h>
+#include <util/irange.h>
 #include <validation.h>
 
 #include <cxxtimer.hpp>
@@ -47,7 +49,23 @@ void ActiveDKGSession::Contribute(CDKGPendingMessages& pendingMessages, PeerMana
 
     cxxtimer::Timer t1(true);
     logger.Batch("generating contributions");
-    if (!blsWorker.GenerateContributions(params.threshold, memberIds, vvecContribution, m_sk_contributions)) {
+    if (ShouldSimulateError(DKGError::type::CONTRIBUTION_CLONE)) {
+        // Derive the contribution from the quorum alone, so every member simulating this deals the same
+        // contribution, as if it had copied another member's
+        logger.Batch("dealing a cloned contribution");
+        std::vector<CBLSSecretKey> svec(params.threshold);
+        vvecContribution = std::make_shared<std::vector<CBLSPublicKey>>();
+        for (const auto i : irange::range(svec.size())) {
+            uint256 seed{::SerializeHash(std::make_pair(m_quorum_base_block_index->GetBlockHash(), uint32_t(i)))};
+            *seed.begin() = 0; // keep it below the group order
+            svec[i] = CBLSSecretKey{Span{seed}};
+            vvecContribution->emplace_back(svec[i].GetPublicKey());
+        }
+        m_sk_contributions.resize(memberIds.size());
+        for (const auto i : irange::range(memberIds.size())) {
+            m_sk_contributions[i].SecretKeyShare(svec, memberIds[i]);
+        }
+    } else if (!blsWorker.GenerateContributions(params.threshold, memberIds, vvecContribution, m_sk_contributions)) {
         // this should never happen actually
         logger.Batch("GenerateContributions failed");
         return;
@@ -429,7 +447,25 @@ void ActiveDKGSession::VerifyAndCommit(CDKGPendingMessages& pendingMessages, Pee
         }
     }
 
-    if (!badMembers.empty() || !openComplaintMembers.empty()) {
+    // A member can copy another member's whole contribution: every share verifies, but the duplicated
+    // coefficients make the quorum verification vector impossible to build, so no commitment could be made.
+    // The copy can't be told from the original, so drop both; members that agree on the remaining members
+    // and hold the same contributions drop the same ones and still agree on the commitment.
+    std::vector<size_t> remainingMembers;
+    std::vector<BLSVerificationVectorPtr> remainingVvecs;
+    for (const auto& m : members) {
+        if (!m->bad) {
+            remainingMembers.emplace_back(m->idx);
+            remainingVvecs.emplace_back(receivedVvecs[m->idx]);
+        }
+    }
+    std::vector<size_t> sharedCoefficientMembers;
+    for (const auto i : CBLSWorker::FindVerificationVectorsWithSharedCoefficients(remainingVvecs)) {
+        MarkBadMember(remainingMembers[i]);
+        sharedCoefficientMembers.emplace_back(remainingMembers[i]);
+    }
+
+    if (!badMembers.empty() || !openComplaintMembers.empty() || !sharedCoefficientMembers.empty()) {
         logger.Batch("verification result:");
     }
     if (!badMembers.empty()) {
@@ -441,6 +477,12 @@ void ActiveDKGSession::VerifyAndCommit(CDKGPendingMessages& pendingMessages, Pee
     if (!openComplaintMembers.empty()) {
         logger.Batch("  members with open complaints and now marked as bad:");
         for (const auto& idx : openComplaintMembers) {
+            logger.Batch("    %s", members[idx]->dmn->proTxHash.ToString());
+        }
+    }
+    if (!sharedCoefficientMembers.empty()) {
+        logger.Batch("  members sharing verification vector coefficients and now marked as bad:");
+        for (const auto& idx : sharedCoefficientMembers) {
             logger.Batch("    %s", members[idx]->dmn->proTxHash.ToString());
         }
     }

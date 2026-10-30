@@ -9,6 +9,8 @@
 #include <util/ranges.h>
 #include <util/system.h>
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <utility>
 
@@ -620,13 +622,15 @@ BLSVerificationVectorPtr CBLSWorker::BuildQuorumVerificationVector(Span<BLSVerif
 
 template <typename T>
 void AsyncAggregateHelper(ctpl::thread_pool& workerPool, Span<T> vec, bool parallel,
-                          std::function<void(const T&)> doneCallback)
+                          std::function<void(const T&)> doneCallback, bool rejectDuplicates = true)
 {
     if (vec.empty()) {
         doneCallback(T());
         return;
     }
-    if (!VerifyVectorHelper(vec)) {
+    const bool inputValid{rejectDuplicates ? VerifyVectorHelper(vec)
+                                           : std::all_of(vec.begin(), vec.end(), [](const T& item) { return item.IsValid(); })};
+    if (!inputValid) {
         doneCallback(T());
         return;
     }
@@ -638,7 +642,10 @@ void AsyncAggregateHelper(ctpl::thread_pool& workerPool, Span<T> vec, bool paral
 void CBLSWorker::AsyncAggregateSecretKeys(Span<CBLSSecretKey> secKeys, bool parallel,
                                           std::function<void(const CBLSSecretKey&)> doneCallback)
 {
-    AsyncAggregateHelper(workerPool, secKeys, parallel, std::move(doneCallback));
+    // These are the DKG shares dealt to one member. Two colluding dealers can deal it equal shares while their
+    // contributions stay valid and their vvecs share no coefficient, so rejecting duplicates here would let them keep
+    // chosen members from building their quorum secret key share. The sum is correct either way.
+    AsyncAggregateHelper(workerPool, secKeys, parallel, std::move(doneCallback), /*rejectDuplicates=*/false);
 }
 
 std::future<CBLSSecretKey> CBLSWorker::AsyncAggregateSecretKeys(Span<CBLSSecretKey> secKeys, bool parallel)
@@ -803,6 +810,25 @@ bool CBLSWorker::VerifyVerificationVectors(Span<BLSVerificationVectorPtr> vvecs)
     }
 
     return true;
+}
+
+std::set<size_t> CBLSWorker::FindVerificationVectorsWithSharedCoefficients(Span<BLSVerificationVectorPtr> vvecs)
+{
+    std::map<uint256, size_t> owners;
+    std::set<size_t> ret;
+    for (size_t i = 0; i < vvecs.size(); i++) {
+        if (vvecs[i] == nullptr) {
+            continue;
+        }
+        for (const auto& coefficient : *vvecs[i]) {
+            const auto [it, inserted] = owners.emplace(coefficient.GetHash(), i);
+            if (!inserted && it->second != i) {
+                ret.emplace(it->second);
+                ret.emplace(i);
+            }
+        }
+    }
+    return ret;
 }
 
 void CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, const CBLSWorker::SignDoneCallback& doneCallback)
