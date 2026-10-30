@@ -227,8 +227,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
 
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000ba7225adc3153945d14d"); // 2487500
-        consensus.defaultAssumeValid = uint256S("0x00000000000000119fe42827219e0686d3f7b494ae65f823194c740c5dbab492"); // 2487500
+        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000c15981a81af44a6abe1a"); // 2563000
+        consensus.defaultAssumeValid = uint256S("0x000000000000000346a1804da4832b0b69dd9a7f96b14c7cb54585a9ac6ae98f"); // 2563000
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -244,7 +244,7 @@ public:
         nDefaultPlatformHTTPPort = 443;
         nPruneAfterHeight = 100000;
         m_min_blocks_to_keep = 2304; // four days
-        m_assumed_blockchain_size = 57;
+        m_assumed_blockchain_size = 62;
         m_assumed_chain_state_size = 1;
 
         genesis = CreateGenesisBlock(1390095618, 28917698, 0x1e0ffff0, 1, 50 * COIN);
@@ -345,6 +345,7 @@ public:
                 {2421800, uint256S("0x000000000000000718ed026ebd644a8b70b42d4cbd7b25304c066c9bf15f85b7")},
                 {2471728, uint256S("0x000000000000001a19ad7270422a00f86123ea94e0b295a3a796d6861bd7b032")},
                 {2487500, uint256S("0x00000000000000119fe42827219e0686d3f7b494ae65f823194c740c5dbab492")},
+                {2563000, uint256S("0x000000000000000346a1804da4832b0b69dd9a7f96b14c7cb54585a9ac6ae98f")},
             }
         };
 
@@ -352,12 +353,12 @@ public:
          // TODO to be specified in a future patch.
         };
 
-        // getchaintxstats 17280 000000000000001a19ad7270422a00f86123ea94e0b295a3a796d6861bd7b032
+        // getchaintxstats 17280 000000000000000346a1804da4832b0b69dd9a7f96b14c7cb54585a9ac6ae98f
         chainTxData = ChainTxData{
-                1781318234, // * UNIX timestamp of last known number of transactions (Block 2487500)
-                69770814,   // * total number of transactions between genesis and that timestamp
+                1793218693, // * UNIX timestamp of last known number of transactions (Block 2563000)
+                71411418,   // * total number of transactions between genesis and that timestamp
                             //   (the tx=... number in the ChainStateFlushed debug.log lines)
-                0.1569520632249578,      // * estimated number of transactions per second after that timestamp
+                0.1306891420721072,      // * estimated number of transactions per second after that timestamp
         };
     }
 };
@@ -437,8 +438,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
 
-        consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000036c8f738da818d2"); // 1400000
-        consensus.defaultAssumeValid = uint256S("0x000000541a23f9db7411cddbe50f9f1ebd4aa7108ebdcad62214753f648c0239"); // 1400000
+        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000003ed573a939487fc"); // 1550000
+        consensus.defaultAssumeValid = uint256S("0x000000116cd3c11d44c88cbc0a26804bd277a5d790f684ec3a8aaa820690318c"); // 1550000
 
         pchMessageStart[0] = 0xce;
         pchMessageStart[1] = 0xe2;
@@ -529,6 +530,7 @@ public:
                 {1189000, uint256S("0x000001690314036dfbbecbdf382b230ead8e9c584241290a51f9f05a87a9cf7e")},
                 {1295700, uint256S("0x00000107d42829a38e31c1a38c660d621e1ca376a880df1520e85e38af175d3a")},
                 {1380000, uint256S("0x000000a98084beaf77ed26a905a7d59979009e23367a55b5d634962d7d65a1f9")},
+                {1550000, uint256S("0x000000116cd3c11d44c88cbc0a26804bd277a5d790f684ec3a8aaa820690318c")},
             }
         };
 
@@ -536,12 +538,12 @@ public:
             // TODO to be specified in a future patch.
         };
 
-        // getchaintxstats 17280 000000a98084beaf77ed26a905a7d59979009e23367a55b5d634962d7d65a1f9
+        // getchaintxstats 17280 000000116cd3c11d44c88cbc0a26804bd277a5d790f684ec3a8aaa820690318c
         chainTxData = ChainTxData{
-                1765334452, // * UNIX timestamp of last known number of transactions (Block 1380000)
-                8182713,    // * total number of transactions between genesis and that timestamp
+                1788899589, // * UNIX timestamp of last known number of transactions (Block 1550000)
+                8494561,    // * total number of transactions between genesis and that timestamp
                             //   (the tx=... number in the ChainStateFlushed debug.log lines)
-                0.1796716675173412,       // * estimated number of transactions per second after that timestamp
+                0.0139463532250889,       // * estimated number of transactions per second after that timestamp
         };
     }
 };
