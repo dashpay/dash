@@ -24,6 +24,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
@@ -665,6 +666,163 @@ BOOST_AUTO_TEST_CASE(legacy_quarter_walk_pinned)
     DataStream ss{};
     ss << snapshot;
     BOOST_CHECK_EQUAL(HexStr(ss), "01000000" "08" "8d" "03" "00000000" "02000000" "03000000");
+}
+
+namespace {
+using Positions = std::vector<std::vector<size_t>>;
+
+// can_add that rejects positions already used by the index (and records additions) or failing for index 0
+struct StepWalkFixture {
+    std::vector<std::vector<bool>> used;
+    std::set<size_t> failing_for_index0;
+
+    StepWalkFixture(size_t list_size, size_t quorums) : used(quorums, std::vector<bool>(list_size, false)) {}
+
+    bool CanAdd(size_t i, size_t pos)
+    {
+        if (used[i][pos] || (i == 0 && failing_for_index0.count(pos) != 0)) return false;
+        used[i][pos] = true;
+        return true;
+    }
+    std::optional<llmq::utils::QuarterWalkResult> Walk(size_t list_size, size_t quorums, size_t quarter)
+    {
+        return llmq::utils::WalkNewQuarters(list_size, quorums, quarter,
+                                            [this](size_t i, size_t pos) { return CanAdd(i, pos); });
+    }
+};
+} // namespace
+
+BOOST_AUTO_TEST_CASE(quarter_walk_roundtrip_exhaustive)
+{
+    for (size_t list_size = 0; list_size <= 5; ++list_size) {
+        for (size_t quorums = 1; quorums <= 3; ++quorums) {
+            for (size_t quarter = 1; quarter <= 2; ++quarter) {
+                const size_t used_combos = size_t{1} << (list_size * quorums);
+                for (size_t used_mask = 0; used_mask < used_combos; ++used_mask) {
+                    for (size_t fail_mask = 0; fail_mask < (size_t{1} << list_size); ++fail_mask) {
+                        StepWalkFixture fx(list_size, quorums);
+                        for (size_t i = 0; i < quorums; ++i) {
+                            for (size_t p = 0; p < list_size; ++p) {
+                                fx.used[i][p] = (used_mask >> (i * list_size + p)) & 1;
+                            }
+                        }
+                        for (size_t p = 0; p < list_size; ++p) {
+                            if ((fail_mask >> p) & 1) fx.failing_for_index0.insert(p);
+                        }
+                        const auto walk = fx.Walk(list_size, quorums, quarter);
+                        BOOST_REQUIRE(walk.has_value());
+                        const auto replayed = llmq::utils::ReplayNewQuarters(list_size, quorums, quarter, walk->skip_list);
+                        BOOST_REQUIRE(replayed.has_value());
+                        BOOST_CHECK(*replayed == walk->quarters);
+                        BOOST_CHECK_LE(walk->skip_list.size(), 2 * list_size * quorums);
+                        BOOST_REQUIRE_EQUAL(walk->quarters.size(), quorums);
+                        for (size_t i = 0; i < quorums; ++i) {
+                            const auto& q = walk->quarters[i];
+                            BOOST_CHECK_LE(q.size(), quarter);
+                            BOOST_CHECK_EQUAL(std::set<size_t>(q.begin(), q.end()).size(), q.size());
+                            if (q.size() < quarter) {
+                                for (size_t p = 0; p < list_size; ++p) {
+                                    // fx.used now includes the additions
+                                    BOOST_CHECK(fx.used[i][p] || (i == 0 && fx.failing_for_index0.count(p) != 0));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_collision_case)
+{
+    // the legacy encoding records skips [0] for both of these
+    StepWalkFixture index1_has_0(1, 2);
+    index1_has_0.used[1][0] = true;
+    const auto a = index1_has_0.Walk(1, 2, 1);
+    BOOST_REQUIRE(a.has_value());
+    BOOST_CHECK(a->quarters == (Positions{{0}, {}}));
+
+    StepWalkFixture index0_has_0(1, 2);
+    index0_has_0.used[0][0] = true;
+    const auto b = index0_has_0.Walk(1, 2, 1);
+    BOOST_REQUIRE(b.has_value());
+    BOOST_CHECK(b->quarters == (Positions{{}, {0}}));
+
+    BOOST_CHECK(a->skip_list != b->skip_list);
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(1, 2, 1, a->skip_list) == a->quarters);
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(1, 2, 1, b->skip_list) == b->quarters);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_addmn_failure_short)
+{
+    StepWalkFixture fx(5, 1);
+    fx.failing_for_index0 = {1, 2, 3};
+    const auto walk = fx.Walk(5, 1, 3);
+    BOOST_REQUIRE(walk.has_value());
+    BOOST_CHECK(walk->quarters == (Positions{{0, 4}}));
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(5, 1, 3, walk->skip_list) == walk->quarters);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_empty_list)
+{
+    StepWalkFixture fx(0, 3);
+    const auto walk = fx.Walk(0, 3, 2);
+    BOOST_REQUIRE(walk.has_value());
+    BOOST_CHECK(walk->quarters == (Positions{{}, {}, {}}));
+    BOOST_CHECK(walk->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(0, 3, 2, {}) == walk->quarters);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_replay_rejects_malformed)
+{
+    const auto replay = [](const std::vector<int>& skips) {
+        return llmq::utils::ReplayNewQuarters(4, 2, 2, skips);
+    };
+    BOOST_CHECK(!replay({-1}).has_value());
+    BOOST_CHECK(!replay({0, 0}).has_value());
+    BOOST_CHECK(!replay({3, -1}).has_value());
+    BOOST_CHECK(!replay({0, std::numeric_limits<int>::max(), 1}).has_value());
+
+    // a valid list with one extra trailing entry is not fully consumed
+    BOOST_CHECK(replay({1}).has_value());
+    BOOST_CHECK(!replay({1, 1, 1, 1, 1, 1, 1, 1, 1, 1}).has_value());
+    StepWalkFixture fx(4, 2);
+    fx.failing_for_index0 = {1};
+    const auto walk = fx.Walk(4, 2, 2);
+    BOOST_REQUIRE(walk.has_value());
+    BOOST_REQUIRE(!walk->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(4, 2, 2, walk->skip_list).has_value());
+    auto extended = walk->skip_list;
+    extended.push_back(1000); // a skip step the walk never reaches
+    BOOST_CHECK(!llmq::utils::ReplayNewQuarters(4, 2, 2, extended).has_value());
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_snapshot_roundtrip)
+{
+    const auto check = [](StepWalkFixture& fx, size_t list_size, size_t quorums, size_t quarter) {
+        const auto walk = fx.Walk(list_size, quorums, quarter);
+        BOOST_REQUIRE(walk.has_value());
+        BOOST_REQUIRE(!walk->skip_list.empty());
+        llmq::CQuorumSnapshot snapshot{std::vector<bool>(list_size, true), SnapshotSkipMode::MODE_SKIPPING_ENTRIES,
+                                       walk->skip_list};
+        DataStream ss{};
+        ss << snapshot;
+        llmq::CQuorumSnapshot decoded;
+        ss >> decoded;
+        BOOST_CHECK(decoded.mnSkipListMode == SnapshotSkipMode::MODE_SKIPPING_ENTRIES);
+        const auto replayed = llmq::utils::ReplayNewQuarters(list_size, quorums, quarter, decoded.mnSkipList);
+        BOOST_REQUIRE(replayed.has_value());
+        BOOST_CHECK(*replayed == walk->quarters);
+    };
+
+    StepWalkFixture collision(1, 2);
+    collision.used[0][0] = true;
+    check(collision, 1, 2, 1);
+
+    StepWalkFixture failure(5, 1);
+    failure.failing_for_index0 = {1, 2, 3};
+    check(failure, 5, 1, 3);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -61,6 +61,15 @@ std::optional<QuarterWalkResult> WalkLegacyQuarters(size_t list_size, size_t quo
 std::vector<std::vector<size_t>> ReplayLegacyQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
                                                        Span<const int> skip_list);
 
+//! Step-encoded walk: skip_list holds the steps (visits across all quorum indices) at which a candidate was
+//! skipped, the first absolute and each later one as a positive delta. can_add(quorum_index, position) returns
+//! true if the candidate joins that index and must record the addition. nullopt if a delta doesn't fit in int.
+std::optional<QuarterWalkResult> WalkNewQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
+                                                 const std::function<bool(size_t, size_t)>& can_add);
+//! Inverse of WalkNewQuarters; nullopt if skip_list is malformed or not fully consumed.
+std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_size, size_t quorum_count,
+                                                                  size_t quarter_size, Span<const int> skip_list);
+
 struct BlsCheck {
     CBLSSignature m_sig;
     std::vector<CBLSPublicKey> m_pubkeys;

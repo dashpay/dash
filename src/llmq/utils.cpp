@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <functional>
+#include <limits>
 #include <map>
 #include <optional>
 
@@ -577,6 +578,65 @@ std::vector<std::vector<size_t>> ReplayLegacyQuarters(size_t list_size, size_t q
             }
         }
     }
+    return quarters;
+}
+
+std::optional<QuarterWalkResult> WalkNewQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
+                                                 const std::function<bool(size_t, size_t)>& can_add)
+{
+    QuarterWalkResult result;
+    result.quarters.resize(quorum_count);
+    size_t step{0};
+    size_t prev_skip_step{0};
+    for (const size_t i : util::irange(quorum_count)) {
+        size_t consecutive_skips{0};
+        while (list_size > 0 && result.quarters[i].size() < quarter_size && consecutive_skips < list_size) {
+            const size_t pos = step % list_size;
+            if (can_add(i, pos)) {
+                result.quarters[i].push_back(pos);
+                consecutive_skips = 0;
+            } else {
+                const size_t delta = step - prev_skip_step;
+                if (delta > static_cast<size_t>(std::numeric_limits<int>::max())) return std::nullopt;
+                result.skip_list.push_back(static_cast<int>(delta));
+                prev_skip_step = step;
+                ++consecutive_skips;
+            }
+            ++step;
+        }
+    }
+    return result;
+}
+
+std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_size, size_t quorum_count,
+                                                                  size_t quarter_size, Span<const int> skip_list)
+{
+    std::vector<size_t> skip_steps;
+    skip_steps.reserve(skip_list.size());
+    for (const int entry : skip_list) {
+        if (skip_steps.empty() ? entry < 0 : entry <= 0) return std::nullopt;
+        const size_t delta = static_cast<size_t>(entry);
+        if (!skip_steps.empty() && delta > std::numeric_limits<size_t>::max() - skip_steps.back()) return std::nullopt;
+        skip_steps.push_back(skip_steps.empty() ? delta : skip_steps.back() + delta);
+    }
+
+    std::vector<std::vector<size_t>> quarters(quorum_count);
+    size_t step{0};
+    size_t next_skip{0};
+    for (const size_t i : util::irange(quorum_count)) {
+        size_t consecutive_skips{0};
+        while (list_size > 0 && quarters[i].size() < quarter_size && consecutive_skips < list_size) {
+            if (next_skip < skip_steps.size() && skip_steps[next_skip] == step) {
+                ++next_skip;
+                ++consecutive_skips;
+            } else {
+                quarters[i].push_back(step % list_size);
+                consecutive_skips = 0;
+            }
+            ++step;
+        }
+    }
+    if (next_skip != skip_steps.size()) return std::nullopt;
     return quarters;
 }
 
