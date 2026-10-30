@@ -22,9 +22,23 @@ dashd/dash-qt (on Linux).
 On the first start after upgrading, a node that has `-addressindex`,
 `-spentindex` or `-timestampindex` enabled migrates that index to its own
 database (see [Asynchronous address, spent and timestamp indexes](#asynchronous-address-spent-and-timestamp-indexes)).
-This can take 20-40 minutes or longer depending on hardware and index size. The
-governance cache (`governance.dat`) and the spork cache (`sporks.dat`) changed
-format and are discarded and re-synced from the network on the first start.
+This can take 20-40 minutes or longer depending on hardware and index size.
+Start v24.0.0 for the first time with the same `-addressindex`, `-spentindex`
+and `-timestampindex` settings the node used before: an index that is left
+disabled on any start of v24.0.0 can no longer reuse its old data, and is
+rebuilt from genesis when it is enabled again. The governance cache
+(`governance.dat`) and the spork cache (`sporks.dat`) changed format and are
+discarded and re-synced from the network on the first start.
+
+A node that runs with `-txindex=0` must now also set `-disablegovernance`;
+otherwise it refuses to start (see [Updated settings](#updated-settings)).
+Pruned nodes are not affected, since `-prune` disables governance validation
+already.
+
+Pruned nodes now keep at least 2304 blocks below the tip instead of 288 (see
+[Pruning](#pruning)). Blocks that an earlier version already pruned are not
+recovered; a node that fails to validate a block after upgrading needs
+`-reindex`.
 
 ## Downgrade warning
 
@@ -124,12 +138,17 @@ Before activation there is no behavior change. (#7437, #7340)
 
 ### Multi-party payouts
 
-- The `payoutAddress` argument of `protx register`, `protx register_legacy`,
-  `protx register_evo`, `protx register_fund`, `protx register_fund_legacy`,
-  `protx register_fund_evo` and `protx update_registrar` accepts, in addition to
-  a single address, an array of `{"address": ..., "reward": ...}` objects that
-  splits the owner reward between several payees, with `reward` given in basis
-  points. Multi-party payouts are only valid once the `v24` hard fork activates.
+- The `payoutAddress` argument of `protx register`, `protx register_evo`,
+  `protx register_fund`, `protx register_fund_evo`, `protx register_prepare`,
+  `protx register_prepare_evo` and `protx update_registrar` accepts, in addition
+  to a single address, an array of `{"address": ..., "reward": ...}` objects
+  that splits the owner reward between several payees, with `reward` given in
+  basis points. Multi-party payouts are only valid once the `v24` hard fork
+  activates. The `..._legacy` variants build legacy-scheme transactions, which
+  cannot carry a payout list, and reject an array. For an EvoNode still on
+  version 2, `protx update_registrar` keeps version 2 and accepts only a single
+  payout address; upgrade the EvoNode with `protx update_service_evo` first (see
+  [Extended addresses](#extended-addresses-protx-version-3)).
 - For ExtAddr (version 3) masternode states and ProTx payloads the payout list
   is reported as a `payouts` array in place of the single `payoutAddress`
   field, which legacy versions keep. Shared masternodes report `shares`
@@ -174,6 +193,10 @@ Before activation there is no behavior change. (#7437, #7340)
   the last entry), paying each share's reward script (or its refund script when
   none is set). Operator rewards are unchanged.
 - Withdrawal (asset unlock) transactions may not pay the template script.
+- Coinbase payments are matched by multiplicity: every expected masternode
+  payment and every superblock payment must be paid by its own coinbase output,
+  so two identical expected payments (same script and amount) require two
+  outputs. Before activation one output could satisfy both. (#7362, #7377)
 
 ### EvoNode restrictions
 
@@ -214,7 +237,12 @@ Before activation there is no behavior change. (#7437, #7340)
   set.
 - `protx shared_combine` combines collected signatures and optionally submits.
   A dissolution combined here requires a signature from every share; unilateral
-  dissolutions come fully signed from `protx shared_dissolve`.
+  dissolutions come fully signed from `protx shared_dissolve`. A
+  ProUpSharedRegTx must be combined in the wallet that ran
+  `protx shared_update_registrar_prepare`, because combining re-signs its fee
+  inputs. It is refused unless those inputs are unlocked coins of a single
+  address of this wallet, any change returns to that address, and the fee is
+  within `-maxtxfee`. (#7881)
 - `protx shared_dissolve` creates, signs and submits a unilateral ProDisTx (or,
   with `submit=false`, returns hex suitable for offline standby storage).
 - `protx shared_dissolve_prepare` builds an unsigned unanimous ProDisTx.
@@ -302,11 +330,7 @@ longer penalized. (#7639, #7744)
 - The new `getcreditpoolinfo [height]` RPC reports the credit pool balance after
   a block, the balance one window earlier, the window length, the amount
   unlocked inside the window and the asset unlock limit that applies to the
-  next block.
-- Devnets that have had `v24` active must be reset with fresh datadirs: the
-  credit pool limit is part of the EvoDB credit pool snapshot, and a datadir
-  written by an earlier version would keep serving the old value at snapshot
-  heights. (#7712)
+  next block. (#7712)
 
 ## Version 2 Asset Locks and Platform addresses
 
@@ -367,6 +391,27 @@ does not accept that option. (#7294, #7285, #7577)
   masternode could not move to the basic scheme without effectively rotating
   its operator key, and `update_registrar` clamped the transaction version
   silently. (#7473)
+
+## Extended addresses (ProTx version 3)
+
+- Once the `v24` hard fork activates, provider transactions and masternode
+  states may use version 3 (extended addresses, `ExtAddr`), which Dash Core
+  v23 introduced but did not enable. Version 4 has been dropped, and its
+  contents were folded into version 3. (#7302, #7741, #7748, #7751)
+- The version 3 wire format differs from the one v23 defined. In version 3
+  ProRegTx and ProUpRegTx payloads, `scriptPayout` is replaced by a
+  length-prefixed payout list, and a version 3 ProRegTx also carries the share
+  table, the join signatures and the early-exit terms. ProUpRegTx and ProUpRevTx
+  may now use version 3 as well. Software that parses or builds provider
+  transactions (explorers, SPV libraries, external wallets) must be updated.
+- After activation, an EvoNode service update (`ProUpServTx`) must be version 3
+  and list its Platform P2P and HTTPS addresses explicitly. A version 2
+  EvoNode `ProUpServTx` is rejected with `bad-protx-version-disallowed`, and
+  raising an EvoNode with addresses to version 3 by any other transaction is
+  rejected with `bad-protx-netinfo-version`. `protx update_service_evo` builds
+  the right transaction, but third-party tools that build version 2 EvoNode
+  service updates must be updated.
+- Platform HTTPS entries on port 443 are accepted in extended addresses.
 
 ## CoinJoin promotion and demotion
 
@@ -446,6 +491,9 @@ used with descriptor wallets, so if your client code relies on these commands
 without specifying `descriptors=false` during wallet creation, you will need to
 update your code. (#7204)
 
+`dash-wallet create` also creates a descriptor wallet by default. Pass the new
+`-legacy` option to create a legacy wallet instead. (#7204)
+
 An experimental RPC `migratewallet` has been added to migrate legacy
 (non-descriptor) wallets to descriptor wallets. More information about the
 migration process is available in the
@@ -466,6 +514,11 @@ Existing nodes with indexes enabled will automatically migrate data from the old
 location (block index database) to new separate databases on first startup.
 This migration may take 20-40 minutes or longer depending on hardware
 specifications and index sizes. The node will log progress during migration.
+Only indexes that are enabled on that start are migrated. If v24.0.0 is ever
+started with one of these indexes disabled, its old data is marked stale, and
+enabling the index later discards that data and rebuilds the index from
+genesis. To keep existing index data, start v24.0.0 with the same index
+settings as before. (#7745)
 
 Breaking changes:
 
@@ -477,6 +530,10 @@ Breaking changes:
   enabling it on an existing pre-pruned datadir now fails at startup. The old
   synchronous implementation built forward from the current tip and accepted
   that case. (#7101)
+- While an index is still being built or catching up, the RPCs that read it
+  (`getaddressbalance`, `getaddressdeltas`, `getaddresstxids`,
+  `getaddressutxos`, `getspentinfo` and `getblockhashes`) return an
+  "… index is syncing" error instead of results. (#7101)
 
 ## Masternode configuration requirements
 
@@ -501,21 +558,12 @@ connections to it advertise:
 - transaction relay (`relay=1` in the `version` message);
 - compact block filters (`NODE_COMPACT_FILTERS`). (#7755)
 
-## InstantSend and provider transactions
-
-Masternodes no longer InstantSend-lock provider transactions (ProRegTx,
-ProUpServTx, ProUpRegTx, ProUpRevTx and the other provider special
-transactions). They are mined once they have been in the mempool for 10
-minutes, and transactions that spend their outputs can be locked once the block
-that includes the provider transaction is ChainLocked. Software that waits for
-an islock on a provider transaction should wait for a ChainLock or
-confirmations instead. (#7858)
-
 ## Bitcoin Core backports
 
-This release includes a large number of backports from Bitcoin Core, covering
-most of the changes from Bitcoin Core v25 and a substantial part of Bitcoin
-Core v26, along with selected fixes from later releases. User-visible changes
+This release includes a large number of further backports from Bitcoin Core.
+With them, Dash Core now includes about 80% of the changes from Bitcoin Core
+v25 and about 60% of those from Bitcoin Core v26, along with selected fixes
+from later releases. User-visible changes
 from these backports are listed in the sections below. Notable additions
 include the `sendall` RPC, the experimental `migratewallet` RPC,
 `minconf`/`maxconf` options for funding RPCs, faster descriptor wallet rescans
@@ -544,7 +592,16 @@ and RPC parameters.
   again from the network. (#7831)
 - This release includes the fixes shipped in Dash Core v23.1.9, including the
   consensus rule that rejects transactions with a negative `nVersion` once DIP3
-  is active.
+  is active, and the change that stopped masternodes from InstantSend-locking
+  provider transactions (#7858; software waiting for an islock on a provider
+  transaction should wait for a ChainLock or confirmations instead).
+- Network-adjusted time is no longer used to validate block timestamps or to
+  build block templates; both use the system clock. Keep the system clock
+  accurate. `-maxtimeadjustment` now only affects Dash subsystems that still use
+  network-adjusted time, such as governance, sporks and CoinJoin. (#7430)
+- Hardware-accelerated SHA-256 (SHA-NI, AVX2/SSE4.1 on x86 and the ARMv8 SHA2
+  extensions), which had been unintentionally disabled since v23.0.0, is
+  enabled again. (#7573)
 - This release also contains many robustness and denial-of-service hardening
   fixes in the P2P, LLMQ, governance and CoinJoin message handlers.
 
@@ -585,6 +642,21 @@ and RPC parameters.
   more is rejected and the sending peer is penalized as misbehaving. No known
   client sends more than a handful. The `quorum rotationinfo` RPC applies the
   same limit and returns an error when it is exceeded. (#7629)
+- Transactions that fail the DERSIG, NULLDUMMY, CHECKLOCKTIMEVERIFY or
+  CHECKSEQUENCEVERIFY script checks are now rejected with
+  `mandatory-script-verify-flag-failed (…)` instead of
+  `non-mandatory-script-verify-flag (…)`, and the relaying peer is penalized.
+  Software that matches reject reasons may need updating. (#7710)
+- Unsolicited `clsig`, `qfcommit` and DKG messages, which the node never
+  requested, are dropped and add a misbehavior score of 10 to the sending peer.
+  (#7484)
+- Pending `qgetdata` requests are now limited to 64 per peer and 4096 in total;
+  a peer that exceeds the limit is penalized. (#7519)
+- Sporks are now announced to every peer once the handshake completes, instead
+  of being requested with `getsporks` during masternode sync, so a node that
+  starts without sporks (for example after the `sporks.dat` reset) receives
+  them. Repeated `getsporks` requests are ignored while the active spork set is
+  unchanged. (#7893, #7343)
 
 ## Mining and mempool policy
 
@@ -664,6 +736,29 @@ and RPC parameters.
   new `upcoming_dkgs` array, the DKG sessions that masternode will take part in
   whose work block is already mined. Without the argument the local active
   masternode is used, if any. (#7428)
+- `quorum dkgstatus` now reports in `phase` the latest DKG phase whose messages
+  this node has already sent, rather than the phase the session is in (#7769),
+  and `minableCommitments` lists the commitments that can be mined in the next
+  block rather than at the current tip (#7770).
+- `masternode status` reports a new `quorumParticipation` field. It is `false`
+  while DKG participation and quorum signing are disabled, which happens while
+  the node runs on a snapshot whose background validation has not completed;
+  `status` then says so as well. (#7456)
+- JSON-RPC batch requests from users restricted by `-rpcwhitelist` are now
+  checked element by element: a batch is rejected with HTTP 403 if any of its
+  methods is not whitelisted for the user, as a single call already was.
+  Previously, depending on how the whitelist was written, batches either
+  bypassed the whitelist entirely or were always rejected. (#7722)
+- `getrawtransaction` accepts `verbosity=2`, which adds the transaction fee and
+  each input's `prevout` when undo data is available. The argument formerly
+  named `verbose` is now `verbosity` in `getrawtransaction` and
+  `getrawtransactionmulti`; the old name is still accepted. (#7666)
+- `generateblock` gains a `submit` argument (default `true`). With
+  `submit=false` it returns the block hex without submitting the block. (#7192)
+- The `-deprecatedrpc=exclude_coinbase` option has been removed.
+  `getreceivedbyaddress`, `getreceivedbylabel`, `listreceivedbyaddress` and
+  `listreceivedbylabel` always count coinbase outputs, as they have by default
+  since v23.0.0. (#7492)
 - `getcoinjoininfo` gained a `pending_inputs` field, reporting how many
   successfully mixed inputs are currently kept locked while waiting for the
   finalized mixing transaction spending them to be observed. (#7480)
@@ -721,6 +816,16 @@ and RPC parameters.
   the recipient incurs the transaction fee, continue to use the
   `subtractfeefromamount` option via the `send`, `sendtoaddress`, or `sendmany`
   RPCs. (#7131)
+- `scanblocks` returns the blocks that may contain transactions relevant to a
+  set of descriptors, using compact block filters. It requires
+  `-blockfilterindex=1`. Combined with `rescanblockchain` over the returned
+  range, it allows fast rescans. (#7192)
+
+## REST
+
+- The `/rest/mempool/contents.json` endpoint accepts `verbose=<true|false>` and
+  `mempool_sequence=<true|false>` query parameters (defaults: `verbose=true`,
+  `mempool_sequence=false`), matching the `getrawmempool` RPC. (#7390)
 
 ## Updated settings
 
@@ -745,6 +850,27 @@ and RPC parameters.
 - Non-standard transactions are now disabled by default on testnet and devnets
   for relay and mempool acceptance. The previous behaviour can be re-enabled by
   setting `-acceptnonstdtxn=1`. (#7710)
+- A node started with `-txindex=0` must now also set `-disablegovernance`;
+  otherwise startup fails with an error, because governance validation looks up
+  proposal collateral through the transaction index. Previously such a node
+  started and then rejected every governance proposal. Regtest is exempt, and
+  pruned nodes are not affected because `-prune` already disables governance
+  validation. (#7785)
+- Fee estimates are now saved hourly, and `fee_estimates.dat` is ignored at
+  startup if it is more than 60 hours old, so a node that was offline for longer
+  than that rebuilds its estimates. (#7711)
+
+## Pruning
+
+- Pruned nodes on mainnet, testnet and devnets now keep at least four days of
+  blocks (2304) below the tip instead of 288. Validation reads older blocks
+  from disk: the credit pool is rebuilt from its newest daily snapshot after a
+  restart, and rotated quorum membership reads the work blocks of earlier DKG
+  cycles. `pruneblockchain` clamps its height accordingly, and on testnet and
+  devnets pruning starts once the chain is longer than 3000 blocks
+  (previously 1000). Blocks that an earlier version already pruned are not
+  recovered; a node that fails to validate a block after upgrading needs
+  `-reindex`. (#7861)
 
 ## Command-line options
 
@@ -834,6 +960,10 @@ and RPC parameters.
   "send", "receive", and "refund". Wallets that have unrecognized purpose
   strings will have loading warnings, and the `listlabels` RPC will raise an
   error if an unrecognized purpose is requested. (#7871)
+- `importwallet` now works on pruned nodes, as long as the blocks back to the
+  oldest key's timestamp are still on disk. Previously it was refused on any
+  pruned node. (#7666)
+- Descriptors containing hybrid public keys are now rejected. (#7356)
 
 ## RPC Wallet
 
@@ -860,10 +990,17 @@ and RPC parameters.
 - RPC `walletprocesspsbt` return object now includes field `hex` (if the
   transaction is complete) containing the serialized transaction suitable for
   RPC `sendrawtransaction`. (#7354)
-- The `signrawtransactionwithkey`, `signrawtransactionwithwallet`,
-  `walletprocesspsbt` and `descriptorprocesspsbt` calls now return the more
-  specific RPC_INVALID_PARAMETER error instead of RPC_MISC_ERROR if their
-  sighashtype argument is malformed. (#7710)
+- The `signrawtransactionwithkey`, `signrawtransactionwithwallet` and
+  `walletprocesspsbt` calls now return the more specific RPC_INVALID_PARAMETER
+  error instead of RPC_MISC_ERROR if their sighashtype argument is malformed.
+  (#7710)
+- `rescanblockchain` on an encrypted wallet now fails with error -13 unless the
+  wallet has been unlocked with `walletpassphrase`, because the keypool may need
+  to be topped up during the rescan. The wallet cannot be relocked while the
+  rescan runs. (#7711)
+- A wallet that is unlocked only for mixing can no longer sign transactions
+  created by `send` and `sendall`; they return an incomplete PSBT until the
+  wallet is fully unlocked. (#7663)
 - In the `createwallet`, `loadwallet`, `unloadwallet`, and `restorewallet` RPCs,
   the "warning" string field is deprecated in favor of a "warnings" field that
   returns a JSON array of strings to better handle multiple warning messages and
@@ -891,6 +1028,17 @@ and RPC parameters.
 - The Governance tab now shows the wallet's current weighted proposal votes and
   voting deadline estimate. The Votes dialog shows each eligible masternode's
   current vote and allows voting with selected masternodes. (#7694)
+- Asset Lock transactions appear in the transaction history as **Asset Lock**,
+  with their own filter, instead of as "Data Transaction". (#7652)
+- The File menu gains a **Migrate Wallet** item that migrates a legacy wallet
+  to a descriptor wallet (see [Descriptor wallets by default](#descriptor-wallets-by-default)).
+  (#7277)
+- The startup splash screen has been redesigned and now shows a progress bar,
+  including wallet rescan progress. (#7210)
+- In Coin Control, the "toggle lock state" button has been replaced by an
+  "(un)lock all" button. (#7155)
+- The "Show Masternodes Tab" and "Show Governance Tab" options moved from the
+  Wallet page to the Display page of the Options dialog. (#7152)
 
 ## Build system
 
@@ -915,13 +1063,10 @@ Thanks to everyone who directly contributed to this release:
 - Antonio Moratti
 - Kittywhiskers Van Gogh
 - Konstantin Akimov
-- PastaClaw
 - PastaPastaPasta
-- takeshikurosawaa
 - thephez
 - UdjinM6
 - Vijay
-- zxccxccxz
 
 As well as everyone that submitted issues, reviewed pull requests and helped
 debug the release candidates.
@@ -972,7 +1117,7 @@ These releases are considered obsolete. Old release notes can be found here:
 - [v0.16.1.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.16.1.1.md) released November/17/2020
 - [v0.16.1.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.16.1.0.md) released November/14/2020
 - [v0.16.0.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.16.0.1.md) released September/30/2020
-- [v0.15.0.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.15.0.0.md) released Febrary/18/2020
+- [v0.15.0.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.15.0.md) released February/18/2020
 - [v0.14.0.5](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.14.0.5.md) released December/08/2019
 - [v0.14.0.4](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.14.0.4.md) released November/22/2019
 - [v0.14.0.3](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.14.0.3.md) released August/15/2019
@@ -990,7 +1135,6 @@ These releases are considered obsolete. Old release notes can be found here:
 - [v0.12.2.3](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.2.3.md) released Jan/12/2018
 - [v0.12.2.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.2.2.md) released Dec/17/2017
 - [v0.12.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.2.md) released Nov/08/2017
-- [v0.12.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.1.md) released Feb/06/2017
 - [v0.12.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.0.md) released Aug/15/2015
 - [v0.11.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.11.2.md) released Mar/04/2015
 - [v0.11.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.11.1.md) released Feb/10/2015
