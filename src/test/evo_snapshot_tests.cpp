@@ -1190,9 +1190,9 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signals_outnumbering_deployments_are_valid, BasicTe
 {
     // CMNHFManager drops a signal only when a current deployment reuses its
     // bit, so signals of buried EHF forks (bits 10, 11 and 12) stay in the
-    // map alongside V24's bit 13.
+    // map alongside the signals of the current deployments (bits 13, 14 and 15).
     auto snapshot{SyntheticSnapshot()};
-    snapshot.mnhf_signals = {{10, 100}, {11, 200}, {12, 300}, {13, 400}};
+    snapshot.mnhf_signals = {{10, 100}, {11, 200}, {12, 300}, {13, 400}, {14, 401}, {15, 402}};
     BOOST_REQUIRE_GT(snapshot.mnhf_signals.size(), size_t{Consensus::MAX_VERSION_BITS_DEPLOYMENTS});
 
     BOOST_CHECK_NO_THROW(snapshot.Validate());

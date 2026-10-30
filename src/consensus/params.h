@@ -43,6 +43,7 @@ enum DeploymentPos : uint16_t {
     DEPLOYMENT_TESTDUMMY,
     DEPLOYMENT_V24,         // Deployment of doubling withdrawal limit, extended addresses
     DEPLOYMENT_EVO_SHARES,  // Deployment of EvoNode shared collateral and multiple owner payouts
+    DEPLOYMENT_QUARTER_STEPS, // Deployment of quarter-step rotation of the LLMQ members
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in deploymentinfo.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
