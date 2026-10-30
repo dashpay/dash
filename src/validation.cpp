@@ -376,6 +376,11 @@ static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState
         } else if (tx.nType != TRANSACTION_NORMAL) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-type");
         }
+        // Releases that sign-extended nVersion over nType re-serialized a negative nVersion with nType 0xffff,
+        // so a block carrying one was accepted only by the peers that received the miner's own bytes
+        if (tx.nVersion < 0) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-version");
+        }
     }
 
     // Size limits
@@ -4797,7 +4802,7 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
     // blocks which are too close in height to the tip.  Apply this test
     // regardless of whether pruning is enabled; it should generally be safe to
     // not process unrequested blocks.
-    bool fTooFarAhead{pindex->nHeight > ActiveHeight() + int(MIN_BLOCKS_TO_KEEP)};
+    bool fTooFarAhead{pindex->nHeight > ActiveHeight() + int(BLOCKS_NEAR_TIP)};
 
     // TODO: Decouple this function from the block download logic by removing fRequested
     // This requires some new chain data structure to efficiently look up if a
@@ -5200,6 +5205,9 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
     BlockValidationState state;
     const CAmount blockSubsidy = GetBlockSubsidy(pindex, m_chainman.GetConsensus());
     MNListUpdates mnlist_updates;
+    // Use the scheme ConnectBlock used for this block instead of whatever replay inherited
+    ScopedBLSLegacyScheme bls_scheme_guard{
+        !DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
     if (!m_chain_helper->special_tx->ProcessSpecialTxsInBlock(*this, m_chain, block, pindex,
                                                               GetSpecialTxRules(pindex->pprev, m_chainman), inputs,
                                                               blockSubsidy, /*fJustCheck=*/false,
@@ -5298,6 +5306,11 @@ bool Chainstate::ReplayBlocks()
 
         LogPrintf("Rolling forward %s (%i)\n", pindex.GetBlockHash().ToString(), nHeight);
         uiInterface.ShowProgress(_("Replaying blocks…").translated, (int) ((nHeight - nForkHeight) * 100.0 / (pindexNew->nHeight - nForkHeight)) , false);
+        // Special transaction and quorum commitment checks read the chain, which
+        // LoadChainTip() has not set yet; give them the view ConnectBlock had.
+        // Stopping at the parent also keeps LoadChainTip() from skipping its
+        // candidate pruning.
+        m_chain.SetTip(*Assert(pindex.pprev));
         if (!RollforwardBlock(&pindex, cache)) return false;
     }
 

@@ -401,7 +401,7 @@ void NetSigning::ProcessPendingSigShares(
 {
     // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
     // which are not craftable by individual entities, making the rogue public key attack impossible
-    CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
+    SigShareBatchVerifier batchVerifier(false, true);
 
     cxxtimer::Timer prepareTimer(true);
     size_t verifyCount = 0;
@@ -432,7 +432,7 @@ void NetSigning::ProcessPendingSigShares(
                 assert(false);
             }
 
-            batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sig, pubKeyShare);
+            PushSigShareToBatchVerifier(batchVerifier, nodeId, sigShare, sig, pubKeyShare);
             verifyCount++;
         }
     }

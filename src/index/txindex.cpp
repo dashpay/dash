@@ -6,6 +6,7 @@
 
 #include <index/disktxpos.h>
 #include <node/blockstorage.h>
+#include <util/fs_helpers.h>
 #include <util/system.h>
 #include <validation.h>
 
@@ -87,7 +88,7 @@ bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CTransactionRe
     CBlockHeader header;
     try {
         file >> header;
-        if (fseek(file.Get(), postx.nTxOffset, SEEK_CUR)) {
+        if (FileSeek64(file.Get(), postx.nTxOffset, SEEK_CUR)) {
             LogError("%s: fseek(...) failed\n", __func__);
             return false;
         }

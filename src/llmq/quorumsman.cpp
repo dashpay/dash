@@ -22,6 +22,7 @@
 #include <chainparams.h>
 #include <dbwrapper.h>
 #include <logging.h>
+#include <util/thread.h>
 #include <util/time.h>
 #include <validation.h>
 
@@ -41,9 +42,17 @@ CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CDeterministicMNManager& 
     AssertLockHeld(::cs_main);
     mapQuorumsCache.Init(m_chainman.GetConsensus(), /*limit_by_connections=*/false);
     MigrateOldQuorumDB(_evoDb);
+    m_cache_interrupt.reset();
+    m_cache_thread = std::thread(&util::TraceThread, "q-cache", [this] { CacheWarmingThreadMain(); });
 }
 
-CQuorumManager::~CQuorumManager() = default;
+CQuorumManager::~CQuorumManager()
+{
+    if (m_cache_thread.joinable()) {
+        m_cache_interrupt();
+        m_cache_thread.join();
+    }
+}
 
 bool CQuorumManager::GetEncryptedContributions(Consensus::LLMQType llmq_type, const CBlockIndex* block_index,
                                                const std::vector<bool>& valid_members, const uint256& protx_hash,
@@ -620,29 +629,50 @@ void CQuorumManager::WriteContributions(const CQuorumPtr& quorum) const
     quorum->WriteContributions(*db);
 }
 
-void CQuorumManager::QueueQuorumForWarming(CQuorumCPtr pQuorum) const
+void CQuorumManager::CacheWarmingThreadMain() const
 {
-    if (!pQuorum->HasVerificationVector()) {
-        return;
-    }
-    // The job may reference this manager: ~LLMQContext stops the worker pool before destroying it.
-    blsWorker.PushJob([this, pQuorum = std::move(pQuorum)]() {
+    while (!m_cache_interrupt) {
+        CQuorumCPtr pQuorum;
+        {
+            LOCK(m_cache_cs);
+            if (!m_cache_queue.empty()) {
+                pQuorum = std::move(m_cache_queue.front());
+                m_cache_queue.pop_front();
+            };
+        }
+
+        if (!pQuorum) {
+            m_cache_interrupt.sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
         cxxtimer::Timer t(true);
-        LogPrint(BCLog::LLMQ, "CQuorumManager::QueueQuorumForWarming -- type=%d height=%d hash=%s start\n",
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- type=%d height=%d hash=%s start\n", __func__,
                  std23::to_underlying(pQuorum->params.type), pQuorum->m_quorum_base_block_index->nHeight,
                  pQuorum->m_quorum_base_block_index->GetBlockHash().ToString());
+
+        // when then later some other thread tries to get keys, it will be much faster
         for (const auto i : util::irange(pQuorum->members.size())) {
-            if (m_warming_interrupted) {
-                return;
+            if (m_cache_interrupt) {
+                break;
             }
             if (pQuorum->qc->validMembers[i]) {
                 pQuorum->GetPubKeyShare(i);
             }
         }
-        LogPrint(BCLog::LLMQ, "CQuorumManager::QueueQuorumForWarming -- type=%d height=%d hash=%s done. time=%d\n",
+
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- type=%d height=%d hash=%s done. time=%d\n", __func__,
                  std23::to_underlying(pQuorum->params.type), pQuorum->m_quorum_base_block_index->nHeight,
                  pQuorum->m_quorum_base_block_index->GetBlockHash().ToString(), t.count());
-    });
+    }
+}
+
+void CQuorumManager::QueueQuorumForWarming(CQuorumCPtr pQuorum) const
+{
+    if (pQuorum->HasVerificationVector()) {
+        LOCK(m_cache_cs);
+        m_cache_queue.push_back(std::move(pQuorum));
+    }
 }
 
 // TODO: remove in v23
@@ -676,7 +706,7 @@ void CQuorumManager::MigrateOldQuorumDB(CEvoDB& evoDb) const
                 if (!evoDb.GetRawDB().ReadDataStream(k, s)) {
                     break;
                 }
-                batch.Write(k, s);
+                batch.Write(k, Span{s});
             }
             if (prefix == DB_QUORUM_SK_SHARE) {
                 if (!pcursor->GetValue(sk)) {

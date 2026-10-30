@@ -200,7 +200,7 @@ void CQuorum::WriteContributions(CDBWrapper& db) const
         for (auto& pubkey : *quorumVvec) {
             s << CBLSPublicKeyVersionWrapper(pubkey, false);
         }
-        db.Write(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), s);
+        db.Write(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), Span{s});
     }
     if (skShare.IsValid()) {
         db.Write(std::make_pair(DB_QUORUM_SK_SHARE, dbKey), skShare);

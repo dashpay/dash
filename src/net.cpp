@@ -1762,7 +1762,11 @@ std::pair<size_t, bool> CConnman::SocketSendData(CNode& node) const
         }
     }
 
-    node.fPauseSend = node.m_send_memusage + node.m_transport->GetSendMemoryUsage() > nSendBufferMaxSize;
+    const bool pause_send{node.m_send_memusage + node.m_transport->GetSendMemoryUsage() > nSendBufferMaxSize};
+    if (pause_send && !node.fPauseSend) {
+        node.m_pause_send_since = GetTime<std::chrono::seconds>();
+    }
+    node.fPauseSend = pause_send;
 
     if (it == node.vSendMsg.end()) {
         assert(node.m_send_memusage == 0);
@@ -2320,6 +2324,14 @@ bool CConnman::InactivityCheck(const CNode& node) const
         return true;
     }
 
+    if (node.fPauseSend) {
+        const auto last_pause{node.m_pause_send_since.load()};
+        if (now > last_pause + TIMEOUT_INTERVAL) {
+            LogPrint(BCLog::NET, "send buffer full for %is peer=%d\n", count_seconds(now - last_pause), node.GetId());
+            return true;
+        }
+    }
+
     if (!node.fSuccessfullyConnected) {
         if (node.m_transport->GetInfo().transport_type == TransportProtocolType::DETECTING) {
             LogPrint(BCLog::NET, "V2 handshake timeout peer=%d\n", node.GetId());
@@ -2341,7 +2353,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
     }
 
     for (CNode* pnode : nodes) {
-        bool select_recv = !pnode->fHasRecvData;
+        bool select_recv = !pnode->fHasRecvData && !pnode->fPauseRecv;
         bool select_send = !pnode->fCanSendData;
         if (!select_recv && !select_send) continue;
 
@@ -2599,7 +2611,7 @@ size_t CConnman::SocketRecvData(CNode *pnode)
         if (!pnode->m_sock)
             return 0;
         nBytes = recv(pnode->m_sock->Get(), (char*)pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
-        if (nBytes < (int)sizeof(pchBuf)) {
+        if (nBytes < 0 && WSAGetLastError() == WSAEWOULDBLOCK) {
             pnode->fHasRecvData = false;
         }
     }
@@ -4885,7 +4897,10 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 
         // Update memory usage of send buffer.
         pnode->m_send_memusage += msg.GetMemoryUsage();
-        if (pnode->m_send_memusage + pnode->m_transport->GetSendMemoryUsage() > nSendBufferMaxSize) pnode->fPauseSend = true;
+        if (pnode->m_send_memusage + pnode->m_transport->GetSendMemoryUsage() > nSendBufferMaxSize && !pnode->fPauseSend) {
+            pnode->m_pause_send_since = GetTime<std::chrono::seconds>();
+            pnode->fPauseSend = true;
+        }
         // Move message to vSendMsg queue.
         pnode->vSendMsg.push_back(std::move(msg));
         pnode->nSendMsgSize = pnode->vSendMsg.size();

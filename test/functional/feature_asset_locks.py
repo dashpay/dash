@@ -5,7 +5,9 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 import copy
+import http.client
 import struct
+import subprocess
 from decimal import Decimal
 from io import BytesIO
 
@@ -46,6 +48,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_greater_than_or_equal,
+    assert_raises,
     assert_raises_rpc_error,
     softfork_active,
 )
@@ -354,6 +357,7 @@ class AssetLocksTest(DashTestFramework):
         self.test_v24_fork(node_wallet, node, pubkey)
         self.test_asset_unlock_v2(node_wallet, node, pubkey)
         self.test_non_standard(node_wallet, node, pubkey)
+        self.test_replay_after_crash(node_wallet, node, pubkey)
 
 
     def test_asset_locks(self, node_wallet, node, pubkey):
@@ -1437,6 +1441,49 @@ class AssetLocksTest(DashTestFramework):
 
         self.restart_node(1, self.extra_args[1])
         self.connect_nodes(1, 0)
+
+    def test_replay_after_crash(self, node_wallet, node, pubkey):
+        self.log.info("Testing recovery from a crash mid-flush with a quorum commitment and an asset unlock to replay...")
+        # Every flush now dies after its first partial write, so nothing mined from here on is flushed
+        self.restart_with_crashing_flush()
+
+        self.mine_quorum_2_nodes()
+        quorum_hash = node_wallet.quorum("list", 1)["llmq_test_platform"][0]
+        commitment_block = node_wallet.quorum("info", llmq_type_test, quorum_hash)["minedBlock"]
+        txid = self.send_tx(self.create_assetunlock(900, COIN, pubkey))
+        unlock_block = self.generate(node_wallet, 1)[0]
+        assert txid in node_wallet.getblock(unlock_block)["tx"]
+
+        self.log.info("Restart without peers: the commitment block is replayed before the asset unlock block")
+        self.crash_and_replay(node_wallet, node, [commitment_block, unlock_block])
+        assert quorum_hash in node_wallet.quorum("list")["llmq_test_platform"]
+
+        self.log.info("Replay an asset unlock as the first block rolled forward, with the quorum already mature and flushed")
+        self.restart_node(0, self.extra_args[0])
+        self.restart_with_crashing_flush()
+        txid = self.send_tx(self.create_assetunlock(901, COIN, pubkey))
+        unlock_block = self.generate(node_wallet, 1)[0]
+        assert txid in node_wallet.getblock(unlock_block)["tx"]
+        self.crash_and_replay(node_wallet, node, [unlock_block])
+
+        self.restart_node(0, self.extra_args[0])
+        for i in range(1, len(self.nodes)):
+            self.connect_nodes(0, i)
+
+    def restart_with_crashing_flush(self):
+        self.restart_node(0, self.extra_args[0] + ["-dbcrashratio=1", "-dbbatchsize=1"])
+        for i in range(1, len(self.nodes)):
+            self.connect_nodes(0, i)
+
+    def crash_and_replay(self, node_wallet, node, replayed_blocks):
+        tip = node_wallet.getbestblockhash()
+        self.log.info("Force a flush, which crashes the node")
+        assert_raises((ConnectionError, http.client.CannotSendRequest, subprocess.CalledProcessError), node_wallet.gettxoutsetinfo)
+        self.wait_for_node_exit(0, timeout=10)
+        with node_wallet.assert_debug_log([f"Rolling forward {block}" for block in replayed_blocks]):
+            self.start_node(0, extra_args=self.extra_args[0] + ["-connect=0"])
+        assert_equal(node_wallet.getbestblockhash(), tip)
+        assert_equal(node_wallet.gettxoutsetinfo()["hash_serialized_2"], node.gettxoutsetinfo()["hash_serialized_2"])
 
 
 if __name__ == '__main__':

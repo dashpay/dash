@@ -5,6 +5,7 @@
 #include <bls/bls_worker.h>
 #include <hash.h>
 
+#include <logging.h>
 #include <util/system.h>
 
 #include <memory>
@@ -67,11 +68,6 @@ void CBLSWorker::Stop()
 {
     workerPool.clear_queue();
     workerPool.stop(true);
-}
-
-void CBLSWorker::PushJob(std::function<void()> job)
-{
-    workerPool.push([job = std::move(job)](int) { job(); });
 }
 
 #ifndef BUILD_BITCOIN_INTERNAL
@@ -304,8 +300,14 @@ struct Aggregator : public std::enable_shared_from_this<Aggregator<T>> {
     template <typename TP>
     static T SyncAggregate(Span<TP> vec, size_t start, size_t count)
     {
+        // Defence in depth: AggregateInsecure() asserts that every operand is valid, so
+        // peer-influenced data (e.g. a decrypted contribution share) must never reach it
+        // while invalid. Short-circuit to an invalid aggregate instead; callers already
+        // treat an invalid result as an aggregation failure rather than aborting.
         T result = *vec[start];
+        if (!result.IsValid()) return {};
         for (size_t j = 1; j < count; j++) {
+            if (!vec[start + j]->IsValid()) return {};
             result.AggregateInsecure(*vec[start + j]);
         }
         return result;
@@ -686,6 +688,13 @@ CBLSPublicKey CBLSWorker::BuildPubKeyShare(const BLSVerificationVectorPtr& vvec,
 void CBLSWorker::AsyncVerifyContributionShares(const CBLSId& forId, Span<BLSVerificationVectorPtr> vvecs, Span<CBLSSecretKey> skShares,
                                                bool parallel, bool aggregated, std::function<void(const std::vector<bool>&)> doneCallback)
 {
+    if (!forId.IsValid()) {
+        std::vector<bool> result;
+        result.assign(vvecs.size(), false);
+        doneCallback(result);
+        return;
+    }
+
     // Empty input never schedules any work, so doneCallback would never fire and the
     // future-based wrappers would throw broken_promise. Mirror the empty-input
     // short-circuit in AsyncBuildQuorumVerificationVector / AsyncAggregateHelper.
@@ -693,9 +702,31 @@ void CBLSWorker::AsyncVerifyContributionShares(const CBLSId& forId, Span<BLSVeri
         doneCallback(std::vector<bool>{});
         return;
     }
-    if (!forId.IsValid() || !VerifyVerificationVectors(vvecs)) {
+
+    if (!VerifyVerificationVectors(vvecs)) {
+        // A batch-level verification-vector problem must not fail the whole batch. The
+        // only thing the batched VerifyVerificationVectors adds over the per-member
+        // VerifyVerificationVector check already run in PreVerifyMessage is detecting a
+        // coefficient point shared between two members' vvecs. Failing the whole batch on
+        // that lets one member, by placing a coefficient that collides with another
+        // member's, force every other honest member in the same verification batch to be
+        // marked invalid and complained about - a denial of service against their
+        // participation in the DKG. Instead, verify each contribution on its own: a member
+        // fails only if its own share is inconsistent with its own vvec, so a member that
+        // placed a colliding coefficient is caught on its own while the honest members it
+        // collided with verify normally.
+        LogPrint(BCLog::LLMQ_DKG, "CBLSWorker::%s -- batch verification-vector check failed; verifying %d contributions individually\n",
+                  __func__, vvecs.size());
+        std::vector<std::future<bool>> futures;
+        futures.reserve(vvecs.size());
+        for (size_t i = 0; i < vvecs.size(); i++) {
+            futures.emplace_back(AsyncVerifyContributionShare(forId, vvecs[i], skShares[i]));
+        }
         std::vector<bool> result;
-        result.assign(vvecs.size(), false);
+        result.reserve(vvecs.size());
+        for (auto& f : futures) {
+            result.push_back(f.get());
+        }
         doneCallback(result);
         return;
     }
