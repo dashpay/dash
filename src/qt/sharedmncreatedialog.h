@@ -314,6 +314,14 @@ private:
     //! Pick the share this wallet holds from the session, preferring a share
     //! whose owner address this wallet can spend from
     void inferMyShare();
+    //! True when share `index` names an owner address this wallet cannot
+    //! spend, so another participant holds it
+    bool shareTakenByOther(size_t index) const;
+    //! Put the addresses recorded for the share this wallet holds into the
+    //! contribution page, replacing any left over from another share
+    void loadMyShareAddresses();
+    //! Give the empty owner and refund edits fresh addresses from this wallet
+    void fillEmptyAddressEdits();
     //! True when `session` is this wallet's own coordinated session, reopened
     //! from a backup: this wallet prepared it and can spend the owner key of
     //! the share it names as the coordinator's. A registration takes days, so
