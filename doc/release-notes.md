@@ -604,11 +604,14 @@ and RPC parameters.
   blocks, even when the original ChainLock message was missed. This applies
   after v20 activation while ChainLocks are enabled. (#6236)
 - `SPORK_3_INSTANTSEND_BLOCK_FILTERING` and `SPORK_9_SUPERBLOCKS_ENABLED` have
-  been removed. These sporks were already effectively always enabled on mainnet
-  but continued to gate behavior on test networks (testnet, regtest, and
-  devnet). The associated functionality (InstantSend conflicting-block rejection
-  and superblock payments) is now permanently enabled across all networks, and
-  the sporks will no longer appear in the `spork` RPC output. (#7278)
+  been removed. On mainnet both have been hardcoded on, and could not be changed
+  by spork messages, since Dash Core v21.0.0 hardened all mainnet spork values
+  (#6140). Only the test networks (testnet, devnets and regtest) still honored
+  them. This release removes the two spork definitions and the remaining
+  test-network gating, so the associated functionality (InstantSend
+  conflicting-block rejection and superblock payments) is always enabled on
+  every network, and the sporks no longer appear in the `spork` RPC output.
+  (#7278)
 - Multi-key ("M-of-N") spork signing, which was never deployed on any network,
   has been removed. The `sporks.dat` cache format changed; caches written by
   previous versions are discarded on startup and sporks are re-synced from
