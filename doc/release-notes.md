@@ -134,6 +134,10 @@ On testnet, both deployments start at `1790208000` (Thursday, September 24, 2026
 
 This release implements the Decentralized Masternode Shares DIP, activating
 together with DIP-0026 multi-party payouts as part of the `v24` hard fork.
+For EvoNodes, shared collateral and more than one owner payout additionally
+require the `evo_shares` deployment (see [EvoNode restrictions](#evonode-restrictions)).
+Both features use version 3 provider transactions (see
+[Provider transaction version 3 format](#provider-transaction-version-3-format)).
 Before activation there is no behavior change. (#7437, #7340)
 
 ### Multi-party payouts
@@ -148,10 +152,10 @@ Before activation there is no behavior change. (#7437, #7340)
   cannot carry a payout list, and reject an array. For an EvoNode still on
   version 2, `protx update_registrar` keeps version 2 and accepts only a single
   payout address; upgrade the EvoNode with `protx update_service_evo` first (see
-  [Extended addresses](#extended-addresses-protx-version-3)).
-- For ExtAddr (version 3) masternode states and ProTx payloads the payout list
-  is reported as a `payouts` array in place of the single `payoutAddress`
-  field, which legacy versions keep. Shared masternodes report `shares`
+  [Extended addresses](#extended-addresses)).
+- For version 3 masternode states and ProTx payloads the payout list is
+  reported as a `payouts` array in place of the single `payoutAddress` field,
+  which earlier versions keep. Shared masternodes report `shares`
   instead. The fields appear in `protx info`, `protx list detailed`,
   `protx listdiff`, `masternode status` (`dmnState`) and in decoded
   `ProRegTx`/`ProUpRegTx` payloads of the transaction-decoding RPCs;
@@ -159,7 +163,9 @@ Before activation there is no behavior change. (#7437, #7340)
 
 ### Consensus changes (active with `v24`)
 
-- A version 3 (extended addresses) ProRegTx may carry a collateral share table:
+- A version 3 ProRegTx (see
+  [Provider transaction version 3 format](#provider-transaction-version-3-format))
+  may carry a collateral share table:
   2 to 8 participants fund the masternode collateral atomically in one
   registration, each recording an immutable amount, refund script and share
   owner key, plus an updatable reward script. Every share owner consents by
@@ -282,6 +288,48 @@ Before activation there is no behavior change. (#7437, #7340)
   a participant's refund destination, including when rewards go to a different
   wallet. (#7437)
 
+## Provider transaction version 3 format
+
+Once the `v24` hard fork activates, ProRegTx, ProUpServTx, ProUpRegTx and
+ProUpRevTx may use version 3. Version 3 carries both
+[extended addresses](#extended-addresses) and
+[multi-party payouts and shared masternodes](#decentralized-masternode-shares-and-multi-party-payouts).
+(#7302)
+
+- Dash Core v23 defined version 3 for ProRegTx and ProUpServTx only, behind the
+  same `v24` deployment, and its wire format has changed since. In version 3
+  ProRegTx and ProUpRegTx payloads, `scriptPayout` is replaced by a
+  length-prefixed payout list. A version 3 ProRegTx also carries a share table
+  with one join signature per share, and the early-exit terms
+  (`nEarlyPeriodBlocks`, `nEarlyPenalty`); these are empty or zero for an
+  ordinary registration.
+- ProUpRegTx and ProUpRevTx may now use version 3 as well.
+- Development builds briefly used a separate version 4 for multi-party payouts.
+  It has been folded into version 3, and no released version of Dash Core uses
+  version 4.
+- Software that parses or builds provider transactions (explorers, SPV
+  libraries, external wallets) must be updated.
+
+## Extended addresses
+
+Dash Core v23 introduced extended masternode addresses (`netInfo`, which lists
+the core P2P, Platform P2P and Platform HTTPS endpoints explicitly) behind the
+`v24` deployment. They become usable once `v24` activates, for regular
+masternodes and EvoNodes alike, and do not depend on `evo_shares`. A masternode
+moves to extended addresses with a version 3 provider transaction (see
+[Provider transaction version 3 format](#provider-transaction-version-3-format)).
+(#7741, #7748, #7751)
+
+- After activation, an EvoNode service update (`ProUpServTx`) must be version 3
+  and list its Platform P2P and HTTPS addresses explicitly; the separate
+  Platform port fields are not carried over. A version 2 EvoNode `ProUpServTx`
+  is rejected with `bad-protx-version-disallowed`, and raising an EvoNode with
+  addresses to version 3 by any other transaction is rejected with
+  `bad-protx-netinfo-version`. `protx update_service_evo` builds the right
+  transaction, but third-party tools that build version 2 EvoNode service
+  updates must be updated.
+- Platform HTTPS entries on port 443 are accepted in extended addresses.
+
 ## Version 2 Asset Unlock transactions
 
 Once the `v24` hard fork activates, Platform withdrawals are issued as version 2
@@ -391,27 +439,6 @@ does not accept that option. (#7294, #7285, #7577)
   masternode could not move to the basic scheme without effectively rotating
   its operator key, and `update_registrar` clamped the transaction version
   silently. (#7473)
-
-## Extended addresses (ProTx version 3)
-
-- Once the `v24` hard fork activates, provider transactions and masternode
-  states may use version 3 (extended addresses, `ExtAddr`), which Dash Core
-  v23 introduced but did not enable. Version 4 has been dropped, and its
-  contents were folded into version 3. (#7302, #7741, #7748, #7751)
-- The version 3 wire format differs from the one v23 defined. In version 3
-  ProRegTx and ProUpRegTx payloads, `scriptPayout` is replaced by a
-  length-prefixed payout list, and a version 3 ProRegTx also carries the share
-  table, the join signatures and the early-exit terms. ProUpRegTx and ProUpRevTx
-  may now use version 3 as well. Software that parses or builds provider
-  transactions (explorers, SPV libraries, external wallets) must be updated.
-- After activation, an EvoNode service update (`ProUpServTx`) must be version 3
-  and list its Platform P2P and HTTPS addresses explicitly. A version 2
-  EvoNode `ProUpServTx` is rejected with `bad-protx-version-disallowed`, and
-  raising an EvoNode with addresses to version 3 by any other transaction is
-  rejected with `bad-protx-netinfo-version`. `protx update_service_evo` builds
-  the right transaction, but third-party tools that build version 2 EvoNode
-  service updates must be updated.
-- Platform HTTPS entries on port 443 are accepted in extended addresses.
 
 ## CoinJoin promotion and demotion
 
@@ -560,11 +587,12 @@ connections to it advertise:
 
 ## Bitcoin Core backports
 
-This release includes a large number of further backports from Bitcoin Core.
-With them, Dash Core now includes about 80% of the changes from Bitcoin Core
-v25 and about 60% of those from Bitcoin Core v26, along with selected fixes
-from later releases. User-visible changes
-from these backports are listed in the sections below. Notable additions
+This release continues the backporting of Bitcoin Core, adding well over 200
+pull requests from the v25 and v26 release cycles alone. Dash Core now
+includes essentially all of Bitcoin Core v0.17 through v24, about 90% of v25,
+about 70% of v26, over half of v27 and about a third of v28, along with
+selected fixes from later releases. User-visible changes from these backports
+are listed in the sections below. Notable additions
 include the `sendall` RPC, the experimental `migratewallet` RPC,
 `minconf`/`maxconf` options for funding RPCs, faster descriptor wallet rescans
 using compact block filters, and stricter validation of configuration options
