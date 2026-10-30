@@ -6,6 +6,7 @@
 
 #include <active/dkgsession.h>
 #include <active/masternode.h>
+#include <bls/bls_batchverifier.h>
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/debug.h>
@@ -259,6 +260,7 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
 
     std::set<NodeId> ret;
     bool revertToSingleVerification = false;
+    FastRandomContext rng;
 
     CBLSSignature aggSig;
     std::vector<CBLSPublicKey> pubKeys;
@@ -286,11 +288,22 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
             ret.emplace(nodeId);
             continue;
         }
+        CBLSPublicKey pubKey{member->dmn->pdmnState->pubKeyOperator.Get()};
+        if (!pubKey.IsValid()) {
+            // should not happen as operator keys are validated on registration
+            ret.emplace(nodeId);
+            continue;
+        }
+
+        const CBLSSecretKey weight{MakeBatchVerificationWeight(rng)};
+        CBLSSignature weightedSig{msg->sig};
+        weightedSig.MulInsecure(weight);
+        pubKey.MulInsecure(weight);
 
         if (first) {
-            aggSig = msg->sig;
+            aggSig = weightedSig;
         } else {
-            aggSig.AggregateInsecure(msg->sig);
+            aggSig.AggregateInsecure(weightedSig);
         }
         first = false;
 
@@ -306,7 +319,7 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
             break;
         }
 
-        pubKeys.emplace_back(member->dmn->pdmnState->pubKeyOperator.Get());
+        pubKeys.emplace_back(pubKey);
         messageHashes.emplace_back(msgHash);
     }
     if (!revertToSingleVerification) {
