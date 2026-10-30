@@ -3473,7 +3473,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
-    int64_t nTime1 = GetTimeMicros();
+    const auto nTime1{SteadyClock::now()};
 
     CBlockIndex *pindexDelete = m_chain.Tip();
     assert(pindexDelete);
@@ -3548,13 +3548,13 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         GetMainSignals().BlockDisconnected(pblock, pindexDelete);
     }
 
-    int64_t nTime2 = GetTimeMicros();
+    const auto nTime2{SteadyClock::now()};
 
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx) {
         nSigOps += GetLegacySigOpCount(*tx);
     }
-    ::g_stats_client->timing("DisconnectTip_ms", (nTime2 - nTime1) / 1000, 1.0f);
+    ::g_stats_client->timing("DisconnectTip_ms", Ticks<std::chrono::milliseconds>(nTime2 - nTime1), 1.0f);
     ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(block, PROTOCOL_VERSION), 1.0f);
     ::g_stats_client->gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
     ::g_stats_client->gauge("blocks.tip.Version", block.nVersion, 1.0f);

@@ -103,11 +103,10 @@ bool CalcCbTxMerkleRootMNList(uint256& merkleRootRet, gsl::not_null<std::shared_
                               BlockValidationState& state)
 {
     try {
-        static std::atomic<int64_t> nTimeMerkle = 0;
-
-        int64_t nTime1 = GetTimeMicros();
+        const auto nTime1{SteadyClock::now()};
 
         static Mutex cached_mutex;
+        static SteadyClock::duration nTimeMerkle GUARDED_BY(cached_mutex){};
         static gsl::not_null<std::shared_ptr<const CSimplifiedMNList>> cached_sml GUARDED_BY(cached_mutex){
             std::make_shared<const CSimplifiedMNList>()};
         static uint256 merkleRootCached GUARDED_BY(cached_mutex);
@@ -125,10 +124,10 @@ bool CalcCbTxMerkleRootMNList(uint256& merkleRootRet, gsl::not_null<std::shared_
         bool mutated = false;
         merkleRootRet = sml->CalcMerkleRoot(&mutated);
 
-        int64_t nTime2 = GetTimeMicros();
+        const auto nTime2{SteadyClock::now()};
         nTimeMerkle += nTime2 - nTime1;
-        LogPrint(BCLog::BENCHMARK, "            - CalcMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1),
-                 nTimeMerkle * 0.000001);
+        LogPrint(BCLog::BENCHMARK, "            - CalcMerkleRoot: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime2 - nTime1),
+                 Ticks<SecondsDouble>(nTimeMerkle));
 
         cached_sml = sml;
         merkleRootCached = merkleRootRet;
