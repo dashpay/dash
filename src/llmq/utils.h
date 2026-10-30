@@ -9,6 +9,7 @@
 #include <evo/types.h>
 #include <llmq/params.h>
 #include <saltedhasher.h>
+#include <span.h>
 
 #include <chainparams.h>
 #include <sync.h>
@@ -16,6 +17,7 @@
 
 #include <gsl/pointers.h>
 
+#include <functional>
 #include <optional>
 #include <unordered_set>
 #include <vector>
@@ -43,6 +45,22 @@ public:
 };
 
 namespace utils {
+struct QuarterWalkResult {
+    //! Candidate positions chosen for each quorum's new quarter
+    std::vector<std::vector<size_t>> quarters;
+    //! Skip list in the format stored in CQuorumSnapshot
+    std::vector<int> skip_list;
+};
+
+//! Legacy (pre-quarter_steps) builder loop over positions; returns quarters and the legacy skip list (incl. the
+//! firstSkippedIndex == 0 quirk); nullopt where the legacy code returns empty quarters early.
+std::optional<QuarterWalkResult> WalkLegacyQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
+                                                    const std::vector<size_t>& used_counts,
+                                                    const std::function<bool(size_t, size_t)>& can_add);
+//! Legacy (pre-quarter_steps) MODE_SKIPPING_ENTRIES / MODE_NO_SKIPPING rebuild loop over positions.
+std::vector<std::vector<size_t>> ReplayLegacyQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
+                                                       Span<const int> skip_list);
+
 struct BlsCheck {
     CBLSSignature m_sig;
     std::vector<CBLSPublicKey> m_pubkeys;

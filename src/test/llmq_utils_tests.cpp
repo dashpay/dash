@@ -15,14 +15,17 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
+#include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <netaddress.h>
 #include <random.h>
 #include <streams.h>
+#include <util/strencodings.h>
 
 #include <boost/test/unit_test.hpp>
 
 #include <map>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -619,6 +622,49 @@ BOOST_AUTO_TEST_CASE(deterministic_connection_symmetry_test)
     uniqueResults.insert(conn23);
     // Each pair should produce one of its members, but pairs may have overlapping results
     BOOST_CHECK(uniqueResults.size() >= 2 && uniqueResults.size() <= 3);
+}
+
+BOOST_AUTO_TEST_CASE(legacy_quarter_walk_pinned)
+{
+    using Positions = std::vector<std::vector<size_t>>;
+    const auto walk = [](size_t list_size, size_t quorums, size_t quarter, const std::vector<size_t>& used,
+                         const std::set<size_t>& rejected) {
+        return llmq::utils::WalkLegacyQuarters(list_size, quorums, quarter, used,
+                                               [&](size_t, size_t pos) { return rejected.count(pos) == 0; });
+    };
+
+    // (a) no skips
+    auto res = walk(6, 2, 2, {0, 0}, {});
+    BOOST_REQUIRE(res.has_value());
+    BOOST_CHECK(res->quarters == (Positions{{0, 1}, {2, 3}}));
+    BOOST_CHECK(res->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayLegacyQuarters(5, 3, 2, {}) == (Positions{{0, 1}, {2, 3}, {4, 0}}));
+
+    // (b) first skip at position 0 leaves firstSkippedIndex at 0, so the second entry stays absolute
+    // and becomes the new base; the third is relative to that base
+    res = walk(8, 1, 4, {0}, {0, 2, 5});
+    BOOST_REQUIRE(res.has_value());
+    BOOST_CHECK(res->quarters == (Positions{{1, 3, 4, 6}}));
+    BOOST_CHECK((res->skip_list == std::vector<int>{0, 2, 3}));
+    // the decoder has the same first_entry_index == 0 quirk and reproduces the positions
+    BOOST_CHECK(llmq::utils::ReplayLegacyQuarters(8, 1, 4, res->skip_list) == res->quarters);
+
+    // (c) the builder stops early once no unused candidate is left, the replay pads by wrapping
+    res = walk(5, 2, 3, {0, 3}, {});
+    BOOST_REQUIRE(res.has_value());
+    BOOST_CHECK(res->quarters == (Positions{{0, 1, 2}, {3, 4}}));
+    BOOST_CHECK(res->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayLegacyQuarters(5, 2, 3, res->skip_list) == (Positions{{0, 1, 2}, {3, 4, 0}}));
+
+    // a full pass without progress gives up
+    BOOST_CHECK(!walk(3, 1, 2, {0}, {0, 1, 2}).has_value());
+
+    // (d) serialized snapshot holding (b)'s skip list
+    llmq::CQuorumSnapshot snapshot{{true, false, true, true, false, false, false, true},
+                                   SnapshotSkipMode::MODE_SKIPPING_ENTRIES, {0, 2, 3}};
+    DataStream ss{};
+    ss << snapshot;
+    BOOST_CHECK_EQUAL(HexStr(ss), "01000000" "08" "8d" "03" "00000000" "02000000" "03000000");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
