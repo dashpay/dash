@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>جارٍ مزامنة بيانات الحوكمة…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>لا أيام متبقية (%1 كتلة) للكتلة الفائقة</numerusform><numerusform>~يوم واحد (%1 كتلة) متبقي للكتلة الفائقة</numerusform><numerusform>~يومان (%1 كتلة) متبقيان للكتلة الفائقة</numerusform><numerusform>~%n أيام (%1 كتلة) متبقية للكتلة الفائقة</numerusform><numerusform>~%n يوماً (%1 كتلة) متبقي للكتلة الفائقة</numerusform><numerusform>~%n يوم (%1 كتلة) متبقي للكتلة الفائقة</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>لا أيام متبقية (%1 كتلة) للتصويت</numerusform><numerusform>~يوم واحد (%1 كتلة) متبقي للتصويت</numerusform><numerusform>~يومان (%1 كتلة) متبقيان للتصويت</numerusform><numerusform>~%n أيام (%1 كتلة) متبقية للتصويت</numerusform><numerusform>~%n يوماً (%1 كتلة) متبقي للتصويت</numerusform><numerusform>~%n يوم (%1 كتلة) متبقي للتصويت</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% من الميزانية ملتزم بها (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>تحميل معاملة بلوكتشين موقعة جزئياً من الحافظة</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>فتح ملف سجل الت&amp;صحيح</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>فتح ملف سجل التصحيح من دليل البيانات الحالي</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>إنشاء المحفظة …</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>إغلاق جميع المحافظ…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>ترحيل المحفظة</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>ترحيل محفظة</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>حتى الآن</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>الكتلة الفائقة وشيكة</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>انتهت فترة التصويت</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 كتلة) متبقية للكتلة الفائقة</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 كتلة) متبقية للتصويت</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% من الميزانية ملتزم بها (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>(إلغاء) تحديد الكل</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>تبديل حالة قفل</translation>
+        <source>(un)lock all</source>
+        <translation>قفل/فتح الكل</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>نسخ التغيير</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>يرجى التبديل إلى "وضع قائمة" لاستخدام هذه الوظيفة.</translation>
+        <source>Wallet error</source>
+        <translation>خطأ في المحفظة</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>فشل قفل بعض العملات.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>فشل فتح قفل بعض العملات.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>حل الماسترنود المشترك</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>تم تسجيل هذا الماسترنود في الكتلة %1 وما زالت السلسلة عند الكتلة %2. انتظر تأكيداً واحداً ثم أعد فتح هذه النافذة.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>حل الآن</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>الحل المشترك</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>حل احتياطي</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>ينهي الماسترنود بمفردك. يستعيد الجميع المبلغ الأصلي على عنوان الاسترداد الخاص بكل منهم.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>حصتك:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>رسوم المعاملة، تُدفع من استرداد حصتك.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>الرسوم:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>معرّف المعاملة</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>خروج مبكر: تدفع غرامة قدرها %1. يصبح مجانياً بعد الكتلة %2 (%3، %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>أوافق على دفع غرامة الخروج المبكر البالغة %1</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>بقي %1 فقط حتى يصبح الحل مجانياً. فكّر في الانتظار، أو استخدم الحل المشترك، فهو مجاني الآن بموافقة الجميع.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>انتهت الفترة المبكرة، والحل الآن مجاني.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (أنت)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>ضع علامة في المربع لقبول الغرامة أولاً.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>تجاوزت السلسلة الحد الخالي من الغرامة أثناء فتح هذه النافذة. تم تحديث المعاينة أعلاه، راجعها واضغط على «حل الآن» مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>هل تريد حل هذا الماسترنود المشترك الآن؟ سيعود المبلغ الأصلي لكل مشارك إلى عنوان الاسترداد الخاص به وسيتوقف الماسترنود عن الكسب. لا يمكن التراجع عن ذلك.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>تم إرسال الحل.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>مجاني في أي وقت، لكن يجب أن يوافق كل مالك حصة. يُعدّ شخص واحد الطلب، ويلصقه الآخرون ويوافقون عليه وينسخون الرد.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. الطلب</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>الحصة التي تُخصم منها رسوم المعاملة.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>يدفع الرسوم:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>إعداد الطلب</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. الموافقات</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>أرسل الطلب نفسه إلى كل مالك حصة. يمكن أن تصل الردود بأي ترتيب.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>يدفع هذا الطلب</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>الموافقة ونسخ الرد</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. الإرسال</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>إرسال الحل</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>الرسوم: %1، تُدفع من %2.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>أعدّ طلباً أو الصقه أولاً.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>يجب أن توافق كل حصة أولاً (%1 من %2 حتى الآن).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>حل موقّع تحتفظ به دون اتصال ولا تبثه إلا عند الحاجة. لا تنتهي صلاحيته ويعمل حتى لو فُقدت هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>إنشاء حل احتياطي…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>نسخ</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>كامل المبلغ الأصلي، صالح من الكتلة %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>كامل المبلغ الأصلي، صالح الآن، فقد انتهت الفترة المبكرة</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>لم يُنشأ بعد</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>فوري، مع دفع غرامة %1</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>احفظه مع النسخة الاحتياطية لعنوان الاسترداد، بعيداً عن هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>حُفظ في %1</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>حفظ الحل الاحتياطي</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>ملف نصي (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>المعاملتان جاهزتان أدناه، لكن لم يتم حفظ أي شيء. انسخهما أو أنشئ الملف مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>تم الحفظ في %1.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>ماسترنود مشترك في داش، الحل الاحتياطي</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>الماسترنود: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>تاريخ الإنشاء: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>كل كتلة أدناه هي معاملة موقّعة كاملة. ابثّ إحداها باستخدام "sendrawtransaction" فقط عندما تريد إنهاء الماسترنود واستعادة مبلغك الأصلي. لا تنتهي صلاحيتها. احفظ هذا الملف مع النسخة الاحتياطية لعنوان الاسترداد، بعيداً عن المحفظة.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>كامل المبلغ الأصلي، صالح من الكتلة %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>كامل المبلغ الأصلي، صالح الآن، فقد انتهت الفترة المبكرة</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>فوري، مع دفع غرامة الخروج المبكر %1، صالح فوراً</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>تعذرت الكتابة إلى %1.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>نمودج</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>تصفية قائمة المقترحات</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>عدد العقد الرئيسية:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>عدد العقد الرئيسية التي يمكن لهذه المحفظة التصويت بها (العقد الرئيسية التي تحتفظ بها هذه المحفظة بمفتاح التصويت)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>لا توجد مقترحات نشطة على الشبكة.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>استئناف المقترح</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>عدد الاقتراح:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>إنشاء مقترح</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>حدد المقترحات للعرض</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>تصفية حسب العنوان</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>غير متوفر</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>مطلوب عقدة متزامنة ومحفظة غير مقفلة.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>صوت نعم</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>صوت لا</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>صوت امتناع</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>المقترحات النشطة</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>مقترحاتي</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>لا توجد مقترحات مسجلة في ملف المحفظة.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>استئناف المقترح</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>نسخ JSON الخام</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>فتح رابط المقترح…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>تفاصيل %1</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>لا يمكن التفاعل مع الحوكمة قبل اكتمال المزامنة</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>إنشاء مقترح جديد</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>استئناف مقترح موجود</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>إنشاء المقترحات يكلف %1، الرصيد غير كافٍ</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>خطأ</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>لا يمكن التحقق من الرابط، قد يكون تالفاً أو بروتوكول غير معروف.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>تحذير رابط خارجي</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>أنت على وشك فتح الرابط التالي في المتصفح الافتراضي
-
-%1
-
-تم إرسال هذا المحتوى من قبل مستخدم. قد لا يتطابق مع ما هو موصوف في العنوان.
-
-هل ترغب في المتابعة؟</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>فشل التصويت</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>لا توجد محفظة متاحة.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>لم يتم العثور على مفاتيح تصويت العقد الرئيسية في المحفظة.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>يرجى اختيار مقترح للتصويت عليه.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>غير قادر على فتح قفل المحفظة.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>غير قادر على الحصول على قائمة العقد الرئيسية. يرجى المحاولة مرة أخرى لاحقًا.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>لم يتم العثور على العقدة الرئيسية %1</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>فشل توقيع التصويت للعقدة الرئيسية %1</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>العقدة الرئيسية %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>تم التصويت بنجاح %n مرة</numerusform><numerusform>تم التصويت بنجاح %n مرة</numerusform><numerusform>تم التصويت بنجاح %n مرتين</numerusform><numerusform>تم التصويت بنجاح %n مرات</numerusform><numerusform>تم التصويت بنجاح %n مرة</numerusform><numerusform>تم التصويت بنجاح %n مرة</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>فشل التصويت %n مرة</numerusform><numerusform>فشل التصويت %n مرة</numerusform><numerusform>فشل التصويت %n مرتين</numerusform><numerusform>فشل التصويت %n مرات</numerusform><numerusform>فشل التصويت %n مرة</numerusform><numerusform>فشل التصويت %n مرة</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>الأخطاء:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>نتائج التصويت</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Do you wish to continue?</source>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>%1 يمنحك   &lt;h3&gt;%1 أساسيات&lt;/h3&gt; خصوصية مالية حقيقية من خلال حجب أصول أموالك. تتكون كل الداش في محفظتك من "مدخلات" مختلفة يمكنك التفكير فيها على أنها عملات معدنية منفصلة ومنفصلة.&lt;br&gt;  %1 يستخدم عملية مبتكرة لخلط مدخلاتك مع مدخلات شخصين آخرين أو أكثر ، دون أن تترك عملاتك محفظتك. أنت تحتفظ بالسيطرة على أموالك في جميع الأوقات.&lt;hr&gt;&lt;b&gt; تعمل  %1 عملية على النحو التالي:&lt;/b&gt;&lt;ol type="1"&gt;&lt;li&gt; يبدأ بتقسيم إدخالات معاملتك إلى فئات قياسية. هذه الفئات هي 0.001 داش و 0.01 داش و 0.1 داش و 1 داش و 10 داش - نوع من النقود الورقية التي تستخدمها كل يوم.&lt;/li&gt;&lt;li&gt; ثم ترسل محفظتك طلبات إلى عقد البرامج التي تم تكوينها خصيصًا على الشبكة ، والتي تسمى "العقد الرئيسية". يتم إبلاغ هذه الرموز الرئيسية بعد ذلك أنك مهتم بخلط فئة معينة. لا يتم إرسال أي معلومات يمكن التعرف عليها إلى رموز ماسترنود ، لذلك فهم لا يعرفون أبدًا "من أنت".&lt;/li&gt;&lt;li&gt; عندما يرسل شخصان آخران أو أكثر رسائل متشابهة ، للإشارة إلى رغبتهم في مزج نفس الفئة ، تبدأ جلسة خلط. يخلط الرمز الرئيسي بين المدخلات ويوجه جميع محافظ المستخدمين الثلاثة لدفع المدخلات التي تم تحويلها الآن لأنفسهم. تدفع محفظتك تلك الفئة مباشرة لنفسها ، ولكن في عنوان مختلف (يسمى تغيير العنوان). &lt;/li&gt;&lt;li&gt;من أجل إخفاء أموالك بالكامل ، يجب أن تكرر محفظتك هذه العملية عدة مرات مع كل فئة. في كل مرة يتم فيها الانتهاء من العملية ، يطلق عليها "جولة". كل جولة  %1 تجعل تحديد مصدر أموالك أكثر صعوبة.&lt;/li&gt;&lt;li&gt; تحدث عملية الخلط هذه في الخلفية دون أي تدخل من جانبك. عندما ترغب في إجراء معاملة ، ستكون أموالك مختلطة بالفعل. لا حاجة إلى انتظار إضافي.&lt;/li&gt;&lt;/ol&gt;&lt;hr&gt;&lt;b&gt; هام: &lt;/b&gt;تحتوي محفظتك فقط على 1000 من "عناوين التغيير" هذه. في كل مرة يحدث فيها اختلاط ، يتم استخدام ما يصل إلى 9 عناوين. هذا يعني أن تلك العناوين الـ 1000 تدوم لحوالي 100 حدث خلط. عندما يتم استخدام 900 منهم ، يجب أن تنشئ محفظتك المزيد من العناوين. لا يمكنه القيام بذلك إلا إذا تم تمكين النسخ الاحتياطية التلقائية. &lt;br&gt;وبالتالي ، فإن المستخدمين الذين تم تعطيل النسخ الاحتياطية لديهم  %1 سيتم أيضًا تعطيل.&lt;hr&gt; لمزيد من المعلومات ، &lt;a style="%2" href="%3"&gt; %1 راجع وثائق&lt;/a&gt;.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>عام</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>إصدار العميل</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>غير متاح</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>وكيل المستخدم</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>دليل البيانات</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>لتحديد موقع غير افتراضي لدليل البيانات استخدم الخيار '%1'.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>دليل الكتل</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>لتحديد موقع غير افتراضي لدليل الكتل استخدم الخيار '%1'.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>وقت البدء</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>الشبكة</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>الاسم</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>عدد الاتصالات</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>العناوين المحلية</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>عناوين الشبكة التي تستخدمها عقدة داش الخاصة بك حالياً للتواصل مع العقد الأخرى.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>سلسلة الكتل</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>ارتفاع الكتلة الحالي</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>وقت آخر كتلة</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>تجزئة آخر كتلة</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>تجمع الذاكرة</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>العدد الحالي للمعاملات</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>استخدام الذاكرة</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>الوارد:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>الصادر:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>تم تعطيل نشاط الشبكة</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>لا شيء</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Do you wish to continue?</source>
         <translation><numerusform>(%n جيجابايت مطلوب للسلسلة الكاملة)</numerusform><numerusform>(%n جيجابايت مطلوب للسلسلة الكاملة)</numerusform><numerusform>(%n جيجابايت مطلوب للسلسلة الكاملة)</numerusform><numerusform>(%n جيجابايت مطلوب للسلسلة الكاملة)</numerusform><numerusform>(%n جيجابايت مطلوب للسلسلة الكاملة)</numerusform><numerusform>(%n جيجابايت مطلوب للسلسلة الكاملة)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>اختر دليل البيانات</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>سيتم تخزين %1 جيجابايت على الأقل من البيانات في هذا الدليل، وستنمو مع الوقت.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>الماسترنود: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>لا توجد محفظة متاحة.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>هذه المحفظة للمشاهدة فقط ولا يمكنها توقيع المعاملات.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>تلقائي (موصى به)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>مصدر الرسوم:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>يجب فتح قفل المحفظة لإنشاء هذه المعاملة وتوقيعها.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>أدخل مفتاح مشغل BLS سرياً صالحاً بالمخطط الأساسي.</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>المفتاح السري للمشغل لا يطابق المفتاح العام المسجل لهذا الماسترنود.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>هناك عملية ماسترنود أخرى قيد التنفيذ بالفعل.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>اكتملت العملية دون إرجاع معاملة.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>تم إنشاء المعاملة لكنها لم تُرسل إلى الشبكة.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>تم إرسال المعاملة بنجاح.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>معرّف المعاملة: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Do you wish to continue?</source>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>مشترك</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>تصفية قائمة ماسترنود</translation>
     </message>
@@ -1689,6 +1919,22 @@ Do you wish to continue?</source>
     <message>
         <source>Hide banned</source>
         <translation>إخفاء المحظورة</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>تسجيل ماسترنود أو Evonode جديد باستخدام هذه المحفظة</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>تسجيل ماسترنود…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>إنشاء ماسترنود بضمان مجمّع من عدة أطراف، أو متابعة جلسة محفوظة</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>ماسترنود مشترك…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Do you wish to continue?</source>
         <translation>تصفية حسب</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>تحديث الخدمة…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>تحديث المسجِّل…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>تغيير عنوان المكافأة…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>تدوير المفاتيح…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>حل…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>إنشاء حل احتياطي…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>إبطال…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>عنوان الضمان</translation>
     </message>
@@ -1717,6 +1991,158 @@ Do you wish to continue?</source>
     <message>
         <source>Voting Address</source>
         <translation>عنوان التصويت</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>تسجيل ماسترنود يتطلب محفظة.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>تسجيل الماسترنود لا يدعم محافظ التوقيع الخارجي بعد.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>تسجيل الماسترنود يتطلب محفظة تحتوي على مفاتيح خاصة.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>تسجيل الماسترنود غير متاح حتى تصبح العقدة جاهزة.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>تسجيل ماسترنود أو Evonode جديد باستخدام هذه المحفظة</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>إدارة الماسترنودات المشتركة تتطلب محفظة.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>إدارة الماسترنودات المشتركة تتطلب محفظة تحتوي على مفاتيح خاصة.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>إدارة الماسترنودات المشتركة غير متاحة حتى تصبح العقدة جاهزة.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>الماسترنودات المشتركة تتطلب التفرع الصلب v24، وهو غير مفعّل على هذه الشبكة بعد.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>إنشاء جلسة تسجيل ماسترنود مشترك متعددة الأطراف أو متابعتها</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>هذه المعاملة ليست حلاً مقروءاً لماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>الحصة %1 من %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>نص برمجي غير معروف</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>الماسترنود: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>هذا الماسترنود ليس في قائمة الماسترنودات الحالية.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>الخدمة: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>عنوان الضمان: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>يدفع الرسوم: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>تمت الموافقة من: كل مالك حصة</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>تمت الموافقة من: توقيعك فقط</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>الدفعات:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 ← %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>الرسوم: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>يعود المبلغ الأصلي لكل حصة إلى عنوان الاسترداد الخاص بها. لا يمكن التراجع عن ذلك.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>ملاحظة: هذه المعاملة لا تعيد كامل المبلغ الأصلي لكل حصة. لا يمكن التراجع عن ذلك.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>المعاملة: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>هل تريد بث هذا الحل الاحتياطي؟</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>فشل البث</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>تم إرسال الحل الاحتياطي</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>الماسترنود غير موجود</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>هذه الرسالة تخص ماسترنود غير موجود في القائمة بعد.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>لا شيء للفتح</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>يتطلب محفظة قادرة على توقيع المعاملات</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>يتطلب وجود مفتاح المالك لهذا الماسترنود في المحفظة</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>يتطلب وجود أحد مفاتيح مالكي حصص هذا الماسترنود في هذه المحفظة</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>محفوظ مسبقاً على هذا الحاسوب في %1</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>لم يُنشأ على هذا الحاسوب بعد</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>يصفّي حسب أحد عناوين مالكي حصص هذا الماسترنود</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Do you wish to continue?</source>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>محظور لمدة صفر أيام</numerusform><numerusform>محظور ليوم واحد</numerusform><numerusform>محظور ليومين</numerusform><numerusform>محظور لمدة %n أيام</numerusform><numerusform>محظور لمدة %n يوماً</numerusform><numerusform>محظور لمدة %n يوم</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>محظور لأقل من يوم</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>محظور</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>نشط لمدة صفر أيام</numerusform><numerusform>نشط ليوم واحد</numerusform><numerusform>نشط ليومين</numerusform><numerusform>نشط لمدة %n أيام</numerusform><numerusform>نشط لمدة %n يوماً</numerusform><numerusform>نشط لمدة %n يوم</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>ماسترنود مشترك · تملك %1 من %2 حصة</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>نشط لأقل من يوم</translation>
+        <source>Banned for %1</source>
+        <translation>محظور منذ %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>نشط منذ %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>مشترك (تملك %1 من %2)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>مشترك (%1 حصة)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Do you wish to continue?</source>
     <message>
         <source>ProTx Hash</source>
         <translation>تجزئة ProTx</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>أحد المفاتيح المختارة مستخدم بالفعل في ماسترنود أو حصة مسجّلة. يمكن استخدام كل مفتاح مالك ومفتاح تصويت مرة واحدة فقط على مستوى الشبكة.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>عنوان الخدمة المختار مستخدم بالفعل في ماسترنود مسجّل.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>لا يجوز أن يكون عنوان الاسترداد أو المكافأة عنوان مالك حصة أو عنوان تصويت أيضاً. استخدم عناوين مختلفة للدفعات وللمفاتيح.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>توقيع موافقة أحد المشاركين لا يطابق المعاملة النهائية. يحدث هذا عندما تتغير الشروط أو معاملة التمويل بعد التوقيع؛ اجمع توقيعات جديدة.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>الشبكة لا تقبل إصدار هذه المعاملة بعد. انتظر تفعيل ترقية الشبكة التي تقدمه.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>هذه الميزة غير مفعّلة على الشبكة بعد. انتظر تفعيل ترقية الشبكة التي تقدمها.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>يوجد حل قيد الانتظار لهذا الماسترنود بالفعل.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>تعذر تمويل المعاملة.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>تعذر تمويل المعاملة: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+رفض الشبكة: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>التفاصيل: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>ترحيل المحفظة</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>هل أنت متأكد أنك تريد ترحيل المحفظة &lt;i&gt;%1&lt;/i&gt;؟</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>سيؤدي ترحيل المحفظة إلى تحويلها إلى محفظة واصفات واحدة أو أكثر. سيلزم عمل نسخة احتياطية جديدة للمحفظة.
+إذا كانت هذه المحفظة تحتوي على أي نصوص مشاهدة فقط، فسيتم إنشاء محفظة جديدة تحتوي عليها.
+وإذا كانت تحتوي على أي نصوص قابلة للحل ولكن غير مراقبة، فسيتم إنشاء محفظة جديدة مختلفة تحتوي عليها.
+
+ستنشئ عملية الترحيل نسخة احتياطية من المحفظة قبل الترحيل. سيُسمّى ملف النسخة الاحتياطية &lt;اسم المحفظة&gt;-&lt;الطابع الزمني&gt;.legacy.bak ويمكن العثور عليه في دليل هذه المحفظة. في حال حدوث ترحيل غير صحيح، يمكن استعادة النسخة الاحتياطية باستخدام وظيفة "استعادة المحفظة".</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>ترحيل المحفظة</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>جارٍ ترحيل المحفظة &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>تم ترحيل المحفظة '%1' بنجاح.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>تم ترحيل نصوص المشاهدة فقط إلى محفظة جديدة باسم '%1'.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>تم ترحيل النصوص القابلة للإنفاق وغير المراقبة إلى محفظة جديدة باسم '%1'.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>فشل الترحيل</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>نجح الترحيل</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>الحصة %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>المساهمة "%1" تحتوي على معرّف معاملة إدخال مشوّه.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>المساهمة "%1" تحتوي على عنوان فكة غير صالح.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>المعاملة المُعدّة للجلسة ليست بصيغة سداسية عشرية صالحة لمعاملة.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>المعاملة المُعدّة للجلسة ليست تسجيل ماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>تم تعديل هذه الرسالة بعد نسخها.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>مسودة</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>الشروط مقفلة</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>جمع الموافقات</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>تم دمج الموافقات</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>المساهمات موقّعة</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>تم البث</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>الملف ليس JSON صالحاً.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>الملف ليس ملف جلسة ماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>ملف الجلسة يستخدم إصدار صيغة غير مدعوم. حدّث داش كور لفتحه.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>ملف الجلسة خاص بشبكة "%1" لكن هذه العقدة تعمل على "%2". لا يمكن استخدامه هنا.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>غير معروف</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>ملف الجلسة لا يحتوي على معرّف جلسة.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>ملف الجلسة يحتوي على مراجعة غير صالحة.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>ملف الجلسة لا يحتوي على مرحلة.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>ملف الجلسة في مرحلة غير معروفة "%1". من المرجح أنه أُنشئ بإصدار أحدث من داش كور.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>ملف الجلسة يسرد %1 حصة؛ والحد الأقصى للماسترنود المشترك هو %2.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>إدخال الحصة %1 في ملف الجلسة مشوّه.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>ملف الجلسة يحتوي على فترة مبكرة غير صالحة.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>ملف الجلسة يحتوي على غرامة خروج مبكر غير صالحة.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>ملف الجلسة يسرد %1 مساهمة؛ يمكن أن تكون هناك مساهمة واحدة على الأكثر لكل حصة، و%2 حصة على الأكثر.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>إدخال المساهمة %1 في ملف الجلسة مشوّه.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>إدخال المساهمة %1 في ملف الجلسة يحتوي على %2 مدخلات؛ يمكن تمويل %3 على الأكثر في مساهمة واحدة.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>ملف الجلسة يحتوي على تجزئة موافقة مشوّهة.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>إدخال التوقيع %1 في ملف الجلسة مشوّه.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>ملف الجلسة يسرد أكثر من توقيع واحد للحصة %1.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>ملف الجلسة موسوم بـ "%1" لكنه يفتقد المعاملة المجمّدة أو تجزئة الموافقة.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>ملف الجلسة يحتوي على توقيع لحصة غير موجودة.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>ملف الجلسة يدّعي أن الموافقات مدمجة، لكن ليست لكل حصة موافقة.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>ملف الجلسة يدّعي أن الموافقات مدمجة، لكن إحدى الموافقات غير صالحة: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>ملف الجلسة يدّعي أن كل مساهمة موقّعة، لكن مدخل تمويل واحد أو أكثر غير موقّع.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>تعذر تحليل ملف الجلسة: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>يحتاج الماسترنود المشترك إلى ما بين %1 و%2 حصة (الحالي %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>يجب أن يكون عنوان التصويت عنوان P2PKH صالحاً.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>الحصة %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>يجب أن يكون عنوان المالك عنوان P2PKH صالحاً.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>عنوان المالك مستخدم بالفعل في الحصة %1. يجب أن يكون كل مفتاح مالك فريداً.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>يجب أن يكون المبلغ بين %1 و%2.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>الاسترداد</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>المكافأة</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>يجب أن يكون عنوان %1 عنوان P2PKH أو P2SH صالحاً.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>عنوان الاسترداد مستخدم بالفعل في الحصة %1. يجب أن يكون كل عنوان استرداد فريداً.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>يجب ألا يكون عنوان %1 هو عنوان التصويت.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>يجب ألا يكون عنوان %1 هو عنوان مالك الحصة %2.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>يجب أن يكون مجموع مبالغ الحصص %1 بالضبط (الحالي %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>يجب ألا تزيد الفترة المبكرة على %1 كتلة (حوالي عامين).</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>لا يمكن أن تكون الغرامة المبكرة سالبة.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>يجب أن تكون الغرامة المبكرة أقل من أصغر مبلغ حصة (%1).</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>لا يمكن تغيير التمويل إلا عندما تكون الجلسة قابلة للتعديل. افتح قفل الشروط أولاً (سيؤدي ذلك إلى تجاهل كل الموافقات المجمّعة).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>تحتاج المساهمة إلى تسمية للمشارك.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>المساهمة لا تحتوي على مدخلات تمويل.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1" ساهم بالفعل. أزل المساهمة الحالية أولاً.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>المدخل %1:%2 مساهَم به بالفعل من "%3".</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>يجب أن يكون مبلغ الفكة موجباً.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>لم يتم العثور على مساهمة من "%1".</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>لا يمكن قفل إلا الجلسة القابلة للتعديل.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>تجزئة الموافقة مشوّهة.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>تجزئة الموافقة لا تطابق المعاملة المُعدّة. لا توقّع؛ أعد خطوة الإعداد من البداية.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>فهرس مخرج الضمان لا يطابق المعاملة المُعدّة.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>الشروط غير مقفلة بعد؛ لا يوجد ما يمكن الموافقة عليه.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>الحصة %1 من %2 غير موجودة.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>التوقيع ليس base64 صالحاً.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>التوقيع من %1 لا يتحقق مقابل الشروط الحالية. على الأرجح أنه صُنع لإصدار أقدم من هذه الجلسة، اطلب من %1 إعادة توقيع الإصدار الحالي.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>جدول الحصص في ملف الجلسة لا يطابق معاملته المُعدّة. لا توقّع؛ اطلب نسخة جديدة.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>الحصة %1 في ملف الجلسة لا تطابق معاملته المُعدّة. لا توقّع؛ اطلب نسخة جديدة.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>عنوان مكافأة الحصة %1 في ملف الجلسة لا يطابق معاملته المُعدّة. لا توقّع؛ اطلب نسخة جديدة.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>الشروط الظاهرة في ملف الجلسة لا تطابق معاملته المُعدّة. لا توقّع؛ اطلب نسخة جديدة.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>التمويل الظاهر في ملف الجلسة لا يطابق معاملته المُعدّة. لا توقّع؛ اطلب نسخة جديدة.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>تم تسجيل توقيع مختلف لهذه الحصة بالفعل. إحدى النسخ وقّعت إصداراً قديماً من الجلسة، اتفقوا على أحدث مراجعة واطلبوا إعادة توقيعها.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>لا يمكن توقيع مدخلات التمويل إلا بعد دمج الموافقات.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>المعاملة المُعدّة لا تطابق الشروط التي وافق عليها الجميع. لا توقّعها ولا تبثها؛ اطلب نسخة جديدة.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>هذه الرسالة تخص جلسة مختلفة (الجلسة %1). أنت تعمل على الجلسة %2.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>لا يمكن استيعاب الردود إلا عندما تكون الشروط قابلة للتعديل.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>الرد لا يطابق مسودتك الحالية: تم تغيير المشاركين أو المبالغ أو الشروط. اطلب من المرسل لصق أحدث دعوة لديك ثم الرد مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>حصة %1 تحتوي بالفعل على تفاصيل من رد آخر.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>هذه الرسالة لا تحمل شروطاً مقفلة.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>الشروط المقفلة لا تحتوي على التفاصيل التي أرسلتها.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>المنسّق</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>تغيّرت الشروط منذ أن أرسلت تفاصيلك. اطلب من %1 إرسال الدعوة الحالية ثم الرد مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>النسخة المستوردة هي المراجعة %1 من هذه الجلسة؛ أما هذه النسخة فهي المراجعة %2 وقد حلّت محلها النسخة المستوردة.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>النسخة المستوردة هي المراجعة %1 من هذه الجلسة؛ وهذه النسخة هي بالفعل في المراجعة %2. أرسل الملف الأحدث إلى المرسل.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>النسخة المستوردة تحتوي على شروط مقفلة وتحل محل هذه النسخة القابلة للتعديل.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>شروط هذه الجلسة مقفلة بالفعل؛ أما النسخة المستوردة فما زالت قابلة للتعديل. أرسل التحديث الأحدث إلى المرسل.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>قفلت كلتا النسختين من الجلسة %1 شروطاً مختلفة ولا يمكن دمجهما. اتفقوا على نسخة واحدة وأرسلوها مرة أخرى واطلبوا من الجميع الموافقة عليها.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>غيّرت كلتا النسختين من الجلسة %1 التفاصيل نفسها ولا يمكن دمجهما. اتفقوا على نسخة واحدة وأرسلوها مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>النسختان الموقّعتان للتمويل ليستا المعاملة نفسها. لا يمكن دمجهما.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>مدخل التمويل %1 له توقيعان مختلفان. لا يمكن دمج النسختين.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>النسخة المستوردة تدّعي أن الموافقات مدمجة، لكن هذه الحالة غير صالحة: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>النسخة المستوردة تدّعي أن كل مساهمة موقّعة، لكن هذه الحالة غير صالحة: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>النسخة المستوردة تدّعي أن التسجيل قد بُثّ، لكن هذه الحالة غير صالحة: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>الجلسة لا تجمع الموافقات.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>لم توقّع كل الحصص بعد (%1 من %2). لا تدمج إلا جلسة موقّعة بالكامل.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>يجب دمج موافقات المالكين قبل توقيع المساهمات.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>ما زال مدخل تمويل واحد غير موقّع.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>ما زالت %1 من مدخلات التمويل غير موقّعة.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>لا يمكن بث الجلسة قبل توفر كل توقيعات الموافقة والتمويل.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>لا شيء</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>حوالي دقيقة واحدة</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>حوالي %1 دقيقة</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>حوالي ساعة واحدة</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>حوالي %1 ساعة</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>حوالي يوم واحد</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>حوالي %1 يوماً</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>يجب أن تكون الرسوم موجبة.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>الغرامة والرسوم تتجاوزان حصة المشارك الذي يحل الماسترنود.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>الحل الأحادي الطرف يتطلب حصة أخرى واحدة على الأقل لاستلام الغرامة.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>عملة واحدة</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 عملة</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>موافقة واحدة</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 موافقة</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>مشارك واحد</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 مشاركين</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>مدخل تمويل واحد</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 من مدخلات التمويل</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>حصة واحدة</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 حصة</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>مدخل واحد</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 مدخلات</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>مجمع الائتمان</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>آخر تغيير في الكتلة</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>غير متاح</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>إجمالي المقفل</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>عمليات فتح القفل المعلقة</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>حد السحب</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>الأقفال المتحقق منها</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>الأقفال غير المتحقق منها</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>أقفال بانتظار المعاملة</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>معاملات غير محمية</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>الماسترنودات</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>عدد الماسترنودات</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>عدد EvoNode</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ChainLocks</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>ارتفاع الكتلة الحالي</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>وقت آخر كتلة</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>تجزئة آخر كتلة</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>نصابات</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>الإجمالي: %1 (ممكّن: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>بانتظار مزامنة سلسلة الكتل…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 نشط (سلامة %2%)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>نوع النصاب يتناوب، وتُحفظ البيانات لمدة %1</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>نوع النصاب لا يتناوب، وتُحفظ البيانات لمدة %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>متبقٍّ للنصاب الحالي %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>انتهت صلاحية النصاب الحالي</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>تشكّل آخر مرة منذ %1</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>تشكّل مؤخراً</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Do you wish to continue?</source>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>جاري فتح المحفظة&lt;b&gt;%1&lt;/b&gt; …</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>إنشاء مفتاح مشغل جديد</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>يُعرض المفتاح السري ويُؤكَّد قبل التسجيل، ثم لا يُحفظ في أي مكان آخر.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>المفتاح العام</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>استخدام مفتاح عام موجود للمشغل</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>لعقدة مستضافة: يحتفظ المشغل بالمفتاح السري ويعطيك المفتاح العام.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>المفتاح العام BLS للمشغل (96 حرفاً سداسياً عشرياً، المخطط الأساسي)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>المفتاح السري BLS للمشغل (64 حرفاً سداسياً عشرياً)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>عمليات PSBT</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>حوار</translation>
     </message>
@@ -2968,10 +4148,6 @@ Due to discontinued support, you should request the merchant to provide you with
         <translation>عرض الحمولة</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>إنشاء مقترح</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>تم إرسال %1 بنجاح لمقترحك "%2".
 
 سيتم توجيهك الآن لمراقبة وبث مقترحك الجديد، يمكنك استئناف هذا لاحقاً بالنقر على "استئناف المقترح".</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>عام</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>دورات التصويت</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>غير متاح</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>آخر كتلة فائقة</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>الكتلة الفائقة التالية</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>كتلة إغلاق التصويت</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>المشاركة</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>الماسترنودات المصوّتة</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>EvoNodes المصوّتة</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>عتبة النجاح</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>العقدة</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>الماسترنودات المتحكَّم بها</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>الأصوات المتحكَّم بها</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>المقترحات</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>عدد المقترحات</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>الميزانية المخصصة</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>المقترحات الناجحة</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>المقترحات غير الممولة</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>المقترحات الفاشلة</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 صوت</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 مؤهل)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>المقترح %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>%1% من الميزانية</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% مخصص</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (ينقص %2)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>نموذج</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>حدد المقترحات للعرض</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>تصفية قائمة المقترحات</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>التصفية حسب العنوان</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>الموعد النهائي للتصويت: بانتظار المزامنة…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>لا توجد مقترحات نشطة على الشبكة.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>الأصوات…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>اعرض أصواتك الحالية وصوّت بالماسترنودات المحددة</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>إنشاء مقترح</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>استئناف المقترح</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>عدد المقترحات:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>المقترحات النشطة</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>مقترحاتي</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>أصوات التمويل الحالية من الماسترنودات المؤهلة التي تتحكم بها هذه المحفظة. الأعداد أصوات مرجّحة.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (الوزن %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>لا توجد مفاتيح تصويت</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>لا توجد مقترحات مسجلة في ملف المحفظة.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>غير متاح</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>يلزم وجود عقدة متزامنة ومحفظة غير مقفلة.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>استئناف المقترح</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>نسخ JSON الخام</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>فتح رابط المقترح…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>صوت نعم</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>صوت لا</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>صوت امتناع</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>تفاصيل %1</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>بانتظار مزامنة سلسلة الكتل…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>بانتظار مزامنة الحوكمة…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n ماسترنود متاح للتصويت</numerusform><numerusform>%n ماسترنود متاح للتصويت</numerusform><numerusform>%n ماسترنود متاح للتصويت</numerusform><numerusform>%n ماسترنودات متاحة للتصويت</numerusform><numerusform>%n ماسترنودًا متاحًا للتصويت</numerusform><numerusform>%n ماسترنود متاح للتصويت</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>الكتلة الفائقة وشيكة</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>انتهت فترة التصويت</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 كتلة) متبقية للكتلة الفائقة</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 كتلة) متبقية للتصويت</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% من الميزانية ملتزم بها (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>تقدير مبني على الكتل المتبقية والزمن المستهدف للكتلة. لا يزال بالإمكان ترحيل الأصوات بعد الموعد النهائي، لكنها قد لا تؤثر على دفعة هذه الدورة.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>لا يمكن التفاعل مع الحوكمة قبل اكتمال المزامنة</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>إنشاء مقترح جديد</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>استئناف مقترح موجود</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>إنشاء المقترحات يكلف %1، الرصيد غير كافٍ</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>خطأ</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>تعذر التحقق من الرابط، قد يكون مشوّهاً أو ببروتوكول غير معروف.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>تحذير الرابط الخارجي</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>أنت على وشك فتح الرابط التالي في متصفحك الافتراضي
+
+%1
+
+تم إرسال هذا المحتوى من قبل مستخدم. قد لا يطابق ما هو موصوف في العنوان.
+
+هل تريد المتابعة؟</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>فشل التصويت</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>لا توجد محفظة متاحة.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>لم يتم العثور على مفاتيح تصويت للماسترنود في المحفظة.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>تعذر جلب بيانات الماسترنود.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>يرجى اختيار مقترح للتصويت عليه.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>التصويت يتطلب مقترحاً مبثوثاً وعقدة متزامنة.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>غير قادر على فتح قفل المحفظة.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>تعذر جلب بيانات الماسترنود المتزامنة.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>الماسترنود %1 لم يعد مؤهلاً</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>لم يتم العثور على الماسترنود %1</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>فشل توقيع التصويت للماسترنود %1</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>الماسترنود %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>تم التصويت بنجاح %n مرة</numerusform><numerusform>تم التصويت بنجاح %n مرة</numerusform><numerusform>تم التصويت بنجاح %n مرة</numerusform><numerusform>تم التصويت بنجاح %n مرات</numerusform><numerusform>تم التصويت بنجاح %n مرة</numerusform><numerusform>تم التصويت بنجاح %n مرة</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>فشل التصويت %n مرة</numerusform><numerusform>فشل التصويت %n مرة</numerusform><numerusform>فشل التصويت %n مرة</numerusform><numerusform>فشل التصويت %n مرات</numerusform><numerusform>فشل التصويت %n مرة</numerusform><numerusform>فشل التصويت %n مرة</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>الأخطاء:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>نتائج التصويت</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>needs %1 more votes</source>
         <translation>يحتاج %1 صوت إضافي</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>أصواتي</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>التصويت على %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>أصوات المقترح</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>حدد الماسترنودات التي تريد التصويت بها. تظهر أدناه أصوات التمويل الحالية. تغيير الصوت يستبدل الصوت السابق لذلك الماسترنود؛ وتقصر الشبكة التحديثات على مرة واحدة في الساعة.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>الماسترنود</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>عنوان التصويت</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>الوزن</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>الصوت الحالي</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>وقت التصويت</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>تجزئة ProTx</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>تحديد الكل</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>مسح التحديد</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>الماسترنودات المحددة: %1 · وزن الأصوات: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>أظهر شاشة البداية عند بدء التشغيل (افتراضي: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>خطأ: دليل البيانات المحدد "%1" غير موجود.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>خطأ: لا يمكن تحليل ملف التكوين:%1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Unroutable</source>
         <translation>غير قابل للتوجيه</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 و %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>الآن</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n شهر</numerusform><numerusform>%n شهر</numerusform><numerusform>%n شهر</numerusform><numerusform>%n أشهر</numerusform><numerusform>%n شهراً</numerusform><numerusform>%n شهر</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>UNKNOWN</source>
         <translation>غير معروف</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>مشترك</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>مكافأة المشغل</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>الحصص</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>المشارك</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>العناوين</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>الحصة %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>أنت</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>نفس عنوان الاسترداد</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>المالك</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>المكافأة</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>الاسترداد</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>الفترة المبكرة</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>لا شيء</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>تنتهي عند الكتلة %1</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>تنتهي عند الكتلة %1 (بعد حوالي %2 من الآن)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>انتهت (الكتلة %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>غرامة الخروج المبكر</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>محفوظ على هذا الحاسوب في %1</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>لم يُنشأ على هذا الحاسوب</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>الحل الاحتياطي</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>عناوين الشبكة</translation>
     </message>
@@ -3537,6 +5235,66 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>Collateral Date</source>
         <translation>تاريخ الضمان</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>منذ %1</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>متبقٍّ %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>نعم</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>لا</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>امتناع</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>لم يصوّت</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>انتهى الموعد النهائي للتصويت في هذه الدورة (الكتلة %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>الموعد النهائي للتصويت: متبقٍّ ~%1 (%2 كتلة، الكتلة %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1 نعم، %2 لا، %3 امتناع / %4 لم يصوّتوا</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>عنوان داش غير صالح: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>نسخ</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>نسخ إلى الحافظة</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>لا توجد محفظة متاحة.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>تعذر إنشاء عنوان جديد: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>الحصة %1 من %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>المعلومات</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>عموما</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>الاسم</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>غير معروف</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>عدد الاتصالات</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>الفتح</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>وقت البدء</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>الشبكه</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>اخر وقت الكتلة</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>تصحيح ملف السجل</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>نسخه العميل</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>سلسلة الكتل</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>تجمع الذاكرة</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>عدد المعاملات الحالي</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>استخدام الذاكرة</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>&amp;Repair</source>
         <translation>إ&amp;صلاح</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;عام</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;الشبكة</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>ال&amp;حوكمة</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>User Agent</source>
         <translation>وكيل المستخدم</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>دليل البيانات</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>لتحديد موقع غير افتراضي لدليل البيانات ، استخدم الخيار "%1".</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Blocksdir</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>لتحديد موقع غير افتراضي لدليل الكتل ، استخدم الخيار "%1".</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>العناوين المحلية</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>عناوين الشبكة التي تستخدمها عقدة Dash الخاصة بك حالياً للتواصل مع العقد الأخرى.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>عدد الماسترنود العادية</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>عدد العقد التطورية</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>ارتفاع الكتلة الحالي</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>آخر تجزئة كتلة</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>أحدث تجزئة كتلة ChainLocked</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>أحدث ارتفاع كتلة ChainLocked</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>افتح ملف سجل تصحيح %1 من دليل البيانات الحالي. قد يستغرق هذا بضع ثوانٍ لملفات السجل الكبيرة.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>أقفال InstantSend</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>رفع الحظر</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>داخل:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>خارج:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>تم إلغاء تفعيل الشبكه</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>لا شيء</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>الإجمالي: %1 (ممكّن: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>تنفيذ الأمر بدون أي محفظة</translation>
     </message>
@@ -4122,6 +5768,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: بروتوكول نقل مشفر BIP324</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;الحوكمة</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>تسجيل ماسترنود</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>رجوع</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>التالي</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>إلغاء</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>نوع الماسترنود</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>ماسترنود — ضمان %1</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>يقدم خدمات شبكة Core ويكسب مكافآت الماسترنود المنتظمة.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode — ضمان %1</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>يستضيف بالإضافة إلى ذلك منصة داش، وله وزن تصويت أكبر بأربع مرات ويكسب حصة أكبر من المكافآت. يتطلب معرّف عقدة المنصة وخدمات إضافية.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>تسجيل EvoNode</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>الضمان</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>إرسال الضمان من هذه المحفظة إلى عنوان جديد</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>معاملة واحدة تموّل الضمان وتسجّل الماسترنود.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>استخدام عنوان جديد</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>استخدام مخرج ضمان موجود في هذه المحفظة</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>مخرج P2PKH غير منفق بمبلغ الضمان بالضبط، مؤكد وغير مستخدم في ماسترنود آخر.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>الإشارة إلى ضمان خارجي (مثل محفظة الأجهزة)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>مخرج P2PKH مؤكد بمبلغ الضمان بالضبط، محفوظ خارج هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>بعد المراجعة سيُطلب منك توقيع رسالة بمفتاح الضمان خارج هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>معرّف معاملة الضمان (64 حرفاً سداسياً عشرياً)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>معرّف المعاملة:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>فهرس المخرج</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>فهرس المخرج:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>عناوين الخدمة</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>العناوين العامة التي سيخدم عليها ماسترنودك شبكة Core P2P، مفصولة بفواصل أو مسافات. يجب أن يكون كل إدخال فريداً على الشبكة.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>يمكن تركه فارغاً؛ عندها يبقى الماسترنود غير نشط حتى ترسل تحديثاً للخدمة مع عنوان.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>المفاتيح</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>عنوان المالك</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>يتحكم بهذا الماسترنود (P2PKH): يوقّع مفتاحه تحديثات المسجِّل. استخدم عنواناً جديداً لإبقاء ذلك المفتاح في هذه المحفظة، أو أدخل عنواناً يتحكم به المالك.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>عنوان التصويت</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>يمكن تفويضه (P2PKH). اتركه فارغاً للتصويت بمفتاح المالك؛ واستخدم عنواناً جديداً لإبقاء مفتاح تصويت منفصل في هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>اتركه فارغاً لاستخدام عنوان المالك</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>مفتاح المشغل</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>يشغّل المشغل خادم الماسترنود (BLS)؛ يُسجَّل المفتاح العام فقط على السلسلة.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>يُعرض المفتاح السري المُنشأ ويجب تأكيده قبل التسجيل. ولا يُحفظ في هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>الدفع</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>عنوان الدفع</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>يستلم مكافآت الكتل لهذا الماسترنود (P2PKH أو P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>مكافأة المشغل</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>حصة المكافأة الموعودة للمشغل.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>سيتلقى المشغل هذه الحصة بشكل دائم من جميع مكافآت هذا الماسترنود. اتركها 0 ما لم يكن لديك اتفاق مع مشغلك.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>خدمات المنصة</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>معرّف عقدة المنصة</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>مشتق من المفتاح العام P2P للمنصة (40 حرفاً سداسياً عشرياً).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>عناوين المنصة</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>إدخالات بصيغة ADDR:PORT، مفصولة بفواصل أو مسافات.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>P2P للمنصة</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>واجهة HTTPS API للمنصة</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>منافذ المنصة</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>قبل تفعيل v24 لا يمكن تسجيل سوى منافذ المنصة؛ وهي تنطبق على أول عنوان خدمة.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>منفذ P2P للمنصة:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>منفذ HTTPS للمنصة:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>مصدر الرسوم</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>مراجعة</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>إثبات ملكية الضمان</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>وقّع الرسالة التالية بمفتاح الضمان (على سبيل المثال بميزة توقيع الرسائل في محفظة الأجهزة)، ثم الصق توقيع base64 أدناه.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>نسخ الرسالة</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>التوقيع</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>الصق توقيع base64 هنا</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>حفظ مفتاح المشغل</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>احفظ هذا المفتاح المُنشأ قبل التسجيل. فهو غير محفوظ في أي مكان آخر ولا يمكن استرجاعه من المحفظة.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>المفتاح السري للمشغل</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>احفظه الآن، فلا يمكن بدء التسجيل حتى تؤكد ذلك.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>أضف هذا السطر إلى dash.conf على خادم الماسترنود لديك:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>نسخ</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>اكتب آخر 4 أحرف من المفتاح السري لتأكيد أنك حفظته قبل التسجيل:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>تم تسجيل الماسترنود</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>تجزئة معاملة المزوّد</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>الخطوات التالية</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>اكتمل</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>الخطوة %1 من %2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>العنوان المحدد يموّل ضمان %1 بالإضافة إلى رسوم المعاملة. تُحسب الرسوم الدقيقة من إعدادات محفظتك عند التسجيل، وتعود الفكة إلى هذا العنوان.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>العنوان المحدد يدفع رسوم المعاملة.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>أدخل عنوان ضمان صالحاً (P2PKH أو P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>لا تحتوي هذه المحفظة على مخرج غير منفق بمبلغ %1 بالضبط. موّل الضمان من المحفظة بدلاً من ذلك.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>أدخل معرّف معاملة الضمان بصيغة 64 حرفاً سداسياً عشرياً.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>تحتاج EvoNodes إلى عنوان خدمة واحد على الأقل لحمل منافذ المنصة قبل تفعيل v24.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>أدخل عنوان مالك صالحاً (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>أدخل عنوان تصويت صالحاً (P2PKH)، أو اتركه فارغاً لاستخدام عنوان المالك.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>يجب أن يختلف عنوانا المالك والتصويت عن عنوان الضمان.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>أدخل مفتاح BLS عاماً صالحاً للمشغل (96 حرفاً سداسياً عشرياً، المخطط الأساسي).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>أدخل عنوان دفع صالحاً (P2PKH أو P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>يجب أن يختلف عنوان الدفع عن عنوانَي المالك والتصويت.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>يجب أن يختلف عنوان الدفع عن عنوان الضمان.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>أدخل معرّف عقدة المنصة بصيغة 40 حرفاً سداسياً عشرياً.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>أدخل عنوان P2P للمنصة وعنوان HTTPS للمنصة معاً؛ لا يمكن تسجيل أحدهما دون الآخر.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>أدخل عنوان P2P للمنصة واحداً وعنوان HTTPS للمنصة واحداً على الأقل، أو امسح عناوين الخدمة لضبط كل شيء لاحقاً بتحديث للخدمة.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>أدخل عنوان خدمة Core واحداً على الأقل عند ضبط نقاط المنصة، أو امسح جميع نقاط الخدمة لضبطها لاحقاً بتحديث للخدمة.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>لا يوجد عنوان قابل للإنفاق في المحفظة يحتوي على مبلغ الضمان %1. ويجب أن يحتوي العنوان المحدد أيضاً على ما يكفي للرسوم المحسوبة عند التسجيل.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>لا يوجد عنوان قابل للإنفاق في المحفظة لديه رصيد موجب متاح لدفع رسوم المعاملة.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>الصق التوقيع المرمّز بـ base64 للرسالة أعلاه، الموقّع بمفتاح الضمان.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>زر الرجوع غير متاح بعد الإعداد لأن تغيير التسجيل سيُبطل الرسالة التي يجري توقيعها.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>متابعة</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>إعداد</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>تسجيل</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>إرسال</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>إنهاء</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>لا توجد محفظة متاحة. تسجيل الماسترنود يتطلب محفظة.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>هذه المحفظة للمشاهدة فقط. تسجيل الماسترنود يتطلب محفظة قادرة على توقيع المعاملات.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>أكّد أنك حفظت المفتاح السري للمشغل بكتابة آخر 4 أحرف منه.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>لا تحتوي هذه المحفظة على مخرج غير منفق بمبلغ %1 بالضبط وله تأكيد. أرسل الضمان من هذه المحفظة بدلاً من ذلك، أو أشِر إلى ضمان محفوظ في مكان آخر.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>النوع</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>الخدمة</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>HTTPS للمنصة</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>المبلغ</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>الوجهة</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>المخرج</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>المصدر</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>المالك</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>التصويت</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>المشغل</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>العنوان</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>حصة المشغل</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>رسوم الشبكة</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>العقدة</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>ماسترنود</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>غير محدد، تبقى العقدة غير نشطة حتى ترسل تحديثاً للخدمة</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 نظير إلى نظير، %2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>ترسله هذه المحفظة كجزء من التسجيل</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>مخرج تحتفظ به هذه المحفظة بالفعل</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>محفوظ خارج هذه المحفظة، ستوقّع رسالة بمفتاحه</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>نفس المالك</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>التمويل</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>غير محدد</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>يُحسب عند الإرسال باستخدام إعدادات الرسوم الحالية للمحفظة</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>الإعداد ينشئ المعاملة غير الموقّعة والرسالة التي توقّع بمفتاح الضمان. لا يُبث شيء بعد.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>التسجيل يبث معاملة من هذه المحفظة. قد يُطلب منك فتح قفلها.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>يُنشأ حديثاً، ويُعرض ويُؤكَّد قبل التسجيل، ولا يُحفظ في أي مكان آخر</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>يقدمه من يشغّل العقدة</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>وجهة الضمان لم تعد صالحة.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>مخرج الضمان المحدد مستخدم بالفعل في ماسترنود آخر.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>عنوان المالك لم يعد صالحاً.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>عنوان التصويت لم يعد صالحاً.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>المفتاح العام للمشغل لم يعد صالحاً.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>عنوان الدفع لم يعد صالحاً.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>مصدر الرسوم المحدد لم يعد صالحاً.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>ماسترنود</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>تنشئ هذه المعاملة ضماناً بقيمة %1 من هذه المحفظة وتسجّل %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>تسجّل هذه المعاملة الضمان الخارجي %1 وتجعله ضمان %2 هذا.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>تسجّل هذه المعاملة مخرج الضمان %1 الخاص بالمحفظة وتقفله لصالح %2 هذا.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> تُحسب رسوم الشبكة من مصدر الرسوم المحدد باستخدام إعدادات الرسوم الحالية للمحفظة.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>تأكيد تسجيل %1</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>هل تريد بث تسجيل %1 هذا؟</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>مصدر الرسوم: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>تغيّرت قواعد معاملات المزوّد في الشبكة أثناء فتح هذا المعالج. راجع صفحة خدمات المنصة مرة أخرى قبل التسجيل.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>جارٍ الإعداد…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>جارٍ التسجيل…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>تغيّرت قواعد معاملات المزوّد في الشبكة أثناء جمع توقيع الضمان. تجاهل هذا التسجيل المُعدّ وراجع صفحة خدمات المنصة مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>توقيع الضمان ليس base64 صالحاً.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>جارٍ الإرسال…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>فشل التسجيل</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>اكتمل التسجيل دون إرجاع معاملة.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>تم إنشاء معاملة التسجيل لكنها لم تُرسل إلى الشبكة.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>اكتملت عملية الإعداد دون إرجاع معاملة.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>عنوان الضمان الذي يحتوي المفتاح: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>تم إرسال معاملة التسجيل إلى الشبكة.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>هي مسجّلة في هذه المحفظة وتظهر ضمن المعاملات. يبقى الضمان الخارجي عند نقطة المخرج التي سجّلتها ولا تتحكم به هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>هي مسجّلة في هذه المحفظة وتظهر ضمن المعاملات. يبقى الضمان في المحفظة لكنه مقفل ما دام الماسترنود مسجّلاً.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>اضبط خادم الماسترنود لديك بالمفتاح السري للمشغل الذي حفظته، ثم أعد تشغيل dashd هناك.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>اضبط خادم الماسترنود لديك بمفتاح BLS السري المطابق للمفتاح العام للمشغل الذي قدمته.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>تأكد من أن كل عنوان خدمة ومنفذ مسجّل يمكن الوصول إليه من الإنترنت.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>أرسل معاملة تحديث الخدمة بعد أن تصبح نقاط خدمة العقدة جاهزة؛ تبقى غير نشطة حتى ذلك الحين.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>جهّز خدمات منصة داش (Tenderdash وDrive) بمفتاح عقدة المنصة المطابق لمعرّف العقدة الذي سجّلته.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>يصبح EvoNode نشطاً بمجرد تأكيد التسجيل وتوقيع المشغل لأول تحديث.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>يصبح الماسترنود نشطاً بمجرد تأكيد التسجيل على الشبكة.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>تجاهل التسجيل المُعدّ؟</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>سيتم تجاهل التسجيل المُعدّ. وسيُحرَّر أي قفل ضمان حصل عليه هذا المعالج.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ For more information on using this console, type %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>رسالة استعادة المحفظة</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>غير محدد</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>إنهاء الخدمة</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>مفاتيح مخترقة</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>تغيير المفاتيح</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>السبب:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>مفتاح المشغل:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>الخيار التلقائي يستخدم دفع المشغل الحالي، ثم دفع الماسترنود. حدد عنواناً فقط لتجاوز هذا الاختيار.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>إبطال خدمة الماسترنود</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>الإبطال يمسح عنوان الخدمة ويحظر الماسترنود عبر PoSe إلى أن يغيّر مالكه مفتاح المشغل. لا يتأثر الضمان.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>إبطال</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>تدوير مفتاح المشغل أو التصويت</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>تغيير هذه المفاتيح يحتاج إلى موافقة من كل مالك حصة. يبدأ شخص واحد الطلب، ويلصقه الآخرون ويوافقون عليه وينسخون الرد.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. المفاتيح الجديدة</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>اتركه فارغاً للإبقاء على مفتاح المشغل الحالي</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>نسخ</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>مفتاح المشغل الجديد:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>يُحظر الماسترنود لحظة تغيير مفتاح المشغل، إلى أن يرسل المشغل الجديد تحديثاً للخدمة.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>اتركه فارغاً للإبقاء على عنوان التصويت الحالي</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>عنوان التصويت الجديد:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>مصدر الرسوم:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>إعداد الطلب</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>أنهِ على هذه المحفظة، فهي التي تدفع الرسوم ويجب أن ترسل المعاملة النهائية.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. الموافقات</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>أرسل الطلب نفسه إلى كل مالك حصة. يمكن أن تصل الردود بأي ترتيب.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>الموافقة ونسخ الرد</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. الإرسال</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>إرسال التدوير</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>معرّف المعاملة</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>مفتاح المشغل: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>دون تغيير</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>← %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>عنوان التصويت: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>أعدّ طلباً أو الصقه أولاً.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>المحفظة التي أعدّت الطلب فقط يمكنها إرساله.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>يجب أن توافق كل حصة أولاً (%1 من %2 حتى الآن).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>أدخل مفتاحاً عاماً صالحاً للمشغل.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>يجب أن يكون عنوان التصويت عنوان P2PKH.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>تم إرسال تدوير المفاتيح.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>إذا ذكر الخطأ أن المحفظة التي موّلت الطلب يجب أن تدمجه، فأنهِ العملية على المحفظة التي أعدّت الطلب.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ For more information on using this console, type %6.
         <translation>أو</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>معاملة غير موقّعة</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>تم نسخ PSBT إلى الحافظة. يمكنك أيضاً حفظه.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>تم حفظ PSBT على القرص</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>تأكيد الإرسال Coins</translation>
     </message>
@@ -4688,6 +7188,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>تم حفظ PSBT</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ For more information on using this console, type %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>تعتبر الرسوم الأعلى من %1 رسوماً باهظة.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/كيلوبايت</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>يقدر أن يبدأ التأكيد ضمن %n من الكتل.</numerusform><numerusform>يقدر أن يبدأ التأكيد ضمن %n من الكتل.</numerusform><numerusform>يقدر أن يبدأ التأكيد ضمن %n من الكتل.</numerusform><numerusform>يقدر أن يبدأ التأكيد ضمن %n من الكتل.</numerusform><numerusform>يقدر أن يبدأ التأكيد ضمن %n من الكتل.</numerusform><numerusform>يقدر أن يبدأ التأكيد ضمن %n من الكتل.</numerusform></translation>
@@ -4900,6 +7405,1441 @@ For more information on using this console, type %6.
     <message>
         <source>Create Unsigned</source>
         <translation>إنشاء غير موقع</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>ماسترنود مشترك</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>رجوع</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>لصق</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>حفظ…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>إلغاء</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>التالي</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>التفاصيل</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>تم التمويل</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>تمت الموافقة</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>تم التوقيع</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>عملية أخرى لا تزال قيد التشغيل.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>لا توجد محفظة متاحة.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>بقيت المحفظة مقفلة.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>لم تذكر العقدة سبباً.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>التسجيل ليس معاملة صالحة.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>ماسترنود مشترك</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>يموّل عدة أشخاص ماسترنوداً واحداً معاً. يتولى شخص واحد التنسيق، ويلصق الآخرون ما يتلقونه وينسخون الرد. لا يصل أي شيء إلى الشبكة قبل البث النهائي.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>ابدأ</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>ستدخل من يشارك وإعدادات الماسترنود، ثم تدعو الآخرين.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>بدء ماسترنود مشترك</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>متابعة</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>الصق دعوة أو شروطاً مقفلة أو طلب توقيع أو أي رد تلقيته، وسيعرف التطبيق ما يجب فعله.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>لصق من الحافظة</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>فتح ملف…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>المشاركون</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>من يشارك وكم يساهم كل منهم. يجب أن يكون مجموع المبالغ %1 بالضبط؛ وكل حصة لا تقل عن %2.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>الاسم</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>المبلغ</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>أنا</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>إضافة مشارك</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>المشارك %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>إزالة</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>إعدادات الماسترنود</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>تنطبق هذه على الماسترنود بأكمله وهي نفسها لكل مشارك.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>عناوين الخدمة:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>العناوين العامة التي يخدم عليها الماسترنود شبكة Core P2P، مفصولة بفواصل أو مسافات. يمكن تركها فارغة وضبطها لاحقاً بتحديث للخدمة.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>مفتاح المشغل:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>من يشغّل الخادم يحتاج إلى المفتاح السري. يُسجَّل المفتاح العام فقط على السلسلة.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>نسخ المفتاح العام</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>يشغّل العقدة:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>يُسجَّل في الشروط ليعرف الجميع من يمكنه تشغيل العقدة وإحياءها.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>اسم المشارك الذي يحتفظ بالمفتاح السري للمشغل</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>عنوان التصويت:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>يصوّت على مقترحات الحوكمة نيابة عن الماسترنود بأكمله (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>استخدام عنوان جديد</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>مكافأة المشغل:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>حصة المكافأة الموعودة لمن يشغّل الخادم.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>سيتلقى المشغل هذه الحصة بشكل دائم من جميع المكافآت قبل تقسيم أي شيء بين المشاركين.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>شروط الخروج</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>ما يحدث إذا أراد أحد المشاركين الخروج قبل الآخرين.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>كيف يعمل الخروج</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>يمكن لأي شخص حل الماسترنود بمفرده في أي وقت، ويستعيد الجميع مبالغهم الأصلية. خلال الفترة المبكرة، من يحل بمفرده يدفع غرامة الخروج المبكر من حصته ويُوزَّع مبلغها على الآخرين. وإذا اتفق الجميع فالحل مجاني في أي وقت.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>الفترة المبكرة:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>عدد الكتل بعد التسجيل التي يكلّف فيها الخروج المنفرد الغرامة.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>بلا</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 أشهر</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 أشهر</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>سنة واحدة</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>سنتان</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>غرامة الخروج المبكر:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>مساهمتك</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>العناوين والعملات الخاصة بحصتك. أنت وحدك ترى العملات؛ ويرى الآخرون مدخلات المعاملة الناتجة فقط.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>حصتك</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>هذا أنا:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>عنوان المالك:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>يتحكم بحصتك: يوافق على تغييرات المفاتيح وعمليات الحل. يُحفظ في هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>عنوان الاسترداد:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>يستلم مبلغك الأصلي عند حل الماسترنود. لا يمكن تغييره لاحقاً.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>عنوان المكافأة (اختياري):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>يستلم نصيبك من المكافآت. اتركه فارغاً لاستخدام عنوان الاسترداد؛ ويمكنك تغييره لاحقاً.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>العملات</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>رسوم الشبكة:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>حجز العملات</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>تحرير</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>حفظ مفتاح المشغل</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>احفظ هذا المفتاح المُنشأ قبل دعوة أي شخص. فهو غير محفوظ في أي مكان آخر ولا يمكن استرجاعه من المحفظة.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>المفتاح السري للمشغل</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>احفظه الآن، فلا يمكن إرسال الدعوة حتى تؤكد ذلك.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>نسخ</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>أضف هذا السطر إلى dash.conf على خادم الماسترنود:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>الدعوة التي توشك على إرسالها تحتوي على المفتاح العام فقط.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>اكتب آخر 4 أحرف من المفتاح السري لتأكيد أنك حفظته:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>دعوة المشاركين</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>أرسل الدعوة نفسها إلى الجميع. يحجز كل شخص عملاته ويرسل لك تفاصيله.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>نسخ الدعوة</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>الدعوة</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>حفظ الدعوة…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>لقد غيّرت المسودة. على المشاركين الذين ردّوا بالفعل أن يردّوا مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>قفل هذه الشروط؟</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>القفل يثبّت كل عنوان ومبلغ وعملة. بعد ذلك لا يمكن لأحد التعديل، بل يمكن فقط فتح القفل، مما يتجاهل جميع الموافقات.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>الموافقات</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>نسخ الشروط المقفلة</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>الشروط المقفلة</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>فتح قفل الشروط…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>التوقيعات</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>نسخ طلب التوقيع</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>طلب التوقيع</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>ما أرسلته</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>الخطوة التالية</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>تحرير عملاتي</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>تم تسجيل الماسترنود المشترك</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>ما حدث</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>يظهر ضمن الماسترنودات بعد تأكيد واحد.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>ما يجب حفظه بأمان</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>مفتاح مالك حصتك</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>الحل الاحتياطي</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>حل موقّع تحتفظ به دون اتصال. يستعيد مبلغك الأصلي حتى لو فُقدت هذه المحفظة. أنشئه بعد التأكيد الأول.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>أنشئه من قائمة الماسترنودات (انقر بزر الفأرة الأيمن على الماسترنود) بعد تأكيد التسجيل، واحفظه مع النسخة الاحتياطية لعنوان الاسترداد، بعيداً عن هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>سجل الجلسة</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>حفظ السجل النهائي…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>الخطوات التالية</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>نسخ السجل النهائي</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>السجل النهائي</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>بانتظار %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>المنسّق</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>الموافقة على الشروط</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>توقيع المساهمة</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>اكتمل</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>الخطوة %1 من %2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>لا توجد محفظة متاحة.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>هذه المحفظة لا تستطيع التوقيع. يمكنك العرض لكن لا يمكنك المشاركة.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>يحتاج الماسترنود المشترك إلى ما بين %1 و%2 مشاركين.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>أدخل اسماً للمشارك %1.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>الاسم "%1" مستخدم مرتين.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>كل حصة %1 على الأقل.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>مجموع المبالغ %1؛ ويجب أن يكون %2 بالضبط.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>اختر المشارك الذي يمثلك.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>أدخل مفتاح BLS عاماً صالحاً للمشغل (96 حرفاً سداسياً عشرياً، المخطط الأساسي).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>أدخل عنوان تصويت صالحاً (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>اضبط غرامة الخروج المبكر على 0 عند عدم وجود فترة مبكرة.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>يجب أن تكون غرامة الخروج المبكر أقل من أصغر حصة (%1).</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>أدخل عنوان مالك صالحاً (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>أدخل عنوان استرداد صالحاً (P2PKH أو P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>أدخل عنوان مكافأة صالحاً (P2PKH أو P2SH)، أو اتركه فارغاً.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>يجب أن يختلف عنوان المكافأة عن عنوان التصويت وعن كل عناوين المالكين.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>يجب أن يرسل كل مشارك تفاصيله قبل أن يمكن قفل الشروط.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>هذه المحفظة للمشاهدة فقط ولا يمكنها التوقيع.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>احفظ المفتاح السري للمشغل أولاً. يُعرض مرة واحدة في صفحة "حفظ مفتاح المشغل" ولا يحمله ملف الجلسة.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>حجز العملات ونسخ التفاصيل</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>القفل والموافقة</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>قفل الشروط</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>الموافقة ونسخ الرد</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>موافقة</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>إعادة المحاولة</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>التوقيع ونسخ الرد</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>بث التسجيل</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>إغلاق</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>إنهاء</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>البدء من جديد</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>أكّد أنك حفظت المفتاح السري للمشغل بكتابة آخر 4 أحرف منه.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>لقد وافقت على هذه الشروط بالفعل.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>يجب أن يوقّع كل مشارك عملاته الخاصة قبل أن يمكن بث التسجيل.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>ماسترنود مشترك — الجلسة %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 من %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 من %2 — ينقص %3</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 من %2 — زيادة %3</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>يجب أن تكون أقل من أصغر حصة (%1). اضبطها على 0 فقط إذا قبلت أن بإمكان أي شخص المغادرة في أي وقت مجاناً.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>يمكن لأي شخص المغادرة في أي وقت مجاناً.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>إذا غادر %1 قبل الكتلة %2 من عمر الماسترنود، فإن %1 يتنازل عن %3 ويُقسَّم على الآخرين.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>المغادرة المنفردة خلال الفترة المبكرة تكلّف %1، ويُقسَّم المبلغ على الآخرين.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>مع غرامة صفرية لا يكون للفترة المبكرة أي أثر: يمكن لأي شخص حل الماسترنود بمفرده في أي وقت دون دفع شيء.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>الحصة %1 من %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>الحصة %1 من %2 — %3 (أنت)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>اختر أي مشارك أنت.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>محجوزة، لا يمكن إنفاق هذه العملات حتى تنتهي الجلسة أو تحررها.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>يستخدم %1 (%2)؛ وتعود الفكة %3 إلى عنوان جديد خاص بك.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>يستخدم %1 (%2)، دون فكة متبقية.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>يراجع الجميع هذه الشروط نفسها بالضبط ويوافقون مرة واحدة. أرسل الرسالة نفسها إلى الجميع.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>اقرأ كل سطر. الموافقة توقّع هذه الشروط بالضبط بمفتاح المالك الخاص بك. لا يُبث شيء بعد.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>جميع الموافقات مضمّنة. يوقّع كل مشارك الآن عملاته الخاصة. يمكن أن تصل الردود بأي ترتيب.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>يوقّع العملات التي حجزتها. توقيعك ينفقها في هذا التسجيل فقط.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>تم توقيع %1 من %2 من مدخلات التمويل.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>يوقّع حصتك %1. لا تبث أنت شيئاً.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>أرسلت: %1 · الرمز %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>الشروط المقفلة</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>طلب التوقيع</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>السجل النهائي</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>ستتلقى بعد ذلك %1. الصقه هنا عند وصوله.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 يبث التسجيل. عندما يظهر الماسترنود في قائمتك، أنشئ الحل الاحتياطي الخاص بك.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>في هذه المحفظة (%1). احتفظ بنسخة احتياطية من المحفظة، فهي توافق على التغييرات وعمليات الحل.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>بحوزة %1. مطلوب على الخادم باسم masternodeblsprivkey.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>من يشغّل العقدة</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>اضبط خادم الماسترنود بالمفتاح السري للمشغل وأعد تشغيل dashd هناك.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>أرسل تحديثاً للخدمة عندما تصبح عناوين العقدة جاهزة؛ تبقى غير نشطة حتى ذلك الحين.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>تأكد من أن كل عنوان خدمة ومنفذ مسجّل يمكن الوصول إليه من الإنترنت.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>على كل مشارك إنشاء الحل الاحتياطي الخاص به بعد التأكيد الأول.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 من %2 مدخلات</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>ردّ %1 من %2</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>وقّع %1 من %2</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>وافق %1 من %2</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>جارٍ الإعداد…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>فشل إعداد التسجيل: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>معاملة التمويل غير صالحة.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>عنوان استرداد غير صالح: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>عنوان مكافأة غير صالح: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>عنوان مالك حصة غير صالح: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>مفتاح المشغل ليس مفتاح BLS عاماً صالحاً.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>يجب أن يكون عنوان التصويت عنوان P2PKH.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>يجب أن تكون مكافأة المشغل بين 0% و100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>رد غير متوقع من العقدة.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>الشروط غير مقفلة بعد.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>فشلت الموافقة: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>جارٍ الموافقة…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>الموافقة</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>فشل دمج الموافقات: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>جارٍ دمج الموافقات…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>تنفق هذه المعاملة أيضاً %1، وهي عملة من هذه المحفظة ليست جزءاً من مساهمتك. لا توقّع؛ اطلب جلسة جديدة من %2.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>تنفق هذه المعاملة %1 من عملات هذه المحفظة لحصة بقيمة %2 لكنها تعيد %3 فقط كفكة إلى هذه المحفظة. لا توقّع؛ اطلب جلسة جديدة من %4.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>فشل التوقيع: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>المعاملة الموقّعة ليست التي راجعتها. لا تستخدمها؛ اطلب جلسة جديدة من %1.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>المساهمة الموقّعة</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>فتح قفل الشروط؟</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>فتح القفل يتجاهل %1. على الجميع الموافقة مرة أخرى بعد أن تقفل.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>الضمان: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>المشاركون: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>تأكيد تسجيل الماسترنود المشترك</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>هل تريد بث تسجيل هذا الماسترنود المشترك؟</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>الجلسة %1 · الرمز %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>فشل البث: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>الجميع</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>تم النسخ · الجلسة %1 · الرمز %2 — أرسله إلى %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>احفظ المفتاح السري للمشغل أولاً. يُعرض هنا فقط ولا يحمله ملف الجلسة: ودونه لن يمكن تشغيل الماسترنود أبداً.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>حفظ رسالة الماسترنود المشترك</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>ملفات الجلسة (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>تعذر فتح %1 للكتابة.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>تم الحفظ · الجلسة %1 · الرمز %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>فتح رسالة الماسترنود المشترك</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>هذه الرسالة أكبر من أن تكون رسالة ماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>تعذر فتح %1 للقراءة.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>هذه الرسالة تخص ماسترنوداً موجوداً. افتحها من قائمة الماسترنودات.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>التوقيعات غير محسوبة</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>تم الاستلام %1 · الرمز %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>هذا الرد أقدم من شروطك الحالية (الرمز %1؛ ورمزك %2). اطلب من المرسل لصق أحدث رسالة لديك والرد مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>تم استلام %2 من %1 · الرمز %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>تحتاج هذه المحفظة إلى %1 على الأقل قابلة للإنفاق لتمويل حصتك %2.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>تحرير عملاتك؟</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>ستصبح العملات التي حجزتها للجلسة %1 قابلة للإنفاق مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>تبقى عملات الآخرين محجوزة. إذا أنفقت هذه العملات، فلن يمكن بث هذا التسجيل أبداً وسيضطر الآخرون إلى البدء من جديد.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>تم التحرير، يمكن إنفاق هذه العملات مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>تم إنفاق عملة محجوزة لهذه الجلسة. لم يعد بالإمكان إكمال التسجيل، ابدأ من جديد.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>لا يمكن التحقق من قيمة %1 على هذه العقدة بعد. مجموع المدخلات التي يمكن التحقق منها %2 من أصل ضمان %3.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>مجموع العملات المحجوزة %1، وهو لا يغطي ضمان %2 مع فكة %3 ورسوم الشبكة. لن يمكن بث التسجيل أبداً.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>المدخلات %1 − الفكة %2 = ضمان %3 + رسوم شبكة %4. هذه الرسوم كبيرة بشكل غير معتاد؛ تابع فقط إذا كان ذلك مقصوداً.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>المدخلات %1 − الفكة %2 = ضمان %3 + رسوم شبكة %4 ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>حفظ مفتاح المشغل أولاً؟</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>المفتاح السري للمشغل غير موجود في أي مكان سوى هذه النافذة، فملف الجلسة يحمل نصفه العام فقط. إذا أغلقت الآن فلن يمكن تشغيل الماسترنود أبداً.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>الاحتفاظ بهذه الجلسة لوقت لاحق؟</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>الحفظ يُبقي عملاتك محجوزة لتتمكن من المتابعة من حيث توقفت. أما التجاهل فيحررها؛ وإذا كان الآخرون ما زالوا ينتظرونك فسيضطرون إلى البدء من جديد.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>حفظ مفتاح المشغل</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>حفظ وإغلاق</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>تجاهل وتحرير العملات</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>الحصة %1 من %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>هذه المحفظة لا تحتوي على أي من مفاتيح مالكي حصص هذا الماسترنود.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>الماسترنود: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>الحصة</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>عنوان الاسترداد</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>يستلم</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>لا توجد محفظة متاحة.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>هذه المحفظة للمشاهدة فقط ولا يمكنها التوقيع.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>عملية أخرى لا تزال قيد التشغيل.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>تم إلغاء فتح قفل المحفظة.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>المعاملة ليست بصيغة سداسية عشرية صالحة لمعاملة.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>تم إنفاق عملة يحتاجها هذا الطلب (%1:%2). لم يعد بالإمكان إرساله، ابدأ من جديد.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>خطأ داخلي: الملخص المحسوب هنا لا يطابق ملخص العقدة. لا توافق؛ يرجى الإبلاغ عن ذلك.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>تمت الموافقة على %1 بهذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>الماسترنودات المشتركة تحتاج إلى ترقية v24، وهي غير مفعّلة على هذه الشبكة بعد.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>الاسم</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>المبلغ</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(أنت)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>هذا الطلب لا يدفع لكل حصة كامل مبلغها الأصلي. لا توافق عليه؛ اطلب طلباً جديداً ممن أعدّه.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>يذكر هذا الطلب حصة غير موجودة في هذا الماسترنود.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>هذا الطلب لا ينفق ضمان الماسترنود بالضبط. لا توافق عليه.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>يحتفظ هذا الطلب بمبلغ %1 من المبالغ الأصلية للحصص كرسوم معاملة. لا توافق عليه؛ اطلب طلباً جديداً ممن أعدّه.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>الحافظة لا تحتوي على رسالة ماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>هذه الرسالة ليست رسالة ماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>هذه المعاملة ليست حلاً لماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>بلا اسم</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(أنت)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>المالك:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>لم يُحدد بعد</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>الاسترداد:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>المكافأة:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>نفس عنوان الاسترداد</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>المشاركون</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>الخدمة:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>غير محدد، يُضبط لاحقاً بتحديث للخدمة</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>مفتاح المشغل:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>غير محدد</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>يشغّل العقدة:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>غير مسجّل</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>عنوان التصويت:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>مكافأة المشغل:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>الماسترنود</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>الفترة المبكرة:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 كتلة (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>غرامة الخروج المبكر:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>يمكن لأي شخص المغادرة في أي وقت مجاناً.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>المغادرة المنفردة خلال الفترة المبكرة تكلّف %1، ويُقسَّم المبلغ على الآخرين؛ أما المغادرة المشتركة فمجانية.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>شروط الخروج</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>المساهمات:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1، %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>الفكة المُعادة:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>الضمان:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1، بمجرد قفل الشروط</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>المخرج #%1 يدفع إلى النص البرمجي المشترك للضمان %2</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>التمويل</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>الجلسة:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>الرمز:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>أعدّته المحفظة:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>الهوية</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>المعاملة ليست بصيغة سداسية عشرية صالحة لمعاملة.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>المعاملة ليست معاملة حل.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>لا يمكن فك تسلسل بيانات المعاملة.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>المعاملة تحل ماسترنوداً مختلفاً.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>المعاملة تحمل توقيعات بالفعل؛ كان المتوقع المعاملة المُعدّة غير الموقّعة.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>المعاملة ليست تحديث مسجِّل مشترك.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>المعاملة تحدّث ماسترنوداً مختلفاً.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>تمت الموافقة</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>نسخ الطلب</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>حفظ الطلب…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>لصق</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>فتح ملف…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>هذه الرسالة تخص معاملة مختلفة عن الموجودة هنا بالفعل. إحدى النسختين قديمة؛ احتفظ بالحالية واطلب رداً جديداً.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>الصق الطلب نفسه قبل لصق الموافقات.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>هذه الرسالة لا تحتوي على أي موافقات.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>إحدى الموافقات تفتقد رقم الحصة أو التوقيع.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>إحدى الموافقات تحتوي على رقم حصة غير مقروء.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>رقم الحصة %1 خارج النطاق.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: التوقيع ليس توقيعاً مضغوطاً من 65 بايت بصيغة base64.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>موافقة %1 لا تطابق المعاملة المُعدّة. اطلب من %2 لصق الطلب الحالي والموافقة مرة أخرى.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 لديه موافقة بالفعل من رد آخر.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>هذه ليست رسالة ماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>هذه الرسالة خاصة بشبكة %1؛ وتعمل هذه المحفظة على %2.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>هذه الرسالة تخص نوعاً مختلفاً من التغيير على هذا الماسترنود.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>هذه الرسالة تخص ماسترنوداً مختلفاً.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>تم النسخ · الرمز %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>حفظ الطلب</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>رسالة ماسترنود مشترك (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>تعذرت الكتابة إلى %1.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>تم الحفظ · الرمز %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>تم الحفظ في %1.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>هذه الرسالة أكبر من أن تكون رسالة ماسترنود مشترك.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>تم الاستلام %1 · الرمز %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>تم الاستلام · الرمز %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>فتح الطلب</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>رسالة ماسترنود مشترك (*.json);;جميع الملفات (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>تعذرت قراءة %1.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>وافق عليه %1</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>بانتظار %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>وافق %1 من %2</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(اضغط q للإيقاف والمتابعة لاحقاً)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>اضغط q للإيقاف</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ For more information on using this console, type %6.
     <message>
         <source>Date</source>
         <translation>تاريخ</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>النوع</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>تسجيل ماسترنود</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>تحديث ماسترنود</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>قفل الأصول</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ For more information on using this console, type %6.
     <message>
         <source>Transaction total size</source>
         <translation>المجموع الكلي للمعاملات</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>الحمولة</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ For more information on using this console, type %6.
         <translation>نقل المنصة</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>معاملة بيانات</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>استلام الغبار</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>تسجيل ماسترنود</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>تحديث ماسترنود</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>قفل الأصول</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ For more information on using this console, type %6.
     <message>
         <source>(n/a)</source>
         <translation>غير متوفر</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>يسجّل ماسترنوداً. المبلغ هو صافي التغيير في رصيد هذه المحفظة، وعادةً ما يكون رسوم الشبكة فقط عندما يبقى الضمان في هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>يحدّث تسجيل ماسترنود موجود. المبلغ هو صافي التغيير في رصيد هذه المحفظة، وعادةً ما يكون رسوم الشبكة فقط.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>يقفل أموالاً لاستخدامها على منصة داش. المبلغ هو صافي التغيير في رصيد هذه المحفظة، شاملاً رسوم الشبكة.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ For more information on using this console, type %6.
         <translation>Mined</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>ماسترنود</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>نقل المنصة</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>قفل الأصول</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>معاملة بيانات</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>المفتاح العام BLS للمشغل (96 حرفاً سداسياً عشرياً)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>المفتاح العام للمشغل:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>تغيير مفتاح المشغل يحظر الماسترنود فوراً عبر PoSe. يجب على المشغل الجديد إرسال معاملة تحديث الخدمة لإعادته للعمل.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>عنوان التصويت:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>عنوان الدفع:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>حصص الدفع المتعددة محفوظة؛ استخدم RPC لتغييرها</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>لا يمكن لهذه النافذة دمج ماسترنود متعدد الدفع في عنوان واحد بأمان.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>الخيار التلقائي يستخدم عنوان الدفع الأساسي الحالي للماسترنود. حدد عنواناً فقط لتجاوز هذا الاختيار.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>تحديث مسجِّل الماسترنود</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>حدّث مفتاح المشغل أو عنوان التصويت أو عنوان الدفع. جميع القيم الحالية معبأة مسبقاً؛ وتُرسل الحقول المتغيرة فقط. يجب أن يكون مفتاح المالك موجوداً في هذه المحفظة.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>إرسال التحديث</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>أدخل مفتاحاً عاماً صالحاً للمشغل لإصدار معاملة المزوّد الحالي.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>يجب أن يكون عنوان التصويت عنوان مفتاح.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT، مفصولة بفواصل عند إدخال عدة قيم</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>العناوين المتعددة تتطلب معاملات مزوّد موسّعة.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>عناوين الخدمة:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>عنوان الخدمة:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>مفتاح المشغل:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>معرّف عقدة المنصة (40 حرفاً سداسياً عشرياً)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>معرّف عقدة المنصة:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>عناوين P2P للمنصة:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT أو domain:port، مفصولة بفواصل</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>عناوين HTTPS للمنصة:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>منفذ P2P للمنصة:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>منفذ HTTPS للمنصة:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>عنوان دفع المشغل:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>الخيار التلقائي يستخدم دفع المشغل الحالي، ثم دفع الماسترنود. حدد عنواناً فقط لتجاوز هذا الاختيار.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>تحديث خدمة EvoNode</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>تحديث خدمة الماسترنود</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>حدّث نقاط الخدمة المسجّلة. التحديث الناجح يعيد أيضاً ماسترنوداً محظوراً عبر PoSe إلى العمل. جميع القيم الحالية معبأة مسبقاً لتبقى الحقول غير المتغيرة كما هي.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>إرسال التحديث</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>أدخل معرّف عقدة منصة صالحاً (40 حرفاً سداسياً عشرياً).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>حصتك:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>العنوان الذي يستلم مكافآت هذه الحصة</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>استخدام عنوان جديد</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>استخدام عنوان الاسترداد</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>عنوان المكافأة الجديد:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>تُدفع الرسوم من هذا العنوان في محفظتك.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>تغيير عنوان المكافأة</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>غيّر المكان الذي تُدفع إليه حصتك من مكافآت هذا الماسترنود. تتأثر حصتك فقط؛ أما مبلغ الحصة وعنوان الاسترداد فلا يتغيران أبداً.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>إرسال التحديث</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>أدخل العنوان الذي يجب أن يستلم المكافآت.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>أدخل عنوان داش صالحاً.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>يجب أن يختلف عنوان المكافأة عن عنوان التصويت وعن كل عناوين المالكين.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>هذا الماسترنود ليس مشتركاً وليس له جدول حصص.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>اختر عنواناً من هذه المحفظة لدفع الرسوم منه.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Send Coins</source>
         <translation>إرسال Coins</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>خطأ في جهاز التوقيع</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>تحذير: لا يبدو أننا نتفق تمامًا مع نظرائنا! قد تحتاج إلى الترقية ، أو قد تحتاج العقد الأخرى إلى الترقية.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+تعذر تنظيف الترحيل الفاشل</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+تعذرت استعادة النسخة الاحتياطية للمحفظة.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>بالفعل هذا الإدخال.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>قاعدة بيانات SQLite: إصدار مخطط محفظة sqlite غير معروف %d. الإصدار %d فقط مدعوم</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>مستوى تسجيل خاص بالفئة غير مدعوم -loglevel=%s. متوقع -loglevel=&lt;category&gt;:&lt;loglevel&gt;. الفئات الصالحة: %s. مستويات السجل الصالحة: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>لا يمكن الجمع: لم يتم العثور على مدخلات متوافقة!</translation>
     </message>
@@ -5905,10 +10099,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Insufficient funds.</source>
         <translation>رصيد غير كاف.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>الحد الأدنى لعدد مميّزي مواقع السبط المحدد </translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>استجابة غير معروفة.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>مستوى تسجيل عام غير مدعوم -loglevel=%s. القيم الصالحة: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>يحتوي تعليق وكيل المستخدم (%s) على أحرف غير آمنة.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>يحتوي ملف %s على جميع المفاتيح الخاصة من هذه المحفظة. لا تشاركه مع أي شخص!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>فشل %s في التحقق من حالة لقطة -assumeutxo. يشير هذا إلى مشكلة في العتاد، أو خلل في البرنامج، أو تعديل برمجي سيئ سمح بتحميل لقطة غير صالحة. ونتيجة لذلك ستُغلق العقدة وتتوقف عن استخدام أي حالة بُنيت على اللقطة، مع إعادة ارتفاع السلسلة من %d إلى %d. عند إعادة التشغيل التالية ستستأنف العقدة المزامنة من %d دون استخدام أي بيانات من اللقطة. يرجى الإبلاغ عن هذه الحادثة إلى %s، مع ذكر كيفية حصولك على اللقطة. ستُترك حالة السلسلة للقطة غير الصالحة على القرص في حال كانت مفيدة في تشخيص المشكلة التي سببت هذا الخطأ.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>المجموع طول سلسلة إصدار الشبكة (%i) يتجاوز الحد الأقصى للطول (%i). تقليل عدد أو حجم </translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>تحذير! تعذّر تجديد مفتاح keypool ، يرجى إلغاء قفل محفظتك للقيام بذلك.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>المحفظة مؤمّنة ، ولا يمكن تجديد مفتاح keypool! تم تعطيل النسخ الاحتياطي التلقائي والاختلاط ، يرجى فتح محفظتك لتجديد keypool</translation>
     </message>
@@ -6085,10 +10271,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>يجب أن يكون maxmempool على الأقل %d ميغابايت</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>النسخ الاحتياطي التلقائي تعطيل</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>تعذر تحليل ملف asmap %s</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>خطأ! فشل إنشاء نسخة احتياطية تلقائية</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>خطأ في تحميل%s: لا يمكن تعطيل المفاتيح الخاصة إلا أثناء الإنشاء</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>خطأ في قراءة ملف التكوين: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>خطأ: لا يمكن استخراج الوجهة من scriptpubkey المولد</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>خطأ: تعذرت إضافة معاملة المشاهدة فقط إلى محفظة المشاهدة فقط</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>خطأ: تعذر حذف معاملات المشاهدة فقط</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>خطأ: المجموع الاختباري لملف التفريغ لا يتطابق. محسوب %s، متوقع %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>خطأ: فشل إنشاء محفظة مشاهدة فقط جديدة</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>خطأ: لا توجد عناوين متاحة.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>خطأ: لم يمكن حذف كل معاملات المشاهدة فقط</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>خطأ: هذه المحفظة تستخدم SQLite بالفعل</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>خطأ: هذه المحفظة هي بالفعل محفظة واصفات</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>خطأ: تعذر بدء قراءة جميع السجلات في قاعدة البيانات</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>خطأ: تعذر إنشاء نسخة احتياطية من محفظتك</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>خطأ: تعذرت قراءة جميع السجلات في قاعدة البيانات</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>خطأ: تعذرت إزالة بيانات دفتر العناوين للمشاهدة فقط</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>فشل إنشاء النسخة الاحتياطية %s!</translation>
     </message>
@@ -6161,6 +10383,22 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>أخفق حذف النسخة الاحتياطية ، الخطأ: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>فشل إكمال تنظيف اللقطة غير الصالحة المتقطع.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>فشل إكمال ترقية علامة اللقطة المتقطعة.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>فشل فحص تنظيف اللقطة المتقطع: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>فشل استرداد تنظيف اللقطة المتقطع: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>لم يتم العثور على المدخل أو تم إنفاقه بالفعل</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>ذاكرة dbcache غير كافية للتحقق من الكتل</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>تنظيف اللقطة المتقطع يحتوي على أطراف غير متسقة للعملات وEvoDB.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>تنظيف اللقطة المتقطع يفتقد علامة EvoDB الخاصة باللقطة.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>إذن P2P غير صالح: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>masternodeblsprivkey غير صالح. يرجى الاطلاع على الوثائق.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>مدخل محدد مسبقاً غير صالح %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>قيمة غير صالحة لـ %s: تتجاوز الحد الأقصى (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>قيمة غير صالحة لـ %s: يجب أن تكون &gt;= 0</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Mixing in progress…</source>
         <translation>الدمج قيد التقدم …</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>تم توفير أكثر من عنوان spork واحد. استخدام %s.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>لا تتوفر واصفات ملف متاح.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>المدخل المحدد مسبقاً غير موجود %s</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>المدخل المحدد مسبقاً غير قابل للحل %s</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>لا يمكن الجمع بين مستلمي المنصة وموضع فكة صريح</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>يرجى إدخال عبارة مرور المحفظة باستخدام walletpassphrase أولاً.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>لا يمكن تهيئة التجريد بقيمة سالبة.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>وضع التقليم غير متوافق مع -addressindex.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>وضع التقليم غير متوافق مع -disablegovernance = false.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>وضع التقليم غير متوافق مع -spentindex.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>المقطع [%s] غير معروف.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>يضبط عنوان نافذة يُلحق بعد "Dash Core - "</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>لم يُعد جهاز التوقيع العنوان</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>أعاد جهاز التوقيع عنواناً غير متوقع %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>أعاد جهاز التوقيع خطأ: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>علامة EvoDB لحالة سلسلة اللقطة مفقودة. إعادة الفهرسة مطلوبة.</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>- المحفظة المحددة "%s" غير موجودة</translation>
     </message>
@@ -6275,8 +10585,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>-walletdir المحدد "%s" ليس دليلاً</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>دليل البيانات المحدد "%s" غير موجود.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>سوف تتجنب المحفظة دفع أقل من الحد الأدنى لرسوم التتابع.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>لا يوجد ScriptPubKeyManager لهذا العنوان</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>يجب ألا تكون قيمة المعاملة سلبية</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>المعاملة طويلة جدًا من سلسلة </translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates غير مدعوم على سلسلة %s.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>لا يمكنك بدء Masternode مع محفظة ممكنة.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>لا خلط متاح.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>انظر debug.log للحصول على التفاصيل.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>%s المبرمجون</translation>
     </message>
@@ -6379,16 +10689,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>يستخدم%s مبالغ محددة بدقة لإرسال الأموال ، قد تحتاج ببساطة إلى خلط بعض العملات المعدنية.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>خيار -reindex-chainstate غير متوافق مع -blockfilterindex. يرجى تعطيل blockfilterindex مؤقتاً أثناء استخدام -reindex-chainstate، أو استبدال -reindex-chainstate بـ -reindex لإعادة بناء جميع الفهارس بالكامل.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>خيار -reindex-chainstate غير متوافق مع -txindex. يرجى تعطيل txindex مؤقتاً أثناء استخدام -reindex-chainstate، أو استبدال -reindex-chainstate بـ -reindex لإعادة بناء جميع الفهارس بالكامل.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>خيار -reindex-chainstate غير متوافق مع -coinstatsindex. يرجى تعطيل coinstatsindex مؤقتاً أثناء استخدام -reindex-chainstate، أو استبدال -reindex-chainstate بـ -reindex لإعادة بناء جميع الفهارس بالكامل.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>خيار -reindex-chainstate غير متوافق مع -txindex. يرجى تعطيل txindex مؤقتاً أثناء استخدام -reindex-chainstate، أو استبدال -reindex-chainstate بـ -reindex لإعادة بناء جميع الفهارس بالكامل.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>خيار -reindex-chainstate غير متوافق مع -blockfilterindex. يرجى تعطيل blockfilterindex مؤقتاً أثناء استخدام -reindex-chainstate، أو استبدال -reindex-chainstate بـ -reindex لإعادة بناء جميع الفهارس بالكامل.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>خطأ في قراءة %s! قراءة كافة المفاتيح بشكل صحيح ، ولكن قد تكون بيانات المعاملة أو إدخالات دفتر العناوين مفقودة أو غير صحيحة.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>خطأ في قراءة %s! قد تكون بيانات المعاملات مفقودة أو غير صحيحة. جارٍ إعادة فحص المحفظة.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>خطأ: لا يمكن تحديد انتماء بيانات دفتر العناوين في المحفظة إلى المحافظ المرحَّلة</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>خطأ: سجل تنسيق ملف التفريغ غير صحيح. تم الحصول على "%s"، متوقع "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>خطأ: سجل معرف ملف التفريغ غير صحيح. تم الحصول على "%s"، متوقع "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>خطأ: أُنشئت واصفات مكررة أثناء الترحيل. قد تكون محفظتك تالفة.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>خطأ: فشل تقديم الواصفة النشطة إلى ما بعد عداد السلسلة القديم أثناء الترحيل.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>خطأ: لا يمكن تحديد انتماء المعاملة %s في المحفظة إلى المحافظ المرحَّلة</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>خطأ: تعذر إنتاج واصفات لهذه المحفظة القديمة. تأكد من إدخال عبارة مرور المحفظة إذا كانت مشفرة.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>فشلت إزالة دليل حالة سلسلة اللقطة. أزله يدوياً قبل إعادة التشغيل.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>الاتصالات الصادرة مقيدة بـ i2p (-onlynet=i2p) ولكن لم يتم توفير -i2psam</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>لا يمكن الجمع بين مستلمي المنصة وحمولة معاملة خاصة أخرى</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>يرجى التحقق من صحة تاريخ ووقت جهازك! إذا كانت ساعتك خاطئة ، فلن يعمل %s بشكل صحيح.</translation>
     </message>
@@ -6489,6 +10831,26 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>وضع التقليم غير متوافق مع -reindex-chainstate. استخدم -reindex كاملاً بدلاً من ذلك.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>فشلت إعادة التسمية من '%s' إلى '%s'. يجب أن تحل ذلك بنقل دليل اللقطة غير الصالحة %s أو حذفه يدوياً، وإلا فستواجه الخطأ نفسه عند بدء التشغيل التالي.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>لا يمكن لخدمة Tor onion التلقائية استخدام ربط onion بحرف بدل لأن Tor daemon لن يتمكن من إعادة توجيه الاتصالات الواردة إلينا. استخدم عنواناً محدداً مثل -bind=127.0.0.1:&lt;port&gt;=onion، أو عطّل الخدمة بـ -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>خدمة Tor onion التلقائية تتطلب ربط onion مخصصاً. استخدم عنواناً محدداً مثل -bind=127.0.0.1:&lt;port&gt;=onion، أو عطّل الخدمة بـ -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>حجم المدخلات يتجاوز الوزن الأقصى. يرجى محاولة إرسال مبلغ أصغر أو دمج UTXOs المحفظة يدوياً</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>المبلغ الإجمالي للعملات المحددة مسبقاً لا يغطي هدف المعاملة. يرجى السماح باختيار مدخلات أخرى تلقائياً أو تضمين مزيد من العملات يدوياً</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>هذه هي رسوم المعاملة التي قد تدفعها عندما لا تكون تقديرات الرسوم متاح.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>لا يمكن تعطيل فهرس المعاملات مع تفعيل التحقق من الحوكمة. إما ابدأ بالخيار -disablegovernance في سطر الأوامر أو فعّل فهرس المعاملات.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>المعاملة غير قياسية (%s) ولن تُرحَّل؛ الإرسال إلى عناوين المنصة يتطلب حالياً عقدة بدأت بالخيار -acceptnonstdtxn=1</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>تتطلب المعاملة وجهة واحدة بقيمة غير صفرية، أو معدل رسوم غير صفري، أو مدخل محدد مسبقاً</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>فشل التحقق من لقطة UTXO. أعد التشغيل لاستئناف التنزيل الأولي الطبيعي للكتل، أو جرّب تحميل لقطة مختلفة.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>غير قادر على إعادة الكتل. ستحتاج إلى إعادة بناء قاعدة البيانات باستخدام -reindex-chainstate.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>تم العثور على إدخال قديم غير متوقع في محفظة واصفات. جارٍ تحميل المحفظة %s
+
+قد يكون تم العبث بالمحفظة أو إنشاؤها بنية خبيثة.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>تم توفير تنسيق ملف محفظة غير معروف "%s". يرجى توفير أحد "bdb" أو "sqlite".</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>تم العثور على واصفة غير معروفة. جارٍ تحميل المحفظة %s
+
+ربما أُنشئت المحفظة بإصدار أحدث.
+يرجى محاولة تشغيل أحدث إصدار من البرنامج.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>مستوى تسجيل خاص بالفئة غير مدعوم %1$s=%2$s. المتوقع %1$s=&lt;category&gt;:&lt;loglevel&gt;. الفئات الصالحة: %3$s. مستويات التسجيل الصالحة: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>تحذير: تم اكتشاف مفاتيح خاصة في المحفظة {%s} مع تعطيل المفاتيح الخاصة</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>تحتاج إلى إعادة بناء قاعدة البيانات باستخدام -reindex لتمكين -timestampindex</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>حدث خطأ داخلي فادح ، راجع debug.log للحصول على التفاصيل</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>تمت مقاطعة التحقق من الكتل</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>استيراد…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>وضع المسح غير الصحيح ، والعودة إلى القيمة الافتراضية</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>فشل بالتحقق في اختبار التعقل. تم إيقاف %s.</translation>
     </message>
@@ -6727,10 +11123,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>الجلسة غير كاملة!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>انتهت الجلسة.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>فشل توقيع المعاملة</translation>
     </message>
@@ -6759,10 +11151,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>فشل في ترقية قاعدة بيانات Evo</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>الرسوم المطلوبة &gt; الرسوم المدفوعة</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>المضيف %s على شبكة غير مدعومة</translation>
     </message>
@@ -6777,10 +11165,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>منفذ غير صالح محدد في %s: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>آخر إجراء ناجح كان حديثًا جدًا.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>تحاول الاتصال…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>تعذر تخصيص ذاكرة لـ -maxsigcachesize: '%s' ميبيبايت</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>يتعذر الربط مع %s على هذا الكمبيوتر (الربط انتج خطأ %s)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>غير قادر على التوقيع على رسالة ورش ، مفتاح خاطئ؟</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>تعذر إلغاء تحميل المحفظة قبل الترحيل</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>شبكة غير معروفة محددة في -onlynet: '%s'</translation>
     </message>
@@ -6887,12 +11279,12 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>مخطط URL غير مدعوم، يجب أن يبدأ بـ udp://</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>فئة التسجيل غير المعتمدة%s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>مستوى التسجيل العام غير مدعوم %s=%s. القيم الصالحة: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>عدد منخفض جدًا من المفاتيح المتبقية: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>فئة التسجيل غير المعتمدة%s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>لا يمكنك تعطيل التحقق من الحوكمة على Masternode.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>تحتاج إلى إعادة بناء قاعدة البيانات باستخدام -reindex لتمكين -addressindex</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>تحتاج إلى إعادة بناء قاعدة البيانات باستخدام -reindex لتمكين -spentindex</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>Governancegegevens synchroniseren…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>~%n dag (%1 blokken) tot het superblok</numerusform><numerusform>~%n dagen (%1 blokken) tot het superblok</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>~%n dag (%1 blokken) tot einde stemming</numerusform><numerusform>~%n dagen (%1 blokken) tot einde stemming</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% van het budget toegewezen (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>Laad Gedeeltelijk Ondertekende Blockchain Transactie van klembord</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>Open &amp;debuglogbestand</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>Open het debuglogbestand uit de huidige gegevensmap</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>Portemonnee aanmaken…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>Sluit alle portemonnees…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Portemonnee migreren</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>Een portemonnee migreren</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>Bijgewerkt</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superblok nadert</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Stemperiode afgelopen</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 blokken) tot het superblok</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 blokken) tot einde stemming</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% van het budget toegewezen (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>(de)selecteer alles</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>Schakel slot staat</translation>
+        <source>(un)lock all</source>
+        <translation>alles (ont)vergrendelen</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>Kopieer wisselgeld</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>Schakel over naar "Lijst mode" om deze functie te gebruiken.</translation>
+        <source>Wallet error</source>
+        <translation>Portemonneefout</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>Het vergrendelen van sommige munten is mislukt.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>Het ontgrendelen van sommige munten is mislukt.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>Gedeelde masternode ontbinden</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>Deze masternode is geregistreerd in blok %1 en de keten staat nog op blok %2. Wacht op één bevestiging en open dit venster daarna opnieuw.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>Nu ontbinden</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>Samen ontbinden</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>Reserve-ontbinding</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>Beëindigt de masternode op eigen houtje. Iedereen krijgt zijn inleg terug op het eigen terugbetalingsadres.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>Uw aandeel:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>Transactiekosten, betaald uit de terugbetaling van uw aandeel.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>Kosten:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>Transactie-ID</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>Vroegtijdig vertrek: u betaalt de boete van %1. Gratis na blok %2 (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>Ik ga akkoord met het betalen van de boete van %1 voor vroegtijdig vertrek</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>Nog maar %1 tot ontbinden gratis is. Overweeg te wachten, of gebruik Samen ontbinden: met goedkeuring van iedereen is het nu gratis.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>De beginperiode is voorbij: ontbinden is nu gratis.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (u)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>Vink eerst het selectievakje aan om de boete te accepteren.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>De keten heeft de grens van de boetevrije periode overschreden terwijl dit venster openstond. Het overzicht hierboven is ververst: controleer het en druk opnieuw op Nu ontbinden.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>Deze gedeelde masternode nu ontbinden? De inleg van elke deelnemer gaat terug naar het terugbetalingsadres en de masternode verdient niets meer. Dit kan niet ongedaan worden gemaakt.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>De ontbinding is verzonden.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Altijd gratis, maar elke aandeelhouder moet goedkeuren. Eén persoon maakt het verzoek klaar; de anderen plakken het, keuren het goed en kopiëren een antwoord terug.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. Verzoek</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>Het aandeel waarvan de transactiekosten worden afgetrokken.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>Kosten betaald door:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Verzoek voorbereiden</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Goedkeuringen</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Stuur hetzelfde verzoek naar elke aandeelhouder. Antwoorden mogen in willekeurige volgorde terugkomen.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>Dit verzoek betaalt uit</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Goedkeuren en antwoord kopiëren</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Verzenden</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>Ontbinding verzenden</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>Kosten: %1, betaald uit %2.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Bereid eerst een verzoek voor of plak er een.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Elk aandeel moet eerst goedkeuren (tot nu toe %1 van %2).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>Een ondertekende ontbinding die u offline bewaart en alleen uitzendt als dat nodig is. Ze verloopt nooit en werkt ook als deze portemonnee kwijt is.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Reserve-ontbinding maken…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopiëren</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>Volledige inleg: geldig vanaf blok %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>Volledige inleg: nu geldig, de beginperiode is voorbij</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>Nog niet aangemaakt</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>Onmiddellijk: met de boete van %1</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Bewaar het samen met de back-up van uw terugbetalingsadres, gescheiden van deze portemonnee.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>Opgeslagen op %1</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>Reserve-ontbinding opslaan</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>Tekstbestand (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>Beide transacties staan hieronder klaar, maar er is niets opgeslagen. Kopieer ze of maak het bestand opnieuw aan.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Opgeslagen in %1.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Dash gedeelde masternode: reserve-ontbinding</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>Aangemaakt: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>Elk blok hieronder is een volledige ondertekende transactie. Zend er één uit met "sendrawtransaction" alleen als u de masternode wilt beëindigen en uw inleg terug wilt krijgen. Ze verlopen nooit. Bewaar dit bestand samen met de back-up van uw terugbetalingsadres, gescheiden van de portemonnee.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>VOLLEDIGE INLEG: geldig vanaf blok %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>VOLLEDIGE INLEG: nu geldig, de beginperiode is voorbij</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>ONMIDDELLIJK: met de boete van %1 voor vroegtijdig vertrek, direct geldig</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Kon niet naar %1 schrijven.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>Formulier</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>Filter proposal lijst</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>Masternode aantal:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>Aantal masternodes waarmee deze portemonnee kan stemmen (masternodes waarvoor deze portemonnee de stemsleutel heeft)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>Geen actieve voorstellen op het netwerk.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>Voorstel hervatten</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>Proposal aantal:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>Voorstel maken</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>Selecteer voorstellen om weer te geven</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>Filter op titel</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>Niet beschikbaar</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>Een gesynchroniseerde node en een ontgrendelde portemonnee zijn vereist.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>Stem Ja</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>Stem Nee</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>Onthouding</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>Actieve voorstellen</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>Mijn voorstellen</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>Geen voorstellen opgeslagen in het portemonneebestand.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>Voorstel hervatten</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>Ruwe JSON kopiëren</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>Voorstel-URL openen…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>Details voor %1</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>Kan niet communiceren met governance voordat de synchronisatie is voltooid</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>Maakt een nieuw voorstel aan</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>Hervat een bestaand voorstel</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>Het aanmaken van voorstellen kost %1, onvoldoende saldo</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>Fout</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>Kan URL niet valideren, mogelijk onjuist gevormd of onbekend protocol.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>Waarschuwing voor externe link</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>U staat op het punt de volgende URL te openen in uw standaardbrowser
-
-%1
-
-Deze inhoud is ingediend door een gebruiker. Het komt mogelijk niet overeen met wat in de titel wordt beschreven.
-
-Wilt u doorgaan?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>Stemmen mislukt</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>Geen portemonnee beschikbaar.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>Geen masternode stemsleutels gevonden in portemonnee.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>Selecteer een voorstel om op te stemmen.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>Kan portemonnee niet ontgrendelen.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>Kan masternode lijst niet ophalen. Probeer het later opnieuw.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>Masternode %1 niet gevonden</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>Kan stem voor masternode %1 niet ondertekenen</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>Masternode %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>Succesvol gestemd %n keer</numerusform><numerusform>Succesvol gestemd %n keer</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>Stemmen mislukt %n keer</numerusform><numerusform>Stemmen mislukt %n keer</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>Fouten:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>Stemresultaten</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Wilt u doorgaan?</translation>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 geeft u een echte financiële privacy door de oorsprong van uw geld te verschuilen. Alle Dash in uw portefeuille bestaat uit verschillende "inputs" die u kunt beschouwen als afzonderlijke, discrete munten.&lt;br&gt; %1 maakt gebruik van een innovatief proces om uw invoer te mengen met de invoer van twee andere mensen, zonder dat uw munten ooit uw portemonnee verlaten . U behoudt de controle over uw geld te allen tijde. &lt;hr&gt; &lt;b&gt;Het %1-proces werkt als volgt: &lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begint door uw transactie-inputs in de standaard denominaties te breken. Deze denominaties zijn 0,001 DASH, 0,01 DASH, 0,1 DASH, 1 DASH en 10 DASH - zoals het papiergeld dat u elke dag gebruikt.&lt;/li&gt; &lt;li&gt;Uw portemonnee stuurt dan verzoeken naar speciaal geconfigureerde software nodes op het netwerk, genaamd "masternodes." Deze masternodes worden dan op de hoogte gesteld dat u geïnteresseerd bent in het mengen van een bepaalde denominaties. Er wordt geen identificeerbare informatie naar de masternodes gestuurd, zodat ze nooit weten wie u bent.&lt;/li&gt; &lt;li&gt;Wanneer twee andere mensen dezelfde berichten sturen, die aanduiden dat ze dezelfde denominaties willen vermengen, begint een mengsessie. De masternode mengt alle invoeren en instrueert de portefeuilles van alle drie de gebruikers om de nu getransformeerde invoer aan zichzelf terug te betalen. Uw portemonnee betaalt die denominaties rechtstreeks naar zichzelf, maar met een ander adres (een wijzigingadres genoemd).&lt;/li&gt; &lt;li&gt;Om uw geld volledig te verschuilen, moet uw portemonnee dit proces een aantal keren herhalen voor alle denominaties. Elke keer dat het proces wordt voltooid, heet dit een 'ronde'. Elke ronde van %1 maakt het exponentieel moeilijker om te bepalen waar uw geld van afkomstig is.&lt;/li&gt; &lt;li&gt;Dit mengproces gebeurt op de achtergrond zonder enige interventie van uw kant. Wanneer u een transactie wenst uit te voeren, is uw saldo al geanonimiseerd. Er is geen extra wachttijd nodig.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;BELANGRIJK:&lt;/b&gt; Uw portemonnee bevat slechts 1000 van deze "wijzigingsadressen". Elke keer dat er een mengsessie plaatsvindt, worden maximaal 9 van uw adressen opgebruikt. Dit betekent dat deze 1000 adressen voor ongeveer 100 mengsessies volstaat. Wanneer er 900 zijn verbruikt, moet uw portemonnee meer adressen aanmaken. Dit kan alleen maar als u automatische back-ups hebt ingeschakeld.&lt;br&gt; Daarom zodra gebruikers die back-ups hebben uitgeschakeld, ook %1 is uitgeschakeld. &lt;hr&gt;Voor meer informatie zie de &lt;a style="%2" href="%3"&gt;%1 documentatie&lt;/a&gt;.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>Algemeen</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>Clientversie</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>n.v.t.</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>User agent</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>Gegevensmap</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>Gebruik de optie '%1' om een afwijkende locatie voor de gegevensmap op te geven.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>Blokkenmap</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>Gebruik de optie '%1' om een afwijkende locatie voor de blokkenmap op te geven.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>Starttijd</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Netwerk</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Naam</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>Aantal verbindingen</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>Lokale adressen</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>Netwerkadressen die uw Dash-node momenteel gebruikt om met andere nodes te communiceren.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>Blokketen</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Huidige bloklengte</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Tijd laatste blok</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Hash laatste blok</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>Geheugenpool</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>Huidig aantal transacties</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>Geheugengebruik</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>In:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>Uit:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Netwerkactiviteit uitgeschakeld</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Geen</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Wilt u doorgaan?</translation>
         <translation><numerusform>(%n GB benodigd voor volledige keten)</numerusform><numerusform>(%n GB benodigd voor volledige keten)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>Kies gegevensmap</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>Tenminste %1 GB aan data zal worden opgeslagen in deze map, en dit zal naarmate de tijd voortschrijdt groeien.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Wilt u doorgaan?</translation>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Er is geen portemonnee beschikbaar.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>Deze portemonnee is alleen-lezen (watch-only) en kan geen transacties ondertekenen.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>Automatisch (aanbevolen)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Kostenbron:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>De portemonnee moet ontgrendeld zijn om deze transactie te maken en te ondertekenen.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>Voer een geldige geheime BLS-operatorsleutel (basic-schema) in.</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>De geheime operatorsleutel komt niet overeen met de geregistreerde publieke sleutel van deze masternode.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>Er is al een andere masternodebewerking bezig.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>De bewerking is voltooid zonder een transactie terug te geven.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>De transactie is aangemaakt maar niet naar het netwerk verzonden.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>De transactie is succesvol verzonden.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>Transactie-ID: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Wilt u doorgaan?</translation>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>Gedeeld</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>Filter masternode lijst</translation>
     </message>
@@ -1689,6 +1919,22 @@ Wilt u doorgaan?</translation>
     <message>
         <source>Hide banned</source>
         <translation>Verbannen verbergen</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>Registreer met deze portemonnee een nieuwe masternode of EvoNode</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>Masternode registreren…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>Maak een masternode met onderpand dat door meerdere partijen is samengebracht, of ga verder met een opgeslagen sessie</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>Gedeelde masternode…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Wilt u doorgaan?</translation>
         <translation>Filteren op</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>Service bijwerken…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>Registrar bijwerken…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>Beloningsadres wijzigen…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>Sleutels roteren…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>Ontbinden…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Reserve-ontbinding maken…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>Intrekken…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>Onderpand adres</translation>
     </message>
@@ -1717,6 +1991,158 @@ Wilt u doorgaan?</translation>
     <message>
         <source>Voting Address</source>
         <translation>Stemadres</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>Voor het registreren van een masternode is een portemonnee nodig.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>Masternode-registratie ondersteunt portemonnees met externe ondertekenaar nog niet.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>Voor masternode-registratie is een portemonnee met geheime sleutels nodig.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>Masternode-registratie is niet beschikbaar totdat de node gereed is.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>Registreer met deze portemonnee een nieuwe masternode of EvoNode</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>Voor het beheren van gedeelde masternodes is een portemonnee nodig.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>Voor het beheren van gedeelde masternodes is een portemonnee met geheime sleutels nodig.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>Beheer van gedeelde masternodes is niet beschikbaar totdat de node gereed is.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>Gedeelde masternodes vereisen de v24-hardfork, die op dit netwerk nog niet actief is.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>Maak een registratiesessie voor een gedeelde masternode met meerdere partijen, of ga ermee verder</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>Deze transactie is geen leesbare ontbinding van een gedeelde masternode.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Aandeel %1 van %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>een onbekend script</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>Deze masternode staat niet in de huidige masternodelijst.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>Service: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>Onderpandadres: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>Kosten betaald door: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>Goedgekeurd door: elke aandeelhouder</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>Goedgekeurd door: alleen uw handtekening</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>Uitbetalingen:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>Kosten: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>De inleg van elk aandeel wordt teruggestort op het eigen terugbetalingsadres. Dit kan niet ongedaan worden gemaakt.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>Let op: deze transactie geeft niet de volledige inleg van elk aandeel terug. Dit kan niet ongedaan worden gemaakt.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>Transactie: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>Deze reserve-ontbinding uitzenden?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>Uitzenden mislukt</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>Reserve-ontbinding verzonden</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>Masternode niet gevonden</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>Dit bericht gaat over een masternode die nog niet in de lijst staat.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>Niets om te openen</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>Vereist een portemonnee die transacties kan ondertekenen</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>Vereist de eigenaarssleutel van deze masternode in de portemonnee</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>Vereist een van de aandeelhoudersleutels van deze masternode in deze portemonnee</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>Al opgeslagen op deze computer op %1</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>Nog niet op deze computer aangemaakt</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>Filtert op een van de adressen van de aandeelhouders van deze masternode</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Wilt u doorgaan?</translation>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>Verbannen voor %n dag</numerusform><numerusform>Verbannen voor %n dagen</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>Verbannen voor minder dan een dag</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>Verbannen</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>Actief voor %n dag</numerusform><numerusform>Actief voor %n dagen</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>Gedeelde masternode · u bezit %1 van %2 aandelen</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>Actief voor minder dan een dag</translation>
+        <source>Banned for %1</source>
+        <translation>Verbannen voor %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>Actief voor %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>Gedeeld (u bezit %1 van %2)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>Gedeeld (%1 aandelen)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Wilt u doorgaan?</translation>
     <message>
         <source>ProTx Hash</source>
         <translation>ProTx-hash</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>Een van de gekozen sleutels wordt al gebruikt door een geregistreerde masternode of een aandeel. Elke eigenaars- en stemsleutel mag netwerkbreed maar één keer worden gebruikt.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>Het gekozen serviceadres wordt al gebruikt door een geregistreerde masternode.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>Een terugbetalings- of beloningsadres mag niet tegelijk een aandeelhouders- of stemadres zijn. Gebruik aparte adressen voor uitbetalingen en sleutels.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>De toestemmingshandtekening van een deelnemer komt niet overeen met de uiteindelijke transactie. Dit gebeurt wanneer de voorwaarden of de financieringstransactie na het ondertekenen zijn gewijzigd; verzamel nieuwe handtekeningen.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Het netwerk accepteert deze transactieversie nog niet. Wacht tot de netwerkupgrade die haar invoert actief wordt.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Deze functie is nog niet actief op het netwerk. Wacht tot de netwerkupgrade die haar invoert actief wordt.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>Er is al een ontbinding voor deze masternode in behandeling.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>De transactie kon niet worden gefinancierd.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>De transactie kon niet worden gefinancierd: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+Afwijzing door het netwerk: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>Details: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>Portemonnee migreren</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>Weet u zeker dat u de portemonnee &lt;i&gt;%1&lt;/i&gt; wilt migreren?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>Bij het migreren wordt deze portemonnee omgezet naar een of meer descriptor-portemonnees. Er moet een nieuwe back-up van de portemonnee worden gemaakt.
+Als deze portemonnee watch-only-scripts bevat, wordt een nieuwe portemonnee aangemaakt met die watch-only-scripts.
+Als deze portemonnee oplosbare maar niet bewaakte scripts bevat, wordt een andere, nieuwe portemonnee aangemaakt met die scripts.
+
+Het migratieproces maakt vóór het migreren een back-up van de portemonnee. Dit back-upbestand krijgt de naam &lt;portemonneenaam&gt;-&lt;tijdstempel&gt;.legacy.bak en staat in de map van deze portemonnee. Bij een onjuiste migratie kan de back-up worden hersteld met de functie "Portemonnee herstellen".</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Portemonnee migreren</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>Portemonnee &lt;b&gt;%1&lt;/b&gt; wordt gemigreerd…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>De portemonnee '%1' is succesvol gemigreerd.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Watch-only-scripts zijn gemigreerd naar een nieuwe portemonnee met de naam '%1'.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Oplosbare maar niet bewaakte scripts zijn gemigreerd naar een nieuwe portemonnee met de naam '%1'.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>Migratie mislukt</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>Migratie geslaagd</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>Aandeel %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>Bijdrage "%1" heeft een ongeldig transactie-ID voor de input.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>Bijdrage "%1" heeft een ongeldig wisselgeldadres.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>De voorbereide transactie van de sessie is geen geldige transactie-hex.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>De voorbereide transactie van de sessie is geen registratie van een gedeelde masternode.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>Dit bericht is bewerkt nadat het was gekopieerd.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>Concept</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>Voorwaarden vergrendeld</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>Goedkeuringen verzamelen</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>Goedkeuringen gecombineerd</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>Bijdragen ondertekend</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>Uitgezonden</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>Het bestand is geen geldige JSON.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>Het bestand is geen sessiebestand van een gedeelde masternode.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>Het sessiebestand gebruikt een niet-ondersteunde formaatversie. Werk Dash Core bij om het te openen.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>Het sessiebestand is voor het netwerk "%1", maar deze node draait op "%2". Het kan hier niet worden gebruikt.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>onbekend</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>Het sessiebestand heeft geen sessie-ID.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>Het sessiebestand heeft een ongeldige revisie.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>Het sessiebestand heeft geen fase.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>Het sessiebestand bevindt zich in de onbekende fase "%1". Het is waarschijnlijk gemaakt met een nieuwere versie van Dash Core.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>Het sessiebestand vermeldt %1 aandelen; een gedeelde masternode kan er maximaal %2 hebben.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>Aandeelvermelding %1 in het sessiebestand is onjuist opgebouwd.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>Het sessiebestand heeft een ongeldige beginperiode.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>Het sessiebestand heeft een ongeldige boete voor vroegtijdig vertrek.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>Het sessiebestand vermeldt %1 bijdragen; er kan maximaal één per aandeel zijn en maximaal %2 aandelen.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>Bijdragevermelding %1 in het sessiebestand is onjuist opgebouwd.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>Bijdragevermelding %1 in het sessiebestand heeft %2 inputs; er kunnen er maximaal %3 in één bijdrage worden gefinancierd.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>Het sessiebestand heeft een onjuist opgebouwde toestemmingshash.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>Handtekeningvermelding %1 in het sessiebestand is onjuist opgebouwd.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>Het sessiebestand vermeldt meer dan één handtekening voor aandeel %1.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>Het sessiebestand is gemarkeerd als "%1", maar mist de vastgezette transactie of de toestemmingshash.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>Het sessiebestand bevat een handtekening voor een aandeel dat niet bestaat.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>Het sessiebestand beweert dat de goedkeuringen zijn gecombineerd, maar niet elk aandeel heeft een goedkeuring.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>Het sessiebestand beweert dat de goedkeuringen zijn gecombineerd, maar een goedkeuring is ongeldig: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>Het sessiebestand beweert dat elke bijdrage is ondertekend, maar een of meer financieringsinputs zijn niet ondertekend.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>Het sessiebestand kon niet worden verwerkt: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>Een gedeelde masternode heeft tussen %1 en %2 aandelen nodig (nu %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>Het stemadres moet een geldig P2PKH-adres zijn.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>Aandeel %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>het eigenaarsadres moet een geldig P2PKH-adres zijn.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>het eigenaarsadres wordt al gebruikt door aandeel %1. Elke eigenaarssleutel moet uniek zijn.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>het bedrag moet tussen %1 en %2 liggen.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>terugbetalings</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>belonings</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>het %1adres moet een geldig P2PKH- of P2SH-adres zijn.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>het terugbetalingsadres wordt al gebruikt door aandeel %1. Elk terugbetalingsadres moet uniek zijn.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>het %1adres mag niet het stemadres zijn.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>het %1adres mag niet het eigenaarsadres van aandeel %2 zijn.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>De aandeelbedragen moeten samen precies %1 bedragen (nu %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>De beginperiode mag maximaal %1 blokken duren (ongeveer twee jaar).</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>De vroege boete mag niet negatief zijn.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>De vroege boete moet lager zijn dan het kleinste aandeelbedrag (%1).</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>De financiering kan alleen worden gewijzigd zolang de sessie bewerkbaar is. Ontgrendel eerst de voorwaarden (hierdoor gaan alle verzamelde goedkeuringen verloren).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>De bijdrage heeft een deelnemerslabel nodig.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>De bijdrage heeft geen financieringsinputs.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1" heeft al bijgedragen. Verwijder eerst de bestaande bijdrage.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>Input %1:%2 is al ingebracht door "%3".</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>Het wisselgeldbedrag moet positief zijn.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>Er is geen bijdrage van "%1" gevonden.</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>Alleen een bewerkbare sessie kan worden vergrendeld.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>De toestemmingshash is onjuist opgebouwd.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>De toestemmingshash komt niet overeen met de voorbereide transactie. Onderteken niet; begin de voorbereidingsstap opnieuw.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>De outputindex van het onderpand komt niet overeen met de voorbereide transactie.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>De voorwaarden zijn nog niet vergrendeld; er valt niets goed te keuren.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>Aandeel %1 van %2 bestaat niet.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>De handtekening is geen geldige base64.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>De handtekening van %1 klopt niet met de huidige voorwaarden. Waarschijnlijk is ze gemaakt voor een oudere versie van deze sessie: vraag %1 om de huidige versie opnieuw te ondertekenen.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>De aandelentabel van het sessiebestand komt niet overeen met de voorbereide transactie. Onderteken niet; vraag een nieuwe kopie op.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Aandeel %1 in het sessiebestand komt niet overeen met de voorbereide transactie. Onderteken niet; vraag een nieuwe kopie op.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Het beloningsadres van aandeel %1 in het sessiebestand komt niet overeen met de voorbereide transactie. Onderteken niet; vraag een nieuwe kopie op.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>De voorwaarden in het sessiebestand komen niet overeen met de voorbereide transactie. Onderteken niet; vraag een nieuwe kopie op.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>De financiering in het sessiebestand komt niet overeen met de voorbereide transactie. Onderteken niet; vraag een nieuwe kopie op.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>Er is al een andere handtekening voor dit aandeel vastgelegd. Een van de kopieën is voor een verouderde versie van de sessie ondertekend: spreek de nieuwste revisie af en laat die opnieuw ondertekenen.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>Financieringsinputs kunnen pas worden ondertekend nadat de goedkeuringen zijn gecombineerd.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>De voorbereide transactie komt niet overeen met de voorwaarden die iedereen heeft goedgekeurd. Onderteken of verzend haar niet; vraag een nieuwe kopie op.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>Dit bericht hoort bij een andere sessie (Sessie %1). U werkt aan Sessie %2.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>Antwoorden kunnen alleen worden verwerkt zolang de voorwaarden nog bewerkbaar zijn.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>Het antwoord komt niet overeen met uw huidige concept: de deelnemers, bedragen of voorwaarden zijn gewijzigd. Vraag de afzender uw nieuwste uitnodiging te plakken en opnieuw te antwoorden.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>Het aandeel van %1 bevat al gegevens uit een ander antwoord.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>Dit bericht bevat geen vergrendelde voorwaarden.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>De vergrendelde voorwaarden bevatten niet de gegevens die u hebt verstuurd.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>de coördinator</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>De voorwaarden zijn gewijzigd sinds u uw gegevens verstuurde. Vraag %1 om de huidige uitnodiging te sturen en antwoord opnieuw.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>De geïmporteerde kopie is revisie %1 van deze sessie; deze kopie is revisie %2 en is daardoor achterhaald.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>De geïmporteerde kopie is revisie %1 van deze sessie; deze kopie is al revisie %2. Stuur de afzender het nieuwere bestand.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>De geïmporteerde kopie heeft vergrendelde voorwaarden en vervangt deze bewerkbare kopie.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>De voorwaarden van deze sessie zijn al vergrendeld; de geïmporteerde kopie is nog bewerkbaar. Stuur de afzender de nieuwere update.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>Beide kopieën van Sessie %1 hebben verschillende voorwaarden vergrendeld en kunnen niet worden samengevoegd. Spreek één kopie af, verstuur die opnieuw en laat iedereen die ene goedkeuren.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>Beide kopieën van Sessie %1 hebben dezelfde gegevens gewijzigd en kunnen niet worden samengevoegd. Spreek één kopie af en verstuur die opnieuw.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>De kopieën met ondertekende financiering zijn niet dezelfde transactie. Ze kunnen niet worden samengevoegd.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>Financieringsinput %1 heeft twee verschillende handtekeningen. De kopieën kunnen niet worden samengevoegd.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>De geïmporteerde kopie beweert dat de goedkeuringen zijn gecombineerd, maar die status is ongeldig: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>De geïmporteerde kopie beweert dat elke bijdrage is ondertekend, maar die status is ongeldig: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>De geïmporteerde kopie beweert dat de registratie is uitgezonden, maar die status is ongeldig: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>De sessie verzamelt geen goedkeuringen.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>Nog niet elk aandeel heeft ondertekend (%1 van %2). Combineer alleen een volledig ondertekende sessie.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>De goedkeuringen van de eigenaars moeten worden gecombineerd voordat de bijdragen worden ondertekend.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>Eén financieringsinput is nog niet ondertekend.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>%1 financieringsinputs zijn nog niet ondertekend.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>De sessie kan niet worden uitgezonden voordat alle toestemmings- en financieringshandtekeningen aanwezig zijn.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>geen</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>ongeveer 1 minuut</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>ongeveer %1 minuten</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>ongeveer 1 uur</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>ongeveer %1 uur</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>ongeveer 1 dag</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>ongeveer %1 dagen</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>De kosten moeten positief zijn.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>De boete en de kosten zijn hoger dan het aandeel van de ontbindende deelnemer.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>Voor een eenzijdige ontbinding is minstens één ander aandeel nodig dat de boete ontvangt.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 munt</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 munten</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 goedkeuring</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 goedkeuringen</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 deelnemer</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 deelnemers</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 financieringsinput</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 financieringsinputs</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 aandeel</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 aandelen</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 input</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 inputs</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Wilt u doorgaan?</translation>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>Kredietpool</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>Laatste blokwijziging</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>n.v.t.</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>Totaal vergrendeld</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>Openstaande ontgrendelingen</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>Opnamelimiet</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>Geverifieerde locks</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>Niet-geverifieerde locks</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>Locks die op een transactie wachten</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>Onbeschermde transacties</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>Masternodes</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>Aantal masternodes</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>Aantal EvoNodes</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ChainLocks</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Huidige bloklengte</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Tijd laatste blok</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Hash laatste blok</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>Quorums</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Totaal: %1 (ingeschakeld: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Wachten op blockchainsynchronisatie…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 actief (%2% gezondheid)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>Quorumtype roteert, gegevens worden %1 bewaard</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>Quorumtype roteert niet, gegevens worden %1 bewaard</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>Huidig quorum heeft nog %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>Huidig quorum is verlopen</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>Laatst gevormd %1 geleden</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>Onlangs gevormd</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Wilt u doorgaan?</translation>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>Portemonnee &lt;b&gt;%1&lt;/b&gt; wordt geopend…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>Een nieuwe operatorsleutel genereren</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>De geheime sleutel wordt vóór de registratie getoond en bevestigd en daarna nergens anders bewaard.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Publieke sleutel</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>Een bestaande publieke operatorsleutel gebruiken</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>Voor een gehoste node: de operator houdt de geheime sleutel en geeft u de publieke sleutel.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>Publieke BLS-operatorsleutel (96 hexadecimale tekens, basic-schema)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>Geheime BLS-operatorsleutel (64 hexadecimale tekens)</translation>
     </message>
 </context>
 <context>
@@ -2693,6 +3869,10 @@ Om te mixen moeten andere gebruikers exact dezelfde denominaties inbrengen.</tra
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>PSBT-bewerkingen</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>Dialoog</translation>
     </message>
@@ -2968,10 +4148,6 @@ Due to discontinued support, you should request the merchant to provide you with
         <translation>Gegevens bekijken</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>Voorstel aanmaken</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 succesvol verstuurd voor uw voorstel "%2".
 
 U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U kunt dit later hervatten door op "Voorstel hervatten" te klikken.</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>Algemeen</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>Stemcycli</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>n.v.t.</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>Laatste superblok</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>Volgend superblok</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>Laatste stemblok</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>Deelname</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>Stemmende masternodes</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>Stemmende EvoNodes</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>Drempel voor aanname</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Node</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>Beheerde masternodes</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>Beheerde stemmen</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>Voorstellen</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>Aantal voorstellen</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>Toegewezen budget</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>Aangenomen voorstellen</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>Niet-gefinancierde voorstellen</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>Falende voorstellen</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 stemmen</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 stemgerechtigd)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>Voorstel %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>%1% van het budget</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% toegewezen</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (%2 tekort)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>Formulier</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>Selecteer voorstellen om weer te geven</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>Voorstellenlijst filteren</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>Filteren op titel</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>Stemdeadline: wachten op synchronisatie…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>Geen actieve voorstellen op het netwerk.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>Stemmen…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>Bekijk uw huidige stemmen en stem met geselecteerde masternodes</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>Voorstel maken</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>Voorstel hervatten</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>Aantal voorstellen:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>Actieve voorstellen</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>Mijn voorstellen</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>Huidige financieringsstemmen van stemgerechtigde masternodes die door deze portemonnee worden beheerd. Aantallen zijn gewogen stemmen.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (gewicht %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>Geen stemsleutels</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>Geen voorstellen opgeslagen in het portemonneebestand.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Niet beschikbaar</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>Een gesynchroniseerde node en een ontgrendelde portemonnee zijn vereist.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>Voorstel hervatten</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>Ruwe JSON kopiëren</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>Voorstel-URL openen…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>Stem Ja</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>Stem Nee</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Stem Onthouding</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>Details voor %1</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Wachten op blockchainsynchronisatie…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>Wachten op governancesynchronisatie…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n masternode beschikbaar om te stemmen</numerusform><numerusform>%n masternodes beschikbaar om te stemmen</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superblok nadert</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Stemperiode afgelopen</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 blokken) tot het superblok</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 blokken) tot einde stemming</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% van het budget toegewezen (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>Geschat op basis van de resterende blokken en de doelblokduur. Stemmen kunnen na de deadline nog worden doorgegeven, maar hebben mogelijk geen invloed op de uitbetaling van deze cyclus.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>Kan niet communiceren met governance voordat de synchronisatie is voltooid</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>Maakt een nieuw voorstel aan</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>Hervat een bestaand voorstel</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>Het aanmaken van voorstellen kost %1, onvoldoende saldo</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Fout</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>De URL kan niet worden gevalideerd, mogelijk is hij onjuist opgebouwd of is het protocol onbekend.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>Waarschuwing voor externe link</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>U staat op het punt de volgende URL in uw standaardbrowser te openen
+
+%1
+
+Deze inhoud is door een gebruiker ingediend. Ze komt mogelijk niet overeen met wat in de titel wordt beschreven.
+
+Wilt u doorgaan?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>Stemmen mislukt</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>Geen portemonnee beschikbaar.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>Geen masternode stemsleutels gevonden in portemonnee.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>Kan masternodegegevens niet ophalen.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>Selecteer een voorstel om op te stemmen.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>Stemmen vereist een uitgezonden voorstel en een gesynchroniseerde node.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>Kan portemonnee niet ontgrendelen.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>Kan gesynchroniseerde masternodegegevens niet ophalen.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>Masternode %1 is niet langer stemgerechtigd</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>Masternode %1 niet gevonden</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>Kan stem voor masternode %1 niet ondertekenen</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>Masternode %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>%n keer succesvol gestemd</numerusform><numerusform>%n keer succesvol gestemd</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>%n keer stemmen mislukt</numerusform><numerusform>%n keer stemmen mislukt</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Fouten:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>Stemresultaten</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
     <message>
         <source>needs %1 more votes</source>
         <translation>heeft nog %1 stemmen nodig</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>Mijn stemmen</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>Stem %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>Stemmen op voorstel</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>Selecteer de masternodes om mee te stemmen. Hieronder staan de huidige financieringsstemmen. Een gewijzigde stem vervangt de vorige stem van die masternode; het netwerk beperkt wijzigingen tot één per uur.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>Stemadres</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>Gewicht</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>Huidige stem</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>Stemtijd</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>ProTx-hash</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Alles selecteren</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>Selectie wissen</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>Geselecteerde masternodes: %1 · Stemgewicht: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Toon splash-scherm bij opstarten (standaard: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Fout: Opgegeven gegevensmap "%1" bestaat niet.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>Fout: Kan configuratiebestand niet verwerken: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
     <message>
         <source>Unroutable</source>
         <translation>Onbereikbaar</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
         <translation>%1 en %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>nu</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n maand</numerusform><numerusform>%n maanden</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
     <message>
         <source>UNKNOWN</source>
         <translation>ONBEKEND</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Gedeeld</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
         <translation>Operatorbeloning</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>Aandelen</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>Deelnemer</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>Adressen</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>Aandeel %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>u</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>gelijk aan terugbetaling</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Eigenaar</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>Beloning</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>Terugbetaling</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>Beginperiode</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>geen</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>eindigt bij blok %1</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>eindigt bij blok %1 (over ongeveer %2)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>geëindigd (blok %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>Boete voor vroegtijdig vertrek</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>op %1 op deze computer opgeslagen</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>niet op deze computer aangemaakt</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Reserve-ontbinding</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>Netwerkadressen</translation>
     </message>
@@ -3537,6 +5235,66 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
         <source>Collateral Date</source>
         <translation>Onderpanddatum</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>%1 geleden</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>nog %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Ja</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Nee</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>Onthouding</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>Niet gestemd</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>Stemdeadline voor deze cyclus verstreken (blok %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>Stemdeadline: nog ~%1 (%2 blokken, blok %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1J, %2N, %3O / %4 niet gestemd</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>Ongeldig Dash-adres: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopiëren</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>Kopiëren naar klembord</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Er is geen portemonnee beschikbaar.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>Kon geen nieuw adres genereren: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Aandeel %1 van %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
         <translation>&amp;Informatie</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>Algemeen</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Naam</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>N.v.t.</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>Aantal connecties</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>&amp;Open</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>Opstarttijd</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>Netwerk</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>Tijd laatste blok</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>Debug-logbestand</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>Clientversie</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>Blokketen</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>Memory Pool</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>Huidig aantal transacties</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>Geheugengebruik</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
     <message>
         <source>&amp;Repair</source>
         <translation>&amp;Reparatie</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;Algemeen</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;Netwerk</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>Go&amp;vernance</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
     <message>
         <source>User Agent</source>
         <translation>Gebruikers klant</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>Gegevensmap</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>Om een niet-standaardlocatie van de gegevensmap op te geven, gebruik de optie '%1'. </translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Blocks map</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>Om een niet-standaardlocatie van de blocks map op te geven, gebruik de optie '%1'. </translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>Lokale adressen</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>Netwerkadressen die uw Dash-node momenteel gebruikt om met andere nodes te communiceren.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>Aantal reguliere Masternodes</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>Aantal EvoNodes</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>Huidige block hoogte</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>Laatste block hash</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>Nieuwste ChainLocked block hash</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>Nieuwste ChainLocked block hoogte</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Open het %1 debug-logbestand van de huidige gegevensmap. Dit kan een aantal seconden duren voor grote logbestanden.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>InstantSend vergrendelingen</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
         <translation>&amp;Maak ban voor Node ongedaan</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>In:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Uit:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>Netwerkactiviteit is uitgeschakeld</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>Geen</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>Totaal: %1 (Ingeschakeld: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>Opdracht uitvoeren zonder portemonnee</translation>
     </message>
@@ -4122,6 +5768,10 @@ U wordt nu doorgestuurd om uw nieuwe voorstel te monitoren en uit te zenden. U k
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: BIP324 versleuteld transportprotocol</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;Governance</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4387,6 +6037,681 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>Masternode registreren</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Terug</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Volgende</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuleren</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>Masternodetype</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>Masternode — %1 onderpand</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Levert Core-netwerkdiensten en verdient reguliere masternodebeloningen.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode — %1 onderpand</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>Draait bovendien Dash Platform, heeft vier keer zoveel stemgewicht en verdient een groter deel van de beloningen. Vereist een Platform node-ID en extra diensten.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>EvoNode registreren</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>Onderpand</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>Onderpand vanuit deze portemonnee naar een nieuw adres sturen</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>Eén transactie financiert het onderpand en registreert de masternode.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Nieuw adres gebruiken</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>Een bestaande onderpand-output van deze portemonnee gebruiken</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>Een niet-bestede P2PKH-output van precies het onderpandbedrag, bevestigd en niet gebruikt door een andere masternode.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>Verwijzen naar extern onderpand (bijv. hardware-portemonnee)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>Een bevestigde P2PKH-output van precies het onderpandbedrag, buiten deze portemonnee bewaard.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>Na controle wordt u gevraagd buiten deze portemonnee een bericht te ondertekenen met de onderpandsleutel.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>Transactie-ID van het onderpand (64 hexadecimale tekens)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>Transactie-ID:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>Outputindex</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>Outputindex:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>Serviceadressen</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>Publieke adressen waarop uw masternode het Core P2P-netwerk bedient, gescheiden door komma's of spaties. Elke vermelding moet uniek zijn op het netwerk.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>Mag leeg blijven; de masternode blijft dan inactief totdat u een service-update met een adres verstuurt.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Sleutels</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Eigenaarsadres</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>Beheert deze masternode (P2PKH): de sleutel ondertekent registrar-updates. Gebruik een nieuw adres om die sleutel in deze portemonnee te houden, of voer een adres in dat door de eigenaar wordt beheerd.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>Stemadres</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>Mag worden gedelegeerd (P2PKH). Laat leeg om met de eigenaarssleutel te stemmen; gebruik een nieuw adres om een aparte stemsleutel in deze portemonnee te houden.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>Leeg laten om het eigenaarsadres te gebruiken</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>Operatorsleutel</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>De operator draait de masternodeserver (BLS); alleen de publieke sleutel wordt op de blockchain geregistreerd.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>Een gegenereerde geheime sleutel wordt getoond en moet vóór de registratie worden bevestigd. Hij wordt niet in deze portemonnee opgeslagen.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>Uitbetaling</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Uitbetalingsadres</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>Ontvangt de blokbeloningen van deze masternode (P2PKH of P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Operatorbeloning</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>Deel van de beloning dat aan de operator is toegezegd.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>De operator ontvangt permanent dit deel van alle beloningen van deze masternode. Laat het op 0 staan, tenzij u een afspraak met uw operator hebt.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>Platform-diensten</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>Platform node-ID</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>Afgeleid van de publieke Platform P2P-sleutel (40 hexadecimale tekens).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>Platform-adressen</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>ADRES:POORT-vermeldingen, gescheiden door komma's of spaties.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>Platform P2P</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>Platform HTTPS-API</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>Platform-poorten</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>Vóór activering van v24 kunnen alleen de Platform-poorten worden geregistreerd; ze gelden voor het eerste serviceadres.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Platform P2P-poort:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Platform HTTPS-poort:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>Kostenbron</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Controle</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>Eigendom van het onderpand bewijzen</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>Onderteken het volgende bericht met de onderpandsleutel (bijvoorbeeld met de berichtondertekening van uw hardware-portemonnee) en plak de base64-handtekening hieronder.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>Bericht kopiëren</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>Handtekening</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>Plak hier de base64-handtekening</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Operatorsleutel opslaan</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Sla deze gegenereerde sleutel op vóór het registreren. Hij wordt nergens anders bewaard en kan niet uit de portemonnee worden hersteld.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Geheime operatorsleutel</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>Sla hem nu op: de registratie kan pas beginnen nadat u dit bevestigt.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>Voeg deze regel toe aan dash.conf op uw masternodeserver:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopiëren</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>Typ de laatste 4 tekens van de geheime sleutel om te bevestigen dat u hem vóór het registreren hebt opgeslagen:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>Masternode geregistreerd</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Provider-transactiehash</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Volgende stappen</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Voltooid</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Stap %1 van %2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>Het geselecteerde adres financiert het onderpand van %1 plus de transactiekosten. De exacte kosten worden bij het registreren berekend op basis van uw portemonnee-instellingen en het wisselgeld gaat terug naar dit adres.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>Het geselecteerde adres betaalt de transactiekosten.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>Voer een geldig onderpandadres in (P2PKH of P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>Deze portemonnee heeft geen niet-bestede output van precies %1. Financier het onderpand in plaats daarvan vanuit de portemonnee.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>Voer het transactie-ID van het onderpand in als 64 hexadecimale tekens.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>EvoNodes hebben vóór activering van v24 minstens één serviceadres nodig voor de Platform-poorten.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Voer een geldig eigenaarsadres in (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>Voer een geldig stemadres in (P2PKH), of laat het leeg om het eigenaarsadres te gebruiken.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>Het eigenaars- en stemadres moeten verschillen van het onderpandadres.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Voer een geldige publieke BLS-operatorsleutel in (96 hexadecimale tekens, basic-schema).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>Voer een geldig uitbetalingsadres in (P2PKH of P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>Het uitbetalingsadres moet verschillen van het eigenaars- en stemadres.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>Het uitbetalingsadres moet verschillen van het onderpandadres.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>Voer de Platform node-ID in als 40 hexadecimale tekens.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>Voer zowel een Platform P2P- als een Platform HTTPS-adres in; het ene kan niet zonder het andere worden geregistreerd.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>Voer minstens één Platform P2P- en één Platform HTTPS-adres in, of wis de serviceadressen om later alles met een service-update in te stellen.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>Voer minstens één Core-serviceadres in wanneer Platform-eindpunten zijn ingesteld, of wis alle service-eindpunten om ze later met een service-update in te stellen.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>Geen enkel besteedbaar portemonneeadres bevat het onderpandbedrag van %1. Het geselecteerde adres moet ook genoeg bevatten voor de kosten die bij het registreren worden berekend.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>Geen enkel besteedbaar portemonneeadres heeft een positief saldo om de transactiekosten te betalen.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>Plak de base64-gecodeerde handtekening van het bovenstaande bericht, gemaakt met de onderpandsleutel.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>Terug is na de voorbereiding niet beschikbaar, omdat een wijziging van de registratie het te ondertekenen bericht ongeldig zou maken.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Doorgaan</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>Voorbereiden</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Registreren</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Indienen</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Voltooien</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>Er is geen portemonnee beschikbaar. Voor masternode-registratie is een portemonnee nodig.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>Deze portemonnee is alleen-lezen (watch-only). Voor masternode-registratie is een portemonnee nodig die transacties kan ondertekenen.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Bevestig dat u de geheime operatorsleutel hebt opgeslagen door de laatste 4 tekens in te typen.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>Deze portemonnee heeft geen niet-bestede output van precies %1 met een bevestiging. Stuur het onderpand in plaats daarvan vanuit deze portemonnee, of verwijs naar een onderpand dat elders wordt bewaard.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Service</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>Platform HTTPS</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Bedrag</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>Bestemming</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>Output</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Bron</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Eigenaar</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>Stemmen</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>Operator</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Adres</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>Operatoraandeel</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>Netwerkkosten</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Node</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>Niet ingesteld: de node blijft inactief totdat u een service-update verstuurt</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 peer-to-peer, %2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>Deze portemonnee verstuurt het als onderdeel van de registratie</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>Een output die deze portemonnee al bezit</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>Buiten deze portemonnee bewaard: u ondertekent een bericht met de bijbehorende sleutel</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>Gelijk aan eigenaar</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Financiering</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>Niet geselecteerd</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>Berekend bij het indienen met de huidige kosteninstellingen van de portemonnee</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>Bij het voorbereiden worden de niet-ondertekende transactie en het met de onderpandsleutel te ondertekenen bericht gemaakt. Er wordt nog niets uitgezonden.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>Bij het registreren wordt een transactie van deze portemonnee uitgezonden. Mogelijk wordt u gevraagd de portemonnee te ontgrendelen.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>Nieuw gegenereerd, getoond en bevestigd vóór de registratie, en nergens anders bewaard</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>Aangeleverd door degene die de node draait</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>De bestemming van het onderpand is niet langer geldig.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>De geselecteerde onderpand-output wordt al door een andere masternode gebruikt.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>Het eigenaarsadres is niet langer geldig.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>Het stemadres is niet langer geldig.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>De publieke operatorsleutel is niet langer geldig.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>Het uitbetalingsadres is niet langer geldig.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>De geselecteerde kostenbron is niet langer geldig.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>masternode</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>Deze transactie maakt %1 aan onderpand aan vanuit deze portemonnee en registreert de %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>Deze transactie registreert het externe onderpand van %1 en maakt het het onderpand voor deze %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>Deze transactie registreert en vergrendelt de onderpand-output van %1 van de portemonnee voor deze %2.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> De netwerkkosten worden berekend vanuit de geselecteerde kostenbron met de huidige kosteninstellingen van de portemonnee.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>Registratie van %1 bevestigen</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>Wilt u deze registratie van %1 uitzenden?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>Kostenbron: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>De regels van het netwerk voor provider-transacties zijn gewijzigd terwijl deze wizard openstond. Bekijk de pagina Platform-diensten opnieuw voordat u registreert.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Voorbereiden…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>Registreren…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>De regels van het netwerk voor provider-transacties zijn gewijzigd terwijl de onderpandhandtekening werd verzameld. Verwerp deze voorbereide registratie en bekijk de pagina Platform-diensten opnieuw.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>De onderpandhandtekening is geen geldige base64.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>Indienen…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>Registratie mislukt</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>De registratie is voltooid zonder een transactie terug te geven.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>De registratietransactie is aangemaakt maar niet naar het netwerk verzonden.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>De voorbereiding is voltooid zonder een transactie terug te geven.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>Onderpandadres met de sleutel: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>De registratietransactie is naar het netwerk verzonden.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>Ze is in deze portemonnee vastgelegd en verschijnt onder Transacties. Het externe onderpand blijft op de outpoint die u hebt geregistreerd en wordt niet door deze portemonnee beheerd.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>Ze is in deze portemonnee vastgelegd en verschijnt onder Transacties. Het onderpand blijft in de portemonnee, maar is vergrendeld zolang de masternode geregistreerd is.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>Configureer uw masternodeserver met de geheime operatorsleutel die u hebt opgeslagen en start dashd daar opnieuw.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>Configureer uw masternodeserver met de geheime BLS-sleutel die hoort bij de publieke operatorsleutel die u hebt opgegeven.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Zorg ervoor dat elk geregistreerd serviceadres en elke poort vanaf het internet bereikbaar is.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>Verstuur een Update Service-transactie zodra de service-eindpunten van de node gereed zijn; tot dan blijft de node inactief.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>Richt de Dash Platform-diensten (Tenderdash en Drive) in met de Platform-nodesleutel die hoort bij de node-ID die u hebt geregistreerd.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>De EvoNode wordt actief zodra de registratie is bevestigd en de eerste update door de operator is ondertekend.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>De masternode wordt actief zodra de registratie op het netwerk is bevestigd.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>Voorbereide registratie verwerpen?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>De voorbereide registratie wordt verworpen. Elke onderpandvergrendeling die door deze wizard is gemaakt, wordt vrijgegeven.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4439,6 +6764,168 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>Bericht bij herstellen portemonnee</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>Niet opgegeven</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>Beëindiging van de service</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>Gecompromitteerde sleutels</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>Wijziging van sleutels</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>Reden:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatorsleutel:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automatisch gebruikt eerst de huidige uitbetaling van de operator, daarna die van de masternode. Selecteer alleen een adres om die keuze te overschrijven.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>Masternode-service intrekken</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>Bij intrekken wordt het serviceadres gewist en wordt de masternode PoSe-verbannen totdat de eigenaar de operatorsleutel wijzigt. Het onderpand blijft ongemoeid.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>Intrekken</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>Operator- of stemsleutel roteren</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Voor het wijzigen van deze sleutels is de goedkeuring van elke aandeelhouder nodig. Eén persoon start het verzoek; de anderen plakken het, keuren het goed en kopiëren een antwoord terug.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. Nieuwe sleutels</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>Leeg laten om de huidige operatorsleutel te behouden</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopiëren</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>Nieuwe operatorsleutel:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>De masternode wordt verbannen zodra de operatorsleutel verandert, totdat de nieuwe operator een service-update verstuurt.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>Leeg laten om het huidige stemadres te behouden</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>Nieuw stemadres:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Kostenbron:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Verzoek voorbereiden</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>Rond af in deze portemonnee: die betaalt de kosten en moet de definitieve transactie verzenden.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Goedkeuringen</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Stuur hetzelfde verzoek naar elke aandeelhouder. Antwoorden mogen in willekeurige volgorde terugkomen.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Goedkeuren en antwoord kopiëren</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Verzenden</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>Rotatie verzenden</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>Transactie-ID</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>Operatorsleutel: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>ongewijzigd</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>Stemadres: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Bereid eerst een verzoek voor of plak er een.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>Alleen de portemonnee die het verzoek heeft voorbereid, kan het verzenden.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Elk aandeel moet eerst goedkeuren (tot nu toe %1 van %2).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>Voer een geldige publieke operatorsleutel in.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>Het stemadres moet een P2PKH-adres zijn.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>De sleutelrotatie is verzonden.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>Als de foutmelding zegt dat de portemonnee die het verzoek heeft gefinancierd het moet combineren, rond dan af in de portemonnee die het verzoek heeft voorbereid.</translation>
     </message>
 </context>
 <context>
@@ -4680,6 +7167,19 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
         <translation>of</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>Niet-ondertekende transactie</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>De PSBT is naar het klembord gekopieerd. U kunt hem ook opslaan.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT op schijf opgeslagen</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>Bevestig versturen munten</translation>
     </message>
@@ -4689,6 +7189,7 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT opgeslagen</translation>
     </message>
     <message>
@@ -4800,6 +7301,10 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>Een vergoeding van meer dan %1 wordt beschouwd als een absurd hoge vergoeding.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>Schatting is dat bevestiging begint binnen %n blok.</numerusform><numerusform>Schatting is dat bevestiging begint binnen %n blocks.</numerusform></translation>
@@ -4901,6 +7406,1441 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     <message>
         <source>Create Unsigned</source>
         <translation>Ongetekende aanmaken</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>Gedeelde masternode</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Terug</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Plakken</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>Opslaan…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuleren</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Volgende</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Details</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>Gefinancierd</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Goedgekeurd</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>Ondertekend</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>een andere bewerking is nog bezig.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>er is geen portemonnee beschikbaar.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>de portemonnee bleef vergrendeld.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>de node gaf geen reden.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>de registratie is geen geldige transactie.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>Gedeelde masternode</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>Meerdere mensen financieren samen één masternode. Eén persoon coördineert; de anderen plakken wat ze ontvangen en kopiëren een antwoord terug. Er bereikt niets het netwerk tot de laatste uitzending.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Starten</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>U voert in wie meedoet en wat de masternode-instellingen zijn, en nodigt daarna de anderen uit.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>Een gedeelde masternode starten</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Doorgaan</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>Plak een uitnodiging, vergrendelde voorwaarden, een ondertekeningsverzoek of een ontvangen antwoord: de app weet wat ermee moet gebeuren.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>Plakken vanaf klembord</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Bestand openen…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Deelnemers</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>Wie meedoet en hoeveel ieder bijdraagt. De bedragen moeten samen precies %1 zijn; elk aandeel is minstens %2.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Naam</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Bedrag</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>Ik</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>Deelnemer toevoegen</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>Deelnemer %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Verwijderen</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>Masternode-instellingen</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>Deze gelden voor de hele masternode en zijn voor elke deelnemer hetzelfde.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Serviceadressen:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>Publieke adressen waarop de masternode het Core P2P-netwerk bedient, gescheiden door komma's of spaties. Mag leeg blijven en later met een service-update worden ingesteld.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatorsleutel:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>Wie de server draait, heeft de geheime sleutel nodig. Alleen de publieke sleutel wordt op de blockchain geregistreerd.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>Publieke sleutel kopiëren</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Node beheerd door:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>Vastgelegd in de voorwaarden zodat iedereen weet wie de node kan starten en weer tot leven kan wekken.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>Naam van de deelnemer die de geheime operatorsleutel bewaart</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Stemadres:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>Stemt over governancevoorstellen namens de hele masternode (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Nieuw adres gebruiken</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Operatorbeloning:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>Deel van de beloning dat is toegezegd aan degene die de server draait.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>De operator ontvangt permanent dit deel van alle beloningen voordat er iets onder de deelnemers wordt verdeeld.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Uitstapvoorwaarden</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>Wat er gebeurt als één deelnemer eerder wil stoppen dan de anderen.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>Hoe vertrekken werkt</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>Iedereen kan de masternode op elk moment zelfstandig ontbinden, en iedereen krijgt zijn inleg terug. Tijdens de beginperiode betaalt wie alleen ontbindt de boete voor vroegtijdig vertrek uit het eigen aandeel, en die wordt onder de anderen verdeeld. Als iedereen akkoord is, is ontbinden altijd gratis.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Beginperiode:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>Aantal blokken na registratie waarin alleen vertrekken de boete kost.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Geen</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 maanden</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 maanden</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 jaar</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 jaar</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Boete voor vroegtijdig vertrek:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>Uw bijdrage</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>Adressen en munten voor uw aandeel. Alleen u ziet de munten; de anderen zien alleen de resulterende transactie-inputs.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>Uw aandeel</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>Dit ben ik:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>Eigenaarsadres:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>Beheert uw aandeel: keurt sleutelwijzigingen en ontbindingen goed. Blijft in deze portemonnee.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>Terugbetalingsadres:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>Ontvangt uw inleg wanneer de masternode wordt ontbonden. Kan later niet meer worden gewijzigd.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>Beloningsadres (optioneel):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>Ontvangt uw deel van de beloningen. Leeg laten om het terugbetalingsadres te gebruiken; u kunt dit later wijzigen.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>Munten</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>Netwerkkosten:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>Munten reserveren</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Vrijgeven</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Operatorsleutel opslaan</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Sla deze gegenereerde sleutel op voordat u iemand uitnodigt. Hij wordt nergens anders bewaard en kan niet uit de portemonnee worden hersteld.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Geheime operatorsleutel</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>Sla hem nu op: de uitnodiging kan pas de deur uit nadat u dit bevestigt.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopiëren</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>Voeg deze regel toe aan dash.conf op de masternodeserver:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>De uitnodiging die u gaat versturen bevat alleen de publieke sleutel.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>Typ de laatste 4 tekens van de geheime sleutel om te bevestigen dat u hem hebt opgeslagen:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>Deelnemers uitnodigen</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>Stuur dezelfde uitnodiging naar iedereen. Elke persoon reserveert zijn munten en stuurt u zijn gegevens terug.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>Uitnodiging kopiëren</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>Uitnodiging</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>Uitnodiging opslaan…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>U hebt het concept gewijzigd. Deelnemers die al hebben geantwoord, moeten opnieuw antwoorden.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>Deze voorwaarden vergrendelen?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>Door te vergrendelen liggen alle adressen, bedragen en munten vast. Daarna kan niemand meer bewerken; alleen ontgrendelen kan, waarbij alle goedkeuringen vervallen.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>Goedkeuringen</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>Vergrendelde voorwaarden kopiëren</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>Vergrendelde voorwaarden</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>Voorwaarden ontgrendelen…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>Handtekeningen</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>Ondertekeningsverzoek kopiëren</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>Ondertekeningsverzoek</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>Wat u hebt verstuurd</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>Wat er hierna komt</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>Mijn munten vrijgeven</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>Gedeelde masternode geregistreerd</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>Wat er is gebeurd</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>Na één bevestiging verschijnt ze onder Masternodes.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>Wat u veilig moet bewaren</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>Uw aandeelhoudersleutel</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Reserve-ontbinding</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>Een ondertekende ontbinding die u offline bewaart. Daarmee krijgt u uw inleg terug, zelfs als deze portemonnee kwijt is. Maak haar aan na de eerste bevestiging.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Maak haar aan vanuit de masternodelijst (rechtsklik op de masternode) zodra de registratie is bevestigd, en bewaar haar samen met de back-up van uw terugbetalingsadres, gescheiden van deze portemonnee.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>Sessieverslag</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>Eindverslag opslaan…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Volgende stappen</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>Eindverslag kopiëren</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>Eindverslag</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Wachten op %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>de coördinator</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>Voorwaarden goedkeuren</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>Bijdrage ondertekenen</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Voltooid</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Stap %1 van %2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Er is geen portemonnee beschikbaar.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>Deze portemonnee kan niet ondertekenen. U kunt meekijken, maar niet deelnemen.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>Een gedeelde masternode heeft tussen %1 en %2 deelnemers nodig.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>Voer een naam in voor deelnemer %1.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>De naam "%1" wordt twee keer gebruikt.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>Elk aandeel is minstens %1.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>De bedragen komen samen op %1; het moet precies %2 zijn.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>Selecteer de deelnemer die u bent.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Voer een geldige publieke BLS-operatorsleutel in (96 hexadecimale tekens, basic-schema).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>Voer een geldig stemadres in (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>Stel de boete voor vroegtijdig vertrek in op 0 als er geen beginperiode is.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>De boete voor vroegtijdig vertrek moet lager zijn dan het kleinste aandeel (%1).</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Voer een geldig eigenaarsadres in (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>Voer een geldig terugbetalingsadres in (P2PKH of P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>Voer een geldig beloningsadres in (P2PKH of P2SH), of laat het leeg.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Het beloningsadres moet verschillen van het stemadres en van elk eigenaarsadres.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>Elke deelnemer moet zijn gegevens terugsturen voordat de voorwaarden kunnen worden vergrendeld.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Deze portemonnee is alleen-lezen (watch-only) en kan niet ondertekenen.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>Sla eerst de geheime operatorsleutel op. Hij wordt één keer getoond, op de pagina "Operatorsleutel opslaan", en het sessiebestand bevat hem niet.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>Munten reserveren en gegevens kopiëren</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>Vergrendelen en goedkeuren</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>Voorwaarden vergrendelen</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Goedkeuren en antwoord kopiëren</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>Goedkeuren</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Opnieuw proberen</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>Ondertekenen en antwoord kopiëren</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>Registratie uitzenden</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Sluiten</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Voltooien</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>Opnieuw beginnen</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Bevestig dat u de geheime operatorsleutel hebt opgeslagen door de laatste 4 tekens in te typen.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>U hebt deze voorwaarden al goedgekeurd.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>Elke deelnemer moet zijn eigen munten ondertekenen voordat de registratie kan worden uitgezonden.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>Gedeelde masternode — Sessie %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 van %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 van %2 — %3 ontbreekt</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 van %2 — %3 te veel</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>Moet lager zijn dan het kleinste aandeel (%1). Stel alleen in op 0 als u accepteert dat iedereen op elk moment gratis kan vertrekken.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Iedereen kan op elk moment gratis vertrekken.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>Als %1 vertrekt vóór blok %2 van het bestaan van de masternode, verbeurt %1 %3, dat onder de anderen wordt verdeeld.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>Alleen vertrekken tijdens de beginperiode kost %1, dat onder de anderen wordt verdeeld.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>Bij een boete van nul heeft de beginperiode geen effect: iedereen kan de masternode op elk moment alleen ontbinden en betaalt niets.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>Aandeel %1 van %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>Aandeel %1 van %2 — %3 (u)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>Kies welke deelnemer u bent.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>Gereserveerd: deze munten kunnen niet worden uitgegeven tot de sessie eindigt of u ze vrijgeeft.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>Gebruikt %1 (%2); het wisselgeld van %3 gaat terug naar een nieuw adres van u.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>Gebruikt %1 (%2), zonder wisselgeld.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>Iedereen bekijkt precies deze voorwaarden en keurt één keer goed. Stuur hetzelfde bericht naar iedereen.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>Lees elke regel. Door goed te keuren ondertekent u precies deze voorwaarden met uw eigenaarssleutel. Er wordt nog niets uitgezonden.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>Alle goedkeuringen zijn ingesloten. Nu ondertekent elke deelnemer zijn eigen munten. Antwoorden mogen in willekeurige volgorde komen.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>Ondertekent de munten die u hebt gereserveerd. Uw handtekening besteedt ze alleen aan deze registratie.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>%1 van %2 financieringsinputs zijn ondertekend.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>Ondertekent uw aandeel van %1. U zendt zelf niets uit.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>U hebt verstuurd: %1 · Code %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>de vergrendelde voorwaarden</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>het ondertekeningsverzoek</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>het eindverslag</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>Hierna ontvangt u %1. Plak het hier zodra het binnenkomt.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>De registratie wordt uitgezonden door %1. Maak uw reserve-ontbinding aan zodra de masternode in uw lijst verschijnt.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>In deze portemonnee (%1). Maak een back-up van de portemonnee: hij keurt wijzigingen en ontbindingen goed.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>Bewaard door %1. Nodig op de server als masternodeblsprivkey.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>degene die de node draait</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>Configureer de masternodeserver met de geheime operatorsleutel en start dashd daar opnieuw.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>Verstuur een service-update zodra de adressen van de node gereed zijn; tot dan blijft de node inactief.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Zorg ervoor dat elk geregistreerd serviceadres en elke poort vanaf het internet bereikbaar is.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>Elke deelnemer moet na de eerste bevestiging zijn eigen reserve-ontbinding aanmaken.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 van %2 inputs</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1 van %2 hebben geantwoord</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1 van %2 ondertekend</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 van %2 goedgekeurd</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Voorbereiden…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>Het voorbereiden van de registratie is mislukt: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>de financieringstransactie is niet geldig.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>ongeldig terugbetalingsadres: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>ongeldig beloningsadres: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>ongeldig eigenaarsadres van aandeelhouder: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>de operatorsleutel is geen geldige publieke BLS-sleutel.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>het stemadres moet een P2PKH-adres zijn.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>de operatorbeloning moet liggen tussen 0% en 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>Onverwacht antwoord van de node.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>De voorwaarden zijn nog niet vergrendeld.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>Goedkeuren mislukt: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>Goedkeuren…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>Goedkeuring</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>Goedkeuringen combineren mislukt: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>Goedkeuringen combineren…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>Deze transactie besteedt ook %1, een munt van deze portemonnee die geen deel uitmaakt van uw bijdrage. Onderteken niet; vraag %2 om een nieuwe sessie.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>Deze transactie besteedt %1 van de munten van deze portemonnee voor een aandeel van %2, maar geeft slechts %3 wisselgeld terug aan deze portemonnee. Onderteken niet; vraag %4 om een nieuwe sessie.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>Ondertekenen mislukt: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>De ondertekende transactie is niet degene die u hebt bekeken. Gebruik haar niet; vraag %1 om een nieuwe sessie.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>Ondertekende bijdrage</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>De voorwaarden ontgrendelen?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>Door te ontgrendelen vervalt %1. Iedereen moet opnieuw goedkeuren nadat u vergrendelt.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>Onderpand: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>Deelnemers: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>Registratie van gedeelde masternode bevestigen</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>Deze registratie van een gedeelde masternode uitzenden?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>Sessie %1 · Code %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>Uitzenden mislukt: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>iedereen</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>Gekopieerd · Sessie %1 · Code %2: stuur het naar %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>Sla eerst de geheime operatorsleutel op. Hij wordt alleen hier getoond en het sessiebestand bevat hem niet: zonder hem kan de masternode nooit worden gedraaid.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>Bericht over gedeelde masternode opslaan</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>Sessiebestanden (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>Kon %1 niet openen om te schrijven.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>Opgeslagen · Sessie %1 · Code %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>Bericht over gedeelde masternode openen</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Dat bericht is te groot om een bericht over een gedeelde masternode te zijn.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>Kon %1 niet openen om te lezen.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>Dit bericht gaat over een bestaande masternode. Open het vanuit de masternodelijst.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>Handtekeningen niet meegeteld</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Ontvangen %1 · Code %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>Dit antwoord is ouder dan uw huidige voorwaarden (Code %1; de uwe is %2). Vraag de afzender uw nieuwste bericht te plakken en opnieuw te antwoorden.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>%2 van %1 ontvangen · Code %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>Deze portemonnee heeft minstens %1 beschikbaar nodig om uw aandeel van %2 te financieren.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>Uw munten vrijgeven?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>De munten die u voor Sessie %1 hebt gereserveerd, kunnen weer worden uitgegeven.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>De munten van alle anderen blijven gereserveerd. Als u deze uitgeeft, kan deze registratie nooit meer worden uitgezonden en moeten de anderen opnieuw beginnen.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>Vrijgegeven: deze munten kunnen weer worden uitgegeven.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>Een voor deze sessie gereserveerde munt is uitgegeven. De registratie kan niet meer worden voltooid: begin opnieuw.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>De waarde van %1 kan op deze node nog niet worden gecontroleerd. De inputs die wel kunnen worden gecontroleerd, tellen op tot %2 van het onderpand van %3.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>De gereserveerde munten bedragen samen %1, wat het onderpand van %2 plus %3 wisselgeld en netwerkkosten niet dekt. De registratie zou nooit kunnen worden uitgezonden.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>Inputs %1 − wisselgeld %2 = %3 onderpand + %4 netwerkkosten. Deze kosten zijn ongewoon hoog; ga alleen door als dat de bedoeling is.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>Inputs %1 − wisselgeld %2 = %3 onderpand + %4 netwerkkosten ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>Eerst de operatorsleutel opslaan?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>De geheime operatorsleutel bestaat nergens anders dan in dit venster; het sessiebestand bevat alleen de publieke helft. Sluit u nu af, dan kan de masternode nooit worden gedraaid.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>Deze sessie bewaren voor later?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>Bij opslaan blijven uw munten gereserveerd, zodat u verder kunt waar u gebleven was. Bij verwerpen worden ze vrijgegeven; als de anderen nog op u wachten, moeten ze opnieuw beginnen.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>Operatorsleutel opslaan</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>Opslaan en sluiten</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>Verwerpen en munten vrijgeven</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Aandeel %1 van %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>Deze portemonnee bezit geen enkele aandeelhoudersleutel van deze masternode.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>Aandeel</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>Terugbetalingsadres</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>Ontvangt</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Er is geen portemonnee beschikbaar.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Deze portemonnee is alleen-lezen (watch-only) en kan niet ondertekenen.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>Er is nog een andere bewerking bezig.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>Het ontgrendelen van de portemonnee is geannuleerd.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>De transactie is geen geldige transactie-hex.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>Een munt die dit verzoek nodig heeft (%1:%2) is uitgegeven. Het kan niet meer worden verzonden: begin opnieuw.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>Interne fout: de hier berekende digest komt niet overeen met die van de node. Keur niet goed; meld dit alstublieft.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>%1 goedgekeurd met deze portemonnee.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>Gedeelde masternodes vereisen de v24-upgrade, die op dit netwerk nog niet actief is.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Naam</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Bedrag</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(u)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Dit verzoek betaalt niet elk aandeel zijn volledige inleg uit. Keur het niet goed; vraag degene die het heeft voorbereid om een nieuw verzoek.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>Dit verzoek noemt een aandeel dat deze masternode niet heeft.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>Dit verzoek besteedt niet precies het onderpand van de masternode. Keur het niet goed.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Dit verzoek houdt %1 van de inleg van de aandelen in als transactiekosten. Keur het niet goed; vraag degene die het heeft voorbereid om een nieuw verzoek.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>Het klembord bevat geen bericht over een gedeelde masternode.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>Dit bericht is geen bericht over een gedeelde masternode.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>Deze transactie is geen ontbinding van een gedeelde masternode.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>zonder naam</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(u)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>Eigenaar:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>nog niet ingesteld</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>Terugbetaling:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>Beloning:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>gelijk aan terugbetaling</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Deelnemers</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Service:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>Niet ingesteld: later in te stellen met een service-update</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatorsleutel:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>niet ingesteld</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Node beheerd door:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>niet vastgelegd</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Stemadres:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Operatorbeloning:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Beginperiode:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 blokken (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Boete voor vroegtijdig vertrek:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Iedereen kan op elk moment gratis vertrekken.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>Alleen vertrekken tijdens de beginperiode kost %1, dat onder de anderen wordt verdeeld; samen vertrekken is gratis.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Uitstapvoorwaarden</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>Bijdragen:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>Teruggestort wisselgeld:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>Onderpand:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1, zodra de voorwaarden zijn vergrendeld</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>output #%1 betaalt het gedeelde onderpandscript van %2</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Financiering</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>Sessie:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>Code:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>Voorbereid door portemonnee:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>Identiteit</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>De transactie is geen geldige transactie-hex.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>De transactie is geen ontbindingstransactie.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>De transactiepayload kan niet worden gedeserialiseerd.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>De transactie ontbindt een andere masternode.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>De transactie bevat al handtekeningen; verwacht werd de niet-ondertekende voorbereide transactie.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>De transactie is geen gedeelde registrar-update.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>De transactie werkt een andere masternode bij.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Goedgekeurd</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>Verzoek kopiëren</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>Verzoek opslaan…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Plakken</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Bestand openen…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>Dit bericht gaat over een andere transactie dan degene die hier al staat. Een van de twee kopieën is verouderd; behoud de huidige en vraag om een nieuw antwoord.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>Plak eerst het verzoek zelf voordat u goedkeuringen plakt.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>Dit bericht bevat geen goedkeuringen.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>Bij een goedkeuring ontbreekt het aandeelnummer of de handtekening.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>Een goedkeuring heeft een onleesbaar aandeelnummer.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>Aandeelnummer %1 valt buiten het bereik.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: de handtekening is geen base64-gecodeerde compacte handtekening van 65 bytes.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>De goedkeuring van %1 komt niet overeen met de voorbereide transactie. Vraag %2 het huidige verzoek te plakken en opnieuw goed te keuren.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 heeft al een goedkeuring uit een ander antwoord.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>Dit is geen bericht over een gedeelde masternode.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>Dit bericht is voor het %1-netwerk; deze portemonnee draait op %2.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>Dit bericht gaat over een ander soort wijziging van deze masternode.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>Dit bericht gaat over een andere masternode.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>Gekopieerd · Code %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>Verzoek opslaan</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>Bericht over gedeelde masternode (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Kon niet naar %1 schrijven.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>Opgeslagen · Code %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Opgeslagen in %1.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Dat bericht is te groot om een bericht over een gedeelde masternode te zijn.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Ontvangen %1 · Code %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>Ontvangen · Code %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>Verzoek openen</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>Bericht over gedeelde masternode (*.json);;Alle bestanden (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>Kon %1 niet lezen.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>Goedgekeurd door %1</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Wachten op %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 van %2 goedgekeurd</translation>
     </message>
 </context>
 <context>
@@ -5078,17 +9018,6 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(druk op q om af te sluiten en later verder te gaan)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>druk op q om af te sluiten</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5159,6 +9088,22 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     <message>
         <source>Date</source>
         <translation>Datum</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Masternode-registratie</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Masternode-update</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Asset lock</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5247,6 +9192,10 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     <message>
         <source>Transaction total size</source>
         <translation>Transactie totale grootte</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>Payload</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5356,8 +9305,24 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
         <translation>Platform overdracht</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>Gegevenstransactie</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>Dust-ontvangst</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Masternode-registratie</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Masternode-update</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Asset lock</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5386,6 +9351,18 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     <message>
         <source>(n/a)</source>
         <translation>(nvt)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>Registreert een masternode. Het bedrag is de nettowijziging van het saldo van deze portemonnee en bestaat normaal alleen uit de netwerkkosten wanneer het onderpand in deze portemonnee blijft.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>Werkt de registratie van een bestaande masternode bij. Het bedrag is de nettowijziging van het saldo van deze portemonnee, normaal alleen de netwerkkosten.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Vergrendelt tegoed voor gebruik op Dash Platform. Het bedrag is de nettowijziging van het saldo van deze portemonnee, inclusief de netwerkkosten.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5487,8 +9464,20 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
         <translation>Gedolven</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>Platform overdracht</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Asset lock</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>Gegevenstransactie</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5637,6 +9626,199 @@ Nota: Het bericht zal niet verzonden worden met de betaling over het Dash netwer
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>Publieke BLS-operatorsleutel (96 hexadecimale tekens)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>Publieke operatorsleutel:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>Het wijzigen van de operatorsleutel verbant de masternode onmiddellijk (PoSe). De nieuwe operator moet een Update Service-transactie versturen om hem weer te activeren.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Stemadres:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>Uitbetalingsadres:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>Meerdere uitbetalingsaandelen blijven behouden; gebruik de RPC om ze te wijzigen</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>Dit venster kan een masternode met meerdere uitbetalingen niet veilig tot één adres terugbrengen.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>Automatisch gebruikt het huidige primaire uitbetalingsadres van de masternode. Selecteer alleen een adres om die keuze te overschrijven.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>Masternode-registrar bijwerken</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>Werk de operatorsleutel, het stemadres of het uitbetalingsadres bij. Alle huidige waarden zijn vooraf ingevuld; alleen gewijzigde velden worden verzonden. De eigenaarssleutel moet in deze portemonnee aanwezig zijn.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Update verzenden</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>Voer een geldige publieke operatorsleutel in voor de huidige versie van de provider-transactie.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>Het stemadres moet een sleuteladres zijn.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:POORT, bij meerdere vermeldingen door komma's gescheiden</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>Voor meerdere adressen zijn uitgebreide provider-transacties nodig.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Serviceadressen:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>Serviceadres:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatorsleutel:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>Platform node-ID (40 hexadecimale tekens)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>Platform node-ID:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>Platform P2P-adressen:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:POORT of domein:poort, door komma's gescheiden</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>Platform HTTPS-adressen:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Platform P2P-poort:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Platform HTTPS-poort:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>Uitbetalingsadres van de operator:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automatisch gebruikt eerst de huidige uitbetaling van de operator, daarna die van de masternode. Selecteer alleen een adres om die keuze te overschrijven.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>EvoNode-service bijwerken</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>Masternode-service bijwerken</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>Werk de geregistreerde service-eindpunten bij. Een geslaagde update activeert ook weer een PoSe-verbannen masternode. Elke huidige waarde is vooraf ingevuld, zodat ongewijzigde velden behouden blijven.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Update verzenden</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>Voer een geldige Platform node-ID in (40 hexadecimale tekens).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>Uw aandeel:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>Adres dat de beloningen van dit aandeel ontvangt</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Nieuw adres gebruiken</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>Terugbetalingsadres gebruiken</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>Nieuw beloningsadres:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>De kosten worden betaald vanaf dit adres van uw portemonnee.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>Beloningsadres wijzigen</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>Wijzig waarnaartoe uw deel van de beloningen van deze masternode wordt betaald. Alleen uw aandeel wordt geraakt; het bedrag en het terugbetalingsadres van het aandeel veranderen nooit.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Update verzenden</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>Voer het adres in dat de beloningen moet ontvangen.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>Voer een geldig Dash-adres in.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Het beloningsadres moet verschillen van het stemadres en van elk eigenaarsadres.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>Deze masternode is niet gedeeld en heeft geen aandelentabel.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>Kies een adres van deze portemonnee om de kosten van te betalen.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5703,6 +9885,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Send Coins</source>
         <translation>Verstuur munten</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>Ondertekenaarsfout</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5792,6 +9978,18 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Waarschuwing: Het lijkt erop dat we geen consensus kunnen vinden met onze peers! Mogelijk dient u te upgraden, of andere nodes moeten wellicht upgraden.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+Kan mislukte migratie niet opruimen</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+Kan back-up van portemonnee niet herstellen.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>Deze invoer is reeds gekend</translation>
     </message>
@@ -5864,10 +10062,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>SQLiteDatabase: Onbekend sqlite wallet schema versie %d. Alleen versie %d wordt ondersteund</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>Niet ondersteunde categorie specifieke logniveau -loglevel=%s. Verwacht -loglevel=&lt;category&gt;:&lt;loglevel&gt; . Geldige categorieën: %s. Geldige logniveaus: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>Kan niet mixen: geen compatibele inputs gevonden!</translation>
     </message>
@@ -5906,10 +10100,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Insufficient funds.</source>
         <translation>Ontoereikend saldo.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>Ongeldig minumum aantal spork ondertekenaars zoals ingesteld met -minsporkkeys</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5984,10 +10174,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Onbekend reactie.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>Niet ondersteund globaal logniveau -loglevel=%s. Geldige waarden: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>User Agentcommentaar (%s) bevat onveilige karakters.</translation>
     </message>
@@ -6018,6 +10204,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s bestand bevat alle persoonlijke sleutel van deze portemonnee. Deel deze met niemand!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s kon de status van de -assumeutxo-snapshot niet valideren. Dit duidt op een hardwareprobleem, een bug in de software of een slechte softwarewijziging waardoor een ongeldige snapshot kon worden geladen. Hierdoor wordt de node afgesloten en gebruikt hij geen status meer die op de snapshot was gebouwd, waarbij de blokhoogte wordt teruggezet van %d naar %d. Bij de volgende herstart hervat de node het synchroniseren vanaf %d zonder snapshotgegevens te gebruiken. Meld dit incident aan %s, inclusief hoe u de snapshot hebt verkregen. De ongeldige snapshot-chainstate blijft op schijf staan voor het geval die helpt bij het opsporen van de oorzaak van deze fout.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6068,10 +10258,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Totale lengte van netwerkversiestring (%i) overschrijdt maximale lengte (%i). Verminder het aantal of grootte van uacomments.</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>WAARSCHUWING! Het bijvullen van de keypool is mislukt, ontgrendel alstublieft uw wallet om dit te doen. </translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>Wallet is vergrendeld, niet instaat om keypool aan te vullen! Automatische backups en mixen zijn uitgeschakeld, ontgrendel alstublieft uw wallet om de keypool aan te vullen.</translation>
     </message>
@@ -6086,10 +10272,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool moet minstens %d MB zijn</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>Automatische backups uitgeschakeld</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6112,16 +10294,24 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Kon asmap bestand %s niet verwerken</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>FOUT! Het maken van een automatische backup is mislukt</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>Fout bij laden %s: privésleutels kunnen alleen worden uitgeschakeld tijdens aanmaken</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>Fout bij het lezen van het configuratiebestand: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>Fout: Kan bestemming niet extraheren uit de gegenereerde scriptpubkey</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>Fout: Kon watch-only-transactie niet toevoegen aan watch-only-portemonnee</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>Fout: Kon watch-only-transacties niet verwijderen</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6134,6 +10324,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>Fout: Dumpbestand checksum komt niet overeen. Gecalculeerd %s, verwacht %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>Fout: Kon geen nieuwe watch-only-portemonnee aanmaken</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6152,6 +10346,34 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Fout: Geen adressen beschikbaar.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>Fout: Niet alle watch-only-transacties konden worden verwijderd</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>Fout: Deze portemonnee gebruikt al SQLite</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>Fout: Deze portemonnee is al een descriptor-portemonnee</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>Fout: Kan niet beginnen met het lezen van alle records in de database</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>Fout: Kan geen back-up van uw portemonnee maken</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>Fout: Kan niet alle records in de database lezen</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>Fout: Kan watch-only-adresboekgegevens niet verwijderen</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>Back-up maken mislukt %s!</translation>
     </message>
@@ -6162,6 +10384,22 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Verwijderen van de back-up is mislukt, foutmelding: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>Kon het opruimen van de onderbroken ongeldige snapshot niet afronden.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>Kon de onderbroken promotie van de snapshotmarkering niet afronden.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>Kon het onderbroken opruimen van de snapshot niet inspecteren: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>Kon het onderbroken opruimen van de snapshot niet herstellen: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6188,12 +10426,36 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Input niet gevonden of al besteed</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>Onvoldoende dbcache voor blokverificatie</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>Het onderbroken opruimen van de snapshot heeft inconsistente coins- en EvoDB-tips.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>Bij het onderbroken opruimen van de snapshot ontbreekt de EvoDB-markering van de snapshot.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>Ongeldige P2P machtiging: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>Ongeldige masternodeblsprivkey. Zie documentatie.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>Ongeldige vooraf geselecteerde input %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>Ongeldige waarde voor %s: overschrijdt het maximum (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>Ongeldige waarde voor %s: moet &gt;= 0 zijn</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6210,6 +10472,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Mixing in progress…</source>
         <translation>Bezig met mixen…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>Er is meer dan één spork-adres opgegeven. %s wordt gebruikt.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6232,12 +10498,36 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Niet genoeg file descriptors beschikbaar.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>Vooraf geselecteerde input %s niet gevonden</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>Vooraf geselecteerde input %s is niet oplosbaar</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>Platform-ontvangers kunnen niet worden gecombineerd met een expliciete wisselgeldpositie</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>Voer eerst de wachtwoordzin van de portemonnee in met walletpassphrase.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>Prune kan niet worden geconfigureerd met een negatieve waarde.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>Prune-modus is niet compatibel met -addressindex.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>Prune modus is niet compatibel met -disablegovernance=false.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>Prune-modus is niet compatibel met -spentindex.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6264,6 +10554,26 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Sectie [%s] wordt niet herkend.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>Stelt een venstertitel in die wordt toegevoegd aan "Dash Core - "</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>Ondertekenaar heeft het adres niet teruggegeven</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>Ondertekenaar gaf een onverwacht adres terug %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>Ondertekenaar gaf een fout terug: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>De EvoDB-markering van de snapshot-chainstate ontbreekt. Een reindex is vereist.</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>Opgegeven -walletdir "%s" bestaat niet</translation>
     </message>
@@ -6276,8 +10586,16 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Opgegeven -walletdir "%s" is geen map</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>De opgegeven gegevensmap "%s" bestaat niet.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>De portemonnee vermijdt minder te betalen dan de minimale doorgeef vergoeding.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>Er is geen ScriptPubKeyManager voor dit adres</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6300,8 +10618,8 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Transactiebedragen moeten positief zijn</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>Transactie heeft een te lange mempoolketen</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates wordt niet ondersteund op de %s-chain.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6364,14 +10682,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>U kunt geen masternode starten met portemennee ingeschakeld.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>Mixen is niet beschikbaar.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>zie debug.log voor meer informatie.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>De %s ontwikkelaars</translation>
     </message>
@@ -6380,16 +10690,16 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>%s gebruikt exact genoemde bedragen om geld te verzenden. Wellicht moet u gewoon wat meer munten mixen.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate optie is niet compatibel met -blockfilterindex. Schakel tijdelijk blockfilterindex uit tijdens het gebruik van -reindex-chainstate, of vervang -reindex-chainstate door -reindex om alle indexen volledig opnieuw op te bouwen.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate optie is niet compatibel met -txindex. Schakel tijdelijk txindex uit tijdens het gebruik van -reindex-chainstate, of vervang -reindex-chainstate door -reindex om alle indexen volledig opnieuw op te bouwen.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>-reindex-chainstate optie is niet compatibel met -coinstatsindex. Schakel tijdelijk coinstatsindex uit tijdens het gebruik van -reindex-chainstate, of vervang -reindex-chainstate door -reindex om alle indexen volledig opnieuw op te bouwen.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate optie is niet compatibel met -txindex. Schakel tijdelijk txindex uit tijdens het gebruik van -reindex-chainstate, of vervang -reindex-chainstate door -reindex om alle indexen volledig opnieuw op te bouwen.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate optie is niet compatibel met -blockfilterindex. Schakel tijdelijk blockfilterindex uit tijdens het gebruik van -reindex-chainstate, of vervang -reindex-chainstate door -reindex om alle indexen volledig opnieuw op te bouwen.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6416,12 +10726,40 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Waarschuwing: Fout bij het lezen van %s! Alle sleutels zijn in goede orde uitgelezen, maar transactiedata of adresboeklemma's zouden kunnen ontbreken of fouten bevatten.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>Fout bij het lezen van %s! Transactiegegevens ontbreken mogelijk of zijn onjuist. Portemonnee wordt opnieuw gescand.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Fout: Adresboekgegevens in de portemonnee kunnen niet aan gemigreerde portemonnees worden toegewezen</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>Fout: Dumpfile record formaat is onjuist. Ontvangen "%s", verwacht "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>Fout: Dumpfile identificaterecord is onjuist. Ontvangen "%s", verwacht "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>Fout: Er zijn dubbele descriptors aangemaakt tijdens de migratie. Uw portemonnee is mogelijk beschadigd.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>Fout: Kon de actieve descriptor tijdens de migratie niet voorbij de legacy-ketenteller brengen.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Fout: Transactie %s in de portemonnee kan niet aan gemigreerde portemonnees worden toegewezen</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>Fout: Kan geen descriptors voor deze legacy-portemonnee aanmaken. Geef de wachtwoordzin van de portemonnee op als die versleuteld is.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>Kon de map met de snapshot-chainstate niet verwijderen. Verwijder die handmatig voordat u opnieuw start.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6480,6 +10818,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Uitgaande verbindingen beperkt tot i2p (-onlynet=i2p) maar -i2psam is niet opgegeven</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>Platform-ontvangers kunnen niet worden gecombineerd met een andere payload van een speciale transactie</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Waarschuwing: Controleer dat de datum en tijd van uw computer correct zijn ingesteld! Bij een onjuist ingestelde klok zal %s niet goed werken.</translation>
     </message>
@@ -6490,6 +10832,26 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>Prune modus is incompatibel met -reindex-chainstate. Gebruik in plaats daarvan een volledige -reindex.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>Hernoemen van '%s' -&gt; '%s' mislukt. Los dit op door de ongeldige snapshotmap %s handmatig te verplaatsen of te verwijderen, anders krijgt u bij de volgende start dezelfde fout.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>De automatische Tor-onionservice kan geen wildcard-onionbind gebruiken, omdat de Tor-daemon binnenkomende verbindingen dan niet naar ons kan doorsturen. Gebruik een specifiek adres zoals -bind=127.0.0.1:&lt;port&gt;=onion, of schakel de service uit met -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>De automatische Tor-onionservice vereist een eigen onionbind. Gebruik een specifiek adres zoals -bind=127.0.0.1:&lt;port&gt;=onion, of schakel de service uit met -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>De grootte van de inputs overschrijdt het maximale gewicht. Probeer een kleiner bedrag te versturen of consolideer de UTXO's van uw portemonnee handmatig</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>Het totaalbedrag van de vooraf geselecteerde munten dekt het transactiedoel niet. Laat andere inputs automatisch selecteren of voeg handmatig meer munten toe</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6504,16 +10866,54 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Dit is de transactievergoeding die je mogelijk betaalt indien geschatte tarief niet beschikbaar is</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>De transactie-index kan niet worden uitgeschakeld als governancevalidatie is ingeschakeld. Start met de opdrachtregeloptie -disablegovernance of schakel de transactie-index in.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>De transactie is niet-standaard (%s) en zou niet worden doorgegeven; voor verzenden naar Platform-adressen is momenteel een node nodig die met -acceptnonstdtxn=1 is gestart</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>Transactie vereist één bestemming met niet-0 waarde, een niet-0 vergoedingspercentage, of een vooraf geselecteerde invoer</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>Validatie van de UTXO-snapshot is mislukt. Herstart om de normale initiële blokdownload te hervatten, of probeer een andere snapshot te laden.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>Kan blokken niet nalopen. U moet de database opnieuw opbouwen met behulp van -reindex-chainstate.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>Onverwachte legacy-vermelding gevonden in descriptor-portemonnee. Portemonnee %s wordt geladen
+
+De portemonnee is mogelijk gemanipuleerd of met kwade bedoelingen gemaakt.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>Onbekend portemonnee bestandsformaat "%s" opgegeven. Geef een van de formaten "bdb" of "sqlite" op.</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>Onbekende descriptor gevonden. Portemonnee %s wordt geladen
+
+De portemonnee is mogelijk gemaakt met een nieuwere versie.
+Probeer de nieuwste softwareversie uit te voeren.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>Niet-ondersteund categoriespecifiek logniveau %1$s=%2$s. Verwacht %1$s=&lt;categorie&gt;:&lt;logniveau&gt;. Geldige categorieën: %3$s. Geldige logniveaus: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6526,10 +10926,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>Waarschuwing: privésleutels gedetecteerd in portemonnee {%s} terwijl privésleutels zijn uitgeschakeld</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>Je moet de database opnieuw opbouwen met -reindex om -timestampindex in te schakelen.</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6570,6 +10966,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>Er is een fatale interne fout opgetreden, zie debug.log voor details</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>Blokverificatie is onderbroken</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6684,10 +11084,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Importeren…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>Onjuiste -rescan modus, er wordt terug gevallen op de standaardwaarde</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>Initialisatie sanity check mislukt. %s is aan het afsluiten.</translation>
     </message>
@@ -6728,10 +11124,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Sessie niet voltooid!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>Sessie verlopen.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>Ondertekenen van transactie mislukt</translation>
     </message>
@@ -6760,10 +11152,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Upgraden van Evo-database mislukt</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>Benodigde vergoeding &gt; betaalde vergoeding</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>Host %s op niet-ondersteund netwerk</translation>
     </message>
@@ -6778,10 +11166,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>Ongeldige poort opgegeven in %s: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>Vorige succesvolle actie is te recent.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6848,6 +11232,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Proberen te verbinden…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>Kan geen geheugen reserveren voor -maxsigcachesize: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>Niet in staat om aan %s te binden op deze computer (bind gaf error %s)</translation>
     </message>
@@ -6876,6 +11264,10 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Niet in staat om het sporkbericht te ondertekenen, verkeerde sleutel?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>Kan de portemonnee niet ontladen vóór de migratie</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>Onbekend netwerk gespecificeerd in -onlynet: '%s'</translation>
     </message>
@@ -6888,12 +11280,12 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
         <translation>Niet-ondersteund URL-schema, moet beginnen met udp://</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>Niet-ondersteunde logboekcategorie %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>Niet-ondersteund globaal logniveau %s=%s. Geldige waarden: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>Het aantal resterende sleutels is heel laag: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>Niet-ondersteunde logboekcategorie %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6918,14 +11310,6 @@ Ga naar Bestand &gt; Open portemonnee om een wallet te openen.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>U kunt governance-validatie op een masternode niet uitschakelen.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>Je moet de database opnieuw opbouwen met -reindex om -addressindex in te schakelen</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>Je moet de database opnieuw opbouwen met -reindex om -spentindex in te schakelen</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

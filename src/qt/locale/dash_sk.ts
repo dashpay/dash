@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>Synchronizácia údajov správy…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>~%n deň (%1 blokov) do superbloku</numerusform><numerusform>~%n dni (%1 blokov) do superbloku</numerusform><numerusform>~%n dní (%1 blokov) do superbloku</numerusform><numerusform>~%n dní (%1 blokov) do superbloku</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>~%n deň (%1 blokov) do hlasovania</numerusform><numerusform>~%n dni (%1 blokov) do hlasovania</numerusform><numerusform>~%n dní (%1 blokov) do hlasovania</numerusform><numerusform>~%n dní (%1 blokov) do hlasovania</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% rozpočtu viazaných (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>Načítať čiastočne podpísanú blockchainovú transakciu zo schránky</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>Otvoriť &amp;ladiaci súbor</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>Otvoriť ladiaci súbor z aktuálneho dátového priečinka</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>Vytvoriť peňaženku…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>Zatvoriť všetky peňaženky…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Migrovať peňaženku</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>Migrovať peňaženku</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>Aktualizovaný</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superblok sa blíži</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Hlasovacie obdobie skončilo</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 blokov) do superbloku</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 blokov) do hlasovania</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% rozpočtu viazaných (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>(ne)vybrať všetko</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>prepnúť stav zámku</translation>
+        <source>(un)lock all</source>
+        <translation>(od)zamknúť všetko</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>Kopírovať zmenu</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>Pre použitie tejto funkcie prepnite na "Zoznamový mód".</translation>
+        <source>Wallet error</source>
+        <translation>Chyba peňaženky</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>Zamknutie niektorých mincí zlyhalo.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>Odomknutie niektorých mincí zlyhalo.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>Rozpustiť zdieľaný masternód</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>Tento masternód bol zaregistrovaný v bloku %1 a reťazec je zatiaľ v bloku %2. Počkajte na jedno potvrdenie a potom toto okno znova otvorte.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>Rozpustiť teraz</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>Rozpustiť spoločne</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>Záložné rozpustenie</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>Ukončí masternód samostatne. Každý dostane svoj vklad späť na svoju adresu na vrátenie.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>Váš podiel:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>Transakčný poplatok, hradený z vrátenia vášho podielu.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>Poplatok:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>ID transakcie</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>Predčasný odchod: zaplatíte pokutu %1. Bezplatné po bloku %2 (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>Súhlasím so zaplatením pokuty %1 za predčasný odchod</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>Zostáva už len %1, kým bude rozpustenie bezplatné. Zvážte počkanie alebo použite Rozpustiť spoločne — so súhlasom všetkých je to hneď bezplatné.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>Úvodné obdobie skončilo — rozpustenie je teraz bezplatné.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (vy)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>Najprv zaškrtnite políčko na prijatie pokuty.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>Počas otvorenia tohto dialógu reťazec prekročil hranicu bez pokuty. Náhľad vyššie bol obnovený — skontrolujte ho a znova stlačte Rozpustiť teraz.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>Rozpustiť tento zdieľaný masternód teraz? Vklad každého účastníka sa vráti na jeho adresu na vrátenie a masternód prestane zarábať. Túto akciu nie je možné vrátiť späť.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>Rozpustenie bolo odoslané.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Bezplatné kedykoľvek, ale musí ho schváliť každý vlastník podielu. Jedna osoba pripraví žiadosť; ostatní ju vložia, schvália a skopírujú späť odpoveď.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. Žiadosť</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>Podiel, z ktorého sa odpočíta transakčný poplatok.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>Poplatok hradí:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Pripraviť žiadosť</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Schválenia</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Pošlite tú istú žiadosť každému vlastníkovi podielu. Odpovede môžu prísť v ľubovoľnom poradí.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>Táto žiadosť vyplatí</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Schváliť a skopírovať odpoveď</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Odoslanie</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>Odoslať rozpustenie</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>Poplatok: %1, hradený z %2.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Najprv pripravte alebo vložte žiadosť.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Najprv musí každý podiel schváliť (zatiaľ %1 z %2).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>Podpísané rozpustenie, ktoré uchovávate offline a nikdy nevysielate, kým ho nepotrebujete. Nikdy nevyprší a funguje aj v prípade straty tejto peňaženky.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Vytvoriť záložné rozpustenie…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopírovať</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>Celý vklad — platné od bloku %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>Celý vklad — platné teraz, úvodné obdobie skončilo</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>Zatiaľ nevytvorené</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>Okamžité — zaplatí pokutu %1</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Uložte ho spolu so zálohou adries na vrátenie, oddelene od tejto peňaženky.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>Uložené %1</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>Uložiť záložné rozpustenie</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>Textový súbor (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>Obe transakcie sú pripravené nižšie, ale nič sa neuložilo. Skopírujte ich alebo súbor vytvorte znova.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Uložené do %1.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Zdieľaný masternód Dash — záložné rozpustenie</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternód: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>Vytvorené: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>Každý blok nižšie je kompletná podpísaná transakcia. Jeden z nich odvysielajte pomocou "sendrawtransaction" iba vtedy, keď chcete ukončiť masternód a získať svoj vklad späť. Nikdy nevypršia. Tento súbor uložte spolu so zálohou adries na vrátenie, oddelene od peňaženky.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>CELÝ VKLAD — platné od bloku %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>CELÝ VKLAD — platné teraz, úvodné obdobie skončilo</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>OKAMŽITÉ — zaplatí pokutu %1 za predčasný odchod, platné ihneď</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Nepodarilo sa zapísať do %1.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>Od</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>Filtrovať zoznam návrhov</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>Počet masternodov:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>Počet masternodov, ktorými môže táto peňaženka hlasovať (masternody, pre ktoré táto peňaženka drží hlasovací kľúč)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>V sieti nie sú žiadne aktívne návrhy.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>Pokračovať v návrhu</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>Počet návrhov:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>Vytvoriť návrh</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>Vyberte návrhy na zobrazenie</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>Filtrovať podľa názvu</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>Nedostupné</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>Vyžaduje sa synchronizovaný uzol a odomknutá peňaženka.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>Hlasovať áno</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>Hlasovať nie</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>Zdržať sa hlasovania</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>Aktívne návrhy</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>Moje návrhy</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>V súbore peňaženky nie sú zaznamenané žiadne návrhy.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>Pokračovať v návrhu</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>Kopírovať surový JSON</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>Otvoriť URL návrhu…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>Podrobnosti pre %1</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>Nie je možné pracovať so správou pred dokončením synchronizácie</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>Vytvorí nový návrh</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>Pokračuje v existujúcom návrhu</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>Vytvorenie návrhu stojí %1, nedostatočný zostatok</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>Chyba</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>Nie je možné overiť URL, možný nesprávny formát alebo neznámy protokol.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>Upozornenie na externý odkaz</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>Chystáte sa otvoriť nasledujúcu URL adresu v predvolenom prehliadači
-
-%1
-
-Tento obsah bol odoslaný používateľom. Nemusí zodpovedať tomu, čo je popísané v názve.
-
-Chcete pokračovať?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>Hlasovanie zlyhalo</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>Žiadna peňaženka nie je k dispozícii.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>V peňaženke sa nenašli žiadne hlasovacie kľúče masternodov.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>Prosím, vyberte návrh na hlasovanie.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>Nie je možné odomknúť peňaženku.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>Nie je možné získať zoznam masternodov. Prosím, skúste to neskôr.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>Masternód %1 sa nenašiel</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>Nepodarilo sa podpísať hlasovanie pre masternód %1</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>Masternód %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>Úspešne hlasované %n krát</numerusform><numerusform>Úspešne hlasované %n krát</numerusform><numerusform>Úspešne hlasované %n krát</numerusform><numerusform>Úspešne hlasované %n krát</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>Nepodarilo sa hlasovať %n krát</numerusform><numerusform>Nepodarilo sa hlasovať %n krát</numerusform><numerusform>Nepodarilo sa hlasovať %n krát</numerusform><numerusform>Nepodarilo sa hlasovať %n krát</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>Chyby:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>Výsledky hlasovania</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Chcete pokračovať?</translation>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;Základy %1&lt;/h3&gt; %1 vám poskytuje skutočné finančné súkromie skrývaním pôvodu vašich zdrojov. Všetky Dashe vo vašej peňaženke pozostávajú z rôznych "vstupov", ktoré si môžete predstaviť ako rozdelené,  diskrétne mince.&lt;br&gt; %1 používa zdokonalený proces pre miešanie vašich vstupov so vstupmi iných ľudí bez toho, aby vaše mince museli opustiť peňaženku. Počas celej doby máte kontrolu nad vašimi peniazmi.&lt;hr&gt; &lt;b&gt;Proces %1 funguje nasledovne:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 začne rozdelením vašich transakčných vstupov na štandardné časti, takzvané denominácie. Tieto denominácie sú 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH a 10 DASH -- v podstate niečo ako papierové peniaze, ktoré používate každý deň.&lt;/li&gt; &lt;li&gt;Vaša peňaženka potom pošle požiadavok špeciálne nastavenému softvérovému uzlu nazvaného "Masternód". Tieto masternódy sú potom informované, že máte záujem miešať určité denominácie. Masternód neobdrží žiadne informácie ktoré by vás identifikovali, takže nikdy nevie kto ste.&lt;/li&gt; &lt;li&gt;Keď ďalší dvaja ľudia pošlú podobnú správu hovoriacu o tom, že chcú miešať rovnakú denomináciu, začne sa samotné miešanie. Masternód zamieša vstupy a povie peňaženkám všetkých troch používateľov, aby zaplatili teraz už zmiešané vstupy sami sebe. Vaša peňaženka zaplatí tieto denominácie priamo sebe, ale už na inú adresu (nazývanú "meniaca adresa").&lt;/li&gt; &lt;li&gt;Aby boli vaše zdroje plne ukryté, vaša peňaženka musí zopakovať tento proces niekoľko krát s každou denomináciou.  Vždy keď je tento proces dokončený, je nazvaný "kolo". Každé kolo %1 exponenciálne sťažuje určiť, odkiaľ pochádzajú vaše zdroje.&lt;/li&gt; &lt;li&gt;Toto miešanie sa deje na pozadí, bez nutnosti zásahov z vašej strany. Keď si prajete uskutočniť transakciu, vaše zdroje budú už zmiešané. Nie je nutné na nič čakať.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt; &lt;b&gt;DÔLEŽITÉ:&lt;/b&gt; Vaša peňaženka obsahuje iba 1000 takýchto "meniacich adries". Vždy keď prebehne miešanie, použije sa maximálne až 9 vašich adries. To znamená, že týchto 1000 adries vystačí zhruba na 100 miešaní. Keď sa použije 900 adries, vaša peňaženka musí vytvoriť viac adries. Toto je však možné iba vtedy, keď máte zapnuté automatické zálohovanie.&lt;br&gt; V dôsledku toho, používatelia ktorí majú zálohovanie vypnuté, budú mať vypnutý aj %1. &lt;hr&gt;Viac informácií nájdete v &lt;a style="%2" href="%3"&gt;dokumentácií ku %1&lt;/a&gt;.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>Všeobecné</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>Verzia klienta</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Nie je k dispozícii</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>Agent používateľa</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>Priečinok s dátami</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>Ak chcete určiť iné ako predvolené umiestnenie dátového priečinka, použite voľbu '%1'.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>Priečinok s blokmi</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>Ak chcete určiť iné ako predvolené umiestnenie priečinka s blokmi, použite voľbu '%1'.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>Čas spustenia</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Sieť</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Názov</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>Počet pripojení</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>Lokálne adresy</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>Sieťové adresy, ktoré váš uzol Dash momentálne používa na komunikáciu s ostatnými uzlami.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>Reťazec blokov</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Aktuálna výška bloku</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Čas posledného bloku</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Hash posledného bloku</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>Pamäť Poolu</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>Aktuálny počet transakcií</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>Využitie pamäte</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>Prijaté:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>Odoslané:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Sieťová aktivita zakázaná</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Žiadne</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Chcete pokračovať?</translation>
         <translation><numerusform>(%n GB potrebný pre úplný reťazec)</numerusform><numerusform>(%n GB potrebné pre úplný reťazec)</numerusform><numerusform>(%n GB potrebných pre úplný reťazec)</numerusform><numerusform>(%n GB potrebných pre úplný reťazec)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>Vyberte dátový priečinok</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>V tomto adresári bude uložené minimálne %1 GB dát, časom sa využité dáta zvýšia.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Chcete pokračovať?</translation>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternód: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Nie je k dispozícii žiadna peňaženka.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>Táto peňaženka je určená iba na sledovanie a nemôže podpisovať transakcie.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>Automaticky (odporúčané)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Zdroj poplatku:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>Na vytvorenie a podpísanie tejto transakcie musí byť peňaženka odomknutá.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>Zadajte platný tajný kľúč operátora BLS (základná schéma).</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>Tajný kľúč operátora nezodpovedá zaregistrovanému verejnému kľúču tohto masternódu.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>Iná operácia s masternódom už prebieha.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>Operácia sa dokončila bez vrátenia transakcie.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>Transakcia bola vytvorená, ale nebola odoslaná do siete.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>Transakcia bola úspešne odoslaná.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>ID transakcie: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Chcete pokračovať?</translation>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>Zdieľaný</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>Filtrovať zoznam masternódov</translation>
     </message>
@@ -1689,6 +1919,22 @@ Chcete pokračovať?</translation>
     <message>
         <source>Hide banned</source>
         <translation>Skryť zakázané</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>Zaregistrovať nový masternód alebo EvoNode pomocou tejto peňaženky</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>Zaregistrovať masternód…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>Vytvoriť masternód so zábezpekou poskladanou od viacerých strán alebo pokračovať v uloženej relácii</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>Zdieľaný masternód…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Chcete pokračovať?</translation>
         <translation>Filtrovať podľa</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>Aktualizovať službu…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>Aktualizovať registrátora…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>Zmeniť adresu odmeny…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>Rotovať kľúče…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>Rozpustiť…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Vytvoriť záložné rozpustenie…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>Odvolať…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>Zaisťovacia adresa</translation>
     </message>
@@ -1717,6 +1991,158 @@ Chcete pokračovať?</translation>
     <message>
         <source>Voting Address</source>
         <translation>Hlasovacia adresa</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>Registrácia masternódu vyžaduje peňaženku.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>Registrácia masternódu zatiaľ nepodporuje peňaženky s externým podpisovateľom.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>Registrácia masternódu vyžaduje peňaženku so súkromnými kľúčmi.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>Registrácia masternódu nie je dostupná, kým uzol nie je pripravený.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>Zaregistrovať nový masternód alebo EvoNode pomocou tejto peňaženky</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>Správa zdieľaných masternódov vyžaduje peňaženku.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>Správa zdieľaných masternódov vyžaduje peňaženku so súkromnými kľúčmi.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>Správa zdieľaných masternódov nie je dostupná, kým uzol nie je pripravený.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>Zdieľané masternódy vyžadujú hard fork v24, ktorý v tejto sieti zatiaľ nie je aktívny.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>Vytvoriť alebo pokračovať v relácii registrácie zdieľaného masternódu s viacerými stranami</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>Táto transakcia nie je čitateľným rozpustením zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Podiel %1 z %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>nerozpoznaný skript</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternód: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>Tento masternód nie je v aktuálnom zozname masternódov.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>Služba: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>Adresa zábezpeky: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>Poplatok hradí: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>Schválili: všetci vlastníci podielov</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>Schválené: iba vaším podpisom</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>Výplaty:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>Poplatok: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>Vklad každého podielu sa vráti na jeho vlastnú adresu na vrátenie. Túto akciu nie je možné vrátiť späť.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>Poznámka: táto transakcia nevracia plný vklad každého podielu. Túto akciu nie je možné vrátiť späť.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>Transakcia: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>Odvysielať toto záložné rozpustenie?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>Vysielanie zlyhalo</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>Záložné rozpustenie odoslané</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>Masternód sa nenašiel</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>Táto správa sa týka masternódu, ktorý zatiaľ nie je v zozname.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>Nie je čo otvoriť</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>Vyžaduje peňaženku schopnú podpisovať transakcie</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>Vyžaduje kľúč vlastníka tohto masternódu v peňaženke</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>Vyžaduje v tejto peňaženke jeden z kľúčov vlastníkov podielov tohto masternódu</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>Už uložené v tomto počítači %1</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>V tomto počítači zatiaľ nevytvorené</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>Filtruje podľa jednej z adries vlastníkov podielov tohto masternódu</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Chcete pokračovať?</translation>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>Zakázaný na %n deň</numerusform><numerusform>Zakázaný na %n dni</numerusform><numerusform>Zakázaný na %n dní</numerusform><numerusform>Zakázaný na %n dní</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>Zakázaný na menej ako deň</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>Zakázaný</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>Aktívny %n deň</numerusform><numerusform>Aktívny %n dni</numerusform><numerusform>Aktívny %n dní</numerusform><numerusform>Aktívny %n dní</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>Zdieľaný masternód · vlastníte %1 z %2 podielov</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>Aktívny menej ako deň</translation>
+        <source>Banned for %1</source>
+        <translation>Zakázaný na %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>Aktívny počas %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>Zdieľaný (vlastníte %1 z %2)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>Zdieľaný (%1 podielov)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Chcete pokračovať?</translation>
     <message>
         <source>ProTx Hash</source>
         <translation>Hash ProTx</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>Jeden z vybraných kľúčov už používa zaregistrovaný masternód alebo podiel. Každý kľúč vlastníka a hlasovací kľúč môže byť v celej sieti použitý iba raz.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>Vybraná adresa služby už je používaná zaregistrovaným masternódom.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>Adresa na vrátenie alebo adresa odmeny nesmie zároveň slúžiť ako adresa vlastníka podielu alebo hlasovacia adresa. Na výplaty a kľúče použite rôzne adresy.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>Podpis súhlasu účastníka nezodpovedá výslednej transakcii. Stáva sa to, keď sa podmienky alebo financujúca transakcia zmenili po podpísaní; zozbierajte nové podpisy.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Sieť zatiaľ neakceptuje túto verziu transakcie. Počkajte na aktiváciu aktualizácie siete, ktorá ju zavádza.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Táto funkcia zatiaľ nie je v sieti aktívna. Počkajte na aktiváciu aktualizácie siete, ktorá ju zavádza.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>Rozpustenie tohto masternódu už čaká na spracovanie.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>Transakciu sa nepodarilo financovať.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>Transakciu sa nepodarilo financovať: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+Odmietnutie sieťou: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>Podrobnosti: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>Migrovať peňaženku</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>Naozaj chcete migrovať peňaženku &lt;i&gt;%1&lt;/i&gt;?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>Migráciou sa táto peňaženka prevedie na jednu alebo viac peňaženiek s deskriptormi. Bude potrebné vytvoriť novú zálohu peňaženky.
+Ak táto peňaženka obsahuje skripty iba na sledovanie, vytvorí sa nová peňaženka, ktorá tieto skripty obsahuje.
+Ak táto peňaženka obsahuje skripty, ktoré sú riešiteľné, ale nie sledované, vytvorí sa iná nová peňaženka, ktorá tieto skripty obsahuje.
+
+Počas migrácie sa pred jej začiatkom vytvorí záloha peňaženky. Tento záložný súbor sa bude volať &lt;názov peňaženky&gt;-&lt;časová pečiatka&gt;.legacy.bak a nájdete ho v priečinku tejto peňaženky. V prípade nesprávnej migrácie je možné zálohu obnoviť pomocou funkcie „Obnoviť peňaženku“.</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Migrovať peňaženku</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>Migruje sa peňaženka &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>Peňaženka '%1' bola úspešne migrovaná.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Skripty iba na sledovanie boli migrované do novej peňaženky s názvom '%1'.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Skripty, ktoré sú riešiteľné, ale nie sledované, boli migrované do novej peňaženky s názvom '%1'.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>Migrácia zlyhala</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>Migrácia bola úspešná</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>Podiel %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>Príspevok „%1“ má chybne formátované ID vstupnej transakcie.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>Príspevok „%1“ má neplatnú adresu pre zvyšok.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>Pripravená transakcia relácie nie je platný hex transakcie.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>Pripravená transakcia relácie nie je registráciou zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>Táto správa bola po skopírovaní upravená.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>Koncept</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>Podmienky uzamknuté</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>Zbierajú sa schválenia</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>Schválenia zlúčené</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>Príspevky podpísané</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>Odvysielané</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>Súbor nie je platný JSON.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>Súbor nie je súborom relácie zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>Súbor relácie používa nepodporovanú verziu formátu. Na jeho otvorenie aktualizujte Dash Core.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>Súbor relácie je určený pre sieť „%1“, ale tento uzol beží v sieti „%2“. Nie je možné ho tu použiť.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>neznáme</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>Súbor relácie neobsahuje ID relácie.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>Súbor relácie má neplatnú revíziu.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>Súbor relácie neobsahuje fázu.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>Súbor relácie je v neznámej fáze „%1“. Pravdepodobne ho vytvoril novší Dash Core.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>Súbor relácie uvádza %1 podielov; zdieľaný masternód ich môže mať najviac %2.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>Záznam podielu %1 v súbore relácie je chybne formátovaný.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>Súbor relácie obsahuje neplatné úvodné obdobie.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>Súbor relácie obsahuje neplatnú pokutu za predčasný odchod.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>Súbor relácie uvádza %1 príspevkov; na jeden podiel môže pripadnúť najviac jeden a podielov môže byť najviac %2.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>Záznam príspevku %1 v súbore relácie je chybne formátovaný.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>Záznam príspevku %1 v súbore relácie má %2 vstupov; jedným príspevkom je možné financovať najviac %3.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>Súbor relácie obsahuje chybne formátovaný hash súhlasu.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>Záznam podpisu %1 v súbore relácie je chybne formátovaný.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>Súbor relácie uvádza pre podiel %1 viac ako jeden podpis.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>Súbor relácie je označený „%1“, ale chýba v ňom zmrazená transakcia alebo hash súhlasu.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>Súbor relácie obsahuje podpis pre podiel, ktorý neexistuje.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>Súbor relácie tvrdí, že schválenia sú zlúčené, ale nie každý podiel má schválenie.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>Súbor relácie tvrdí, že schválenia sú zlúčené, ale jedno schválenie je neplatné: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>Súbor relácie tvrdí, že každý príspevok je podpísaný, ale jeden alebo viac financujúcich vstupov nie je podpísaných.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>Súbor relácie sa nepodarilo spracovať: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>Zdieľaný masternód potrebuje %1 až %2 podielov (momentálne %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>Hlasovacia adresa musí byť platná adresa P2PKH.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>Podiel %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>adresa vlastníka musí byť platná adresa P2PKH.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>adresa vlastníka sa už používa v podiele %1. Každý kľúč vlastníka musí byť jedinečný.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>suma musí byť medzi %1 a %2.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>na vrátenie</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>odmeny</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>adresa %1 musí byť platná adresa P2PKH alebo P2SH.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>adresa na vrátenie sa už používa v podiele %1. Každá adresa na vrátenie musí byť jedinečná.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>adresa %1 nesmie byť hlasovacou adresou.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>adresa %1 nesmie byť adresou vlastníka podielu %2.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>Sumy podielov sa musia sčítať presne na %1 (momentálne %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>Úvodné obdobie môže mať najviac %1 blokov (približne dva roky).</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>Predčasná pokuta nemôže byť záporná.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>Predčasná pokuta musí byť nižšia ako najmenšia suma podielu (%1).</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>Financovanie je možné meniť iba vtedy, keď je relácia upraviteľná. Najprv odomknite podmienky (tým sa zahodia všetky zozbierané schválenia).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>Príspevok potrebuje označenie účastníka.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>Príspevok nemá žiadne financujúce vstupy.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>„%1“ už prispel. Najprv odstráňte existujúci príspevok.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>Vstup %1:%2 už vložil „%3“.</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>Suma zvyšku musí byť kladná.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>Príspevok od „%1“ sa nenašiel.</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>Uzamknúť je možné iba upraviteľnú reláciu.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>Hash súhlasu je chybne formátovaný.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>Hash súhlasu nezodpovedá pripravenej transakcii. Nepodpisujte; začnite krok prípravy odznova.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>Index výstupu zábezpeky nezodpovedá pripravenej transakcii.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>Podmienky ešte nie sú uzamknuté; nie je čo schvaľovať.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>Podiel %1 z %2 neexistuje.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>Podpis nie je platný base64.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>Podpis od %1 sa nedá overiť voči aktuálnym podmienkam. Pravdepodobne bol vytvorený pre staršiu verziu tejto relácie — požiadajte %1, aby aktuálnu verziu podpísal znova.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Tabuľka podielov v súbore relácie nezodpovedá jeho pripravenej transakcii. Nepodpisujte; vyžiadajte si novú kópiu.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Podiel %1 v súbore relácie nezodpovedá jeho pripravenej transakcii. Nepodpisujte; vyžiadajte si novú kópiu.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Adresa odmeny podielu %1 v súbore relácie nezodpovedá jeho pripravenej transakcii. Nepodpisujte; vyžiadajte si novú kópiu.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Podmienky zobrazené v súbore relácie nezodpovedajú jeho pripravenej transakcii. Nepodpisujte; vyžiadajte si novú kópiu.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Financovanie zobrazené v súbore relácie nezodpovedá jeho pripravenej transakcii. Nepodpisujte; vyžiadajte si novú kópiu.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>Pre tento podiel je už zaznamenaný iný podpis. Jedna z kópií podpísala zastaranú verziu relácie — dohodnite sa na najnovšej revízii a nechajte ju podpísať znova.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>Financujúce vstupy je možné podpísať až po zlúčení schválení.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>Pripravená transakcia nezodpovedá podmienkam, ktoré všetci schválili. Nepodpisujte ju ani nevysielajte; vyžiadajte si novú kópiu.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>Táto správa patrí do inej relácie (Relácia %1). Pracujete v relácii %2.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>Odpovede je možné prijať iba dovtedy, kým sú podmienky ešte upraviteľné.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>Odpoveď nezodpovedá vášmu aktuálnemu konceptu: zmenili sa účastníci, sumy alebo podmienky. Požiadajte odosielateľa, aby vložil vaše najnovšie pozvanie, a odpovedzte znova.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>Podiel účastníka %1 už obsahuje údaje z inej odpovede.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>Táto správa neobsahuje uzamknuté podmienky.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>Uzamknuté podmienky neobsahujú údaje, ktoré ste odoslali.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>koordinátora</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>Podmienky sa zmenili od chvíle, keď ste odoslali svoje údaje. Požiadajte %1, aby poslal aktuálne pozvanie, a odpovedzte znova.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>Importovaná kópia je revízia %1 tejto relácie; táto kópia je revízia %2 a importovaná ju nahrádza.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>Importovaná kópia je revízia %1 tejto relácie; táto kópia je už na revízii %2. Pošlite odosielateľovi novší súbor.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>Importovaná kópia má uzamknuté podmienky a nahrádza túto upraviteľnú kópiu.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>Podmienky tejto relácie sú už uzamknuté; importovaná kópia je stále upraviteľná. Pošlite odosielateľovi novšiu aktualizáciu.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>Obe kópie relácie %1 uzamkli rozdielne podmienky a nie je možné ich zlúčiť. Dohodnite sa na jednej kópii, pošlite ju znova a nechajte všetkých schváliť práve túto.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>Obe kópie relácie %1 zmenili rovnaké údaje a nie je možné ich zlúčiť. Dohodnite sa na jednej kópii a pošlite ju znova.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>Kópie s podpísaným financovaním nie sú tou istou transakciou. Nie je možné ich zlúčiť.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>Financujúci vstup %1 má dva rôzne podpisy. Kópie nie je možné zlúčiť.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>Importovaná kópia tvrdí, že schválenia sú zlúčené, ale tento stav je neplatný: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>Importovaná kópia tvrdí, že každý príspevok je podpísaný, ale tento stav je neplatný: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>Importovaná kópia tvrdí, že registrácia bola odvysielaná, ale tento stav je neplatný: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>Relácia nezbiera schválenia.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>Zatiaľ nepodpísal každý podiel (%1 z %2). Zlúčte iba plne podpísanú reláciu.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>Schválenia vlastníkov sa musia zlúčiť pred podpísaním príspevkov.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>Jeden financujúci vstup stále nie je podpísaný.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>Počet financujúcich vstupov, ktoré stále nie sú podpísané: %1.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>Reláciu nie je možné odvysielať, kým nie je k dispozícii každý podpis súhlasu a financovania.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>žiadne</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>asi 1 minúta</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>asi %1 min</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>asi 1 hodina</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>asi %1 hod.</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>asi 1 deň</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>asi %1 d</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>Poplatok musí byť kladný.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>Pokuta a poplatok presahujú podiel rozpúšťajúceho účastníka.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>Jednostranné rozpustenie potrebuje aspoň jeden ďalší podiel, ktorý pokutu získa.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 minca</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 mincí</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 schválenie</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 schválení</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 účastník</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 účastníkov</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 financujúci vstup</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 financujúcich vstupov</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 podiel</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 podielov</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 vstup</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 vstupov</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Chcete pokračovať?</translation>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>Kreditný pool</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>Posledná zmena bloku</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Nie je k dispozícii</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>Celkovo zamknuté</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>Čakajúce odomknutia</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>Limit výberu</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>Overené zámky</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>Neoverené zámky</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>Zámky čakajúce na transakciu</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>Nechránené transakcie</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>Masternódy</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>Počet masternódov</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>Počet EvoNodov</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ChainLocks</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Aktuálna výška bloku</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Čas posledného bloku</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Hash posledného bloku</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>Kvóra</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Spolu: %1 (Povolené: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Čaká sa na synchronizáciu blockchainu…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 aktívnych (zdravie %2%)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>Typ kvóra sa rotuje, údaje sa uchovávajú počas %1</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>Typ kvóra sa nerotuje, údaje sa uchovávajú počas %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>Aktuálnemu kvóru zostáva %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>Aktuálne kvórum vypršalo</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>Naposledy vytvorené pred %1</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>Naposledy vytvorené nedávno</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Chcete pokračovať?</translation>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>Otvára sa peňaženka &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>Vygenerovať nový kľúč operátora</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>Tajný kľúč sa pred registráciou zobrazí a potvrdí, potom sa už nikde inde neuchováva.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Verejný kľúč</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>Použiť existujúci verejný kľúč operátora</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>Pre hostovaný uzol: operátor si ponechá tajný kľúč a vám dá verejný kľúč.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>Verejný kľúč operátora BLS (96 hexadecimálnych znakov, základná schéma)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>Tajný kľúč operátora BLS (64 hexadecimálnych znakov)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>Operácie PSBT</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>Dialóg</translation>
     </message>
@@ -2968,10 +4148,6 @@ Kvôli ukončeniu podpory by ste mali požiadať obchodníka, aby vám poskytol 
         <translation>Zobraziť obsah</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>Vytvoriť návrh</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 bolo úspešne odoslané pre váš návrh "%2".
 
 Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. Môžete v tom pokračovať neskôr kliknutím na "Pokračovať v návrhu".</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>Všeobecné</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>Hlasovacie cykly</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Nie je k dispozícii</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>Posledný superblok</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>Ďalší superblok</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>Uzatvárací blok hlasovania</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>Účasť</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>Hlasujúce masternódy</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>Hlasujúce EvoNode</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>Prahová hodnota schválenia</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Uzol</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>Ovládané masternódy</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>Ovládané hlasy</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>Návrhy</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>Počet návrhov</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>Pridelený rozpočet</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>Prechádzajúce návrhy</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>Nefinancované návrhy</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>Neprechádzajúce návrhy</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 hlasov</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 oprávnených)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>Návrh %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>%1% rozpočtu</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% pridelených</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (chýba %2)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>Formulár</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>Vyberte návrhy na zobrazenie</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>Filtrovať zoznam návrhov</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>Filtrovať podľa názvu</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>Termín hlasovania: čaká sa na synchronizáciu…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>V sieti nie sú žiadne aktívne návrhy.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>Hlasy…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>Zobraziť vaše aktuálne hlasy a hlasovať vybranými masternódmi</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>Vytvoriť návrh</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>Pokračovať v návrhu</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>Počet návrhov:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>Aktívne návrhy</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>Moje návrhy</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>Aktuálne hlasy za financovanie od oprávnených masternódov ovládaných touto peňaženkou. Počty sú vážené hlasy.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (váha %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>Žiadne hlasovacie kľúče</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>V súbore peňaženky nie sú zaznamenané žiadne návrhy.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Nedostupné</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>Vyžaduje sa synchronizovaný uzol a odomknutá peňaženka.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>Pokračovať v návrhu</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>Kopírovať surový JSON</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>Otvoriť URL návrhu…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>Hlasovať áno</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>Hlasovať nie</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Zdržať sa hlasovania</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>Podrobnosti pre %1</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Čaká sa na synchronizáciu blockchainu…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>Čaká sa na synchronizáciu správy…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n masternód dostupný na hlasovanie</numerusform><numerusform>%n masternódy dostupné na hlasovanie</numerusform><numerusform>%n masternódov dostupných na hlasovanie</numerusform><numerusform>%n masternódov dostupných na hlasovanie</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superblok sa blíži</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Hlasovacie obdobie skončilo</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 blokov) do superbloku</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 blokov) do hlasovania</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% rozpočtu viazaných (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>Odhad vychádza zo zostávajúcich blokov a cieľového času bloku. Hlasy je možné šíriť aj po termíne, ale nemusia ovplyvniť platbu v tomto cykle.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>Nie je možné pracovať so správou pred dokončením synchronizácie</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>Vytvorí nový návrh</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>Pokračuje v existujúcom návrhu</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>Vytvorenie návrhu stojí %1, nedostatočný zostatok</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Chyba</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>URL nie je možné overiť, je potenciálne chybná alebo používa neznámy protokol.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>Upozornenie na externý odkaz</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>Chystáte sa otvoriť nasledujúcu URL vo vašom predvolenom prehliadači
+
+%1
+
+Tento obsah odoslal používateľ. Nemusí zodpovedať tomu, čo je opísané v názve.
+
+Chcete pokračovať?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>Hlasovanie zlyhalo</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>Nie je k dispozícii žiadna peňaženka.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>V peňaženke sa nenašli žiadne hlasovacie kľúče masternódov.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>Nie je možné získať údaje o masternódoch.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>Vyberte návrh, o ktorom chcete hlasovať.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>Hlasovanie vyžaduje odvysielaný návrh a synchronizovaný uzol.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>Peňaženku sa nepodarilo odomknúť.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>Nie je možné získať synchronizované údaje o masternódoch.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>Masternód %1 už nie je oprávnený</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>Masternód %1 sa nenašiel</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>Nepodarilo sa podpísať hlasovanie pre masternód %1</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>Masternód %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>Úspešne hlasované %n krát</numerusform><numerusform>Úspešne hlasované %n krát</numerusform><numerusform>Úspešne hlasované %n krát</numerusform><numerusform>Úspešne hlasované %n krát</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>Nepodarilo sa hlasovať %n krát</numerusform><numerusform>Nepodarilo sa hlasovať %n krát</numerusform><numerusform>Nepodarilo sa hlasovať %n krát</numerusform><numerusform>Nepodarilo sa hlasovať %n krát</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Chyby:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>Výsledky hlasovania</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
     <message>
         <source>needs %1 more votes</source>
         <translation>potrebných ešte %1 hlasov</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>Moje hlasy</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>Hlasovať: %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>Hlasy o návrhu</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>Vyberte masternódy, ktorými chcete hlasovať. Aktuálne hlasy za financovanie sú zobrazené nižšie. Zmenou hlasu sa nahradí predchádzajúci hlas daného masternódu; sieť obmedzuje aktualizácie na jednu za hodinu.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternód</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>Hlasovacia adresa</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>Váha</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>Aktuálny hlas</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>Čas hlasovania</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>Hash ProTx</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Vybrať všetko</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>Zrušiť výber</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>Vybrané masternódy: %1 · Váha hlasu: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Zobraziť uvítaciu obrazovku pri spustení (predvolené: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Chyba: Zadaný dátový adresár "%1" neexistuje.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>Chyba: Nie je možné načítať konfiguračný súbor: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
     <message>
         <source>Unroutable</source>
         <translation>Nesmerovateľné</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
         <translation> %1 a  %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>teraz</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n mesiac</numerusform><numerusform>%n mesiace</numerusform><numerusform>%n mesiacov</numerusform><numerusform>%n mesiacov</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
     <message>
         <source>UNKNOWN</source>
         <translation>NEZNÁMY</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Zdieľaný</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
         <translation>Odmena operátora</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>Podiely</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>Účastník</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>Adresy</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>Podiel %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>vy</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>rovnaká ako adresa na vrátenie</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Vlastník</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>Odmena</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>Vrátenie</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>Úvodné obdobie</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>žiadne</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>končí blokom %1</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>končí blokom %1 (približne o %2)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>skončilo (blok %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>Pokuta za predčasný odchod</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>uložené v tomto počítači %1</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>v tomto počítači nevytvorené</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Záložné rozpustenie</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>Sieťové adresy</translation>
     </message>
@@ -3537,6 +5235,66 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
         <source>Collateral Date</source>
         <translation>Dátum zálohy</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>pred %1</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>zostáva %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Áno</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Nie</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>Zdržanie sa</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>Bez hlasu</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>Termín hlasovania pre tento cyklus uplynul (blok %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>Termín hlasovania: zostáva ~%1 (%2 blokov, blok %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1Á, %2N, %3Z / %4 bez hlasu</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>Neplatná adresa Dash: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopírovať</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>Kopírovať do schránky</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Nie je k dispozícii žiadna peňaženka.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>Nepodarilo sa vygenerovať novú adresu: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Podiel %1 z %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
         <translation>&amp;Informácie</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>Všeobecné</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Názov</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>Nie je k dispozícii</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>Počet pripojení</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>&amp;Otvoriť</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>Čas spustenia</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>Sieť</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>Čas posledného bloku</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>Súbor záznamu ladenia</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>Verzia klienta</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>Reťazec blokov</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>Pamäť Poolu</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>Aktuálny počet transakcií</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>Využitie pamäte</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
     <message>
         <source>&amp;Repair</source>
         <translation>&amp;Oprava</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;Všeobecné</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;Sieť</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>Do&amp;zor</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
     <message>
         <source>User Agent</source>
         <translation>Agent používateľa</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>Priečinok s dátami</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>Ak chcete zadať iné ako predvolené umiestnenie adresára údajov, použite voľbu '%1'.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Blocksdir</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>Ak chcete zadať iné ako predvolené umiestnenie adresára blokov, použite voľbu '%1'.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>Lokálne adresy</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>Sieťové adresy, ktoré váš Dash uzol momentálne používa na komunikáciu s ostatnými uzlami.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>Počet bežných masternodov</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>Počet EvoNodov</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>Aktuálna výška bloku</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>Hash posledný bloku</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>Najnovší blokový hash ChainLocked</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>Najnovšia výška bloku ChainLocked</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Otvoriť %1 ladiaci výpis z aktuálnej zložky. Pri veľkých súboroch to môže chvíľu trvať.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>Zámky InstantSend</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
         <translation>&amp;Zrušiť zákaz</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>Dnu:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Von:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>Sieťová aktivita zakázaná</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>Žiadne</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>Celkovo: %1 (Povolené: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>Vykonávanie príkazu bez akejkoľvek peňaženky</translation>
     </message>
@@ -4122,6 +5768,10 @@ Teraz budete presmerovaní na sledovanie a odoslanie vášho nového návrhu. M�
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: šifrovaný transportný protokol BIP324</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;Dozor</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>Registrácia masternódu</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Späť</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Ďalej</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Zrušiť</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>Typ masternódu</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>Masternód — zábezpeka %1</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Poskytuje služby siete Core a získava pravidelné odmeny masternódu.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode — zábezpeka %1</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>Navyše hostí Dash Platform, má štvornásobnú váhu hlasu a získava väčší podiel z odmien. Vyžaduje ID uzla platformy a ďalšie služby.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>Zaregistrovať EvoNode</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>Zábezpeka</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>Poslať zábezpeku z tejto peňaženky na novú adresu</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>Jedna transakcia financuje zábezpeku a zaregistruje masternód.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Použiť novú adresu</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>Použiť existujúci výstup zábezpeky z tejto peňaženky</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>Nevyčerpaný výstup P2PKH presne vo výške zábezpeky, potvrdený a nepoužitý iným masternódom.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>Odkázať na externú zábezpeku (napr. hardvérová peňaženka)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>Potvrdený výstup P2PKH presne vo výške zábezpeky, uložený mimo tejto peňaženky.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>Po kontrole budete vyzvaní podpísať správu kľúčom zábezpeky mimo tejto peňaženky.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>ID transakcie zábezpeky (64 hexadecimálnych znakov)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>ID transakcie:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>Index výstupu</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>Index výstupu:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>Adresy služby</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>Verejné adresy, na ktorých bude váš masternód poskytovať službu v sieti Core P2P, oddelené čiarkami alebo medzerami. Každý záznam musí byť v sieti jedinečný.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>Môže zostať prázdne; masternód potom ostane neaktívny, kým neodošlete aktualizáciu služby s adresou.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Kľúče</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Adresa vlastníka</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>Riadi tento masternód (P2PKH): jeho kľúč podpisuje aktualizácie registrátora. Použite novú adresu, ak chcete kľúč ponechať v tejto peňaženke, alebo zadajte adresu pod kontrolou vlastníka.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>Hlasovacia adresa</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>Môže byť delegovaná (P2PKH). Ak ju ponecháte prázdnu, bude sa hlasovať kľúčom vlastníka; použite novú adresu, ak chcete mať v tejto peňaženke samostatný hlasovací kľúč.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>Ak ponecháte prázdne, použije sa adresa vlastníka</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>Kľúč operátora</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>Operátor prevádzkuje server masternódu (BLS); na blockchaine sa registruje iba verejný kľúč.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>Vygenerovaný tajný kľúč sa zobrazí a pred registráciou ho musíte potvrdiť. V tejto peňaženke sa neukladá.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>Výplata</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Adresa výplaty</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>Prijíma odmeny za bloky tohto masternódu (P2PKH alebo P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Odmena operátora</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>Podiel z odmeny sľúbený operátorovi.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>Operátor bude natrvalo dostávať tento podiel zo všetkých odmien tohto masternódu. Ponechajte 0, pokiaľ nemáte s operátorom dohodu.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>Služby platformy</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>ID uzla platformy</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>Odvodené z verejného kľúča P2P platformy (40 hexadecimálnych znakov).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>Adresy platformy</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>Záznamy ADDR:PORT, oddelené čiarkami alebo medzerami.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>P2P platformy</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>HTTPS API platformy</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>Porty platformy</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>Pred aktiváciou v24 je možné zaregistrovať iba porty platformy; platia pre prvú adresu služby.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Port P2P platformy:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Port HTTPS platformy:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>Zdroj poplatku</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Kontrola</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>Preukázať vlastníctvo zábezpeky</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>Podpíšte nasledujúcu správu kľúčom zábezpeky (napríklad funkciou podpisu správ vašej hardvérovej peňaženky) a potom nižšie vložte podpis vo formáte base64.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>Kopírovať správu</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>Podpis</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>Sem vložte podpis vo formáte base64</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Uložiť kľúč operátora</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Uložte si tento vygenerovaný kľúč pred registráciou. Nikde inde sa neuchováva a nie je možné ho z peňaženky obnoviť.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Tajný kľúč operátora</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>Uložte si ho teraz — registrácia sa nemôže začať, kým ho nepotvrdíte.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>Pridajte tento riadok do dash.conf na serveri vášho masternódu:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopírovať</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>Na potvrdenie, že ste si kľúč pred registráciou uložili, napíšte posledné 4 znaky tajného kľúča:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>Masternód zaregistrovaný</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Hash transakcie poskytovateľa</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Ďalšie kroky</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Dokončené</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Krok %1 z %2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>Vybraná adresa financuje zábezpeku %1 plus transakčný poplatok. Presný poplatok sa vypočíta z nastavení vašej peňaženky pri registrácii a zvyšok sa vráti na túto adresu.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>Vybraná adresa hradí transakčný poplatok.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>Zadajte platnú adresu zábezpeky (P2PKH alebo P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>Táto peňaženka nemá nevyčerpaný výstup presne vo výške %1. Namiesto toho financujte zábezpeku z peňaženky.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>Zadajte ID transakcie zábezpeky ako 64 hexadecimálnych znakov.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>EvoNode potrebujú pred aktiváciou v24 aspoň jednu adresu služby, ktorá ponesie porty platformy.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Zadajte platnú adresu vlastníka (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>Zadajte platnú hlasovaciu adresu (P2PKH) alebo ju ponechajte prázdnu, aby sa použila adresa vlastníka.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>Adresa vlastníka a hlasovacia adresa sa musia líšiť od adresy zábezpeky.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Zadajte platný verejný kľúč operátora BLS (96 hexadecimálnych znakov, základná schéma).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>Zadajte platnú adresu výplaty (P2PKH alebo P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>Adresa výplaty sa musí líšiť od adresy vlastníka a hlasovacej adresy.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>Adresa výplaty sa musí líšiť od adresy zábezpeky.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>Zadajte ID uzla platformy ako 40 hexadecimálnych znakov.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>Zadajte adresu P2P platformy aj adresu HTTPS platformy; jednu nie je možné zaregistrovať bez druhej.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>Zadajte aspoň jednu adresu P2P platformy a jednu adresu HTTPS platformy, alebo vymažte adresy služby a všetko nastavte neskôr aktualizáciou služby.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>Ak sú nastavené koncové body platformy, zadajte aspoň jednu adresu služby Core, alebo vymažte všetky koncové body služby a nastavte ich neskôr aktualizáciou služby.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>Žiadna použiteľná adresa peňaženky nedrží sumu zábezpeky %1. Vybraná adresa musí mať navyše dosť prostriedkov na poplatok vypočítaný pri registrácii.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>Žiadna použiteľná adresa peňaženky nemá kladný zostatok dostupný na úhradu transakčného poplatku.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>Vložte podpis vyššie uvedenej správy vo formáte base64, vytvorený kľúčom zábezpeky.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>Tlačidlo Späť nie je po príprave dostupné, pretože zmena registrácie by zneplatnila podpisovanú správu.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Pokračovať</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>Pripraviť</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Zaregistrovať</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Odoslať</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Dokončiť</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>Nie je k dispozícii žiadna peňaženka. Registrácia masternódu vyžaduje peňaženku.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>Táto peňaženka je určená iba na sledovanie. Registrácia masternódu vyžaduje peňaženku, ktorá môže podpisovať transakcie.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Potvrďte, že ste si uložili tajný kľúč operátora, napísaním jeho posledných 4 znakov.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>Táto peňaženka nemá nevyčerpaný a potvrdený výstup presne vo výške %1. Pošlite zábezpeku radšej z tejto peňaženky alebo odkážte na výstup uložený inde.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Služba</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>HTTPS platformy</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Suma</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>Cieľ</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>Výstup</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Zdroj</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Vlastník</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>Hlasovanie</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>Operátor</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Adresa</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>Podiel operátora</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>Sieťový poplatok</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Uzol</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternód</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>Nenastavené — uzol zostane neaktívny, kým neodošlete aktualizáciu služby</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 P2P, %2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>Táto peňaženka ju pošle v rámci registrácie</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>Výstup, ktorý táto peňaženka už drží</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>Uložené mimo tejto peňaženky — podpíšete správu jeho kľúčom</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>Rovnaká ako vlastník</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Financovanie</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>Nevybrané</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>Vypočíta sa pri odoslaní podľa aktuálnych nastavení poplatkov peňaženky</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>Príprava vytvorí nepodpísanú transakciu a správu na podpísanie kľúčom zábezpeky. Zatiaľ sa nič nevysiela.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>Registráciou sa z tejto peňaženky odvysiela transakcia. Môže sa od vás vyžadovať jej odomknutie.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>Novovygenerovaný, zobrazený a potvrdený pred registráciou a nikde inde sa neuchováva</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>Poskytne ten, kto uzol prevádzkuje</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>Cieľ zábezpeky už nie je platný.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>Vybraný výstup zábezpeky už používa iný masternód.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>Adresa vlastníka už nie je platná.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>Hlasovacia adresa už nie je platná.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>Verejný kľúč operátora už nie je platný.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>Adresa výplaty už nie je platná.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>Vybraný zdroj poplatku už nie je platný.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>masternód</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>Táto transakcia vytvorí z tejto peňaženky zábezpeku %1 a zaregistruje %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>Táto transakcia zaregistruje externú zábezpeku %1 a urobí z nej zábezpeku pre tento %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>Táto transakcia zaregistruje a uzamkne výstup zábezpeky %1 z peňaženky pre tento %2.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> Sieťový poplatok sa vypočíta z vybraného zdroja poplatku podľa aktuálnych nastavení poplatkov peňaženky.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>Potvrdiť registráciu: %1</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>Chcete odvysielať túto registráciu (%1)?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>Zdroj poplatku: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>Pravidlá transakcií poskytovateľa v sieti sa zmenili počas otvorenia tohto sprievodcu. Pred registráciou si znova skontrolujte stranu so službami platformy.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Pripravuje sa…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>Registruje sa…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>Pravidlá transakcií poskytovateľa v sieti sa zmenili počas zbierania podpisu zábezpeky. Zahoďte túto pripravenú registráciu a znova skontrolujte stranu so službami platformy.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>Podpis zábezpeky nie je platný base64.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>Odosiela sa…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>Registrácia zlyhala</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>Registrácia sa dokončila bez vrátenia transakcie.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>Transakcia registrácie bola vytvorená, ale nebola odoslaná do siete.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>Operácia prípravy sa dokončila bez vrátenia transakcie.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>Adresa zábezpeky, ktorá drží kľúč: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>Transakcia registrácie bola odoslaná do siete.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>Je zaznamenaná v tejto peňaženke a zobrazuje sa v časti Transakcie. Externá zábezpeka zostáva na výstupe (outpoint), ktorý ste zaregistrovali, a táto peňaženka ju neovláda.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>Je zaznamenaná v tejto peňaženke a zobrazuje sa v časti Transakcie. Zábezpeka zostáva v peňaženke, ale je uzamknutá, kým je masternód zaregistrovaný.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>Nastavte server svojho masternódu pomocou uloženého tajného kľúča operátora a potom na ňom reštartujte dashd.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>Nastavte server svojho masternódu pomocou tajného kľúča BLS zodpovedajúceho verejnému kľúču operátora, ktorý ste poskytli.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Uistite sa, že každá zaregistrovaná adresa služby a port sú dostupné z internetu.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>Keď budú koncové body služby uzla pripravené, odošlite transakciu Aktualizovať službu; dovtedy zostane neaktívny.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>Pripravte služby Dash Platform (Tenderdash a Drive) s kľúčom uzla platformy zodpovedajúcim ID uzla, ktoré ste zaregistrovali.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>EvoNode sa stane aktívnym po potvrdení registrácie a po podpísaní prvej aktualizácie operátorom.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>Masternód sa stane aktívnym po potvrdení registrácie v sieti.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>Zahodiť pripravenú registráciu?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>Pripravená registrácia sa zahodí. Každé uzamknutie zábezpeky získané týmto sprievodcom sa uvoľní.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>Správa obnovy peňaženky</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>Neurčené</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>Ukončenie služby</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>Kompromitované kľúče</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>Zmena kľúčov</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>Dôvod:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Kľúč operátora:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automatická voľba použije aktuálnu výplatu operátora a potom výplatu masternódu. Adresu vyberte iba vtedy, ak chcete túto voľbu prepísať.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>Odvolať službu masternódu</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>Odvolaním sa vymaže adresa služby a masternód dostane zákaz PoSe, kým vlastník nezmení kľúč operátora. Zábezpeka nie je dotknutá.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>Odvolať</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>Rotácia kľúča operátora alebo hlasovacieho kľúča</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Zmena týchto kľúčov vyžaduje schválenie od každého vlastníka podielu. Jedna osoba spustí žiadosť; ostatní ju vložia, schvália a skopírujú späť odpoveď.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. Nové kľúče</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>Ak ponecháte prázdne, ponechá sa aktuálny kľúč operátora</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopírovať</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>Nový kľúč operátora:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>Masternód dostane zákaz v okamihu zmeny kľúča operátora, kým nový operátor neodošle aktualizáciu služby.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>Ak ponecháte prázdne, ponechá sa aktuálna hlasovacia adresa</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>Nová hlasovacia adresa:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Zdroj poplatku:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Pripraviť žiadosť</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>Dokončite v tejto peňaženke — hradí poplatok a musí odoslať konečnú transakciu.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Schválenia</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Pošlite tú istú žiadosť každému vlastníkovi podielu. Odpovede môžu prísť v ľubovoľnom poradí.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Schváliť a skopírovať odpoveď</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Odoslanie</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>Odoslať rotáciu</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>ID transakcie</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>Kľúč operátora: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>nezmenené</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>Hlasovacia adresa: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Najprv pripravte alebo vložte žiadosť.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>Žiadosť môže odoslať iba peňaženka, ktorá ju pripravila.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Najprv musí každý podiel schváliť (zatiaľ %1 z %2).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>Zadajte platný verejný kľúč operátora.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>Hlasovacia adresa musí byť adresa P2PKH.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>Rotácia kľúčov bola odoslaná.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>Ak chyba hovorí, že žiadosť musí zlúčiť peňaženka, ktorá ju financovala, dokončite ju v peňaženke, ktorá žiadosť pripravila.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
         <translation>alebo</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>Nepodpísaná transakcia</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBT bola skopírovaná do schránky. Môžete ju tiež uložiť.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT uložená na disk</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>Potvrdiť odoslanie mincí</translation>
     </message>
@@ -4688,6 +7188,7 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT uložené</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>Poplatok vyšší ako %1 sa považuje za neprimerane vysoký.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>Odhad pre začiatok potvrdzovania je %n blok.</numerusform><numerusform>Odhad pre začiatok potvrdzovania sú %n bloky.</numerusform><numerusform>Odhad pre začiatok potvrdzovania je %n blokov.</numerusform><numerusform>Odhad pre začiatok potvrdzovania je %n blokov.</numerusform></translation>
@@ -4900,6 +7405,1441 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     <message>
         <source>Create Unsigned</source>
         <translation>Vytvoriť nepodpísané</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>Zdieľaný masternód</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Späť</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Vložiť</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>Uložiť…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Zrušiť</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Ďalej</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Podrobnosti</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>Financované</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Schválené</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>Podpísané</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>iná operácia stále prebieha.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>nie je k dispozícii žiadna peňaženka.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>peňaženka zostala zamknutá.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>uzol neuviedol dôvod.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>registrácia nie je platná transakcia.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>Zdieľaný masternód</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>Niekoľko ľudí spoločne financuje jeden masternód. Jedna osoba koordinuje; ostatní vložia to, čo dostanú, a skopírujú späť odpoveď. Až do záverečného odvysielania sa do siete nedostane nič.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Začať</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>Zadáte, kto sa zúčastňuje, a nastavenia masternódu, potom pozvete ostatných.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>Začať zdieľaný masternód</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Pokračovať</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>Vložte pozvánku, uzamknuté podmienky, žiadosť o podpis alebo akúkoľvek odpoveď, ktorú ste dostali — aplikácia už bude vedieť, čo robiť.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>Vložiť zo schránky</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Otvoriť súbor…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Účastníci</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>Kto sa zúčastňuje a koľko každý prispieva. Sumy sa musia sčítať presne na %1; každý podiel je aspoň %2.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Meno</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Suma</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>Ja</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>Pridať účastníka</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>Účastník %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Odstrániť</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>Nastavenia masternódu</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>Platia pre celý masternód a sú rovnaké pre každého účastníka.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Adresy služby:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>Verejné adresy, na ktorých masternód poskytuje službu v sieti Core P2P, oddelené čiarkami alebo medzerami. Môže zostať prázdne a nastaviť sa neskôr aktualizáciou služby.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Kľúč operátora:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>Tajný kľúč potrebuje ten, kto prevádzkuje server. Na blockchaine sa registruje iba verejný kľúč.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>Kopírovať verejný kľúč</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Uzol prevádzkuje:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>Zaznamenané v podmienkach, aby každý vedel, kto môže uzol spustiť a oživiť.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>Meno účastníka, ktorý uchováva tajný kľúč operátora</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Hlasovacia adresa:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>Hlasuje o návrhoch správy za celý masternód (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Použiť novú adresu</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Odmena operátora:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>Podiel z odmeny sľúbený tomu, kto prevádzkuje server.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>Operátor bude natrvalo dostávať tento podiel zo všetkých odmien skôr, než sa čokoľvek rozdelí medzi účastníkov.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Podmienky odchodu</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>Čo sa stane, ak chce jeden účastník odísť skôr ako ostatní.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>Ako funguje odchod</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>Ktokoľvek môže masternód kedykoľvek rozpustiť samostatne a každý dostane svoj vklad späť. Počas úvodného obdobia platí ten, kto rozpúšťa sám, pokutu za predčasný odchod zo svojho podielu a rozdelí sa medzi ostatných. Ak súhlasia všetci, rozpustenie je kedykoľvek bezplatné.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Úvodné obdobie:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>Počet blokov po registrácii, počas ktorých samostatný odchod stojí pokutu.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Žiadne</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 mesiace</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 mesiacov</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 rok</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 roky</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Pokuta za predčasný odchod:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>Váš príspevok</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>Adresy a mince pre váš podiel. Mince vidíte iba vy; ostatní vidia len výsledné vstupy transakcie.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>Váš podiel</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>Toto som ja:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>Adresa vlastníka:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>Riadi váš podiel: schvaľuje zmeny kľúčov a rozpustenia. Uložená v tejto peňaženke.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>Adresa na vrátenie:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>Prijme váš vklad po rozpustení masternódu. Neskôr ju nie je možné zmeniť.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>Adresa odmeny (voliteľné):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>Prijíma vašu časť odmien. Ak ponecháte prázdne, použije sa adresa na vrátenie; neskôr ju môžete zmeniť.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>Mince</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>Sieťový poplatok:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>Rezervovať mince</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Uvoľniť</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Uložiť kľúč operátora</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Uložte si tento vygenerovaný kľúč pred pozvaním kohokoľvek. Nikde inde sa neuchováva a nie je možné ho z peňaženky obnoviť.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Tajný kľúč operátora</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>Uložte si ho teraz — pozvánku nie je možné odoslať, kým ho nepotvrdíte.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopírovať</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>Pridajte tento riadok do dash.conf na serveri masternódu:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>Pozvánka, ktorú chcete odoslať, obsahuje iba verejný kľúč.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>Na potvrdenie, že ste si kľúč uložili, napíšte posledné 4 znaky tajného kľúča:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>Pozvať účastníkov</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>Pošlite tú istú pozvánku všetkým. Každý si rezervuje svoje mince a pošle vám späť svoje údaje.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>Kopírovať pozvánku</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>Pozvánka</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>Uložiť pozvánku…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>Zmenili ste koncept. Účastníci, ktorí už odpovedali, musia odpovedať znova.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>Uzamknúť tieto podmienky?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>Uzamknutím sa zafixuje každá adresa, suma a minca. Potom už nikto nemôže upravovať — iba odomknúť, čím sa zahodia všetky schválenia.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>Schválenia</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>Kopírovať uzamknuté podmienky</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>Uzamknuté podmienky</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>Odomknúť podmienky…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>Podpisy</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>Kopírovať žiadosť o podpis</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>Žiadosť o podpis</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>Čo ste odoslali</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>Čo bude nasledovať</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>Uvoľniť moje mince</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>Zdieľaný masternód zaregistrovaný</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>Čo sa stalo</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>Po jednom potvrdení sa zobrazí v časti Masternódy.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>Čo uchovať v bezpečí</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>Kľúč vlastníka vášho podielu</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Záložné rozpustenie</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>Podpísané rozpustenie, ktoré uchovávate offline. Obnoví váš vklad, aj keď sa táto peňaženka stratí. Vytvorte ho po prvom potvrdení.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Vytvorte ho zo zoznamu Masternódy (kliknutím pravým tlačidlom na masternód), keď bude registrácia potvrdená, a uložte ho spolu so zálohou adries na vrátenie, oddelene od tejto peňaženky.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>Záznam relácie</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>Uložiť konečný záznam…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Ďalšie kroky</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>Kopírovať konečný záznam</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>Konečný záznam</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Čaká sa na: %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>koordinátor</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>Schváliť podmienky</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>Podpísať príspevok</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Dokončené</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Krok %1 z %2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Nie je k dispozícii žiadna peňaženka.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>Táto peňaženka nemôže podpisovať. Môžete si to pozrieť, ale nemôžete sa zúčastniť.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>Zdieľaný masternód potrebuje %1 až %2 účastníkov.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>Zadajte meno účastníka %1.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>Meno „%1“ sa použilo dvakrát.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>Každý podiel je aspoň %1.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>Sumy dávajú dokopy %1; musia byť presne %2.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>Vyberte účastníka, ktorým ste vy.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Zadajte platný verejný kľúč operátora BLS (96 hexadecimálnych znakov, základná schéma).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>Zadajte platnú hlasovaciu adresu (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>Ak nie je úvodné obdobie, nastavte pokutu za predčasný odchod na 0.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>Pokuta za predčasný odchod musí byť menšia ako najmenší podiel (%1).</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Zadajte platnú adresu vlastníka (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>Zadajte platnú adresu na vrátenie (P2PKH alebo P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>Zadajte platnú adresu odmeny (P2PKH alebo P2SH) alebo ju ponechajte prázdnu.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Adresa odmeny sa musí líšiť od hlasovacej adresy a od každej adresy vlastníka.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>Pred uzamknutím podmienok musí každý účastník poslať späť svoje údaje.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Táto peňaženka je určená iba na sledovanie a nemôže podpisovať.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>Najprv uložte tajný kľúč operátora. Zobrazí sa raz, na stránke „Uložiť kľúč operátora“, a súbor relácie ho neobsahuje.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>Rezervovať mince a skopírovať údaje</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>Uzamknúť a schváliť</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>Uzamknúť podmienky</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Schváliť a skopírovať odpoveď</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>Schváliť</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Skúsiť znova</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>Podpísať a skopírovať odpoveď</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>Odvysielať registráciu</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Zavrieť</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Dokončiť</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>Začať odznova</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Potvrďte, že ste si uložili tajný kľúč operátora, napísaním jeho posledných 4 znakov.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>Tieto podmienky ste už schválili.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>Pred odvysielaním registrácie musí každý účastník podpísať svoje mince.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>Zdieľaný masternód — Relácia %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 z %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 z %2 — chýba %3</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 z %2 — %3 navyše</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>Musí byť menšia ako najmenší podiel (%1). Nastavte 0 iba vtedy, ak súhlasíte s tým, že ktokoľvek môže odísť kedykoľvek zadarmo.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Ktokoľvek môže odísť kedykoľvek zadarmo.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>Ak %1 odíde pred blokom %2 života masternódu, %1 prepadne %3, ktoré sa rozdelí medzi ostatných.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>Samostatný odchod počas úvodného obdobia stojí %1, ktoré sa rozdelí medzi ostatných.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>Pri nulovej pokute úvodné obdobie nemá žiadny účinok: ktokoľvek môže masternód kedykoľvek rozpustiť samostatne a nič nezaplatí.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>Podiel %1 z %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>Podiel %1 z %2 — %3 (vy)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>Vyberte, ktorým účastníkom ste.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>Rezervované — tieto mince nie je možné minúť, kým relácia neskončí alebo ich neuvoľníte.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>Použije %1 (%2); zvyšok %3 sa vráti na vašu novú adresu.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>Použije %1 (%2), bez zvyšku.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>Každý skontroluje presne tieto podmienky a raz ich schváli. Pošlite všetkým tú istú správu.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>Prečítajte si každý riadok. Schválením sa presne tieto podmienky podpíšu vaším kľúčom vlastníka. Zatiaľ sa nič nevysiela.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>Všetky schválenia sú zahrnuté. Teraz každý účastník podpíše svoje mince. Odpovede môžu prísť v ľubovoľnom poradí.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>Podpíše mince, ktoré ste rezervovali. Váš podpis ich iba minie do tejto registrácie.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>Podpísané financujúce vstupy: %1 z %2.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>Podpíše váš podiel %1. Vy nič nevysielate.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>Odoslali ste: %1 · Kód %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>uzamknuté podmienky</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>žiadosť o podpis</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>konečný záznam</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>Ďalej dostanete %1. Keď príde, vložte ho sem.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>Registráciu odvysiela: %1. Keď sa masternód objaví vo vašom zozname, vytvorte si záložné rozpustenie.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>V tejto peňaženke (%1). Peňaženku zálohujte — schvaľuje zmeny a rozpustenia.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>Uchováva: %1. Potrebný na serveri ako masternodeblsprivkey.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>ten, kto uzol prevádzkuje</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>Nastavte server masternódu pomocou tajného kľúča operátora a potom na ňom reštartujte dashd.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>Keď budú adresy uzla pripravené, odošlite aktualizáciu služby; dovtedy zostane neaktívny.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Uistite sa, že každá zaregistrovaná adresa služby a port sú dostupné z internetu.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>Každý účastník by si mal po prvom potvrdení vytvoriť vlastné záložné rozpustenie.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 z %2 vstupov</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1 z %2 odpovedalo</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1 z %2 podpísalo</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 z %2 schválilo</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Pripravuje sa…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>Príprava registrácie zlyhala: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>financujúca transakcia nie je platná.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>neplatná adresa na vrátenie: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>neplatná adresa odmeny: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>neplatná adresa vlastníka podielu: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>kľúč operátora nie je platný verejný kľúč BLS.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>hlasovacia adresa musí byť adresa P2PKH.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>odmena operátora musí byť medzi 0% a 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>Neočakávaná odpoveď od uzla.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>Podmienky ešte nie sú uzamknuté.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>Schválenie zlyhalo: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>Schvaľuje sa…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>Schválenie</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>Zlúčenie schválení zlyhalo: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>Zlučujú sa schválenia…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>Táto transakcia navyše míňa %1, mincu tejto peňaženky, ktorá nie je súčasťou vášho príspevku. Nepodpisujte; požiadajte o novú reláciu: %2.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>Táto transakcia míňa %1 z mincí tejto peňaženky na podiel %2, ale vracia do tejto peňaženky iba %3 zvyšku. Nepodpisujte; požiadajte o novú reláciu: %4.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>Podpisovanie zlyhalo: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>Podpísaná transakcia nie je tá, ktorú ste skontrolovali. Nepoužívajte ju; požiadajte o novú reláciu: %1.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>Podpísaný príspevok</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>Odomknúť podmienky?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>Odomknutím sa zahodí: %1. Po opätovnom uzamknutí musí každý schváliť znova.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>Zábezpeka: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>Účastníci: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>Potvrdiť registráciu zdieľaného masternódu</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>Odvysielať túto registráciu zdieľaného masternódu?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>Relácia %1 · Kód %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>Vysielanie zlyhalo: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>všetci</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>Skopírované · Relácia %1 · Kód %2 — odošlite to: %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>Najprv uložte tajný kľúč operátora. Zobrazuje sa iba tu a súbor relácie ho neobsahuje: bez neho by sa masternód nikdy nedal spustiť.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>Uložiť správu zdieľaného masternódu</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>Súbory relácie (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>Súbor %1 sa nepodarilo otvoriť na zápis.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>Uložené · Relácia %1 · Kód %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>Otvoriť správu zdieľaného masternódu</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Táto správa je príliš veľká na to, aby bola správou zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>Súbor %1 sa nepodarilo otvoriť na čítanie.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>Táto správa sa týka existujúceho masternódu. Otvorte ju zo zoznamu Masternódy.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>Podpisy sa nezapočítali</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Prijaté: %1 · Kód %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>Táto odpoveď je staršia ako vaše aktuálne podmienky (Kód %1; váš je %2). Požiadajte odosielateľa, aby vložil vašu najnovšiu správu, a odpovedzte znova.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>Prijaté od %1: %2 · Kód %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>Táto peňaženka potrebuje aspoň %1 použiteľných prostriedkov na financovanie vášho podielu %2.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>Uvoľniť vaše mince?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>Mince, ktoré ste rezervovali pre reláciu %1, bude opäť možné minúť.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>Mince všetkých ostatných zostávajú rezervované. Ak tieto minete, túto registráciu nebude možné nikdy odvysielať a ostatní budú musieť začať odznova.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>Uvoľnené — tieto mince je opäť možné minúť.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>Mince rezervovaná pre túto reláciu bola minutá. Registráciu už nie je možné dokončiť — začnite odznova.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>Hodnotu %1 tento uzol zatiaľ nevie overiť. Vstupy, ktoré dokáže overiť, spolu tvoria %2 zo zábezpeky %3.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>Rezervované mince spolu tvoria %1, čo nepokrýva zábezpeku %2 plus zvyšok %3 a sieťový poplatok. Registráciu by nebolo možné nikdy odvysielať.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>Vstupy %1 − zvyšok %2 = zábezpeka %3 + sieťový poplatok %4. Tento poplatok je nezvykle vysoký; pokračujte iba vtedy, ak je to zámerné.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>Vstupy %1 − zvyšok %2 = zábezpeka %3 + sieťový poplatok %4 ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>Najprv uložiť kľúč operátora?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>Tajný kľúč operátora existuje iba v tomto okne — súbor relácie nesie len jeho verejnú polovicu. Ak teraz zavriete, masternód by sa nikdy nedal spustiť.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>Ponechať túto reláciu na neskôr?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>Uložením zostanú vaše mince rezervované, takže môžete pokračovať tam, kde ste skončili. Zahodením sa uvoľnia; ak na vás ostatní stále čakajú, budú musieť začať odznova.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>Uložiť kľúč operátora</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>Uložiť a zavrieť</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>Zahodiť a uvoľniť mince</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Podiel %1 z %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>Táto peňaženka nedrží žiadny z kľúčov vlastníkov podielov tohto masternódu.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternód: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>Podiel</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>Adresa na vrátenie</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>Prijíma</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Nie je k dispozícii žiadna peňaženka.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Táto peňaženka je určená iba na sledovanie a nemôže podpisovať.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>Iná operácia stále prebieha.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>Odomknutie peňaženky bolo zrušené.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Transakcia nie je platný hex transakcie.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>Mince, ktorú táto žiadosť potrebuje (%1:%2), bola minutá. Žiadosť už nie je možné odoslať — začnite odznova.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>Interná chyba: tu vypočítaný hash nezodpovedá hashu uzla. Neschvaľujte; nahláste to, prosím.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>Touto peňaženkou schválené: %1.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>Zdieľané masternódy vyžadujú aktualizáciu v24, ktorá v tejto sieti zatiaľ nie je aktívna.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Meno</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Suma</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(vy)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Táto žiadosť nevyplatí každému podielu jeho celý vklad. Neschvaľujte ju; požiadajte toho, kto ju pripravil, o novú žiadosť.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>Táto žiadosť uvádza podiel, ktorý tento masternód nemá.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>Táto žiadosť neminie presne zábezpeku masternódu. Neschvaľujte ju.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Táto žiadosť si ponecháva %1 z vkladov podielov ako transakčný poplatok. Neschvaľujte ju; požiadajte toho, kto ju pripravil, o novú žiadosť.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>Schránka neobsahuje správu zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>Táto správa nie je správou zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>Táto transakcia nie je rozpustením zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>bez mena</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(vy)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>Vlastník:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>ešte nenastavené</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>Vrátenie:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>Odmena:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>rovnaká ako adresa na vrátenie</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Účastníci</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Služba:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>Nenastavené — nastaví sa neskôr aktualizáciou služby</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Kľúč operátora:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>nenastavené</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Uzol prevádzkuje:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>nezaznamenané</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Hlasovacia adresa:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Odmena operátora:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternód</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Úvodné obdobie:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 blokov (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Pokuta za predčasný odchod:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Ktokoľvek môže odísť kedykoľvek zadarmo.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>Samostatný odchod počas úvodného obdobia stojí %1, ktoré sa rozdelí medzi ostatných; odchod spoločne je bezplatný.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Podmienky odchodu</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>Príspevky:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>Vrátený zvyšok:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>Zábezpeka:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1, po uzamknutí podmienok</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>výstup #%1 vyplatí %2 na zdieľaný skript zábezpeky</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Financovanie</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>Relácia:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>Kód:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>Pripravila peňaženka:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>Identita</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Transakcia nie je platný hex transakcie.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>Transakcia nie je transakciou rozpustenia.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>Dáta transakcie (payload) sa nepodarilo deserializovať.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>Transakcia rozpúšťa iný masternód.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>Transakcia už obsahuje podpisy; očakávala sa nepodpísaná pripravená transakcia.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>Transakcia nie je aktualizáciou registrátora zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>Transakcia aktualizuje iný masternód.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Schválené</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>Kopírovať žiadosť</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>Uložiť žiadosť…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Vložiť</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Otvoriť súbor…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>Táto správa sa týka inej transakcie, než je tá, ktorá tu už je. Jedna z dvoch kópií je zastaraná; ponechajte aktuálnu a vyžiadajte si novú odpoveď.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>Pred vložením schválení vložte samotnú žiadosť.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>Táto správa neobsahuje žiadne schválenia.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>Schváleniu chýba číslo podielu alebo podpis.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>Schválenie má nečitateľné číslo podielu.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>Číslo podielu %1 je mimo rozsahu.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: podpis nie je 65-bajtový kompaktný podpis vo formáte base64.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>Schválenie od %1 nezodpovedá pripravenej transakcii. Požiadajte %2, aby vložil aktuálnu žiadosť a schválil znova.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 už má schválenie z inej odpovede.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>Toto nie je správa zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>Táto správa je určená pre sieť %1; táto peňaženka beží v sieti %2.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>Táto správa sa týka iného druhu zmeny tohto masternódu.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>Táto správa sa týka iného masternódu.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>Skopírované · Kód %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>Uložiť žiadosť</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>Správa zdieľaného masternódu (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Nepodarilo sa zapísať do %1.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>Uložené · Kód %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Uložené do %1.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Táto správa je príliš veľká na to, aby bola správou zdieľaného masternódu.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Prijaté: %1 · Kód %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>Prijaté · Kód %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>Otvoriť žiadosť</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>Správa zdieľaného masternódu (*.json);;Všetky súbory (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>Súbor %1 sa nepodarilo prečítať.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>Schválil: %1</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Čaká sa na: %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 z %2 schválilo</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(stlačte q pre vypnutie a pokračovanie neskôr)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>stlačte q pre vypnutie</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     <message>
         <source>Date</source>
         <translation>Dátum</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Registrácia masternódu</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Aktualizácia masternódu</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Zámok aktív</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     <message>
         <source>Transaction total size</source>
         <translation>Celková veľkosť transakcie</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>Dátový obsah (payload)</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
         <translation>Prevod platformy</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>Dátová transakcia</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>Príjem prachu</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Registrácia masternódu</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Aktualizácia masternódu</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Zámok aktív</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     <message>
         <source>(n/a)</source>
         <translation>(n/a)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>Registruje masternód. Suma je čistá zmena zostatku tejto peňaženky a bežne je to iba sieťový poplatok, ak zábezpeka zostáva v tejto peňaženke.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>Aktualizuje existujúcu registráciu masternódu. Suma je čistá zmena zostatku tejto peňaženky, bežne iba sieťový poplatok.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Uzamkne prostriedky na použitie v Dash Platform. Suma je čistá zmena zostatku tejto peňaženky vrátane sieťového poplatku.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
         <translation>Vyťažené</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>Masternód</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>Prevod platformy</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Zámok aktív</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>Dátová transakcia</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ Pre viac informácií o používaní tejto konzoly zadajte %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>Verejný kľúč operátora BLS (96 hexadecimálnych znakov)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>Verejný kľúč operátora:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>Zmenou kľúča operátora dostane masternód okamžite zákaz PoSe. Nový operátor musí odoslať transakciu Aktualizovať službu, aby ho oživil.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Hlasovacia adresa:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>Adresa výplaty:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>Viaceré výplatné podiely sa zachovajú; na ich zmenu použite RPC</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>Tento dialóg nedokáže bezpečne zlúčiť masternód s viacerými výplatami do jednej adresy.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>Automatická voľba použije aktuálnu primárnu adresu výplaty masternódu. Adresu vyberte iba vtedy, ak chcete túto voľbu prepísať.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>Aktualizovať registrátora masternódu</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>Aktualizujte kľúč operátora, hlasovaciu adresu alebo adresu výplaty. Všetky aktuálne hodnoty sú predvyplnené; odošlú sa iba zmenené polia. Kľúč vlastníka musí byť v tejto peňaženke.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Odoslať aktualizáciu</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>Zadajte platný verejný kľúč operátora pre aktuálnu verziu transakcií poskytovateľa.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>Hlasovacia adresa musí byť adresa kľúča.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT, viac záznamov oddeľte čiarkami</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>Viaceré adresy vyžadujú rozšírené transakcie poskytovateľa.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Adresy služby:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>Adresa služby:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Kľúč operátora:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>ID uzla platformy (40 hexadecimálnych znakov)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>ID uzla platformy:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>Adresy P2P platformy:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT alebo doména:port, oddelené čiarkami</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>Adresy HTTPS platformy:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Port P2P platformy:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Port HTTPS platformy:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>Adresa výplaty operátora:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automatická voľba použije aktuálnu výplatu operátora a potom výplatu masternódu. Adresu vyberte iba vtedy, ak chcete túto voľbu prepísať.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>Aktualizovať službu EvoNode</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>Aktualizovať službu masternódu</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>Aktualizujte zaregistrované koncové body služby. Úspešná aktualizácia tiež oživí masternód so zákazom PoSe. Každá aktuálna hodnota je predvyplnená, takže nezmenené polia sa zachovajú.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Odoslať aktualizáciu</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>Zadajte platné ID uzla platformy (40 hexadecimálnych znakov).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>Váš podiel:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>Adresa, ktorá prijíma odmeny tohto podielu</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Použiť novú adresu</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>Použiť adresu na vrátenie</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>Nová adresa odmeny:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>Poplatok sa hradí z tejto adresy vašej peňaženky.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>Zmeniť adresu odmeny</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>Zmeňte, kam sa vypláca váš podiel z odmien tohto masternódu. Dotkne sa to iba vášho podielu; suma podielu a adresa na vrátenie sa nikdy nemenia.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Odoslať aktualizáciu</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>Zadajte adresu, ktorá má prijímať odmeny.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>Zadajte platnú adresu Dash.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Adresa odmeny sa musí líšiť od hlasovacej adresy a od každej adresy vlastníka.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>Tento masternód nie je zdieľaný a nemá tabuľku podielov.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>Vyberte adresu tejto peňaženky, z ktorej sa má hradiť poplatok.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Send Coins</source>
         <translation>Poslať Mince</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>Chyba podpisovateľa</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Upozornenie: Zjavne sa úplne nezhodujeme s našimi peer-mi! Možno potrebujete prejsť na novšiu verziu alebo ostatné uzly potrebujú vyššiu verziu.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+Nepodarilo sa vyčistiť po neúspešnej migrácii</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+Nepodarilo sa obnoviť zálohu peňaženky.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>Tento vstup už máme.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>SQLiteDatabase: Neznáma verzia schémy peňaženky sqlite %d. Podporovaná je iba verzia %d</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>Nepodporovaná úroveň protokolovania pre kategóriu -loglevel=%s. Očakávané -loglevel=&lt;kategória&gt;:&lt;úroveň_logovania&gt;. Platné kategórie: %s. Platné úrovne logovania: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>Nedá sa miešať: nezostávajú žiadne kompatibilné zdroje.</translation>
     </message>
@@ -5905,10 +10099,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Insufficient funds.</source>
         <translation>Nedostatok prostriedkov.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>Neplatný minimálny počet spork podpisovateľov určených pomocou -minsporkkeys</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Neznáma odpoveď.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>Nepodporovaná globálna úroveň logovania -loglevel=%s. Platné hodnoty: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>Komentár u typu klienta (%s) obsahuje riskantné znaky.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>Súbor %s obsahuje všetky súkromné kľúče z tejto peňaženky. Nezdieľajte s nikým!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s nedokázal overiť stav snímky -assumeutxo. To naznačuje problém s hardvérom, chybu v softvéri alebo nesprávnu úpravu softvéru, ktorá umožnila načítať neplatnú snímku. V dôsledku toho sa uzol vypne a prestane používať akýkoľvek stav vytvorený na základe snímky, pričom výšku reťazca vráti z %d na %d. Pri nasledujúcom reštarte uzol obnoví synchronizáciu od %d bez použitia údajov zo snímky. Nahláste tento incident na %s a uveďte, ako ste snímku získali. Stav reťazca neplatnej snímky zostane na disku pre prípad, že pomôže pri diagnostike príčiny tejto chyby.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Celková dĺžka verzie sieťového reťazca (%i) prekračuje maximálnu dĺžku (%i). Znížte počet a veľkosť parametra  uacomments.</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>UPOZORNENIE! Chyba pri doplňovaní zásobníku kľúčov. Pre doplnenie musíte odomknúť vašu peňaženku.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>Peňaženka je zamknutá takže sa nedá doplniť zásobník kľúčov. Automatické zálohy a miešanie sú vypnuté. Pre doplnenie musíte odomknúť vašu peňaženku.</translation>
     </message>
@@ -6085,10 +10271,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool musí byť najmenej %d MB</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>Automatické zálohy sú deaktivované</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Nepodarilo sa načítať súbor asmap %s</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>CHYBA! Nepodarilo sa vytvoriť automatickú zálohu</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>Chyba pri načítavaní %s: Súkromné kľúče je možné deaktivovať iba počas vytvárania</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>Chyba pri čítaní konfiguračného súboru: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>Chyba: Nie je možné extrahovať cieľ z vygenerovaného scriptpubkey</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>Chyba: Do peňaženky iba na sledovanie sa nepodarilo pridať transakciu iba na sledovanie</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>Chyba: Nepodarilo sa odstrániť transakcie iba na sledovanie</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>Chyba: Kontrolný súčet súboru výpisu sa nezhoduje. Vypočítané %s, očakávané %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>Chyba: Nepodarilo sa vytvoriť novú peňaženku iba na sledovanie</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Chyba: Nie sú dostupné žiadne adresy.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>Chyba: Nepodarilo sa odstrániť všetky transakcie iba na sledovanie</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>Chyba: Táto peňaženka už používa SQLite</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>Chyba: Táto peňaženka už je deskriptorová peňaženka</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>Chyba: Nepodarilo sa začať čítať všetky záznamy v databáze</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>Chyba: Nepodarilo sa vytvoriť zálohu vašej peňaženky</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>Chyba: Nepodarilo sa prečítať všetky záznamy v databáze</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>Chyba: Nepodarilo sa odstrániť údaje adresára iba na sledovanie</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>Nepodarilo sa vytvoriť zálohu %s!</translation>
     </message>
@@ -6161,6 +10383,22 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Nepodarilo sa vymazať zálohu, chyba: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>Nepodarilo sa dokončiť prerušené čistenie neplatnej snímky.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>Nepodarilo sa dokončiť prerušené povýšenie značky snímky.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>Nepodarilo sa skontrolovať prerušené čistenie snímky: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>Nepodarilo sa obnoviť prerušené čistenie snímky: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Vstup nebol nájdený alebo už bol utratený</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>Nedostatočná dbcache na overovanie blokov</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>Prerušené čistenie snímky má nekonzistentné hroty mincí a EvoDB.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>Prerušenému čisteniu snímky chýba značka EvoDB snímky.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>Neplatné povolenie P2P: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>Neplatný masternodeblsprivkey. Pozrite si dokumentáciu.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>Neplatný vopred vybraný vstup %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>Neplatná hodnota pre %s: prekračuje maximum (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>Neplatná hodnota pre %s: musí byť &gt;= 0</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Mixing in progress…</source>
         <translation>Prebieha miešanie…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>Bola zadaná viac ako jedna adresa sporku. Používa sa %s.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Nedostatok kľúčových slov súboru.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>Vopred vybraný vstup %s sa nenašiel</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>Vopred vybraný vstup %s nie je riešiteľný</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>Príjemcov platformy nie je možné kombinovať s explicitnou pozíciou zvyšku</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>Najprv zadajte heslo peňaženky pomocou walletpassphrase.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>Orezanie nemôže byť nastavené na zápornú hodnotu.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>Orezávanie nie je kompatibilné s -addressindex.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>Orezávanie nie je kompatibilné s -disablegovernance=false.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>Orezávanie nie je kompatibilné s -spentindex.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Sekcia [%s] nie je rozpoznaná.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>Nastaví titulok okna, ktorý sa pripojí za „Dash Core - “</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>Podpisovateľ neodoslal adresu späť</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>Podpisovateľ vrátil neočakávanú adresu %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>Podpisovateľ vrátil chybu: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>Chýba značka EvoDB stavu reťazca snímky. Vyžaduje sa reindexácia.</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>Zadaný -walletdir "%s" neexistuje</translation>
     </message>
@@ -6275,8 +10585,16 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Zadaný -walletdir "%s" nie je adresár</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>Zadaný dátový priečinok „%s“ neexistuje.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>Peňaženka zabráni zaplateniu menšej sumy ako je minimálny poplatok.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>Pre túto adresu neexistuje ScriptPubKeyManager</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Sumy transakcií nesmú byť záporné</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>Transakcia má v transakčnom zásobníku príliš dlhý reťazec</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates nie je podporované v reťazci %s.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Nie je možné spustiť masternód s povolenou peňaženkou.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>miešanie nedostupné.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>podrobnosti nájdete v debug.log.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>Vývojári %s</translation>
     </message>
@@ -6379,16 +10689,16 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Pre poslanie zdrojov používa %s presné denominované sumy, možno iba potrebujete zmiešať viac mincí. </translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>Voľba -reindex-chainstate nie je kompatibilná s -blockfilterindex. Prosím dočasne zakážte blockfilterindex pri používaní -reindex-chainstate, alebo nahraďte -reindex-chainstate s -reindex pre úplné prebudovanie všetkých indexov.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>Voľba -reindex-chainstate nie je kompatibilná s -txindex. Prosím dočasne zakážte txindex pri používaní -reindex-chainstate, alebo nahraďte -reindex-chainstate s -reindex pre úplné prebudovanie všetkých indexov.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>Voľba -reindex-chainstate nie je kompatibilná s -coinstatsindex. Prosím dočasne zakážte coinstatsindex pri používaní -reindex-chainstate, alebo nahraďte -reindex-chainstate s -reindex pre úplné prebudovanie všetkých indexov.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>Voľba -reindex-chainstate nie je kompatibilná s -txindex. Prosím dočasne zakážte txindex pri používaní -reindex-chainstate, alebo nahraďte -reindex-chainstate s -reindex pre úplné prebudovanie všetkých indexov.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>Voľba -reindex-chainstate nie je kompatibilná s -blockfilterindex. Prosím dočasne zakážte blockfilterindex pri používaní -reindex-chainstate, alebo nahraďte -reindex-chainstate s -reindex pre úplné prebudovanie všetkých indexov.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Nastala chyba pri čítaní súboru %s! Všetky kľúče sa prečítali správne, ale dáta o transakciách alebo záznamy v adresári môžu chýbať alebo byť nesprávne.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>Chyba pri čítaní %s! Údaje o transakciách môžu chýbať alebo byť nesprávne. Peňaženka sa znova prehľadáva.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Chyba: Údaje adresára v peňaženke nie je možné priradiť k migrovaným peňaženkám</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>Chyba: Záznam formátu súboru výpisu je nesprávny. Získané "%s", očakávané "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>Chyba: Záznam identifikátora súboru výpisu je nesprávny. Získané "%s", očakávané "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>Chyba: Počas migrácie sa vytvorili duplicitné deskriptory. Vaša peňaženka môže byť poškodená.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>Chyba: Počas migrácie sa nepodarilo posunúť aktívny deskriptor za počítadlo staršieho reťazca.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Chyba: Transakciu %s v peňaženke nie je možné priradiť k migrovaným peňaženkám</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>Chyba: Pre túto staršiu peňaženku sa nepodarilo vytvoriť deskriptory. Ak je zašifrovaná, nezabudnite zadať heslo peňaženky.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>Nepodarilo sa odstrániť priečinok stavu reťazca snímky. Pred reštartom ho odstráňte ručne.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Odchádzajúce pripojenia obmedzené na i2p (-onlynet=i2p), ale -i2psam nie je poskytnuté</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>Príjemcov platformy nie je možné kombinovať s iným dátovým obsahom špeciálnej transakcie</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Prosím skontrolujte systémový čas a dátum. Keď je váš čas nesprávny, %s nebude fungovať správne.</translation>
     </message>
@@ -6489,6 +10831,26 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>Režim orezávania nie je kompatibilný s -reindex-chainstate. Použite namiesto toho úplný -reindex.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>Premenovanie '%s' -&gt; '%s' zlyhalo. Problém vyriešite ručným presunutím alebo odstránením neplatného priečinka snímky %s, inak narazíte na tú istú chybu aj pri ďalšom spustení.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Automatická služba Tor onion nemôže používať onion bind so zástupným znakom, pretože démon Tor by nevedel presmerovať prichádzajúce spojenia k nám. Použite konkrétnu adresu, napríklad -bind=127.0.0.1:&lt;port&gt;=onion, alebo službu vypnite pomocou -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Automatická služba Tor onion vyžaduje vyhradený onion bind. Použite konkrétnu adresu, napríklad -bind=127.0.0.1:&lt;port&gt;=onion, alebo službu vypnite pomocou -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>Veľkosť vstupov prekračuje maximálnu váhu. Skúste poslať menšiu sumu alebo ručne zlúčiť UTXO vo vašej peňaženke</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>Celková suma vopred vybraných mincí nepokrýva cieľ transakcie. Povoľte automatický výber ďalších vstupov alebo ručne pridajte viac mincí</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Toto je poplatok za transakciu keď odhad poplatkov ešte nie je k dispozícii.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>Index transakcií nie je možné vypnúť, keď je zapnuté overovanie správy. Spustite buď s prepínačom príkazového riadka -disablegovernance, alebo zapnite index transakcií.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>Transakcia je neštandardná (%s) a nebola by prepošlená; odosielanie na adresy platformy v súčasnosti vyžaduje uzol spustený s -acceptnonstdtxn=1</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>Transakcia vyžaduje jeden cieľ s hodnotou inou ako 0, sadzbu poplatku inú ako 0 alebo vopred vybraný vstup</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>Overenie snímky UTXO zlyhalo. Reštartujte, aby sa obnovilo bežné počiatočné sťahovanie blokov, alebo skúste načítať inú snímku.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>Bloky nie je možné prehrať. Potrebujete prebudovať databázu použitím -reindex-chainstate.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>V deskriptorovej peňaženke bol nájdený neočakávaný starší záznam. Načítava sa peňaženka %s
+
+Peňaženka mohla byť pozmenená alebo vytvorená so zlým úmyslom.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>Poskytnutý neznámy formát súboru peňaženky "%s". Prosím, poskytnite jeden z "bdb" alebo "sqlite".</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>Bol nájdený nerozpoznaný deskriptor. Načítava sa peňaženka %s
+
+Peňaženka mohla byť vytvorená v novšej verzii.
+Skúste spustiť najnovšiu verziu softvéru.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>Nepodporovaná úroveň záznamu pre konkrétnu kategóriu %1$s=%2$s. Očakáva sa %1$s=&lt;kategória&gt;:&lt;úroveň&gt;. Platné kategórie: %3$s. Platné úrovne záznamu: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>Upozornenie: Boli zistené súkromné kľúče v peňaženke {%s} so zakázanými súkromnými kľúčmi</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>Musíte prebudovať databázu pomocou -reindex, aby ste povolili -timestampindex</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>Vyskytla sa závažná interná chyba, podrobnosti nájdete v debug.log</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>Overovanie blokov bolo prerušené</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Importuje sa…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>Nesprávny -rescan režim, vracia sa späť k predvolenej hodnote</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>Kontrola čistoty pri inicializácií zlyhala. %s sa vypína.</translation>
     </message>
@@ -6727,10 +11123,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Relácia nie je dokončená!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>Relácia vypršala.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>Podpisovanie transakcie zlyhalo</translation>
     </message>
@@ -6759,10 +11151,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Zlyhala aktualizácia Evo databázy</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>Potrebný poplatok &gt; zaplatený poplatok</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>Hostiteľ %s na nepodporovanej sieti</translation>
     </message>
@@ -6777,10 +11165,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>Neplatný port zadaný v %s: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>Posledná akcia bola pred chvíľou.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Pokúšame sa pripojiť…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>Nepodarilo sa alokovať pamäť pre -maxsigcachesize: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>Na tomto počítači sa nedá vytvoriť väzba %s (vytvorenie väzby vrátilo chybu %s)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Nedá sa podpísať spork správa, žeby zlý kľúč?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>Peňaženku sa pred migráciou nepodarilo uvoľniť z pamäte</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>Špecifikovaná neznáma sieť v -onlynet: '%s'</translation>
     </message>
@@ -6887,12 +11279,12 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
         <translation>Nepodporovaná schéma URL, musí začínať udp://</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>Nepodporovaná záznamová kategória %s =%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>Nepodporovaná globálna úroveň záznamu %s=%s. Platné hodnoty: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>Zostáva veľmi málo kľúčov: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>Nepodporovaná záznamová kategória %s =%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Prejdite na Súbor &gt; Otvoriť peňaženku a načítajte peňaženku.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>Overenie riadenia nemôžete na masternóde deaktivovať.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>Musíte prebudovať databázu pomocou -reindex pre povolenie -addressindex</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>Musíte prebudovať databázu pomocou -reindex pre povolenie -spentindex</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

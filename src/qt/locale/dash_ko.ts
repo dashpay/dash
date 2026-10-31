@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>거버넌스 데이터 동기화 중…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>슈퍼블록까지 ~%n일 (%1 블록) 남음</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>투표 마감까지 ~%n일 (%1 블록) 남음</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1%의 예산이 확정되었습니다 (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>클립보드에서 일부 서명된 블록체인 거래 불러오기</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>디버그 로그 파일 열기(&amp;D)</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>현재 데이터 디렉토리에서 디버그 로그 파일을 엽니다</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>지갑을 생성합니다…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>모든 지갑을 닫습니다...</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>지갑 마이그레이션</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>지갑을 마이그레이션합니다</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>최신</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>슈퍼블록 임박</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>투표 기간 종료</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>슈퍼블록까지 ~%1 (%2 블록) 남음</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>투표 마감까지 ~%1 (%2 블록) 남음</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>예산의 ~%1%가 확정됨 (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>모두 선택(취소)</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>토글 잠금 상태</translation>
+        <source>(un)lock all</source>
+        <translation>전체 잠금/해제</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>잔돈 복사</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>이 기능을 사용하기 위해서는 '리스트 모드'를 켜주세요.</translation>
+        <source>Wallet error</source>
+        <translation>지갑 오류</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>일부 코인을 잠그지 못했습니다.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>일부 코인의 잠금을 해제하지 못했습니다.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>공유 마스터노드 해체</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>이 마스터노드는 블록 %1에서 등록되었고 체인은 아직 블록 %2에 있습니다. 확인 1회를 기다린 후 이 창을 다시 여세요.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>지금 해체</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>함께 해체</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>예비 해체</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>혼자서 마스터노드를 종료합니다. 모든 사람이 각자의 환불 주소로 원금을 돌려받습니다.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>내 지분:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>거래 수수료이며, 내 지분의 환불금에서 지불됩니다.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>수수료:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>거래 ID</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>조기 종료: %1의 위약금을 지불합니다. 블록 %2 이후에는 무료입니다 (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>%1의 조기 종료 위약금 지불에 동의합니다</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>해체가 무료가 되기까지 %1 남았습니다. 기다리는 것을 고려하거나 함께 해체를 사용하세요. 모든 사람의 승인이 있으면 지금 바로 무료입니다.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>조기 기간이 끝났습니다. 지금 해체하면 무료입니다.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (나)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>먼저 상자를 선택하여 위약금에 동의하세요.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>이 창이 열려 있는 동안 체인이 위약금 면제 기준 시점을 지났습니다. 위의 미리보기가 새로 고침되었으니 내용을 검토한 후 지금 해체를 다시 누르세요.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>이 공유 마스터노드를 지금 해체하시겠습니까? 모든 참가자의 원금이 각자의 환불 주소로 반환되고 마스터노드는 더 이상 보상을 받지 못합니다. 이 작업은 되돌릴 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>해체 거래를 전송했습니다.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>언제든 무료이지만 모든 지분 소유자가 승인해야 합니다. 한 사람이 요청을 준비하고, 나머지는 이를 붙여넣어 승인한 뒤 답신을 복사해 돌려줍니다.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. 요청</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>거래 수수료가 차감되는 지분입니다.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>수수료 부담:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>요청 준비</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. 승인</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>같은 요청을 모든 지분 소유자에게 보내세요. 답신은 어떤 순서로 돌아와도 됩니다.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>이 요청의 지급 내역</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>승인하고 답신 복사</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. 전송</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>해체 거래 전송</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>수수료: %1, %2에서 지불됩니다.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>먼저 요청을 준비하거나 붙여넣으세요.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>먼저 모든 지분이 승인해야 합니다 (현재 %2개 중 %1개).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>오프라인으로 보관하다가 필요할 때만 브로드캐스트하는 서명된 해체 거래입니다. 만료되지 않으며 이 지갑을 분실해도 사용할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>예비 해체 생성…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>전체 원금 — 블록 %1부터 유효 (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>전체 원금 — 지금 유효, 조기 기간 종료됨</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>아직 생성되지 않음</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>즉시 — %1의 위약금 지불</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>환불 주소 백업과 함께 이 지갑과는 별도로 보관하세요.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>%1에 저장됨</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>예비 해체 저장</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>텍스트 파일 (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>두 거래 모두 아래에 준비되어 있지만 저장되지 않았습니다. 직접 복사하거나 파일을 다시 생성하세요.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>%1에 저장했습니다.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>대시 공유 마스터노드 — 예비 해체</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>마스터노드: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>생성일: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>아래의 각 블록은 서명이 완료된 하나의 거래입니다. 마스터노드를 종료하고 원금을 돌려받으려는 경우에만 "sendrawtransaction"으로 이 중 하나를 브로드캐스트하세요. 이 거래들은 만료되지 않습니다. 이 파일은 환불 주소 백업과 함께 지갑과는 별도로 보관하세요.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>전체 원금 — 블록 %1부터 유효 (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>전체 원금 — 지금 유효, 조기 기간 종료됨</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>즉시 — %1의 조기 종료 위약금 지불, 바로 유효</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>%1에 쓸 수 없습니다.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>유형</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>제안서 목록 필터</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>마스터노드 수:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>이 지갑으로 투표할 수 있는 마스터노드 수(이 지갑이 투표 키를 보유한 마스터노드)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>네트워크에 활성 제안이 없습니다.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>제안 재개</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>제안서 수:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>제안서 작성</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>표시할 제안 선택</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>제목으로 필터</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>사용 불가</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>동기화된 노드와 잠금 해제된 지갑이 필요합니다.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>찬성 투표</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>반대 투표</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>기권 투표</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>활성 제안</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>내 제안</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>지갑 파일에 기록된 제안이 없습니다.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>제안 재개</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>원시 JSON 복사</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>제안 URL 열기…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>%1 상세 정보</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>동기화가 완료되기 전에는 거버넌스와 상호작용할 수 없습니다</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>새 제안을 생성합니다</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>기존 제안을 재개합니다</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>제안 생성 비용은 %1이며, 잔액이 부족합니다</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>오류</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>URL을 검증할 수 없습니다. 형식이 잘못되었거나 알 수 없는 프로토콜일 수 있습니다.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>외부 링크 경고</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>기본 브라우저에서 다음 URL을 열려고 합니다
-
-%1
-
-이 콘텐츠는 사용자가 제출한 것입니다. 제목에 설명된 내용과 일치하지 않을 수 있습니다.
-
-계속하시겠습니까?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>투표 실패</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>사용 가능한 지갑이 없습니다.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>지갑에서 마스터노드 투표 키를 찾을 수 없습니다.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>투표할 제안서를 선택하십시오.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>지갑 잠금을 해제할 수 없습니다.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>마스터노드 목록을 가져올 수 없습니다. 나중에 다시 시도하십시오.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>마스터노드 %1을 찾을 수 없습니다</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>마스터노드 %1에 대한 투표 서명 실패</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>마스터노드 %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>%n번 성공적으로 투표했습니다</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>%n번 투표 실패</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>오류:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>투표 결과</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Do you wish to continue?</source>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;%1 기본 정보&lt;/h3&gt; %1은 당신의 자금 출처를 가려 진정한 재정적 프라이버시를 보장합니다. 당신의 지갑에 보관된 모든 대시는 각기 다른 "입력값"으로 구성되어 있습니다. 쉽게 생각하면 별도의 분리된 동전으로 구성되어 있다고 볼 수 있습니다.&lt;br&gt;  %1은 당신의 코인이 지갑을 떠나지 않고도 그 입력값을 다른 두 사람의 입력값과 섞는 혁신적인 방식을 사용합니다. 이로써 당신의 자금은 언제나 당신의 통제 하에 있습니다.&lt;hr&gt;&lt;b&gt; %1은 다음과 같은 방식으로 작동합니다.&lt;/b&gt;&lt;ol type="1"&gt;&lt;li&gt; %1은 당신의 거래 입력값을 표준 단위로 쪼개는 것으로 시작합니다. 이렇게 분할하는 단위는 0.001대시, 0.01대시, 0.1대시, 1대시 혹은 10대시 입니다 - 귀하가 일상적으로 사용하는 지폐와 비슷하다고 생각하셔도 좋습니다. &lt;/li&gt;&lt;li&gt;이후 당신의 지갑은 "마스터노드"라고 불리는 네트워크의 특수 구성 소프트웨어 노드에 요청을 전송합니다. 이로써 이들 마스터노드는 당신이 특정 금액을 믹싱하고자 한다는 정보를 수신합니다. 마스터노드에는 당신의 개인 정보를 식별할 수 있는 어떤 내용도 전송되지 않습니다. 즉 당신이 "누구"인지 알 수 있는 방법은 없습니다.&lt;/li&gt;&lt;li&gt; 두 명의 다른 사람이 비슷한 메시지를 보내어 그들 역시 같은 단위의 금액을 믹싱하고 싶다는 정보를 나타내면 믹싱 세션이 시작됩니다. 마스터노드는 이들 입력값을 믹싱하여 세 사용자의 지갑에 변환된 입력을 지불하도록 지시합니다. 당신의 지갑은 해당 입력값을 곧바로 스스로에게 지불하지만, 지불되는 주소는 '변경 주소'라고 불리는 다른 주소로 보내집니다.&lt;/li&gt;&lt;li&gt; 당신의 자금을 완전히 가리기 위해서, 당신의 지갑은 이 과정을 각 대시 분할 단위만큼 여러번 반복합니다. 이러한 반복을 ‘라운드’라고 부릅니다. 프라이빗샌드의 각 라운드가 진행됨에 따라 당신이 송금하고자 하는 자금의 출처는 기하급수적으로 높은 수준으로 가려집니다.&lt;/li&gt;&lt;li&gt; 이 믹싱 과정은 당신이 개입할 필요 없이 백그라운드에서 진행됩니다. 당신이 거래를 원하는 경우, 당신의 자금은 이미 믹싱을 거친 것입니다. 추가적으로 대기할 필요 역시 없습니다. &lt;/li&gt;&lt;/ol&gt;&lt;hr&gt;&lt;b&gt;중요:&lt;/b&gt; 당신의 지갑은 1,000개의 ‘변경 주소’만을 가지고 있습니다. 믹싱을 실행할 때마다 최대 9개의 주소가 사용됩니다. 이는 곧 이들 1000개의 주소가 약 100개의 믹싱 작업을 위해 사용될 수 있다는 것을 의미합니다. 전체 1,000개의 주소 중 900개가 사용된 경우 당신의 지갑은 더 많은 주소를 만들어야 합니다. 그러나 이 작업은 당신이 자동 백업을 설정한 경우에만 수행됩니다. &lt;br&gt;따라서 백업이 비활성화된 사용자는 %1 역시 비활성화 됩니다. &lt;hr&gt;더 많은 정보를 위해서는 &lt;a style="%2" href="%3"&gt;%1 문서&lt;/a&gt;를 참조하세요.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>일반</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>클라이언트 버전</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>해당 없음</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>사용자 에이전트</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>데이터 디렉토리</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>기본값이 아닌 데이터 디렉토리 위치를 지정하려면 '%1' 옵션을 사용하세요.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>블록 디렉토리</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>기본값이 아닌 블록 디렉토리 위치를 지정하려면 '%1' 옵션을 사용하세요.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>시작 시간</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>네트워크</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>이름</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>연결 수</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>로컬 주소</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>대시 노드가 다른 노드와 통신하기 위해 현재 사용 중인 네트워크 주소입니다.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>블록체인</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>현재 블록 높이</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>마지막 블록 시간</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>마지막 블록 해시</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>메모리 풀</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>현재 거래 수</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>메모리 사용량</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>수신:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>송신:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>네트워크 활동 비활성화됨</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>없음</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Do you wish to continue?</source>
         <translation><numerusform>(전체 체인에 %n GB 필요)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>데이터 디렉토리 선택</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>최소 %1 GB의 데이터가 이 디렉토리에 저장되며 시간이 지남에 따라 증가할 것입니다.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>마스터노드: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>사용 가능한 지갑이 없습니다.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>이 지갑은 조회 전용이므로 거래에 서명할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>자동 (권장)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>수수료 출처:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>이 거래를 생성하고 서명하려면 지갑의 잠금을 해제해야 합니다.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>유효한 basic-scheme BLS 운영자 비밀 키를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>운영자 비밀 키가 이 마스터노드에 등록된 공개 키와 일치하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>다른 마스터노드 작업이 이미 진행 중입니다.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>작업이 완료되었지만 거래가 반환되지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>거래가 생성되었지만 네트워크로 전송되지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>거래를 성공적으로 전송했습니다.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>거래 ID: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Do you wish to continue?</source>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>공유</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>마스터노드 목록 필터</translation>
     </message>
@@ -1689,6 +1919,22 @@ Do you wish to continue?</source>
     <message>
         <source>Hide banned</source>
         <translation>차단된 항목 숨기기</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>이 지갑으로 새 마스터노드 또는 에보노드를 등록합니다</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>마스터노드 등록…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>여러 참여자가 담보를 함께 모아 마스터노드를 만들거나, 저장된 세션을 이어서 진행합니다</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>공유 마스터노드…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Do you wish to continue?</source>
         <translation>필터 기준</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>서비스 업데이트…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>등록자 정보 업데이트…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>보상 주소 변경…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>키 교체…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>해체…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>예비 해체 생성…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>폐기…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>담보 주소</translation>
     </message>
@@ -1717,6 +1991,158 @@ Do you wish to continue?</source>
     <message>
         <source>Voting Address</source>
         <translation>투표 주소</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>마스터노드를 등록하려면 지갑이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>마스터노드 등록은 아직 외부 서명자 지갑을 지원하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>마스터노드 등록에는 개인 키가 있는 지갑이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>노드가 준비될 때까지 마스터노드 등록을 사용할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>이 지갑으로 새 마스터노드 또는 에보노드를 등록합니다</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>공유 마스터노드를 관리하려면 지갑이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>공유 마스터노드를 관리하려면 개인 키가 있는 지갑이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>노드가 준비될 때까지 공유 마스터노드 관리를 사용할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>공유 마스터노드에는 v24 하드 포크가 필요하지만 이 네트워크에서는 아직 활성화되지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>여러 참여자가 함께하는 공유 마스터노드 등록 세션을 생성하거나 이어서 진행합니다</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>이 거래는 읽을 수 있는 공유 마스터노드 해체 거래가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>지분 %1/%2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>인식할 수 없는 스크립트</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>마스터노드: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>이 마스터노드는 현재 마스터노드 목록에 없습니다.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>서비스: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>담보 주소: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>수수료 부담: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>승인: 모든 지분 소유자</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>승인: 내 서명만</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>지급 내역:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>수수료: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>모든 지분의 원금이 각자의 환불 주소로 반환됩니다. 이 작업은 되돌릴 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>참고: 이 거래는 모든 지분의 전체 원금을 반환하지 않습니다. 이 작업은 되돌릴 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>거래: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>이 예비 해체를 브로드캐스트하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>브로드캐스트 실패</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>예비 해체 전송됨</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>마스터노드를 찾을 수 없음</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>이 메시지는 아직 목록에 없는 마스터노드에 관한 것입니다.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>열 항목이 없음</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>거래에 서명할 수 있는 지갑이 필요합니다</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>이 지갑에 이 마스터노드의 소유자 키가 필요합니다</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>이 지갑에 이 마스터노드의 지분 소유자 키 중 하나가 필요합니다</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>%1에 이 컴퓨터에 이미 저장됨</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>이 컴퓨터에 아직 생성되지 않음</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>이 마스터노드의 지분 소유자 주소 중 하나로 필터링합니다</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Do you wish to continue?</source>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>%n일간 차단됨</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>하루 미만 차단됨</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>차단됨</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>%n일간 활성</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>공유 마스터노드 · %2개 지분 중 %1개 보유</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>하루 미만 활성</translation>
+        <source>Banned for %1</source>
+        <translation>%1 동안 차단됨</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>%1 동안 활성</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>공유 (%2개 중 %1개 보유)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>공유 (지분 %1개)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Do you wish to continue?</source>
     <message>
         <source>ProTx Hash</source>
         <translation>ProTx 해시</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>선택한 키 중 하나가 이미 등록된 마스터노드 또는 지분에서 사용 중입니다. 모든 소유자 키와 투표 키는 네트워크 전체에서 한 번만 사용할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>선택한 서비스 주소는 이미 등록된 마스터노드에서 사용 중입니다.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>환불 주소 또는 보상 주소를 지분 소유자 주소나 투표 주소로 겸용할 수 없습니다. 지급용 주소와 키용 주소는 서로 다른 주소를 사용하세요.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>참여자의 동의 서명이 최종 거래와 일치하지 않습니다. 서명 후 조건이나 자금 조달 거래가 변경되면 이런 일이 발생합니다. 새로 서명을 받으세요.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>네트워크가 아직 이 거래 버전을 허용하지 않습니다. 이를 도입하는 네트워크 업그레이드가 활성화될 때까지 기다리세요.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>이 기능은 아직 네트워크에서 활성화되지 않았습니다. 이를 도입하는 네트워크 업그레이드가 활성화될 때까지 기다리세요.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>이 마스터노드에 대한 해체가 이미 대기 중입니다.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>거래에 자금을 조달할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>거래에 자금을 조달할 수 없습니다: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+네트워크 거부 사유: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>세부 정보: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>지갑 마이그레이션</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>지갑 &lt;i&gt;%1&lt;/i&gt;을(를) 마이그레이션하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>지갑을 마이그레이션하면 이 지갑이 하나 이상의 설명자 지갑으로 변환됩니다. 새 지갑 백업을 만들어야 합니다.
+이 지갑에 조회 전용(watchonly) 스크립트가 있으면 해당 스크립트를 포함하는 새 지갑이 생성됩니다.
+이 지갑에 해결 가능하지만 조회 대상이 아닌 스크립트가 있으면, 해당 스크립트를 포함하는 별도의 새 지갑이 생성됩니다.
+
+마이그레이션 과정에서는 마이그레이션 전에 지갑 백업이 만들어집니다. 이 백업 파일의 이름은 &lt;지갑 이름&gt;-&lt;타임스탬프&gt;.legacy.bak이며 이 지갑의 디렉토리에서 찾을 수 있습니다. 마이그레이션이 잘못된 경우 "지갑 복원" 기능으로 백업을 복원할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>지갑 마이그레이션</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>지갑 &lt;b&gt;%1&lt;/b&gt; 마이그레이션 중…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>지갑 '%1'을(를) 성공적으로 마이그레이션했습니다.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>조회 전용(watchonly) 스크립트가 '%1'이라는 새 지갑으로 마이그레이션되었습니다.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>해결 가능하지만 조회 대상이 아닌 스크립트가 '%1'이라는 새 지갑으로 마이그레이션되었습니다.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>마이그레이션 실패</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>마이그레이션 성공</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>지분 %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>출자 "%1"의 입력 거래 ID 형식이 올바르지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>출자 "%1"의 잔돈 주소가 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>세션의 준비된 거래가 유효한 거래 hex가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>세션의 준비된 거래가 공유 마스터노드 등록 거래가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>이 메시지는 복사된 후 수정되었습니다.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>초안</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>조건 확정됨</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>승인 수집 중</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>승인 취합됨</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>출자 서명 완료</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>브로드캐스트됨</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>파일이 유효한 JSON이 아닙니다.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>공유 마스터노드 세션 파일이 아닙니다.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>세션 파일이 지원되지 않는 형식 버전을 사용합니다. 열려면 대시 코어를 업데이트하세요.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>세션 파일은 "%1" 네트워크용이지만 이 노드는 "%2" 네트워크에서 실행 중입니다. 여기서는 사용할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>알 수 없음</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>세션 파일에 세션 ID가 없습니다.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>세션 파일의 리비전이 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>세션 파일에 단계 정보가 없습니다.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>세션 파일이 알 수 없는 단계 "%1"에 있습니다. 더 최신 버전의 대시 코어에서 생성되었을 가능성이 높습니다.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>세션 파일에 지분이 %1개 나열되어 있지만, 공유 마스터노드는 최대 %2개까지 가질 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>세션 파일의 지분 항목 %1의 형식이 올바르지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>세션 파일의 조기 기간이 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>세션 파일의 조기 종료 위약금이 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>세션 파일에 출자가 %1건 나열되어 있지만, 지분당 최대 1건이며 지분은 최대 %2개입니다.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>세션 파일의 출자 항목 %1의 형식이 올바르지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>세션 파일의 출자 항목 %1에 입력이 %2개 있지만, 한 번의 출자에서는 최대 %3개까지 조달할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>세션 파일의 동의 해시 형식이 올바르지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>세션 파일의 서명 항목 %1의 형식이 올바르지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>세션 파일에 지분 %1에 대한 서명이 두 개 이상 나열되어 있습니다.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>세션 파일이 "%1"(으)로 표시되어 있지만 고정된 거래 또는 동의 해시가 없습니다.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>세션 파일에 존재하지 않는 지분에 대한 서명이 있습니다.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>세션 파일은 승인이 취합되었다고 되어 있지만, 승인이 없는 지분이 있습니다.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>세션 파일은 승인이 취합되었다고 되어 있지만, 유효하지 않은 승인이 있습니다: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>세션 파일은 모든 출자가 서명되었다고 되어 있지만, 서명되지 않은 자금 입력이 하나 이상 있습니다.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>세션 파일을 분석할 수 없습니다: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>공유 마스터노드에는 지분이 %1개에서 %2개 사이여야 합니다 (현재 %3개).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>투표 주소는 유효한 P2PKH 주소여야 합니다.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>지분 %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>소유자 주소는 유효한 P2PKH 주소여야 합니다.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>소유자 주소가 지분 %1에서 이미 사용 중입니다. 모든 소유자 키는 고유해야 합니다.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>금액은 %1에서 %2 사이여야 합니다.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>환불</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>보상</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>%1 주소는 유효한 P2PKH 또는 P2SH 주소여야 합니다.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>환불 주소가 지분 %1에서 이미 사용 중입니다. 모든 환불 주소는 고유해야 합니다.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>%1 주소는 투표 주소와 같으면 안 됩니다.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>%1 주소는 지분 %2의 소유자 주소와 같으면 안 됩니다.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>지분 금액의 합계는 정확히 %1이어야 합니다 (현재 %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>조기 기간은 최대 %1 블록(약 2년)이어야 합니다.</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>조기 위약금은 음수일 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>조기 위약금은 가장 작은 지분 금액(%1)보다 작아야 합니다.</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>자금은 세션을 편집할 수 있는 동안에만 변경할 수 있습니다. 먼저 조건 잠금을 해제하세요 (수집된 모든 승인이 폐기됩니다).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>출자에는 참가자 라벨이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>출자에 자금 입력이 없습니다.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1"님은 이미 출자했습니다. 먼저 기존 출자를 제거하세요.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>입력 %1:%2은(는) 이미 "%3"님이 출자했습니다.</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>잔돈 금액은 양수여야 합니다.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>"%1"님의 출자를 찾을 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>편집 가능한 세션만 잠글 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>동의 해시의 형식이 올바르지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>동의 해시가 준비된 거래와 일치하지 않습니다. 서명하지 말고 준비 단계를 다시 시작하세요.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>담보 출력 인덱스가 준비된 거래와 일치하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>조건이 아직 잠기지 않았으므로 승인할 내용이 없습니다.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>%2개 중 지분 %1은(는) 존재하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>서명이 유효한 base64가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>%1의 서명이 현재 조건과 일치하지 않습니다. 이 세션의 이전 버전에 대해 서명되었을 가능성이 높으니 %1에게 현재 버전으로 다시 서명해 달라고 요청하세요.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>세션 파일의 지분 표가 준비된 거래와 일치하지 않습니다. 서명하지 말고 새 사본을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>세션 파일의 지분 %1이(가) 준비된 거래와 일치하지 않습니다. 서명하지 말고 새 사본을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>세션 파일의 지분 %1 보상 주소가 준비된 거래와 일치하지 않습니다. 서명하지 말고 새 사본을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>세션 파일에 표시된 조건이 준비된 거래와 일치하지 않습니다. 서명하지 말고 새 사본을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>세션 파일에 표시된 자금이 준비된 거래와 일치하지 않습니다. 서명하지 말고 새 사본을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>이 지분에 대한 다른 서명이 이미 기록되어 있습니다. 사본 중 하나가 세션의 이전 버전에 서명한 것입니다. 최신 리비전을 합의하고 다시 서명받으세요.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>자금 입력은 승인이 취합된 후에만 서명할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>준비된 거래가 모두가 승인한 조건과 일치하지 않습니다. 서명하거나 브로드캐스트하지 말고 새 사본을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>이 메시지는 다른 세션(세션 %1)용입니다. 현재 세션 %2에서 작업 중입니다.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>답신은 조건을 아직 편집할 수 있는 동안에만 반영할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>답신이 현재 초안과 일치하지 않습니다. 참가자, 금액 또는 조건이 변경되었습니다. 발신자에게 최신 초대를 붙여넣고 다시 답신해 달라고 요청하세요.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>%1의 지분에는 다른 답신에서 온 세부 정보가 이미 있습니다.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>이 메시지에는 잠긴 조건이 포함되어 있지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>잠긴 조건에 보내신 세부 정보가 포함되어 있지 않습니다.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>진행자</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>세부 정보를 보낸 이후 조건이 변경되었습니다. %1에게 현재 초대를 보내고 다시 답신해 달라고 요청하세요.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>가져온 사본은 이 세션의 리비전 %1입니다. 이 사본은 리비전 %2이며 가져온 사본으로 대체됩니다.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>가져온 사본은 이 세션의 리비전 %1입니다. 이 사본은 이미 리비전 %2입니다. 발신자에게 더 최신 파일을 보내세요.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>가져온 사본은 조건이 잠겨 있으며 편집 가능한 이 사본을 대체합니다.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>이 세션의 조건은 이미 잠겨 있지만 가져온 사본은 아직 편집 가능합니다. 발신자에게 더 최신 업데이트를 보내세요.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>세션 %1의 두 사본이 서로 다른 조건을 잠갔기 때문에 합칠 수 없습니다. 하나의 사본에 합의하여 다시 배포하고, 모두가 그 사본을 승인하도록 하세요.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>세션 %1의 두 사본이 같은 세부 정보를 서로 다르게 변경했기 때문에 합칠 수 없습니다. 하나의 사본에 합의하여 다시 배포하세요.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>자금 서명이 된 사본들이 같은 거래가 아닙니다. 병합할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>자금 입력 %1에 서로 다른 서명이 두 개 있습니다. 사본을 병합할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>가져온 사본은 승인이 취합되었다고 되어 있지만 해당 상태가 유효하지 않습니다: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>가져온 사본은 모든 출자가 서명되었다고 되어 있지만 해당 상태가 유효하지 않습니다: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>가져온 사본은 등록이 브로드캐스트되었다고 되어 있지만 해당 상태가 유효하지 않습니다: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>이 세션은 승인을 수집하는 단계가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>아직 모든 지분이 서명하지 않았습니다 (%2개 중 %1개). 모든 서명이 완료된 세션만 취합하세요.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>출자에 서명하기 전에 소유자 승인을 취합해야 합니다.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>서명되지 않은 자금 입력이 1개 남아 있습니다.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>서명되지 않은 자금 입력이 %1개 남아 있습니다.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>모든 동의 서명과 자금 서명이 갖춰지기 전에는 세션을 브로드캐스트할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>없음</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>약 1분</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>약 %1분</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>약 1시간</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>약 %1시간</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>약 1일</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>약 %1일</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>수수료는 양수여야 합니다.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>위약금과 수수료가 해체하는 참가자의 지분을 초과합니다.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>단독 해체에는 위약금을 받을 다른 지분이 최소 하나 필요합니다.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>코인 1개</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>코인 %1개</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>승인 1건</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>승인 %1건</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>참가자 1명</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>참가자 %1명</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>자금 입력 1개</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>자금 입력 %1개</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>지분 1개</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>지분 %1개</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>입력 1개</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>입력 %1개</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>크레딧 풀</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>마지막 블록 변경</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>해당 없음</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>총 잠금량</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>대기 중인 잠금 해제</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>출금 한도</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>인스턴트샌드</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>검증된 잠금</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>검증되지 않은 잠금</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>거래 대기 중인 잠금</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>보호되지 않은 거래</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>마스터노드</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>마스터노드 수</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>에보노드 수</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>체인락스</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>현재 블록 높이</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>마지막 블록 시간</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>마지막 블록 해시</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>쿼럼</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>총 %1 (활성화됨: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>블록체인 동기화 대기 중…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 활성 (상태 %2%)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>쿼럼 유형이 순환하며, 데이터는 %1 동안 보관됩니다</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>쿼럼 유형이 순환하지 않으며, 데이터는 %1 동안 보관됩니다</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>현재 쿼럼의 남은 기간: %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>현재 쿼럼이 만료되었습니다</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>마지막 구성: %1 전</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>최근 구성됨</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Do you wish to continue?</source>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>지갑 &lt;b&gt;%1&lt;/b&gt; 여는 중…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>새 운영자 키 생성</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>비밀 키는 등록 전에 표시되어 확인하게 되며, 그 이후에는 다른 어디에도 보관되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>공개 키</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>기존 운영자 공개 키 사용</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>호스팅 노드의 경우: 운영자가 비밀 키를 보관하고 공개 키를 사용자에게 전달합니다.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>운영자 BLS 공개 키 (16진수 96자, basic scheme)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>운영자 BLS 비밀 키 (16진수 64자)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>PSBT 작업</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>대화</translation>
     </message>
@@ -2968,10 +4148,6 @@ Due to discontinued support, you should request the merchant to provide you with
         <translation>페이로드 보기</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>제안 생성</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>제안 "%2"에 대해 %1이(가) 성공적으로 전송되었습니다.
 
 이제 새 제안을 모니터링하고 브로드캐스트하는 페이지로 이동합니다. 나중에 "제안 재개"를 클릭하여 이 작업을 재개할 수 있습니다.</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>일반</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>투표 주기</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>해당 없음</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>마지막 슈퍼블록</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>다음 슈퍼블록</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>투표 마감 블록</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>참여</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>투표 중인 마스터노드</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>투표 중인 에보노드</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>통과 기준</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>노드</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>보유 마스터노드</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>보유 투표권</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>제안</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>제안 수</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>할당된 예산</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>통과 중인 제안</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>자금 미지원 제안</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>실패 중인 제안</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1표</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (투표 가능 %2)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>제안 %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>예산의 %1%</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% 할당됨</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (%2 부족)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>양식</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>표시할 제안 선택</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>제안 목록 필터</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>제목으로 필터</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>투표 마감: 동기화 대기 중…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>네트워크에 활성 제안이 없습니다.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>투표…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>현재 투표를 확인하고 선택한 마스터노드로 투표합니다</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>제안 생성</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>제안 재개</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>제안 수:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>활성 제안</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>내 제안</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>이 지갑이 제어하는 투표 자격이 있는 마스터노드의 현재 자금 지원 투표입니다. 집계 수는 가중 투표 기준입니다.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (가중치 %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>투표 키 없음</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>지갑 파일에 기록된 제안이 없습니다.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>사용할 수 없음</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>동기화된 노드와 잠금 해제된 지갑이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>제안 재개</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>원시 JSON 복사</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>제안 URL 열기…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>찬성 투표</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>반대 투표</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>기권 투표</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>%1 상세 정보</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>블록체인 동기화 대기 중…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>거버넌스 동기화 대기 중…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>투표 가능한 마스터노드 %n개</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>슈퍼블록 임박</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>투표 기간 종료</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>슈퍼블록까지 ~%1 (%2 블록) 남음</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>투표 마감까지 ~%1 (%2 블록) 남음</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>예산의 ~%1%가 확정됨 (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>남은 블록 수와 목표 블록 시간으로 추정한 값입니다. 마감 이후에도 투표를 릴레이할 수 있지만 이번 주기의 지급에는 영향을 주지 않을 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>동기화가 완료되기 전에는 거버넌스와 상호작용할 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>새 제안을 생성합니다</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>기존 제안을 재개합니다</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>제안 생성 비용은 %1이며, 잔액이 부족합니다</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>오류</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>URL을 확인할 수 없습니다. 형식이 잘못되었거나 알 수 없는 프로토콜일 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>외부 링크 경고</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>기본 브라우저에서 다음 URL을 열려고 합니다
+
+%1
+
+이 콘텐츠는 사용자가 제출한 것으로, 제목에 설명된 내용과 다를 수 있습니다.
+
+계속하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>투표 실패</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>사용 가능한 지갑이 없습니다.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>지갑에서 마스터노드 투표 키를 찾을 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>마스터노드 데이터를 가져올 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>투표할 제안을 선택하세요.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>투표하려면 브로드캐스트된 제안과 동기화된 노드가 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>지갑의 잠금을 해제할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>동기화된 마스터노드 데이터를 가져올 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>마스터노드 %1은(는) 더 이상 투표 자격이 없습니다</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>마스터노드 %1을(를) 찾을 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>마스터노드 %1에 대한 투표 서명 실패</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>마스터노드 %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>%n번 성공적으로 투표했습니다</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>%n번 투표 실패</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>오류:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>투표 결과</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>needs %1 more votes</source>
         <translation>%1표 더 필요</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>내 투표</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>%1 투표</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>제안 투표</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>투표에 사용할 마스터노드를 선택하세요. 현재 자금 지원 투표가 아래에 표시됩니다. 투표를 변경하면 해당 마스터노드의 이전 투표가 대체되며, 네트워크는 업데이트를 시간당 한 번으로 제한합니다.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>마스터노드</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>투표 주소</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>가중치</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>현재 투표</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>투표 시간</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>ProTx 해시</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>전체 선택</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>선택 해제</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>선택된 마스터노드: %1 · 투표 가중치: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>실행시 시작 화면 보기 (기본값: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>에러: 지정된 데이터 디렉토리 "%1" 이 존재하지 않습니다.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>에러: 설정 파일을 파싱할 수 없습니다: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Unroutable</source>
         <translation>라우팅 할 수 없음</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 및 %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>지금</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n개월</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>UNKNOWN</source>
         <translation>알 수 없음</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>공유</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>운영자 보상</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>지분</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>참가자</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>주소</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>지분 %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>나</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>환불 주소와 동일</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>소유자</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>보상</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>환불</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>조기 기간</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>없음</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>블록 %1에서 종료</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>블록 %1에서 종료 (지금부터 약 %2)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>종료됨 (블록 %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>조기 종료 위약금</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>%1에 이 컴퓨터에 저장됨</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>이 컴퓨터에 생성되지 않음</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>예비 해체</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>네트워크 주소</translation>
     </message>
@@ -3537,6 +5235,66 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>Collateral Date</source>
         <translation>담보 날짜</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>%1 전</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>%1 남음</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>찬성</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>반대</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>기권</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>투표하지 않음</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>이번 주기의 투표 마감이 지났습니다 (블록 %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>투표 마감: ~%1 남음 (%2 블록, 블록 %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>찬성 %1, 반대 %2, 기권 %3 / 미투표 %4</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>유효하지 않은 대시 주소: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>클립보드에 복사</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>사용 가능한 지갑이 없습니다.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>새 주소를 생성할 수 없습니다: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>지분 %1/%2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>정보(&amp;I)</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>일반</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>이름</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>없음</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>연결 수</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>열기(&amp;O)</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>시작 시간</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>네트워크</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>최종 블록 시각</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>로그 파일 디버그</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>클라이언트 버전</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>블록 체인</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>메모리 풀</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>현재 거래 수</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>메모리 사용량</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>&amp;Repair</source>
         <translation>복구(&amp;R)</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>일반(&amp;G)</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>네트워크(&amp;N)</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>거버넌스(&amp;V)</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>User Agent</source>
         <translation>유저 에이전트</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>데이터 폴더</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>데이터 디렉토리의 지정되지 않은 로케이션을 특정하기 위해서는 '%1' 옵션을 사용하세요.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Blocksdir</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>블록 디렉토리의 지정되지 않은 로케이션을 특정하기 위해서는 '%1' 옵션을 사용하세요.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>로컬 주소</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>귀하의 Dash 노드가 다른 노드와 통신하기 위해 현재 사용 중인 네트워크 주소입니다.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>일반 마스터노드 수</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>에보노드 수</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>현재의 블록 높이</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>최종 블록 해시</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>최신 체인락스 블록 해시</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>최신 체인락스 블록 높이</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>현재 데이터 디렉토리에서 %1 디버그 로그 파일을 엽니다. 용량이 큰 로그 파일들은 여는 데 수 초가 걸릴 수 있습니다.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>인스턴트샌드 잠금</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>추방 취소(&amp;U)</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>In:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Out:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>네트워크 활동 비활성화</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>없음</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>전체: %1 (가능: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>지갑 없이 명령 수행하기</translation>
     </message>
@@ -4122,6 +5768,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: BIP324 암호화된 전송 프로토콜</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>거버넌스(&amp;G)</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>마스터노드 등록</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>이전</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>다음</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>취소</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>마스터노드 유형</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>마스터노드 — 담보 %1</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>코어 네트워크 서비스를 제공하고 정기적인 마스터노드 보상을 받습니다.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>에보노드 — 담보 %1</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>추가로 대시 플랫폼을 호스팅하며, 투표 가중치가 4배이고 더 큰 몫의 보상을 받습니다. 플랫폼 노드 ID와 추가 서비스가 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>에보노드 등록</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>담보</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>이 지갑에서 새 주소로 담보 전송</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>하나의 거래로 담보 입금과 마스터노드 등록이 함께 이루어집니다.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>새 주소 사용</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>이 지갑의 기존 담보 출력 사용</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>담보 금액과 정확히 일치하고, 확인되었으며, 다른 마스터노드에서 사용 중이지 않은 미사용 P2PKH 출력입니다.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>외부 담보 참조 (예: 하드웨어 지갑)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>이 지갑 외부에 보관된, 담보 금액과 정확히 일치하는 확인된 P2PKH 출력입니다.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>검토 후, 이 지갑 외부에서 담보 키로 메시지에 서명하라는 안내가 표시됩니다.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>담보 거래 ID (16진수 64자)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>거래 ID:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>출력 인덱스</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>출력 인덱스:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>서비스 주소</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>마스터노드가 코어 P2P 네트워크에 서비스를 제공할 공개 주소이며, 쉼표 또는 공백으로 구분합니다. 각 항목은 네트워크에서 고유해야 합니다.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>비워 둘 수 있으며, 이 경우 주소와 함께 서비스 업데이트를 전송할 때까지 마스터노드는 비활성 상태로 유지됩니다.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>키</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>소유자 주소</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>이 마스터노드를 제어합니다 (P2PKH). 해당 키가 등록자 업데이트에 서명합니다. 이 지갑에 키를 보관하려면 새 주소를 사용하고, 소유자가 제어하는 주소를 사용하려면 그 주소를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>투표 주소</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>위임할 수 있습니다 (P2PKH). 소유자 키로 투표하려면 비워 두세요. 이 지갑에 별도의 투표 키를 보관하려면 새 주소를 사용하세요.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>소유자 주소를 사용하려면 비워 두세요</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>운영자 키</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>운영자가 마스터노드 서버(BLS)를 운영하며, 공개 키만 체인에 등록됩니다.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>생성된 비밀 키가 표시되며 등록 전에 확인해야 합니다. 이 지갑에는 저장되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>지급</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>지급 주소</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>이 마스터노드의 블록 보상을 받습니다 (P2PKH 또는 P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>운영자 보상</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>운영자에게 약속된 보상의 비율입니다.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>운영자는 이 마스터노드의 모든 보상 중 이 비율을 영구적으로 받게 됩니다. 운영자와 합의한 경우가 아니라면 0으로 두세요.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>플랫폼 서비스</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>플랫폼 노드 ID</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>플랫폼 P2P 공개 키에서 파생됩니다 (16진수 40자).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>플랫폼 주소</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>ADDR:PORT 항목이며, 쉼표 또는 공백으로 구분합니다.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>플랫폼 P2P</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>플랫폼 HTTPS API</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>플랫폼 포트</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>v24 활성화 이전에는 플랫폼 포트만 등록할 수 있으며, 첫 번째 서비스 주소에 적용됩니다.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>플랫폼 P2P 포트:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>플랫폼 HTTPS 포트:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>수수료 출처</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>검토</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>담보 소유권 증명</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>담보 키로 다음 메시지에 서명한 뒤 (예: 하드웨어 지갑의 메시지 서명 기능 사용), 아래에 base64 서명을 붙여넣으세요.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>메시지 복사</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>서명</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>base64 서명을 여기에 붙여넣으세요</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>운영자 키 저장</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>등록하기 전에 생성된 이 키를 저장하세요. 다른 어디에도 보관되지 않으며 지갑에서 복구할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>운영자 비밀 키</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>지금 저장하세요. 확인하기 전에는 등록을 시작할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>마스터노드 서버의 dash.conf에 다음 줄을 추가하세요:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>등록하기 전에 저장했는지 확인하려면 비밀 키의 마지막 4자를 입력하세요:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>마스터노드 등록됨</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>프로바이더 거래 해시</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>다음 단계</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>완료</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>%2단계 중 %1단계 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>선택한 주소가 담보 %1과(와) 거래 수수료를 지불합니다. 정확한 수수료는 등록 시 지갑 설정에 따라 계산되며, 잔돈은 이 주소로 반환됩니다.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>선택한 주소가 거래 수수료를 지불합니다.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>유효한 담보 주소(P2PKH 또는 P2SH)를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>이 지갑에는 정확히 %1인 미사용 출력이 없습니다. 대신 지갑에서 담보를 입금하세요.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>담보 거래 ID를 16진수 64자로 입력하세요.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>에보노드는 v24 활성화 이전에 플랫폼 포트를 담기 위해 서비스 주소가 하나 이상 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>유효한 소유자 주소(P2PKH)를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>유효한 투표 주소(P2PKH)를 입력하거나, 소유자 주소를 사용하려면 비워 두세요.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>소유자 주소와 투표 주소는 담보 주소와 달라야 합니다.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>유효한 운영자 BLS 공개 키를 입력하세요 (16진수 96자, basic scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>유효한 지급 주소(P2PKH 또는 P2SH)를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>지급 주소는 소유자 주소 및 투표 주소와 달라야 합니다.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>지급 주소는 담보 주소와 달라야 합니다.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>플랫폼 노드 ID를 16진수 40자로 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>플랫폼 P2P 주소와 플랫폼 HTTPS 주소를 모두 입력하세요. 둘 중 하나만 등록할 수는 없습니다.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>플랫폼 P2P 주소와 플랫폼 HTTPS 주소를 각각 하나 이상 입력하거나, 서비스 주소를 지워서 나중에 서비스 업데이트로 모두 설정하세요.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>플랫폼 엔드포인트를 설정하는 경우 코어 서비스 주소를 하나 이상 입력하거나, 모든 서비스 엔드포인트를 지워서 나중에 서비스 업데이트로 설정하세요.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>담보 금액 %1을(를) 보유한 사용 가능한 지갑 주소가 없습니다. 선택한 주소에는 등록 시 계산되는 수수료를 충당할 금액도 있어야 합니다.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>거래 수수료를 지불할 수 있는 잔액이 있는 사용 가능한 지갑 주소가 없습니다.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>담보 키로 위 메시지에 서명한 base64 인코딩 서명을 붙여넣으세요.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>준비 이후에는 등록 내용을 변경하면 서명 중인 메시지가 무효화되므로 이전 단계로 돌아갈 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>계속</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>준비</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>등록</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>제출</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>마침</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>사용 가능한 지갑이 없습니다. 마스터노드를 등록하려면 지갑이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>이 지갑은 조회 전용입니다. 마스터노드를 등록하려면 거래에 서명할 수 있는 지갑이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>운영자 비밀 키의 마지막 4자를 입력하여 저장했음을 확인하세요.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>이 지갑에는 확인이 완료된 정확히 %1인 미사용 출력이 없습니다. 대신 이 지갑에서 담보를 전송하거나, 다른 곳에 보관된 출력을 참조하세요.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>유형</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>서비스</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>플랫폼 HTTPS</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>금액</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>수신처</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>출력</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>출처</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>소유자</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>투표</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>운영자</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>주소</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>운영자 보상 비율</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>네트워크 수수료</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>노드</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>에보노드</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>마스터노드</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>설정되지 않음 — 서비스 업데이트를 전송할 때까지 노드가 비활성 상태로 유지됩니다</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>P2P(피어 간) %1, HTTPS %2</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>등록의 일부로 이 지갑에서 전송합니다</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>이 지갑이 이미 보유한 출력</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>이 지갑 외부에 보관됨 — 해당 키로 메시지에 서명하게 됩니다</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>소유자와 동일</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>자금</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>선택되지 않음</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>제출 시 지갑의 현재 수수료 설정으로 계산됩니다</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>준비하면 서명되지 않은 거래와 담보 키로 서명할 메시지가 생성됩니다. 아직 아무것도 브로드캐스트되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>등록하면 이 지갑에서 거래가 브로드캐스트됩니다. 지갑 잠금 해제를 요청받을 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>새로 생성되며, 등록 전에 표시되어 확인하게 되고, 다른 어디에도 보관되지 않습니다</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>노드를 운영하는 사람이 제공합니다</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>담보 수신처가 더 이상 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>선택한 담보 출력이 이미 다른 마스터노드에서 사용 중입니다.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>소유자 주소가 더 이상 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>투표 주소가 더 이상 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>운영자 공개 키가 더 이상 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>지급 주소가 더 이상 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>선택한 수수료 출처가 더 이상 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>마스터노드</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>이 거래는 이 지갑에서 담보 %1을(를) 생성하고 %2을(를) 등록합니다.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>이 거래는 외부 담보 %1을(를) 등록하고 이를 이 %2의 담보로 지정합니다.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>이 거래는 지갑의 담보 출력 %1을(를) 이 %2에 대해 등록하고 잠급니다.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> 네트워크 수수료는 선택한 수수료 출처에서 지갑의 현재 수수료 설정을 사용해 계산됩니다.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>%1 등록 확인</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>이 %1 등록을 브로드캐스트하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>수수료 출처: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>이 마법사가 열려 있는 동안 네트워크의 프로바이더 거래 규칙이 변경되었습니다. 등록하기 전에 플랫폼 서비스 페이지를 다시 검토하세요.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>준비 중…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>등록 중…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>담보 서명을 수집하는 동안 네트워크의 프로바이더 거래 규칙이 변경되었습니다. 준비된 이 등록을 폐기하고 플랫폼 서비스 페이지를 다시 검토하세요.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>담보 서명이 유효한 base64가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>제출 중…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>등록 실패</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>등록이 완료되었지만 거래가 반환되지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>등록 거래가 생성되었지만 네트워크로 전송되지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>준비 작업이 완료되었지만 거래가 반환되지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>키를 보유한 담보 주소: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>등록 거래가 네트워크로 전송되었습니다.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>이 지갑에 기록되었으며 거래 탭에 표시됩니다. 외부 담보는 등록한 아웃포인트에 그대로 남아 있으며 이 지갑에서 제어되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>이 지갑에 기록되었으며 거래 탭에 표시됩니다. 담보는 지갑에 남아 있지만 마스터노드가 등록된 동안 잠깁니다.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>저장해 둔 운영자 비밀 키로 마스터노드 서버를 설정한 뒤, 그곳에서 dashd를 다시 시작하세요.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>제공한 운영자 공개 키와 일치하는 BLS 비밀 키로 마스터노드 서버를 설정하세요.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>등록된 모든 서비스 주소와 포트가 인터넷에서 접근 가능한지 확인하세요.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>노드의 서비스 엔드포인트가 준비되면 서비스 업데이트 거래를 전송하세요. 그때까지 노드는 비활성 상태로 유지됩니다.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>등록한 노드 ID와 일치하는 플랫폼 노드 키로 대시 플랫폼 서비스(Tenderdash 및 Drive)를 준비하세요.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>등록이 확인되고 운영자가 첫 업데이트에 서명하면 에보노드가 활성화됩니다.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>등록이 네트워크에서 확인되면 마스터노드가 활성화됩니다.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>준비된 등록을 폐기하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>준비된 등록이 폐기됩니다. 이 마법사가 설정한 담보 잠금도 모두 해제됩니다.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ For more information on using this console, type %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>지갑 복원 메시지</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>지정되지 않음</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>서비스 종료</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>키 유출</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>키 변경</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>사유:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>운영자 키:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>자동은 현재 운영자 지급 주소를 먼저 사용하고, 그다음 마스터노드 지급 주소를 사용합니다. 이 선택을 덮어쓰려는 경우에만 주소를 선택하세요.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>마스터노드 서비스 폐기</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>폐기하면 서비스 주소가 지워지고, 소유자가 운영자 키를 변경할 때까지 마스터노드가 PoSe 차단됩니다. 담보에는 영향이 없습니다.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>폐기</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>운영자 키 또는 투표 키 교체</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>이 키를 변경하려면 모든 지분 소유자의 승인이 필요합니다. 한 사람이 요청을 시작하고, 나머지는 이를 붙여넣어 승인한 뒤 답신을 복사해 돌려줍니다.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. 새 키</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>현재 운영자 키를 유지하려면 비워 두세요</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>새 운영자 키:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>운영자 키가 변경되는 즉시 마스터노드가 차단되며, 새 운영자가 서비스 업데이트를 전송할 때까지 유지됩니다.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>현재 투표 주소를 유지하려면 비워 두세요</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>새 투표 주소:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>수수료 출처:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>요청 준비</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>이 지갑에서 마무리하세요. 이 지갑이 수수료를 지불하고 최종 거래를 전송해야 합니다.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. 승인</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>같은 요청을 모든 지분 소유자에게 보내세요. 답신은 어떤 순서로 돌아와도 됩니다.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>승인하고 답신 복사</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. 전송</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>교체 거래 전송</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>거래 ID</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>운영자 키: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>변경 없음</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>투표 주소: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>먼저 요청을 준비하거나 붙여넣으세요.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>요청을 준비한 지갑만 전송할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>먼저 모든 지분이 승인해야 합니다 (현재 %2개 중 %1개).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>유효한 운영자 공개 키를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>투표 주소는 P2PKH 주소여야 합니다.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>키 교체 거래를 전송했습니다.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>요청에 자금을 댄 지갑이 취합해야 한다는 오류가 표시되면, 요청을 준비한 지갑에서 마무리하세요.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ For more information on using this console, type %6.
         <translation>혹은</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>서명되지 않은 거래</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBT가 클립보드에 복사되었습니다. 저장할 수도 있습니다.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT가 디스크에 저장되었습니다</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>코인 전송 확인</translation>
     </message>
@@ -4688,6 +7188,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT 저장됨</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ For more information on using this console, type %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>%1 보다 높은 수수료는 너무 높은 수수료 입니다.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>%n 블록 내 거래 확인을 시작하기 위해 추정 완료</numerusform></translation>
@@ -4900,6 +7405,1441 @@ For more information on using this console, type %6.
     <message>
         <source>Create Unsigned</source>
         <translation>서명되지 않은 거래 생성</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>공유 마스터노드</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>이전</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>붙여넣기</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>저장…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>취소</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>다음</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>세부 정보</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>자금 조달됨</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>승인됨</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>서명됨</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>다른 작업이 아직 실행 중입니다.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>사용 가능한 지갑이 없습니다.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>지갑이 잠긴 상태로 유지되었습니다.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>노드가 이유를 알려주지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>등록 내용이 유효한 거래가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>공유 마스터노드</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>여러 사람이 함께 하나의 마스터노드에 자금을 댑니다. 한 사람이 진행을 맡고, 나머지는 받은 내용을 붙여넣은 뒤 답신을 복사해 돌려줍니다. 최종 브로드캐스트 전까지는 아무것도 네트워크에 전달되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>시작</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>참여자와 마스터노드 설정을 입력한 뒤 다른 사람들을 초대합니다.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>공유 마스터노드 시작</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>계속</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>초대, 잠긴 조건, 서명 요청 또는 받은 답신을 붙여넣으세요. 앱이 알아서 처리합니다.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>클립보드에서 붙여넣기</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>파일 열기…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>참가자</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>참여자와 각자의 출자 금액입니다. 금액의 합계는 정확히 %1이어야 하며, 모든 지분은 최소 %2 이상이어야 합니다.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>이름</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>금액</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>나</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>참가자 추가</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>참가자 %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>제거</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>마스터노드 설정</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>마스터노드 전체에 적용되며 모든 참가자에게 동일합니다.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>서비스 주소:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>마스터노드가 코어 P2P 네트워크에 서비스를 제공할 공개 주소이며, 쉼표 또는 공백으로 구분합니다. 비워 두었다가 나중에 서비스 업데이트로 설정할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>운영자 키:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>서버를 운영하는 사람에게 비밀 키가 필요합니다. 공개 키만 체인에 등록됩니다.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>공개 키 복사</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>노드 운영자:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>조건에 기록되어, 누가 노드를 시작하고 복구할 수 있는지 모두가 알 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>운영자 비밀 키를 보관하는 참가자의 이름</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>투표 주소:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>마스터노드 전체를 대표하여 거버넌스 제안에 투표합니다 (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>새 주소 사용</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>운영자 보상:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>서버를 운영하는 사람에게 약속된 보상의 비율입니다.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>운영자는 참가자들에게 분배하기 전에 모든 보상 중 이 비율을 영구적으로 먼저 받게 됩니다.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>탈퇴 조건</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>한 참가자가 다른 참가자들보다 먼저 나가려는 경우에 대한 규정입니다.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>탈퇴 방식</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>누구나 언제든 혼자서 마스터노드를 해체할 수 있으며, 모든 사람이 원금을 돌려받습니다. 조기 기간 중에 혼자 해체하는 사람은 자신의 지분에서 조기 종료 위약금을 내며, 이는 나머지 참가자들에게 분배됩니다. 모든 사람이 동의하면 언제든 무료로 해체할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>조기 기간:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>등록 이후 혼자 나가면 위약금이 부과되는 블록 수입니다.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>없음</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3개월</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6개월</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1년</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2년</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>조기 종료 위약금:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>내 출자</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>내 지분에 사용할 주소와 코인입니다. 코인은 나만 볼 수 있으며, 다른 사람에게는 결과 거래 입력만 보입니다.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>내 지분</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>나입니다:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>소유자 주소:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>내 지분을 제어하며 키 변경과 해체를 승인합니다. 이 지갑에 보관됩니다.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>환불 주소:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>마스터노드가 해체될 때 원금을 받는 주소입니다. 나중에 변경할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>보상 주소 (선택 사항):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>내 몫의 보상을 받는 주소입니다. 환불 주소를 사용하려면 비워 두세요. 나중에 변경할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>코인</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>네트워크 수수료:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>코인 예약</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>해제</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>운영자 키 저장</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>누구든 초대하기 전에 생성된 이 키를 저장하세요. 다른 어디에도 보관되지 않으며 지갑에서 복구할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>운영자 비밀 키</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>지금 저장하세요. 확인하기 전에는 초대를 보낼 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>마스터노드 서버의 dash.conf에 다음 줄을 추가하세요:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>보내려는 초대에는 공개 키만 포함됩니다.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>저장했는지 확인하려면 비밀 키의 마지막 4자를 입력하세요:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>참가자 초대</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>모든 사람에게 같은 초대를 보내세요. 각자 코인을 예약하고 세부 정보를 회신합니다.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>초대 복사</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>초대</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>초대 저장…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>초안을 변경했습니다. 이미 답신한 참가자는 다시 답신해야 합니다.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>이 조건을 잠그시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>잠그면 모든 주소, 금액 및 코인이 고정됩니다. 이후에는 누구도 편집할 수 없으며, 잠금 해제만 가능하고 이 경우 모든 승인이 폐기됩니다.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>승인</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>잠긴 조건 복사</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>잠긴 조건</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>조건 잠금 해제…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>서명</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>서명 요청 복사</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>서명 요청</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>보낸 내용</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>다음 단계</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>내 코인 해제</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>공유 마스터노드 등록됨</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>진행된 내용</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>확인 1회 후 마스터노드 탭에 표시됩니다.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>안전하게 보관할 것</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>내 지분 소유자 키</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>예비 해체</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>오프라인으로 보관하는 서명된 해체 거래입니다. 이 지갑을 분실하더라도 원금을 되찾을 수 있습니다. 첫 번째 확인 이후에 생성하세요.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>등록이 확인되면 마스터노드 목록에서 (마스터노드를 마우스 오른쪽 버튼으로 클릭하여) 생성하고, 환불 주소 백업과 함께 이 지갑과는 별도로 보관하세요.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>세션 기록</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>최종 기록 저장…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>다음 단계</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>최종 기록 복사</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>최종 기록</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>%1 대기 중</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>진행자</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>조건 승인</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>출자 서명</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>완료</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>%2단계 중 %1단계 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>사용 가능한 지갑이 없습니다.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>이 지갑은 서명할 수 없습니다. 열람은 가능하지만 참여할 수는 없습니다.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>공유 마스터노드에는 참가자가 %1명에서 %2명 사이여야 합니다.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>참가자 %1의 이름을 입력하세요.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>이름 "%1"이(가) 중복되었습니다.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>각 지분은 최소 %1 이상이어야 합니다.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>금액의 합계가 %1입니다. 정확히 %2이어야 합니다.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>본인에 해당하는 참가자를 선택하세요.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>유효한 운영자 BLS 공개 키를 입력하세요 (16진수 96자, basic scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>유효한 투표 주소(P2PKH)를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>조기 기간이 없으면 조기 종료 위약금을 0으로 설정하세요.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>조기 종료 위약금은 가장 작은 지분(%1)보다 작아야 합니다.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>유효한 소유자 주소(P2PKH)를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>유효한 환불 주소(P2PKH 또는 P2SH)를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>유효한 보상 주소(P2PKH 또는 P2SH)를 입력하거나 비워 두세요.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>보상 주소는 투표 주소 및 모든 소유자 주소와 달라야 합니다.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>조건을 잠그려면 모든 참가자가 세부 정보를 회신해야 합니다.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>이 지갑은 조회 전용이므로 서명할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>먼저 운영자 비밀 키를 저장하세요. 이 키는 "운영자 키 저장" 페이지에서 한 번만 표시되며, 세션 파일에는 포함되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>코인 예약 및 세부 정보 복사</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>잠그고 승인</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>조건 잠금</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>승인하고 답신 복사</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>승인</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>다시 시도</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>서명하고 답신 복사</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>등록 브로드캐스트</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>닫기</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>마침</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>처음부터 다시</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>운영자 비밀 키의 마지막 4자를 입력하여 저장했음을 확인하세요.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>이미 이 조건을 승인했습니다.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>등록을 브로드캐스트하려면 모든 참가자가 각자의 코인에 서명해야 합니다.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>공유 마스터노드 — 세션 %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%2 중 %1%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%2 중 %1 — %3 부족</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%2 중 %1 — %3 초과</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>가장 작은 지분(%1)보다 작아야 합니다. 누구나 언제든 무료로 나갈 수 있음을 받아들이는 경우에만 0으로 설정하세요.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>누구나 언제든 무료로 나갈 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>%1이(가) 마스터노드 수명의 블록 %2 이전에 나가면 %1은(는) %3을(를) 잃으며, 이 금액은 나머지 참가자들에게 분배됩니다.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>조기 기간 중에 혼자 나가면 %1의 비용이 들며, 이 금액은 나머지 참가자들에게 분배됩니다.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>위약금이 0이면 조기 기간은 효력이 없습니다. 누구나 언제든 혼자서 마스터노드를 해체할 수 있으며 비용이 들지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>지분 %1/%2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>지분 %1/%2 — %3 (나)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>본인이 어느 참가자인지 선택하세요.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>예약됨 — 이 코인은 세션이 끝나거나 직접 해제할 때까지 사용할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>%1 (%2) 사용, 잔돈 %3은(는) 내 새 주소로 반환됩니다.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>%1 (%2) 사용, 남는 잔돈 없음.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>모든 사람이 이 조건을 그대로 검토하고 한 번씩 승인합니다. 모두에게 같은 메시지를 보내세요.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>모든 줄을 읽어 보세요. 승인하면 소유자 키로 이 조건에 그대로 서명합니다. 아직 아무것도 브로드캐스트되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>모든 승인이 포함되어 있습니다. 이제 각 참가자가 자신의 코인에 서명합니다. 답신은 어떤 순서로 와도 됩니다.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>예약한 코인에 서명합니다. 내 서명은 해당 코인을 이 등록에 사용하도록 할 뿐입니다.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>자금 입력 %2개 중 %1개가 서명되었습니다.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>내 지분 %1에 서명합니다. 직접 브로드캐스트하지는 않습니다.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>보낸 내용: %1 · 코드 %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>잠긴 조건</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>서명 요청</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>최종 기록</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>다음으로 %1을(를) 받게 됩니다. 도착하면 여기에 붙여넣으세요.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1이(가) 등록을 브로드캐스트합니다. 마스터노드가 목록에 나타나면 예비 해체를 생성하세요.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>이 지갑에 있습니다 (%1). 지갑을 백업하세요. 변경 사항과 해체를 승인하는 키입니다.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>%1이(가) 보관합니다. 서버에 masternodeblsprivkey로 필요합니다.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>노드를 운영하는 사람</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>운영자 비밀 키로 마스터노드 서버를 설정하고 그곳에서 dashd를 다시 시작하세요.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>노드의 주소가 준비되면 서비스 업데이트를 전송하세요. 그때까지 노드는 비활성 상태로 유지됩니다.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>등록된 모든 서비스 주소와 포트가 인터넷에서 접근 가능한지 확인하세요.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>각 참가자는 첫 번째 확인 이후 각자의 예비 해체를 생성해야 합니다.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>입력 %2개 중 %1개</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%2명 중 %1명 회신</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%2명 중 %1명 서명</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%2명 중 %1명 승인</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>준비 중…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>등록 준비 실패: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>자금 조달 거래가 유효하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>유효하지 않은 환불 주소: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>유효하지 않은 보상 주소: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>유효하지 않은 지분 소유자 주소: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>운영자 키가 유효한 BLS 공개 키가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>투표 주소는 P2PKH 주소여야 합니다.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>운영자 보상은 다음 범위여야 합니다: 0% ~ 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>노드에서 예상치 못한 응답이 왔습니다.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>조건이 아직 잠기지 않았습니다.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>승인 실패: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>승인 중…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>승인</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>승인 취합 실패: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>승인 취합 중…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>이 거래는 내 출자에 포함되지 않은 이 지갑의 코인 %1도 사용합니다. 서명하지 말고 %2에게 새 세션을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>이 거래는 %2 지분을 위해 이 지갑의 코인 %1을(를) 사용하지만 잔돈은 %3만 이 지갑으로 반환합니다. 서명하지 말고 %4에게 새 세션을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>서명 실패: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>서명된 거래가 검토한 거래와 다릅니다. 사용하지 말고 %1에게 새 세션을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>서명된 출자</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>조건 잠금을 해제하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>잠금을 해제하면 %1이(가) 폐기됩니다. 다시 잠근 후에는 모든 사람이 다시 승인해야 합니다.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>담보: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>참가자: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>공유 마스터노드 등록 확인</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>이 공유 마스터노드 등록을 브로드캐스트하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>세션 %1 · 코드 %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>브로드캐스트 실패: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>모든 사람</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>복사됨 · 세션 %1 · 코드 %2 — %3에게 보내세요.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>먼저 운영자 비밀 키를 저장하세요. 이 키는 여기에서만 표시되며 세션 파일에는 포함되지 않습니다. 키가 없으면 마스터노드를 운영할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>공유 마스터노드 메시지 저장</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>세션 파일 (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>쓰기 위해 %1을(를) 열 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>저장됨 · 세션 %1 · 코드 %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>공유 마스터노드 메시지 열기</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>공유 마스터노드 메시지로 보기에는 메시지가 너무 큽니다.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>읽기 위해 %1을(를) 열 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>이 메시지는 기존 마스터노드에 관한 것입니다. 마스터노드 목록에서 여세요.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>집계되지 않은 서명</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>%1 수신 · 코드 %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>이 답신은 현재 조건보다 오래된 것입니다 (코드 %1, 현재 코드 %2). 발신자에게 최신 메시지를 붙여넣고 다시 답신해 달라고 요청하세요.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>%1의 %2 수신 · 코드 %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>내 %2 지분에 자금을 대려면 이 지갑에 사용 가능한 금액이 최소 %1 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>코인을 해제하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>세션 %1을(를) 위해 예약한 코인을 다시 사용할 수 있게 됩니다.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>다른 사람들의 코인은 계속 예약된 상태로 유지됩니다. 이 코인을 사용하면 이 등록은 브로드캐스트될 수 없으며 다른 사람들은 처음부터 다시 시작해야 합니다.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>해제됨 — 이 코인을 다시 사용할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>이 세션을 위해 예약된 코인이 사용되었습니다. 등록을 더 이상 완료할 수 없습니다. 처음부터 다시 시작하세요.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>이 노드에서는 아직 %1의 금액을 확인할 수 없습니다. 확인 가능한 입력의 합계는 담보 %3 중 %2입니다.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>예약된 코인의 합계는 %1이며, 담보 %2에 잔돈 %3과 네트워크 수수료를 더한 금액을 충당하지 못합니다. 등록을 브로드캐스트할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>입력 %1 − 잔돈 %2 = 담보 %3 + 네트워크 수수료 %4. 수수료가 비정상적으로 큽니다. 의도한 경우에만 계속하세요.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>입력 %1 − 잔돈 %2 = 담보 %3 + 네트워크 수수료 %4 ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>먼저 운영자 키를 저장하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>운영자 비밀 키는 이 창 외에는 어디에도 없으며, 세션 파일에는 공개 키만 들어 있습니다. 지금 닫으면 마스터노드를 운영할 수 없게 됩니다.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>나중을 위해 이 세션을 유지하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>저장하면 코인이 예약된 상태로 유지되어 중단한 곳에서 이어서 진행할 수 있습니다. 폐기하면 코인이 해제되며, 다른 사람들이 아직 기다리고 있다면 처음부터 다시 시작해야 합니다.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>운영자 키 저장</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>저장하고 닫기</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>폐기하고 코인 해제</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>지분 %1/%2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>이 지갑에는 이 마스터노드의 지분 소유자 키가 없습니다.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>마스터노드: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>지분</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>환불 주소</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>수령액</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>사용 가능한 지갑이 없습니다.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>이 지갑은 조회 전용이므로 서명할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>다른 작업이 아직 실행 중입니다.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>지갑 잠금 해제가 취소되었습니다.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>거래가 유효한 거래 hex가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>이 요청에 필요한 코인(%1:%2)이 사용되었습니다. 더 이상 전송할 수 없습니다. 처음부터 다시 시작하세요.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>내부 오류: 여기서 계산한 다이제스트가 노드의 값과 일치하지 않습니다. 승인하지 말고 이 문제를 보고해 주세요.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>이 지갑으로 %1을(를) 승인했습니다.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>공유 마스터노드에는 v24 업그레이드가 필요하지만 이 네트워크에서는 아직 활성화되지 않았습니다.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>이름</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>금액</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(나)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>이 요청은 모든 지분에 전체 원금을 지급하지 않습니다. 승인하지 말고 요청을 준비한 사람에게 새 요청을 부탁하세요.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>이 요청은 이 마스터노드에 없는 지분을 지정하고 있습니다.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>이 요청은 마스터노드의 담보를 정확히 사용하지 않습니다. 승인하지 마세요.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>이 요청은 지분 원금 중 %1을(를) 거래 수수료로 남깁니다. 승인하지 말고 요청을 준비한 사람에게 새 요청을 부탁하세요.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>클립보드에 공유 마스터노드 메시지가 없습니다.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>이 메시지는 공유 마스터노드 메시지가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>이 거래는 공유 마스터노드 해체 거래가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>이름 없음</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(나)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>소유자:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>아직 설정되지 않음</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>환불:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>보상:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>환불 주소와 동일</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>참가자</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>서비스:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>설정되지 않음 — 나중에 서비스 업데이트로 설정</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>운영자 키:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>설정되지 않음</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>노드 운영자:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>기록되지 않음</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>투표 주소:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>운영자 보상:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>마스터노드</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>조기 기간:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 블록 (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>조기 종료 위약금:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>누구나 언제든 무료로 나갈 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>조기 기간 중에 혼자 나가면 %1의 비용이 들며 이 금액은 나머지 참가자들에게 분배됩니다. 함께 나가는 것은 무료입니다.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>탈퇴 조건</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>출자:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>반환되는 잔돈:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>담보:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>조건이 잠기면 %1</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>출력 #%1이(가) %2 공유 담보 스크립트로 지급합니다</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>자금</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>세션:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>코드:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>준비한 지갑:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>식별 정보</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>거래가 유효한 거래 hex가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>거래가 해체 거래가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>거래 페이로드를 역직렬화할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>이 거래는 다른 마스터노드를 해체합니다.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>거래에 이미 서명이 포함되어 있습니다. 서명되지 않은 준비된 거래여야 합니다.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>거래가 공유 등록자 업데이트가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>이 거래는 다른 마스터노드를 업데이트합니다.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>승인됨</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>요청 복사</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>요청 저장…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>붙여넣기</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>파일 열기…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>이 메시지는 이미 여기 있는 거래와 다른 거래에 관한 것입니다. 두 사본 중 하나는 오래된 것입니다. 현재 것을 유지하고 새 답신을 요청하세요.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>승인을 붙여넣기 전에 먼저 요청 자체를 붙여넣으세요.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>이 메시지에는 승인이 없습니다.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>승인에 지분 번호 또는 서명이 없습니다.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>승인의 지분 번호를 읽을 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>지분 번호 %1이(가) 범위를 벗어났습니다.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: 서명이 base64 65바이트 컴팩트 서명이 아닙니다.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>%1의 승인이 준비된 거래와 일치하지 않습니다. %2에게 현재 요청을 붙여넣고 다시 승인해 달라고 요청하세요.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1은(는) 다른 답신에서 온 승인이 이미 있습니다.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>공유 마스터노드 메시지가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>이 메시지는 %1 네트워크용이며, 이 지갑은 %2에서 실행 중입니다.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>이 메시지는 이 마스터노드에 대한 다른 종류의 변경에 관한 것입니다.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>이 메시지는 다른 마스터노드에 관한 것입니다.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>복사됨 · 코드 %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>요청 저장</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>공유 마스터노드 메시지 (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>%1에 쓸 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>저장됨 · 코드 %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>%1에 저장했습니다.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>공유 마스터노드 메시지로 보기에는 메시지가 너무 큽니다.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>%1 수신 · 코드 %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>수신됨 · 코드 %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>요청 열기</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>공유 마스터노드 메시지 (*.json);;모든 파일 (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>%1을(를) 읽을 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>%1이(가) 승인함</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>%1 대기 중</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%2명 중 %1명 승인</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(q를 눌러 종료하고 나중에 계속하기)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>q를 눌러 종료하기</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ For more information on using this console, type %6.
     <message>
         <source>Date</source>
         <translation>날짜</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>유형</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>마스터노드 등록</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>마스터노드 업데이트</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>에셋 락</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ For more information on using this console, type %6.
     <message>
         <source>Transaction total size</source>
         <translation>총 거래 크기</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>페이로드</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ For more information on using this console, type %6.
         <translation>플랫폼 전송</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>데이터 거래</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>더스트 수신</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>마스터노드 등록</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>마스터노드 업데이트</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>에셋 락</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ For more information on using this console, type %6.
     <message>
         <source>(n/a)</source>
         <translation>(없음)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>마스터노드를 등록합니다. 금액은 이 지갑의 순잔액 변동이며, 담보가 이 지갑에 남아 있으면 보통 네트워크 수수료만 해당합니다.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>기존 마스터노드 등록을 업데이트합니다. 금액은 이 지갑의 순잔액 변동이며, 보통 네트워크 수수료만 해당합니다.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>대시 플랫폼에서 사용할 자금을 잠급니다. 금액은 네트워크 수수료를 포함한 이 지갑의 순잔액 변동입니다.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ For more information on using this console, type %6.
         <translation>채굴</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>마스터노드</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>플랫폼 전송</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>에셋 락</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>데이터 거래</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>운영자 BLS 공개 키 (16진수 96자)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>운영자 공개 키:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>운영자 키를 변경하면 즉시 마스터노드가 PoSe 차단됩니다. 새 운영자가 서비스 업데이트 거래를 전송해야 복구됩니다.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>투표 주소:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>지급 주소:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>여러 지급 지분은 유지됩니다. 변경하려면 RPC를 사용하세요</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>이 대화 상자에서는 다중 지급 마스터노드를 하나의 주소로 안전하게 통합할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>자동은 마스터노드의 현재 기본 지급 주소를 사용합니다. 이 선택을 덮어쓰려는 경우에만 주소를 선택하세요.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>마스터노드 등록자 정보 업데이트</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>운영자 키, 투표 주소 또는 지급 주소를 업데이트합니다. 현재 값이 모두 미리 입력되어 있으며 변경된 필드만 전송됩니다. 소유자 키가 이 지갑에 있어야 합니다.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>업데이트 전송</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>현재 프로바이더 거래 버전에 맞는 유효한 운영자 공개 키를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>투표 주소는 키 주소여야 합니다.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT, 여러 항목은 쉼표로 구분</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>여러 주소를 사용하려면 확장 프로바이더 거래가 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>서비스 주소:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>서비스 주소:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>운영자 키:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>플랫폼 노드 ID (16진수 40자)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>플랫폼 노드 ID:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>플랫폼 P2P 주소:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT 또는 도메인:포트, 쉼표로 구분</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>플랫폼 HTTPS 주소:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>플랫폼 P2P 포트:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>플랫폼 HTTPS 포트:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>운영자 지급 주소:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>자동은 현재 운영자 지급 주소를 먼저 사용하고, 그다음 마스터노드 지급 주소를 사용합니다. 이 선택을 덮어쓰려는 경우에만 주소를 선택하세요.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>에보노드 서비스 업데이트</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>마스터노드 서비스 업데이트</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>등록된 서비스 엔드포인트를 업데이트합니다. 업데이트에 성공하면 PoSe 차단된 마스터노드도 복구됩니다. 현재 값이 모두 미리 입력되어 있으므로 변경하지 않은 필드는 유지됩니다.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>업데이트 전송</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>유효한 플랫폼 노드 ID(16진수 40자)를 입력하세요.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>내 지분:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>이 지분의 보상을 받는 주소</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>새 주소 사용</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>환불 주소 사용</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>새 보상 주소:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>수수료는 내 지갑의 이 주소에서 지불됩니다.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>보상 주소 변경</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>이 마스터노드 보상 중 내 지분의 지급처를 변경합니다. 내 지분에만 영향을 주며, 지분 금액과 환불 주소는 변경되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>업데이트 전송</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>보상을 받을 주소를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>유효한 대시 주소를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>보상 주소는 투표 주소 및 모든 소유자 주소와 달라야 합니다.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>이 마스터노드는 공유 마스터노드가 아니므로 지분 표가 없습니다.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>수수료를 지불할 이 지갑의 주소를 선택하세요.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Send Coins</source>
         <translation>코인 보내기</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>서명자 오류</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>경고: 피어와 완전히 일치하지 않는 것으로 보입니다! 당신 혹은 다른 노드들의 업그레이드가 필요합니다.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+실패한 마이그레이션을 정리할 수 없습니다</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+지갑 백업을 복원할 수 없습니다.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>이미 입력된 값입니다.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>SQLiteDaraBase: 알 수 없는 sqlite 지갑 스키마 버전 %d. 버전 %d 지원만 가능합니다</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>지원하지 않는 카테고리별 로깅 수준 -loglevel=%s. 예상되는 -loglevel=&lt;category&gt;:&lt;loglevel&gt;. 유효한 카테고리: %s. 유효한 로그레벨: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>믹스할 수 없습니다: 호환 가능한 입력값을 찾을 수 없습니다!</translation>
     </message>
@@ -5905,10 +10099,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Insufficient funds.</source>
         <translation>잔고가 충분하지 않습니다.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>-minsporkkeys로 지정된 스포크 서명자의 최소 숫자가 유효하지 않습니다.</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>알 수 없는 반응.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>지원되지 않는 글로벌 로깅 레벨 -loglevel=%s. 유효한 값: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>사용자 정의 코멘트 (%s)에 안전하지 못한 글자가 포함되어 있습니다.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s 파일에는이 지갑의 모든 프라이빗키가 들어 있습니다. 절대 공유하지 마십시오!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s이(가) -assumeutxo 스냅샷 상태의 검증에 실패했습니다. 이는 하드웨어 문제, 소프트웨어 버그, 또는 잘못된 스냅샷이 로드되도록 허용한 부적절한 소프트웨어 수정을 의미합니다. 그 결과 노드는 종료되고 스냅샷을 기반으로 만들어진 모든 상태의 사용을 중단하며, 체인 높이를 %d에서 %d(으)로 되돌립니다. 다음 재시작 시 노드는 스냅샷 데이터를 사용하지 않고 %d부터 동기화를 재개합니다. 스냅샷을 얻은 경위를 포함하여 이 사고를 %s에 보고해 주세요. 이 오류의 원인을 진단하는 데 도움이 될 수 있도록 유효하지 않은 스냅샷 체인스테이트는 디스크에 그대로 남겨 둡니다.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>네트워크 버전의 총 문자 길이(%i)가 최대 길이(%i)를 초과합니다. UA코멘트의 갯수나 길이를 줄이십시오.</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>경고! 키풀을 보충하는 데 실패하였습니다. 키풀 보충을 위해서는 지갑을 잠금 해제 하세요.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>지갑이 잠금 상태 입니다. 키풀을 보충할 수 없습니다! 자동 백업과 믹싱이 비활성화 됩니다. 키풀 보충을 위해서는 지갑을 잠금 해제 하세요.</translation>
     </message>
@@ -6085,10 +10271,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool은 최소한 %d MB가 필요합니다</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>자동 백업 해제</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>asmap 파일 %s 를 파싱할 수 없습니다</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>오류! 자동 백업 생성에 실패하였습니다.</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>%s 로딩 오류: 개인 키는 생성 중에만 해제될 수 있습니다</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>설정 파일을 읽는 중 오류 발생: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>오류: 생성된 scriptpubkey에서 목적지를 추출할 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>오류: 조회 전용 거래를 조회 전용 지갑에 추가할 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>오류: 조회 전용 거래를 삭제할 수 없습니다</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>오류: 덤프파일 체크섬이 일치하지 않음. 계산된 %s, 예상된 %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>오류: 새 조회 전용 지갑을 생성하지 못했습니다</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>오류: 이용할 수 있는 주소가 없습니다.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>오류: 일부 조회 전용 거래를 삭제할 수 없었습니다</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>오류: 이 지갑은 이미 SQLite를 사용하고 있습니다</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>오류: 이 지갑은 이미 설명자 지갑입니다</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>오류: 데이터베이스의 모든 레코드 읽기를 시작할 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>오류: 지갑 백업을 만들 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>오류: 데이터베이스의 모든 레코드를 읽을 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>오류: 조회 전용 주소록 데이터를 제거할 수 없습니다</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>%s 백업 생성에 실패하였습니다! </translation>
     </message>
@@ -6161,6 +10383,22 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>백업 삭제에 실패하였습니다. 에러: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>중단된 유효하지 않은 스냅샷 정리를 완료하지 못했습니다.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>중단된 스냅샷 마커 승격을 완료하지 못했습니다.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>중단된 스냅샷 정리를 점검하지 못했습니다: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>중단된 스냅샷 정리를 복구하지 못했습니다: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>입력을 찾을 수 없거나 이미 사용됨</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>블록 검증에 필요한 dbcache가 부족합니다</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>중단된 스냅샷 정리에서 코인과 EvoDB의 팁이 일치하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>중단된 스냅샷 정리에 스냅샷 EvoDB 마커가 없습니다.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>유효하지 않은 P2P 허용: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>유효하지 않은 masternodeblsprivkey 입니다. 문서를 확인하세요.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>유효하지 않은 사전 선택 입력 %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>%s의 값이 유효하지 않습니다: 최댓값(%d)을 초과합니다</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>%s의 값이 유효하지 않습니다: 0 이상이어야 합니다</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Mixing in progress…</source>
         <translation>믹싱이 진행 중입니다…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>스포크 주소가 둘 이상 제공되었습니다. %s을(를) 사용합니다.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>사용 가능한 파일 설명자가 부족합니다.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>사전 선택 입력을 찾을 수 없음 %s</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>사전 선택 입력을 해결할 수 없음 %s</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>플랫폼 수신자는 명시적 잔돈 위치와 함께 사용할 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>먼저 walletpassphrase로 지갑 암호문을 입력하세요.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>블록 축소는 음수로 설정할 수 없습니다.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>축소 모드는 -addressindex와 호환되지 않습니다.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>블록 축소 모드는 -disablegovernance=false와 호환되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>축소 모드는 -spentindex와 호환되지 않습니다.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>섹션 [%s]이 인식되지 않습니다.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>"Dash Core - " 뒤에 덧붙일 창 제목을 설정합니다</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>서명자가 주소를 되돌려 보내지 않았습니다</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>서명자가 예상치 못한 주소 %s을(를) 되돌려 보냈습니다</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>서명자가 오류를 반환했습니다: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>스냅샷 체인스테이트의 EvoDB 마커가 없습니다. 재색인이 필요합니다.</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>지정된 -walletdir "%s" 은/는 존재하지 않습니다</translation>
     </message>
@@ -6275,8 +10585,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>지정된 -walletdir "%s" 은/는 디렉토리가 아닙니다.</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>지정한 데이터 디렉토리 "%s"이(가) 존재하지 않습니다.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>이 지갑은 최소 중계 수수료보다 적은 수수료를 지불하지 않을 것입니다.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>이 주소에 대한 ScriptPubKeyManager가 없습니다</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>거래 금액은 반드시 정수여야 합니다.</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>거래의 멤풀 체인이 너무 깁니다.</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates는 %s 체인에서 지원되지 않습니다.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>지갑이 활성화된 상태에서는 마스터노드를 실행할 수 없습니다.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>믹싱을 할 수 없습니다.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>세부 사항을 확인하시려면 debug.log를 참조하세요.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>%s 개발자</translation>
     </message>
@@ -6379,16 +10689,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>%s는 송금을 위하여 정확한 분할 단위 금액을 사용합니다. 단순히 더 많은 코인을 믹싱함으로써 문제를 해결할 수 있을 지도 모릅니다.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate 옵션이 -blockfilterindex와 호환되지 않습니다. -reindex-chainstate를 사용하는 동안 일시적으로 blockfilterindex를 비활성화하거나, -reindex-chainstate를 -reindex로 대체하여 모든 인덱스를 완전히 재구성하십시오.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate 옵션이 -txindex와 호환되지 않습니다. -reindex-chainstate를 사용하는 동안 일시적으로 txindex를 비활성화하거나, -reindex-chainstate를 -reindex로 대체하여 모든 인덱스를 완전히 재구성하십시오.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>-reindex-chainstate 옵션이 -coinstatsindex와 호환되지 않습니다. -reindex-chainstate를 사용하는 동안 일시적으로 coinstatsindex를 비활성화하거나, -reindex-chainstate를 -reindex로 대체하여 모든 인덱스를 완전히 재구성하십시오.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate 옵션이 -txindex와 호환되지 않습니다. -reindex-chainstate를 사용하는 동안 일시적으로 txindex를 비활성화하거나, -reindex-chainstate를 -reindex로 대체하여 모든 인덱스를 완전히 재구성하십시오.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate 옵션이 -blockfilterindex와 호환되지 않습니다. -reindex-chainstate를 사용하는 동안 일시적으로 blockfilterindex를 비활성화하거나, -reindex-chainstate를 -reindex로 대체하여 모든 인덱스를 완전히 재구성하십시오.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>%s 불러오기 오류 입니다.  주소 키는 모두 정확하게 읽혔으나 거래 데이터 혹은 주소록에서 누락이나 오류가 존재할 수 있습니다.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>%s을(를) 읽는 중 오류 발생! 거래 데이터가 누락되었거나 올바르지 않을 수 있습니다. 지갑을 다시 스캔합니다.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>오류: 지갑의 주소록 데이터가 마이그레이션된 지갑에 속하는지 확인할 수 없습니다</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>오류: 덤프파일 포맷 기록이 정확하지 않습니다. "%s" 획득, 예상된 "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>오류: 덤프파일 식별기 기록이 정확하지 않습니다. "%s" 획득, 예상된 "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>오류: 마이그레이션 중 중복된 설명자가 생성되었습니다. 지갑이 손상되었을 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>오류: 마이그레이션 중 활성 설명자를 레거시 체인 카운터 이후로 진행시키지 못했습니다.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>오류: 지갑의 거래 %s이(가) 마이그레이션된 지갑에 속하는지 확인할 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>오류: 이 레거시 지갑에 대한 설명자를 생성할 수 없습니다. 지갑이 암호화되어 있다면 지갑 암호문을 제공했는지 확인하세요.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>스냅샷 체인스테이트 디렉토리를 제거하지 못했습니다. 다시 시작하기 전에 직접 제거하세요.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>아웃바운드 연결이 i2p (-onlynet=i2p)로 제한되어 있으나 -i2psam이 제공되지 않음</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>플랫폼 수신자는 다른 특수 거래 페이로드와 함께 사용할 수 없습니다</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>컴퓨터의 날짜와 시간이 올바른지 확인하십시오! 시간이 잘못되면 %s은 제대로 동작하지 않습니다.</translation>
     </message>
@@ -6489,6 +10831,26 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>블록 축소 모드가 -reindex-chainstate와 호환되지 않습니다. 대신 완전한 -reindex를 사용하십시오.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>'%s' -&gt; '%s' 이름 변경에 실패했습니다. 유효하지 않은 스냅샷 디렉토리 %s을(를) 직접 이동하거나 삭제하여 해결해야 합니다. 그렇지 않으면 다음 시작 시 같은 오류가 다시 발생합니다.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>자동 Tor 어니언 서비스는 와일드카드 어니언 바인드를 사용할 수 없습니다. Tor 데몬이 들어오는 연결을 우리에게 전달할 수 없기 때문입니다. -bind=127.0.0.1:&lt;port&gt;=onion과 같은 특정 주소를 사용하거나 -listenonion=0으로 서비스를 비활성화하세요.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>자동 Tor 어니언 서비스에는 전용 어니언 바인드가 필요합니다. -bind=127.0.0.1:&lt;port&gt;=onion과 같은 특정 주소를 사용하거나 -listenonion=0으로 서비스를 비활성화하세요.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>입력 크기가 최대 가중치를 초과합니다. 더 적은 금액을 보내거나 지갑의 UTXO를 직접 통합해 보세요</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>사전 선택한 코인의 총액이 거래 목표 금액을 충당하지 못합니다. 다른 입력이 자동으로 선택되도록 허용하거나 코인을 직접 더 포함하세요</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>이것은 수수료 견적을 이용할 수 없는 경우 당신이 지불 하게 될 것으로 예상되는 거래 수수료입니다.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>거버넌스 검증이 활성화된 상태에서는 거래 인덱스를 비활성화할 수 없습니다. -disablegovernance 명령줄 옵션으로 시작하거나 거래 인덱스를 활성화하세요.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>거래가 비표준(%s)이라 릴레이되지 않습니다. 플랫폼 주소로 보내려면 -acceptnonstdtxn=1로 시작된 노드가 필요합니다</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>거래는 0이 아닌 값의 대상, 0이 아닌 수수료율 또는 사전 선택된 입력이 필요합니다</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>UTXO 스냅샷 검증에 실패했습니다. 다시 시작하여 일반 초기 블록 다운로드를 재개하거나 다른 스냅샷을 로드해 보세요.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>블록을 재실행 할 수 없습니다. -reindex-chainstate를 이용해 데이터베이스를 재구성해야 합니다.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>설명자 지갑에서 예상치 못한 레거시 항목이 발견되었습니다. 지갑 %s을(를) 로드합니다
+
+지갑이 변조되었거나 악의적인 의도로 만들어졌을 수 있습니다.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>알 수 없는 지갑 파일 포맷 "%s" 이 입력되었습니다. "bdb" 혹은 "splite" 중 하나를 입력하세요.</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>인식할 수 없는 설명자가 발견되었습니다. 지갑 %s을(를) 로드합니다
+
+지갑이 더 최신 버전에서 생성되었을 수 있습니다.
+최신 버전의 소프트웨어를 실행해 보세요.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>지원되지 않는 카테고리별 로깅 수준 %1$s=%2$s. 예상 형식은 %1$s=&lt;category&gt;:&lt;loglevel&gt;입니다. 유효한 카테고리: %3$s. 유효한 로그 수준: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>경고: 비활성화된 개인 키가 있는 지갑 {%s}에서 개인 키가 감지되었습니다.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>-timestampindex를 활성화하기 위해서는 -reindex를 이용하여 데이터베이스를 재구성해야 합니다.</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>치명적인 내부 오류가 발생했습니다. 자세한 내용은 debug.log 에서 확인하십시오.</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>블록 검증이 중단되었습니다</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>가져오는 중…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>잘못된 -rescan 모드, 기본 값으로 돌아갑니다</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>초기치 설정 정상 여부 검사에 실패하였습니다. %s가 종료됩니다.</translation>
     </message>
@@ -6727,10 +11123,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>세션이 완료되지 않았습니다!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>세션이 만료되었습니다.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>거래에 서명하는 데 실패하였습니다.</translation>
     </message>
@@ -6759,10 +11151,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Evo 데이터베이스 업그레이드 실패</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>필요한 수수료 &gt; 지불한 수수료</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>지원되지 않는 네트워크의 호스트 %s</translation>
     </message>
@@ -6777,10 +11165,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>%s에 지정된 포트가 유효하지 않음: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>지난 성공적 액션이 너무 최신입니다.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>연결 시도 중…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>-maxsigcachesize에 메모리를 할당할 수 없습니다: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>이 컴퓨터의 %s에 바인딩할 수 없습니다 (바인딩 과정에 %s 오류 발생)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>스포크 메시지에 사인할 수 없습니다. 키가 잘못된 것일 수 있습니다.</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>마이그레이션 전에 지갑을 언로드할 수 없습니다</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>-onlynet에 지정한 네트워크를 알 수 없습니다: '%s'</translation>
     </message>
@@ -6887,12 +11279,12 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>지원되지 않는 URL 스킴, udp://로 시작해야 함</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>지원되지 않는 로깅 카테고리 %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>지원되지 않는 전역 로깅 수준 %s=%s. 유효한 값: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>매우 적은 숫자의 키가 남았습니다: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>지원되지 않는 로깅 카테고리 %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>마스터노드에서 거버넌스 유효성 검사를 해제할 수 없습니다.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>-addressindex를 활성화하기 위해서는 -reindex를 사용하여 데이터를 재구성해야 합니다</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>-spentindex를 활성화하기 위해서는 -reindex를 사용하여 데이터를 재구성해야 합니다</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>
