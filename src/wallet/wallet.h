@@ -311,6 +311,8 @@ class WalletRescanReserver; //forward declarations for ScanForWalletTransactions
 //! CoinJoin::vecStandardDenominations (index 0 = largest denomination).
 struct CoinJoinDenomCounts {
     std::array<int, 5> total{};
+    //! Fully-mixed coins that can be spent together, i.e. at most one per transaction: a
+    //! conversion never takes two coins with the same parent (see SelectFullyMixedForPromotion)
     std::array<int, 5> fully_mixed{};
 };
 

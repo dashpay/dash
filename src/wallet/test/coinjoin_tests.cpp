@@ -597,6 +597,72 @@ BOOST_FIXTURE_TEST_CASE(coinjoin_rebalance_rounds_reset_tests, CTransactionBuild
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(coinjoin_promotion_needs_coins_from_distinct_txs_tests, CTransactionBuilderTestSetup)
+{
+    constexpr CAmount nSmallerAmount{10000100};
+    constexpr CAmount nLargerAmount{nSmallerAmount * CoinJoin::PROMOTION_RATIO};
+    const int nSmallerDenom{CoinJoin::AmountToDenomination(nSmallerAmount)};
+    const int nLargerDenom{CoinJoin::AmountToDenomination(nLargerAmount)};
+    const size_t idxSmaller = CoinJoin::GetDenominationIndex(nSmallerDenom);
+    const CScript scriptOurs = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+
+    const bool fEnabledPrev{CCoinJoinClientOptions::IsEnabled()};
+    const int nRoundsPrev{CCoinJoinClientOptions::GetRounds()};
+    const int nGoalPrev{CCoinJoinClientOptions::GetDenomsGoal()};
+    CCoinJoinClientOptions::SetEnabled(true);
+    CCoinJoinClientOptions::SetRounds(MIN_COINJOIN_ROUNDS);
+    CCoinJoinClientOptions::SetDenomsGoal(MIN_COINJOIN_DENOMS_GOAL);
+
+    // Mines a zero-fee self-mixing tx spending vecIn, one output per input
+    const auto mix = [&](const std::vector<COutPoint>& vecIn) {
+        CMutableTransaction mtx;
+        for (const auto& outpoint : vecIn) {
+            mtx.vin.emplace_back(outpoint);
+            mtx.vout.emplace_back(nSmallerAmount, scriptOurs);
+        }
+        BOOST_REQUIRE(WITH_LOCK(wallet->cs_wallet, return wallet->SignTransaction(mtx)));
+        BOOST_REQUIRE(wallet->AddToWallet(MakeTransactionRef(mtx), TxStateInactive{}));
+        AddTxToChain(mtx.GetHash());
+        std::vector<COutPoint> vecOut;
+        vecOut.reserve(mtx.vout.size());
+        for (uint32_t n = 0; n < mtx.vout.size(); ++n) {
+            vecOut.emplace_back(mtx.GetHash(), n);
+        }
+        return vecOut;
+    };
+
+    // PROMOTION_RATIO coins mixed together until fully mixed whatever the salt decides
+    std::vector<COutPoint> vecCoins = GetTallyItem(std::vector<CAmount>(CoinJoin::PROMOTION_RATIO, nSmallerAmount)).outpoints;
+    for (int i = 0; i < CCoinJoinClientOptions::GetRounds() + CCoinJoinClientOptions::GetRandomRounds(); ++i) {
+        vecCoins = mix(vecCoins);
+    }
+    for (const auto& outpoint : vecCoins) {
+        BOOST_REQUIRE(wallet->IsFullyMixed(outpoint));
+    }
+
+    // All of them share one parent tx, so a promotion can only ever select one of them: no
+    // promotion opportunity may be reported, or the client would chase it on every attempt
+    auto counts = wallet->GetDenominationCounts();
+    BOOST_CHECK_EQUAL(counts.total[idxSmaller], CoinJoin::PROMOTION_RATIO);
+    BOOST_CHECK_EQUAL(counts.fully_mixed[idxSmaller], 1);
+    BOOST_CHECK(!CCoinJoinClientManager::ShouldPromote(nSmallerDenom, nLargerDenom, counts));
+    BOOST_CHECK_EQUAL(wallet->SelectFullyMixedForPromotion(nSmallerDenom, CoinJoin::PROMOTION_RATIO).size(), 1U);
+
+    // One more round, each coin in its own tx: now the promotion is both reported and selectable
+    for (const auto& outpoint : vecCoins) {
+        mix({outpoint});
+    }
+    counts = wallet->GetDenominationCounts();
+    BOOST_CHECK_EQUAL(counts.fully_mixed[idxSmaller], CoinJoin::PROMOTION_RATIO);
+    BOOST_CHECK(CCoinJoinClientManager::ShouldPromote(nSmallerDenom, nLargerDenom, counts));
+    BOOST_CHECK_EQUAL(wallet->SelectFullyMixedForPromotion(nSmallerDenom, CoinJoin::PROMOTION_RATIO).size(),
+                      static_cast<size_t>(CoinJoin::PROMOTION_RATIO));
+
+    CCoinJoinClientOptions::SetDenomsGoal(nGoalPrev);
+    CCoinJoinClientOptions::SetRounds(nRoundsPrev);
+    CCoinJoinClientOptions::SetEnabled(fEnabledPrev);
+}
+
 BOOST_FIXTURE_TEST_CASE(coinjoin_rounds_cache_unknown_tx_tests, CTransactionBuilderTestSetup)
 {
     constexpr CAmount nDenomAmount{10000100}; // 0.100001 DASH
