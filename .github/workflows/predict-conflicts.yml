@@ -1,10 +1,11 @@
 name: "Check Potential Conflicts"
 
+# A scheduled run is not attached to any PR, so a slow or cancelled run never
+# shows up in a PR's checks. Each run rechecks every open PR.
 on:
-  pull_request_target: # zizmor: ignore[dangerous-triggers] needs a write token to comment on fork PRs; runs base-branch code only
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, closed]
-  pull_request_review:
-    types: [submitted]
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,7 +22,10 @@ permissions:
 
 jobs:
   predict_conflicts:
+    # Forks also run scheduled workflows.
+    if: github.repository == 'dashpay/dash'
     runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 20
     concurrency:
       group: predict-conflicts
       cancel-in-progress: false
@@ -30,15 +34,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Validate potential conflicts and update advisory comments
-        continue-on-error: true
+      - name: Find conflicting PRs and update advisory comments
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_ACTION: ${{ github.event.action }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          if [ "$EVENT_ACTION" = "closed" ]; then
-            .github/workflows/handle_potential_conflicts.py --pr-number "$PR_NUMBER" --cleanup-closed
-          else
-            .github/workflows/handle_potential_conflicts.py --pr-number "$PR_NUMBER"
-          fi
+        run: .github/workflows/handle_potential_conflicts.py
