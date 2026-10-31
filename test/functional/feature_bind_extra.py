@@ -60,10 +60,10 @@ class BindExtraTest(BitcoinTestFramework):
         )
         port += 2
 
-        # Node2, no -bind=...=onion, thus no extra port for Tor target.
+        # Node2, -bind=... with -listenonion=0 and no -bind=...=onion, thus no extra port for Tor target.
         self.expected.append(
             [
-                [f"-bind=127.0.0.1:{port}"],
+                [f"-bind=127.0.0.1:{port}", "-listenonion=0"],
                 [(loopback_ipv4, port)]
             ],
         )
@@ -87,13 +87,6 @@ class BindExtraTest(BitcoinTestFramework):
             # Remove RPC ports. They are not relevant for this test.
             binds = set(filter(lambda e: e[1] != rpc_port(i), binds))
             assert_equal(binds, set(expected_services))
-
-        self.log.info("Test -listenonion with a normal bind and no dedicated onion bind")
-        self.stop_node(2)
-        self.nodes[2].assert_start_raises_init_error(
-            self.extra_args[2] + ["-listenonion=1", "-torcontrol=127.0.0.1:1"],
-            "Error: The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0.",
-        )
 
         self.log.info("Test -bind with dedicated onion bind starts when -listenonion=1")
         self.restart_node(1, extra_args=self.extra_args[1] + ["-listenonion=1", "-torcontrol=127.0.0.1:1"])

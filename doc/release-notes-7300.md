@@ -1,19 +1,24 @@
 P2P and network changes
 -----------------------
 
-* Startup now fails if any configured `-bind`, `-whitebind` or the implicit Tor
-  onion-service bind (`127.0.0.1:9996` by default) cannot be set up. Dash Core
-  v23 and earlier started as long as at least one bind succeeded.
+* Startup now fails if any configured `-bind` (including `-bind=...=onion`) or
+  `-whitebind` cannot be set up. Dash Core v23 and earlier started as long as
+  at least one bind succeeded. The implicit Tor onion-service bind
+  (`127.0.0.1:9996` by default) is still best effort, as in v23, unless
+  `-listenonion=1` is set explicitly.
 
-* Nodes configured with `-bind` but no specific `-bind=<addr:port>=onion` no
-  longer create an automatic Tor onion service. The service would have to
-  forward to a shared bind, which cannot tell Tor-forwarded connections from
-  direct ones, so onion peers would be treated as clearnet peers (and could be
-  told the node's clearnet address or get IP-based whitelist permissions).
-  These nodes still start, and still use Tor for outbound onion connections if
-  its control port is reachable; the debug log notes that no onion service was
-  created. Nodes without `-bind`, including those using only `-whitebind`,
-  continue to get the default onion target. Add a specific
-  `-bind=<addr:port>=onion` to accept incoming Tor connections. A wildcard
-  `=onion` bind is never used as the onion-service target. Only an explicit
-  `-listenonion=1` without a usable onion bind makes startup fail.
+* The automatic Tor onion service (`-listenonion`) only forwards to a
+  dedicated, non-wildcard onion listener that the node actually bound, so peers
+  arriving through Tor are always recognized as onion peers. Without a
+  `-bind=<addr:port>=onion`, Dash Core adds the default onion bind as v23 did,
+  also when `-bind` is given; with `-bind` and `-listenonion=0` it no longer
+  does. If the default onion bind fails, for example because another instance
+  on the same host holds it, the node logs a warning and creates no onion
+  service rather than pointing Tor at whatever holds that port. A wildcard
+  `=onion` bind is never used as the onion-service target. With the default
+  `-listenonion`, a node without a usable onion bind still starts and still
+  uses Tor for outbound onion connections if its control port is reachable; the
+  debug log notes that no onion service was created. Only an explicit
+  `-listenonion=1` without a usable onion bind makes startup fail. To run onion
+  services for several instances on one host, give each its own
+  `-bind=127.0.0.1:<port>=onion`.

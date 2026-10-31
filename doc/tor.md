@@ -84,11 +84,13 @@ it requires a Tor connection to work. It can be explicitly disabled with
 `-torcontrol` and `-torpassword` settings.
 
 The automatic service forwards incoming connections to a dedicated,
-non-wildcard onion bind. Without `-bind`, Dash Core adds the default onion bind
-(`127.0.0.1:9996` on mainnet). With an explicit `-bind`, add one such as
-`-bind=127.0.0.1:<port>=onion`; otherwise Dash Core still uses Tor for outbound
-onion connections but creates no onion service. Setting `-listenonion=1`
-explicitly without a usable onion bind is a startup error.
+non-wildcard onion bind. Unless one is given with `-bind=<addr>:<port>=onion`,
+Dash Core adds the default onion bind (`127.0.0.1:9996` on mainnet). If that
+port is taken, for example by another instance on the same host, no onion
+service is created; give each instance its own `-bind=127.0.0.1:<port>=onion`.
+With `-bind` and `-listenonion=0`, the default onion bind is not added. Without
+a usable onion bind Dash Core still uses Tor for outbound onion connections;
+only an explicit `-listenonion=1` then stops startup.
 
 To see verbose Tor information in the dashd debug log, pass `-debug=tor`.
 
