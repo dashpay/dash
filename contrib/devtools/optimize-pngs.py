@@ -1,16 +1,29 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2015 The Bitcoin Core developers
+# Copyright (c) 2014-2018 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 '''
 Run this script every time you change one of the png files. Using pngcrush, it will optimize the png files, remove various color profiles, remove ancillary chunks (alla) and text chunks (text).
 #pngcrush -brute -ow -rem gAMA -rem cHRM -rem iCCP -rem sRGB -rem alla -rem text
+
+
+Install instructions
+====
+
+virtualenv ./optimize-pngs-env
+source ./optimize-pngs-env/bin/activate
+pip install Pillow
+
+Running
+====
+
+./optimize-pngs.py ../dash_core/src/qt/res/animation/ ../dash_core/src/qt/res/icons/ ../dash_core/src/qt/res/images/ ../dash_core/share/pixmaps/
 '''
+import argparse
 import os
 import sys
 import subprocess
 import hashlib
-# pip3 install Pillow
 from PIL import Image # type: ignore[import]
 
 def file_hash(filename):
@@ -25,33 +38,35 @@ def content_hash(filename):
     data = i.tobytes()
     return hashlib.sha256(data).hexdigest()
 
+zopflipng = 'zopflipng'
 pngcrush = 'pngcrush'
 git = 'git'
-folders = [
-    "src/qt/res/animation",
-    "src/qt/res/icons",
-    "src/qt/res/images",
-    "share/pixmaps"
-]
-basePath = subprocess.check_output([git, 'rev-parse', '--show-toplevel'], universal_newlines=True, encoding='utf8').rstrip('\n')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('folder', nargs='+')
+folders = parser.parse_args().folder
+folders = [os.path.abspath(f) for f in folders]
+
 totalSaveBytes = 0
 noHashChange = True
 
 outputArray = []
-for folder in folders:
-    absFolder=os.path.join(basePath, folder)
+for absFolder in folders:
     for file in os.listdir(absFolder):
         extension = os.path.splitext(file)[1]
         if extension.lower() == '.png':
             print("optimizing {}...".format(file), end =' ')
             file_path = os.path.join(absFolder, file)
             fileMetaMap = {'file' : file, 'osize': os.path.getsize(file_path), 'sha256Old' : file_hash(file_path)}
-            fileMetaMap['contentHashPre'] = content_hash(file_path)
+            contentHashPre = content_hash(file_path)
+
             try:
                 subprocess.call([pngcrush, "-brute", "-ow", "-rem", "gAMA", "-rem", "cHRM", "-rem", "iCCP", "-rem", "sRGB", "-rem", "alla", "-rem", "text", file_path],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.call([zopflipng, '-m', '-y', file_path, file_path],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except Exception:
-                print("pngcrush is not installed, aborting...")
+                print("pngcrush or zopflipng is not installed, aborting...")
                 sys.exit(0)
 
             #verify
@@ -60,9 +75,9 @@ for folder in folders:
                 sys.exit(1)
 
             fileMetaMap['sha256New'] = file_hash(file_path)
-            fileMetaMap['contentHashPost'] = content_hash(file_path)
+            contentHashPost = content_hash(file_path)
 
-            if fileMetaMap['contentHashPre'] != fileMetaMap['contentHashPost']:
+            if contentHashPre != contentHashPost:
                 print("Image contents of PNG file {} before and after crushing don't match".format(file))
                 sys.exit(1)
 
