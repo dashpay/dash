@@ -56,7 +56,15 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
         if (fs::exists(snapshot) && !evodb.GetSnapshotGeneration()) {
             LogPrintf("[snapshot] completing interrupted invalid-snapshot coins invalidation\n");
             try {
-                RenameDurably(snapshot, invalid);
+                // An earlier rejection's directory keeps its place: it may be
+                // the one the user was asked to report.
+                if (fs::exists(invalid)) {
+                    LogPrintf("[snapshot] %s already exists; deleting %s instead\n", fs::PathToString(invalid),
+                              fs::PathToString(snapshot));
+                    RemoveAllDurably(snapshot);
+                } else {
+                    RenameDurably(snapshot, invalid);
+                }
             } catch (const fs::filesystem_error& e) {
                 error = strprintf(_("Failed to finish interrupted invalid snapshot cleanup: %s"), e.what());
                 return false;

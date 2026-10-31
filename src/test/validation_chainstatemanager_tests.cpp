@@ -2405,6 +2405,24 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_rejection_be
     BOOST_CHECK(WITH_LOCK(::cs_main, return !m_node.chainman->IsSnapshotActive()));
 }
 
+//! The same recovery when an earlier rejection already left its invalid
+//! directory behind: that directory is kept, and the interrupted one deleted.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_keeps_earlier_invalid_dir, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    this->SimulateNodeRestart();
+    BOOST_REQUIRE(m_node.evodb->DiscardSnapshotMarkers());
+    const fs::path data_dir{gArgs.GetDataDirNet()};
+    const fs::path earlier_invalid{data_dir / "chainstate_snapshot_INVALID"};
+    BOOST_REQUIRE(fs::create_directories(earlier_invalid / "earlier"));
+
+    BOOST_CHECK(std::get<0>(this->TryLoadChainstate()) == node::ChainstateLoadStatus::SUCCESS);
+    BOOST_CHECK(fs::exists(earlier_invalid / "earlier"));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot"));
+    BOOST_CHECK(!m_node.evodb->HasRejectedGeneration());
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !m_node.chainman->IsSnapshotActive()));
+}
+
 //! A rejected generation left behind by a failed collection must not take the
 //! coins directory of a later, live snapshot with it at the next startup.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_keeps_live_snapshot_dir, SnapshotTestSetup)
