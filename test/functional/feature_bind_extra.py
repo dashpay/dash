@@ -68,6 +68,7 @@ class BindExtraTest(BitcoinTestFramework):
             ],
         )
         port += 1
+        self.unused_port = port
 
         self.extra_args = list(map(lambda e: e[0], self.expected))
         self.setup_nodes()
@@ -103,6 +104,11 @@ class BindExtraTest(BitcoinTestFramework):
             [f"-bind=0.0.0.0:{p2p_port(0)}=onion", "-listenonion=1", "-torcontrol=127.0.0.1:1"],
             "Error: The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0.",
         )
+
+        self.log.info("Test wildcard and specific onion binds with -listenonion=1 use the specific one")
+        specific = f"127.0.0.1:{self.unused_port}"
+        self.start_node(0, extra_args=[f"-bind=0.0.0.0:{p2p_port(0)}=onion", f"-bind={specific}=onion", "-listenonion=1", "-torcontrol=127.0.0.1:1"])
+        self.stop_node(0, expected_stderr=f"Warning: More than one onion bind address is provided. Using {specific} for the automatically created Tor onion service.")
 
 if __name__ == '__main__':
     BindExtraTest().main()

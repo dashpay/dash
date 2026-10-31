@@ -225,6 +225,7 @@ BASE_SCRIPTS = [
     'interface_bitcoin_cli.py --legacy-wallet',
     'interface_bitcoin_cli.py --descriptors',
     'feature_bind_extra.py',
+    'feature_tor_onion_target.py',
     'mempool_resurrect.py',
     'wallet_txn_doublespend.py --mineblock',
     'tool_wallet.py --legacy-wallet',
