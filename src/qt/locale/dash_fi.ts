@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>Synkronoidaan hallintotietoja…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>~%n päivä (%1 lohkoa) jäljellä superlohkoon</numerusform><numerusform>~%n päivää (%1 lohkoa) jäljellä superlohkoon</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>~%n päivä (%1 lohkoa) jäljellä äänestykseen</numerusform><numerusform>~%n päivää (%1 lohkoa) jäljellä äänestykseen</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% budjetista sidottu (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>Lataa osittain allekirjoitettu lohkoketjutapahtuma leikepöydältä</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>Avaa &amp;debug-lokitiedosto</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>Avaa debug-lokitiedosto nykyisestä datahakemistosta</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>Luo Lompakko…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>Sulje kaikki lompakot…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Siirrä lompakko uuteen muotoon</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>Muunna vanha lompakko kuvaajalompakoksi</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>Tapahtumahistoria on ajan tasalla</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superlohko lähestyy</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Äänestysaika päättyi</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 lohkoa) jäljellä superlohkoon</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 lohkoa) jäljellä äänestykseen</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% budjetista sidottu (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>Poista kaikki valinnat</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>muuta lukituksen tilaa</translation>
+        <source>(un)lock all</source>
+        <translation>lukitse/vapauta kaikki</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>Kopioi vaihtoraha</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>Vaihda "Lista tilaan" käyttääksesi tätä toimintoa.</translation>
+        <source>Wallet error</source>
+        <translation>Lompakkovirhe</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>Joidenkin kolikoiden lukitseminen epäonnistui.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>Joidenkin kolikoiden lukituksen avaaminen epäonnistui.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>Pura jaettu masternode</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>Tämä masternode rekisteröitiin lohkossa %1 ja ketju on vielä lohkossa %2. Odota yhtä vahvistusta ja avaa tämä ikkuna uudelleen.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>Pura nyt</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>Pura yhdessä</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>Varapurku</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>Lopettaa masternoden yksin. Jokainen saa pääomansa takaisin palautusosoitteeseensa.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>Osuutesi:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>Siirtomaksu, maksetaan osuutesi palautuksesta.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>Siirtomaksu:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>Siirtotapahtuman tunnus</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>Ennenaikainen poistuminen: maksat %1 sakon. Maksuton lohkon %2 jälkeen (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>Hyväksyn %1 ennenaikaisen poistumisen sakon maksamisen</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>Vain %1 siihen, että purkaminen on maksutonta. Harkitse odottamista tai käytä Pura yhdessä -toimintoa: kaikkien hyväksynnällä se on maksuton heti.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>Alkujakso on päättynyt: purkaminen on nyt maksutonta.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (sinä)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>Hyväksy ensin sakko valitsemalla ruutu.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>Ketju ylitti sakottoman rajan tämän ikkunan ollessa auki. Yllä oleva esikatselu on päivitetty: tarkista se ja paina Pura nyt uudelleen.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>Puretaanko tämä jaettu masternode nyt? Jokaisen osallistujan pääoma palautetaan tämän palautusosoitteeseen ja masternode lakkaa tuottamasta palkkioita. Tätä ei voi perua.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>Purku lähetettiin.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Maksuton milloin tahansa, mutta jokaisen osuuden omistajan on hyväksyttävä. Yksi valmistelee pyynnön; kaikki muut liittävät sen, hyväksyvät ja kopioivat vastauksen takaisin.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. Pyyntö</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>Osuus, josta siirtomaksu vähennetään.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>Siirtomaksun maksaja:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Valmistele pyyntö</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Hyväksynnät</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Lähetä sama pyyntö jokaiselle osuuden omistajalle. Vastaukset voivat tulla missä järjestyksessä tahansa.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>Tämä pyyntö maksaa</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Hyväksy ja kopioi vastaus</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Lähetys</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>Lähetä purku</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>Siirtomaksu: %1, maksetaan osuudesta %2.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Valmistele tai liitä ensin pyyntö.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Jokaisen osuuden on ensin hyväksyttävä (%1 / %2 toistaiseksi).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>Allekirjoitettu purku, jota säilytät offline-tilassa ja jota et koskaan lähetä verkkoon ellet tarvitse sitä. Se ei koskaan vanhene ja toimii, vaikka tämä lompakko katoaisi.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Luo varapurku…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopioi</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>Koko pääoma: voimassa lohkosta %1 alkaen (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>Koko pääoma: voimassa nyt, alkujakso on päättynyt</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>Ei vielä luotu</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>Välitön: maksaa %1 sakon</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Säilytä se palautusosoitteen varmuuskopion kanssa, erillään tästä lompakosta.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>Tallennettu %1</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>Tallenna varapurku</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>Tekstitiedosto (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>Molemmat siirtotapahtumat ovat valmiina alla, mutta mitään ei tallennettu. Kopioi ne tai luo tiedosto uudelleen.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Tallennettu kohteeseen %1.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Dashin jaettu masternode: varapurku</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>Luotu: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>Jokainen alla oleva lohko on kokonainen allekirjoitettu siirtotapahtuma. Lähetä jokin niistä komennolla "sendrawtransaction" vain, kun haluat lopettaa masternoden ja saada pääomasi takaisin. Ne eivät koskaan vanhene. Säilytä tätä tiedostoa palautusosoitteen varmuuskopion kanssa, erillään lompakosta.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>KOKO PÄÄOMA: voimassa lohkosta %1 alkaen (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>KOKO PÄÄOMA: voimassa nyt, alkujakso on päättynyt</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>VÄLITÖN: maksaa %1 ennenaikaisen poistumisen sakon, voimassa heti</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Kirjoittaminen kohteeseen %1 ei onnistunut.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>Lomake</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>Suodata ehdotusluettelo</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>Masternoden määrä:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>Masternodejen määrä, joilla tämä lompakko voi äänestää (masternodes, joiden äänestysavainta tämä lompakko hallitsee)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>Verkossa ei ole aktiivisia ehdotuksia.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>Jatka ehdotusta</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>Ehdotuksien Määrä:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>Luo ehdotus</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>Valitse näytettävät ehdotukset</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>Suodata Otsikolla</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>Ei saatavilla</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>Synkronoitu node ja lukitsematon lompakko vaaditaan.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>Äänestä Kyllä</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>Äänestä Ei</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>Tyhjää</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>Aktiiviset ehdotukset</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>Omat ehdotukset</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>Lompakkotiedostossa ei ole tallennettuja ehdotuksia.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>Jatka ehdotusta</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>Kopioi raaka JSON</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>Avaa ehdotuksen URL…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>Tiedot kohteesta %1</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>Hallintoon ei voi ottaa yhteyttä ennen synkronoinnin valmistumista</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>Luo uuden ehdotuksen</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>Jatkaa olemassa olevaa ehdotusta</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>Ehdotuksen luonti maksaa %1, saldo ei riitä</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>Virhe</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>URL:ää ei voi vahvistaa, mahdollisesti virheellinen muoto tai tuntematon protokolla.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>Ulkoisen linkin varoitus</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>Olet avaamassa seuraavan URL-osoitteen oletusselaimessasi
-
-%1
-
-Tämän sisällön on lähettänyt käyttäjä. Se ei välttämättä vastaa otsikossa kuvattua.
-
-Haluatko jatkaa?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>Äänestys epäonnistui</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>Lompaakkoa ei saatavilla.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>Masternoden äänestysavaimia ei löytynyt lompakosta.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>Valitse ehdotus, josta äänestää.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>Lompakon lukitusta ei voitu avata.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>Masternode-luetteloa ei voitu hakea. Yritä myöhemmin uudelleen.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>Masternodea %1 ei löytynyt</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>Äänen allekirjoitus masternodelle %1 epäonnistui</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>Masternode %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>Äänestys onnistui %n kerran</numerusform><numerusform>Äänestys onnistui %n kertaa</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>Äänestys epäonnistui %n kerran</numerusform><numerusform>Äänestys epäonnistui %n kertaa</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>Virheet:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>Äänestystulokset</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Haluatko jatkaa?</translation>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;%1 Perusteet&lt;/h3&gt; %1 tarjoaa yksityisyyden hämärtämällä kolikoiden alkuperäisen osoitteen. Kaikki Dash:it lompakossasi muodostuvat erillisistä "syötteistä", joita voit ajatella erillisinä kolikkoina.&lt;br&gt; %1 käyttää innovatiivista prosessia sekoittaakseen lompakkosi syötteet kahden muun ihmisen syötteisiin, siirtämättä kolikoita pois lompakostasi. Kolikoiden kontrolli pysyy aina sinulla.&lt;hr&gt; &lt;b&gt; %1 prosessi toimii seuraavasti:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 aloittaa pilkkomalla siirtotapahtumiesi syötteet pienemmiksi standardi arvoiksi. Nämä arvot ovat 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH ja 10 DASH.&lt;/li&gt; &lt;li&gt;Sitten lompakkosi lähettää pyynnön verkon palvelimille, joita kutsutaan "masternode:iksi". Masternodet saavat tiedon että haluat sekoittaa pilkottuja standardi arvoja. Mitään tunnistetietoja ei lähetetä masternode:ille, ne eivät koskaan tiedä "kuka" olet.&lt;/li&gt; &lt;li&gt;Kun 2 tai enemmän käyttäjää ilmoittaa että he haluavat myös sekoittaa kolikoita, alkaa sekoitus-sessio. Masternodet sekoittavat standardi arvot ja ilmoittavat kaikille 3:lle käyttäjän lompakoille että maksavat sekoitetut arvot takaisin itselleen. Lompakkosi maksaa nuo sekoitetut arvot suoraan itselleen, mutta eri osoitteeseen (vaihto-osoite).&lt;/li&gt; &lt;li&gt;Jotta kolikoiden alkuperäinen lähde hämärretään, lompakkosi suorittaa tämän prosessin useita kertoja kaikilla standardi arvoilla. Aina kun prosessi on valmis, sitä kutsutaan "kierrokseksi". Jokainen %1 kierros tekee eksponentiaalisesti vaikeammaksi löytää kolikoiden alkuperäinen osoitte.&lt;/li&gt; &lt;li&gt;Tämä sekoitusprosessi tapahtuu taustalla ilman käyttäjän toimenpiteitä. Kun haluat myöhemmin tehdä kolikoiden siirron, on ne valmiiksi sekoitettu. Erillistä sekoitusta/odotusta ei tarvita.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;TÄRKEÄÄ:&lt;/b&gt; Lompakkosi sisältää vain 1000 "vaihto-osoitetta". Aina kun sekoitustapahtuma tehdään, max 9 osoitetta käytetään. Tämä tarkoittaa sitä että nuo 1000 osoitetta kestää noin 100 sekoitustapahtumaa. Kun 900 osoitetta on käytetty, lompakkosi täytyy tehdä lisää osoitteita. Se voi tehdä niitä vain jos automaattinen varmistus on käytössä.&lt;br&gt; Tästä seuraa että jos varmistus ei ole käytössä, myös %1 on pois käytöstä. &lt;hr&gt;Katso lisätietoja &lt;a style="%2" href="%3"&gt;%1 dokumentaatiosta&lt;/a&gt;.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>Yleistä</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>Asiakasohjelman versio</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Ei saatavilla</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>Käyttäjäohjelma</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>Datahakemisto</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>Jos haluat määrittää datahakemistolle muun kuin oletussijainnin, käytä valitsinta '%1'.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>Lohkohakemisto</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>Jos haluat määrittää lohkohakemistolle muun kuin oletussijainnin, käytä valitsinta '%1'.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>Käynnistysaika</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Verkko</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nimi</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>Yhteyksien määrä</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>Paikalliset osoitteet</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>Verkko-osoitteet, joita Dash-solmusi käyttää tällä hetkellä kommunikointiin muiden solmujen kanssa.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>Lohkoketju</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Nykyinen lohkokorkeus</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Viimeisimmän lohkon aika</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Viimeisimmän lohkon tiiviste</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>Muistivaranto</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>Tapahtumien nykyinen määrä</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>Muistin käyttö</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>Sisään:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>Ulos:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Verkkotoiminta pois käytöstä</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Ei mitään</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Haluatko jatkaa?</translation>
         <translation><numerusform>(%n GB tarvitaan koko ketjuun)</numerusform><numerusform>(%n GB tarvitaan koko ketjuun)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>Valitse datahakemisto</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>Vähintään %1 GB dataa tallennetaan tähän hakemistoon, ja se kasvaa ajan kuluessa.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Haluatko jatkaa?</translation>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Lompakkoa ei ole saatavilla.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>Tämä lompakko on vain katseluun, eikä sillä voi allekirjoittaa siirtotapahtumia.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>Automaattinen (suositus)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Siirtomaksun lähde:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>Lompakon lukitus on avattava, jotta tämä siirtotapahtuma voidaan luoda ja allekirjoittaa.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>Anna kelvollinen BLS-operaattorin salainen avain (basic-scheme).</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>Operaattorin salainen avain ei vastaa tämän masternoden rekisteröityä julkista avainta.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>Toinen masternode-toiminto on jo käynnissä.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>Toiminto päättyi palauttamatta siirtotapahtumaa.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>Siirtotapahtuma luotiin, mutta sitä ei lähetetty verkkoon.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>Siirtotapahtuma lähetettiin onnistuneesti.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>Siirtotapahtuman tunnus: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Haluatko jatkaa?</translation>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>Jaettu</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>Suodata masternodet lista</translation>
     </message>
@@ -1689,6 +1919,22 @@ Haluatko jatkaa?</translation>
     <message>
         <source>Hide banned</source>
         <translation>Piilota kielletyt</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>Rekisteröi uusi masternode tai evonode tällä lompakolla</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>Rekisteröi masternode…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>Luo masternode, jonka vakuus kootaan usealta osapuolelta, tai jatka tallennettua istuntoa</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>Jaettu masternode…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Haluatko jatkaa?</translation>
         <translation>Suodata</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>Päivitä palvelu…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>Päivitä rekisteröintitiedot…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>Vaihda palkkio-osoite…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>Vaihda avaimet…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>Pura…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Luo varapurku…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>Mitätöi…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>Vakuus osoite</translation>
     </message>
@@ -1717,6 +1991,158 @@ Haluatko jatkaa?</translation>
     <message>
         <source>Voting Address</source>
         <translation>Äänestys osoite</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>Masternoden rekisteröinti vaatii lompakon.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>Masternoden rekisteröinti ei vielä tue ulkoisen allekirjoittajan lompakoita.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>Masternoden rekisteröinti vaatii lompakon, jossa on yksityiset avaimet.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>Masternoden rekisteröinti ei ole käytettävissä ennen kuin solmu on valmis.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>Rekisteröi uusi masternode tai evonode tällä lompakolla</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>Jaettujen masternodejen hallinta vaatii lompakon.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>Jaettujen masternodejen hallinta vaatii lompakon, jossa on yksityiset avaimet.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>Jaettujen masternodejen hallinta ei ole käytettävissä ennen kuin solmu on valmis.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>Jaetut masternodet vaativat v24-hard forkin, joka ei ole vielä aktiivinen tässä verkossa.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>Luo tai jatka usean osapuolen jaetun masternoden rekisteröintiistuntoa</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>Tämä siirtotapahtuma ei ole luettavissa oleva jaetun masternoden purku.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Osuus %1/%2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>tunnistamaton skripti</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>Tämä masternode ei ole nykyisessä masternode-luettelossa.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>Palvelu: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>Vakuusosoite: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>Siirtomaksun maksaja: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>Hyväksyjä: jokainen osuuden omistaja</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>Hyväksyjä: vain sinun allekirjoituksesi</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>Maksut:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>Siirtomaksu: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>Jokaisen osuuden pääoma palautetaan sen omaan palautusosoitteeseen. Tätä ei voi perua.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>Huomio: tämä siirtotapahtuma ei palauta jokaisen osuuden koko pääomaa. Tätä ei voi perua.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>Siirtotapahtuma: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>Lähetetäänkö tämä varapurku verkkoon?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>Lähetys epäonnistui</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>Varapurku lähetetty</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>Masternodea ei löytynyt</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>Tämä viesti koskee masternodea, jota ei ole vielä luettelossa.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>Ei avattavaa</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>Vaatii lompakon, jolla voi allekirjoittaa siirtotapahtumia</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>Vaatii tämän masternoden omistajan avaimen lompakossa</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>Vaatii jonkin tämän masternoden osuudenomistajan avaimen tässä lompakossa</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>Tallennettu jo tälle tietokoneelle %1</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>Ei vielä luotu tälle tietokoneelle</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>Suodattaa jonkin tämän masternoden osuudenomistajan osoitteen mukaan</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Haluatko jatkaa?</translation>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>Kielletty %n päiväksi</numerusform><numerusform>Kielletty %n päiväksi</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>Kielletty alle päiväksi</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>Kielletty</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>Aktiivinen %n päivän ajan</numerusform><numerusform>Aktiivinen %n päivän ajan</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>Jaettu masternode · sinulla on %1 / %2 osuudesta</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>Aktiivinen alle päivän</translation>
+        <source>Banned for %1</source>
+        <translation>Kiellossa %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>Aktiivinen %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>Jaettu (sinulla %1 / %2)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>Jaettu (%1 osuutta)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Haluatko jatkaa?</translation>
     <message>
         <source>ProTx Hash</source>
         <translation>ProTx-tiiviste</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>Jokin valituista avaimista on jo rekisteröidyn masternoden tai osuuden käytössä. Jokaista omistaja- ja äänestysavainta saa käyttää vain kerran koko verkossa.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>Valittu palveluosoite on jo rekisteröidyn masternoden käytössä.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>Palautus- tai palkkio-osoite ei saa toimia samalla osuudenomistajan tai äänestyksen osoitteena. Käytä eri osoitteita maksuille ja avaimille.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>Osallistujan suostumusallekirjoitus ei vastaa lopullista siirtotapahtumaa. Näin käy, kun ehdot tai rahoitussiirtotapahtuma muuttuivat allekirjoituksen jälkeen; kerää uudet allekirjoitukset.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Verkko ei vielä hyväksy tätä siirtotapahtumaversiota. Odota, että sen tuova verkkopäivitys aktivoituu.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Tämä ominaisuus ei ole vielä aktiivinen verkossa. Odota, että sen tuova verkkopäivitys aktivoituu.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>Tämän masternoden purku on jo vireillä.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>Siirtotapahtumaa ei voitu rahoittaa.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>Siirtotapahtumaa ei voitu rahoittaa: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+Verkon hylkäys: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>Lisätiedot: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>Siirrä lompakko uuteen muotoon</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>Haluatko varmasti siirtää lompakon &lt;i&gt;%1&lt;/i&gt; uuteen muotoon?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>Lompakon siirtäminen muuntaa tämän lompakon yhdeksi tai useammaksi kuvaajalompakoksi. Uusi lompakon varmuuskopio on tehtävä.
+Jos tämä lompakko sisältää vain katseltavia skriptejä, luodaan uusi lompakko, joka sisältää nämä skriptit.
+Jos tämä lompakko sisältää ratkaistavissa olevia mutta ei katseltavia skriptejä, luodaan toinen, uusi lompakko, joka sisältää nuo skriptit.
+
+Siirtoprosessi luo lompakosta varmuuskopion ennen siirtämistä. Varmuuskopiotiedoston nimi on &lt;lompakon nimi&gt;-&lt;aikaleima&gt;.legacy.bak ja se löytyy tämän lompakon hakemistosta. Jos siirto epäonnistuu, varmuuskopio voidaan palauttaa "Palauta lompakko" -toiminnolla.</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Siirrä lompakko uuteen muotoon</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>Siirretään lompakkoa &lt;b&gt;%1&lt;/b&gt; uuteen muotoon…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>Lompakko '%1' siirrettiin onnistuneesti.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Vain katseltavat skriptit on siirretty uuteen lompakkoon nimeltä '%1'.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Ratkaistavissa olevat mutta ei katseltavat skriptit on siirretty uuteen lompakkoon nimeltä '%1'.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>Siirto epäonnistui</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>Siirto onnistui</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>Osuus %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>Panoksen "%1" syötteen siirtotapahtumatunnus on virheellinen.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>Panoksella "%1" on virheellinen vaihto-osoite.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>Istunnon valmisteltu siirtotapahtuma ei ole kelvollista siirtotapahtuman heksadataa.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>Istunnon valmisteltu siirtotapahtuma ei ole jaetun masternoden rekisteröinti.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>Tätä viestiä muokattiin kopioimisen jälkeen.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>Luonnos</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>Ehdot lukittu</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>Kerätään hyväksyntöjä</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>Hyväksynnät yhdistetty</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>Panokset allekirjoitettu</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>Lähetetty verkkoon</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>Tiedosto ei ole kelvollista JSONia.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>Tiedosto ei ole jaetun masternoden istuntotiedosto.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>Istuntotiedosto käyttää tukematonta formaattiversiota. Päivitä Dash Core avataksesi sen.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>Istuntotiedosto on verkolle "%1", mutta tämä solmu käyttää verkkoa "%2". Sitä ei voi käyttää täällä.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>tuntematon</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>Istuntotiedostossa ei ole istuntotunnusta.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>Istuntotiedoston versio on virheellinen.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>Istuntotiedostossa ei ole vaihetta.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>Istuntotiedosto on tuntemattomassa vaiheessa "%1". Sen on luultavasti luonut uudempi Dash Core.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>Istuntotiedostossa on %1 osuutta; jaetulla masternodella voi olla enintään %2.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>Istuntotiedoston osuuden %1 merkintä on virheellinen.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>Istuntotiedoston alkujakso on virheellinen.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>Istuntotiedoston ennenaikaisen poistumisen sakko on virheellinen.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>Istuntotiedostossa on %1 panosta; osuutta kohden voi olla enintään yksi ja osuuksia enintään %2.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>Istuntotiedoston panoksen %1 merkintä on virheellinen.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>Istuntotiedoston panoksen %1 merkinnässä on %2 syötettä; yhdessä panoksessa voidaan rahoittaa enintään %3.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>Istuntotiedoston suostumustiiviste on virheellinen.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>Istuntotiedoston allekirjoituksen %1 merkintä on virheellinen.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>Istuntotiedostossa on useampi kuin yksi allekirjoitus osuudelle %1.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>Istuntotiedosto on merkitty tilaan "%1", mutta siitä puuttuu lukittu siirtotapahtuma tai suostumustiiviste.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>Istuntotiedostossa on allekirjoitus osuudelle, jota ei ole olemassa.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>Istuntotiedoston mukaan hyväksynnät on yhdistetty, mutta kaikilla osuuksilla ei ole hyväksyntää.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>Istuntotiedoston mukaan hyväksynnät on yhdistetty, mutta yksi hyväksyntä on virheellinen: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>Istuntotiedoston mukaan jokainen panos on allekirjoitettu, mutta yksi tai useampi rahoitussyöte on allekirjoittamatta.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>Istuntotiedostoa ei voitu jäsentää: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>Jaetulla masternodella on oltava %1–%2 osuutta (nyt %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>Äänestysosoitteen on oltava kelvollinen P2PKH-osoite.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>Osuus %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>omistajan osoitteen on oltava kelvollinen P2PKH-osoite.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>omistajan osoite on jo osuuden %1 käytössä. Jokaisen omistaja-avaimen on oltava yksilöllinen.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>summan on oltava välillä %1–%2.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>palautuksen</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>palkkion</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>%1 osoitteen on oltava kelvollinen P2PKH- tai P2SH-osoite.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>palautusosoite on jo osuuden %1 käytössä. Jokaisen palautusosoitteen on oltava yksilöllinen.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>%1 osoite ei saa olla äänestysosoite.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>%1 osoite ei saa olla osuuden %2 omistajan osoite.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>Osuuksien summan on oltava täsmälleen %1 (nyt %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>Alkujakso saa olla enintään %1 lohkoa (noin kaksi vuotta).</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>Ennenaikaisen poistumisen sakko ei voi olla negatiivinen.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>Ennenaikaisen poistumisen sakon on oltava pienempi kuin pienin osuuden summa (%1).</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>Rahoitusta voi muuttaa vain, kun istuntoa voi muokata. Avaa ensin ehtojen lukitus (tämä hylkää kaikki kerätyt hyväksynnät).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>Panokselle tarvitaan osallistujan nimi.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>Panoksella ei ole rahoitussyötteitä.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1" on jo osallistunut panoksella. Poista ensin olemassa oleva panos.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>Syöte %1:%2 on jo käytetty panoksessa "%3".</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>Vaihtorahan määrän on oltava positiivinen.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>Osallistujan "%1" panosta ei löytynyt.</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>Vain muokattavissa oleva istunto voidaan lukita.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>Suostumustiiviste on virheellinen.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>Suostumustiiviste ei vastaa valmisteltua siirtotapahtumaa. Älä allekirjoita; aloita valmisteluvaihe alusta.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>Vakuusulostulon indeksi ei vastaa valmisteltua siirtotapahtumaa.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>Ehtoja ei ole vielä lukittu; ei ole mitään hyväksyttävää.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>Osuutta %1/%2 ei ole olemassa.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>Allekirjoitus ei ole kelvollista base64-muotoa.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>Allekirjoitus (%1) ei täsmää nykyisiin ehtoihin. Se on todennäköisimmin tehty tämän istunnon vanhemmalle versiolle: pyydä allekirjoittajaa (%1) allekirjoittamaan nykyinen versio uudelleen.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Istuntotiedoston osuustaulukko ei vastaa sen valmisteltua siirtotapahtumaa. Älä allekirjoita; pyydä uusi kopio.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Istuntotiedoston osuus %1 ei vastaa sen valmisteltua siirtotapahtumaa. Älä allekirjoita; pyydä uusi kopio.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Istuntotiedoston osuuden %1 palkkio-osoite ei vastaa sen valmisteltua siirtotapahtumaa. Älä allekirjoita; pyydä uusi kopio.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Istuntotiedostossa näkyvät ehdot eivät vastaa sen valmisteltua siirtotapahtumaa. Älä allekirjoita; pyydä uusi kopio.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Istuntotiedostossa näkyvä rahoitus ei vastaa sen valmisteltua siirtotapahtumaa. Älä allekirjoita; pyydä uusi kopio.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>Tälle osuudelle on jo tallennettu eri allekirjoitus. Yksi kopioista allekirjoitti istunnon vanhentuneen version: sopikaa uusimmasta versiosta ja allekirjoituttakaa se uudelleen.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>Rahoitussyötteet voidaan allekirjoittaa vasta, kun hyväksynnät on yhdistetty.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>Valmisteltu siirtotapahtuma ei vastaa ehtoja, jotka kaikki hyväksyivät. Älä allekirjoita tai lähetä sitä verkkoon; pyydä uusi kopio.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>Tämä viesti kuuluu toiseen istuntoon (istunto %1). Työskentelet istunnon %2 parissa.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>Vastaukset voidaan ottaa vastaan vain, kun ehtoja voi vielä muokata.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>Vastaus ei vastaa nykyistä luonnostasi: osallistujia, summia tai ehtoja on muutettu. Pyydä lähettäjää liittämään uusin kutsusi ja vastaamaan uudelleen.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>%1: tälle osuudelle on jo tiedot toisesta vastauksesta.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>Tämä viesti ei sisällä lukittuja ehtoja.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>Lukitut ehdot eivät sisällä lähettämiäsi tietoja.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>koordinaattori</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>Ehdot ovat muuttuneet tietojesi lähettämisen jälkeen. Pyydä osapuolta (%1) lähettämään nykyinen kutsu ja vastaa uudelleen.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>Tuotu kopio on tämän istunnon versio %1; tämä kopio on versio %2, ja tuotu kopio korvaa sen.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>Tuotu kopio on tämän istunnon versio %1; tämä kopio on jo versiossa %2. Lähetä lähettäjälle uudempi tiedosto.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>Tuodun kopion ehdot on lukittu, ja se korvaa tämän muokattavissa olevan kopion.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>Tämän istunnon ehdot on jo lukittu; tuotu kopio on yhä muokattavissa. Lähetä lähettäjälle uudempi päivitys.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>Istunnon %1 molemmat kopiot lukitsivat eri ehdot, eikä niitä voi yhdistää. Sopikaa yhdestä kopiosta, lähettäkää se uudelleen ja pyytäkää kaikkia hyväksymään juuri se.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>Istunnon %1 molemmissa kopioissa on muutettu samoja tietoja, eikä niitä voi yhdistää. Sopikaa yhdestä kopiosta ja lähettäkää se uudelleen.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>Rahoituksella allekirjoitetut kopiot eivät ole sama siirtotapahtuma. Niitä ei voi yhdistää.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>Rahoitussyötteellä %1 on kaksi eri allekirjoitusta. Kopioita ei voi yhdistää.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>Tuodun kopion mukaan hyväksynnät on yhdistetty, mutta tila on virheellinen: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>Tuodun kopion mukaan jokainen panos on allekirjoitettu, mutta tila on virheellinen: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>Tuodun kopion mukaan rekisteröinti on lähetetty verkkoon, mutta tila on virheellinen: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>Istunto ei kerää hyväksyntöjä.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>Kaikki osuudet eivät ole vielä allekirjoittaneet (%1/%2). Yhdistä vain täysin allekirjoitettu istunto.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>Omistajien hyväksynnät on yhdistettävä ennen panosten allekirjoittamista.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>Yksi rahoitussyöte on yhä allekirjoittamatta.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>%1 rahoitussyötettä on yhä allekirjoittamatta.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>Istuntoa ei voi lähettää verkkoon, ennen kuin jokainen suostumus- ja rahoitusallekirjoitus on paikallaan.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>ei mitään</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>noin 1 minuutti</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>noin %1 minuuttia</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>noin 1 tunti</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>noin %1 tuntia</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>noin 1 päivä</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>noin %1 päivää</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>Siirtomaksun on oltava positiivinen.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>Sakko ja siirtomaksu ylittävät purkavan osallistujan osuuden.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>Yksipuolinen purku vaatii vähintään yhden toisen osuuden, joka saa sakon.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 kolikko</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 kolikkoa</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 hyväksyntä</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 hyväksyntää</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 osallistuja</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 osallistujaa</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 rahoitussyöte</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 rahoitussyötettä</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 osuus</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 osuutta</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 syöte</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 syötettä</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Haluatko jatkaa?</translation>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>Luottovaranto</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>Viimeisin lohkomuutos</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Ei saatavilla</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>Lukittu yhteensä</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>Odottavat vapautukset</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>Nostoraja</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>Vahvistetut lukitukset</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>Vahvistamattomat lukitukset</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>Siirtotapahtumaa odottavat lukitukset</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>Suojaamattomat siirtotapahtumat</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>Masternodet</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>Masternodejen määrä</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>EvoNodejen määrä</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ChainLocks</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Nykyinen lohkokorkeus</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Viimeisimmän lohkon aika</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Viimeisimmän lohkon tiiviste</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>Kvoorumit</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Yhteensä: %1 (käytössä: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Odotetaan lohkoketjun synkronointia…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 aktiivista (terveys %2%)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>Kvoorumityyppi vaihtuu kierrossa, tietoja säilytetään %1</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>Kvoorumityyppi ei vaihdu kierrossa, tietoja säilytetään %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>Nykyisellä kvoorumilla on %1 jäljellä</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>Nykyinen kvoorumi on vanhentunut</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>Viimeksi muodostettu %1 sitten</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>Viimeksi muodostettu äskettäin</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Haluatko jatkaa?</translation>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>Avataan Lompakko &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>Luo uusi operaattorin avain</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>Salainen avain näytetään ja vahvistetaan ennen rekisteröintiä, eikä sitä tallenneta minnekään muualle.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Julkinen avain</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>Käytä olemassa olevaa operaattorin julkista avainta</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>Ulkoisesti ylläpidettyä solmua varten: operaattori säilyttää salaisen avaimen ja antaa sinulle julkisen avaimen.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>Operaattorin BLS-julkinen avain (96 heksadesimaalimerkkiä, basic-scheme)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>Operaattorin BLS-salainen avain (64 heksadesimaalimerkkiä)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>PSBT-toiminnot</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>Dialogi</translation>
     </message>
@@ -2968,10 +4148,6 @@ Tuen lopettamisen vuoksi sinun tulisi pyytää kauppiasta toimittamaan sinulle B
         <translation>Näytä kuorma</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>Luo ehdotus</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 lähetetty onnistuneesti ehdotuksellesi "%2".
 
 Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa tätä myöhemmin napsauttamalla "Jatka ehdotusta".</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>Yleistä</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>Äänestysjaksot</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Ei saatavilla</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>Viimeisin superlohko</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>Seuraava superlohko</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>Äänestyksen päättymislohko</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>Osallistuminen</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>Äänestävät masternodet</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>Äänestävät EvoNodet</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>Läpimenoraja</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Solmu</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>Hallitut masternodet</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>Hallitut äänet</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>Ehdotukset</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>Ehdotusten määrä</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>Jaettu budjetti</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>Läpimenevät ehdotukset</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>Rahoittamattomat ehdotukset</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>Epäonnistuvat ehdotukset</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 ääntä</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 äänioikeutettua)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>Ehdotus %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>%1% budjetista</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% jaettu</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (puuttuu %2)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>Lomake</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>Valitse näytettävät ehdotukset</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>Suodata ehdotusluetteloa</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>Suodata otsikolla</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>Äänestyksen määräaika: odotetaan synkronointia…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>Verkossa ei ole aktiivisia ehdotuksia.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>Äänet…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>Näytä nykyiset äänesi ja äänestä valituilla masternodeilla</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>Luo ehdotus</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>Jatka ehdotusta</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>Ehdotusten määrä:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>Aktiiviset ehdotukset</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>Omat ehdotukset</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>Tämän lompakon hallitsemien äänioikeutettujen masternodejen nykyiset rahoitusäänet. Luvut ovat painotettuja ääniä.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (paino %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>Ei äänestysavaimia</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>Lompakkotiedostossa ei ole tallennettuja ehdotuksia.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Ei saatavilla</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>Tarvitaan synkronoitu solmu ja avattu lompakko.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>Jatka ehdotusta</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>Kopioi raaka JSON</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>Avaa ehdotuksen URL…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>Äänestä Kyllä</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>Äänestä Ei</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Äänestä Tyhjää</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>Kohteen %1 tiedot</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Odotetaan lohkoketjun synkronointia…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>Odotetaan hallinnon synkronointia…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n masternode käytettävissä äänestykseen</numerusform><numerusform>%n masternodea käytettävissä äänestykseen</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superlohko lähestyy</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Äänestysaika päättyi</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 lohkoa) jäljellä superlohkoon</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 lohkoa) jäljellä äänestykseen</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% budjetista sidottu (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>Arvio perustuu jäljellä oleviin lohkoihin ja tavoitelohkon aikaan. Ääniä voidaan yhä välittää määräajan jälkeen, mutta ne eivät välttämättä vaikuta tämän jakson maksuun.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>Hallintoon ei voi ottaa yhteyttä ennen synkronoinnin valmistumista</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>Luo uuden ehdotuksen</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>Jatkaa olemassa olevaa ehdotusta</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>Ehdotusten luominen maksaa %1, saldo ei riitä</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Virhe</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>URL-osoitetta ei voi validoida; se voi olla virheellinen tai käyttää tuntematonta protokollaa.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>Varoitus ulkoisesta linkistä</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>Olet avaamassa seuraavan URL-osoitteen oletusselaimessasi
+
+%1
+
+Tämän sisällön on lähettänyt käyttäjä. Se ei välttämättä vastaa otsikossa kuvattua.
+
+Haluatko jatkaa?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>Äänestys epäonnistui</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>Lompakkoa ei ole saatavilla.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>Lompakosta ei löytynyt masternodejen äänestysavaimia.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>Masternode-tietojen hakeminen epäonnistui.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>Valitse ehdotus, josta äänestää.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>Äänestäminen vaatii verkkoon lähetetyn ehdotuksen ja synkronoidun solmun.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>Lompakon lukitusta ei voitu avata.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>Synkronoitujen masternode-tietojen hakeminen epäonnistui.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>Masternode %1 ei ole enää äänioikeutettu</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>Masternodea %1 ei löytynyt</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>Äänen allekirjoitus masternodelle %1 epäonnistui</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>Masternode %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>Äänestettiin onnistuneesti %n kerran</numerusform><numerusform>Äänestettiin onnistuneesti %n kertaa</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>Äänestys epäonnistui %n kerran</numerusform><numerusform>Äänestys epäonnistui %n kertaa</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Virheet:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>Äänestystulokset</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
     <message>
         <source>needs %1 more votes</source>
         <translation>tarvitaan vielä %1 ääntä</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>Omat äänet</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>Äänestä %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>Ehdotuksen äänet</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>Valitse masternodet, joilla äänestät. Nykyiset rahoitusäänet näkyvät alla. Äänen vaihtaminen korvaa kyseisen masternoden aiemman äänen; verkko rajoittaa päivitykset kerran tunnissa.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>Äänestysosoite</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>Paino</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>Nykyinen ääni</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>Äänestysaika</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>ProTx-tiiviste</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Valitse kaikki</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>Tyhjennä valinta</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>Valittuja masternodeja: %1 · Äänen paino: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Näytä aloitusruutu käynnistettäessä (oletus: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Virhe: Annettua datahakemistoa "%1" ei ole olemassa.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>Virhe: Ei voida jäsentää asetustiedostoa: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
     <message>
         <source>Unroutable</source>
         <translation>Ei reititetty</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
         <translation>%1 ja %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>nyt</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n kuukausi</numerusform><numerusform>%n kuukautta</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
     <message>
         <source>UNKNOWN</source>
         <translation>TUNTEMATON</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Jaettu</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
         <translation>Operaattorin palkkio</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>Osuudet</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>Osallistuja</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>Osoitteet</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>Osuus %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>sinä</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>sama kuin palautus</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Omistaja</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>Palkkio</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>Palautus</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>Alkujakso</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>ei mitään</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>päättyy lohkossa %1</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>päättyy lohkossa %1 (noin %2 kuluttua)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>päättynyt (lohko %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>Ennenaikaisen poistumisen sakko</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>tallennettu tälle tietokoneelle %1</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>ei luotu tälle tietokoneelle</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Varapurku</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>Verkko-osoitteet</translation>
     </message>
@@ -3537,6 +5235,66 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
         <source>Collateral Date</source>
         <translation>Vakuuden päivämäärä</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>%1 sitten</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>%1 jäljellä</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Kyllä</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Ei</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>Tyhjä</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>Ei äänestänyt</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>Tämän jakson äänestyksen määräaika on mennyt (lohko %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>Äänestyksen määräaika: ~%1 jäljellä (%2 lohkoa, lohko %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1K, %2E, %3T / %4 äänestämättä</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>Virheellinen Dash-osoite: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopioi</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>Kopioi leikepöydälle</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Lompakkoa ei ole saatavilla.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>Uutta osoitetta ei voitu luoda: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Osuus %1/%2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
         <translation>T&amp;ietoja</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>Yleinen</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Nimi</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>e/s</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>Yhteyksien määrä</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>&amp;Avaa</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>Käynnistysaika</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>Verkko</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>Viimeisimmän lohkon aika</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>Debug lokitiedosto</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>Asiakasohjelman versio</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>Lohkoketju</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>Muistivaranto</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>Nykyinen tapahtumien määrä</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>Muistin käyttö</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
     <message>
         <source>&amp;Repair</source>
         <translation>&amp;Korjaus</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;Yleistä</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;Verkko</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>Ha&amp;llinto</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
     <message>
         <source>User Agent</source>
         <translation>Käyttäjäohjelma</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>Datahakemisto</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>Määrittääksesi ei oletus datahakemiston sijainnin käytä '%1' asetusta.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Lohkohakemisto</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>Määrittääksesi ei oletus hakemiston sijainnin lohkoille käytä '%1' asetusta.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>Paikalliset osoitteet</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>Verkko-osoitteet, joita Dash-solmusi käyttää tällä hetkellä kommunikoidakseen muiden solmujen kanssa.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>Tavallisten Masternodejen määrä</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>EvoNodejen määrä</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>Nykyinen lohkomäärä</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>Viimeisin lohkon tarkiste</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>Viimeisin Ketjulukitun lohkon tarkiste</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>Viimeisin Ketjulukittu lohko</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Avaa %1 -debug-loki tämänhetkisestä datahakemistosta. Tämä voi viedä muutaman sekunnin suurille lokitiedostoille.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>InstantSend lukitukset</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
         <translation>&amp;Poista estolistalta</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>Sisään:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Ulos:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>Verkkotoiminnot ei käytössä</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>Ei mitään</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>Yhteensä: %1 (Käytössä: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>Suoritetaan komento ilman lompakkoa</translation>
     </message>
@@ -4122,6 +5768,10 @@ Sinut ohjataan nyt seuraamaan ja lähettämään uutta ehdotustasi. Voit jatkaa 
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: BIP324 salattu kuljetusprotokolla</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;Hallinto</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>Rekisteröi masternode</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Takaisin</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Seuraava</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Peruuta</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>Masternoden tyyppi</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>Masternode: vakuus %1</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Tarjoaa Core-verkon palveluita ja ansaitsee säännöllisiä masternode-palkkioita.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode: vakuus %1</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>Isännöi lisäksi Dash Platformia, sillä on nelinkertainen äänipaino ja se ansaitsee suuremman osuuden palkkioista. Vaatii Alustan solmutunnuksen ja lisäpalveluita.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>Rekisteröi EvoNode</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>Vakuus</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>Lähetä vakuus tästä lompakosta uuteen osoitteeseen</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>Yksi siirtotapahtuma rahoittaa vakuuden ja rekisteröi masternoden.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Käytä uutta osoitetta</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>Käytä tämän lompakon olemassa olevaa vakuusulostuloa</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>Käyttämätön P2PKH-ulostulo, jonka summa on täsmälleen vakuuden suuruinen, joka on vahvistettu eikä ole toisen masternoden käytössä.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>Viittaa ulkoiseen vakuuteen (esim. laitteistolompakko)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>Vahvistettu P2PKH-ulostulo, jonka summa on täsmälleen vakuuden suuruinen ja joka on tämän lompakon ulkopuolella.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>Tarkistuksen jälkeen sinua pyydetään allekirjoittamaan viesti vakuusavaimella tämän lompakon ulkopuolella.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>Vakuuden siirtotapahtumatunnus (64 heksadesimaalimerkkiä)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>Siirtotapahtuman tunnus:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>Ulostuloindeksi</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>Ulostuloindeksi:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>Palveluosoitteet</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>Julkiset osoitteet, joissa masternodesi palvelee Core P2P -verkkoa, pilkuilla tai välilyönneillä erotettuina. Jokaisen merkinnän on oltava yksilöllinen verkossa.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>Voi jättää tyhjäksi; tällöin masternode pysyy passiivisena, kunnes lähetät palvelupäivityksen osoitteen kanssa.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Avaimet</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Omistajan osoite</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>Hallitsee tätä masternodea (P2PKH): sen avain allekirjoittaa rekisteröintitietojen päivitykset. Käytä uutta osoitetta, jos haluat pitää avaimen tässä lompakossa, tai anna omistajan hallitsema osoite.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>Äänestysosoite</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>Voidaan delegoida (P2PKH). Jätä tyhjäksi, jos haluat äänestää omistajan avaimella; käytä uutta osoitetta, jos haluat pitää erillisen äänestysavaimen tässä lompakossa.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>Jätä tyhjäksi käyttääksesi omistajan osoitetta</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>Operaattorin avain</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>Operaattori ajaa masternode-palvelinta (BLS); ketjuun rekisteröidään vain julkinen avain.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>Luotu salainen avain näytetään, ja se on vahvistettava ennen rekisteröintiä. Sitä ei tallenneta tähän lompakkoon.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>Maksu</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Maksuosoite</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>Vastaanottaa tämän masternoden lohkopalkkiot (P2PKH tai P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Operaattorin palkkio</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>Operaattorille luvattu osuus palkkiosta.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>Operaattori saa pysyvästi tämän osuuden kaikista tämän masternoden palkkioista. Jätä arvoksi 0, ellei sinulla ole sopimusta operaattorisi kanssa.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>Alustan palvelut</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>Alustan solmutunnus</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>Johdettu Alustan P2P-julkisesta avaimesta (40 heksadesimaalimerkkiä).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>Alustan osoitteet</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>ADDR:PORT-merkinnät, pilkuilla tai välilyönneillä erotettuina.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>Alustan P2P</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>Alustan HTTPS-API</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>Alustan portit</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>Ennen v24-aktivointia voidaan rekisteröidä vain Alustan portit; ne koskevat ensimmäistä palveluosoitetta.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Alustan P2P-portti:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Alustan HTTPS-portti:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>Siirtomaksun lähde</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Tarkistus</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>Todista vakuuden omistus</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>Allekirjoita seuraava viesti vakuusavaimella (esimerkiksi laitteistolompakkosi viestinallekirjoitusominaisuudella) ja liitä base64-allekirjoitus alle.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>Kopioi viesti</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>Allekirjoitus</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>Liitä base64-allekirjoitus tähän</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Tallenna operaattorin avain</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Tallenna tämä luotu avain ennen rekisteröintiä. Sitä ei säilytetä missään muualla, eikä sitä voi palauttaa lompakosta.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Operaattorin salainen avain</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>Tallenna se nyt: rekisteröintiä ei voi aloittaa, ennen kuin vahvistat sen.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>Lisää tämä rivi masternode-palvelimesi dash.conf-tiedostoon:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopioi</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>Kirjoita salaisen avaimen 4 viimeistä merkkiä vahvistaaksesi, että tallensit sen ennen rekisteröintiä:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>Masternode rekisteröity</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Provider-siirtotapahtuman tiiviste</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Seuraavat vaiheet</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Valmis</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Vaihe %1/%2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>Valittu osoite rahoittaa vakuuden %1 ja siirtomaksun. Tarkka siirtomaksu lasketaan lompakon asetusten mukaan rekisteröinnin yhteydessä, ja vaihtorahat palautuvat tähän osoitteeseen.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>Valittu osoite maksaa siirtomaksun.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>Anna kelvollinen vakuusosoite (P2PKH tai P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>Tässä lompakossa ei ole käyttämätöntä ulostuloa, jonka summa on täsmälleen %1. Rahoita vakuus lompakosta.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>Anna vakuuden siirtotapahtumatunnus 64 heksadesimaalimerkkinä.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>EvoNodeilla on oltava vähintään yksi palveluosoite Alustan portteja varten ennen v24-aktivointia.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Anna kelvollinen omistajan osoite (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>Anna kelvollinen äänestysosoite (P2PKH) tai jätä tyhjäksi käyttääksesi omistajan osoitetta.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>Omistajan ja äänestyksen osoitteiden on poikettava vakuusosoitteesta.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Anna kelvollinen operaattorin BLS-julkinen avain (96 heksadesimaalimerkkiä, basic-scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>Anna kelvollinen maksuosoite (P2PKH tai P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>Maksuosoitteen on poikettava omistajan ja äänestyksen osoitteista.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>Maksuosoitteen on poikettava vakuusosoitteesta.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>Anna Alustan solmutunnus 40 heksadesimaalimerkkinä.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>Anna sekä Alustan P2P- että Alustan HTTPS-osoite; toista ei voi rekisteröidä ilman toista.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>Anna vähintään yksi Alustan P2P- ja yksi Alustan HTTPS-osoite tai tyhjennä palveluosoitteet, jolloin kaiken voi asettaa myöhemmin palvelupäivityksellä.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>Anna vähintään yksi Core-palveluosoite, kun Alustan päätepisteet on asetettu, tai tyhjennä kaikki palvelun päätepisteet, jolloin ne voi asettaa myöhemmin palvelupäivityksellä.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>Millään käytettävissä olevalla lompakon osoitteella ei ole vakuussummaa %1. Valitulla osoitteella on lisäksi oltava riittävästi katetta rekisteröinnin yhteydessä laskettavaan siirtomaksuun.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>Millään käytettävissä olevalla lompakon osoitteella ei ole positiivista saldoa siirtomaksun maksamiseen.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>Liitä yllä olevan viestin base64-koodattu allekirjoitus, joka on tehty vakuusavaimella.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>Takaisin ei ole käytettävissä valmistelun jälkeen, koska rekisteröinnin muuttaminen mitätöisi allekirjoitettavan viestin.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Jatka</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>Valmistele</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Rekisteröi</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Lähetä</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Valmis</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>Lompakkoa ei ole saatavilla. Masternoden rekisteröinti vaatii lompakon.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>Tämä lompakko on vain katseluun. Masternoden rekisteröinti vaatii lompakon, jolla voi allekirjoittaa siirtotapahtumia.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Vahvista, että tallensit operaattorin salaisen avaimen, kirjoittamalla sen 4 viimeistä merkkiä.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>Tässä lompakossa ei ole vahvistettua käyttämätöntä ulostuloa, jonka summa on täsmälleen %1. Lähetä vakuus tästä lompakosta tai viittaa muualla olevaan.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tyyppi</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Palvelu</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>Alustan HTTPS</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Summa</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>Kohde</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>Ulostulo</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Lähde</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Omistaja</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>Äänestys</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>Operaattori</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Osoite</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>Operaattorin osuus</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>Verkon siirtomaksu</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Solmu</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>Ei asetettu: solmu pysyy passiivisena, kunnes lähetät palvelupäivityksen</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 vertaisverkko (P2P), %2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>Tämä lompakko lähettää sen osana rekisteröintiä</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>Ulostulo, jonka tämä lompakko jo hallitsee</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>Tämän lompakon ulkopuolella: allekirjoitat viestin sen avaimella</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>Sama kuin omistaja</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Rahoitus</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>Ei valittu</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>Lasketaan lähetyshetkellä lompakon nykyisillä siirtomaksuasetuksilla</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>Valmistelu luo allekirjoittamattoman siirtotapahtuman ja viestin, joka allekirjoitetaan vakuusavaimella. Mitään ei vielä lähetetä verkkoon.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>Rekisteröinti lähettää siirtotapahtuman tästä lompakosta verkkoon. Sinua saatetaan pyytää avaamaan lompakon lukitus.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>Juuri luotu; näytetään ja vahvistetaan ennen rekisteröintiä, eikä sitä säilytetä missään muualla</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>Solmun ylläpitäjän antama</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>Vakuuden kohde ei ole enää kelvollinen.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>Valittu vakuusulostulo on jo toisen masternoden käytössä.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>Omistajan osoite ei ole enää kelvollinen.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>Äänestysosoite ei ole enää kelvollinen.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>Operaattorin julkinen avain ei ole enää kelvollinen.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>Maksuosoite ei ole enää kelvollinen.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>Valittu siirtomaksun lähde ei ole enää kelvollinen.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>masternode</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>Tämä siirtotapahtuma luo tästä lompakosta vakuuden (%1) ja rekisteröi solmun (%2).</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>Tämä siirtotapahtuma rekisteröi ulkoisen vakuuden (%1) ja asettaa sen tämän solmun (%2) vakuudeksi.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>Tämä siirtotapahtuma rekisteröi ja lukitsee lompakon vakuusulostulon (%1) tälle solmulle (%2).</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> Verkon siirtomaksu lasketaan valitusta siirtomaksun lähteestä lompakon nykyisillä siirtomaksuasetuksilla.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>Vahvista rekisteröinti (%1)</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>Haluatko lähettää tämän rekisteröinnin (%1) verkkoon?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>Siirtomaksun lähde: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>Verkon provider-siirtotapahtumien säännöt muuttuivat tämän ohjatun toiminnon ollessa auki. Tarkista Alustan palvelut -sivu uudelleen ennen rekisteröintiä.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Valmistellaan…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>Rekisteröidään…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>Verkon provider-siirtotapahtumien säännöt muuttuivat vakuusallekirjoitusta kerättäessä. Hylkää tämä valmisteltu rekisteröinti ja tarkista Alustan palvelut -sivu uudelleen.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>Vakuusallekirjoitus ei ole kelvollista base64-muotoa.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>Lähetetään…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>Rekisteröinti epäonnistui</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>Rekisteröinti päättyi palauttamatta siirtotapahtumaa.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>Rekisteröintisiirtotapahtuma luotiin, mutta sitä ei lähetetty verkkoon.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>Valmisteluvaihe päättyi palauttamatta siirtotapahtumaa.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>Avaimen sisältävä vakuusosoite: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>Rekisteröintisiirtotapahtuma lähetettiin verkkoon.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>Se on tallennettu tähän lompakkoon ja näkyy Siirtotapahtumat-välilehdellä. Ulkoinen vakuus pysyy rekisteröimässäsi lähtöpisteessä, eikä tämä lompakko hallitse sitä.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>Se on tallennettu tähän lompakkoon ja näkyy Siirtotapahtumat-välilehdellä. Vakuus pysyy lompakossa, mutta on lukittu niin kauan kuin masternode on rekisteröity.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>Määritä masternode-palvelimesi tallentamallasi operaattorin salaisella avaimella ja käynnistä dashd siellä uudelleen.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>Määritä masternode-palvelimesi antamaasi operaattorin julkista avainta vastaavalla BLS-salaisella avaimella.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Varmista, että jokainen rekisteröity palveluosoite ja portti on tavoitettavissa internetistä.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>Lähetä Päivitä palvelu -siirtotapahtuma, kun solmun palvelun päätepisteet ovat valmiina; solmu pysyy passiivisena siihen asti.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>Ota käyttöön Dash Platformin palvelut (Tenderdash ja Drive) rekisteröimääsi solmutunnusta vastaavalla Alustan solmuavaimella.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>EvoNode aktivoituu, kun rekisteröinti on vahvistettu ja operaattori on allekirjoittanut ensimmäisen päivityksen.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>Masternode aktivoituu, kun rekisteröinti on vahvistettu verkossa.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>Hylätäänkö valmisteltu rekisteröinti?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>Valmisteltu rekisteröinti hylätään. Tämän ohjatun toiminnon hankkima vakuuslukitus vapautetaan.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>Lompakon palautusviesti</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>Ei määritelty</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>Palvelun päättäminen</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>Vaarantuneet avaimet</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>Avainten vaihto</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>Syy:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operaattorin avain:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automaattinen käyttää ensin nykyistä operaattorin maksuosoitetta, sitten masternoden maksuosoitetta. Valitse osoite vain ohittaaksesi tämän valinnan.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>Mitätöi masternoden palvelu</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>Mitätöinti tyhjentää palveluosoitteen ja asettaa masternoden PoSe-kieltoon, kunnes sen omistaja vaihtaa operaattorin avaimen. Vakuuteen tämä ei vaikuta.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>Mitätöi</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>Vaihda operaattorin avain tai äänestysavain</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Näiden avainten vaihtaminen vaatii jokaisen osuuden omistajan hyväksynnän. Yksi aloittaa pyynnön; kaikki muut liittävät sen, hyväksyvät ja kopioivat vastauksen takaisin.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. Uudet avaimet</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>Jätä tyhjäksi säilyttääksesi nykyisen operaattorin avaimen</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopioi</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>Uusi operaattorin avain:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>Masternode estetään heti, kun operaattorin avain vaihtuu, kunnes uusi operaattori lähettää palvelupäivityksen.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>Jätä tyhjäksi säilyttääksesi nykyisen äänestysosoitteen</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>Uusi äänestysosoite:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Siirtomaksun lähde:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Valmistele pyyntö</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>Viimeistele tässä lompakossa: se maksaa siirtomaksun ja sen on lähetettävä lopullinen siirtotapahtuma.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Hyväksynnät</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Lähetä sama pyyntö jokaiselle osuuden omistajalle. Vastaukset voivat tulla missä järjestyksessä tahansa.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Hyväksy ja kopioi vastaus</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Lähetys</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>Lähetä avainten vaihto</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>Siirtotapahtuman tunnus</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>Operaattorin avain: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>muuttumaton</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>Äänestysosoite: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Valmistele tai liitä ensin pyyntö.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>Vain pyynnön valmistellut lompakko voi lähettää sen.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Jokaisen osuuden on ensin hyväksyttävä (%1/%2 toistaiseksi).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>Anna kelvollinen operaattorin julkinen avain.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>Äänestysosoitteen on oltava P2PKH-osoite.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>Avainten vaihto lähetettiin.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>Jos virheilmoituksen mukaan pyynnön rahoittaneen lompakon on yhdistettävä se, viimeistele toiminto pyynnön valmistelleessa lompakossa.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
         <translation>tai</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>Allekirjoittamaton siirtotapahtuma</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBT on kopioitu leikepöydälle. Voit myös tallentaa sen.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT tallennettu levylle</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>Hyväksy lähettäminen</translation>
     </message>
@@ -4688,6 +7188,7 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT tallennettu</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>Siirtomaksu joka on korkeampi kuin %1, katsotaan erittäin korkeaksi siirtomaksuksi.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>Arvioitu vahvistuksen aloitus %n lohkon kuluessa.</numerusform><numerusform>Arvioitu vahvistuksen aloitus %n lohkon kuluessa.</numerusform></translation>
@@ -4900,6 +7405,1441 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     <message>
         <source>Create Unsigned</source>
         <translation>Luo allekirjoittamaton</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>Jaettu masternode</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Takaisin</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Liitä</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>Tallenna…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Peruuta</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Seuraava</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Tiedot</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>Rahoitettu</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Hyväksytty</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>Allekirjoitettu</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>toinen toiminto on yhä käynnissä.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>lompakkoa ei ole saatavilla.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>lompakko pysyi lukittuna.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>solmu ei antanut syytä.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>rekisteröinti ei ole kelvollinen siirtotapahtuma.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>Jaettu masternode</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>Useat henkilöt rahoittavat yhdessä yhtä masternodea. Yksi koordinoi; kaikki muut liittävät saamansa viestin ja kopioivat vastauksen takaisin. Mikään ei välity verkkoon ennen lopullista lähetystä.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Aloita</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>Annat osallistujat ja masternoden asetukset ja kutsut sitten muut.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>Aloita jaettu masternode</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Jatka</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>Liitä kutsu, lukitut ehdot, allekirjoituspyyntö tai mikä tahansa saamasi vastaus: sovellus tietää, mitä tehdä.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>Liitä leikepöydältä</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Avaa tiedosto…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Osallistujat</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>Ketkä osallistuvat ja kuinka paljon kukin sijoittaa. Summien on oltava yhteensä täsmälleen %1; jokainen osuus on vähintään %2.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nimi</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Summa</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>Minä</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>Lisää osallistuja</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>Osallistuja %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Poista</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>Masternoden asetukset</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>Nämä koskevat koko masternodea ja ovat samat jokaiselle osallistujalle.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Palveluosoitteet:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>Julkiset osoitteet, joissa masternode palvelee Core P2P -verkkoa, pilkuilla tai välilyönneillä erotettuina. Voi jättää tyhjäksi ja asettaa myöhemmin palvelupäivityksellä.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operaattorin avain:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>Palvelinta ajava tarvitsee salaisen avaimen. Ketjuun rekisteröidään vain julkinen avain.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>Kopioi julkinen avain</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Solmun ylläpitäjä:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>Kirjataan ehtoihin, jotta kaikki tietävät, kuka voi käynnistää solmun ja elvyttää sen.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>Operaattorin salaisuuden säilyttävän osallistujan nimi</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Äänestysosoite:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>Äänestää hallinnon ehdotuksista koko masternoden puolesta (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Käytä uutta osoitetta</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Operaattorin palkkio:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>Palvelinta ajavalle luvattu osuus palkkiosta.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>Operaattori saa pysyvästi tämän osuuden kaikista palkkioista ennen kuin mitään jaetaan osallistujien kesken.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Poistumisehdot</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>Mitä tapahtuu, jos yksi osallistuja haluaa pois ennen muita.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>Miten poistuminen toimii</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>Kuka tahansa voi purkaa masternoden yksin milloin tahansa, ja kaikki saavat pääomansa takaisin. Alkujakson aikana yksin purkava maksaa ennenaikaisen poistumisen sakon omasta osuudestaan, ja se jaetaan muiden kesken. Jos kaikki ovat samaa mieltä, purkaminen on maksutonta milloin tahansa.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Alkujakso:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>Lohkoja rekisteröinnin jälkeen, joiden aikana yksin poistuminen maksaa sakon.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Ei mitään</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 kuukautta</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 kuukautta</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 vuosi</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 vuotta</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Ennenaikaisen poistumisen sakko:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>Panoksesi</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>Osuutesi osoitteet ja kolikot. Vain sinä näet kolikot; muut näkevät vain syntyvän siirtotapahtuman syötteet.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>Osuutesi</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>Tämä olen minä:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>Omistajan osoite:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>Hallitsee osuuttasi: hyväksyy avainmuutokset ja purut. Säilytetään tässä lompakossa.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>Palautusosoite:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>Vastaanottaa pääomasi, kun masternode puretaan. Sitä ei voi muuttaa myöhemmin.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>Palkkio-osoite (valinnainen):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>Vastaanottaa osuutesi palkkioista. Jätä tyhjäksi käyttääksesi palautusosoitetta; voit muuttaa sitä myöhemmin.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>Kolikot</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>Verkon siirtomaksu:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>Varaa kolikot</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Vapauta</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Tallenna operaattorin avain</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Tallenna tämä luotu avain ennen kenenkään kutsumista. Sitä ei säilytetä missään muualla, eikä sitä voi palauttaa lompakosta.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Operaattorin salainen avain</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>Tallenna se nyt: kutsua ei voi lähettää, ennen kuin vahvistat sen.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopioi</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>Lisää tämä rivi masternode-palvelimen dash.conf-tiedostoon:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>Lähettämäsi kutsu sisältää vain julkisen avaimen.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>Kirjoita salaisen avaimen 4 viimeistä merkkiä vahvistaaksesi, että tallensit sen:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>Kutsu osallistujat</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>Lähetä sama kutsu kaikille. Jokainen varaa kolikkonsa ja lähettää sinulle tietonsa takaisin.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>Kopioi kutsu</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>Kutsu</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>Tallenna kutsu…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>Muutit luonnosta. Jo vastanneiden osallistujien on vastattava uudelleen.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>Lukitaanko nämä ehdot?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>Lukitseminen kiinnittää jokaisen osoitteen, summan ja kolikon. Sen jälkeen kukaan ei voi muokata; voi vain avata lukituksen, mikä hylkää kaikki hyväksynnät.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>Hyväksynnät</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>Kopioi lukitut ehdot</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>Lukitut ehdot</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>Avaa ehtojen lukitus…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>Allekirjoitukset</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>Kopioi allekirjoituspyyntö</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>Allekirjoituspyyntö</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>Mitä lähetit</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>Mitä seuraavaksi</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>Vapauta kolikkoni</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>Jaettu masternode rekisteröity</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>Mitä tapahtui</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>Se näkyy Masternodet-kohdassa yhden vahvistuksen jälkeen.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>Mitä säilyttää turvassa</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>Osuuden omistajan avaimesi</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Varapurku</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>Allekirjoitettu purku, jota säilytät offline-tilassa. Se palauttaa pääomasi, vaikka tämä lompakko katoaisi. Luo se ensimmäisen vahvistuksen jälkeen.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Luo se Masternodet-luettelosta (napsauta masternodea hiiren oikealla painikkeella), kun rekisteröinti on vahvistettu, ja säilytä se palautusosoitteen varmuuskopion kanssa erillään tästä lompakosta.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>Istuntotietue</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>Tallenna lopullinen tietue…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Seuraavat vaiheet</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>Kopioi lopullinen tietue</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>Lopullinen tietue</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Odotetaan: %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>koordinaattori</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>Hyväksy ehdot</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>Allekirjoita panos</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Valmis</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Vaihe %1/%2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Lompakkoa ei ole saatavilla.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>Tämä lompakko ei voi allekirjoittaa. Voit katsella, mutta et osallistua.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>Jaettu masternode tarvitsee %1–%2 osallistujaa.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>Anna nimi osallistujalle %1.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>Nimi "%1" on käytössä kahdesti.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>Jokainen osuus on vähintään %1.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>Summat ovat yhteensä %1; niiden on oltava täsmälleen %2.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>Valitse osallistuja, joka olet sinä.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Anna kelvollinen operaattorin BLS-julkinen avain (96 heksadesimaalimerkkiä, basic-scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>Anna kelvollinen äänestysosoite (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>Aseta ennenaikaisen poistumisen sakoksi 0, kun alkujaksoa ei ole.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>Ennenaikaisen poistumisen sakon on oltava pienempi kuin pienin osuus (%1).</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Anna kelvollinen omistajan osoite (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>Anna kelvollinen palautusosoite (P2PKH tai P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>Anna kelvollinen palkkio-osoite (P2PKH tai P2SH) tai jätä tyhjäksi.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Palkkio-osoitteen on poikettava äänestysosoitteesta ja kaikista omistajan osoitteista.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>Jokaisen osallistujan on lähetettävä tietonsa takaisin, ennen kuin ehdot voidaan lukita.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Tämä lompakko on vain katseluun, eikä sillä voi allekirjoittaa.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>Tallenna ensin operaattorin salainen avain. Se näytetään kerran sivulla "Tallenna operaattorin avain", eikä istuntotiedosto sisällä sitä.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>Varaa kolikot ja kopioi tiedot</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>Lukitse ja hyväksy</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>Lukitse ehdot</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Hyväksy ja kopioi vastaus</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>Hyväksy</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Yritä uudelleen</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>Allekirjoita ja kopioi vastaus</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>Lähetä rekisteröinti verkkoon</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Sulje</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Valmis</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>Aloita alusta</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Vahvista, että tallensit operaattorin salaisen avaimen, kirjoittamalla sen 4 viimeistä merkkiä.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>Olet jo hyväksynyt nämä ehdot.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>Jokaisen osallistujan on allekirjoitettava omat kolikkonsa, ennen kuin rekisteröinti voidaan lähettää verkkoon.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>Jaettu masternode — istunto %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 / %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 / %2 — puuttuu %3</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 / %2 — %3 liikaa</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>Täytyy olla pienempi kuin pienin osuus (%1). Aseta 0 vain, jos hyväksyt, että kuka tahansa voi poistua milloin tahansa maksutta.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Kuka tahansa voi poistua milloin tahansa maksutta.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>Jos %1 poistuu ennen masternoden iän lohkoa %2, %1 menettää %3, jaettuna muille.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>Yksin poistuminen alkujakson aikana maksaa %1, jaettuna muille.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>Nollasakolla alkujaksolla ei ole vaikutusta: kuka tahansa voi purkaa masternoden yksin milloin tahansa maksamatta mitään.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>Osuus %1/%2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>Osuus %1/%2 — %3 (sinä)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>Valitse, mikä osallistuja olet.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>Varattu: näitä kolikoita ei voi käyttää, ennen kuin istunto päättyy tai vapautat ne.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>Käyttää: %1 (%2); vaihtorahat %3 palautuvat uuteen osoitteeseesi.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>Käyttää: %1 (%2), vaihtorahaa ei jää.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>Kaikki tarkistavat nämä täsmälliset ehdot ja hyväksyvät kerran. Lähetä sama viesti kaikille.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>Lue jokainen rivi. Hyväksyminen allekirjoittaa nämä täsmälliset ehdot omistajan avaimellasi. Mitään ei vielä lähetetä verkkoon.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>Kaikki hyväksynnät on sisällytetty. Jokainen osallistuja allekirjoittaa nyt omat kolikkonsa. Vastaukset voivat tulla missä järjestyksessä tahansa.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>Allekirjoittaa varaamasi kolikot. Allekirjoituksesi vain käyttää ne tähän rekisteröintiin.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>%1/%2 rahoitussyötettä on allekirjoitettu.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>Allekirjoittaa osuutesi (%1). Et lähetä mitään verkkoon.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>Lähetit: %1 · Koodi %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>lukitut ehdot</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>allekirjoituspyyntö</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>lopullinen tietue</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>Seuraavaksi vastaanotat: %1. Liitä se tähän, kun se saapuu.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 lähettää rekisteröinnin verkkoon. Kun masternode ilmestyy luetteloosi, luo varapurkusi.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>Tässä lompakossa (%1). Varmuuskopioi lompakko: se hyväksyy muutokset ja purut.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>Säilyttäjä: %1. Tarvitaan palvelimella asetuksena masternodeblsprivkey.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>solmun ylläpitäjä</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>Määritä masternode-palvelimelle operaattorin salainen avain ja käynnistä dashd siellä uudelleen.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>Lähetä palvelupäivitys, kun solmun osoitteet ovat valmiina; solmu pysyy passiivisena siihen asti.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Varmista, että jokainen rekisteröity palveluosoite ja portti on tavoitettavissa internetistä.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>Jokaisen osallistujan tulisi luoda oma varapurkunsa ensimmäisen vahvistuksen jälkeen.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1/%2 syötettä</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1/%2 vastannut</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1/%2 allekirjoittanut</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1/%2 hyväksynyt</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Valmistellaan…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>Rekisteröinnin valmistelu epäonnistui: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>rahoitussiirtotapahtuma ei ole kelvollinen.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>virheellinen palautusosoite: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>virheellinen palkkio-osoite: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>virheellinen osuuden omistajan osoite: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>operaattorin avain ei ole kelvollinen BLS-julkinen avain.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>äänestysosoitteen on oltava P2PKH-osoite.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>operaattorin palkkion on oltava välillä 0% ja 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>Odottamaton vastaus solmulta.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>Ehtoja ei ole vielä lukittu.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>Hyväksyminen epäonnistui: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>Hyväksytään…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>Hyväksyntä</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>Hyväksyntöjen yhdistäminen epäonnistui: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>Yhdistetään hyväksyntöjä…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>Tämä siirtotapahtuma käyttää myös kolikkoa %1, joka on tämän lompakon kolikko mutta ei kuulu panokseesi. Älä allekirjoita; pyydä uusi istunto: %2.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>Tämä siirtotapahtuma käyttää %1 tämän lompakon kolikoita osuudelle (%2), mutta palauttaa tähän lompakkoon vaihtorahaa vain %3. Älä allekirjoita; pyydä uusi istunto: %4.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>Allekirjoitus epäonnistui: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>Allekirjoitettu siirtotapahtuma ei ole se, jonka tarkistit. Älä käytä sitä; pyydä uusi istunto: %1.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>Allekirjoitettu panos</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>Avataanko ehtojen lukitus?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>Lukituksen avaaminen hylkää kohteen %1. Kaikkien on hyväksyttävä uudelleen, kun olet lukinnut ehdot.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>Vakuus: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>Osallistujat: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>Vahvista jaetun masternoden rekisteröinti</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>Lähetetäänkö tämä jaetun masternoden rekisteröinti verkkoon?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>Istunto %1 · Koodi %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>Lähetys epäonnistui: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>kaikki</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>Kopioitu · Istunto %1 · Koodi %2 — lähetä se vastaanottajalle: %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>Tallenna ensin operaattorin salainen avain. Se näytetään vain täällä, eikä istuntotiedosto sisällä sitä: ilman sitä masternodea ei voisi koskaan ajaa.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>Tallenna jaetun masternoden viesti</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>Istuntotiedostot (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>Tiedostoa %1 ei voitu avata kirjoitettavaksi.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>Tallennettu · Istunto %1 · Koodi %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>Avaa jaetun masternoden viesti</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Viesti on liian suuri ollakseen jaetun masternoden viesti.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>Tiedostoa %1 ei voitu avata luettavaksi.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>Tämä viesti koskee olemassa olevaa masternodea. Avaa se Masternodet-luettelosta.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>Allekirjoituksia ei lasketa</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Vastaanotettu: %1 · Koodi %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>Tämä vastaus on vanhempi kuin nykyiset ehtosi (koodi %1; omasi on %2). Pyydä lähettäjää liittämään uusin viestisi ja vastaamaan uudelleen.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>Vastaanotettu lähettäjältä %1: %2 · Koodi %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>Tässä lompakossa on oltava vähintään %1 käytettävissä osuutesi (%2) rahoittamiseen.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>Vapautetaanko kolikkosi?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>Istuntoon %1 varaamasi kolikot tulevat taas käytettäviksi.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>Muiden kolikot pysyvät varattuina. Jos käytät nämä, tätä rekisteröintiä ei voi koskaan lähettää verkkoon ja muiden on aloitettava alusta.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>Vapautettu: nämä kolikot voi taas käyttää.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>Tähän istuntoon varattu kolikko käytettiin. Rekisteröintiä ei voi enää viimeistellä: aloita alusta.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>Kohteen %1 arvoa ei voi vielä tarkistaa tällä solmulla. Tarkistettavissa olevien syötteiden summa on %2 vakuudesta %3.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>Varatut kolikot ovat yhteensä %1, mikä ei kata vakuutta (%2), vaihtorahaa (%3) ja verkon siirtomaksua. Rekisteröintiä ei voisi koskaan lähettää verkkoon.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>Syötteet %1 − vaihtoraha %2 = vakuus %3 + verkon siirtomaksu %4. Siirtomaksu on epätavallisen suuri; jatka vain, jos se on tarkoitus.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>Syötteet %1 − vaihtoraha %2 = vakuus %3 + verkon siirtomaksu %4 ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>Tallennetaanko operaattorin avain ensin?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>Operaattorin salainen avain on olemassa vain tässä ikkunassa; istuntotiedosto sisältää vain sen julkisen puolen. Jos suljet nyt, masternodea ei voisi koskaan ajaa.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>Säilytetäänkö tämä istunto myöhempää varten?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>Tallentaminen pitää kolikkosi varattuina, jotta voit jatkaa siitä, mihin jäit. Hylkääminen vapauttaa ne; jos muut yhä odottavat sinua, heidän on aloitettava alusta.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>Tallenna operaattorin avain</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>Tallenna ja sulje</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>Hylkää ja vapauta kolikot</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Osuus %1/%2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>Tämä lompakko ei sisällä yhtään tämän masternoden osuudenomistajan avainta.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>Osuus</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>Palautusosoite</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>Saa</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Lompakkoa ei ole saatavilla.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Tämä lompakko on vain katseluun, eikä sillä voi allekirjoittaa.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>Toinen toiminto on yhä käynnissä.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>Lompakon lukituksen avaus peruttiin.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Siirtotapahtuma ei ole kelvollista siirtotapahtuman heksadataa.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>Pyynnön tarvitsema kolikko (%1:%2) on käytetty. Sitä ei voi enää lähettää: aloita alusta.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>Sisäinen virhe: täällä laskettu tiiviste ei vastaa solmun laskemaa. Älä hyväksy; ilmoita tästä.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>Hyväksytty: %1 tällä lompakolla.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>Jaetut masternodet vaativat v24-päivityksen, joka ei ole vielä aktiivinen tässä verkossa.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nimi</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Summa</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(sinä)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Tämä pyyntö ei maksa jokaiselle osuudelle sen koko pääomaa. Älä hyväksy sitä; pyydä sen valmistelijalta uusi pyyntö.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>Tämä pyyntö nimeää osuuden, jota tällä masternodella ei ole.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>Tämä pyyntö ei käytä täsmälleen masternoden vakuutta. Älä hyväksy sitä.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Tämä pyyntö pidättää %1 osuuksien pääomasta siirtomaksuna. Älä hyväksy sitä; pyydä sen valmistelijalta uusi pyyntö.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>Leikepöydällä ei ole jaetun masternoden viestiä.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>Tämä viesti ei ole jaetun masternoden viesti.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>Tämä siirtotapahtuma ei ole jaetun masternoden purku.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>nimetön</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(sinä)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>Omistaja:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>ei vielä asetettu</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>Palautus:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>Palkkio:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>sama kuin palautus</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Osallistujat</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Palvelu:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>Ei asetettu: asetetaan myöhemmin palvelupäivityksellä</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operaattorin avain:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>ei asetettu</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Solmun ylläpitäjä:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>ei kirjattu</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Äänestysosoite:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Operaattorin palkkio:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Alkujakso:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 lohkoa (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Ennenaikaisen poistumisen sakko:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Kuka tahansa voi poistua milloin tahansa maksutta.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>Yksin poistuminen alkujakson aikana maksaa %1, jaettuna muille; yhdessä poistuminen on maksutonta.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Poistumisehdot</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>Panokset:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>Palautetut vaihtorahat:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>Vakuus:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1, kun ehdot on lukittu</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>ulostulo #%1 maksaa %2 jaetun vakuuden skriptiin</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Rahoitus</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>Istunto:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>Koodi:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>Valmistellut lompakko:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>Tunniste</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Siirtotapahtuma ei ole kelvollista siirtotapahtuman heksadataa.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>Siirtotapahtuma ei ole purkusiirtotapahtuma.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>Siirtotapahtuman hyötykuormaa ei voi deserialisoida.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>Siirtotapahtuma purkaa toisen masternoden.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>Siirtotapahtumassa on jo allekirjoituksia; odotettiin allekirjoittamatonta valmisteltua siirtotapahtumaa.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>Siirtotapahtuma ei ole jaettu rekisteröintitietojen päivitys.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>Siirtotapahtuma päivittää toista masternodea.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Hyväksytty</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>Kopioi pyyntö</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>Tallenna pyyntö…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Liitä</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Avaa tiedosto…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>Tämä viesti koskee eri siirtotapahtumaa kuin täällä jo oleva. Toinen kopioista on vanhentunut; säilytä nykyinen ja pyydä uusi vastaus.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>Liitä itse pyyntö ennen hyväksyntöjen liittämistä.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>Tämä viesti ei sisällä hyväksyntöjä.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>Hyväksynnästä puuttuu osuuden numero tai allekirjoitus.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>Hyväksynnän osuuden numero ei ole luettavissa.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>Osuuden numero %1 on sallitun alueen ulkopuolella.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: allekirjoitus ei ole base64-muotoinen 65 tavun kompakti allekirjoitus.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>Hyväksyntä (%1) ei vastaa valmisteltua siirtotapahtumaa. Pyydä osoitteen %2 haltijaa liittämään nykyinen pyyntö ja hyväksymään uudelleen.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1: hyväksyntä on jo olemassa toisesta vastauksesta.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>Tämä ei ole jaetun masternoden viesti.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>Tämä viesti on verkolle %1; tämä lompakko toimii verkossa %2.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>Tämä viesti koskee toisenlaista muutosta tähän masternodeen.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>Tämä viesti koskee toista masternodea.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>Kopioitu · Koodi %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>Tallenna pyyntö</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>Jaetun masternoden viesti (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Kirjoittaminen kohteeseen %1 ei onnistunut.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>Tallennettu · Koodi %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Tallennettu kohteeseen %1.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Viesti on liian suuri ollakseen jaetun masternoden viesti.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Vastaanotettu: %1 · Koodi %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>Vastaanotettu · Koodi %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>Avaa pyyntö</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>Jaetun masternoden viesti (*.json);;Kaikki tiedostot (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>Kohteen %1 lukeminen ei onnistunut.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>Hyväksyjä: %1</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Odotetaan: %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1/%2 hyväksynyt</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(paina q sammuttaaksesi ja jatkaaksesi myöhemmin)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>paina q sammuttaaksesi</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     <message>
         <source>Date</source>
         <translation>Päivämäärä</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tyyppi</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Masternoden rekisteröinti</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Masternoden päivitys</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Varojen lukitus</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     <message>
         <source>Transaction total size</source>
         <translation>Siirtotapahtuman koko yhteensä</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>Hyötykuorma</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
         <translation>Alustansiirto</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>Datasiirtotapahtuma</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>Pölyvastaanotto</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Masternoden rekisteröinti</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Masternoden päivitys</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Varojen lukitus</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     <message>
         <source>(n/a)</source>
         <translation>(e/s)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>Rekisteröi masternoden. Summa on tämän lompakon nettosaldomuutos ja on yleensä vain verkon siirtomaksu, kun vakuus pysyy tässä lompakossa.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>Päivittää olemassa olevan masternoden rekisteröinnin. Summa on tämän lompakon nettosaldomuutos, yleensä vain verkon siirtomaksu.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Lukitsee varoja käytettäväksi Dash Platformilla. Summa on tämän lompakon nettosaldomuutos, siirtomaksu mukaan lukien.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
         <translation>Louhittu</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>Alustansiirto</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Varojen lukitus</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>Datasiirtotapahtuma</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ Lisätietoja tämän konsolin käytöstä saat kirjoittamalla %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>Operaattorin BLS-julkinen avain (96 heksadesimaalimerkkiä)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>Operaattorin julkinen avain:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>Operaattorin avaimen vaihtaminen asettaa masternoden heti PoSe-kieltoon. Uuden operaattorin on lähetettävä Päivitä palvelu -siirtotapahtuma sen elvyttämiseksi.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Äänestysosoite:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>Maksuosoite:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>Useat maksuosuudet säilytetään; muuta niitä RPC:llä</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>Tämä ikkuna ei voi turvallisesti yhdistää usean maksun masternodea yhteen osoitteeseen.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>Automaattinen käyttää masternoden nykyistä ensisijaista maksuosoitetta. Valitse osoite vain ohittaaksesi tämän valinnan.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>Päivitä masternoden rekisteröintitiedot</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>Päivitä operaattorin avain, äänestysosoite tai maksuosoite. Kaikki nykyiset arvot on esitäytetty; vain muutetut kentät lähetetään. Omistajan avaimen on oltava tässä lompakossa.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Lähetä päivitys</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>Anna kelvollinen operaattorin julkinen avain nykyiselle provider-siirtotapahtumaversiolle.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>Äänestysosoitteen on oltava avainosoite.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT, useat merkinnät pilkuilla erotettuina</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>Useat osoitteet vaativat laajennetut provider-siirtotapahtumat.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Palveluosoitteet:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>Palveluosoite:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operaattorin avain:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>Alustan solmutunnus (40 heksadesimaalimerkkiä)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>Alustan solmutunnus:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>Alustan P2P-osoitteet:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT tai verkkotunnus:portti, pilkuilla erotettuina</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>Alustan HTTPS-osoitteet:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Alustan P2P-portti:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Alustan HTTPS-portti:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>Operaattorin maksuosoite:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automaattinen käyttää ensin nykyistä operaattorin maksuosoitetta, sitten masternoden maksuosoitetta. Valitse osoite vain ohittaaksesi tämän valinnan.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>Päivitä EvoNoden palvelu</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>Päivitä masternoden palvelu</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>Päivitä rekisteröidyt palvelun päätepisteet. Onnistunut päivitys elvyttää myös PoSe-kieltoon asetetun masternoden. Kaikki nykyiset arvot on esitäytetty, joten muuttumattomat kentät säilyvät.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Lähetä päivitys</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>Anna kelvollinen Alustan solmutunnus (40 heksadesimaalimerkkiä).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>Osuutesi:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>Osoite, joka vastaanottaa tämän osuuden palkkiot</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Käytä uutta osoitetta</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>Käytä palautusosoitetta</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>Uusi palkkio-osoite:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>Siirtomaksu maksetaan tästä lompakkosi osoitteesta.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>Vaihda palkkio-osoite</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>Muuta, mihin tämän masternoden palkkioista osuutesi maksetaan. Vaikutus koskee vain osuuttasi; osuuden summa ja palautusosoite eivät koskaan muutu.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Lähetä päivitys</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>Anna osoite, joka vastaanottaa palkkiot.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>Anna kelvollinen Dash-osoite.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Palkkio-osoitteen on poikettava äänestysosoitteesta ja kaikista omistajan osoitteista.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>Tämä masternode ei ole jaettu eikä sillä ole osuustaulukkoa.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>Valitse tämän lompakon osoite, josta siirtomaksu maksetaan.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Siirry Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
     <message>
         <source>Send Coins</source>
         <translation>Lähetä</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>Allekirjoittajavirhe</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Siirry Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
         <translation>Varoitus: Olemme vertaisverkon kanssa ristiriidassa! Sinun ja/tai solmujen tulee päivitää uusimpaan versioon.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+Epäonnistuneen siirron siivoaminen ei onnistunut</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+Lompakon varmuuskopion palauttaminen ei onnistunut.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>Syöte on jo olemassa.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Siirry Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
         <translation>SQLiteDatabase: Tuntematon sqlite-lompakkoskeeman versio %d. Vain versio %d on tuettu</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>Ei-tuettu kategoriakohtainen lokitaso -loglevel=%s. Odotettu -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Kelvolliset kategoriat: %s. Kelvolliset lokitasot: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>Ei voida sekoittaa: yhteensopivia syötteitä ei löytynyt!</translation>
     </message>
@@ -5905,10 +10099,6 @@ Siirry Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
     <message>
         <source>Insufficient funds.</source>
         <translation>Saldo ei riitä.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>Virheellinen minimi määrä spork allekirjoittajia määritelty -minsporkkeys</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Siirry Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
         <translation>Tuntematon vastaus.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>Ei-tuettu globaali lokitaso -loglevel=%s. Kelvolliset arvot: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>Käyttäjä toimijan kommentti (%s) sisältää ei suositeltuja merkkejä.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Siirry Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s tiedosto sisältää kaikki yksityisavaimet tähän lompakkoon. Älä luovuta sitä kenellekkän!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s ei onnistunut validoimaan -assumeutxo-tilannevedoksen tilaa. Tämä viittaa laitteisto-ongelmaan, ohjelmistovirheeseen tai huonoon ohjelmistomuutokseen, joka salli virheellisen tilannevedoksen lataamisen. Tämän seurauksena solmu sammuu ja lopettaa kaiken tilannevedokselle rakennetun tilan käytön, ja lohkoketjun korkeus palautetaan arvosta %d arvoon %d. Seuraavalla uudelleenkäynnistyksellä solmu jatkaa synkronointia kohdasta %d käyttämättä mitään tilannevedoksen dataa. Ilmoita tapauksesta osoitteeseen %s ja kerro, miten sait tilannevedoksen. Virheellinen tilannevedoksen ketjutila jätetään levylle siltä varalta, että siitä on apua virheen aiheuttaneen ongelman selvittämisessä.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6068,10 +10258,6 @@ Siirry Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
 Vähennä uakommenttien määrää tai kokoa.</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>VAROITUS! Osoitevarannon täydentäminen epäonnistui, avaa lompakon lukitus.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>Lompakko on lukittu, osoitevarannon täydentäminen ei onnistu! Automaattinen varmistus ja sekoitus ei ole käytössä, avaa lompakon lukitus täydentääksesi osoitevarannon.</translation>
     </message>
@@ -6086,10 +10272,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool on oltava vähintään %d MB</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>Automaattinen varmistus ei ole käytössä</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6112,16 +10294,24 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Ei voitu jäsentää asmap tiedostoa %s</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>VIRHE! Automaattinen varmistus epäonnistui</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>Virhe ladatessa %s: Yksityisavaimet voivat olla ainoastaan pois käytöstä luomisen aikana</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>Virhe luettaessa asetustiedostoa: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>Virhe: Kohteetta ei voida poimia luodusta scriptpubkey:stä</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>Virhe: Vain katseltavan siirtotapahtuman lisääminen vain katseltavaan lompakkoon ei onnistunut</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>Virhe: Vain katseltavien siirtotapahtumien poistaminen ei onnistunut</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6134,6 +10324,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>Virhe: Dump-tiedoston tarkistussumma ei täsmää. Laskettu %s, odotettu %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>Virhe: Uuden vain katseltavan lompakon luominen epäonnistui</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6152,6 +10346,34 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Virhe: Osoitteita ei saatavilla.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>Virhe: Kaikkia vain katseltavia siirtotapahtumia ei voitu poistaa</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>Virhe: Tämä lompakko käyttää jo SQLitea</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>Virhe: Tämä lompakko on jo kuvaajalompakko</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>Virhe: Tietokannan kaikkien tietueiden lukemista ei voitu aloittaa</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>Virhe: Lompakon varmuuskopiota ei voitu tehdä</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>Virhe: Tietokannan kaikkia tietueita ei voitu lukea</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>Virhe: Vain katseltavien osoitekirjatietojen poistaminen ei onnistunut</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>Varmistuksen luonti epäonnistui %s!</translation>
     </message>
@@ -6162,6 +10384,22 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Varmistuksen poisto epäonnistui, virhe: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>Keskeytyneen virheellisen tilannevedoksen siivouksen viimeistely epäonnistui.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>Keskeytyneen tilannevedoksen merkinnän ylentämisen viimeistely epäonnistui.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>Keskeytyneen tilannevedoksen siivouksen tarkastus epäonnistui: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>Keskeytyneen tilannevedoksen siivouksen palautus epäonnistui: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6188,12 +10426,36 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Syötettä ei löytynyt tai se on jo käytetty</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>Riittämätön dbcache lohkojen varmennukseen</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>Keskeytyneessä tilannevedoksen siivouksessa kolikkojen ja EvoDB:n kärjet ovat ristiriitaiset.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>Keskeytyneestä tilannevedoksen siivouksesta puuttuu tilannevedoksen EvoDB-merkintä.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>Virheellinen P2P oikeus: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>Virheellinen masternodeblsprivkey. Katso lisätietoja dokumentaatiosta.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>Virheellinen esivalittu syöte %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>Virheellinen arvo kohteelle %s: ylittää enimmäisarvon (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>Virheellinen arvo kohteelle %s: täytyy olla &gt;= 0</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6210,6 +10472,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Mixing in progress…</source>
         <translation>Sekoitus käynnissä…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>Useampi kuin yksi spork-osoite annettu. Käytetään osoitetta %s.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6232,12 +10498,36 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Ei tarpeeksi tiedostomerkintöjä saatavilla.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>Esivalittua syötettä %s ei löydy</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>Esivalittu syöte %s ei ole ratkaistavissa</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>Alustan vastaanottajia ei voi yhdistää nimenomaiseen vaihtorahan sijaintiin</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>Anna ensin lompakon salasana komennolla walletpassphrase.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>Karsinta ei voi olla asetettu negatiiviseksi arvoksi.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>Karsintatila on epäyhteensopiva -addressindex kanssa.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>Karsintatila on epäyhteensopiva -disablegovernance=false kanssa.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>Karsintatila on epäyhteensopiva -spentindex kanssa.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6264,6 +10554,26 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Osio [%s] ei ole tunnistettavissa.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>Asettaa ikkunan otsikon, joka lisätään merkkijonon "Dash Core - " perään</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>Allekirjoittaja ei kaikunut osoitetta takaisin</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>Allekirjoittaja palautti odottamattoman osoitteen %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>Allekirjoittaja palautti virheen: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>Tilannevedoksen ketjutilan EvoDB-merkintä puuttuu. Uudelleenindeksointi (reindex) vaaditaan.</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>Määriteltyä -walletdir "%s" ei ole olemassa</translation>
     </message>
@@ -6276,8 +10586,16 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Määritelty -walletdir "%s" ei ole hakemisto</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>Annettua datahakemistoa "%s" ei ole olemassa.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>Lompakko välttää maksamasta vähemän kuin vähimmäisvälitysmaksun.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>Tälle osoitteelle ei ole ScriptPubKeyManageria</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6300,8 +10618,8 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Lähetyksen määrä tulee olla positiivinen</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>Maksutapahtumalla on liian pitkä muistivarannon ketju</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates ei ole tuettu ketjussa %s.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6364,14 +10682,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Et voi käynnistää masternodea kun lompakko on käytössä.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>sekoitus ei käytettävissä.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>katso debug.log lisätietoja.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>%s kehittäjät</translation>
     </message>
@@ -6380,16 +10690,16 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>%s käyttää tarkalleen denominoituja määriä lähettäessään varoja, saatat tarvita sekoittaa lisää kolikoita.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate-asetus ei ole yhteensopiva -blockfilterindex kanssa. Poista blockfilterindex väliaikaisesti käytöstä käyttäessäsi -reindex-chainstate, tai korvaa -reindex-chainstate -reindex:llä uudelleenrakentaaksesi kaikki indeksit täysin.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate-asetus ei ole yhteensopiva -txindex kanssa. Poista txindex väliaikaisesti käytöstä käyttäessäsi -reindex-chainstate, tai korvaa -reindex-chainstate -reindex:llä uudelleenrakentaaksesi kaikki indeksit täysin.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>-reindex-chainstate-asetus ei ole yhteensopiva -coinstatsindex kanssa. Poista coinstatsindex väliaikaisesti käytöstä käyttäessäsi -reindex-chainstate, tai korvaa -reindex-chainstate -reindex:llä uudelleenrakentaaksesi kaikki indeksit täysin.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate-asetus ei ole yhteensopiva -txindex kanssa. Poista txindex väliaikaisesti käytöstä käyttäessäsi -reindex-chainstate, tai korvaa -reindex-chainstate -reindex:llä uudelleenrakentaaksesi kaikki indeksit täysin.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate-asetus ei ole yhteensopiva -blockfilterindex kanssa. Poista blockfilterindex väliaikaisesti käytöstä käyttäessäsi -reindex-chainstate, tai korvaa -reindex-chainstate -reindex:llä uudelleenrakentaaksesi kaikki indeksit täysin.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6416,12 +10726,40 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Virhe luettaessa %s! Avaimet luetttiin oikein, mutta rahansiirtotiedot tai osoitekirjan sisältö saattavat olla puutteellisia tai vääriä.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>Virhe luettaessa %s! Siirtotapahtumatiedot voivat puuttua tai olla virheellisiä. Skannataan lompakko uudelleen.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Virhe: Lompakon osoitekirjatietoja ei voida tunnistaa kuuluviksi siirrettyihin lompakoihin</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>Virhe: Vedostiedoston muoto on virheellinen. Saatiin "%s", odotettiin "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>Virhe: Vedostiedoston tunniste on virheellinen. Saatiin "%s", odotettiin "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>Virhe: Siirron aikana luotiin päällekkäisiä kuvaajia. Lompakkosi voi olla vioittunut.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>Virhe: Aktiivisen kuvaajan edistäminen vanhan ketjulaskurin ohi epäonnistui siirron aikana.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Virhe: Lompakon siirtotapahtumaa %s ei voida tunnistaa kuuluvaksi siirrettyihin lompakoihin</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>Virhe: Tälle vanhalle lompakolle ei voida tuottaa kuvaajia. Anna lompakon salasana, jos se on salattu.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>Tilannevedoksen ketjutilan hakemiston poistaminen epäonnistui. Poista se manuaalisesti ennen uudelleenkäynnistystä.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6480,6 +10818,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Lähtevät yhteydet rajoitettu i2p:hen (-onlynet=i2p) mutta -i2psam ei ole annettu</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>Alustan vastaanottajia ei voi yhdistää toiseen erikoissiirtotapahtuman hyötykuormaan</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Tarkistathan että tietokoneesi päivämäärä ja kellonaika ovat oikeassa! Jos kellosi on väärässä, %s ei toimi oikein.</translation>
     </message>
@@ -6490,6 +10832,26 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>Karsintatila on epäyhteensopiva -reindex-chainstate kanssa. Käytä täyttä -reindex sen sijaan.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>Kohteen '%s' nimeäminen -&gt; '%s' epäonnistui. Ratkaise tämä siirtämällä tai poistamalla virheellinen tilannevedoksen hakemisto %s manuaalisesti, muuten sama virhe toistuu seuraavassa käynnistyksessä.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Automaattinen Tor onion -palvelu ei voi käyttää yleismerkkistä onion-sidontaa, koska Tor-daemon ei pystyisi välittämään saapuvia yhteyksiä meille. Käytä tiettyä osoitetta, kuten -bind=127.0.0.1:&lt;port&gt;=onion, tai poista palvelu käytöstä valitsimella -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Automaattinen Tor onion -palvelu vaatii erillisen onion-sidonnan. Käytä tiettyä osoitetta, kuten -bind=127.0.0.1:&lt;port&gt;=onion, tai poista palvelu käytöstä valitsimella -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>Syötteiden koko ylittää enimmäispainon. Kokeile lähettää pienempi summa tai yhdistä lompakkosi UTXO:t manuaalisesti</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>Esivalittujen kolikoiden kokonaissumma ei kata siirtotapahtuman tavoitetta. Salli muiden syötteiden automaattinen valinta tai lisää kolikoita manuaalisesti</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6504,16 +10866,54 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Tämä on siirtomaksu jonka saatat maksaa jos siirtomaksun arviota ei ole mahdollista saada.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>Siirtotapahtumaindeksiä ei voi poistaa käytöstä, kun hallinnon validointi on käytössä. Käynnistä joko komentorivin valitsimella -disablegovernance tai ota siirtotapahtumaindeksi käyttöön.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>Siirtotapahtuma on epästandardi (%s) eikä välittyisi eteenpäin; Alustan osoitteisiin lähettäminen vaatii tällä hetkellä solmun, joka on käynnistetty valitsimella -acceptnonstdtxn=1</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>Tapahtuma vaatii yhden kohteen, jolla on muu kuin 0 arvo, muun kuin 0 maksutason tai esivalitun syötteen</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>UTXO-tilannevedoksen validointi epäonnistui. Käynnistä uudelleen jatkaaksesi normaalia alkuperäistä lohkojen latausta tai kokeile ladata toinen tilannevedos.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>Ei voitu toistaa lohkoja. Sinun tulee uudelleen rakentaa tietokanta käyttäen -reindex-chainstate.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>Odottamaton vanha merkintä kuvaajalompakossa. Ladataan lompakkoa %s
+
+Lompakkoa on voitu muokata luvatta tai se on luotu haitallisessa tarkoituksessa.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>Tuntematon lompakon tiedostomuoto "%s" annettu. Anna joko "bdb" tai "sqlite".</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>Tunnistamaton kuvaaja löytyi. Ladataan lompakkoa %s
+
+Lompakko on ehkä luotu uudemmalla versiolla.
+Kokeile ajaa uusinta ohjelmistoversiota.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>Tukematon luokkakohtainen lokitustaso %1$s=%2$s. Odotettu %1$s=&lt;category&gt;:&lt;loglevel&gt;. Kelvolliset luokat: %3$s. Kelvolliset lokitustasot: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6526,10 +10926,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>Varoitus: Lompakossa {%s} havaittiin yksityisavaimet , jotka on poistettu käytöstä </translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>Sinun täytyy rakentaa tietokanta uudelleen käyttäen -reindex ottaaksesi -timestampindex käyttöön</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6570,6 +10966,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>Vakava sisäinen virhe, katso debug.log lisätietoja</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>Lohkojen varmennus keskeytyi</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6684,10 +11084,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Tuodaan…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>Virheellinen -rescan moodi, palataan takaisin oletusarvoon</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>Alustava järkevyyden tarkistus epäonnistui. %s sulkeutuu.</translation>
     </message>
@@ -6728,10 +11124,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Istunto ei ole valmis!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>Istunnon aikaraja.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>Siirtotapahtuman allekirjoitus epäonnistui</translation>
     </message>
@@ -6760,10 +11152,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Evo-tietokannan päivittäminen epäonnistui</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>Tarvittava maksu &gt; maksettu maksu</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>Isäntä %s ei-tuetussa verkossa</translation>
     </message>
@@ -6778,10 +11166,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>Virheellinen portti määritelty %s: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>Viimeinen onnistunut tapahtuma oli liian äskettäin.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6848,6 +11232,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Yritetään kytkeytyä…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>Muistin varaaminen valitsimelle -maxsigcachesize epäonnistui: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>Ei voida yhdistää %s tässä tietokoneessa (yhdistäminen palautti virheen %s)</translation>
     </message>
@@ -6876,6 +11264,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>En voida allekirjoittaa spork viestiä, väärä avain?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>Lompakon purkaminen muistista ennen siirtoa ei onnistunut</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>Tuntematon verkkomääritys -onlynet parametrissa: '%s'</translation>
     </message>
@@ -6888,12 +11280,12 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Ei-tuettu URL-kaava, täytyy alkaa udp://</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>Ei tuettu lokikategoria %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>Tukematon yleinen lokitustaso %s=%s. Kelvolliset arvot: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>Osoitteita vähän jäljellä: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>Ei tuettu lokikategoria %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6918,14 +11310,6 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>Et voi poistaa käytöstä hallinnon vahvistusta masternodesta.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>Sinun täytyy rakentaa tietokanta uudelleen käyttämällä -reindex ottaaksesi käyttöön -addressindex</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>Sinun täytyy rakentaa tietokanta uudelleen käyttämällä -reindex ottaaksesi käyttöön -spentindex</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

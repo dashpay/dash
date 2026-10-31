@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>正在同步治理数据…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>距离超级区块还有 ~%n 天（%1 个区块）</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>距离投票截止还有 ~%n 天（%1 个区块）</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% 的预算已承诺 (%2 %3)。</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>从剪贴板读取部分签名的区块链交易</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>打开调试日志文件(&amp;D)</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>从当前数据目录打开调试日志文件</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>创建钱包…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>关闭所有钱包...</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>迁移钱包</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>迁移一个钱包</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>已更新</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>超级区块即将到来</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>投票期已结束</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>距离超级区块还有 ~%1（%2 个区块）</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>距离投票截止还有 ~%1（%2 个区块）</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% 的预算已承诺（%2 / %3）</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>(不)全选</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>切换锁定状态</translation>
+        <source>(un)lock all</source>
+        <translation>锁定/解锁全部</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>复制零钱</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>请切换到“列表模式”来使用此功能。</translation>
+        <source>Wallet error</source>
+        <translation>钱包错误</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>部分币锁定失败。</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>部分币解锁失败。</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>解散共享主节点</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>此主节点注册于区块 %1，而当前区块链仍在区块 %2。请等待一次确认，然后重新打开此窗口。</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>立即解散</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>共同解散</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>备用解散</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>由您单方面终止主节点。每个人的本金都会退回到各自的退款地址。</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>您的份额：</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>交易手续费，从您份额的退款中支付。</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>费用：</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>交易 ID</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>提前退出：您需支付 %1 的罚金。区块 %2 之后免罚金（%3，%4）。</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>我接受支付 %1 的提前退出罚金</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>距离免罚金解散还有 %1。建议等待，或使用“共同解散”——经所有人批准后现在即可免罚金解散。</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>提前期已结束——现在解散无需罚金。</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1（您）</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>请先勾选复选框以接受罚金。</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>此对话框打开期间，区块链已越过免罚金的分界点。上方预览已刷新，请检查后再次点击“立即解散”。</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>确定现在解散此共享主节点吗？所有参与者的本金将退回到各自的退款地址，主节点将停止获得收益。此操作无法撤销。</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>解散交易已发送。</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>随时可解散且无需罚金，但必须经每位份额持有者批准。由一人准备请求，其他人粘贴请求、批准并复制回复。</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. 请求</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>从中扣除交易手续费的份额。</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>费用承担者：</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>准备请求</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. 批准</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>将同一请求发送给每位份额持有者。回复可按任意顺序返回。</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>此请求将支付</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>批准并复制回复</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. 发送</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>发送解散交易</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>费用：%1，由 %2 支付。</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>请先准备或粘贴请求。</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>必须先由每个份额批准（目前已有 %1 / %2）。</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>一份离线保管的已签名解散交易，除非需要否则永不广播。它永不过期，即使此钱包丢失也有效。</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>创建备用解散交易…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>全额本金——自区块 %1 起有效（~%2）</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>全额本金——现在即有效，提前期已结束</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>尚未创建</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>立即生效——需支付 %1 罚金</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>请与您的退款地址备份一起保存，并与此钱包分开存放。</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>已于 %1 保存</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>保存备用解散交易</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>文本文件 (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>下方两笔交易均已就绪，但未保存任何内容。请复制它们或重新创建文件。</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>已保存到 %1。</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Dash 共享主节点——备用解散交易</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>主节点：%1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>创建时间：%1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>下方每个区块都是一笔完整的已签名交易。仅当您想终止主节点并取回本金时，才使用 “sendrawtransaction” 广播其中一笔。它们永不过期。请将此文件与您的退款地址备份一起保存，并与钱包分开存放。</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>全额本金——自区块 %1 起有效（~%2）</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>全额本金——现在即有效，提前期已结束</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>立即生效——需支付 %1 提前退出罚金，立即有效</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>无法写入 %1。</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>表格</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>筛选提案列表</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>主节点数量：</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>此钱包可投票的主节点数量（此钱包持有投票密钥的主节点）</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>网络上没有活跃的提案。</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>继续提案</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>提案数量:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>创建提案</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>选择要显示的提案</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>按标题筛选</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>不可用</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>需要已同步的节点和已解锁的钱包。</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>投赞成票</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>投反对票</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>投弃权票</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>活跃提案</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>我的提案</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>钱包文件中没有记录的提案。</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>继续提案</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>复制原始 JSON</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>打开提案网址…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>%1 的详细信息</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>同步完成前无法进行治理操作</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>创建新提案</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>继续现有提案</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>创建提案需要 %1，余额不足</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>错误</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>无法验证网址，可能格式不正确或协议未知。</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>外部链接警告</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>您即将在默认浏览器中打开以下网址
-
-%1
-
-此内容由用户提交。它可能与标题中的描述不符。
-
-您是否要继续？</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>投票失败</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>没有可用的钱包。</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>在钱包中未找到主节点投票密钥。</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>请选择要投票的提案。</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>无法解锁钱包。</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>无法获取主节点列表。请稍后重试。</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>未找到主节点 %1</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>为主节点 %1 签署投票失败</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>主节点 %1：%2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>成功投票 %n 次</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>投票失败 %n 次</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>错误：</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>投票结果</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Do you wish to continue?</source>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;%1基础知识&lt;/h3&gt;%1通过隐藏您的资金来源为您提供真正的财务隐私。您的钱包中所有的Dash都由不同的“输入”组成，您可以将其视为分开的离散硬币。&lt;br&gt;%1使用创新的方法将您的输入与其他两个人的输入相结合，而过程中不会让您的Dash离开您的钱包。每时每刻，您仍然控制着您的钱。&lt;hr&gt;&lt;b&gt;%1的运作原理如下：&lt;/b&gt;&lt;ol type="1"&gt;&lt;li&gt;%1首先将您的交易分柝成多个标准面额的交易。这些标准面额分别为0.001 DASH，0.01 DASH，0.1 DASH，1 DASH和10 DASH --有点像您每天使用的纸币。&lt;/li&gt;&lt;li&gt;您的钱包然后发送请求到网络上有专门配置的软件节点，称为“主节点”。这些主节点会收到您希望混合一些资金的通知。没有可识别的信息发送到主节点，所以他们永远不会知道您是“谁”。&lt;li&gt;当另外两个人发送类似的消息时，表示希望混合相同的面额的话，混合会话就会开始。相关的主节点会混合这些输入，并指示所有三个用户的钱包将已经转换了输入的交易支付给自己。您的钱包直接支付给自己，但是付给不同的位址（称之为找零地址）。&lt;/li&gt;&lt;li&gt;为了完全掩盖您的资金来源，您的钱包必须以每个面额来重复此过程数次。每次这个过程完成后，都称之为一个“循环”。每个循环的%1都会令确定您的资金来源的工作倍加困难。&lt;/li&gt;&lt;li&gt;这种混合过程发生在后台，而不需要您进行任何操作。当您想进行交易时，您的资金将已被混币处理。不需再花额外的时间等待。&lt;/li&gt;&lt;/ol&gt;&lt;hr&gt;重要：&lt;b&gt;您的钱包只能拥有1000个“找零地址”。每次混合事件发生时，最多会使用9个找零地址。这意味着这1000个地址可以容许100次的混合事件。当其的中900个已经被使用后，您的钱包必须创建更多的地址。如果您启用了自动备份，则只能够这样做。&lt;br&gt;因此，禁用备份的用户也将禁用%1。&lt;hr&gt;如欲了解更多信息请参阅&lt;a style="%2" href="%3"&gt;%1文档&lt;/a&gt;。</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>常规</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>客户端版本</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>用户代理</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>数据目录</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>如需指定非默认的数据目录位置，请使用“%1”选项。</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>区块目录</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>如需指定非默认的区块目录位置，请使用“%1”选项。</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>启动时间</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>网络</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>连接数</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>本地地址</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>您的 Dash 节点当前用于与其他节点通信的网络地址。</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>区块链</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>当前区块高度</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>上一区块时间</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>上一区块哈希值</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>内存池</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>当前交易数量</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>内存使用量</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>入：</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>出：</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>网络活动已禁用</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>无</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Do you wish to continue?</source>
         <translation><numerusform>（完整区块链需要 %n GB）</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>选择数据目录</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>此目录中至少会保存 %1 GB 的数据，并且尺寸还会随着时间增长。</translation>
     </message>
@@ -1653,6 +1824,61 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>主节点：%1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>没有可用的钱包。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>此钱包为仅限查看的钱包，无法签名交易。</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>自动（推荐）</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>费用来源：</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>必须解锁钱包才能创建并签名此交易。</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>请输入有效的基础方案 BLS 运营者私钥。</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>该运营者私钥与此主节点已注册的公钥不匹配。</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>另一项主节点操作正在进行中。</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>操作已完成，但未返回交易。</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>交易已创建，但未发送到网络。</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>交易已成功发送。</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>交易 ID：%1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Do you wish to continue?</source>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>共享</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>筛选主节点列表</translation>
     </message>
@@ -1689,6 +1919,22 @@ Do you wish to continue?</source>
     <message>
         <source>Hide banned</source>
         <translation>隐藏已封禁</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>使用此钱包注册新的主节点或进化节点</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>注册主节点…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>创建由多方共同出资抵押的主节点，或继续已保存的会话</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>共享主节点…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Do you wish to continue?</source>
         <translation>筛选条件</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>更新服务…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>更新注册信息…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>更改奖励地址…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>轮换密钥…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>解散…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>创建备用解散交易…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>撤销…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>保证金地址</translation>
     </message>
@@ -1717,6 +1991,158 @@ Do you wish to continue?</source>
     <message>
         <source>Voting Address</source>
         <translation>投票地址</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>注册主节点需要钱包。</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>主节点注册暂不支持外部签名者钱包。</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>主节点注册需要包含私钥的钱包。</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>在节点就绪之前无法注册主节点。</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>使用此钱包注册新的主节点或进化节点</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>管理共享主节点需要钱包。</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>管理共享主节点需要包含私钥的钱包。</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>在节点就绪之前无法管理共享主节点。</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>共享主节点需要 v24 硬分叉，而该硬分叉在此网络上尚未激活。</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>创建或继续多方共享主节点注册会话</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>此交易不是可识别的共享主节点解散交易。</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>第 %1 份，共 %2 份</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>无法识别的脚本</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>主节点：%1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>此主节点不在当前主节点列表中。</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>服务：%1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>抵押品地址：%1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>费用承担者：%1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>批准方：每位份额持有者</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>批准方：仅您的签名</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>支付：</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>费用：%1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>每个份额的本金都将退回到其各自的退款地址。此操作无法撤销。</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>注意：此交易不会退还每个份额的全部本金。此操作无法撤销。</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>交易：%1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>广播此备用解散交易吗？</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>广播失败</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>备用解散交易已发送</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>未找到主节点</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>此消息涉及一个尚未出现在列表中的主节点。</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>没有可打开的内容</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>需要能够签名交易的钱包</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>需要钱包中有此主节点的所有者密钥</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>需要此钱包中有此主节点的某个份额持有者密钥</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>已于 %1 保存在此计算机上</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>尚未在此计算机上创建</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>按此主节点的某个份额持有者地址筛选</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Do you wish to continue?</source>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>已被封禁 %n 天</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>被封禁不到一天</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>已封禁</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>已活跃 %n 天</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>共享主节点 · 您持有 %2 份中的 %1 份</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>活跃不到一天</translation>
+        <source>Banned for %1</source>
+        <translation>已被封禁 %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>已活跃 %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>共享（您持有 %2 份中的 %1 份）</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>共享（%1 个份额）</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Do you wish to continue?</source>
     <message>
         <source>ProTx Hash</source>
         <translation>ProTx 哈希值</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>所选密钥之一已被已注册的主节点或份额使用。每个所有者密钥和投票密钥在全网只能使用一次。</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>所选服务地址已被已注册的主节点使用。</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>退款地址或奖励地址不能兼作份额所有者地址或投票地址。请为付款和密钥使用不同的地址。</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>某位参与者的同意签名与最终交易不匹配。当条款或出资交易在签名后发生变化时会出现这种情况，请重新收集签名。</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>网络尚不接受此交易版本。请等待引入该版本的网络升级激活。</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>此功能在网络上尚未激活。请等待引入该功能的网络升级激活。</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>此主节点的解散交易已在等待处理中。</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>无法为该交易提供资金。</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>无法为该交易提供资金：%1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+网络拒绝原因：%1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>详情：%1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>迁移钱包</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>您确定要迁移钱包 &lt;i&gt;%1&lt;/i&gt; 吗？</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>迁移钱包会将此钱包转换为一个或多个描述符钱包，并且需要创建新的钱包备份。
+如果此钱包包含任何仅限查看的脚本，将创建一个包含这些仅限查看的脚本的新钱包。
+如果此钱包包含任何可解但未被查看的脚本，将创建另一个新钱包来包含这些脚本。
+
+迁移过程会在迁移前创建钱包备份。该备份文件将命名为 &lt;钱包名称&gt;-&lt;时间戳&gt;.legacy.bak，并可在此钱包所在目录中找到。如果迁移出错，可以通过“恢复钱包”功能还原备份。</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>迁移钱包</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>正在迁移钱包 &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>钱包“%1”已成功迁移。</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>仅限查看的脚本已迁移到名为“%1”的新钱包。</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>可解但未被查看的脚本已迁移到名为“%1”的新钱包。</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>迁移失败</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>迁移成功</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>份额 %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>贡献“%1”的输入交易 ID 格式不正确。</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>贡献“%1”的找零地址无效。</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>会话准备的交易不是有效的交易十六进制。</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>会话准备的交易不是共享主节点注册交易。</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>此消息在复制后被编辑过。</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>草稿</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>条款已锁定</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>正在收集批准</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>批准已合并</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>贡献已签名</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>已广播</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>该文件不是有效的 JSON。</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>该文件不是共享主节点会话文件。</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>该会话文件使用了不受支持的格式版本。请更新 Dash Core 后再打开。</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>该会话文件属于“%1”网络，但此节点运行在“%2”网络上，因此无法在此使用。</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>未知</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>该会话文件没有会话 ID。</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>该会话文件的修订版本无效。</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>该会话文件没有阶段信息。</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>该会话文件处于未知阶段“%1”。它可能由更新版本的 Dash Core 创建。</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>该会话文件列出了 %1 个份额；共享主节点最多只能有 %2 个。</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>会话文件中的份额条目 %1 格式不正确。</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>该会话文件的提前期无效。</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>该会话文件的提前退出罚金无效。</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>该会话文件列出了 %1 项贡献；每个份额至多一项，且最多 %2 个份额。</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>会话文件中的贡献条目 %1 格式不正确。</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>会话文件中的贡献条目 %1 有 %2 个输入；单项贡献最多只能出资 %3 个。</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>该会话文件的同意哈希值格式不正确。</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>会话文件中的签名条目 %1 格式不正确。</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>该会话文件中份额 %1 列出了不止一个签名。</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>该会话文件被标记为“%1”，但缺少其冻结的交易或同意哈希值。</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>该会话文件包含一个不存在的份额的签名。</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>该会话文件声称批准已合并，但并非每个份额都有批准。</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>该会话文件声称批准已合并，但其中有一项批准无效：%1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>该会话文件声称每项贡献均已签名，但仍有一个或多个出资输入未签名。</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>无法解析该会话文件：%1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>共享主节点需要 %1 至 %2 个份额（当前为 %3 个）。</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>投票地址必须是有效的 P2PKH 地址。</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>份额 %1：</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>所有者地址必须是有效的 P2PKH 地址。</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>该所有者地址已被份额 %1 使用。每个所有者密钥必须唯一。</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>金额必须介于 %1 和 %2 之间。</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>退款</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>奖励</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>%1地址必须是有效的 P2PKH 或 P2SH 地址。</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>该退款地址已被份额 %1 使用。每个退款地址必须唯一。</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>%1地址不能是投票地址。</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>%1地址不能是份额 %2 的所有者地址。</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>各份额金额之和必须恰好为 %1（当前为 %2）。</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>提前期最多为 %1 个区块（约两年）。</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>提前罚金不能为负数。</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>提前罚金必须低于最小份额金额（%1）。</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>仅当会话可编辑时才能更改出资。请先解锁条款（这将丢弃所有已收集的批准）。</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>贡献需要一个参与者标签。</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>该贡献没有出资输入。</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>“%1”已经出资。请先移除现有的贡献。</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>输入 %1:%2 已由“%3”出资。</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>找零金额必须为正数。</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>未找到“%1”的贡献。</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>只有可编辑的会话才能被锁定。</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>同意哈希值格式不正确。</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>同意哈希值与已准备的交易不匹配。请勿签名；请重新开始准备步骤。</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>抵押品输出索引与已准备的交易不匹配。</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>条款尚未锁定；没有需要批准的内容。</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>第 %1 份（共 %2 份）不存在。</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>签名不是有效的 base64。</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>来自 %1 的签名无法通过当前条款的验证。它很可能是针对此会话的旧版本所签——请让 %1 对当前版本重新签名。</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>会话文件的份额表与其已准备的交易不匹配。请勿签名；请索取新的副本。</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>会话文件中的份额 %1 与其已准备的交易不匹配。请勿签名；请索取新的副本。</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>会话文件中份额 %1 的奖励地址与其已准备的交易不匹配。请勿签名；请索取新的副本。</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>会话文件中显示的条款与其已准备的交易不匹配。请勿签名；请索取新的副本。</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>会话文件中显示的出资与其已准备的交易不匹配。请勿签名；请索取新的副本。</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>此份额已记录了另一个不同的签名。其中一份副本签署的是会话的过期版本——请就最新修订版达成一致并重新签名。</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>只有在批准合并之后才能签署出资输入。</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>已准备的交易与大家批准的条款不匹配。请勿签名或广播；请索取新的副本。</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>此消息属于另一个会话（会话 %1）。您正在处理会话 %2。</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>仅当条款仍可编辑时才能接收回复。</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>该回复与您当前的草稿不匹配：参与者、金额或条款已被更改。请让发送者粘贴您最新的邀请并重新回复。</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>%1 的份额已有来自另一条回复的详细信息。</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>此消息不包含已锁定的条款。</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>已锁定的条款中不包含您发送的详细信息。</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>协调者</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>自您发送详细信息后条款已更改。请让 %1 发送当前的邀请并重新回复。</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>导入的副本是此会话的修订版本 %1；本副本为修订版本 %2，已被其取代。</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>导入的副本是此会话的修订版本 %1；本副本已是修订版本 %2。请将较新的文件发送给发送者。</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>导入的副本已锁定条款，并取代此可编辑的副本。</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>此会话的条款已锁定；而导入的副本仍可编辑。请将较新的更新发送给发送者。</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>会话 %1 的两份副本锁定了不同的条款，无法合并。请就其中一份达成一致，重新发送，并让所有人批准该份。</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>会话 %1 的两份副本更改了相同的详细信息，无法合并。请就其中一份达成一致并重新发送。</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>出资已签名的副本并非同一笔交易，无法合并。</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>出资输入 %1 有两个不同的签名，无法合并这些副本。</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>导入的副本声称批准已合并，但该状态无效：%1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>导入的副本声称每项贡献均已签名，但该状态无效：%1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>导入的副本声称注册已广播，但该状态无效：%1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>该会话未在收集批准。</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>尚非每个份额都已签名（%1 / %2）。请仅合并已全部签名的会话。</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>必须先合并所有者批准，再对贡献进行签名。</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>仍有一个出资输入未签名。</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>仍有 %1 个出资输入未签名。</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>在所有同意签名和出资签名到位之前，无法广播该会话。</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>约 1 分钟</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>约 %1 分钟</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>约 1 小时</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>约 %1 小时</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>约 1 天</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>约 %1 天</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>手续费必须为正数。</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>罚金和手续费超过了解散参与者的份额。</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>单方面解散至少需要另一个份额来接收罚金。</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 个币</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 个币</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 项批准</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 项批准</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 位参与者</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 位参与者</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 个出资输入</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 个出资输入</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 个份额</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 个份额</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 个输入</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 个输入</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>信用池</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>最近区块变化</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>锁定总额</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>待解锁</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>提现上限</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>即时发送</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>已验证的锁</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>未验证的锁</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>等待交易的锁</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>未受保护的交易</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>主节点</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>主节点数量</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>进化节点数量</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>链锁</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>当前区块高度</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>上一区块时间</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>上一区块哈希值</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>仲裁组</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>总计：%1（已启用：%2）</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>正在等待区块链同步…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 个活跃（健康度 %2%）</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>仲裁组类型轮换，数据保留 %1</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>仲裁组类型不轮换，数据保留 %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>当前仲裁组剩余 %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>当前仲裁组已过期</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>最近一次组建于 %1 前</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>最近刚组建</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Do you wish to continue?</source>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>正在打开钱包 &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>生成新的运营者密钥</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>私钥会在注册前显示并确认，之后不会在其他任何地方保存。</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>公钥</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>使用现有的运营者公钥</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>适用于托管节点：运营者自行保管私钥，并把公钥提供给您。</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>运营者 BLS 公钥（96 个十六进制字符，基础方案）</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>运营者 BLS 私钥（64 个十六进制字符）</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>PSBT 操作</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>对话框</translation>
     </message>
@@ -2968,10 +4148,6 @@ Due to discontinued support, you should request the merchant to provide you with
         <translation>查看负载</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>创建提案</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>已成功为您的提案 "%2" 发送 %1。
 
 您现在将被重定向以监控和广播您的新提案，稍后可以点击"继续提案"来继续。</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>常规</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>投票周期</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>上一个超级区块</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>下一个超级区块</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>投票截止区块</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>参与度</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>参与投票的主节点</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>参与投票的进化节点</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>通过阈值</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>节点</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>控制的主节点</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>控制的票数</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>提案</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>提案数量</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>已分配预算</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>通过中的提案</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>未获资助的提案</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>未通过的提案</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 票</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1（%2）</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1（%2 符合资格）</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>提案 %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>占预算的 %1%</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>已分配 %1%</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2（%3%）</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1（差 %2）</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>表单</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>选择要显示的提案</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>筛选提案列表</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>按标题筛选</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>投票截止：正在等待同步…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>网络上没有活跃的提案。</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>投票…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>查看您当前的投票，并使用所选主节点投票</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>创建提案</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>继续提案</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>提案数量：</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>活跃提案</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>我的提案</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>此钱包所控制的符合资格的主节点当前给出的资助投票。计数为加权票数。</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1：%2（权重 %3）</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>没有投票密钥</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>钱包文件中没有记录任何提案。</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>需要已同步的节点和已解锁的钱包。</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>继续提案</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>复制原始 JSON</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>打开提案网址…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>投赞成票</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>投反对票</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>投弃权票</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>%1 的详细信息</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>正在等待区块链同步…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>正在等待治理数据同步…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n 个主节点可用于投票</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>超级区块即将到来</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>投票期已结束</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>距离超级区块还有 ~%1（%2 个区块）</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>距离投票截止还有 ~%1（%2 个区块）</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% 的预算已承诺（%2 / %3）</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>根据剩余区块数和目标出块时间估算。截止时间之后仍可转发投票，但可能不会影响本周期的支付。</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>同步完成前无法进行治理操作</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>创建新提案</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>继续现有提案</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>创建提案需要 %1，余额不足</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>无法验证网址，可能格式不正确或协议未知。</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>外部链接警告</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>您即将在默认浏览器中打开以下网址
+
+%1
+
+该内容由用户提交，可能与标题所述不符。
+
+是否继续？</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>投票失败</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>没有可用的钱包。</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>在钱包中未找到主节点投票密钥。</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>无法获取主节点数据。</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>请选择要投票的提案。</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>投票需要已广播的提案和已同步的节点。</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>无法解锁钱包。</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>无法获取已同步的主节点数据。</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>主节点 %1 已不再符合资格</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>未找到主节点 %1</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>为主节点 %1 签署投票失败</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>主节点 %1：%2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>成功投票 %n 次</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>投票失败 %n 次</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>错误：</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>投票结果</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>needs %1 more votes</source>
         <translation>还需要 %1 票</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>我的投票</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>投票 %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>提案投票</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>选择用于投票的主节点。下方显示当前的资助投票。更改投票会替换该主节点之前的投票；网络限制每小时最多更新一次。</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>主节点</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>投票地址</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>权重</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>当前投票</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>投票时间</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>ProTx 哈希值</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>全选</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>清除选择</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>已选主节点：%1 · 投票权重：%2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>显示启动画面（默认：%u）</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>错误: 指定的数据目录 "%1" 不存在.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>错误: 无法解析配置文件: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Unroutable</source>
         <translation>不可路由</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 和 %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>现在</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n 个月</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>UNKNOWN</source>
         <translation>未知</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>共享</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>运营者奖励</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>份额</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>参与者</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>地址</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>份额 %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>您</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>与退款地址相同</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>所有者</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>奖励</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>退款</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>提前期</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>于区块 %1 结束</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>于区块 %1 结束（距现在约 %2）</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>已结束（区块 %1）</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>提前退出罚金</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>已于 %1 保存在此计算机上</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>尚未在此计算机上创建</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>备用解散交易</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>网络地址</translation>
     </message>
@@ -3537,6 +5235,66 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>Collateral Date</source>
         <translation>抵押品日期</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>%1前</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>剩余 %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>赞成</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>反对</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>弃权</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>未投票</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>本周期的投票截止时间已过（区块 %1）</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>投票截止：剩余约 %1（%2 个区块，区块 %3）</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1 赞成，%2 反对，%3 弃权 / %4 未投票</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>无效的 Dash 地址：%1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>没有可用的钱包。</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>无法生成新地址：%1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>第 %1 份，共 %2 份</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>信息(&amp;I)</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>常规</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>姓名</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>不可用</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>连接数</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>打开(&amp;O)</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>启动时间</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>网络</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>上一数据块时间</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>调试日志文件</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>客户端版本</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>区块链</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>内存池</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>当前交易数量</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>内存使用</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>&amp;Repair</source>
         <translation>修复(&amp;R)</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>常规(&amp;G)</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>网络(&amp;N)</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>治理(&amp;V)</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>User Agent</source>
         <translation>用户代理</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>数据目录</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>要指定的数据目录不是默认路径, 请使用 '%1' 选项.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>区块目录</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>要指定的区块目录不是默认路径, 请使用 '%1' 选项.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>本地地址</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>您的 Dash 节点当前用于与其他节点通信的网络地址。</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>常规主节点数量</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>进化节点数量</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>当前区块高度</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>最后区块的哈希值</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>最新链锁区块的哈希值</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>最新链锁区块的高度</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>打开当前目录中的%1调试日志文件。日志文件大的话可能要等上几秒钟。</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>即时发送锁</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>解禁(&amp;U)</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>输入：</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>输出：</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>网络活动已禁用</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>无</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>总计: %1 (已激活的: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>不通过任何钱包执行命令</translation>
     </message>
@@ -4122,6 +5768,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: BIP324 加密的传输协议</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>治理(&amp;G)</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>注册主节点</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>上一步</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>下一步</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>主节点类型</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>主节点 — %1 抵押品</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>提供 Core 网络服务并获得常规主节点奖励。</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>进化节点 — %1 抵押品</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>额外托管 Dash 平台（Platform），拥有四倍的投票权重，并获得更大份额的奖励。需要平台节点 ID 和额外的服务。</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>注册进化节点</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>抵押品</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>从此钱包向新地址发送抵押品</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>一笔交易即可同时为抵押品出资并注册主节点。</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>使用新地址</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>使用此钱包中现有的抵押品输出</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>一个金额恰好等于抵押品金额、已确认且未被其他主节点使用的未花费 P2PKH 输出。</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>引用外部抵押品（例如硬件钱包）</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>一个金额恰好等于抵押品金额、已确认且存放于此钱包之外的 P2PKH 输出。</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>审核之后，系统将要求您使用此钱包之外的抵押品密钥对一条消息进行签名。</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>抵押品交易 ID（64 个十六进制字符）</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>交易 ID：</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>输出索引</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>输出索引：</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>服务地址</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>您的主节点用于为 Core P2P 网络提供服务的公共地址，以逗号或空格分隔。每个条目在网络上必须唯一。</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>可以留空；此时主节点将保持不活跃，直到您发送带有地址的服务更新。</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>密钥</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>所有者地址</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>控制此主节点（P2PKH）：其密钥用于签署注册信息更新。使用新地址可将该密钥保存在此钱包中，或输入由所有者控制的地址。</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>投票地址</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>可委托他人（P2PKH）。留空则使用所有者密钥投票；使用新地址可在此钱包中保留单独的投票密钥。</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>留空则使用所有者地址</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>运营者密钥</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>运营者负责运行主节点服务器（BLS）；链上仅注册公钥。</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>生成的私钥会被显示，并且必须在注册前确认。它不会保存在此钱包中。</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>支付</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>支付地址</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>接收此主节点的区块奖励（P2PKH 或 P2SH）。</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>运营者奖励</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>承诺分给运营者的奖励份额。</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>运营者将永久获得此主节点所有奖励中的这一份额。除非您与运营者有协议，否则请保持为 0。</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>平台服务</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>平台节点 ID</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>由平台 P2P 公钥派生（40 个十六进制字符）。</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>平台地址</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>ADDR:PORT 条目，以逗号或空格分隔。</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>平台 P2P</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>平台 HTTPS API</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>平台端口</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>在 v24 激活之前，只能注册平台端口；它们适用于第一个服务地址。</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>平台 P2P 端口：</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>平台 HTTPS 端口：</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>费用来源</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>审核</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>证明抵押品所有权</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>请使用抵押品密钥对以下消息进行签名（例如使用硬件钱包的消息签名功能），然后在下方粘贴 base64 签名。</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>复制消息</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>签名</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>在此粘贴 base64 签名</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>保存运营者密钥</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>请在注册前保存此生成的密钥。它不会保存在其他任何地方，也无法从钱包中恢复。</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>运营者私钥</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>请立即保存——确认之前无法开始注册。</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>请将这一行添加到您主节点服务器上的 dash.conf 中：</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>请输入私钥的最后 4 个字符，以确认您在注册前已保存它：</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>主节点已注册</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Provider 交易哈希值</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>后续步骤</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>第 %1 步，共 %2 步 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>所选地址将支付 %1 抵押品以及交易手续费。确切的手续费将在您注册时根据钱包设置计算，找零将退回到此地址。</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>所选地址将支付交易手续费。</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>请输入有效的抵押品地址（P2PKH 或 P2SH）。</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>此钱包没有金额恰好为 %1 的未花费输出。请改为从钱包中为抵押品出资。</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>请输入 64 个十六进制字符的抵押品交易 ID。</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>在 v24 激活之前，进化节点至少需要一个服务地址来承载平台端口。</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>请输入有效的所有者地址（P2PKH）。</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>请输入有效的投票地址（P2PKH），或留空以使用所有者地址。</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>所有者地址和投票地址必须与抵押品地址不同。</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>请输入有效的运营者 BLS 公钥（96 个十六进制字符，基础方案）。</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>请输入有效的支付地址（P2PKH 或 P2SH）。</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>支付地址必须与所有者地址和投票地址不同。</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>支付地址必须与抵押品地址不同。</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>请输入 40 个十六进制字符的平台节点 ID。</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>请同时输入平台 P2P 地址和平台 HTTPS 地址；只注册其中一个是不行的。</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>请至少输入一个平台 P2P 地址和一个平台 HTTPS 地址，或清空服务地址，稍后通过服务更新来设置全部内容。</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>设置了平台端点时，请至少输入一个 Core 服务地址，或清空所有服务端点，稍后通过服务更新来设置。</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>没有可花费的钱包地址持有 %1 的抵押品金额。所选地址还必须有足够的余额来支付注册时计算的手续费。</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>没有可花费的钱包地址有可用于支付交易手续费的正余额。</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>请粘贴使用抵押品密钥对上述消息所作签名的 base64 编码。</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>准备完成后无法返回，因为更改注册信息会使正在签名的消息失效。</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>继续</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>准备</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>注册</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>提交</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>没有可用的钱包。注册主节点需要钱包。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>此钱包为仅限查看的钱包。注册主节点需要能够签名交易的钱包。</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>请输入运营者私钥的最后 4 个字符，以确认您已保存它。</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>此钱包没有金额恰好为 %1 且已有确认的未花费输出。请改为从此钱包发送抵押品，或引用存放在其他地方的输出。</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>类型</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>服务</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>平台 HTTPS</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金额</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>目标</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>输出</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>来源</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>所有者</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>投票</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>运营者</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>地址</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>运营者份额</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>网络手续费</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>节点</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>进化节点</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>主节点</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>未设置——在您发送服务更新之前，节点将保持不活跃</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 点对点，%2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>此钱包将在注册时一并发送</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>此钱包已持有的输出</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>存放于此钱包之外——您将使用其密钥对消息进行签名</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>与所有者相同</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>出资</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>未选择</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>提交时根据钱包当前的手续费设置计算</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>准备操作会创建未签名交易以及需用抵押品密钥签名的消息。此时尚未广播任何内容。</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>注册将从此钱包广播一笔交易。系统可能会要求您解锁钱包。</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>新生成，在注册前显示并确认，且不会保存在其他任何地方</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>由运行该节点的人提供</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>抵押品目标地址已失效。</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>所选的抵押品输出已被另一个主节点使用。</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>所有者地址已失效。</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>投票地址已失效。</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>运营者公钥已失效。</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>支付地址已失效。</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>所选的费用来源已失效。</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>主节点</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>此交易将从此钱包创建 %1 的抵押品，并注册该%2。</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>此交易将注册外部的 %1 抵押品，并将其作为该%2的抵押品。</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>此交易将注册并锁定钱包中 %1 的抵押品输出，作为该%2的抵押品。</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> 网络手续费将根据钱包当前的手续费设置，从所选的费用来源计算。</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>确认%1注册</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>是否广播此%1注册？</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>费用来源：%1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>此向导打开期间，网络的提供者交易规则发生了变化。注册前请重新查看平台服务页面。</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>正在准备…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>正在注册…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>收集抵押品签名期间，网络的提供者交易规则发生了变化。请丢弃此已准备的注册，并重新查看平台服务页面。</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>抵押品签名不是有效的 base64。</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>正在提交…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>注册失败</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>注册已完成，但未返回交易。</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>注册交易已创建，但未发送到网络。</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>准备操作已完成，但未返回交易。</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>持有该密钥的抵押品地址：%1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>注册交易已发送到网络。</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>它已记录在此钱包中，并显示在“交易”下。外部抵押品仍保留在您注册的输出点上，不受此钱包控制。</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>它已记录在此钱包中，并显示在“交易”下。抵押品仍留在钱包中，但在主节点注册期间处于锁定状态。</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>请使用您保存的运营者私钥配置您的主节点服务器，然后在那里重新启动 dashd。</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>请使用与您提供的运营者公钥相匹配的 BLS 私钥配置您的主节点服务器。</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>请确保每个已注册的服务地址和端口都可从互联网访问。</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>在节点的服务端点准备就绪后，请发送更新服务交易；在此之前它将保持不活跃。</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>请使用与您注册的节点 ID 相匹配的平台节点密钥，部署 Dash 平台服务（Tenderdash 和 Drive）。</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>注册得到确认且运营者签署首次更新后，进化节点即会激活。</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>注册在网络上得到确认后，主节点即会激活。</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>丢弃已准备的注册？</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>已准备的注册将被丢弃。此向导获取的任何抵押品锁定都将被释放。</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ For more information on using this console, type %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>恢复钱包消息</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>未指定</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>终止服务</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>密钥已泄露</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>更换密钥</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>原因：</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>运营者密钥：</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>“自动”会先使用当前的运营者支付地址，其次使用主节点的支付地址。仅在需要覆盖该选择时才选择地址。</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>撤销主节点服务</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>撤销会清除服务地址，并对主节点实施 PoSe 封禁，直到其所有者更改运营者密钥。抵押品不受影响。</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>撤销</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>轮换运营者密钥或投票密钥</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>更改这些密钥需要每位份额持有者的批准。由一人发起请求，其他人粘贴请求、批准并复制回复。</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. 新密钥</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>留空则保留当前的运营者密钥</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>新的运营者密钥：</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>运营者密钥一经更改，主节点即被封禁，直到新的运营者发送服务更新。</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>留空则保留当前的投票地址</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>新的投票地址：</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>费用来源：</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>准备请求</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>请在此钱包上完成——它支付手续费，并且必须发送最终交易。</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. 批准</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>将同一请求发送给每位份额持有者。回复可按任意顺序返回。</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>批准并复制回复</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. 发送</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>发送轮换交易</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>交易 ID</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>运营者密钥：%1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>未更改</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>投票地址：%1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>请先准备或粘贴请求。</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>只有准备该请求的钱包才能发送它。</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>必须先由每个份额批准（目前已有 %1 / %2）。</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>请输入有效的运营者公钥。</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>投票地址必须是 P2PKH 地址。</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>密钥轮换交易已发送。</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>如果错误提示必须由为该请求出资的钱包来合并，请在准备该请求的钱包上完成。</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ For more information on using this console, type %6.
         <translation>或</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>未签名交易</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBT 已复制到剪贴板。您也可以保存它。</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT 已保存到磁盘</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>确认发送货币</translation>
     </message>
@@ -4688,6 +7188,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT 已保存</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ For more information on using this console, type %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>交易费一般不应超过 %1。</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>预计在%n 个区块内开始确认。</numerusform></translation>
@@ -4900,6 +7405,1441 @@ For more information on using this console, type %6.
     <message>
         <source>Create Unsigned</source>
         <translation>创建未签名交易</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>共享主节点</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>上一步</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>粘贴</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>保存…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>下一步</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>详细信息</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>已出资</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>已批准</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>已签名</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>另一项操作仍在运行。</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>没有可用的钱包。</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>钱包仍处于锁定状态。</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>节点未给出原因。</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>该注册不是有效的交易。</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>共享主节点</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>几个人共同出资一个主节点。由一人负责协调；其他人粘贴收到的内容并复制回复。在最终广播之前，任何内容都不会发送到网络。</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>开始</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>您将输入参与者和主节点设置，然后邀请其他人。</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>开始一个共享主节点</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>继续</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>粘贴您收到的邀请、已锁定的条款、签名请求或任何回复——应用会自动判断如何处理。</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>从剪贴板粘贴</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>打开文件…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>参与者</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>参与者及各自的出资额。金额之和必须恰好为 %1；每个份额至少为 %2。</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金额</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>我</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>添加参与者</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>参与者 %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>主节点设置</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>这些设置适用于整个主节点，对每位参与者都相同。</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>服务地址：</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>主节点用于为 Core P2P 网络提供服务的公共地址，以逗号或空格分隔。可以留空，稍后通过服务更新来设置。</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>运营者密钥：</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>运行服务器的人需要私钥。链上仅注册公钥。</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>复制公钥</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>节点运行者：</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>记录在条款中，以便所有人知道谁可以启动和恢复该节点。</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>保管运营者私钥的参与者姓名</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>投票地址：</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>代表整个主节点对治理提案投票（P2PKH）。</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>使用新地址</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>运营者奖励：</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>承诺分给运行服务器者的奖励份额。</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>在参与者之间分配任何奖励之前，运营者将永久获得所有奖励中的这一份额。</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>退出条款</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>如果有参与者想在其他人之前退出，会发生什么。</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>退出方式</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>任何人都可以随时单方面解散主节点，并且每个人都能取回本金。在提前期内，单独解散者须从自己的份额中支付提前退出罚金，并由其他人分得。如果所有人都同意，则可随时免罚金解散。</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>提前期：</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>注册后的区块数，在此期间单独退出需支付罚金。</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 个月</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 个月</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 年</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 年</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>提前退出罚金：</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>您的出资</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>您的份额所用的地址和币。只有您能看到这些币；其他人只能看到由此产生的交易输入。</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>您的份额</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>这是我：</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>所有者地址：</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>控制您的份额：批准密钥更改和解散。保存在此钱包中。</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>退款地址：</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>主节点解散时接收您的本金。之后无法更改。</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>奖励地址（可选）：</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>接收您应得的那部分奖励。留空则使用退款地址；之后可以更改。</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>币</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>网络手续费：</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>预留币</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>释放</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>保存运营者密钥</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>请在邀请任何人之前保存此生成的密钥。它不会保存在其他任何地方，也无法从钱包中恢复。</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>运营者私钥</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>请立即保存——确认之前无法发出邀请。</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>请将这一行添加到主节点服务器上的 dash.conf 中：</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>您即将发送的邀请仅包含公钥。</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>请输入私钥的最后 4 个字符，以确认您已保存它：</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>邀请参与者</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>向所有人发送同一份邀请。每个人预留各自的币，并把他们的详细信息发回给您。</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>复制邀请</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>邀请</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>保存邀请…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>您更改了草稿。已经回复的参与者必须重新回复。</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>锁定这些条款？</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>锁定会固定每个地址、金额和币。此后任何人都无法编辑——只能解锁，而解锁会丢弃所有批准。</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>批准</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>复制已锁定的条款</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>已锁定的条款</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>解锁条款…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>签名</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>复制签名请求</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>签名请求</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>您已发送的内容</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>接下来的步骤</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>释放我的币</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>共享主节点已注册</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>发生了什么</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>一次确认后，它会出现在“主节点”下。</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>需要妥善保管的内容</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>您的份额所有者密钥</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>备用解散交易</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>一份您离线保管的已签名解散交易。即使此钱包丢失，也能取回您的本金。请在首次确认后创建。</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>注册确认后，请在“主节点”列表中创建它（右键单击该主节点），并与您的退款地址备份一起保存，同时与此钱包分开存放。</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>会话记录</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>保存最终记录…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>后续步骤</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>复制最终记录</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>最终记录</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>正在等待 %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>协调者</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>批准条款</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>签署贡献</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>第 %1 步，共 %2 步 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>没有可用的钱包。</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>此钱包无法签名。您可以查看，但无法参与。</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>共享主节点需要 %1 至 %2 位参与者。</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>请输入参与者 %1 的名称。</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>名称“%1”被使用了两次。</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>每个份额至少为 %1。</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>金额合计为 %1；必须恰好为 %2。</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>请选择哪位参与者是您本人。</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>请输入有效的运营者 BLS 公钥（96 个十六进制字符，基础方案）。</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>请输入有效的投票地址（P2PKH）。</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>没有提前期时，请将提前退出罚金设为 0。</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>提前退出罚金必须小于最小份额（%1）。</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>请输入有效的所有者地址（P2PKH）。</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>请输入有效的退款地址（P2PKH 或 P2SH）。</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>请输入有效的奖励地址（P2PKH 或 P2SH），或留空。</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>奖励地址必须与投票地址和每个所有者地址不同。</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>必须所有参与者都发回其详细信息，才能锁定条款。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>此钱包为仅限查看的钱包，无法签名。</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>请先保存运营者私钥。它只会在“保存运营者密钥”页面显示一次，且会话文件不包含它。</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>预留币并复制详细信息</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>锁定并批准</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>锁定条款</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>批准并复制回复</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>批准</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>重试</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>签名并复制回复</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>广播注册</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>重新开始</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>请输入运营者私钥的最后 4 个字符，以确认您已保存它。</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>您已经批准了这些条款。</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>必须每位参与者都对自己的币签名，才能广播注册。</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>共享主节点 — 会话 %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 / %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 / %2 — 缺少 %3</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 / %2 — 超出 %3</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>必须小于最小份额（%1）。仅当您接受任何人都可随时免费退出时，才设为 0。</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>任何人都可以随时免费退出。</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>如果 %1 在主节点存续的区块 %2 之前退出，%1 将损失 %3，由其他人分摊。</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>在提前期内单独退出需支付 %1，由其他人分摊。</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>罚金为零时，提前期不起作用：任何人都可以随时单独解散主节点，且无需支付任何费用。</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>第 %1 份，共 %2 份 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>第 %1 份，共 %2 份 — %3（您）</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>请选择您是哪位参与者。</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>已预留——在会话结束或您释放之前，这些币无法花费。</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>使用 %1（%2）；找零 %3 将退回到您的一个新地址。</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>使用 %1（%2），没有剩余找零。</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>每个人审核这些确切的条款并批准一次。请将同一条消息发给所有人。</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>请阅读每一行。批准即表示用您的所有者密钥对这些确切的条款签名。此时尚未广播任何内容。</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>所有批准均已嵌入。现在每位参与者对自己的币签名。回复可按任意顺序返回。</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>为您预留的币签名。您的签名只会将它们花费到此次注册中。</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>%1 / %2 个出资输入已签名。</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>为您的 %1 份额签名。您不会广播任何内容。</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>您已发送：%1 · 代码 %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>已锁定的条款</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>签名请求</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>最终记录</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>接下来您将收到%1。收到后请粘贴到此处。</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 将广播注册。当主节点出现在您的列表中后，请创建您的备用解散交易。</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>在此钱包中（%1）。请备份钱包——它用于批准更改和解散。</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>由 %1 持有。服务器上需要将其用作 masternodeblsprivkey。</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>运行节点的人</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>请使用运营者私钥配置主节点服务器，然后在那里重新启动 dashd。</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>节点地址准备就绪后，请发送服务更新；在此之前它将保持不活跃。</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>请确保每个已注册的服务地址和端口都可从互联网访问。</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>每位参与者都应在首次确认后创建自己的备用解散交易。</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 / %2 个输入</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1 / %2 已回复</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1 / %2 已签名</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 / %2 已批准</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>正在准备…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>准备注册失败：%1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>出资交易无效。</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>退款地址无效：%1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>奖励地址无效：%1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>份额所有者地址无效：%1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>运营者密钥不是有效的 BLS 公钥。</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>投票地址必须是 P2PKH 地址。</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>运营者奖励必须介于 0% 和 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>节点返回了意外的回复。</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>条款尚未锁定。</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>批准失败：%1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>正在批准…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>批准</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>合并批准失败：%1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>正在合并批准…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>此交易还花费了 %1，这是此钱包中不属于您出资部分的币。请勿签名；请向 %2 索取新的会话。</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>此交易为 %2 份额花费了此钱包 %1 的币，但只向此钱包退回 %3 的找零。请勿签名；请向 %4 索取新的会话。</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>签名失败：%1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>已签名的交易并非您审核过的那一笔。请勿使用；请向 %1 索取新的会话。</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>已签名的贡献</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>解锁条款？</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>解锁将丢弃%1。锁定后，每个人都必须重新批准。</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>抵押品：%1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>参与者：%1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>确认共享主节点注册</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>是否广播此共享主节点注册？</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>会话 %1 · 代码 %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>广播失败：%1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>所有人</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>已复制 · 会话 %1 · 代码 %2 — 请将其发送给 %3。</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>请先保存运营者私钥。它只会在此处显示，且会话文件不包含它：没有它，该主节点将永远无法运行。</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>保存共享主节点消息</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>会话文件 (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>无法打开 %1 进行写入。</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>已保存 · 会话 %1 · 代码 %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>打开共享主节点消息</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>该消息过大，不可能是共享主节点消息。</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>无法打开 %1 进行读取。</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>此消息涉及一个现有的主节点。请从“主节点”列表中打开它。</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>签名未被计入</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>已收到 %1 · 代码 %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>此回复比您当前的条款更旧（代码 %1；您的为 %2）。请让发送者粘贴您最新的消息并重新回复。</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>已收到 %1 的%2 · 代码 %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>此钱包需要至少 %1 可花费余额，才能为您的 %2 份额出资。</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>释放您的币？</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>您为会话 %1 预留的币将重新变为可花费。</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>其他人的币仍保持预留。如果您花费了这些币，此注册将永远无法广播，其他人必须重新开始。</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>已释放——这些币可以再次花费。</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>为此会话预留的一枚币已被花费。注册已无法完成——请重新开始。</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>此节点上暂时无法核对 %1 的金额。可核对的输入合计 %2，抵押品总额为 %3。</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>预留的币合计 %1，不足以支付 %2 抵押品加 %3 找零以及网络手续费。该注册将永远无法广播。</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>输入 %1 − 找零 %2 = %3 抵押品 + %4 网络手续费。该手续费异常高；仅在确属本意时才继续。</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>输入 %1 − 找零 %2 = %3 抵押品 + %4 网络手续费 ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>先保存运营者密钥？</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>运营者私钥只存在于此窗口中——会话文件仅包含其公钥部分。现在关闭，该主节点将永远无法运行。</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>保留此会话以便稍后继续？</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>保存会让您的币继续保持预留，以便您从中断处继续。丢弃则会释放它们；如果其他人还在等您，他们必须重新开始。</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>保存运营者密钥</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>保存并关闭</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>丢弃并释放币</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>第 %1 份，共 %2 份</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>此钱包不持有该主节点的任何份额所有者密钥。</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>主节点：%1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>份额</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>退款地址</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>收到</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>没有可用的钱包。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>此钱包为仅限查看的钱包，无法签名。</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>另一项操作仍在运行。</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>钱包解锁已取消。</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>该交易不是有效的交易十六进制。</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>此请求所需的一枚币（%1:%2）已被花费。已无法发送——请重新开始。</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>内部错误：此处计算的摘要与节点的不匹配。请勿批准；请报告此问题。</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>已用此钱包批准 %1。</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>共享主节点需要 v24 升级，而该升级在此网络上尚未激活。</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金额</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>（您）</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>此请求没有向每个份额支付其全部本金。请勿批准；请向准备者索取新的请求。</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>此请求指向了该主节点并不存在的份额。</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>此请求花费的并非恰好是该主节点的抵押品。请勿批准。</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>此请求将各份额本金中的 %1 作为交易手续费扣留。请勿批准；请向准备者索取新的请求。</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>剪贴板中没有共享主节点消息。</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>此消息不是共享主节点消息。</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>此交易不是共享主节点解散交易。</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>未命名</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>（您）</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1（%2%）</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>所有者：</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>尚未设置</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>退款：</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>奖励：</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>与退款地址相同</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>参与者</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>服务：</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>未设置——稍后通过服务更新来设置</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>运营者密钥：</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>未设置</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>节点运行者：</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>未记录</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>投票地址：</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>运营者奖励：</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>主节点</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>提前期：</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 个区块（%2）</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>提前退出罚金：</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>任何人都可以随时免费退出。</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>在提前期内单独退出需支付 %1，由其他人分摊；共同退出则免费。</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>退出条款</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>出资：</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1，%2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>退回的找零：</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>抵押品：</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1，条款锁定后</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>输出 #%1 支付 %2 共享抵押品脚本</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>出资</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>会话：</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>代码：</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>准备者钱包：</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>身份</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>该交易不是有效的交易十六进制。</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>该交易不是解散交易。</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>该交易的载荷无法反序列化。</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>该交易解散的是另一个主节点。</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>该交易已带有签名；应为未签名的已准备交易。</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>该交易不是共享注册信息更新。</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>该交易更新的是另一个主节点。</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>已批准</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>复制请求</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>保存请求…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>粘贴</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>打开文件…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>此消息涉及的交易与此处已有的不同。两份副本中有一份已过期；请保留当前的，并索取新的回复。</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>请先粘贴请求本身，再粘贴批准。</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>此消息不包含任何批准。</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>某项批准缺少份额编号或签名。</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>某项批准的份额编号无法读取。</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>份额编号 %1 超出范围。</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1：该签名不是 base64 编码的 65 字节紧凑签名。</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>%1 的批准与已准备的交易不匹配。请让 %2 粘贴当前请求并重新批准。</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 已有来自另一条回复的批准。</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>这不是共享主节点消息。</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>此消息属于 %1 网络；此钱包运行在 %2 上。</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>此消息涉及的是对该主节点的另一种更改。</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>此消息涉及的是另一个主节点。</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>已复制 · 代码 %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>保存请求</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>共享主节点消息 (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>无法写入 %1。</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>已保存 · 代码 %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>已保存到 %1。</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>该消息过大，不可能是共享主节点消息。</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>已收到 %1 · 代码 %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>已收到 · 代码 %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>打开请求</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>共享主节点消息 (*.json);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>无法读取 %1。</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>%1 已批准</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>正在等待 %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 / %2 已批准</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(按 q 关闭并稍后继续)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>按下 q 来关闭</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ For more information on using this console, type %6.
     <message>
         <source>Date</source>
         <translation>日期</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>类型</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>主节点注册</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>主节点更新</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>资产锁定</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ For more information on using this console, type %6.
     <message>
         <source>Transaction total size</source>
         <translation>交易总大小</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>载荷</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ For more information on using this console, type %6.
         <translation>平台转移</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>数据交易</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>粉尘接收</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>主节点注册</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>主节点更新</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>资产锁定</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ For more information on using this console, type %6.
     <message>
         <source>(n/a)</source>
         <translation>(不可用)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>注册一个主节点。金额为此钱包的净余额变化；当抵押品仍留在此钱包中时，通常仅为网络手续费。</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>更新现有的主节点注册。金额为此钱包的净余额变化，通常仅为网络手续费。</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>锁定资金以便在 Dash 平台上使用。金额为此钱包的净余额变化，包含网络手续费。</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ For more information on using this console, type %6.
         <translation>挖矿所得</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>主节点</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>平台转移</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>资产锁定</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>数据交易</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>运营者 BLS 公钥（96 个十六进制字符）</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>运营者公钥：</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>更改运营者密钥会立即对主节点实施 PoSe 封禁。新的运营者必须发送更新服务交易才能恢复它。</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>投票地址：</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>支付地址：</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>多个支付份额将被保留；如需更改请使用 RPC</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>此对话框无法安全地将多支付地址的主节点合并为单个地址。</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>“自动”使用主节点当前的主要支付地址。仅在需要覆盖该选择时才选择地址。</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>更新主节点注册信息</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>更新运营者密钥、投票地址或支付地址。当前所有值均已预填；只会发送更改过的字段。所有者密钥必须存在于此钱包中。</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>发送更新</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>请输入适用于当前提供者交易版本的有效运营者公钥。</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>投票地址必须是密钥地址。</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT，多个条目以逗号分隔</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>多个地址需要扩展的提供者交易。</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>服务地址：</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>服务地址：</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>运营者密钥：</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>平台节点 ID（40 个十六进制字符）</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>平台节点 ID：</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>平台 P2P 地址：</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT 或 domain:port，以逗号分隔</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>平台 HTTPS 地址：</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>平台 P2P 端口：</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>平台 HTTPS 端口：</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>运营者支付地址：</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>“自动”会先使用当前的运营者支付地址，其次使用主节点的支付地址。仅在需要覆盖该选择时才选择地址。</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>更新进化节点服务</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>更新主节点服务</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>更新已注册的服务端点。更新成功后还会恢复被 PoSe 封禁的主节点。当前所有值均已预填，因此未更改的字段会被保留。</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>发送更新</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>请输入有效的平台节点 ID（40 个十六进制字符）。</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>您的份额：</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>接收此份额奖励的地址</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>使用新地址</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>使用退款地址</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>新的奖励地址：</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>手续费将从您钱包的此地址支付。</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>更改奖励地址</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>更改此主节点中您那份奖励的支付去向。仅影响您的份额；份额的金额和退款地址永远不会改变。</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>发送更新</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>请输入应接收奖励的地址。</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>请输入有效的 Dash 地址。</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>奖励地址必须与投票地址和每个所有者地址不同。</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>此主节点不是共享主节点，没有份额表。</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>请选择此钱包的一个地址来支付手续费。</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Send Coins</source>
         <translation>发送Dash</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>签名者错误</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>警告: 我们和某些连线的节点对于区块链结的决定不同！您可能需要升级，或是需要等其它的节点升级。</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+无法清理失败的迁移</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+无法恢复钱包备份。</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>输入已存在。</translation>
     </message>
@@ -5863,10 +10061,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>SQLite数据库: 未知的sqlite钱包架构版本 %d. 仅支持 %d 版本</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>未支撑的类别记录级别 -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. 有效的 类别: %s. 有效的记录级别: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>无法混合：没有找到兼容的输入！</translation>
     </message>
@@ -5905,10 +10099,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Insufficient funds.</source>
         <translation>余额不足。</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>无效的最少数叉勺签名人以  -minsporkkeys 标识</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>未知响应。</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>不支持的全局记录级别 -loglevel=%s. 有效值: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>用户代理评论(%s)包含不安全的字符。</translation>
     </message>
@@ -6017,6 +10203,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s 文件包含此钱包中的所有私钥。不要与任何人分享！</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s 未能验证 -assumeutxo 快照状态。这表明存在硬件问题、软件错误，或是有不当的软件修改使无效快照得以加载。因此，节点将关闭并停止使用任何基于该快照构建的状态，将区块链高度从 %d 重置为 %d。下次重启时，节点将从 %d 开始恢复同步，不使用任何快照数据。请向 %s 报告此事件，并说明您是如何获得该快照的。无效的快照链状态将保留在磁盘上，以便帮助诊断导致此错误的问题。</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>网络版本字符串的总长度 (%i) 超过最大长度 (%i) 了。请减少 uacomment 参数的数量或大小。</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>警告！无法补充公钥池，请解锁您的钱包。</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>钱包被锁定，无法补充keypool！自动备份和混合功能被禁用，请解锁您的钱包以补充keypool。</translation>
     </message>
@@ -6085,10 +10271,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool 最小为%d MB</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>自动备份已停用</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>无法解析asmap文件 %s</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>错误！无法创建自动备份</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>加载 %s时出错: 私钥只能在创建期间禁用</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>读取配置文件时出错：%s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>错误：无法从生成的 scriptpubkey 中提取目标地址</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>错误：无法将仅限查看的交易添加到仅限查看的钱包</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>错误：无法删除仅限查看的交易</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>错误: 转储文件校验和不匹配. 计算 %s, 预期 %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>错误：无法创建新的仅限查看的钱包</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>错误: 没有可用地址.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>错误：并非所有仅限查看的交易都能被删除</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>错误：此钱包已在使用 SQLite</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>错误：此钱包已经是描述符钱包</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>错误：无法开始读取数据库中的所有记录</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>错误：无法为您的钱包创建备份</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>错误：无法读取数据库中的所有记录</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>错误：无法移除仅限查看的地址簿数据</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>无法创建备份%s！</translation>
     </message>
@@ -6161,6 +10383,22 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>无法删除备份，错误：%s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>未能完成被中断的无效快照清理。</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>未能完成被中断的快照标记提升。</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>检查被中断的快照清理失败：%s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>恢复被中断的快照清理失败：%s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>输入未找到或已经花费</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>dbcache 不足，无法进行区块验证</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>被中断的快照清理中，币和 EvoDB 的链尖不一致。</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>被中断的快照清理缺少其快照 EvoDB 标记。</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>无效的 P2P 权限: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>无效的 masternodeblsprivkey。请阅读文档。</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>无效的预选输入 %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>%s 的值无效：超过最大值（%d）</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>%s 的值无效：必须 &gt;= 0</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Mixing in progress…</source>
         <translation>正在混合…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>提供了多个 spork 地址。使用 %s。</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>文件说明符不足</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>未找到预选输入 %s</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>预选输入 %s 不可解</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>平台收款方不能与指定的找零位置同时使用</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>请先使用 walletpassphrase 输入钱包密码。</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>修剪不能设置为负数。</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>修剪模式与 -addressindex 不兼容。</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>修剪模式与 -disablegovernance=false 不兼容.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>修剪模式与 -spentindex 不兼容。</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>片段 [%s]无法被识别.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>设置窗口标题，该标题将附加在“Dash Core - ”之后</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>签名者未回显地址</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>签名者回显了意外的地址 %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>签名者返回错误：%s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>缺少快照链状态的 EvoDB 标记。需要重新索引。</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>指定的 -walletdir "%s" 不存在</translation>
     </message>
@@ -6275,8 +10585,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>指定的  -walletdir "%s" 不是一个目录</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>指定的数据目录“%s”不存在。</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>钱包避免低于最小中继费用的支付</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>此地址没有对应的 ScriptPubKeyManager</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>交易金额不不可为负数</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>交易造成内存池中的交易链太长</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>%s 链不支持 acceptstalefeeestimates。</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>您无法在开启钱包时启动主节点.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>无法进行混合。</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>详细信息请参阅debug.log。</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>%s 开发人员</translation>
     </message>
@@ -6379,16 +10689,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>%s要求使用准确的已面额化资金来发送，您可能需要再混币处理一些资金。</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate 选项与 -blockfilterindex 不兼容. 请在使用 -reindex-chainstate 时暂时禁用 blockfilterindex, 或者用 -reindex 替代 -reindex-chainstate 以完整重建所有的索引.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate 选项与 -txindex不兼容. 请在使用 -reindex-chainstate 时暂时禁用 txindex, 或者用 -reindex 替代 -reindex-chainstate 以完整重建所有的索引.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>-reindex-chainstate 选项与 -coinstatsindex 不兼容. 请在使用 -reindex-chainstate 时暂时禁用 coinstatsindex, 或者用 -reindex 替代 -reindex-chainstate 以完整重建所有的索引.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate 选项与 -txindex不兼容. 请在使用 -reindex-chainstate 时暂时禁用 txindex, 或者用 -reindex 替代 -reindex-chainstate 以完整重建所有的索引.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate 选项与 -blockfilterindex 不兼容. 请在使用 -reindex-chainstate 时暂时禁用 blockfilterindex, 或者用 -reindex 替代 -reindex-chainstate 以完整重建所有的索引.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>读取 %s 时发生错误！所有的密钥都可以正确读取，但是交易记录或地址簿数据可能已经丢失或出错。</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>读取 %s 时出错！交易数据可能缺失或不正确。正在重新扫描钱包。</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>错误：钱包中的地址簿数据无法确定属于已迁移的钱包</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>错误: 转储文件格式记录不正确. 得到 "%s", 预期 "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>错误: 转储文件识别符记录不正确. 得到 "%s", 预期 "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>错误：迁移期间创建了重复的描述符。您的钱包可能已损坏。</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>错误：迁移期间未能将活动描述符推进到旧版链计数器之后。</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>错误：钱包中的交易 %s 无法确定属于已迁移的钱包</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>错误：无法为此旧版钱包生成描述符。如果钱包已加密，请务必提供钱包密码。</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>未能移除快照链状态目录。请在重启前手动移除它。</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>出站连接限制为 i2p (-onlynet=i2p)，但未提供 -i2psam</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>平台收款方不能与其他特殊交易载荷同时使用</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>请检查电脑的日期时间设置是否正确！时间错误可能会导致 %s 运行异常。</translation>
     </message>
@@ -6489,6 +10831,26 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>修剪模式与 -reindex-chainstate 不兼容. 使用完整的 -reindex.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>将“%s”重命名为“%s”失败。您应手动移动或删除无效的快照目录 %s 来解决此问题，否则下次启动时将再次遇到同样的错误。</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>自动 Tor 洋葱服务无法使用通配符洋葱绑定，因为 Tor 守护进程无法将传入连接转发给我们。请使用特定地址，例如 -bind=127.0.0.1:&lt;port&gt;=onion，或使用 -listenonion=0 禁用该服务。</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>自动 Tor 洋葱服务需要专用的洋葱绑定。请使用特定地址，例如 -bind=127.0.0.1:&lt;port&gt;=onion，或使用 -listenonion=0 禁用该服务。</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>输入大小超过最大权重。请尝试发送较小的金额，或手动合并您钱包的 UTXO</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>预选币的总金额不足以满足交易目标。请允许自动选择其他输入，或手动加入更多币</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>这是在费用估计不可用时您可能会支付的交易费。</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>启用治理验证时无法禁用交易索引。请使用 -disablegovernance 命令行开关启动，或启用交易索引。</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>交易不符合标准（%s），将不会被转发；向平台地址发送目前需要使用 -acceptnonstdtxn=1 启动的节点</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>交易需要一个非零值的目标地址、非零的费率或预先选定的输入</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>UTXO 快照验证失败。请重启以恢复正常的初始区块下载，或尝试加载其他快照。</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>无法重播区块. 您需要使用 -reindex-chainstate命令来重建数据库.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>在描述符钱包中发现意外的旧版条目。正在加载钱包 %s
+
+该钱包可能已被篡改，或是出于恶意创建。
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>提供了未知的钱包文件格式 "%s". 请提供  "bdb" 或 "sqlite"中的一个.</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>发现无法识别的描述符。正在加载钱包 %s
+
+该钱包可能是在较新版本上创建的。
+请尝试运行最新版本的软件。
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>不支持的分类专用日志级别 %1$s=%2$s。应为 %1$s=&lt;category&gt;:&lt;loglevel&gt;。有效类别：%3$s。有效日志级别：%4$s。</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>警告: 钱包 {%s}中检测到已禁用私钥的私钥</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>您需要通过使用 -reindex 启用 -timestampindex 来重新建立数据库</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>发生了严重的内部错误, 请参阅debug.log了解详细信息</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>区块验证已被中断</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>正在导入…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>错误的-rescan模式，恢复到默认值</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>初始化完整性检查失败。%s即将关闭。</translation>
     </message>
@@ -6727,10 +11123,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>会话未完成！</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>会话超时。</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>交易签名失败</translation>
     </message>
@@ -6759,10 +11151,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>升级 Evo 数据库失败</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>所需费用 &gt; 已付费用</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>主机 %s 在不支持的网络上</translation>
     </message>
@@ -6777,10 +11165,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>在 %s 中指定的端口无效：'%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>上一次成功操作才完成。</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>尝试连接中…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>无法为 -maxsigcachesize 分配内存：“%s” MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>无法绑定此计算机上的%s (绑定返回错误 %s)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>无法签署交叉信息，错误的密钥？</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>迁移前无法卸载钱包</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>在 -onlynet 指定了不明的网路：'%s'</translation>
     </message>
@@ -6887,12 +11279,12 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>不支持的 URL 方案，必须以 udp:// 开头</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>不支持的日志记录类别 %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>不支持的全局日志级别 %s=%s。有效值：%s。</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>尚余少量的密匙：%d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>不支持的日志记录类别 %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>您不能在主节点上禁用治理验证.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>您需要通过使用 -reindex 启用 -addressindex 来重新建立数据库</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>您需要通过使用 -reindex 启用 -spentindex 来重新建立数据库</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

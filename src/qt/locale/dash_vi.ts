@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>Đang đồng bộ dữ liệu quản trị…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>Còn ~%n ngày (%1 khối) đến superblock</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>Còn ~%n ngày (%1 khối) để bỏ phiếu</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% ngân sách đã cam kết (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>Tải Giao dịch Blockchain Đã Ký Một phần từ clipboard</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>Mở tệp nhật ký &amp;gỡ lỗi</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>Mở tệp nhật ký gỡ lỗi từ thư mục dữ liệu hiện tại</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>Tạo Ví…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>Đóng Tất cả Ví…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Di chuyển Ví</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>Di chuyển một ví</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>Mới nhất</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superblock sắp đến</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Đã hết thời gian bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>Còn ~%1 (%2 khối) đến superblock</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>Còn ~%1 (%2 khối) để bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% ngân sách đã cam kết (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>(bỏ) chọn tất cả</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>lật trạng thái khoá</translation>
+        <source>(un)lock all</source>
+        <translation>(bỏ)khóa tất cả</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>Sao chép tiền trả lại</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>Hãy chuyển về "Chế độ danh sách" để sử dụng tính năng này.</translation>
+        <source>Wallet error</source>
+        <translation>Lỗi ví</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>Không thể khóa một số coin.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>Không thể mở khóa một số coin.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>Giải thể Masternode chung</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>Masternode này được đăng ký ở khối %1 và chuỗi hiện mới ở khối %2. Hãy chờ một xác nhận, rồi mở lại cửa sổ này.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>Giải thể ngay</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>Cùng giải thể</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>Giải thể dự phòng</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>Tự mình chấm dứt masternode. Mọi người nhận lại tiền gốc tại địa chỉ hoàn tiền của mình.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>Phần của bạn:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>Phí giao dịch, được trừ vào khoản hoàn tiền cho phần của bạn.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>Phí:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>Mã giao dịch</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>Rút sớm: bạn phải trả khoản phạt %1. Miễn phí sau khối %2 (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>Tôi chấp nhận trả khoản phạt rút sớm %1</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>Chỉ còn %1 nữa là giải thể được miễn phí. Hãy cân nhắc chờ thêm, hoặc dùng Cùng giải thể — khi mọi người phê duyệt thì có thể giải thể miễn phí ngay bây giờ.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>Giai đoạn đầu đã kết thúc — giải thể lúc này là miễn phí.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (bạn)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>Hãy đánh dấu vào ô để chấp nhận khoản phạt trước.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>Chuỗi đã vượt qua mốc miễn phạt trong lúc hộp thoại này đang mở. Bản xem trước ở trên đã được làm mới — hãy xem lại và nhấn Giải thể ngay thêm lần nữa.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>Giải thể masternode chung này ngay bây giờ? Tiền gốc của mọi người tham gia sẽ được trả về địa chỉ hoàn tiền của họ và masternode ngừng sinh lợi. Thao tác này không thể hoàn tác.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>Giao dịch giải thể đã được gửi đi.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Miễn phí bất cứ lúc nào, nhưng mọi chủ sở hữu phần đều phải phê duyệt. Một người chuẩn bị yêu cầu; những người còn lại dán yêu cầu đó, phê duyệt và sao chép phản hồi gửi lại.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. Yêu cầu</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>Phần mà phí giao dịch được trừ vào.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>Người trả phí:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Chuẩn bị yêu cầu</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Phê duyệt</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Gửi cùng một yêu cầu cho mọi chủ sở hữu phần. Phản hồi có thể gửi về theo thứ tự bất kỳ.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>Yêu cầu này chi trả</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Phê duyệt và sao chép phản hồi</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Gửi</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>Gửi giao dịch giải thể</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>Phí: %1, trừ vào %2.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Hãy chuẩn bị hoặc dán một yêu cầu trước.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Mọi phần đều phải phê duyệt trước (hiện có %1 trên %2).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>Một giao dịch giải thể đã ký mà bạn lưu ngoại tuyến và không bao giờ phát sóng trừ khi cần. Nó không bao giờ hết hạn và vẫn dùng được kể cả khi ví này bị mất.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Tạo giải thể dự phòng…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Sao chép</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>Toàn bộ tiền gốc — có hiệu lực từ khối %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>Toàn bộ tiền gốc — có hiệu lực ngay, giai đoạn đầu đã kết thúc</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>Chưa được tạo</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>Ngay lập tức — chịu khoản phạt %1</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Hãy cất nó cùng bản sao lưu địa chỉ hoàn tiền của bạn, tách biệt với ví này.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>Đã lưu lúc %1</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>Lưu giải thể dự phòng</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>Tệp văn bản (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>Cả hai giao dịch đã sẵn sàng bên dưới, nhưng chưa có gì được lưu. Hãy sao chép chúng hoặc tạo lại tệp.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Đã lưu vào %1.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Masternode chung Dash — giải thể dự phòng</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>Đã tạo: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>Mỗi khối bên dưới là một giao dịch đã ký hoàn chỉnh. Chỉ phát sóng một trong số đó bằng "sendrawtransaction" khi bạn muốn chấm dứt masternode và nhận lại tiền gốc. Chúng không bao giờ hết hạn. Hãy cất tệp này cùng bản sao lưu địa chỉ hoàn tiền của bạn, tách biệt với ví.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>TOÀN BỘ TIỀN GỐC — có hiệu lực từ khối %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>TOÀN BỘ TIỀN GỐC — có hiệu lực ngay, giai đoạn đầu đã kết thúc</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>NGAY LẬP TỨC — chịu khoản phạt rút sớm %1, có hiệu lực ngay</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Không thể ghi vào %1.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>Biểu mẫu</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>Lọc danh sách đề xuất</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>Số lượng Masternode:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>Số lượng masternode mà ví này có thể bỏ phiếu (các masternode mà ví này giữ khóa bỏ phiếu)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>Không có đề xuất nào đang hoạt động trên mạng.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>Tiếp tục đề xuất</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>Số lượng Đề xuất:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>Tạo Đề xuất</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>Chọn đề xuất để hiển thị</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>Lọc theo Tiêu đề</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>Không khả dụng</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>Cần có một nút đã đồng bộ và ví đã mở khóa.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>Bỏ phiếu Có</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>Bỏ phiếu Không</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>Bỏ phiếu Trắng</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>Đề xuất đang hoạt động</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>Đề xuất của tôi</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>Không có đề xuất nào được ghi trong tệp ví.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>Tiếp tục đề xuất</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>Sao chép JSON thô</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>Mở URL đề xuất…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>Chi tiết của %1</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>Không thể tương tác với quản trị trước khi đồng bộ hoàn tất</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>Tạo đề xuất mới</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>Tiếp tục đề xuất hiện có</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>Tạo đề xuất tốn %1, số dư không đủ</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>Lỗi</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>Không thể xác thực URL, có thể sai định dạng hoặc giao thức không xác định.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>Cảnh báo liên kết bên ngoài</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>Bạn sắp mở URL sau trong trình duyệt mặc định
-
-%1
-
-Nội dung này được gửi bởi người dùng. Nó có thể không khớp với mô tả trong tiêu đề.
-
-Bạn có muốn tiếp tục không?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>Bỏ phiếu Thất bại</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>Không có ví khả dụng.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>Không tìm thấy khóa bỏ phiếu masternode trong ví.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>Vui lòng chọn một đề xuất để bỏ phiếu.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>Không thể mở khóa ví.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>Không thể lấy danh sách masternode. Vui lòng thử lại sau.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>Không tìm thấy Masternode %1</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>Không thể ký phiếu bầu cho masternode %1</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>Masternode %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>Đã bỏ phiếu thành công %n lần</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>Không thể bỏ phiếu %n lần</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>Lỗi:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>Kết quả Bỏ phiếu</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Bạn có muốn tiếp tục không?</translation>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;Cơ bản về %1&lt;/h3&gt; %1 mang lại cho bạn sự riêng tư tài chính thực sự bằng cách che giấu nguồn gốc tiền của bạn. Tất cả Dash trong ví của bạn được tạo thành từ các "đầu vào" khác nhau mà bạn có thể coi như các đồng xu riêng biệt.&lt;br&gt; %1 sử dụng một quy trình sáng tạo để trộn đầu vào của bạn với đầu vào của hai hoặc nhiều người khác, mà không cần coin của bạn rời khỏi ví. Bạn giữ quyền kiểm soát tiền của mình mọi lúc.&lt;hr&gt; &lt;b&gt;Quy trình %1 hoạt động như sau:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 bắt đầu bằng cách chia nhỏ đầu vào giao dịch của bạn thành các mệnh giá tiêu chuẩn. Các mệnh giá này là 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH và 10 DASH -- giống như tiền giấy bạn sử dụng hàng ngày.&lt;/li&gt; &lt;li&gt;Ví của bạn sau đó gửi yêu cầu đến các nút phần mềm được cấu hình đặc biệt trên mạng, được gọi là "masternode". Các masternode này sau đó được thông báo rằng bạn quan tâm đến việc trộn một mệnh giá nhất định. Không có thông tin nhận dạng nào được gửi đến masternode, vì vậy chúng không bao giờ biết bạn "là ai".&lt;/li&gt; &lt;li&gt;Khi hai hoặc nhiều người khác gửi thông điệp tương tự, cho biết họ muốn trộn cùng một mệnh giá, một phiên trộn bắt đầu. Masternode trộn lẫn các đầu vào và hướng dẫn ví của cả ba người dùng trả đầu vào đã chuyển đổi về cho chính họ. Ví của bạn trả mệnh giá đó trực tiếp cho chính nó, nhưng ở một địa chỉ khác (được gọi là địa chỉ tiền thối).&lt;/li&gt; &lt;li&gt;Để che giấu hoàn toàn tiền của bạn, ví của bạn phải lặp lại quy trình này nhiều lần với mỗi mệnh giá. Mỗi lần quy trình hoàn thành, nó được gọi là một "vòng". Mỗi vòng %1 làm cho việc xác định nguồn gốc tiền của bạn trở nên khó khăn hơn theo cấp số nhân.&lt;/li&gt; &lt;li&gt;Quy trình trộn này diễn ra trong nền mà không cần sự can thiệp của bạn. Khi bạn muốn thực hiện giao dịch, tiền của bạn sẽ đã được trộn sẵn. Không cần chờ đợi thêm.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;QUAN TRỌNG:&lt;/b&gt; Ví của bạn chỉ chứa 1000 "địa chỉ tiền thối" này. Mỗi lần một sự kiện trộn xảy ra, tối đa 9 địa chỉ của bạn được sử dụng. Điều này có nghĩa là 1000 địa chỉ đó tồn tại cho khoảng 100 sự kiện trộn. Khi 900 trong số chúng được sử dụng, ví của bạn phải tạo thêm địa chỉ. Tuy nhiên, nó chỉ có thể làm điều này nếu bạn đã bật sao lưu tự động.&lt;br&gt; Do đó, người dùng tắt sao lưu cũng sẽ bị tắt %1. &lt;hr&gt;Để biết thêm thông tin, xem &lt;a style="%2" href="%3"&gt;tài liệu %1&lt;/a&gt;.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>Chung</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>Phiên bản ứng dụng</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Không có</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>User Agent</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>Thư mục dữ liệu</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>Để chỉ định vị trí thư mục dữ liệu khác mặc định, hãy dùng tùy chọn '%1'.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>Thư mục khối</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>Để chỉ định vị trí thư mục khối khác mặc định, hãy dùng tùy chọn '%1'.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>Thời gian khởi động</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Mạng</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Tên</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>Số kết nối</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>Địa chỉ cục bộ</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>Các địa chỉ mạng mà nút Dash của bạn hiện đang dùng để giao tiếp với các nút khác.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>Chuỗi khối</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Chiều cao khối hiện tại</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Thời gian khối cuối</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Mã băm khối cuối</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>Bể nhớ chung</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>Số giao dịch hiện tại</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>Bộ nhớ sử dụng</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>Vào:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>Ra:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Hoạt động mạng đã bị tắt</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Không có</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Bạn có muốn tiếp tục không?</translation>
         <translation><numerusform>(%n GB cần cho toàn bộ chuỗi)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>Chọn thư mục dữ liệu</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>Ít nhất %1 GB data sẽ được trữ tại danh mục này, và nó sẽ lớn theo thời gian.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Bạn có muốn tiếp tục không?</translation>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Không có ví nào khả dụng.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>Ví này chỉ để theo dõi và không thể ký giao dịch.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>Tự động (khuyến nghị)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Nguồn trả phí:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>Phải mở khóa ví để tạo và ký giao dịch này.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>Hãy nhập khóa bí mật BLS của nhà vận hành theo sơ đồ cơ bản (basic scheme) hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>Khóa bí mật của nhà vận hành không khớp với khóa công khai đã đăng ký của masternode này.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>Một thao tác masternode khác đang được thực hiện.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>Thao tác đã hoàn tất nhưng không trả về giao dịch nào.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>Giao dịch đã được tạo nhưng chưa được gửi lên mạng.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>Giao dịch đã được gửi thành công.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>Mã giao dịch: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Bạn có muốn tiếp tục không?</translation>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>Chung</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>Lọc danh sách masternode</translation>
     </message>
@@ -1689,6 +1919,22 @@ Bạn có muốn tiếp tục không?</translation>
     <message>
         <source>Hide banned</source>
         <translation>Ẩn bị cấm</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>Đăng ký một masternode hoặc evonode mới bằng ví này</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>Đăng ký Masternode…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>Tạo masternode có tài sản thế chấp được nhiều bên góp chung, hoặc tiếp tục một phiên đã lưu</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>Masternode chung…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Bạn có muốn tiếp tục không?</translation>
         <translation>Lọc theo</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>Cập nhật dịch vụ…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>Cập nhật thông tin đăng ký…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>Đổi địa chỉ nhận thưởng…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>Thay khóa…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>Giải thể…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Tạo giải thể dự phòng…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>Thu hồi…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>Địa chỉ đặt cọc</translation>
     </message>
@@ -1717,6 +1991,158 @@ Bạn có muốn tiếp tục không?</translation>
     <message>
         <source>Voting Address</source>
         <translation>Địa chỉ bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>Đăng ký masternode cần có ví.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>Việc đăng ký masternode chưa hỗ trợ ví dùng thiết bị ký ngoài.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>Đăng ký masternode cần có ví chứa khóa riêng.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>Chưa thể đăng ký masternode cho đến khi nút sẵn sàng.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>Đăng ký một masternode hoặc EvoNode mới bằng ví này</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>Quản lý masternode chung cần có ví.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>Quản lý masternode chung cần có ví chứa khóa riêng.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>Chưa thể quản lý masternode chung cho đến khi nút sẵn sàng.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>Masternode chung cần hard fork v24, hiện chưa được kích hoạt trên mạng này.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>Tạo hoặc tiếp tục một phiên đăng ký masternode chung nhiều bên</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>Giao dịch này không phải là giao dịch giải thể masternode chung có thể đọc được.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Phần %1 trên %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>một script không nhận dạng được</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>Masternode này không có trong danh sách masternode hiện tại.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>Dịch vụ: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>Địa chỉ tài sản thế chấp: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>Người trả phí: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>Phê duyệt bởi: mọi chủ sở hữu phần</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>Phê duyệt bởi: chỉ chữ ký của bạn</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>Khoản chi trả:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>Phí: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>Tiền gốc của mỗi phần được trả về địa chỉ hoàn tiền riêng của phần đó. Thao tác này không thể hoàn tác.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>Lưu ý: giao dịch này không trả lại toàn bộ tiền gốc của mỗi phần. Thao tác này không thể hoàn tác.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>Giao dịch: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>Phát sóng giao dịch giải thể dự phòng này?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>Phát sóng thất bại</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>Đã gửi giao dịch giải thể dự phòng</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>Không tìm thấy masternode</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>Thông báo này nói về một masternode chưa có trong danh sách.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>Không có gì để mở</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>Cần một ví có khả năng ký giao dịch</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>Cần có khóa chủ sở hữu của masternode này trong ví</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>Cần có một trong các khóa chủ sở hữu phần của masternode này trong ví này</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>Đã lưu trên máy tính này lúc %1</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>Chưa được tạo trên máy tính này</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>Lọc theo một trong các địa chỉ chủ sở hữu phần của masternode này</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Bạn có muốn tiếp tục không?</translation>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>Bị cấm %n ngày</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>Bị cấm ít hơn một ngày</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>Bị cấm</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>Hoạt động %n ngày</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>Masternode chung · bạn nắm %1 trên %2 phần</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>Hoạt động ít hơn một ngày</translation>
+        <source>Banned for %1</source>
+        <translation>Bị cấm trong %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>Hoạt động được %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>Chung (bạn nắm %1 trên %2)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>Chung (%1 phần)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Bạn có muốn tiếp tục không?</translation>
     <message>
         <source>ProTx Hash</source>
         <translation>Mã băm ProTx</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>Một trong các khóa đã chọn đang được một masternode hoặc phần đã đăng ký sử dụng. Mỗi khóa chủ sở hữu và khóa bỏ phiếu chỉ được dùng một lần trên toàn mạng.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>Địa chỉ dịch vụ đã chọn đang được một masternode đã đăng ký sử dụng.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>Địa chỉ hoàn tiền hoặc địa chỉ nhận thưởng không được trùng với địa chỉ chủ sở hữu phần hoặc địa chỉ bỏ phiếu. Hãy dùng các địa chỉ khác nhau cho khoản chi trả và cho khóa.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>Chữ ký đồng ý của một người tham gia không khớp với giao dịch cuối cùng. Điều này xảy ra khi các điều khoản hoặc giao dịch cấp vốn đã thay đổi sau khi ký; hãy thu thập chữ ký mới.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Mạng chưa chấp nhận phiên bản giao dịch này. Hãy chờ bản nâng cấp mạng đưa nó vào được kích hoạt.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Tính năng này chưa được kích hoạt trên mạng. Hãy chờ bản nâng cấp mạng đưa nó vào được kích hoạt.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>Một giao dịch giải thể cho masternode này đang chờ xử lý.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>Không thể cấp vốn cho giao dịch.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>Không thể cấp vốn cho giao dịch: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+Mạng từ chối: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>Chi tiết: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>Di chuyển ví</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>Bạn có chắc muốn di chuyển ví &lt;i&gt;%1&lt;/i&gt; không?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>Di chuyển ví sẽ chuyển đổi ví này thành một hoặc nhiều ví descriptor. Cần tạo một bản sao lưu ví mới.
+Nếu ví này chứa các script chỉ theo dõi (watchonly), một ví mới chứa các script đó sẽ được tạo.
+Nếu ví này chứa các script có thể giải được (solvable) nhưng không được theo dõi, một ví mới khác sẽ được tạo để chứa các script đó.
+
+Quá trình di chuyển sẽ tạo một bản sao lưu của ví trước khi di chuyển. Tệp sao lưu này sẽ có tên &lt;tên ví&gt;-&lt;dấu thời gian&gt;.legacy.bak và nằm trong thư mục của ví này. Trong trường hợp di chuyển sai, bạn có thể khôi phục bản sao lưu bằng chức năng "Khôi phục Ví".</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Di chuyển Ví</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>Đang di chuyển Ví &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>Ví '%1' đã được di chuyển thành công.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Các script chỉ theo dõi (watchonly) đã được di chuyển sang một ví mới có tên '%1'.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Các script có thể giải được (solvable) nhưng không được theo dõi đã được di chuyển sang một ví mới có tên '%1'.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>Di chuyển thất bại</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>Di chuyển thành công</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>Phần %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>Đóng góp "%1" có mã giao dịch đầu vào sai định dạng.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>Đóng góp "%1" có địa chỉ nhận tiền thừa không hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>Giao dịch đã chuẩn bị của phiên không phải là hex giao dịch hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>Giao dịch đã chuẩn bị của phiên không phải là giao dịch đăng ký masternode chung.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>Thông điệp này đã bị chỉnh sửa sau khi được sao chép.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>Bản nháp</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>Đã khóa điều khoản</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>Đang thu thập phê duyệt</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>Đã gộp các phê duyệt</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>Đã ký các đóng góp</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>Phát sóng</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>Tệp không phải là JSON hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>Tệp không phải là tệp phiên masternode chung.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>Tệp phiên dùng phiên bản định dạng không được hỗ trợ. Hãy cập nhật Dash Core để mở nó.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>Tệp phiên dành cho mạng "%1" nhưng nút này đang chạy mạng "%2". Không thể dùng tệp ở đây.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>không rõ</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>Tệp phiên không có mã phiên.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>Tệp phiên có số phiên bản sửa đổi không hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>Tệp phiên không có giai đoạn.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>Tệp phiên đang ở giai đoạn không xác định "%1". Có thể nó được tạo bởi một bản Dash Core mới hơn.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>Tệp phiên liệt kê %1 phần; một masternode chung có tối đa %2 phần.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>Mục phần %1 trong tệp phiên bị sai định dạng.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>Tệp phiên có giai đoạn đầu không hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>Tệp phiên có khoản phạt rút sớm không hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>Tệp phiên liệt kê %1 khoản đóng góp; mỗi phần chỉ có tối đa một khoản đóng góp và tối đa %2 phần.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>Mục đóng góp %1 trong tệp phiên bị sai định dạng.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>Mục đóng góp %1 trong tệp phiên có %2 đầu vào; một khoản đóng góp chỉ có thể cấp vốn tối đa %3 đầu vào.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>Tệp phiên có mã băm đồng ý bị sai định dạng.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>Mục chữ ký %1 trong tệp phiên bị sai định dạng.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>Tệp phiên liệt kê nhiều hơn một chữ ký cho phần %1.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>Tệp phiên được đánh dấu "%1" nhưng thiếu giao dịch đã cố định hoặc mã băm đồng ý.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>Tệp phiên có chữ ký cho một phần không tồn tại.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>Tệp phiên cho biết các phê duyệt đã được gộp, nhưng không phải phần nào cũng có phê duyệt.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>Tệp phiên cho biết các phê duyệt đã được gộp, nhưng có một phê duyệt không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>Tệp phiên cho biết mọi khoản đóng góp đã được ký, nhưng có một hoặc nhiều đầu vào cấp vốn chưa được ký.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>Không thể phân tích tệp phiên: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>Một masternode chung cần từ %1 đến %2 phần (hiện có %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>Địa chỉ bỏ phiếu phải là địa chỉ P2PKH hợp lệ.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>Phần %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>địa chỉ chủ sở hữu phải là địa chỉ P2PKH hợp lệ.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>địa chỉ chủ sở hữu đã được phần %1 sử dụng. Mỗi khóa chủ sở hữu phải là duy nhất.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>số tiền phải nằm trong khoảng từ %1 đến %2.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>hoàn tiền</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>nhận thưởng</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>địa chỉ %1 phải là địa chỉ P2PKH hoặc P2SH hợp lệ.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>địa chỉ hoàn tiền đã được phần %1 sử dụng. Mỗi địa chỉ hoàn tiền phải là duy nhất.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>địa chỉ %1 không được trùng với địa chỉ bỏ phiếu.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>địa chỉ %1 không được trùng với địa chỉ chủ sở hữu của phần %2.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>Tổng số tiền của các phần phải đúng bằng %1 (hiện là %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>Giai đoạn đầu tối đa là %1 khối (khoảng hai năm).</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>Khoản phạt giai đoạn đầu không thể là số âm.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>Khoản phạt giai đoạn đầu phải nhỏ hơn số tiền của phần nhỏ nhất (%1).</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>Chỉ có thể thay đổi khoản cấp vốn khi phiên còn có thể chỉnh sửa. Hãy mở khóa các điều khoản trước (thao tác này sẽ hủy mọi phê duyệt đã thu thập).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>Khoản đóng góp cần có nhãn người tham gia.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>Khoản đóng góp không có đầu vào cấp vốn.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1" đã đóng góp rồi. Hãy xóa khoản đóng góp hiện có trước.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>Đầu vào %1:%2 đã được "%3" đóng góp.</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>Số tiền thừa phải là số dương.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>Không tìm thấy khoản đóng góp nào từ "%1".</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>Chỉ có thể khóa một phiên còn chỉnh sửa được.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>Mã băm đồng ý bị sai định dạng.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>Mã băm đồng ý không khớp với giao dịch đã chuẩn bị. Đừng ký; hãy bắt đầu lại bước chuẩn bị.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>Chỉ số đầu ra tài sản thế chấp không khớp với giao dịch đã chuẩn bị.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>Các điều khoản chưa được khóa; không có gì để phê duyệt.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>Phần %1 trên %2 không tồn tại.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>Chữ ký không phải là base64 hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>Chữ ký của %1 không xác minh được với các điều khoản hiện tại. Nhiều khả năng nó được tạo cho một phiên bản cũ hơn của phiên này — hãy yêu cầu %1 ký lại phiên bản hiện tại.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Bảng phần trong tệp phiên không khớp với giao dịch đã chuẩn bị của nó. Đừng ký; hãy yêu cầu một bản sao mới.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Phần %1 trong tệp phiên không khớp với giao dịch đã chuẩn bị của nó. Đừng ký; hãy yêu cầu một bản sao mới.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Địa chỉ nhận thưởng của phần %1 trong tệp phiên không khớp với giao dịch đã chuẩn bị của nó. Đừng ký; hãy yêu cầu một bản sao mới.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Các điều khoản hiển thị trong tệp phiên không khớp với giao dịch đã chuẩn bị của nó. Đừng ký; hãy yêu cầu một bản sao mới.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Khoản cấp vốn hiển thị trong tệp phiên không khớp với giao dịch đã chuẩn bị của nó. Đừng ký; hãy yêu cầu một bản sao mới.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>Đã có một chữ ký khác cho phần này được ghi nhận. Một trong các bản sao đã ký một phiên bản cũ của phiên — hãy thống nhất phiên bản mới nhất và ký lại.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>Chỉ có thể ký các đầu vào cấp vốn sau khi các phê duyệt đã được gộp.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>Giao dịch đã chuẩn bị không khớp với các điều khoản mà mọi người đã phê duyệt. Đừng ký hoặc phát sóng nó; hãy yêu cầu một bản sao mới.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>Thông điệp này thuộc về một phiên khác (Phiên %1). Bạn đang làm việc với Phiên %2.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>Chỉ có thể tiếp nhận phản hồi khi các điều khoản vẫn còn chỉnh sửa được.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>Phản hồi không khớp với bản nháp hiện tại của bạn: người tham gia, số tiền hoặc điều khoản đã bị thay đổi. Hãy yêu cầu người gửi dán lời mời mới nhất của bạn và phản hồi lại.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>Phần của %1 đã có thông tin từ một phản hồi khác.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>Thông điệp này không chứa các điều khoản đã khóa.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>Các điều khoản đã khóa không chứa thông tin bạn đã gửi.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>người điều phối</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>Các điều khoản đã thay đổi kể từ khi bạn gửi thông tin. Hãy yêu cầu %1 gửi lời mời hiện tại và phản hồi lại.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>Bản sao đã nhập là bản sửa đổi %1 của phiên này; bản sao này là bản sửa đổi %2 và đã bị nó thay thế.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>Bản sao đã nhập là bản sửa đổi %1 của phiên này; bản sao này đã ở bản sửa đổi %2. Hãy gửi tệp mới hơn cho người gửi.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>Bản sao đã nhập có các điều khoản đã khóa và thay thế bản sao còn chỉnh sửa được này.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>Các điều khoản của phiên này đã được khóa; bản sao đã nhập vẫn còn chỉnh sửa được. Hãy gửi bản cập nhật mới hơn cho người gửi.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>Cả hai bản sao của Phiên %1 đã khóa các điều khoản khác nhau và không thể gộp lại. Hãy thống nhất một bản sao, gửi lại cho mọi người và để mọi người phê duyệt bản đó.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>Cả hai bản sao của Phiên %1 đã thay đổi cùng một thông tin và không thể gộp lại. Hãy thống nhất một bản sao rồi gửi lại.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>Các bản sao đã ký cấp vốn không phải là cùng một giao dịch. Không thể gộp chúng.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>Đầu vào cấp vốn %1 có hai chữ ký khác nhau. Không thể gộp các bản sao.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>Bản sao đã nhập cho biết các phê duyệt đã được gộp, nhưng trạng thái đó không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>Bản sao đã nhập cho biết mọi khoản đóng góp đã được ký, nhưng trạng thái đó không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>Bản sao đã nhập cho biết việc đăng ký đã được phát sóng, nhưng trạng thái đó không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>Phiên không ở giai đoạn thu thập phê duyệt.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>Chưa phải phần nào cũng đã ký (%1 trên %2). Chỉ gộp phiên khi đã được ký đầy đủ.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>Các phê duyệt của chủ sở hữu phải được gộp trước khi ký các khoản đóng góp.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>Còn một đầu vào cấp vốn chưa được ký.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>Còn %1 đầu vào cấp vốn chưa được ký.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>Không thể phát sóng phiên cho đến khi đủ mọi chữ ký đồng ý và chữ ký cấp vốn.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>không có</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>khoảng 1 phút</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>khoảng %1 phút</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>khoảng 1 giờ</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>khoảng %1 giờ</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>khoảng 1 ngày</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>khoảng %1 ngày</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>Phí phải là số dương.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>Khoản phạt và phí vượt quá phần của người tham gia đang giải thể.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>Giải thể đơn phương cần có ít nhất một phần khác để nhận khoản phạt.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 coin</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 coin</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 phê duyệt</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 phê duyệt</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 người tham gia</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 người tham gia</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 đầu vào cấp vốn</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 đầu vào cấp vốn</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 phần</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 phần</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 đầu vào</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 đầu vào</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Bạn có muốn tiếp tục không?</translation>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>Bể tín dụng</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>Lần đổi khối gần nhất</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Không có</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>Tổng đã khóa</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>Các khoản mở khóa đang chờ</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>Hạn mức rút</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>Khóa đã xác minh</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>Khóa chưa xác minh</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>Khóa đang chờ giao dịch</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>Giao dịch không được bảo vệ</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>Số lượng masternode</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>Số lượng EvoNode</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ChainLocks</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Chiều cao khối hiện tại</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Thời gian khối cuối</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Mã băm khối cuối</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>Quorum</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Tổng: %1 (Đã bật: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Đang chờ đồng bộ blockchain…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 đang hoạt động (sức khỏe %2%)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>Loại quorum có xoay vòng, dữ liệu được giữ lại trong %1</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>Loại quorum không xoay vòng, dữ liệu được giữ lại trong %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>Quorum hiện tại còn %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>Quorum hiện tại đã hết hạn</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>Hình thành lần cuối cách đây %1</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>Mới hình thành gần đây</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Bạn có muốn tiếp tục không?</translation>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>Đang mở Ví &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>Tạo khóa vận hành mới</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>Khóa bí mật được hiển thị và xác nhận trước khi đăng ký, sau đó không được lưu ở đâu khác.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Khóa công khai</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>Dùng khóa công khai vận hành có sẵn</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>Dành cho nút được lưu trữ hộ: nhà vận hành giữ khóa bí mật và đưa khóa công khai cho bạn.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>Khóa công khai BLS của nhà vận hành (96 ký tự thập lục phân, sơ đồ cơ bản)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>Khóa bí mật BLS của nhà vận hành (64 ký tự thập lục phân)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>Thao tác PSBT</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>Hộp thoại</translation>
     </message>
@@ -2968,10 +4148,6 @@ Do ngừng hỗ trợ, bạn nên yêu cầu người bán cung cấp cho bạn 
         <translation>Xem tải trọng</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>Tạo đề xuất</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>Đã gửi thành công %1 cho đề xuất "%2" của bạn.
 
 Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xuất mới, bạn có thể tiếp tục sau bằng cách nhấp "Tiếp tục đề xuất".</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>Chung</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>Chu kỳ bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Không có</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>Superblock gần nhất</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>Superblock kế tiếp</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>Khối chốt bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>Mức tham gia</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>Masternode đang bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>EvoNode đang bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>Ngưỡng đạt</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Nút</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>Masternode đang kiểm soát</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>Số phiếu đang kiểm soát</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>Đề xuất</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>Số lượng đề xuất</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>Ngân sách đã phân bổ</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>Đề xuất đang đạt</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>Đề xuất chưa được tài trợ</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>Đề xuất đang không đạt</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 phiếu</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 đủ điều kiện)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>Đề xuất %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>%1% ngân sách</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% đã phân bổ</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (thiếu %2)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>Biểu mẫu</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>Chọn đề xuất để hiển thị</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>Lọc danh sách đề xuất</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>Lọc theo tiêu đề</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>Hạn chót bỏ phiếu: đang chờ đồng bộ…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>Không có đề xuất nào đang hoạt động trên mạng.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>Phiếu bầu…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>Xem các phiếu bầu hiện tại của bạn và bỏ phiếu bằng các masternode đã chọn</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>Tạo đề xuất</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>Tiếp tục đề xuất</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>Số lượng đề xuất:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>Đề xuất đang hoạt động</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>Đề xuất của tôi</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>Các phiếu ủng hộ tài trợ hiện tại từ những masternode đủ điều kiện do ví này kiểm soát. Số liệu là phiếu đã tính trọng số.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (trọng số %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>Không có khóa bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>Không có đề xuất nào được ghi trong tệp ví.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Không khả dụng</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>Cần có một nút đã đồng bộ và một ví đã mở khóa.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>Tiếp tục đề xuất</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>Sao chép JSON thô</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>Mở URL đề xuất…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>Bỏ phiếu Có</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>Bỏ phiếu Không</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Bỏ phiếu Trắng</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>Chi tiết của %1</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Đang chờ đồng bộ blockchain…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>Đang chờ đồng bộ dữ liệu quản trị…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n masternode có thể bỏ phiếu</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superblock sắp đến</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Đã hết thời gian bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>Còn ~%1 (%2 khối) đến superblock</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>Còn ~%1 (%2 khối) để bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% ngân sách đã cam kết (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>Ước tính từ số khối còn lại và thời gian khối mục tiêu. Phiếu bầu vẫn có thể được chuyển tiếp sau hạn chót, nhưng có thể không ảnh hưởng đến khoản thanh toán của chu kỳ này.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>Không thể tương tác với quản trị trước khi đồng bộ hoàn tất</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>Tạo đề xuất mới</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>Tiếp tục đề xuất hiện có</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>Tạo đề xuất tốn %1, số dư không đủ</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Lỗi</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>Không thể xác thực URL, có thể bị sai định dạng hoặc dùng giao thức không xác định.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>Cảnh báo liên kết bên ngoài</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>Bạn sắp mở URL sau trong trình duyệt mặc định
+
+%1
+
+Nội dung này do một người dùng gửi lên. Nó có thể không khớp với mô tả trong tiêu đề.
+
+Bạn có muốn tiếp tục không?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>Bỏ phiếu thất bại</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>Không có ví nào khả dụng.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>Không tìm thấy khóa bỏ phiếu masternode trong ví.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>Không thể lấy dữ liệu masternode.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>Vui lòng chọn một đề xuất để bỏ phiếu.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>Bỏ phiếu cần có một đề xuất đã được phát sóng và một nút đã đồng bộ.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>Không thể mở khóa ví.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>Không thể lấy dữ liệu masternode đã đồng bộ.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>Masternode %1 không còn đủ điều kiện</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>Không tìm thấy Masternode %1</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>Không thể ký phiếu bầu cho masternode %1</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>Masternode %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>Đã bỏ phiếu thành công %n lần</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>Không thể bỏ phiếu %n lần</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Lỗi:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>Kết quả bỏ phiếu</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
     <message>
         <source>needs %1 more votes</source>
         <translation>cần thêm %1 phiếu</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>Phiếu của tôi</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>Bỏ phiếu %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>Phiếu bầu cho đề xuất</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>Chọn các masternode để bỏ phiếu. Các phiếu ủng hộ tài trợ hiện tại được hiển thị bên dưới. Thay đổi phiếu sẽ thay thế phiếu trước đó của masternode đó; mạng chỉ cho phép cập nhật mỗi giờ một lần.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>Địa chỉ bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>Trọng số</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>Phiếu hiện tại</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>Thời gian bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>Mã băm ProTx</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Chọn tất cả</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>Bỏ chọn</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>Masternode đã chọn: %1 · Trọng số phiếu: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Hiển thị màn hình khởi động khi khởi động (mặc định: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Lỗi: Thư mục dữ liệu được chỉ định "%1" không tồn tại.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>Lỗi: Không thể phân tích tệp cấu hình: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
     <message>
         <source>Unroutable</source>
         <translation>Không định tuyến được</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
         <translation>%1 và %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>bây giờ</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n tháng</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
     <message>
         <source>UNKNOWN</source>
         <translation>KHÔNG XÁC ĐỊNH</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Chung</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
         <translation>Phần thưởng vận hành</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>Các phần</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>Người tham gia</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>Địa chỉ</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>Phần %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>bạn</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>giống địa chỉ hoàn tiền</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Chủ sở hữu</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>Thưởng</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>Hoàn tiền</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>Giai đoạn đầu</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>không có</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>kết thúc ở khối %1</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>kết thúc ở khối %1 (khoảng %2 nữa)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>đã kết thúc (khối %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>Khoản phạt rút sớm</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>đã lưu trên máy tính này lúc %1</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>chưa được tạo trên máy tính này</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Giải thể dự phòng</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>Địa chỉ mạng</translation>
     </message>
@@ -3537,6 +5235,66 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
         <source>Collateral Date</source>
         <translation>Ngày tài sản thế chấp</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>%1 trước</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>còn %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Có</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Không</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>Trắng</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>Chưa bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>Đã qua hạn chót bỏ phiếu của chu kỳ này (khối %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>Hạn chót bỏ phiếu: còn ~%1 (%2 khối, khối %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1 Có, %2 Không, %3 Trắng / %4 chưa bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>Địa chỉ Dash không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Sao chép</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>Sao chép vào clipboard</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Không có ví nào khả dụng.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>Không thể tạo địa chỉ mới: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Phần %1 trên %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
         <translation>&amp;Thông tin</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>Chung chung</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Tên</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>Không áp dụng</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>Số kết nối</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>&amp;Mở</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>Thời gian khởi động</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>Mạng</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>Thời gian block cuối cùng</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>Debug log file</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>Phiên bản</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>Block chain</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>Bể nhớ chung</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>Số lượng giao dịch hiện tại</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>Bộ nhớ sử dụng</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
     <message>
         <source>&amp;Repair</source>
         <translation>&amp;Sửa chữa</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;Chung</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;Mạng</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>Quản &amp;trị</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
     <message>
         <source>User Agent</source>
         <translation>User Agent</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>Thư mục dữ liệu</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>Để chỉ định vị trí không mặc định của thư mục dữ liệu, hãy sử dụng tùy chọn '%1'.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Thư mục khối</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>Để chỉ định vị trí không mặc định của thư mục khối, hãy sử dụng tùy chọn '%1'.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>Địa chỉ cục bộ</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>Các địa chỉ mạng mà node Dash của bạn hiện đang sử dụng để giao tiếp với các node khác.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>Số lượng Masternode thông thường</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>Số lượng EvoNode</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>Chiều cao khối hiện tại</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>Mã băm khối cuối</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>Hash khối ChainLocked mới nhất</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>Chiều cao khối ChainLocked mới nhất</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Mở cái %1 debug log file từ danh mục dữ liệu hiện tại. Điều này cần vài giây cho large log files.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>Khoá InstantSend</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
         <translation>&amp;Bor</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>Vào:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Ra:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>Kết nối mạng bị tắt</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>Không có</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>Tổng số: %1 (Bật: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>Thực thi lệnh mà không có ví nào</translation>
     </message>
@@ -4122,6 +5768,10 @@ Bạn sẽ được chuyển hướng để theo dõi và phát sóng đề xu�
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: giao thức truyền tải mã hóa BIP324</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;Quản trị</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>Đăng ký Masternode</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Quay lại</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Tiếp theo</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Hủy</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>Loại masternode</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>Masternode — tài sản thế chấp %1</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Cung cấp các dịch vụ mạng Core và nhận phần thưởng masternode thường xuyên.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode — tài sản thế chấp %1</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>Ngoài ra còn lưu trữ Dash Platform, có trọng số bỏ phiếu gấp bốn lần và nhận phần thưởng lớn hơn. Yêu cầu ID nút Platform và các dịch vụ bổ sung.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>Đăng ký EvoNode</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>Tài sản thế chấp</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>Gửi tài sản thế chấp từ ví này đến một địa chỉ mới</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>Một giao dịch duy nhất vừa cấp vốn cho tài sản thế chấp vừa đăng ký masternode.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Dùng địa chỉ mới</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>Dùng một đầu ra tài sản thế chấp có sẵn của ví này</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>Một đầu ra P2PKH chưa tiêu có số tiền đúng bằng tài sản thế chấp, đã được xác nhận và chưa được masternode khác sử dụng.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>Tham chiếu tài sản thế chấp bên ngoài (ví dụ ví phần cứng)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>Một đầu ra P2PKH đã được xác nhận có số tiền đúng bằng tài sản thế chấp, được giữ bên ngoài ví này.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>Sau khi xem lại, bạn sẽ được yêu cầu ký một thông điệp bằng khóa tài sản thế chấp bên ngoài ví này.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>Mã giao dịch tài sản thế chấp (64 ký tự thập lục phân)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>Mã giao dịch:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>Chỉ số đầu ra</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>Chỉ số đầu ra:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>Địa chỉ dịch vụ</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>Các địa chỉ công khai mà masternode của bạn sẽ phục vụ trên mạng P2P Core, phân tách bằng dấu phẩy hoặc dấu cách. Mỗi mục phải là duy nhất trên mạng.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>Có thể để trống; khi đó masternode sẽ không hoạt động cho đến khi bạn gửi bản cập nhật dịch vụ kèm một địa chỉ.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Khóa</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Địa chỉ chủ sở hữu</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>Điều khiển masternode này (P2PKH): khóa của nó ký các cập nhật thông tin đăng ký. Hãy dùng địa chỉ mới để giữ khóa đó trong ví này, hoặc nhập địa chỉ do chủ sở hữu kiểm soát.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>Địa chỉ bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>Có thể ủy quyền (P2PKH). Để trống để bỏ phiếu bằng khóa chủ sở hữu; dùng địa chỉ mới để giữ một khóa bỏ phiếu riêng trong ví này.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>Để trống để dùng địa chỉ chủ sở hữu</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>Khóa vận hành</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>Nhà vận hành chạy máy chủ masternode (BLS); chỉ khóa công khai được đăng ký trên chuỗi.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>Khóa bí mật được tạo sẽ được hiển thị và phải được xác nhận trước khi đăng ký. Nó không được lưu trong ví này.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>Chi trả</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Địa chỉ thanh toán</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>Nhận phần thưởng khối của masternode này (P2PKH hoặc P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Thưởng cho nhà vận hành</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>Phần thưởng đã hứa dành cho nhà vận hành.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>Nhà vận hành sẽ vĩnh viễn nhận phần này trong mọi phần thưởng của masternode này. Hãy để ở mức 0 trừ khi bạn có thỏa thuận với nhà vận hành của mình.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>Dịch vụ Platform</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>ID nút Platform</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>Được suy ra từ khóa công khai P2P của Platform (40 ký tự thập lục phân).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>Địa chỉ Platform</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>Các mục ADDR:PORT, phân tách bằng dấu phẩy hoặc dấu cách.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>Platform P2P</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>Platform HTTPS API</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>Cổng Platform</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>Trước khi kích hoạt v24, chỉ có thể đăng ký các cổng Platform; chúng áp dụng cho địa chỉ dịch vụ đầu tiên.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Cổng Platform P2P:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Cổng Platform HTTPS:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>Nguồn trả phí</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Xem lại</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>Chứng minh quyền sở hữu tài sản thế chấp</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>Hãy ký thông điệp sau bằng khóa tài sản thế chấp (ví dụ bằng tính năng ký thông điệp của ví phần cứng), sau đó dán chữ ký base64 vào bên dưới.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>Sao chép thông điệp</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>Chữ ký</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>Dán chữ ký base64 vào đây</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Lưu khóa vận hành</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Hãy lưu khóa được tạo này trước khi đăng ký. Nó không được lưu ở đâu khác và không thể khôi phục từ ví.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Khóa bí mật của nhà vận hành</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>Hãy lưu ngay bây giờ — không thể bắt đầu đăng ký cho đến khi bạn xác nhận.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>Thêm dòng này vào dash.conf trên máy chủ masternode của bạn:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Sao chép</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>Hãy nhập 4 ký tự cuối của khóa bí mật để xác nhận bạn đã lưu nó trước khi đăng ký:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>Masternode đã được đăng ký</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Mã băm giao dịch Provider</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Các bước tiếp theo</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Hoàn tất</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Bước %1/%2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>Địa chỉ đã chọn cấp vốn cho tài sản thế chấp %1 cộng với phí giao dịch. Phí chính xác được tính theo cài đặt ví của bạn khi đăng ký, và tiền thừa sẽ trả về địa chỉ này.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>Địa chỉ đã chọn trả phí giao dịch.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>Hãy nhập địa chỉ tài sản thế chấp hợp lệ (P2PKH hoặc P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>Ví này không có đầu ra chưa tiêu nào đúng bằng %1. Hãy cấp vốn tài sản thế chấp từ ví thay vào đó.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>Hãy nhập mã giao dịch tài sản thế chấp gồm 64 ký tự thập lục phân.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>EvoNode cần ít nhất một địa chỉ dịch vụ để mang các cổng Platform trước khi kích hoạt v24.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Hãy nhập địa chỉ chủ sở hữu hợp lệ (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>Hãy nhập địa chỉ bỏ phiếu hợp lệ (P2PKH), hoặc để trống để dùng địa chỉ chủ sở hữu.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>Địa chỉ chủ sở hữu và địa chỉ bỏ phiếu phải khác địa chỉ tài sản thế chấp.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Hãy nhập khóa công khai BLS của nhà vận hành hợp lệ (96 ký tự thập lục phân, sơ đồ cơ bản).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>Hãy nhập địa chỉ thanh toán hợp lệ (P2PKH hoặc P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>Địa chỉ thanh toán phải khác địa chỉ chủ sở hữu và địa chỉ bỏ phiếu.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>Địa chỉ thanh toán phải khác địa chỉ tài sản thế chấp.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>Hãy nhập ID nút Platform gồm 40 ký tự thập lục phân.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>Hãy nhập cả địa chỉ Platform P2P và địa chỉ Platform HTTPS; không thể đăng ký cái này mà thiếu cái kia.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>Hãy nhập ít nhất một địa chỉ Platform P2P và một địa chỉ Platform HTTPS, hoặc xóa các địa chỉ dịch vụ để đặt mọi thứ sau bằng bản cập nhật dịch vụ.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>Hãy nhập ít nhất một địa chỉ dịch vụ Core khi đã đặt các điểm cuối Platform, hoặc xóa mọi điểm cuối dịch vụ để đặt chúng sau bằng bản cập nhật dịch vụ.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>Không có địa chỉ ví nào có thể chi tiêu chứa số tiền tài sản thế chấp %1. Địa chỉ đã chọn cũng phải có đủ tiền cho khoản phí được tính khi bạn đăng ký.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>Không có địa chỉ ví nào có thể chi tiêu có số dư dương để trả phí giao dịch.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>Hãy dán chữ ký mã hóa base64 của thông điệp ở trên, được tạo bằng khóa tài sản thế chấp.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>Không thể Quay lại sau khi đã chuẩn bị vì thay đổi việc đăng ký sẽ làm thông điệp đang ký mất hiệu lực.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Tiếp tục</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>Chuẩn bị</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Đăng ký</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Gửi</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Hoàn thành</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>Không có ví nào khả dụng. Đăng ký masternode cần có ví.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>Ví này chỉ để theo dõi. Đăng ký masternode cần một ví có thể ký giao dịch.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Hãy xác nhận bạn đã lưu khóa bí mật của nhà vận hành bằng cách nhập 4 ký tự cuối của nó.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>Ví này không có đầu ra chưa tiêu nào đúng bằng %1 và đã có xác nhận. Hãy gửi tài sản thế chấp từ ví này, hoặc tham chiếu một khoản được giữ ở nơi khác.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Loại</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Dịch vụ</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>Platform HTTPS</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Số tiền</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>Đích đến</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>Đầu ra</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Nguồn</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Chủ sở hữu</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>Bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>Nhà vận hành</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Địa chỉ</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>Phần của nhà vận hành</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>Phí mạng</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Nút</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>Chưa đặt — nút sẽ không hoạt động cho đến khi bạn gửi bản cập nhật dịch vụ</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 ngang hàng (P2P), %2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>Ví này gửi nó như một phần của việc đăng ký</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>Một đầu ra mà ví này đã nắm giữ</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>Được giữ bên ngoài ví này — bạn sẽ ký một thông điệp bằng khóa của nó</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>Giống chủ sở hữu</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Cấp vốn</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>Chưa chọn</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>Được tính khi gửi, theo cài đặt phí hiện tại của ví</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>Chuẩn bị sẽ tạo giao dịch chưa ký và thông điệp cần ký bằng khóa tài sản thế chấp. Chưa có gì được phát sóng.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>Đăng ký sẽ phát sóng một giao dịch từ ví này. Bạn có thể được yêu cầu mở khóa ví.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>Mới được tạo, được hiển thị và xác nhận trước khi đăng ký, và không được lưu ở đâu khác</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>Do người vận hành nút cung cấp</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>Đích đến của tài sản thế chấp không còn hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>Đầu ra tài sản thế chấp đã chọn đang được một masternode khác sử dụng.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>Địa chỉ chủ sở hữu không còn hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>Địa chỉ bỏ phiếu không còn hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>Khóa công khai của nhà vận hành không còn hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>Địa chỉ thanh toán không còn hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>Nguồn trả phí đã chọn không còn hợp lệ.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>masternode</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>Giao dịch này tạo %1 tài sản thế chấp từ ví này và đăng ký %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>Giao dịch này đăng ký tài sản thế chấp bên ngoài %1 và đặt nó làm tài sản thế chấp cho %2 này.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>Giao dịch này đăng ký và khóa đầu ra tài sản thế chấp %1 của ví cho %2 này.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> Phí mạng được tính từ nguồn trả phí đã chọn theo cài đặt phí hiện tại của ví.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>Xác nhận đăng ký %1</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>Bạn có muốn phát sóng đăng ký %1 này không?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>Nguồn trả phí: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>Quy tắc giao dịch provider của mạng đã thay đổi trong khi trình hướng dẫn này đang mở. Hãy xem lại trang Dịch vụ Platform trước khi đăng ký.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Đang chuẩn bị…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>Đang đăng ký…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>Quy tắc giao dịch provider của mạng đã thay đổi trong khi thu thập chữ ký tài sản thế chấp. Hãy hủy bản đăng ký đã chuẩn bị này và xem lại trang Dịch vụ Platform.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>Chữ ký tài sản thế chấp không phải là base64 hợp lệ.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>Đang gửi…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>Đăng ký thất bại</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>Việc đăng ký đã hoàn tất nhưng không trả về giao dịch nào.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>Giao dịch đăng ký đã được tạo nhưng chưa được gửi lên mạng.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>Thao tác chuẩn bị đã hoàn tất nhưng không trả về giao dịch nào.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>Địa chỉ tài sản thế chấp giữ khóa: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>Giao dịch đăng ký đã được gửi lên mạng.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>Nó được ghi trong ví này và hiển thị ở mục Giao dịch. Tài sản thế chấp bên ngoài vẫn nằm ở outpoint mà bạn đã đăng ký và không do ví này kiểm soát.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>Nó được ghi trong ví này và hiển thị ở mục Giao dịch. Tài sản thế chấp vẫn nằm trong ví nhưng bị khóa trong thời gian masternode còn được đăng ký.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>Hãy cấu hình máy chủ masternode của bạn với khóa bí mật của nhà vận hành mà bạn đã lưu, rồi khởi động lại dashd ở đó.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>Hãy cấu hình máy chủ masternode của bạn với khóa bí mật BLS khớp với khóa công khai của nhà vận hành mà bạn đã cung cấp.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Hãy đảm bảo mọi địa chỉ dịch vụ và cổng đã đăng ký đều truy cập được từ internet.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>Hãy gửi giao dịch Cập nhật dịch vụ sau khi các điểm cuối dịch vụ của nút đã sẵn sàng; cho đến lúc đó nút sẽ không hoạt động.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>Hãy thiết lập các dịch vụ Dash Platform (Tenderdash và Drive) với khóa nút Platform khớp với ID nút mà bạn đã đăng ký.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>EvoNode sẽ hoạt động sau khi đăng ký được xác nhận và bản cập nhật đầu tiên được nhà vận hành ký.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>Masternode sẽ hoạt động sau khi đăng ký được xác nhận trên mạng.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>Hủy bản đăng ký đã chuẩn bị?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>Bản đăng ký đã chuẩn bị sẽ bị hủy. Mọi khóa tài sản thế chấp mà trình hướng dẫn này đã giữ sẽ được giải phóng.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>Thông điệp khôi phục ví</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>Không xác định</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>Chấm dứt dịch vụ</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>Khóa bị lộ</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>Thay đổi khóa</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>Lý do:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Khóa vận hành:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Chế độ tự động dùng địa chỉ chi trả của nhà vận hành hiện tại, sau đó đến địa chỉ thanh toán của masternode. Chỉ chọn một địa chỉ khi muốn thay thế lựa chọn đó.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>Thu hồi dịch vụ Masternode</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>Thu hồi sẽ xóa địa chỉ dịch vụ và cấm PoSe masternode cho đến khi chủ sở hữu của nó đổi khóa vận hành. Tài sản thế chấp không bị ảnh hưởng.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>Thu hồi</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>Thay khóa vận hành hoặc khóa bỏ phiếu</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Thay đổi các khóa này cần có sự phê duyệt của mọi chủ sở hữu phần. Một người bắt đầu yêu cầu; những người còn lại dán yêu cầu đó, phê duyệt và sao chép phản hồi gửi lại.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. Khóa mới</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>Để trống để giữ khóa vận hành hiện tại</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Sao chép</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>Khóa vận hành mới:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>Masternode sẽ bị cấm ngay khi khóa vận hành thay đổi, cho đến khi nhà vận hành mới gửi bản cập nhật dịch vụ.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>Để trống để giữ địa chỉ bỏ phiếu hiện tại</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>Địa chỉ bỏ phiếu mới:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Nguồn trả phí:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Chuẩn bị yêu cầu</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>Hoàn tất trên ví này — ví này trả phí và phải gửi giao dịch cuối cùng.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Phê duyệt</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Gửi cùng một yêu cầu cho mọi chủ sở hữu phần. Phản hồi có thể gửi về theo thứ tự bất kỳ.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Phê duyệt và sao chép phản hồi</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Gửi</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>Gửi thay khóa</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>Mã giao dịch</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>Khóa vận hành: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>không đổi</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>Địa chỉ bỏ phiếu: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Hãy chuẩn bị hoặc dán một yêu cầu trước.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>Chỉ ví đã chuẩn bị yêu cầu mới có thể gửi nó.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Mọi phần đều phải phê duyệt trước (hiện có %1 trên %2).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>Hãy nhập khóa công khai của nhà vận hành hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>Địa chỉ bỏ phiếu phải là địa chỉ P2PKH.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>Việc thay khóa đã được gửi đi.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>Nếu lỗi cho biết ví đã cấp vốn cho yêu cầu phải là ví gộp nó, hãy hoàn tất trên ví đã chuẩn bị yêu cầu.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
         <translation>hoặc</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>Giao dịch chưa ký</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBT đã được sao chép vào clipboard. Bạn cũng có thể lưu nó.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT đã được lưu vào đĩa</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>Xác nhận việc gửi tiền</translation>
     </message>
@@ -4688,6 +7188,7 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT đã lưu</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>Mức phí cao hơn %1 có thể được xem là mức cao thái quá.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>Ước lượng để bắt đầu xác thực trong vòng %n khối.</numerusform></translation>
@@ -4900,6 +7405,1441 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     <message>
         <source>Create Unsigned</source>
         <translation>Tạo chưa ký</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>Masternode chung</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Quay lại</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Dán</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>Lưu…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Hủy</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Tiếp theo</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Chi tiết</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>Đã cấp vốn</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Đã phê duyệt</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>Đã ký</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>một thao tác khác vẫn đang chạy.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>không có ví nào khả dụng.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>ví vẫn đang bị khóa.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>nút không đưa ra lý do.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>bản đăng ký không phải là giao dịch hợp lệ.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>Masternode chung</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>Nhiều người cùng góp vốn cho một masternode. Một người điều phối; những người còn lại dán những gì họ nhận được và sao chép phản hồi gửi lại. Không có gì được đưa lên mạng cho đến lần phát sóng cuối cùng.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Bắt đầu</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>Bạn sẽ nhập những ai tham gia và các thiết lập masternode, sau đó mời những người khác.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>Bắt đầu một Masternode chung</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Tiếp tục</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>Hãy dán một lời mời, các điều khoản đã khóa, một yêu cầu ký hoặc bất kỳ phản hồi nào bạn nhận được — ứng dụng sẽ tự biết phải làm gì.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>Dán từ clipboard</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Mở tệp…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Người tham gia</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>Những ai tham gia và mỗi người góp bao nhiêu. Tổng số tiền phải đúng bằng %1; mỗi phần ít nhất là %2.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Tên</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Số tiền</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>Tôi</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>Thêm người tham gia</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>Người tham gia %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Xóa</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>Thiết lập masternode</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>Các thiết lập này áp dụng cho toàn bộ masternode và giống nhau với mọi người tham gia.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Địa chỉ dịch vụ:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>Các địa chỉ công khai mà masternode phục vụ trên mạng P2P Core, phân tách bằng dấu phẩy hoặc dấu cách. Có thể để trống và đặt sau bằng bản cập nhật dịch vụ.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Khóa vận hành:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>Người chạy máy chủ cần có khóa bí mật. Chỉ khóa công khai được đăng ký trên chuỗi.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>Sao chép khóa công khai</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Nút do ai vận hành:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>Được ghi trong các điều khoản để mọi người biết ai có thể khởi động và khôi phục nút.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>Tên người tham gia giữ khóa bí mật của nhà vận hành</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Địa chỉ bỏ phiếu:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>Bỏ phiếu về các đề xuất quản trị cho toàn bộ masternode (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Dùng địa chỉ mới</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Thưởng cho nhà vận hành:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>Phần thưởng đã hứa dành cho người chạy máy chủ.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>Nhà vận hành sẽ vĩnh viễn nhận phần này trong mọi phần thưởng trước khi phần còn lại được chia cho những người tham gia.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Điều khoản rút lui</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>Điều gì xảy ra nếu một người tham gia muốn rút trước những người khác.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>Cách thức rút lui</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>Bất kỳ ai cũng có thể tự mình giải thể masternode bất cứ lúc nào và mọi người nhận lại tiền gốc. Trong giai đoạn đầu, người giải thể một mình sẽ trả khoản phạt rút sớm từ phần của chính mình và khoản đó được chia cho những người còn lại. Nếu mọi người đồng ý, việc giải thể là miễn phí bất cứ lúc nào.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Giai đoạn đầu:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>Số khối sau khi đăng ký mà trong đó việc rút lui một mình sẽ bị phạt.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Không có</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 tháng</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 tháng</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 năm</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 năm</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Khoản phạt rút sớm:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>Đóng góp của bạn</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>Địa chỉ và coin cho phần của bạn. Chỉ bạn thấy các coin; những người khác chỉ thấy các đầu vào giao dịch kết quả.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>Phần của bạn</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>Đây là tôi:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>Địa chỉ chủ sở hữu:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>Điều khiển phần của bạn: phê duyệt việc đổi khóa và giải thể. Được giữ trong ví này.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>Địa chỉ hoàn tiền:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>Nhận tiền gốc của bạn khi masternode bị giải thể. Không thể thay đổi sau này.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>Địa chỉ nhận thưởng (tùy chọn):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>Nhận phần thưởng của bạn. Để trống để dùng địa chỉ hoàn tiền; bạn có thể đổi sau.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>Coin</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>Phí mạng:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>Dành riêng coin</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Bỏ dành riêng</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Lưu khóa vận hành</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Hãy lưu khóa được tạo này trước khi mời bất kỳ ai. Nó không được lưu ở đâu khác và không thể khôi phục từ ví.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Khóa bí mật của nhà vận hành</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>Hãy lưu ngay bây giờ — không thể gửi lời mời cho đến khi bạn xác nhận.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Sao chép</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>Thêm dòng này vào dash.conf trên máy chủ masternode:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>Lời mời bạn sắp gửi chỉ chứa khóa công khai.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>Hãy nhập 4 ký tự cuối của khóa bí mật để xác nhận bạn đã lưu nó:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>Mời người tham gia</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>Gửi cùng một lời mời cho mọi người. Mỗi người dành riêng coin của mình và gửi lại cho bạn thông tin của họ.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>Sao chép lời mời</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>Lời mời</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>Lưu lời mời…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>Bạn đã thay đổi bản nháp. Những người đã phản hồi phải phản hồi lại.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>Khóa các điều khoản này?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>Khóa sẽ cố định mọi địa chỉ, số tiền và coin. Sau đó không ai có thể chỉnh sửa — chỉ có thể mở khóa, thao tác này sẽ hủy mọi phê duyệt.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>Phê duyệt</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>Sao chép điều khoản đã khóa</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>Điều khoản đã khóa</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>Mở khóa điều khoản…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>Chữ ký</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>Sao chép yêu cầu ký</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>Yêu cầu ký</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>Những gì bạn đã gửi</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>Bước tiếp theo</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>Bỏ dành riêng coin của tôi</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>Masternode chung đã được đăng ký</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>Đã xảy ra những gì</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>Nó sẽ xuất hiện trong mục Masternodes sau một xác nhận.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>Những gì cần giữ an toàn</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>Khóa chủ sở hữu phần của bạn</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Giải thể dự phòng</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>Một giao dịch giải thể đã ký mà bạn lưu ngoại tuyến. Nó giúp lấy lại tiền gốc của bạn ngay cả khi ví này bị mất. Hãy tạo nó sau lần xác nhận đầu tiên.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Hãy tạo nó từ danh sách Masternodes (nhấp chuột phải vào masternode) sau khi đăng ký được xác nhận, và cất nó cùng bản sao lưu địa chỉ hoàn tiền của bạn, tách biệt với ví này.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>Bản ghi phiên</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>Lưu bản ghi cuối cùng…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Các bước tiếp theo</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>Sao chép bản ghi cuối cùng</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>Bản ghi cuối cùng</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Đang chờ %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>người điều phối</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>Phê duyệt điều khoản</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>Ký đóng góp</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Hoàn tất</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Bước %1/%2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Không có ví nào khả dụng.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>Ví này không thể ký. Bạn có thể xem nhưng không thể tham gia.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>Một masternode chung cần từ %1 đến %2 người tham gia.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>Hãy nhập tên cho người tham gia %1.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>Tên "%1" bị dùng hai lần.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>Mỗi phần ít nhất là %1.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>Tổng các số tiền là %1; phải đúng bằng %2.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>Hãy chọn người tham gia là bạn.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Hãy nhập khóa công khai BLS của nhà vận hành hợp lệ (96 ký tự thập lục phân, sơ đồ cơ bản).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>Hãy nhập địa chỉ bỏ phiếu hợp lệ (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>Hãy đặt khoản phạt rút sớm bằng 0 khi không có giai đoạn đầu.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>Khoản phạt rút sớm phải nhỏ hơn phần nhỏ nhất (%1).</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Hãy nhập địa chỉ chủ sở hữu hợp lệ (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>Hãy nhập địa chỉ hoàn tiền hợp lệ (P2PKH hoặc P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>Hãy nhập địa chỉ nhận thưởng hợp lệ (P2PKH hoặc P2SH), hoặc để trống.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Địa chỉ nhận thưởng phải khác địa chỉ bỏ phiếu và mọi địa chỉ chủ sở hữu.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>Mọi người tham gia phải gửi lại thông tin của họ trước khi có thể khóa các điều khoản.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Ví này chỉ để theo dõi và không thể ký.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>Hãy lưu khóa bí mật của nhà vận hành trước. Nó chỉ được hiển thị một lần, ở trang "Lưu khóa vận hành", và tệp phiên không chứa nó.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>Dành riêng coin và sao chép thông tin</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>Khóa và phê duyệt</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>Khóa điều khoản</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Phê duyệt và sao chép phản hồi</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>Phê duyệt</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Thử lại</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>Ký và sao chép phản hồi</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>Phát sóng đăng ký</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Đóng</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Hoàn thành</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>Bắt đầu lại</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Hãy xác nhận bạn đã lưu khóa bí mật của nhà vận hành bằng cách nhập 4 ký tự cuối của nó.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>Bạn đã phê duyệt các điều khoản này rồi.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>Mọi người tham gia phải ký coin của chính mình trước khi có thể phát sóng đăng ký.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>Masternode chung — Phiên %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 trên %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 trên %2 — thiếu %3</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 trên %2 — thừa %3</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>Phải nhỏ hơn phần nhỏ nhất (%1). Chỉ đặt bằng 0 nếu bạn chấp nhận việc bất kỳ ai cũng có thể rút bất cứ lúc nào mà không mất phí.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Bất kỳ ai cũng có thể rút bất cứ lúc nào mà không mất phí.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>Nếu %1 rút trước khối thứ %2 trong vòng đời của masternode, %1 sẽ mất %3, khoản này được chia cho những người còn lại.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>Rút một mình trong giai đoạn đầu tốn %1, khoản này được chia cho những người còn lại.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>Với khoản phạt bằng 0, giai đoạn đầu không có tác dụng: bất kỳ ai cũng có thể tự giải thể masternode bất cứ lúc nào mà không mất gì.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>Phần %1 trên %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>Phần %1 trên %2 — %3 (bạn)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>Hãy chọn bạn là người tham gia nào.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>Đã dành riêng — các coin này không thể chi tiêu cho đến khi phiên kết thúc hoặc bạn bỏ dành riêng.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>Dùng %1 (%2); tiền thừa %3 được trả về một địa chỉ mới của bạn.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>Dùng %1 (%2), không còn tiền thừa.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>Mọi người xem xét đúng các điều khoản này và phê duyệt một lần. Hãy gửi cùng một thông điệp cho tất cả.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>Hãy đọc từng dòng. Phê duyệt nghĩa là ký đúng các điều khoản này bằng khóa chủ sở hữu của bạn. Chưa có gì được phát sóng.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>Mọi phê duyệt đã được nhúng vào. Giờ mỗi người tham gia ký coin của chính mình. Phản hồi có thể gửi về theo thứ tự bất kỳ.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>Ký các coin bạn đã dành riêng. Chữ ký của bạn chỉ chi tiêu chúng vào lần đăng ký này.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>%1 trên %2 đầu vào cấp vốn đã được ký.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>Ký phần %1 của bạn. Bạn không phát sóng gì cả.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>Bạn đã gửi: %1 · Mã %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>các điều khoản đã khóa</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>yêu cầu ký</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>bản ghi cuối cùng</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>Tiếp theo bạn sẽ nhận được %1. Hãy dán vào đây khi nhận được.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 phát sóng đăng ký. Khi masternode xuất hiện trong danh sách của bạn, hãy tạo giải thể dự phòng của bạn.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>Trong ví này (%1). Hãy sao lưu ví — nó phê duyệt các thay đổi và giải thể.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>Do %1 giữ. Cần có trên máy chủ dưới dạng masternodeblsprivkey.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>người vận hành nút</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>Hãy cấu hình máy chủ masternode với khóa bí mật của nhà vận hành và khởi động lại dashd ở đó.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>Hãy gửi bản cập nhật dịch vụ khi các địa chỉ của nút đã sẵn sàng; cho đến lúc đó nút sẽ không hoạt động.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Hãy đảm bảo mọi địa chỉ dịch vụ và cổng đã đăng ký đều truy cập được từ internet.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>Mỗi người tham gia nên tạo giải thể dự phòng của riêng mình sau lần xác nhận đầu tiên.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 trên %2 đầu vào</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1 trên %2 đã phản hồi</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1 trên %2 đã ký</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 trên %2 đã phê duyệt</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Đang chuẩn bị…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>Chuẩn bị đăng ký thất bại: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>giao dịch cấp vốn không hợp lệ.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>địa chỉ hoàn tiền không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>địa chỉ nhận thưởng không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>địa chỉ chủ sở hữu phần không hợp lệ: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>khóa của nhà vận hành không phải là khóa công khai BLS hợp lệ.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>địa chỉ bỏ phiếu phải là địa chỉ P2PKH.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>phần thưởng của nhà vận hành phải nằm trong khoảng từ 0% đến 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>Phản hồi bất ngờ từ nút.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>Các điều khoản chưa được khóa.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>Phê duyệt thất bại: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>Đang phê duyệt…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>Phê duyệt</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>Gộp các phê duyệt thất bại: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>Đang gộp các phê duyệt…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>Giao dịch này còn chi tiêu %1, một coin của ví này không thuộc phần đóng góp của bạn. Đừng ký; hãy yêu cầu %2 tạo một phiên mới.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>Giao dịch này chi tiêu %1 coin của ví này cho phần %2 nhưng chỉ trả về ví này %3 tiền thừa. Đừng ký; hãy yêu cầu %4 tạo một phiên mới.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>Ký thất bại: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>Giao dịch đã ký không phải là giao dịch bạn đã xem xét. Đừng dùng nó; hãy yêu cầu %1 tạo một phiên mới.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>Đóng góp đã ký</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>Mở khóa các điều khoản?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>Mở khóa sẽ hủy %1. Mọi người phải phê duyệt lại sau khi bạn khóa.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>Tài sản thế chấp: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>Người tham gia: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>Xác nhận đăng ký masternode chung</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>Phát sóng đăng ký masternode chung này?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>Phiên %1 · Mã %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>Phát sóng thất bại: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>mọi người</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>Đã sao chép · Phiên %1 · Mã %2 — hãy gửi cho %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>Hãy lưu khóa bí mật của nhà vận hành trước. Nó chỉ được hiển thị ở đây, và tệp phiên không chứa nó: nếu thiếu nó thì không bao giờ chạy được masternode.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>Lưu thông điệp masternode chung</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>Tệp phiên (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>Không thể mở %1 để ghi.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>Đã lưu · Phiên %1 · Mã %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>Mở thông điệp masternode chung</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Thông điệp đó quá lớn để là một thông điệp masternode chung.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>Không thể mở %1 để đọc.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>Thông điệp này nói về một masternode đã có. Hãy mở nó từ danh sách Masternodes.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>Chữ ký không được tính</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Đã nhận %1 · Mã %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>Phản hồi này cũ hơn các điều khoản hiện tại của bạn (Mã %1; của bạn là %2). Hãy yêu cầu người gửi dán thông điệp mới nhất của bạn và phản hồi lại.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>Đã nhận %2 của %1 · Mã %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>Ví này cần có ít nhất %1 có thể chi tiêu để cấp vốn cho phần %2 của bạn.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>Bỏ dành riêng coin của bạn?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>Các coin bạn đã dành riêng cho Phiên %1 sẽ có thể chi tiêu trở lại.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>Coin của những người khác vẫn được dành riêng. Nếu bạn chi tiêu các coin này, đăng ký này sẽ không bao giờ phát sóng được và những người khác phải bắt đầu lại.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>Đã bỏ dành riêng — các coin này có thể chi tiêu trở lại.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>Một coin đã dành riêng cho phiên này đã bị chi tiêu. Không thể hoàn tất đăng ký nữa — hãy bắt đầu lại.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>Nút này chưa thể kiểm tra giá trị của %1. Các đầu vào có thể kiểm tra tổng cộng %2 trên %3 tài sản thế chấp.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>Các coin đã dành riêng có tổng %1, không đủ cho %2 tài sản thế chấp cộng %3 tiền thừa và phí mạng. Đăng ký này sẽ không bao giờ phát sóng được.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>Đầu vào %1 − tiền thừa %2 = %3 tài sản thế chấp + %4 phí mạng. Khoản phí này lớn bất thường; chỉ tiếp tục nếu đó là chủ ý của bạn.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>Đầu vào %1 − tiền thừa %2 = %3 tài sản thế chấp + %4 phí mạng ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>Lưu khóa vận hành trước?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>Khóa bí mật của nhà vận hành không tồn tại ở đâu ngoài cửa sổ này — tệp phiên chỉ chứa nửa công khai của nó. Đóng bây giờ thì không bao giờ chạy được masternode.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>Giữ phiên này để dùng sau?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>Lưu sẽ giữ các coin của bạn ở trạng thái dành riêng để bạn tiếp tục từ chỗ đã dừng. Hủy bỏ sẽ bỏ dành riêng chúng; nếu những người khác vẫn đang chờ bạn, họ phải bắt đầu lại.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>Lưu khóa vận hành</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>Lưu và đóng</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>Hủy bỏ và bỏ dành riêng coin</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Phần %1 trên %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>Ví này không nắm giữ khóa chủ sở hữu phần nào của masternode này.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>Phần</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>Địa chỉ hoàn tiền</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>Nhận</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Không có ví nào khả dụng.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Ví này chỉ để theo dõi và không thể ký.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>Một thao tác khác vẫn đang chạy.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>Đã hủy mở khóa ví.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Giao dịch không phải là hex giao dịch hợp lệ.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>Một coin mà yêu cầu này cần (%1:%2) đã bị chi tiêu. Không thể gửi nữa — hãy bắt đầu lại.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>Lỗi nội bộ: mã tóm tắt tính ở đây không khớp với của nút. Đừng phê duyệt; vui lòng báo lỗi này.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>Đã phê duyệt %1 bằng ví này.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>Masternode chung cần bản nâng cấp v24, hiện chưa được kích hoạt trên mạng này.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Tên</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Số tiền</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(bạn)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Yêu cầu này không trả đủ toàn bộ tiền gốc cho mỗi phần. Đừng phê duyệt; hãy yêu cầu người chuẩn bị nó tạo một yêu cầu mới.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>Yêu cầu này nêu tên một phần mà masternode này không có.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>Yêu cầu này không chi tiêu đúng tài sản thế chấp của masternode. Đừng phê duyệt.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Yêu cầu này giữ lại %1 tiền gốc của các phần làm phí giao dịch. Đừng phê duyệt; hãy yêu cầu người chuẩn bị nó tạo một yêu cầu mới.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>Clipboard không chứa thông điệp masternode chung.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>Thông điệp này không phải là thông điệp masternode chung.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>Giao dịch này không phải là giao dịch giải thể masternode chung.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>chưa đặt tên</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(bạn)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>Chủ sở hữu:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>chưa đặt</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>Hoàn tiền:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>Thưởng:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>giống địa chỉ hoàn tiền</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Người tham gia</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Dịch vụ:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>Chưa đặt — đặt sau bằng bản cập nhật dịch vụ</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Khóa vận hành:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>chưa đặt</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Nút do ai vận hành:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>chưa ghi nhận</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Địa chỉ bỏ phiếu:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Thưởng cho nhà vận hành:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Giai đoạn đầu:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 khối (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Khoản phạt rút sớm:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Bất kỳ ai cũng có thể rút bất cứ lúc nào mà không mất phí.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>Rút một mình trong giai đoạn đầu tốn %1, khoản này được chia cho những người còn lại; cùng rút thì miễn phí.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Điều khoản rút lui</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>Các khoản đóng góp:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>Tiền thừa được trả lại:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>Tài sản thế chấp:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1, sau khi các điều khoản được khóa</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>đầu ra #%1 trả vào script tài sản thế chấp chung %2</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Cấp vốn</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>Phiên:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>Mã:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>Do ví chuẩn bị:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>Định danh</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Giao dịch không phải là hex giao dịch hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>Giao dịch không phải là giao dịch giải thể.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>Không thể giải tuần tự hóa dữ liệu đính kèm của giao dịch.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>Giao dịch này giải thể một masternode khác.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>Giao dịch đã mang chữ ký; dự kiến là giao dịch đã chuẩn bị chưa ký.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>Giao dịch không phải là cập nhật thông tin đăng ký chung.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>Giao dịch này cập nhật một masternode khác.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Đã phê duyệt</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>Sao chép yêu cầu</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>Lưu yêu cầu…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Dán</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Mở tệp…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>Thông điệp này nói về một giao dịch khác với giao dịch đang có ở đây. Một trong hai bản sao đã cũ; hãy giữ bản hiện tại và yêu cầu phản hồi mới.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>Hãy dán chính yêu cầu trước khi dán các phê duyệt.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>Thông điệp này không chứa phê duyệt nào.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>Một phê duyệt thiếu số phần hoặc chữ ký.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>Một phê duyệt có số phần không đọc được.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>Số phần %1 nằm ngoài phạm vi.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: chữ ký không phải là chữ ký compact 65 byte mã hóa base64.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>Phê duyệt của %1 không khớp với giao dịch đã chuẩn bị. Hãy yêu cầu %2 dán yêu cầu hiện tại và phê duyệt lại.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 đã có một phê duyệt từ phản hồi khác.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>Đây không phải là thông điệp masternode chung.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>Thông điệp này dành cho mạng %1; ví này đang chạy trên %2.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>Thông điệp này nói về một loại thay đổi khác đối với masternode này.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>Thông điệp này nói về một masternode khác.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>Đã sao chép · Mã %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>Lưu yêu cầu</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>Thông điệp masternode chung (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Không thể ghi vào %1.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>Đã lưu · Mã %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Đã lưu vào %1.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Thông điệp đó quá lớn để là một thông điệp masternode chung.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Đã nhận %1 · Mã %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>Đã nhận · Mã %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>Mở yêu cầu</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>Thông điệp masternode chung (*.json);;Tất cả các tệp (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>Không thể đọc %1.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>Được %1 phê duyệt</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Đang chờ %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 trên %2 đã phê duyệt</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(nhấn q để tắt và tiếp tục sau)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>nhấn q để tắt</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     <message>
         <source>Date</source>
         <translation>Ngày</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Loại</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Đăng ký Masternode</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Cập nhật Masternode</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Khóa tài sản</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     <message>
         <source>Transaction total size</source>
         <translation>Tổng kích thước giao dịch</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>Dữ liệu đính kèm</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
         <translation>Chuyển nền tảng</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>Giao dịch dữ liệu</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>Nhận bụi</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Đăng ký Masternode</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Cập nhật Masternode</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Khóa tài sản</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     <message>
         <source>(n/a)</source>
         <translation>(không áp dụng)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>Đăng ký một masternode. Số tiền là thay đổi số dư ròng của ví này và thường chỉ là phí mạng khi tài sản thế chấp vẫn nằm trong ví này.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>Cập nhật một đăng ký masternode hiện có. Số tiền là thay đổi số dư ròng của ví này, thường chỉ là phí mạng.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Khóa tiền để dùng trên Dash Platform. Số tiền là thay đổi số dư ròng của ví này, bao gồm phí mạng.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
         <translation>Được đào</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>Chuyển nền tảng</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Khóa tài sản</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>Giao dịch dữ liệu</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ Nhập %5 để xem tổng quan về các lệnh có sẵn.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>Khóa công khai BLS của nhà vận hành (96 ký tự thập lục phân)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>Khóa công khai của nhà vận hành:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>Thay đổi khóa vận hành sẽ lập tức khiến masternode bị cấm PoSe. Nhà vận hành mới phải gửi giao dịch Cập nhật dịch vụ để khôi phục nó.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Địa chỉ bỏ phiếu:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>Địa chỉ thanh toán:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>Nhiều phần chi trả được giữ nguyên; hãy dùng RPC để thay đổi chúng</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>Hộp thoại này không thể gộp an toàn một masternode có nhiều khoản chi trả thành một địa chỉ.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>Chế độ tự động dùng địa chỉ thanh toán chính hiện tại của masternode. Chỉ chọn một địa chỉ khi muốn thay thế lựa chọn đó.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>Cập nhật thông tin đăng ký Masternode</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>Cập nhật khóa vận hành, địa chỉ bỏ phiếu hoặc địa chỉ thanh toán. Mọi giá trị hiện tại đều được điền sẵn; chỉ các trường đã thay đổi mới được gửi. Khóa chủ sở hữu phải có trong ví này.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Gửi bản cập nhật</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>Hãy nhập khóa công khai của nhà vận hành hợp lệ cho phiên bản giao dịch provider hiện tại.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>Địa chỉ bỏ phiếu phải là địa chỉ khóa.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT, phân tách bằng dấu phẩy nếu có nhiều mục</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>Nhiều địa chỉ cần giao dịch provider mở rộng.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Địa chỉ dịch vụ:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>Địa chỉ dịch vụ:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Khóa vận hành:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>ID nút Platform (40 ký tự thập lục phân)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>ID nút Platform:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>Địa chỉ Platform P2P:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT hoặc tên miền:port, phân tách bằng dấu phẩy</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>Địa chỉ Platform HTTPS:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Cổng Platform P2P:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Cổng Platform HTTPS:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>Địa chỉ chi trả của nhà vận hành:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Chế độ tự động dùng địa chỉ chi trả của nhà vận hành hiện tại, sau đó đến địa chỉ thanh toán của masternode. Chỉ chọn một địa chỉ khi muốn thay thế lựa chọn đó.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>Cập nhật dịch vụ EvoNode</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>Cập nhật dịch vụ Masternode</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>Cập nhật các điểm cuối dịch vụ đã đăng ký. Cập nhật thành công cũng sẽ khôi phục masternode bị cấm PoSe. Mọi giá trị hiện tại đều được điền sẵn nên các trường không thay đổi được giữ nguyên.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Gửi bản cập nhật</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>Hãy nhập ID nút Platform hợp lệ (40 ký tự thập lục phân).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>Phần của bạn:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>Địa chỉ nhận phần thưởng của phần này</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Dùng địa chỉ mới</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>Dùng địa chỉ hoàn tiền</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>Địa chỉ nhận thưởng mới:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>Phí được trả từ địa chỉ này trong ví của bạn.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>Đổi địa chỉ nhận thưởng</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>Thay đổi nơi phần thưởng của phần bạn trong masternode này được trả về. Chỉ phần của bạn bị ảnh hưởng; số tiền của phần và địa chỉ hoàn tiền không bao giờ thay đổi.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Gửi bản cập nhật</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>Hãy nhập địa chỉ sẽ nhận phần thưởng.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>Hãy nhập địa chỉ Dash hợp lệ.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Địa chỉ nhận thưởng phải khác địa chỉ bỏ phiếu và mọi địa chỉ chủ sở hữu.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>Masternode này không phải masternode chung và không có bảng phần.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>Hãy chọn một địa chỉ của ví này để trả phí.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Send Coins</source>
         <translation>Gửi tiền</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>Lỗi thiết bị ký</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Cảnh báo: Chúng ta có vẻ không được sự đồng ý một cách đầy đủ từ các đối tác ngang hàng! Bạn cần nâng cấp hoặc các nút khác cần nâng cấp.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+Không thể dọn dẹp lần di chuyển thất bại</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+Không thể khôi phục bản sao lưu của ví.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>Đã có đầu vào đó.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>SQLiteDatabase: Phiên bản lược đồ ví sqlite không xác định %d. Chỉ phiên bản %d được hỗ trợ</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>Mức ghi nhật ký theo danh mục không được hỗ trợ -loglevel=%s. Mong đợi -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Danh mục hợp lệ: %s. Mức ghi nhật ký hợp lệ: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>Không thể trộn: không thấy đầu vào tương thích!</translation>
     </message>
@@ -5905,10 +10099,6 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Insufficient funds.</source>
         <translation>Không đủ tiền.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>Số lượng người ký tối thiểu cho spork được chỉ bởi -minsporkkeys không hợp lệ</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Trả lời không xác định.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>Mức ghi nhật ký toàn cục không được hỗ trợ -loglevel=%s. Giá trị hợp lệ: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>Bình luận User Agent (%s) có chứa những ký tự không an toàn.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>File %s có chứa tất cả các khoá riêng từ ví này. Không nên chia sẻ nó với bất cứ ai.</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s không xác thực được trạng thái snapshot -assumeutxo. Điều này cho thấy có sự cố phần cứng, hoặc lỗi phần mềm, hoặc một sửa đổi phần mềm xấu đã cho phép nạp một snapshot không hợp lệ. Do đó, nút sẽ tắt và ngừng dùng mọi trạng thái được xây dựng trên snapshot, đặt lại chiều cao chuỗi từ %d về %d. Ở lần khởi động lại tiếp theo, nút sẽ tiếp tục đồng bộ từ %d mà không dùng dữ liệu snapshot. Vui lòng báo sự cố này cho %s, kèm theo cách bạn có được snapshot. Chainstate của snapshot không hợp lệ sẽ được để lại trên đĩa phòng khi nó hữu ích cho việc chẩn đoán nguyên nhân gây ra lỗi này.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Tổng độ dài của chuỗi phiên bản mạng (%i) vượt qua độ dài tối đa (%i). Hãy giảm số hoặc kích thước của uacomments.</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>CẢNH BÁO: Bổ sung keypool không thành công, hãy mở khoá ví của bạn để làm điều đó.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>Ví đã được khoá, không thể bổ sung keypool! Tự động backups và trộn đã bị tắt, hãy mở khoá ví của bạn để bổ sung keypool.</translation>
     </message>
@@ -6085,10 +10271,6 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool phải ít nhất %d MB</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>Tự động backup đã bị tắt</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Không thể phân tích file asmap %s</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>LỖI: Thất bại trong việc backup tự động</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>Lỗi tải %s: Khóa riêng chỉ có thể bị vô hiệu hóa trong quá trình tạo</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>Lỗi khi đọc tệp cấu hình: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>Lỗi: Không thể trích xuất đích từ scriptpubkey đã tạo</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>Lỗi: Không thể thêm giao dịch chỉ theo dõi (watchonly) vào ví watchonly</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>Lỗi: Không thể xóa các giao dịch chỉ theo dõi (watchonly)</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>Lỗi: Checksum file dump không khớp. Tính toán được %s, mong đợi %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>Lỗi: Không thể tạo ví chỉ theo dõi mới</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Lỗi: Không có địa chỉ khả dụng.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>Lỗi: Không phải mọi giao dịch watchonly đều xóa được</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>Lỗi: Ví này đã dùng SQLite</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>Lỗi: Ví này đã là ví descriptor</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>Lỗi: Không thể bắt đầu đọc toàn bộ bản ghi trong cơ sở dữ liệu</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>Lỗi: Không thể tạo bản sao lưu cho ví của bạn</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>Lỗi: Không thể đọc toàn bộ bản ghi trong cơ sở dữ liệu</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>Lỗi: Không thể xóa dữ liệu sổ địa chỉ watchonly</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>Không tạo được backup %s!</translation>
     </message>
@@ -6161,6 +10383,22 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Không xoá được backup, lỗi: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>Không thể hoàn tất việc dọn dẹp snapshot không hợp lệ bị gián đoạn.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>Không thể hoàn tất việc thăng cấp dấu snapshot bị gián đoạn.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>Không thể kiểm tra việc dọn dẹp snapshot bị gián đoạn: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>Không thể phục hồi việc dọn dẹp snapshot bị gián đoạn: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Không tìm thấy đầu vào hoặc đã chi tiêu</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>Dbcache không đủ để xác minh khối</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>Việc dọn dẹp snapshot bị gián đoạn có đỉnh coins và EvoDB không nhất quán.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>Việc dọn dẹp snapshot bị gián đoạn thiếu dấu EvoDB của snapshot.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>Quyền P2P không hợp lệ: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>masternodeblsprivkey không hợp lệ. Hãy xem trong tài liệu.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>Đầu vào chọn trước không hợp lệ %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>Giá trị không hợp lệ cho %s: vượt quá mức tối đa (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>Giá trị không hợp lệ cho %s: phải &gt;= 0</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Mixing in progress…</source>
         <translation>Đang trong quá trình trộn…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>Có nhiều hơn một địa chỉ spork được cung cấp. Đang dùng %s.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Chưa có đủ thông tin mô tả tệp.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>Không tìm thấy đầu vào chọn trước %s</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>Đầu vào chọn trước %s không thể giải được (not solvable)</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>Người nhận Platform không thể kết hợp với vị trí tiền thừa được chỉ định rõ</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>Vui lòng nhập mật khẩu ví bằng walletpassphrase trước.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>Xén-tỉa không thể được cấu hình với một giá trị âm.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>Chế độ cắt tỉa (prune) không tương thích với -addressindex.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>Chế độ xén bỏ không tương thích với -disablegovernance=false.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>Chế độ cắt tỉa (prune) không tương thích với -spentindex.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Phần [%s] không được nhận diện.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>Đặt tiêu đề cửa sổ được nối vào sau "Dash Core - "</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>Thiết bị ký không phản hồi lại địa chỉ</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>Thiết bị ký phản hồi địa chỉ không mong đợi %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>Thiết bị ký trả về lỗi: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>Thiếu dấu EvoDB của chainstate snapshot. Cần lập chỉ mục lại (reindex).</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>Thư mục được chỉ ra -walletdir "%s" không tồn tại</translation>
     </message>
@@ -6275,8 +10585,16 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Thư mục được xác định bởi -walletdir "%s" không phải là một thư mục</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>Thư mục dữ liệu được chỉ định "%s" không tồn tại.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>Wallet sẽ hủy thanh toán nhỏ hơn phí relay.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>Không có ScriptPubKeyManager cho địa chỉ này</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Transaction amounts phải không âm</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>Transaction có chuỗi mempool chain quá dài</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates không được hỗ trợ trên chuỗi %s.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Bạn không thể khởi động một masternode với ví được kích hoạt.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>không có phiên trộn nào sẵn sàng.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>xem debug.log để biết thêm chi tiết.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>The %s developers</translation>
     </message>
@@ -6379,16 +10689,16 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>%s sử dụng các mệnh giá chính xác để gửi tiền, bạn có thể chỉ cần trộn thêm một số coin.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>Tùy chọn -reindex-chainstate không tương thích với -blockfilterindex. Vui lòng tạm thời vô hiệu hóa blockfilterindex khi sử dụng -reindex-chainstate, hoặc thay -reindex-chainstate bằng -reindex để xây dựng lại tất cả các chỉ mục.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>Tùy chọn -reindex-chainstate không tương thích với -txindex. Vui lòng tạm thời vô hiệu hóa txindex khi sử dụng -reindex-chainstate, hoặc thay -reindex-chainstate bằng -reindex để xây dựng lại tất cả các chỉ mục.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>Tùy chọn -reindex-chainstate không tương thích với -coinstatsindex. Vui lòng tạm thời vô hiệu hóa coinstatsindex khi sử dụng -reindex-chainstate, hoặc thay -reindex-chainstate bằng -reindex để xây dựng lại tất cả các chỉ mục.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>Tùy chọn -reindex-chainstate không tương thích với -txindex. Vui lòng tạm thời vô hiệu hóa txindex khi sử dụng -reindex-chainstate, hoặc thay -reindex-chainstate bằng -reindex để xây dựng lại tất cả các chỉ mục.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>Tùy chọn -reindex-chainstate không tương thích với -blockfilterindex. Vui lòng tạm thời vô hiệu hóa blockfilterindex khi sử dụng -reindex-chainstate, hoặc thay -reindex-chainstate bằng -reindex để xây dựng lại tất cả các chỉ mục.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Error reading %s! All keys read correctly, but transaction data or address book entries might be missing or incorrect.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>Lỗi khi đọc %s! Dữ liệu giao dịch có thể bị thiếu hoặc không chính xác. Đang quét lại ví.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Lỗi: Không thể xác định dữ liệu sổ địa chỉ trong ví thuộc về các ví đã di chuyển</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>Lỗi: Bản ghi định dạng dumpfile không chính xác. Nhận được "%s", mong đợi "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>Lỗi: Bản ghi định danh dumpfile không chính xác. Nhận được "%s", mong đợi "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>Lỗi: Các descriptor trùng lặp được tạo ra trong quá trình di chuyển. Ví của bạn có thể đã bị hỏng.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>Lỗi: Không thể đẩy descriptor đang hoạt động vượt qua bộ đếm chuỗi cũ trong quá trình di chuyển.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Lỗi: Không thể xác định giao dịch %s trong ví thuộc về các ví đã di chuyển</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>Lỗi: Không thể tạo descriptor cho ví cũ này. Hãy nhớ cung cấp mật khẩu của ví nếu nó được mã hóa.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>Không thể xóa thư mục chainstate của snapshot. Hãy xóa thủ công trước khi khởi động lại.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Kết nối ra ngoài bị giới hạn đối với i2p (-onlynet=i2p) nhưng -i2psam không được cung cấp</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>Người nhận Platform không thể kết hợp với một dữ liệu đính kèm giao dịch đặc biệt khác</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</translation>
     </message>
@@ -6489,6 +10831,26 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>Chế độ cắt tỉa không tương thích với -reindex-chainstate. Hãy sử dụng -reindex đầy đủ thay thế.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>Đổi tên '%s' -&gt; '%s' thất bại. Bạn nên xử lý bằng cách tự di chuyển hoặc xóa thư mục snapshot không hợp lệ %s, nếu không bạn sẽ gặp lại cùng lỗi này ở lần khởi động tiếp theo.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Dịch vụ onion Tor tự động không thể dùng bind onion dạng ký tự đại diện vì trình nền Tor sẽ không thể chuyển tiếp các kết nối đến cho chúng tôi. Hãy dùng một địa chỉ cụ thể như -bind=127.0.0.1:&lt;port&gt;=onion, hoặc tắt dịch vụ bằng -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Dịch vụ onion Tor tự động cần một bind onion riêng. Hãy dùng một địa chỉ cụ thể như -bind=127.0.0.1:&lt;port&gt;=onion, hoặc tắt dịch vụ bằng -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>Kích thước các đầu vào vượt quá trọng lượng tối đa. Vui lòng thử gửi số tiền nhỏ hơn hoặc tự gộp các UTXO của ví.</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>Tổng số tiền của các coin đã chọn trước không đủ cho mục tiêu giao dịch. Vui lòng cho phép tự động chọn thêm đầu vào khác hoặc tự thêm nhiều coin hơn.</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>This is the transaction fee you may pay when fee estimates are not available.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>Không thể tắt chỉ mục giao dịch khi bật xác thực quản trị. Hãy khởi động với tùy chọn dòng lệnh -disablegovernance hoặc bật chỉ mục giao dịch.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>Giao dịch không chuẩn (%s) và sẽ không được chuyển tiếp; hiện tại việc gửi đến địa chỉ Platform cần một nút được khởi động với -acceptnonstdtxn=1</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>Giao dịch yêu cầu một đích có giá trị khác 0, tỷ lệ phí khác 0, hoặc một đầu vào đã được chọn trước</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>Snapshot UTXO không xác thực được. Hãy khởi động lại để tiếp tục tải khối ban đầu bình thường, hoặc thử nạp một snapshot khác.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>Không thể phát lại các khối. Bạn sẽ cần xây dựng lại cơ sở dữ liệu bằng cách sử dụng -reindex-chainstate.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>Phát hiện mục cũ (legacy) bất ngờ trong ví descriptor. Đang nạp ví %s
+
+Ví có thể đã bị can thiệp hoặc được tạo với ý đồ xấu.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>Định dạng tệp ví không xác định "%s" được cung cấp. Vui lòng cung cấp một trong "bdb" hoặc "sqlite".</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>Phát hiện descriptor không nhận dạng được. Đang nạp ví %s
+
+Ví có thể được tạo trên phiên bản mới hơn.
+Vui lòng thử chạy phiên bản phần mềm mới nhất.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>Mức ghi nhật ký theo danh mục không được hỗ trợ %1$s=%2$s. Dự kiến %1$s=&lt;category&gt;:&lt;loglevel&gt;. Các danh mục hợp lệ: %3$s. Các mức nhật ký hợp lệ: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>Cảnh báo: Phát hiện khóa riêng trong ví {%s} với khóa riêng bị vô hiệu hóa</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>Bạn cần xây dựng lại cơ sở dữ liệu bằng cách sử dụng -reindex để bật -timestampindex</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>Đã xảy ra lỗi nội bộ nghiêm trọng, xem debug.log để biết chi tiết</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>Việc xác minh khối đã bị gián đoạn</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Đang nạp…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>Chế độ -rescan không chính xác, quay lại giá trị mặc định</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>Initialization sanity check failed. %s is shutting down.</translation>
     </message>
@@ -6727,10 +11123,6 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Phiên làm việc chưa hoàn thành.</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>Hết thời gian cho phiên làm việc.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>Thất bại khi ký giao dịch</translation>
     </message>
@@ -6759,10 +11151,6 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Không thể nâng cấp cơ sở dữ liệu Evo</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>Phí cần thiết &gt; phí đã trả</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>Máy chủ %s trên mạng không được hỗ trợ</translation>
     </message>
@@ -6777,10 +11165,6 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>Cổng không hợp lệ được chỉ định trong %s: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>Hành động thành công cuối cùng quá gần đây.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Đang thử kết nối…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>Không thể cấp phát bộ nhớ cho -maxsigcachesize: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>Không thể để ràng buộc vào %s trên máy tính này (bind trả lại lỗi %s)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Không thể ký vào thông điệp phân nhánh, sai khoá?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>Không thể gỡ nạp ví trước khi di chuyển</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>Không biết mạng được chỉ ra trong -onlynet: '%s'</translation>
     </message>
@@ -6887,12 +11279,12 @@ Vào File &gt; Mở Ví để tải một ví.
         <translation>Scheme URL không được hỗ trợ, phải bắt đầu bằng udp://</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>Danh mục ghi nhật ký không được hỗ trợ %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>Mức ghi nhật ký toàn cục không được hỗ trợ %s=%s. Các giá trị hợp lệ: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>Còn lại số lượg rất ít các khoá: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>Danh mục ghi nhật ký không được hỗ trợ %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Vào File &gt; Mở Ví để tải một ví.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>Bạn không thể tắt chế độ xác thực quản trị trên một masternode.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>Bạn cần xây dựng lại cơ sở dữ liệu bằng cách sử dụng -reindex để bật -addressindex</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>Bạn cần xây dựng lại cơ sở dữ liệu bằng cách sử dụng -reindex để bật -spentindex</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

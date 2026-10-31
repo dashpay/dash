@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>Синхронизиране на данни за управление…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>~%n ден (%1 блока) до суперблока</numerusform><numerusform>~%n дни (%1 блока) до суперблока</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>~%n ден (%1 блока) до гласуването</numerusform><numerusform>~%n дни (%1 блока) до гласуването</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% от бюджета е ангажиран (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>Зареди частично подписана блокчейн транзакция от клипборда</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>Отвори &amp;лог файла за откриване на грешки</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>Отвори debug log файла от текущата директория с данни</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>Създай портфейл…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>Затвори всички портфейли…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Мигриране на портфейл</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>Мигриране на портфейл</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>Синхронизиран</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Предстои суперблок</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Периодът на гласуване приключи</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 блока) до суперблока</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 блока) до края на гласуването</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% от бюджета е ангажиран (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>(де)маркирай всичко</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>премини към заключено състояние</translation>
+        <source>(un)lock all</source>
+        <translation>(от)заключи всички</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>Копирай рестото</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>Моля преминете към "Режим Списък" за да използвате тази функция.</translation>
+        <source>Wallet error</source>
+        <translation>Грешка в портфейла</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>Неуспешно заключване на някои монети.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>Неуспешно отключване на някои монети.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>Разпускане на споделен masternode</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>Този masternode е регистриран в блок %1, а веригата все още е на блок %2. Изчакайте едно потвърждение и отворете този прозорец отново.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>Разпусни сега</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>Разпусни заедно</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>Резервно разпускане</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>Прекратява masternode самостоятелно. Всеки получава главницата си обратно на своя адрес за връщане.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>Вашият дял:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>Такса за транзакцията, платена от върнатата сума на Вашия дял.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>Такса:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>ID на транзакцията</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>Ранно излизане: плащате санкция от %1. Безплатно след блок %2 (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>Приемам да платя санкция от %1 за ранно излизане</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>Остава само %1 до безплатното разпускане. Помислете дали да не изчакате или използвайте „Разпусни заедно“ — с одобрението на всички то е безплатно още сега.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>Ранният период приключи — разпускането вече е безплатно.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (вие)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>Първо отметнете полето, за да приемете санкцията.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>Докато този прозорец беше отворен, веригата премина границата на периода със санкция. Прегледът по-горе е обновен — прегледайте го и натиснете „Разпусни сега“ отново.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>Да се разпусне ли този споделен masternode сега? Главницата на всеки участник се връща на неговия адрес за връщане, а masternode спира да печели. Това не може да бъде отменено.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>Разпускането беше изпратено.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Безплатно по всяко време, но всеки собственик на дял трябва да го одобри. Един човек подготвя заявката, а всички останали я поставят, одобряват и копират обратно отговор.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. Заявка</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>Делът, от който се удържа таксата за транзакцията.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>Таксата се плаща от:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Подготви заявка</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Одобрения</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Изпратете една и съща заявка на всеки собственик на дял. Отговорите могат да пристигат в произволен ред.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>Тази заявка изплаща</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Одобри и копирай отговора</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Изпращане</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>Изпрати разпускането</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>Такса: %1, платена от %2.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Първо подгответе или поставете заявка.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Първо всеки дял трябва да одобри (досега %1 от %2).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>Подписано разпускане, което пазите офлайн и никога не излъчвате, освен ако не се наложи. То никога не изтича и работи дори ако този портфейл бъде загубен.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Създай резервно разпускане…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Копирай</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>Цялата главница — валидно от блок %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>Цялата главница — валидно сега, ранният период приключи</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>Все още не е създадено</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>Незабавно — с плащане на санкция от %1</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Съхранявайте го заедно с резервното копие на адреса за връщане, отделно от този портфейл.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>Запазено на %1</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>Запази резервното разпускане</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>Текстов файл (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>И двете транзакции са готови по-долу, но нищо не е запазено. Копирайте ги или създайте файла отново.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Запазено в %1.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Споделен masternode на Dash — резервно разпускане</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>Създадено: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>Всеки блок по-долу е цяла подписана транзакция. Излъчете някой от тях със „sendrawtransaction“ само когато искате да прекратите masternode и да си получите главницата обратно. Те никога не изтичат. Съхранявайте този файл заедно с резервното копие на адреса за връщане, отделно от портфейла.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>ЦЯЛА ГЛАВНИЦА — валидно от блок %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>ЦЯЛА ГЛАВНИЦА — валидно сега, ранният период приключи</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>НЕЗАБАВНО — с плащане на санкция от %1 за ранно излизане, валидно веднага</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Не може да се запише в %1.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>Формуляр</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>Филтрирай списъка с предложения</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>Брой Masternodes:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>Брой masternodes с които този портфейл може да гласува (masternodes за които този портфейл държи гласуващия ключ)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>Няма активни предложения в мрежата.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>Продължи предложението</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>Брой предложения:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>Създай предложение</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>Изберете предложения за показване</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>Филтрирай по заглавие</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>Недостъпен</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>Изисква се синхронизиран възел и отключен портфейл.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>Гласувай ДА</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>Гласувай НЕ</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>Гласувай ВЪЗДЪРЖАЛ СЕ</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>Активни предложения</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>Моите предложения</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>Няма записани предложения във файла на портфейла.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>Продължи предложението</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>Копирай суров JSON</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>Отвори URL на предложението…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>Подробности за %1</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>Не може да се взаимодейства с управлението преди завършване на синхронизацията</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>Създава ново предложение</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>Продължава съществуващо предложение</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>Създаването на предложения струва %1, недостатъчен баланс</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>Грешка</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>URL адресът не може да бъде валидиран, възможно е да е с грешен формат или непознат протокол.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>Предупреждение за външна връзка</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>На път сте да отворите следния URL в браузъра си по подразбиране
-
-%1
-
-Това съдържание е изпратено от потребител. Може да не съответства на описаното в заглавието.
-
-Желаете ли да продължите?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>Гласуването се провали</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>Няма наличен портфейл.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>Не са намерени гласуващи ключове за masternode в портфейла.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>Моля изберете предложение за гласуване.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>Невъзможно отключване на портфейла.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>Невъзможно е да се вземе списъкът с masternodes. Моля опитайте отново по-късно.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>Masternode %1 не е намерен</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>Неуспешно подписване на глас за masternode %1</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>Masternode %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>Гласувано успешно %n път</numerusform><numerusform>Гласувано успешно %n пъти</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>Неуспешно гласуване %n път</numerusform><numerusform>Неуспешно гласуване %n пъти</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>Грешки:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>Резултати от гласуването</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Do you wish to continue?</source>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;%1 основни понятия&lt;/h3&gt; %1 ви дава истинска финансова независимост чрез скриване произхода на средствата ви. Всички Dash монети в портфейла ви са съставени от различни "входове" които можете да приемете като отделни дискретни монети&lt;br&gt; %1 използва иновативен процес като смесва вашите входове с входовете на други двама души без монетите да напускат изобщо портфейла ви. Имате пълен контрол върху парите си през цялото време. &lt;hr&gt; &lt;b&gt; %1 процесът работи по следния начин:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 започва чрез разделяне на транзакцията ви до стандартни деноминации. Тези деноминации са 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH и 10 DASH --подобно на стандартните пари, които ползваме ежедневно.&lt;/li&gt; &lt;li&gt;Вашия портфейл изпраща запитване към специално конфигурираните софтуерни възли в мрежата, наречени "masternodes." Тези masternodes са информирани, че се интересувате от смесване на определена деноминация. Никаква идентификационна информация не се изпраща към   masternodes, така, че те никога не знаят "кой" сте.&lt;/li&gt; &lt;li&gt;Когато други двама души изпратят подобни съобщения, обозначаващи, че искат да смесят същата деноминация, смесващата сесия започва. Masternode смесват входовете и инструктират портфейлите на тримата потребители да платят ново трансформираните входове обратно към притежателите им. Вашият портфейл плаща деноминацията директно на себе си, но с различен адрес (наричан сменен адрес).  &lt;/li&gt; &lt;li&gt;С цел напълно скриване на доходите ви, вашият портфейл трябва да повтори този процес няколко пъти във всяка деноминация.  Всеки път завършеният процес се нарича "цикъл." Всеки цикъл на %1 прави откриването на първоначалния източник на вашите средства напълно непроследим.&lt;/li&gt; &lt;li&gt;Този смесващ процес се случва като процес на заден фон без никаква намеса от ваша страна. Когато искате да направите транзакция, вашите средства са винаги анонимни. Не е необходимо допълнително изчакване. &lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;ВАЖНО:&lt;/b&gt; Вашият портфейл съдържа само 1000 от тези "сменяеми адреси". Всеки път когато се случва смесването до 9 от вашите адреси се ползват.  Това означава, че тези 1000 адреси се миксират в около 100 смесващи събития. Когато 900 се използват, вашия портфейл трябва да създаде повече адреси. Това може да стане само ако имате автоматично архивиране.&lt;br&gt; Следователно, потребителите, на които е изключено автоматичното архивиране, нямат и  %1 включено. &lt;hr&gt;За повече информация вижте &lt;a style="%2" href="%3"&gt;документацията за %1&lt;/a&gt;.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>Общи</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>Версия на клиента</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/A</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>Потребителски агент</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>Datadir</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>За да посочите нестандартна локация на директорията за данни, използвайте опцията '%1'.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>Директория за блокове</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>За да посочите нестандартна локация на директорията за блокове, използвайте опцията '%1'.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>Време за стартиране</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Мрежа</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Име</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>Брой връзки</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>Локални адреси</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>Мрежови адреси, които Вашият Dash възел използва в момента за комуникация с други възли.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>Регистър на блокове</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Текуща височина на блока</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Време на последния блок</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Хеш на последния блок</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>Memory Pool</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>Текущ брой транзакции</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>Използвана памет</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>Вход:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>Изход:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Мрежовата активност е изключена</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Няма</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Do you wish to continue?</source>
         <translation><numerusform>(%n GB необходими за пълна верига)</numerusform><numerusform>(%n GB необходими за пълна верига)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>Изберете директория за данни</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>Най малко %1 GB данни ще бъдат запаметени в тази директория, и ще нарастват през времето.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Няма наличен портфейл.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>Този портфейл е само за наблюдение и не може да подписва транзакции.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>Автоматично (препоръчително)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Източник на таксата:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>Портфейлът трябва да е отключен, за да се създаде и подпише тази транзакция.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>Въведете валиден BLS таен ключ на оператора (basic scheme).</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>Тайният ключ на оператора не съвпада с регистрирания публичен ключ на този masternode.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>Вече тече друга операция с masternode.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>Операцията завърши без да върне транзакция.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>Транзакцията е създадена, но не е изпратена към мрежата.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>Транзакцията е изпратена успешно.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>ID на транзакцията: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Do you wish to continue?</source>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>Споделен</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>Филтър на списък masternode </translation>
     </message>
@@ -1689,6 +1919,22 @@ Do you wish to continue?</source>
     <message>
         <source>Hide banned</source>
         <translation>Скрий забранените</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>Регистрирайте нов masternode или evonode с този портфейл</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>Регистрирай masternode…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>Създайте masternode с обезпечение, събрано от няколко страни, или продължете запазена сесия</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>Споделен masternode…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Do you wish to continue?</source>
         <translation>Филтриране по</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>Обнови услугата…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>Обнови регистратора…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>Смени адреса за награда…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>Ротирай ключовете…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>Разпусни…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Създай резервно разпускане…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>Анулирай…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>Адрес за обезпечаване</translation>
     </message>
@@ -1717,6 +1991,158 @@ Do you wish to continue?</source>
     <message>
         <source>Voting Address</source>
         <translation>Адрес за гласуване</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>Регистрирането на masternode изисква портфейл.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>Регистрирането на masternode все още не поддържа портфейли с външен подписващ.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>Регистрирането на masternode изисква портфейл с частни ключове.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>Регистрирането на masternode не е налично, докато възелът не е готов.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>Регистрирайте нов masternode или EvoNode с този портфейл</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>Управлението на споделени masternodes изисква портфейл.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>Управлението на споделени masternodes изисква портфейл с частни ключове.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>Управлението на споделени masternodes не е налично, докато възелът не е готов.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>Споделените masternodes изискват v24 hard fork, който още не е активен в тази мрежа.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>Създайте или продължете сесия за регистрация на споделен masternode с много участници</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>Тази транзакция не е четимо разпускане на споделен masternode.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Дял %1 от %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>неразпознат скрипт</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>Този masternode не е в текущия списък с masternodes.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>Услуга: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>Адрес на обезпечението: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>Таксата се плаща от: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>Одобрено от: всеки собственик на дял</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>Одобрено от: само Вашия подпис</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>Изплащания:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>Такса: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>Главницата на всеки дял се връща на собствения му адрес за връщане. Това не може да бъде отменено.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>Внимание: тази транзакция не връща пълната главница на всеки дял. Това не може да бъде отменено.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>Транзакция: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>Да се излъчи ли това резервно разпускане?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>Излъчването не успя</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>Резервното разпускане е изпратено</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>Masternode не е намерен</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>Това съобщение е за masternode, който още не е в списъка.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>Няма какво да се отвори</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>Изисква портфейл, способен да подписва транзакции</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>Изисква ключа на собственика на този masternode в портфейла</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>Изисква един от ключовете на собствениците на дялове на този masternode в този портфейл</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>Вече запазено на този компютър на %1</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>Все още не е създадено на този компютър</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>Филтрира по един от адресите на собствениците на дялове на този masternode</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Do you wish to continue?</source>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>Забранен за %n ден</numerusform><numerusform>Забранен за %n дни</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>Забранен за по-малко от ден</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>Забранен</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>Активен от %n ден</numerusform><numerusform>Активен от %n дни</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>Споделен masternode · притежавате %1 от %2 дяла</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>Активен по-малко от ден</translation>
+        <source>Banned for %1</source>
+        <translation>Забранен за %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>Активен за %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>Споделен (притежавате %1 от %2)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>Споделен (%1 дяла)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Do you wish to continue?</source>
     <message>
         <source>ProTx Hash</source>
         <translation>ProTx хеш</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>Един от избраните ключове вече се използва от регистриран masternode или дял. Всеки ключ на собственик и гласуващ ключ може да се използва само веднъж в цялата мрежа.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>Избраният адрес на услугата вече се използва от регистриран masternode.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>Адрес за връщане или за награда не може да служи и като адрес на собственик на дял или адрес за гласуване. Използвайте различни адреси за изплащанията и за ключовете.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>Подписът за съгласие на участник не съвпада с крайната транзакция. Това се случва, когато условията или транзакцията за финансиране са се променили след подписването; съберете нови подписи.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Мрежата все още не приема тази версия на транзакцията. Изчакайте активирането на мрежовото обновление, което я въвежда.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Тази функция все още не е активна в мрежата. Изчакайте активирането на мрежовото обновление, което я въвежда.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>За този masternode вече има чакащо разпускане.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>Транзакцията не можа да бъде финансирана.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>Транзакцията не можа да бъде финансирана: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+Отхвърлена от мрежата: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>Подробности: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>Мигриране на портфейл</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>Сигурни ли сте, че желаете да мигрирате портфейла &lt;i&gt;%1&lt;/i&gt;?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>Мигрирането ще преобразува този портфейл в един или повече дескрипторни портфейли. Ще трябва да се направи ново резервно копие на портфейла.
+Ако този портфейл съдържа скриптове само за наблюдение (watchonly), ще бъде създаден нов портфейл, който ги съдържа.
+Ако този портфейл съдържа решими, но ненаблюдавани скриптове, ще бъде създаден друг нов портфейл, който ги съдържа.
+
+Процесът на мигриране ще създаде резервно копие на портфейла преди мигрирането. Този резервен файл ще се казва &lt;име на портфейла&gt;-&lt;времеви печат&gt;.legacy.bak и може да бъде намерен в директорията на този портфейл. При неправилно мигриране резервното копие може да бъде възстановено чрез функцията „Възстанови портфейл“.</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Мигриране на портфейл</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>Мигриране на портфейл &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>Портфейлът „%1“ беше мигриран успешно.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Скриптовете само за наблюдение бяха мигрирани в нов портфейл с име „%1“.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Решимите, но ненаблюдавани скриптове бяха мигрирани в нов портфейл с име „%1“.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>Мигрирането не успя</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>Мигрирането е успешно</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>Дял %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>Вноската „%1“ има неправилно ID на входна транзакция.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>Вноската „%1“ има невалиден адрес за ресто.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>Подготвената транзакция на сесията не е валиден hex на транзакция.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>Подготвената транзакция на сесията не е регистрация на споделен masternode.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>Това съобщение е редактирано след копирането му.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>Чернова</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>Условията са заключени</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>Събиране на одобрения</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>Одобренията са обединени</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>Вноските са подписани</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>Излъчено</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>Файлът не е валиден JSON.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>Файлът не е файл на сесия за споделен masternode.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>Файлът на сесията използва неподдържана версия на формата. Обновете Dash Core, за да го отворите.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>Файлът на сесията е за мрежата „%1“, но този възел работи в „%2“. Не може да се използва тук.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>неизвестен</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>Файлът на сесията няма ID на сесия.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>Файлът на сесията има невалидна ревизия.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>Файлът на сесията няма етап.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>Файлът на сесията е на неизвестен етап „%1“. Вероятно е създаден от по-нова версия на Dash Core.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>Файлът на сесията съдържа %1 дяла; споделеният masternode може да има най-много %2.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>Записът за дял %1 във файла на сесията е неправилен.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>Файлът на сесията има невалиден ранен период.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>Файлът на сесията има невалидна санкция за ранно излизане.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>Файлът на сесията съдържа %1 вноски; може да има най-много една на дял и най-много %2 дяла.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>Записът за вноска %1 във файла на сесията е неправилен.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>Записът за вноска %1 във файла на сесията има %2 входа; в една вноска могат да се финансират най-много %3.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>Файлът на сесията има неправилен хеш на съгласието.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>Записът за подпис %1 във файла на сесията е неправилен.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>Файлът на сесията съдържа повече от един подпис за дял %1.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>Файлът на сесията е маркиран като „%1“, но му липсва замразената транзакция или хешът на съгласието.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>Файлът на сесията съдържа подпис за дял, който не съществува.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>Файлът на сесията твърди, че одобренията са обединени, но не всеки дял има одобрение.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>Файлът на сесията твърди, че одобренията са обединени, но има невалидно одобрение: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>Файлът на сесията твърди, че всяка вноска е подписана, но един или повече входове за финансиране са неподписани.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>Файлът на сесията не можа да бъде разчетен: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>Споделеният masternode изисква между %1 и %2 дяла (в момента %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>Адресът за гласуване трябва да е валиден P2PKH адрес.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>Дял %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>адресът на собственика трябва да е валиден P2PKH адрес.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>адресът на собственика вече се използва от дял %1. Всеки ключ на собственик трябва да е уникален.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>сумата трябва да е между %1 и %2.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>връщане</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>награда</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>адресът за %1 трябва да е валиден P2PKH или P2SH адрес.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>адресът за връщане вече се използва от дял %1. Всеки адрес за връщане трябва да е уникален.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>адресът за %1 не трябва да е адресът за гласуване.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>адресът за %1 не трябва да е адресът на собственика на дял %2.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>Сумите на дяловете трябва да са точно %1 общо (в момента %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>Ранният период може да е най-много %1 блока (около две години).</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>Ранната санкция не може да е отрицателна.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>Ранната санкция трябва да е по-малка от най-малката сума на дял (%1).</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>Финансирането може да се променя само докато сесията е редактируема. Първо отключете условията (това отхвърля всички събрани одобрения).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>Вноската изисква име на участник.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>Вноската няма входове за финансиране.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>„%1“ вече е направил вноска. Първо премахнете съществуващата вноска.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>Входът %1:%2 вече е внесен от „%3“.</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>Сумата на рестото трябва да е положителна.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>Не е намерена вноска от „%1“.</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>Само редактируема сесия може да бъде заключена.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>Хешът на съгласието е неправилен.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>Хешът на съгласието не съвпада с подготвената транзакция. Не подписвайте; започнете подготовката отначало.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>Индексът на изхода на обезпечението не съвпада с подготвената транзакция.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>Условията още не са заключени; няма какво да се одобрява.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>Дял %1 от %2 не съществува.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>Подписът не е валиден base64.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>Подписът от %1 не се потвърждава спрямо текущите условия. Най-вероятно е направен за по-стара версия на тази сесия — помолете %1 да подпише отново текущата версия.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Таблицата с дялове във файла на сесията не съвпада с нейната подготвена транзакция. Не подписвайте; поискайте нов екземпляр.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Дял %1 във файла на сесията не съвпада с неговата подготвена транзакция. Не подписвайте; поискайте нов екземпляр.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Адресът за награда на дял %1 във файла на сесията не съвпада с неговата подготвена транзакция. Не подписвайте; поискайте нов екземпляр.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Условията, показани във файла на сесията, не съвпадат с неговата подготвена транзакция. Не подписвайте; поискайте нов екземпляр.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Финансирането, показано във файла на сесията, не съвпада с неговата подготвена транзакция. Не подписвайте; поискайте нов екземпляр.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>Вече е записан друг подпис за този дял. Един от екземплярите е подписал остаряла версия на сесията — договорете се за последната ревизия и я подпишете отново.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>Входовете за финансиране могат да се подписват едва след обединяване на одобренията.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>Подготвената транзакция не съвпада с условията, одобрени от всички. Не я подписвайте и не я излъчвайте; поискайте нов екземпляр.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>Това съобщение е за друга сесия (сесия %1). Вие работите по сесия %2.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>Отговорите могат да се приемат само докато условията още са редактируеми.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>Отговорът не съвпада с Вашата текуща чернова: участниците, сумите или условията са променени. Помолете подателя да постави Вашата последна покана и да отговори отново.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>Делът на %1 вече има данни от друг отговор.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>Това съобщение не съдържа заключени условия.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>Заключените условия не съдържат данните, които сте изпратили.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>координатора</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>Условията са се променили, откакто изпратихте своите данни. Помолете %1 да изпрати текущата покана и отговорете отново.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>Внесеният екземпляр е ревизия %1 на тази сесия; този екземпляр е ревизия %2 и е заменен от него.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>Внесеният екземпляр е ревизия %1 на тази сесия; този екземпляр вече е на ревизия %2. Изпратете на подателя по-новия файл.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>Внесеният екземпляр има заключени условия и замества този редактируем екземпляр.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>Условията на тази сесия вече са заключени; внесеният екземпляр все още е редактируем. Изпратете на подателя по-новата версия.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>И двата екземпляра на сесия %1 са заключили различни условия и не могат да бъдат обединени. Договорете се за един екземпляр, изпратете го отново и нека всички одобрят него.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>И двата екземпляра на сесия %1 са променили едни и същи данни и не могат да бъдат обединени. Договорете се за един екземпляр и го изпратете отново.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>Екземплярите с подписано финансиране не са една и съща транзакция. Не могат да бъдат слети.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>Входът за финансиране %1 има два различни подписа. Екземплярите не могат да бъдат слети.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>Внесеният екземпляр твърди, че одобренията са обединени, но това състояние е невалидно: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>Внесеният екземпляр твърди, че всяка вноска е подписана, но това състояние е невалидно: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>Внесеният екземпляр твърди, че регистрацията е излъчена, но това състояние е невалидно: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>Сесията не събира одобрения.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>Още не всеки дял е подписал (%1 от %2). Обединявайте само напълно подписана сесия.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>Одобренията на собствениците трябва да бъдат обединени, преди вноските да се подписват.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>Един вход за финансиране все още е неподписан.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>%1 входа за финансиране все още са неподписани.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>Сесията не може да бъде излъчена, докато не са налични всички подписи за съгласие и за финансиране.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>няма</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>около 1 минута</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>около %1 минути</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>около 1 час</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>около %1 часа</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>около 1 ден</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>около %1 дни</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>Таксата трябва да е положителна.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>Санкцията и таксата надвишават дяла на разпускащия участник.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>Едностранното разпускане изисква поне още един дял, който да получи санкцията.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 монета</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 монети</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 одобрение</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 одобрения</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 участник</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 участници</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 вход за финансиране</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 входа за финансиране</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 дял</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 дяла</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 вход</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 входа</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>Кредитен пул</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>Последна промяна на блок</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/A</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>Общо заключено</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>Чакащи отключвания</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>Лимит за теглене</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>Потвърдени заключвания</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>Непотвърдени заключвания</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>Заключвания, чакащи транзакция</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>Незащитени транзакции</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>Masternodes</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>Брой masternodes</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>Брой EvoNodes</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ChainLocks</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Текуща височина на блока</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Време на последния блок</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Хеш на последния блок</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>Кворуми</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Общо: %1 (Включено: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Изчакване на синхронизация на блокчейна…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 активни (%2% здраве)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>Типът кворум се ротира, данните се пазят %1</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>Типът кворум не се ротира, данните се пазят %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>Текущият кворум има още %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>Текущият кворум е изтекъл</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>Последно формиран преди %1</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>Последно формиран наскоро</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Do you wish to continue?</source>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>Отваряне на портфейл &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>Генерирай нов ключ на оператора</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>Тайният ключ се показва и потвърждава преди регистрацията и после не се съхранява никъде другаде.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Публичен ключ</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>Използвай съществуващ публичен ключ на оператора</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>За хостван възел: операторът пази тайния ключ и Ви дава публичния.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>BLS публичен ключ на оператора (96 шестнадесетични знака, basic scheme)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>BLS таен ключ на оператора (64 шестнадесетични знака)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>Операции с PSBT</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>Диалог</translation>
     </message>
@@ -2968,10 +4148,6 @@ Due to discontinued support, you should request the merchant to provide you with
         <translation>Преглед на полезен товар</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>Създай предложение</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 е изпратено успешно за вашето предложение "%2".
 
 Сега ще бъдете пренасочени за наблюдение и излъчване на новото ви предложение. Можете да продължите по-късно, като щракнете върху "Продължи предложението".</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>Общи</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>Цикли на гласуване</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/A</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>Последен суперблок</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>Следващ суперблок</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>Краен блок за гласуване</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>Участие</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>Гласуващи masternodes</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>Гласуващи EvoNodes</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>Праг за приемане</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Възел</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>Контролирани masternodes</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>Контролирани гласове</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>Предложения</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>Брой предложения</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>Разпределен бюджет</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>Преминаващи предложения</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>Нефинансирани предложения</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>Непреминаващи предложения</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 гласа</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 допустими)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>Предложение %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>%1% от бюджета</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% разпределени</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (липсват %2)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>Формуляр</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>Изберете предложения за показване</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>Филтрирай списъка с предложения</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>Филтър по заглавие</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>Краен срок за гласуване: изчакване на синхронизация…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>Няма активни предложения в мрежата.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>Гласове…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>Прегледайте текущите си гласове и гласувайте с избраните masternodes</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>Създай предложение</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>Продължи предложението</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>Брой предложения:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>Активни предложения</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>Моите предложения</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>Текущи гласове за финансиране от допустими masternodes, контролирани от този портфейл. Броят е на претеглени гласове.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (тегло %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>Няма гласуващи ключове</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>Във файла на портфейла няма записани предложения.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Недостъпно</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>Изисква се синхронизиран възел и отключен портфейл.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>Продължи предложението</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>Копирай суров JSON</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>Отвори URL на предложението…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>Гласувай ДА</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>Гласувай НЕ</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Гласувай ВЪЗДЪРЖАЛ СЕ</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>Подробности за %1</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Изчакване на синхронизация на блокчейна…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>Изчакване на синхронизация на данните за управление…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n masternode е наличен за гласуване</numerusform><numerusform>%n masternodes са налични за гласуване</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Предстои суперблок</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Периодът на гласуване приключи</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 блока) до суперблока</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 блока) до края на гласуването</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% от бюджета е ангажиран (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>Изчислено от оставащите блокове и целевото време между блоковете. Гласове могат да се предават и след крайния срок, но може да не повлияят на плащането за този цикъл.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>Не може да се взаимодейства с управлението преди завършване на синхронизацията</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>Създава ново предложение</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>Продължава съществуващо предложение</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>Създаването на предложения струва %1, недостатъчен баланс</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Грешка</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>URL адресът не може да бъде валидиран, възможно е да е с грешен формат или непознат протокол.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>Предупреждение за външна връзка</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>На път сте да отворите следния URL адрес във Вашия браузър по подразбиране
+
+%1
+
+Това съдържание е изпратено от потребител. Възможно е да не отговаря на описаното в заглавието.
+
+Желаете ли да продължите?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>Гласуването се провали</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>Няма наличен портфейл.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>Не са намерени гласуващи ключове за masternode в портфейла.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>Невъзможно е да се вземат данните за masternode.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>Моля изберете предложение за гласуване.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>Гласуването изисква излъчено предложение и синхронизиран възел.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>Невъзможно отключване на портфейла.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>Невъзможно е да се вземат синхронизираните данни за masternode.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>Masternode %1 вече не е допустим</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>Masternode %1 не е намерен</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>Неуспешно подписване на глас за masternode %1</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>Masternode %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>Гласувано успешно %n път</numerusform><numerusform>Гласувано успешно %n пъти</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>Неуспешно гласуване %n път</numerusform><numerusform>Неуспешно гласуване %n пъти</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Грешки:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>Резултати от гласуването</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>needs %1 more votes</source>
         <translation>необходими са още %1 гласа</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>Моите гласове</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>Гласуване %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>Гласове за предложението</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>Изберете masternodes, с които да гласувате. Текущите гласове за финансиране са показани по-долу. Промяната на глас заменя предишния глас на този masternode; мрежата ограничава обновяванията до веднъж на час.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>Адрес за гласуване</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>Тегло</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>Текущ глас</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>Време на гласа</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>ProTx хеш</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Избери всички</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>Изчисти избора</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>Избрани masternodes: %1 · Тегло на гласа: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Покажи начален екран при стартиране (по подразбиране: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Грешка: Посочената директория за данни "%1" не съществува.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>Грешка: Не може да се анализира конфигурационен файл: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Unroutable</source>
         <translation>Немаршрутизируем</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 и %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>сега</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n месец</numerusform><numerusform>%n месеца</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 Б</translation>
     </message>
@@ -3400,6 +5022,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>UNKNOWN</source>
         <translation>НЕИЗВЕСТЕН</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Споделен</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>Награда на оператора</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>Дялове</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>Участник</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>Адреси</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>Дял %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>вие</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>същият като за връщане</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Собственик</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>Награда</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>Връщане</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>Ранен период</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>няма</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>приключва в блок %1</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>приключва в блок %1 (след около %2)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>приключил (блок %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>Санкция за ранно излизане</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>запазено на този компютър на %1</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>не е създадено на този компютър</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Резервно разпускане</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>Мрежови адреси</translation>
     </message>
@@ -3537,6 +5235,66 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>Collateral Date</source>
         <translation>Дата на обезпечението</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>преди %1</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>остава %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Да</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Не</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>Въздържал се</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>Негласувал</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>Крайният срок за гласуване в този цикъл изтече (блок %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>Краен срок за гласуване: остава ~%1 (%2 блока, блок %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1 Да, %2 Не, %3 Въздр. / %4 негласували</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>Невалиден Dash адрес: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Копирай</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>Копирай в клипборда</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Няма наличен портфейл.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>Не можа да се генерира нов адрес: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Дял %1 от %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>Данни</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>Главен</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Име</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>N/A</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>Брой връзки</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>&amp;Отвори</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>Време за стартиране</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>Мрежа</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>Време на последния блок</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>Лог-файл за откриване на грешки</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>Версия на клиента</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>Регистър на блокове</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>Memory Pool</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>Текущ брой транзакции</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>Използвана памет</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>&amp;Repair</source>
         <translation>&amp;Поправка</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;Общи</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;Мрежа</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>Уп&amp;равление</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>User Agent</source>
         <translation>Потребителски агент</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>Datadir</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>За да посочите нестандартна локация на директорията за данни използвайте опцията '%1'.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Директория за блокове</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>За да посочите нестандартна локация на директорията за блокове използвайте опцията '%1'.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>Локални адреси</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>Мрежови адреси, които вашият Dash възел в момента използва за комуникация с други възли.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>Брой обикновени Masternodes</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>Брой EvoNodes</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>Текуща височина на блока</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>Хеш на последният блок</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>Хеш на последния ChainLocked блок</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>Височина на последния ChainLocked блок</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Отваря %1 файла за откриване на грешки от текущата папка. Това може да отнеме няколко секунди при по-големи файлове.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>InstantSend заключени</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>&amp;Премахване на бан</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>Вход:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Изход:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>Мрежова активност изключена</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>Няма</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>Общо: %1 (Включено: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>Изпълнение на команди без портфейл</translation>
     </message>
@@ -4122,6 +5768,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: BIP324 шифрован транспортен протокол</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;Управление</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>Регистриране на masternode</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Назад</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Напред</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отказ</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>Тип masternode</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>Masternode — обезпечение %1</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Предоставя мрежови услуги на Core и печели редовни награди на masternode.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode — обезпечение %1</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>Допълнително хоства Dash Platform, има четири пъти по-голяма тежест на гласа и печели по-голям дял от наградите. Изисква ID на възел на платформата и допълнителни услуги.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>Регистриране на EvoNode</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>Обезпечение</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>Изпрати обезпечението от този портфейл към нов адрес</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>Една транзакция финансира обезпечението и регистрира masternode.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Използвай нов адрес</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>Използвай съществуващ изход за обезпечение от този портфейл</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>Непохарчен P2PKH изход точно със сумата на обезпечението, потвърден и неизползван от друг masternode.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>Посочи външно обезпечение (напр. хардуерен портфейл)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>Потвърден P2PKH изход точно със сумата на обезпечението, който се държи извън този портфейл.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>След прегледа ще бъдете помолени да подпишете съобщение с ключа на обезпечението извън този портфейл.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>ID на транзакцията на обезпечението (64 шестнадесетични знака)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>ID на транзакцията:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>Изходящ индекс</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>Изходящ индекс:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>Адреси на услугата</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>Публични адреси, на които Вашият masternode ще обслужва P2P мрежата на Core, разделени със запетаи или интервали. Всеки запис трябва да е уникален в мрежата.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>Може да се остави празно; тогава masternode остава неактивен, докато не изпратите обновяване на услугата с адрес.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Ключове</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Адрес на собственика</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>Управлява този masternode (P2PKH): неговият ключ подписва обновяванията на регистратора. Използвайте нов адрес, за да запазите този ключ в портфейла, или въведете адрес, управляван от собственика.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>Адрес за гласуване</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>Може да бъде делегиран (P2PKH). Оставете празно, за да гласувате с ключа на собственика; използвайте нов адрес, за да запазите отделен ключ за гласуване в този портфейл.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>Оставете празно, за да се използва адресът на собственика</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>Ключ на оператора</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>Операторът управлява сървъра на masternode (BLS); в блокчейна се регистрира само публичният ключ.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>Генерираният таен ключ се показва и трябва да бъде потвърден преди регистрацията. Той не се съхранява в този портфейл.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>Изплащане</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Адрес за изплащане</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>Получава наградите за блокове на този masternode (P2PKH или P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Награда на оператора</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>Дял от наградата, обещан на оператора.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>Операторът ще получава този дял от всички награди на този masternode постоянно. Оставете 0, освен ако нямате споразумение с Вашия оператор.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>Услуги на платформата</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>ID на възел на платформата</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>Извлечен от публичния P2P ключ на платформата (40 шестнадесетични знака).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>Адреси на платформата</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>Записи във формат АДРЕС:ПОРТ, разделени със запетаи или интервали.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>P2P на платформата</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>HTTPS API на платформата</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>Портове на платформата</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>Преди активирането на v24 могат да се регистрират само портовете на платформата; те се отнасят за първия адрес на услугата.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>P2P порт на платформата:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>HTTPS порт на платформата:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>Източник на таксата</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Преглед</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>Докажете собствеността върху обезпечението</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>Подпишете следното съобщение с ключа на обезпечението (например чрез функцията за подписване на съобщения на хардуерния Ви портфейл), след което поставете base64 подписа по-долу.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>Копирай съобщението</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>Подпис</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>Поставете base64 подписа тук</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Запази ключа на оператора</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Запазете този генериран ключ преди регистрацията. Той не се съхранява никъде другаде и не може да бъде възстановен от портфейла.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Таен ключ на оператора</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>Запазете го сега — регистрацията не може да започне, докато не го потвърдите.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>Добавете този ред в dash.conf на сървъра на Вашия masternode:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Копирай</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>Въведете последните 4 знака от тайния ключ, за да потвърдите, че сте го запазили, преди да регистрирате:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>Masternode е регистриран</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Хеш на provider транзакцията</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Следващи стъпки</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Завършено</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Стъпка %1 от %2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>Избраният адрес финансира обезпечението от %1 плюс таксата за транзакцията. Точната такса се изчислява според настройките на портфейла при регистрацията, а рестото се връща на този адрес.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>Избраният адрес плаща таксата за транзакцията.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>Въведете валиден адрес за обезпечение (P2PKH или P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>Този портфейл няма непохарчен изход точно от %1. Вместо това финансирайте обезпечението от портфейла.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>Въведете ID на транзакцията на обезпечението като 64 шестнадесетични знака.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>EvoNodes изискват поне един адрес на услугата за портовете на платформата преди активирането на v24.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Въведете валиден адрес на собственика (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>Въведете валиден адрес за гласуване (P2PKH) или го оставете празен, за да се използва адресът на собственика.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>Адресите на собственика и за гласуване трябва да са различни от адреса на обезпечението.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Въведете валиден BLS публичен ключ на оператора (96 шестнадесетични знака, basic scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>Въведете валиден адрес за изплащане (P2PKH или P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>Адресът за изплащане трябва да е различен от адресите на собственика и за гласуване.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>Адресът за изплащане трябва да е различен от адреса на обезпечението.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>Въведете ID на възела на платформата като 40 шестнадесетични знака.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>Въведете и P2P адрес на платформата, и HTTPS адрес на платформата; единият не може да се регистрира без другия.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>Въведете поне един P2P адрес на платформата и един HTTPS адрес на платформата или изчистете адресите на услугата, за да зададете всичко по-късно чрез обновяване на услугата.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>Въведете поне един адрес на услугата на Core, когато са зададени крайни точки на платформата, или изчистете всички крайни точки на услугата, за да ги зададете по-късно чрез обновяване на услугата.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>Няма разходуем адрес в портфейла със сумата на обезпечението от %1. Избраният адрес трябва да има и достатъчно средства за таксата, изчислена при регистрацията.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>Няма разходуем адрес в портфейла с положителен баланс, който да плати таксата за транзакцията.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>Поставете base64 кодирания подпис на съобщението по-горе, направен с ключа на обезпечението.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>„Назад“ не е налично след подготовката, защото промяната на регистрацията би направила невалидно подписваното съобщение.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Продължи</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>Подготви</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Регистрирай</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Изпрати</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Готово</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>Няма наличен портфейл. Регистрирането на masternode изисква портфейл.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>Този портфейл е само за наблюдение. Регистрирането на masternode изисква портфейл, който може да подписва транзакции.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Потвърдете, че сте запазили тайния ключ на оператора, като въведете последните му 4 знака.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>Този портфейл няма непохарчен изход точно от %1 с потвърждение. Вместо това изпратете обезпечението от този портфейл или посочете такова, което се държи другаде.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Тип</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Услуга</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>HTTPS на платформата</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Сума</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>Получател</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>Изход</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Източник</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Собственик</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>Гласуване</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>Оператор</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Адрес</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>Дял на оператора</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>Мрежова такса</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Възел</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>Не е зададено — възелът остава неактивен, докато не изпратите обновяване на услугата</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 за P2P, %2 за HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>Този портфейл го изпраща като част от регистрацията</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>Изход, който този портфейл вече държи</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>Държи се извън този портфейл — ще подпишете съобщение с неговия ключ</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>Същият като на собственика</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Финансиране</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>Не е избрано</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>Изчислява се при изпращането според текущите настройки за такси на портфейла</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>Подготовката създава неподписаната транзакция и съобщението за подписване с ключа на обезпечението. Все още нищо не се излъчва.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>Регистрирането излъчва транзакция от този портфейл. Може да бъдете помолени да го отключите.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>Новогенериран, показва се и се потвърждава преди регистрацията и не се съхранява никъде другаде</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>Предоставя се от този, който управлява възела</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>Получателят на обезпечението вече не е валиден.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>Избраният изход за обезпечение вече се използва от друг masternode.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>Адресът на собственика вече не е валиден.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>Адресът за гласуване вече не е валиден.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>Публичният ключ на оператора вече не е валиден.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>Адресът за изплащане вече не е валиден.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>Избраният източник на таксата вече не е валиден.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>masternode</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>Тази транзакция създава обезпечение от %1 от този портфейл и регистрира %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>Тази транзакция регистрира външното обезпечение от %1 и го прави обезпечение за този %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>Тази транзакция регистрира и заключва изхода на портфейла с обезпечение от %1 за този %2.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> Мрежовата такса се изчислява от избрания източник на таксата според текущите настройки за такси на портфейла.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>Потвърдете регистрацията на %1</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>Искате ли да излъчите тази регистрация на %1?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>Източник на таксата: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>Правилата на мрежата за provider транзакции са се променили, докато този помощник беше отворен. Прегледайте отново страницата за услугите на платформата, преди да регистрирате.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Подготвяне…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>Регистриране…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>Правилата на мрежата за provider транзакции са се променили, докато се събираше подписът за обезпечението. Отхвърлете тази подготвена регистрация и прегледайте отново страницата за услугите на платформата.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>Подписът за обезпечението не е валиден base64.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>Изпращане…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>Регистрацията не успя</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>Регистрацията завърши без да върне транзакция.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>Транзакцията за регистрация е създадена, но не е изпратена към мрежата.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>Подготовката завърши без да върне транзакция.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>Адрес на обезпечението, който държи ключа: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>Транзакцията за регистрация е изпратена към мрежата.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>Тя е записана в този портфейл и се показва в „Транзакции“. Външното обезпечение остава на изхода, който регистрирахте, и не се контролира от този портфейл.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>Тя е записана в този портфейл и се показва в „Транзакции“. Обезпечението остава в портфейла, но е заключено, докато masternode е регистриран.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>Настройте сървъра на Вашия masternode със запазения таен ключ на оператора, след което рестартирайте dashd там.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>Настройте сървъра на Вашия masternode с BLS тайния ключ, съответстващ на публичния ключ на оператора, който предоставихте.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Уверете се, че всеки регистриран адрес и порт на услугата е достъпен от интернет.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>Изпратете транзакция за обновяване на услугата, когато крайните точки на услугата на възела са готови; дотогава той остава неактивен.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>Подгответе услугите на Dash Platform (Tenderdash и Drive) с ключа на възела на платформата, съответстващ на регистрирания ID на възела.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>EvoNode става активен, щом регистрацията бъде потвърдена и първото обновяване бъде подписано от оператора.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>Masternode става активен, щом регистрацията бъде потвърдена в мрежата.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>Да се отхвърли ли подготвената регистрация?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>Подготвената регистрация ще бъде отхвърлена. Всяко заключване на обезпечение, направено от този помощник, ще бъде освободено.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ For more information on using this console, type %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>Съобщение при възстановяване на портфейл</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>Не е посочена</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>Прекратяване на услугата</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>Компрометирани ключове</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>Смяна на ключове</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>Причина:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Ключ на оператора:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>„Автоматично“ използва текущото изплащане към оператора, след това изплащането към masternode. Изберете адрес само за да замените този избор.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>Анулиране на услугата на masternode</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>Анулирането изчиства адреса на услугата и забранява masternode чрез PoSe, докато собственикът му не смени ключа на оператора. Обезпечението не се засяга.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>Анулирай</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>Ротиране на ключ на оператор или за гласуване</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Промяната на тези ключове изисква одобрение от всеки собственик на дял. Един човек започва заявката, а всички останали я поставят, одобряват и копират обратно отговор.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. Нови ключове</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>Оставете празно, за да запазите текущия ключ на оператора</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Копирай</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>Нов ключ на оператора:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>Masternode се забранява в момента, в който ключът на оператора се промени, докато новият оператор не изпрати обновяване на услугата.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>Оставете празно, за да запазите текущия адрес за гласуване</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>Нов адрес за гласуване:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Източник на таксата:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Подготви заявка</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>Приключете на този портфейл — той плаща таксата и трябва да изпрати крайната транзакция.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Одобрения</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Изпратете същата заявка на всеки собственик на дял. Отговорите могат да пристигат в произволен ред.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Одобри и копирай отговора</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Изпращане</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>Изпрати ротацията</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>ID на транзакцията</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>Ключ на оператора: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>непроменен</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>Адрес за гласуване: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Първо подгответе или поставете заявка.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>Само портфейлът, подготвил заявката, може да я изпрати.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Първо всеки дял трябва да одобри (досега %1 от %2).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>Въведете валиден публичен ключ на оператора.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>Адресът за гласуване трябва да е P2PKH адрес.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>Ротацията на ключовете беше изпратена.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>Ако грешката казва, че портфейлът, финансирал заявката, трябва да я обедини, приключете на портфейла, подготвил заявката.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ For more information on using this console, type %6.
         <translation>или</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>Неподписана транзакция</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBT беше копиран в клипборда. Можете да го запазите и като файл.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT е запазен на диска</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>Потвърди изпращането на монетите</translation>
     </message>
@@ -4688,6 +7188,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT е запазен</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ For more information on using this console, type %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>Такса по-висока от %1 се смята за абсурдно висока.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>Очаква се да започне потвърждение в %n блока.</numerusform><numerusform>Очаква се да започне потвърждение в %n блока.</numerusform></translation>
@@ -4900,6 +7405,1441 @@ For more information on using this console, type %6.
     <message>
         <source>Create Unsigned</source>
         <translation>Създай неподписана</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>Споделен masternode</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Назад</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Постави</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>Запази…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отказ</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Напред</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Подробности</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>Финансирано</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Одобрено</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>Подписано</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>все още тече друга операция.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>няма наличен портфейл.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>портфейлът остана заключен.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>възелът не посочи причина.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>регистрацията не е валидна транзакция.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>Споделен masternode</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>Няколко души финансират заедно един masternode. Един човек координира; всички останали поставят полученото и копират обратно отговор. Нищо не достига до мрежата до крайното излъчване.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Започни</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>Ще въведете кой участва и настройките на masternode, след което ще поканите останалите.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>Започнете споделен masternode</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Продължи</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>Поставете покана, заключени условия, заявка за подписване или получен отговор — приложението ще разбере какво да направи.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>Постави от клипборда</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Отвори файл…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Участници</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>Кой участва и колко внася всеки. Сумите трябва да са точно %1 общо; всеки дял е поне %2.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Име</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Сума</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>Аз</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>Добави участник</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>Участник %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Премахни</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>Настройки на masternode</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>Те важат за целия masternode и са еднакви за всеки участник.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Адреси на услугата:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>Публични адреси, на които masternode обслужва P2P мрежата на Core, разделени със запетаи или интервали. Може да се остави празно и да се зададе по-късно чрез обновяване на услугата.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Ключ на оператора:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>Който управлява сървъра, се нуждае от тайния ключ. В блокчейна се регистрира само публичният ключ.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>Копирай публичния ключ</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Възелът се управлява от:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>Записва се в условията, за да знае всеки кой може да стартира и съживява възела.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>Име на участника, който пази тайния ключ на оператора</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Адрес за гласуване:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>Гласува по предложения за управление от името на целия masternode (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Използвай нов адрес</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Награда на оператора:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>Дял от наградата, обещан на този, който управлява сървъра.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>Операторът ще получава постоянно този дял от всички награди, преди каквото и да било да се раздели между участниците.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Условия за излизане</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>Какво се случва, ако един участник иска да излезе преди останалите.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>Как работи напускането</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>Всеки може да разпусне masternode самостоятелно по всяко време и всички си получават главницата обратно. През ранния период този, който разпуска сам, плаща санкцията за ранно излизане от собствения си дял и тя се разпределя между останалите. Ако всички са съгласни, разпускането е безплатно по всяко време.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Ранен период:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>Блокове след регистрацията, през които самостоятелното напускане струва санкцията.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Няма</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 месеца</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 месеца</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 година</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 години</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Санкция за ранно излизане:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>Вашата вноска</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>Адреси и монети за Вашия дял. Само Вие виждате монетите; останалите виждат само получените входове на транзакцията.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>Вашият дял</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>Това съм аз:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>Адрес на собственика:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>Управлява Вашия дял: одобрява промени на ключове и разпускания. Пази се в този портфейл.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>Адрес за връщане:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>Получава Вашата главница при разпускане на masternode. Не може да се променя по-късно.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>Адрес за награда (по избор):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>Получава Вашата част от наградите. Оставете празно, за да се използва адресът за връщане; можете да го промените по-късно.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>Монети</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>Мрежова такса:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>Резервирай монети</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Освободи</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Запази ключа на оператора</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Запазете този генериран ключ, преди да каните когото и да било. Той не се съхранява никъде другаде и не може да бъде възстановен от портфейла.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Таен ключ на оператора</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>Запазете го сега — поканата не може да бъде изпратена, докато не го потвърдите.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Копирай</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>Добавете този ред в dash.conf на сървъра на masternode:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>Поканата, която ще изпратите, съдържа само публичния ключ.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>Въведете последните 4 знака от тайния ключ, за да потвърдите, че сте го запазили:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>Поканете участници</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>Изпратете една и съща покана на всички. Всеки резервира своите монети и Ви изпраща обратно своите данни.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>Копирай поканата</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>Покана</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>Запази поканата…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>Променихте черновата. Участниците, които вече са отговорили, трябва да отговорят отново.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>Да се заключат ли тези условия?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>Заключването фиксира всеки адрес, сума и монета. След това никой не може да редактира — може само да се отключи, което отхвърля всички одобрения.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>Одобрения</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>Копирай заключените условия</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>Заключени условия</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>Отключи условията…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>Подписи</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>Копирай заявката за подписване</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>Заявка за подписване</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>Какво изпратихте</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>Какво следва</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>Освободи моите монети</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>Споделеният masternode е регистриран</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>Какво се случи</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>Появява се в „Masternodes“ след едно потвърждение.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>Какво да пазите на сигурно</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>Вашият ключ на собственика на дял</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Резервно разпускане</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>Подписано разпускане, което пазите офлайн. То възстановява главницата Ви, дори този портфейл да бъде загубен. Създайте го след първото потвърждение.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Създайте го от списъка с masternodes (десен бутон върху masternode), след като регистрацията бъде потвърдена, и го съхранявайте заедно с резервното копие на адреса за връщане, отделно от този портфейл.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>Запис на сесията</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>Запази крайния запис…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Следващи стъпки</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>Копирай крайния запис</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>Краен запис</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Изчакване на %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>координатора</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>Одобряване на условията</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>Подписване на вноската</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Завършено</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Стъпка %1 от %2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Няма наличен портфейл.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>Този портфейл не може да подписва. Можете да разглеждате, но не и да участвате.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>Споделеният masternode изисква между %1 и %2 участници.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>Въведете име за участник %1.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>Името „%1“ е използвано два пъти.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>Всеки дял е поне %1.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>Сумите правят общо %1; трябва да са точно %2.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>Изберете участника, който сте Вие.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Въведете валиден BLS публичен ключ на оператора (96 шестнадесетични знака, basic scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>Въведете валиден адрес за гласуване (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>Задайте санкцията за ранно излизане на 0, когато няма ранен период.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>Санкцията за ранно излизане трябва да е по-малка от най-малкия дял (%1).</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Въведете валиден адрес на собственика (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>Въведете валиден адрес за връщане (P2PKH или P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>Въведете валиден адрес за награда (P2PKH или P2SH) или го оставете празен.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Адресът за награда трябва да е различен от адреса за гласуване и от всеки адрес на собственик.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>Всеки участник трябва да изпрати обратно своите данни, преди условията да могат да бъдат заключени.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Този портфейл е само за наблюдение и не може да подписва.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>Първо запазете тайния ключ на оператора. Той се показва веднъж, на страницата „Запази ключа на оператора“, а файлът на сесията не го съдържа.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>Резервирай монети и копирай данните</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>Заключи и одобри</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>Заключи условията</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Одобри и копирай отговора</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>Одобри</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Опитай отново</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>Подпиши и копирай отговора</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>Излъчи регистрацията</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Затвори</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Готово</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>Започни отначало</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Потвърдете, че сте запазили тайния ключ на оператора, като въведете последните му 4 знака.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>Вече одобрихте тези условия.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>Всеки участник трябва да подпише собствените си монети, преди регистрацията да може да бъде излъчена.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>Споделен masternode — сесия %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 от %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 от %2 — липсват %3</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 от %2 — %3 повече</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>Трябва да е по-малка от най-малкия дял (%1). Задайте 0 само ако приемате, че всеки може да напусне по всяко време безплатно.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Всеки може да напусне по всяко време безплатно.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>Ако %1 напусне преди блок %2 от живота на masternode, %1 губи %3, които се разпределят между останалите.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>Самостоятелното напускане през ранния период струва %1, които се разпределят между останалите.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>При нулева санкция ранният период няма ефект: всеки може да разпусне masternode самостоятелно по всяко време, без да плаща нищо.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>Дял %1 от %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>Дял %1 от %2 — %3 (вие)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>Изберете кой участник сте.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>Резервирани — тези монети не могат да се харчат, докато сесията не приключи или не ги освободите.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>Използва %1 (%2); рестото %3 се връща на нов Ваш адрес.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>Използва %1 (%2), без остатъчно ресто.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>Всеки преглежда точно тези условия и ги одобрява веднъж. Изпратете същото съобщение на всички.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>Прочетете всеки ред. Одобряването подписва точно тези условия с Вашия ключ на собственик. Все още нищо не се излъчва.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>Всички одобрения са вградени. Сега всеки участник подписва собствените си монети. Отговорите могат да пристигат в произволен ред.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>Подписва монетите, които сте резервирали. Вашият подпис само ги харчи за тази регистрация.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>%1 от %2 входа за финансиране са подписани.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>Подписва Вашия дял от %1. Вие не излъчвате нищо.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>Изпратихте: %1 · Код %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>заключените условия</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>заявката за подписване</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>крайния запис</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>Следва да получите %1. Поставете го тук, когато пристигне.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 излъчва регистрацията. Когато masternode се появи във Вашия списък, създайте своето резервно разпускане.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>В този портфейл (%1). Направете резервно копие на портфейла — той одобрява промени и разпускания.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>Държи се от %1. Необходим на сървъра като masternodeblsprivkey.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>този, който управлява възела</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>Настройте сървъра на masternode с тайния ключ на оператора и рестартирайте dashd там.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>Изпратете обновяване на услугата, когато адресите на възела са готови; дотогава той остава неактивен.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Уверете се, че всеки регистриран адрес и порт на услугата е достъпен от интернет.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>Всеки участник трябва да създаде своето резервно разпускане след първото потвърждение.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 от %2 входа</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1 от %2 са отговорили</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1 от %2 са подписали</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 от %2 са одобрили</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Подготвяне…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>Подготовката на регистрацията не успя: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>транзакцията за финансиране не е валидна.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>невалиден адрес за връщане: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>невалиден адрес за награда: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>невалиден адрес на собственик на дял: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>ключът на оператора не е валиден BLS публичен ключ.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>адресът за гласуване трябва да е P2PKH адрес.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>наградата на оператора трябва да е между 0% и 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>Неочакван отговор от възела.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>Условията още не са заключени.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>Одобряването не успя: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>Одобряване…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>Одобрение</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>Обединяването на одобренията не успя: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>Обединяване на одобренията…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>Тази транзакция харчи и %1 — монета на този портфейл, която не е част от Вашата вноска. Не подписвайте; поискайте нова сесия от %2.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>Тази транзакция харчи %1 от монетите на този портфейл за дял от %2, но връща на този портфейл само %3 ресто. Не подписвайте; поискайте нова сесия от %4.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>Подписването не успя: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>Подписаната транзакция не е тази, която прегледахте. Не я използвайте; поискайте нова сесия от %1.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>Подписана вноска</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>Да се отключат ли условията?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>Отключването отхвърля %1. След като заключите, всеки трябва да одобри отново.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>Обезпечение: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>Участници: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>Потвърдете регистрацията на споделен masternode</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>Да се излъчи ли тази регистрация на споделен masternode?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>Сесия %1 · Код %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>Излъчването не успя: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>всички</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>Копирано · Сесия %1 · Код %2 — изпратете го на %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>Първо запазете тайния ключ на оператора. Той се показва само тук, а файлът на сесията не го съдържа: без него masternode никога не би могъл да бъде пуснат.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>Запази съобщение за споделен masternode</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>Файлове на сесии (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>Не може да се отвори %1 за запис.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>Запазено · Сесия %1 · Код %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>Отвори съобщение за споделен masternode</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Това съобщение е твърде голямо, за да е съобщение за споделен masternode.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>Не може да се отвори %1 за четене.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>Това съобщение е за съществуващ masternode. Отворете го от списъка с masternodes.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>Неотчетени подписи</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Получено %1 · Код %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>Този отговор е по-стар от Вашите текущи условия (код %1; Вашият е %2). Помолете подателя да постави най-новото Ви съобщение и да отговори отново.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>Получено от %1: %2 · Код %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>Този портфейл се нуждае от поне %1 за харчене, за да финансира Вашия дял от %2.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>Да се освободят ли монетите Ви?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>Монетите, които сте резервирали за сесия %1, отново могат да се харчат.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>Монетите на всички останали остават резервирани. Ако харчите тези, тази регистрация никога не може да бъде излъчена и останалите трябва да започнат отначало.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>Освободени — тези монети отново могат да се харчат.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>Монета, резервирана за тази сесия, е похарчена. Регистрацията вече не може да бъде завършена — започнете отначало.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>%1 още не може да бъде проверен по стойност на този възел. Проверимите входове са общо %2 от обезпечението от %3.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>Резервираните монети са общо %1, което не покрива обезпечението от %2 плюс рестото %3 и мрежовата такса. Регистрацията никога не би могла да бъде излъчена.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>Входове %1 − ресто %2 = %3 обезпечение + %4 мрежова такса. Тази такса е необичайно голяма; продължете само ако е нарочно.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>Входове %1 − ресто %2 = %3 обезпечение + %4 мрежова такса ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>Да се запази ли първо ключът на оператора?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>Тайният ключ на оператора съществува само в този прозорец — файлът на сесията съдържа само публичната му половина. Ако затворите сега, masternode никога няма да може да бъде пуснат.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>Да се запази ли тази сесия за по-късно?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>Запазването държи монетите Ви резервирани, за да продължите откъдето сте спрели. Отхвърлянето ги освобождава; ако останалите още Ви чакат, те трябва да започнат отначало.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>Запази ключа на оператора</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>Запази и затвори</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>Отхвърли и освободи монетите</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Дял %1 от %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>Този портфейл не съдържа нито един от ключовете на собствениците на дялове на този masternode.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>Дял</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>Адрес за връщане</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>Получава</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Няма наличен портфейл.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Този портфейл е само за наблюдение и не може да подписва.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>Все още тече друга операция.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>Отключването на портфейла беше отменено.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Транзакцията не е валиден hex на транзакция.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>Монета, от която се нуждае тази заявка (%1:%2), е похарчена. Заявката вече не може да бъде изпратена — започнете отначало.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>Вътрешна грешка: изчисленият тук хеш не съвпада с този на възела. Не одобрявайте; моля, докладвайте това.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>%1 е одобрено с този портфейл.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>Споделените masternodes изискват обновяването v24, което още не е активно в тази мрежа.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Име</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Сума</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(вие)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Тази заявка не изплаща на всеки дял пълната му главница. Не я одобрявайте; поискайте нова заявка от този, който я е подготвил.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>Тази заявка назовава дял, който този masternode няма.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>Тази заявка не харчи точно обезпечението на masternode. Не я одобрявайте.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Тази заявка задържа %1 от главницата на дяловете като такса за транзакцията. Не я одобрявайте; поискайте нова заявка от този, който я е подготвил.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>Клипбордът не съдържа съобщение за споделен masternode.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>Това съобщение не е съобщение за споделен masternode.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>Тази транзакция не е разпускане на споделен masternode.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>без име</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(вие)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>Собственик:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>още не е зададено</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>Връщане:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>Награда:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>същият като за връщане</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Участници</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Услуга:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>Не е зададено — задайте по-късно чрез обновяване на услугата</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Ключ на оператора:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>не е зададен</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Възелът се управлява от:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>не е записано</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Адрес за гласуване:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Награда на оператора:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Ранен период:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 блока (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Санкция за ранно излизане:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Всеки може да напусне по всяко време безплатно.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>Самостоятелното напускане през ранния период струва %1, които се разпределят между останалите; общото напускане е безплатно.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Условия за излизане</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>Вноски:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>Върнато ресто:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>Обезпечение:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1, след като условията бъдат заключени</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>изход №%1 плаща споделения скрипт на обезпечението от %2</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Финансиране</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>Сесия:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>Код:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>Подготвено от портфейл:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>Идентичност</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>Транзакцията не е валиден hex на транзакция.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>Транзакцията не е транзакция за разпускане.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>Данните (payload) на транзакцията не могат да бъдат десериализирани.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>Транзакцията разпуска друг masternode.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>Транзакцията вече съдържа подписи; очаква се неподписаната подготвена транзакция.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>Транзакцията не е обновяване на споделен регистратор.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>Транзакцията обновява друг masternode.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Одобрено</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>Копирай заявката</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>Запази заявката…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Постави</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Отвори файл…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>Това съобщение е за друга транзакция, различна от вече наличната тук. Един от двата екземпляра е остарял; запазете текущия и поискайте нов отговор.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>Поставете самата заявка, преди да поставяте одобрения.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>Това съобщение не съдържа никакви одобрения.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>На едно одобрение липсва номерът на дяла или подписът.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>Едно одобрение има нечетим номер на дял.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>Номер на дял %1 е извън допустимия диапазон.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: подписът не е base64 компактен 65-байтов подпис.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>Одобрението на %1 не съвпада с подготвената транзакция. Помолете %2 да постави текущата заявка и да одобри отново.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 вече има одобрение от друг отговор.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>Това не е съобщение за споделен masternode.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>Това съобщение е за мрежата %1; този портфейл работи в %2.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>Това съобщение е за различен вид промяна на този masternode.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>Това съобщение е за друг masternode.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>Копирано · Код %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>Запази заявката</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>Съобщение за споделен masternode (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Не може да се запише в %1.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>Запазено · Код %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Запазено в %1.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Това съобщение е твърде голямо, за да е съобщение за споделен masternode.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Получено %1 · Код %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>Получено · Код %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>Отвори заявка</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>Съобщение за споделен masternode (*.json);;Всички файлове (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>Не може да се прочете %1.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>Одобрено от %1</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Изчакване на %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 от %2 са одобрили</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(натиснете q за изключване и продължаване по-късно)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>натиснете q за изключване</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ For more information on using this console, type %6.
     <message>
         <source>Date</source>
         <translation>Дата</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Тип</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Регистрация на masternode</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Обновяване на masternode</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Заключване на актив</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ For more information on using this console, type %6.
     <message>
         <source>Transaction total size</source>
         <translation>Краен размер на транзакцията</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>Полезен товар</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ For more information on using this console, type %6.
         <translation>Трансфер на платформа</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>Транзакция с данни</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>Получаване на прах</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Регистрация на masternode</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Обновяване на masternode</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Заключване на актив</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ For more information on using this console, type %6.
     <message>
         <source>(n/a)</source>
         <translation>(n/a)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>Регистрира masternode. Сумата е нетната промяна в баланса на този портфейл и обикновено е само мрежовата такса, когато обезпечението остава в този портфейл.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>Обновява съществуваща регистрация на masternode. Сумата е нетната промяна в баланса на този портфейл, обикновено само мрежовата такса.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Заключва средства за използване в Dash Platform. Сумата е нетната промяна в баланса на този портфейл, включително мрежовата такса.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ For more information on using this console, type %6.
         <translation>Емитирани</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>Трансфер на платформа</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Заключване на актив</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>Транзакция с данни</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>BLS публичен ключ на оператора (96 шестнадесетични знака)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>Публичен ключ на оператора:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>Смяната на ключа на оператора веднага забранява masternode чрез PoSe. Новият оператор трябва да изпрати транзакция за обновяване на услугата, за да го съживи.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Адрес за гласуване:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>Адрес за изплащане:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>Множеството дялове за изплащане се запазват; използвайте RPC, за да ги промените</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>Този диалог не може безопасно да свие masternode с много изплащания до един адрес.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>„Автоматично“ използва текущия основен адрес за изплащане на masternode. Изберете адрес само за да замените този избор.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>Обновяване на регистратора на masternode</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>Обновете ключа на оператора, адреса за гласуване или адреса за изплащане. Всички текущи стойности са попълнени предварително; изпращат се само променените полета. Ключът на собственика трябва да е наличен в този портфейл.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Изпрати обновяването</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>Въведете валиден публичен ключ на оператора за текущата версия на provider транзакциите.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>Адресът за гласуване трябва да е адрес на ключ.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:ПОРТ, разделени със запетаи при няколко записа</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>Няколко адреса изискват разширени provider транзакции.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Адреси на услугата:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>Адрес на услугата:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Ключ на оператора:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>ID на възел на платформата (40 шестнадесетични знака)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>ID на възел на платформата:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>P2P адреси на платформата:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:ПОРТ или домейн:порт, разделени със запетаи</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>HTTPS адреси на платформата:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>P2P порт на платформата:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>HTTPS порт на платформата:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>Адрес за изплащане на оператора:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>„Автоматично“ използва текущото изплащане към оператора, след това изплащането към masternode. Изберете адрес само за да замените този избор.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>Обновяване на услугата на EvoNode</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>Обновяване на услугата на masternode</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>Обновете регистрираните крайни точки на услугата. Успешното обновяване съживява и забранен чрез PoSe masternode. Всяка текуща стойност е попълнена предварително, така че непроменените полета се запазват.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Изпрати обновяването</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>Въведете валиден ID на възел на платформата (40 шестнадесетични знака).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>Вашият дял:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>Адрес, който получава наградите на този дял</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Използвай нов адрес</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>Използвай адреса за връщане</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>Нов адрес за награда:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>Таксата се плаща от този адрес на Вашия портфейл.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>Смяна на адреса за награда</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>Променете къде се изплаща Вашият дял от наградите на този masternode. Засяга се само Вашият дял; сумата на дяла и адресът за връщане никога не се променят.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Изпрати обновяването</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>Въведете адреса, който да получава наградите.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>Въведете валиден Dash адрес.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Адресът за награда трябва да е различен от адреса за гласуване и от всеки адрес на собственик.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>Този masternode не е споделен и няма таблица с дялове.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>Изберете адрес на този портфейл, от който да се плати таксата.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Send Coins</source>
         <translation>Изпращане</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>Грешка на подписващия</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Внимание: Не е намерена пълна съвместимост с останалите в мрежата ! Може би се нуждаете от обновяване , или някой от другите нодове се нуждае от обновяване .</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+Не може да се почисти неуспешното мигриране</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+Не може да се възстанови резервното копие на портфейла.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>Вече има такъв вход.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>SQLiteDatabase: Неизвестна sqlite wallet schema версия %d. Само версия %d се поддържа</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>Неподдържано ниво на логване специфично за категория -loglevel=%s. Очаквано -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Валидни категории: %s. Валидни loglevels: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>Не може да бъде миксирано: няма останали съвместими входящи средства.</translation>
     </message>
@@ -5905,10 +10099,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Insufficient funds.</source>
         <translation>Недостатъчно средства.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>Невалиден минимален брой ауторизатори на spork определен с -minsporkkeys</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Неизвестен отговор.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>Неподдържано глобално ниво на логване -loglevel=%s. Валидни стойности: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>User Agent comment (%s) съдържа опасни символи.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>Файл %s  съдържа всички частни ключове от този портфейл. Не го споделяйте с никого!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s не успя да валидира състоянието на моментната снимка (snapshot) за -assumeutxo. Това показва хардуерен проблем, грешка в софтуера или лоша модификация на софтуера, която е позволила зареждането на невалидна снимка. В резултат възелът ще се изключи и ще спре да използва всяко състояние, изградено върху снимката, като нулира височината на веригата от %d на %d. При следващото рестартиране възелът ще продължи синхронизирането от %d без да използва данни от снимката. Моля, докладвайте този инцидент на %s, като посочите как сте получили снимката. Невалидното състояние на веригата (chainstate) от снимката ще бъде оставено на диска, в случай че помогне за диагностициране на проблема, причинил тази грешка.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Общата дължина на мрежовата версия на низ (%i) надвишава максималната дължина (%i). Намалете  броя или размера на коментарите.</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>ВНИМАНИЕ! Неуспешно попълване на keypool, моля отключете портфейла си за да се извърши.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>Портфейлът е заключен, невъзможно е попълването на keypool! Автоматичното архивиране са изключени, моля отключете вашият портфейл за попълване на keypool.</translation>
     </message>
@@ -6085,10 +10271,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempoolтрябва да бъде поне %d MB</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>Автоматичното архивиране е изключено</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Не може да се анализира asmap файл %s</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>ГРЕШКА! Неуспешно създаване на автоматичен архив</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>Грешка при зареждане на %s: Частните ключове могат да бъдат деактивирани само при създаване</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>Грешка при четене на конфигурационния файл: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>Грешка: Не може да се извлече получател от генерирания scriptpubkey</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>Грешка: Не можа да се добави транзакция само за наблюдение към портфейла само за наблюдение</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>Грешка: Не можаха да се изтрият транзакциите само за наблюдение</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>Грешка: Контролната сума на дъмп файла не съвпада. Изчислена %s, очаквана %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>Грешка: Неуспешно създаване на нов портфейл само за наблюдение</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Грешка: Няма налични адреси.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>Грешка: Не всички транзакции само за наблюдение можаха да бъдат изтрити</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>Грешка: Този портфейл вече използва SQLite</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>Грешка: Този портфейл вече е дескрипторен портфейл</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>Грешка: Не може да се започне четенето на всички записи в базата данни</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>Грешка: Не може да се направи резервно копие на портфейла Ви</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>Грешка: Не могат да се прочетат всички записи в базата данни</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>Грешка: Не могат да се премахнат данните от адресната книга за наблюдение</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>Неуспешно създаване на архив %s!</translation>
     </message>
@@ -6161,6 +10383,22 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Неуспешно изтриване на архив, грешка: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>Неуспешно завършване на прекъснатото почистване на невалидна моментна снимка.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>Неуспешно завършване на прекъснатото повишаване на маркера на моментната снимка.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>Неуспешна проверка на прекъснатото почистване на моментна снимка: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>Неуспешно възстановяване на прекъснатото почистване на моментна снимка: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Входът не е намерен или вече е похарчен</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>Недостатъчен dbcache за проверка на блоковете</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>Прекъснатото почистване на моментна снимка има несъгласувани върхове на монетите и EvoDB.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>На прекъснатото почистване на моментна снимка липсва маркерът на EvoDB на снимката.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>Невалидно P2P разрешение: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>Невалиден masternodeblsprivkey. Моля вижте документацията.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>Невалиден предварително избран вход %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>Невалидна стойност за %s: надвишава максимума (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>Невалидна стойност за %s: трябва да е &gt;= 0</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Mixing in progress…</source>
         <translation>В процес на смесване…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>Зададен е повече от един spork адрес. Използва се %s.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Няма достатъчно налични файлови описания.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>Предварително избраният вход %s не е намерен</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>Предварително избраният вход %s не е решим</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>Получателите на платформата не могат да се комбинират с изрично зададена позиция на рестото</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>Моля, първо въведете паролата на портфейла с walletpassphrase.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>Изчистване не може да бъде конфигурирано с отрицателна стойност.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>Режимът на подрязване е несъвместим с -addressindex.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>Олекотен режим е несъвместим с -disablegovernance=false.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>Режимът на подрязване е несъвместим с -spentindex.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Секция [%s] не е разпозната.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>Задава заглавие на прозореца, което се добавя към „Dash Core - “</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>Подписващото устройство не върна адреса</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>Подписващото устройство върна неочакван адрес %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>Подписващото устройство върна грешка: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>Липсва маркерът на EvoDB на chainstate от моментната снимка. Необходимо е повторно индексиране (reindex).</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>Посоченият -walletdir "%s" не съществува</translation>
     </message>
@@ -6275,8 +10585,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Посоченият -walletdir "%s" не е папка</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>Посочената директория за данни „%s“ не съществува.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>Портфейлът няма да плаща по-малко от миналата такса за препредаване.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>Няма ScriptPubKeyManager за този адрес</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Сумите на транзакциите не трябва да бъдат отрицателни</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>Транзакцията е била твърде дълго в mempool </translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates не се поддържа във веригата %s.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Не може да стартирате masternode с включен портфейл.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>няма налично миксиране.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>виж debug.log за подробности.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>%s разработчици</translation>
     </message>
@@ -6379,16 +10689,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>%s използва точно деноминирани суми за изпращане на средства, може просто да се наложи да смесите още няколко монети.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>Опцията -reindex-chainstate не е съвместима с -blockfilterindex. Моля, временно деактивирайте blockfilterindex докато използвате -reindex-chainstate, или заменете -reindex-chainstate с -reindex за да възстановите напълно всички индекси.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>Опцията -reindex-chainstate не е съвместима с -txindex. Моля, временно деактивирайте txindex докато използвате -reindex-chainstate, или заменете -reindex-chainstate с -reindex за да възстановите напълно всички индекси.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>Опцията -reindex-chainstate не е съвместима с -coinstatsindex. Моля, временно деактивирайте coinstatsindex докато използвате -reindex-chainstate, или заменете -reindex-chainstate с -reindex за да възстановите напълно всички индекси.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>Опцията -reindex-chainstate не е съвместима с -txindex. Моля, временно деактивирайте txindex докато използвате -reindex-chainstate, или заменете -reindex-chainstate с -reindex за да възстановите напълно всички индекси.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>Опцията -reindex-chainstate не е съвместима с -blockfilterindex. Моля, временно деактивирайте blockfilterindex докато използвате -reindex-chainstate, или заменете -reindex-chainstate с -reindex за да възстановите напълно всички индекси.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Грешка при четене на  %s! Всички ключове са прочетени коректно, но данните за транзакциите или записите в адресната книга може да липсват или са некоректни.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>Грешка при четене на %s! Данните за транзакциите може да липсват или да са некоректни. Повторно сканиране на портфейла.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Грешка: Данните от адресната книга в портфейла не могат да бъдат определени като принадлежащи на мигрираните портфейли</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>Грешка: Записът на формата на дъмп файла е неправилен. Получен "%s", очакван "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>Грешка: Записът на идентификатора на дъмп файла е неправилен. Получен "%s", очакван "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>Грешка: По време на мигрирането са създадени дублиращи се дескриптори. Портфейлът Ви може да е повреден.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>Грешка: Неуспешно придвижване на активния дескриптор отвъд наследения брояч на веригата по време на мигрирането.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Грешка: Транзакцията %s в портфейла не може да бъде определена като принадлежаща на мигрираните портфейли</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>Грешка: Не могат да се създадат дескриптори за този наследен портфейл. Ако е шифрован, не забравяйте да въведете паролата на портфейла.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>Неуспешно премахване на директорията на chainstate от моментната снимка. Премахнете я ръчно, преди да рестартирате.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Изходящите връзки са ограничени до i2p (-onlynet=i2p), но -i2psam не е предоставен</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>Получателите на платформата не могат да се комбинират с друго специално съдържание (payload) на транзакция</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Моля проверете дали датата и часът на вашият компютър са верни! Ако часовникът ви не е сверен, %s няма да работи правилно.</translation>
     </message>
@@ -6489,6 +10831,26 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>Режимът на подрязване е несъвместим с -reindex-chainstate. Използвайте пълен -reindex вместо това.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>Преименуването на „%s“ -&gt; „%s“ не успя. Трябва да го разрешите, като ръчно преместите или изтриете невалидната директория на моментната снимка %s, в противен случай при следващото стартиране ще получите същата грешка.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Автоматичната onion услуга на Tor не може да използва onion bind с wildcard, защото демонът на Tor не би могъл да препраща входящи връзки към нас. Използвайте конкретен адрес, например -bind=127.0.0.1:&lt;port&gt;=onion, или изключете услугата с -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Автоматичната onion услуга на Tor изисква отделен onion bind. Използвайте конкретен адрес, например -bind=127.0.0.1:&lt;port&gt;=onion, или изключете услугата с -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>Размерът на входовете надвишава максималното тегло. Опитайте да изпратите по-малка сума или ръчно консолидирайте UTXO на портфейла си</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>Общата сума на предварително избраните монети не покрива целта на транзакцията. Позволете други входове да бъдат избрани автоматично или добавете ръчно още монети</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Това е таксата за транзакция, която можете да платите, когато не са налице оценки на таксите.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>Индексът на транзакциите не може да бъде изключен при включена валидация на управлението. Стартирайте с опцията -disablegovernance или включете индекса на транзакциите.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>Транзакцията е нестандартна (%s) и няма да бъде препратена; изпращането към адреси на платформата в момента изисква възел, стартиран с -acceptnonstdtxn=1</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>Транзакцията изисква една дестинация с ненулева стойност, ненулев feerate или предварително избран вход</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>Валидирането на UTXO моментната снимка не успя. Рестартирайте, за да продължи нормалното първоначално изтегляне на блокове, или опитайте да заредите друга снимка.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>Блокове не могат да се възпроизведат. Ще трябва да възстановите базата данни с помощта на -reindex-chainstate.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>Намерен е неочакван наследен запис в дескрипторен портфейл. Зарежда се портфейл %s
+
+Портфейлът може да е бил манипулиран или създаден със злонамерено намерение.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>Предоставен неизвестен формат на файл на портфейл "%s". Моля, предоставете един от "bdb" или "sqlite".</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>Намерен е неразпознат дескриптор. Зарежда се портфейл %s
+
+Портфейлът може да е създаден с по-нова версия.
+Моля, опитайте да стартирате най-новата версия на софтуера.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>Неподдържано ниво на логване за категория %1$s=%2$s. Очаква се %1$s=&lt;category&gt;:&lt;loglevel&gt;. Валидни категории: %3$s. Валидни нива на логване: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>Предупреждение: Открити са частни ключове в портфейл {%s} с деактивирани частни ключове</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>Трябва да възстановите базата данни използвайки -reindex за да активирате -timestampindex</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>Възникна фатална вътрешна грешка, вижте debug.log за детайли</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>Проверката на блоковете беше прекъсната</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Внасяне…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>Некоректен -rescan режим, връщане към стойност по подразбиране</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>Инициализирането на проверката за състоянието е неуспешно. %s се изключва.</translation>
     </message>
@@ -6727,10 +11123,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Незавършена сесия!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>Сесията е изтекла.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>Подписването на транзакцията се провали</translation>
     </message>
@@ -6759,10 +11151,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Неуспешно надграждане на Evo базата данни</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>Необходима такса &gt; платена такса</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>Хост %s на неподдържана мрежа</translation>
     </message>
@@ -6777,10 +11165,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>Невалиден порт посочен в %s: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>Последното успешно действие беше твърде скоро.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Опит за свързване…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>Не може да се задели памет за -maxsigcachesize: „%s“ MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>Не може да се свърже с %s на този компютър (връща грешка %s)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Неуспешно подписване на spork-съобщение. Грешен ключ?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>Не може да се разтовари портфейлът преди мигрирането</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>Неизвестна мрежа определена от -onlynet: '%s'</translation>
     </message>
@@ -6887,12 +11279,12 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Неподдържана URL схема, трябва да започва с udp://</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>Неподдържана категория на журналиране %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>Неподдържано глобално ниво на логване %s=%s. Валидни стойности: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>Много малък останали ключове: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>Неподдържана категория на журналиране %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>Не можете да деактивирате валидирането на управлението на masternode.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>Трябва да възстановите базата данни използвайки -reindex за да активирате -addressindex</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>Трябва да възстановите базата данни използвайки -reindex за да активирате -spentindex</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

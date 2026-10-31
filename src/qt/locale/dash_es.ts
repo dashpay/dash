@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>Sincronizando datos de gobernanza…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>~%n día (%1 bloques) restante para el superbloque</numerusform><numerusform>~%n días (%1 bloques) restantes para el superbloque</numerusform><numerusform>~%n días (%1 bloques) restantes para el superbloque</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>~%n día (%1 bloques) restante para la votación</numerusform><numerusform>~%n días (%1 bloques) restantes para la votación</numerusform><numerusform>~%n días (%1 bloques) restantes para la votación</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% del presupuesto asignado (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>Cargar transacción de blockchain parcialmente firmada desde el portapapeles</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>Abrir archivo de registro de &amp;depuración</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>Abrir el archivo de registro de depuración desde el directorio de datos actual</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>Crear billetera…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>Cerrar todas las billeteras…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Migrar billetera</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>Migrar una billetera</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>Actualizado a la fecha</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superbloque inminente</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Periodo de votación finalizado</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 bloques) restantes para el superbloque</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 bloques) restantes para la votación</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% del presupuesto asignado (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>(des)marcar todos</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>alternar el estado de bloqueo</translation>
+        <source>(un)lock all</source>
+        <translation>(des)bloquear todo</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>Copiar cambio</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>Por favor, cambie a "Modo Lista" para poder usar esta función.</translation>
+        <source>Wallet error</source>
+        <translation>Error de billetera</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>No se pudieron bloquear algunas monedas.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>No se pudieron desbloquear algunas monedas.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>Disolver masternodo compartido</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>Este masternodo se registró en el bloque %1 y la cadena sigue en el bloque %2. Espera una confirmación y vuelve a abrir esta ventana.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>Disolver ahora</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>Disolver en conjunto</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>Disolución de reserva</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>Finaliza el masternodo por tu cuenta. Todos recuperan su capital en su dirección de reembolso.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>Tu participación:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>Comisión de la transacción, pagada del reembolso de tu participación.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>Comisión:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>ID de transacción</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>Salida anticipada: pagas la penalización de %1. Sin costo después del bloque %2 (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>Acepto pagar la penalización de %1 por salida anticipada</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>Solo faltan %1 para que disolver sea gratis. Considera esperar o usar Disolver en conjunto: con la aprobación de todos es gratis ahora.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>El periodo inicial ha terminado: disolver ahora es gratis.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (tú)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>Marca primero la casilla para aceptar la penalización.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>La cadena superó el límite sin penalización mientras este diálogo estaba abierto. La vista previa anterior se ha actualizado: revísala y pulsa Disolver ahora de nuevo.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>¿Disolver ahora este masternodo compartido? El capital de cada participante vuelve a su dirección de reembolso y el masternodo deja de generar ganancias. Esta acción no se puede deshacer.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>Se envió la disolución.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Gratis en cualquier momento, pero todos los propietarios de participaciones deben aprobar. Una persona prepara la solicitud; los demás la pegan, la aprueban y copian una respuesta.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. Solicitud</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>La participación de la que se descuenta la comisión de la transacción.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>Comisión pagada por:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Preparar solicitud</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Aprobaciones</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Envía la misma solicitud a todos los propietarios de participaciones. Las respuestas pueden llegar en cualquier orden.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>Esta solicitud paga</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Aprobar y copiar respuesta</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Enviar</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>Enviar disolución</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>Comisión: %1, pagada de %2.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Primero prepara o pega una solicitud.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Primero deben aprobar todas las participaciones (%1 de %2 hasta ahora).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>Una disolución firmada que guardas sin conexión y nunca transmites a menos que la necesites. No caduca nunca y funciona incluso si pierdes esta billetera.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Crear disolución de reserva…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copiar</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>Capital completo: válido desde el bloque %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>Capital completo: válido ahora, el periodo inicial ha terminado</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>Aún no creada</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>Inmediata: paga la penalización de %1</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Guárdala junto con la copia de seguridad de tu dirección de reembolso, por separado de esta billetera.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>Guardada el %1</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>Guardar disolución de reserva</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>Archivo de texto (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>Ambas transacciones están listas abajo, pero no se guardó nada. Cópialas o crea el archivo de nuevo.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Guardado en %1.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Masternodo compartido de Dash: disolución de reserva</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternodo: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>Creado: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>Cada bloque a continuación es una transacción firmada completa. Transmite una de ellas con "sendrawtransaction" solo cuando quieras finalizar el masternodo y recuperar tu capital. No caducan nunca. Guarda este archivo junto con la copia de seguridad de tu dirección de reembolso, por separado de la billetera.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>CAPITAL COMPLETO: válido desde el bloque %1 (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>CAPITAL COMPLETO: válido ahora, el periodo inicial ha terminado</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>INMEDIATA: paga la penalización de %1 por salida anticipada, válida de inmediato</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>No se pudo escribir en %1.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>Forma</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>Filtrar lista de propuestas</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>Cantidad de masternodos:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>Número de masternodos con los que esta billetera puede votar (masternodos para los que esta billetera tiene la clave de votación)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>No hay propuestas activas en la red.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>Reanudar propuesta</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>Número de propuestas:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>Crear propuesta</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>Seleccionar propuestas para mostrar</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>Filtrar por título</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>No disponible</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>Se requiere un nodo sincronizado y una billetera desbloqueada.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>Votar Sí</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>Votar No</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>Votar Abstención</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>Propuestas activas</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>Mis propuestas</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>No hay propuestas registradas en el archivo de la billetera.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>Reanudar propuesta</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>Copiar JSON</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>Abrir URL de la propuesta…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>Detalles de %1</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>No se puede interactuar con la gobernanza antes de que se complete la sincronización</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>Crea una nueva propuesta</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>Reanuda una propuesta existente</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>Crear propuestas cuesta %1, saldo insuficiente</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>Error</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>No se puede validar la URL, posiblemente mal formada o protocolo desconocido.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>Advertencia de enlace externo</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>Está a punto de abrir la siguiente URL en su navegador predeterminado
-
-%1
-
-Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito en el título.
-
-¿Desea continuar?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>Votación fallida</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>No hay billetera disponible.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>No se encontraron claves de votación de masternodos en la billetera.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>Por favor selecciona una propuesta para votar.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>No se puede desbloquear la billetera.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>No se puede obtener la lista de masternodos. Por favor inténtalo de nuevo más tarde.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>Masternodo %1 no encontrado</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>Error al firmar voto para el masternodo %1</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>Masternodo %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>Votado exitosamente %n vez</numerusform><numerusform>Votado exitosamente %n veces</numerusform><numerusform>Votado exitosamente %n veces</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>Error al votar %n vez</numerusform><numerusform>Error al votar %n veces</numerusform><numerusform>Error al votar %n veces</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>Errores:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>Resultados de votación</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;Conceptos básico de %1&lt;/h3&gt;%1 te da verdadera privacidad financiera al ocultar los orígenes de tus fondos. Todos los Dash en tu billetera están compuestos por diferentes "entradas" en las que puedes pensar como monedas separadas discretas.&lt;br&gt;%1 utiliza un proceso innovador que mezcla tus entradas con las entradas de otras dos personas, sin que tus monedas salgan de la billetera. Tu retienes el control de tu dinero en todo momento.&lt;hr&gt;&lt;b&gt;El proceso de %1 funciona así:&lt;/b&gt;&lt;ol type="1"&gt;&lt;li&gt;%1 comienza dividiendo las entradas de tus transacciones en denominaciones estándares. Éstas denominaciones son 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH y 10 DASH - algo así como el papel moneda que usas todos los días.&lt;/li&gt;&lt;li&gt;Entonces, tu billetera envía solicitudes a nodos de software especialmente configurados en la red, llamados "masternodes". Estos masternodes son informados que estás interesado en mezclar una cierta denominación. Información no identificable es enviada a los masternodes, por lo que nunca saben "quién" eres tu.&lt;/li&gt;&lt;li&gt;Cuando otras dos personas envían mensajes similares, indicando que desean mezclar la misma denominación, comienza una sesión de mezclado. El masternode mezcla loas entradas e instruye a las billeteras de los tres usuarios para que paguen la entrada ahora transformada a si mismos. Tu billetera paga esa denominación directamente a sí misma, pero en una dirección diferente (llamada dirección de cambio).&lt;/li&gt; &lt;li&gt;En orden de ocultar totalmente tus fondos, st billetera debe repetir este proceso varias veces con cada denominación. Cada vez que se completa el proceso, se denomina una "ronda". Cada ronda de %1 hace que sea exponencialmente más difícil determinar de dónde provienen los fondos.&lt;/li&gt;&lt;li&gt;Este proceso de mezclado ocurre en segundo plano sin ninguna intervención de tu parte. Cuando desees realizar una transacción, tus fondos ya serán anónimos. No se requiere tiempo de espera adicional.&lt;/li&gt;&lt;/ol&gt;&lt;hr&gt;&lt;b&gt;IMPORTATE:&lt;/b&gt;Tu billetera solo contiene 1000 de estas "direcciones de cambio". Cada vez que ocurre un evento de mezclado, hasta 9 de tus direcciones son usadas. Esto significa que esas 1000 direcciones duran alrededor de 100 eventos de mezclado. Cuando 900 de ellas sean usadas, tu billetera debe crear más direcciones. Sin embargo, solo podrá hacer esto si tiene las copias de seguridad automáticas habilitadas.&lt;br&gt;En consecuencia, los usuarios que tengan las copias de seguridad deshabilitadas también tendrán %1 deshabilitado.&lt;hr&gt;Para más información, consulta la &lt;a style="%2" href="%3"&gt;documentación de %1&lt;/a&gt;.</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>General</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>Versión del cliente</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/D</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>Agente del Usuario</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>Datadir</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>Para especificar una ubicación distinta de la predeterminada para el directorio de datos, usa la opción '%1'.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>Blocksdir</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>Para especificar una ubicación distinta de la predeterminada para el directorio de bloques, usa la opción '%1'.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>Hora de inicio</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Red</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nombre</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>Número de conexiones</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>Direcciones locales</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>Direcciones de red que tu nodo Dash está usando actualmente para comunicarse con otros nodos.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>Cadena de bloques</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Altura actual del bloque</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Hora del último bloque</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Hash del último bloque</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>Grupo de memoria</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>Número actual de transacciones</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>Uso de memoria</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>Entrada:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>Salida:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Actividad de red deshabilitada</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Ninguno</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
         <translation><numerusform>(%n GB necesario para la cadena completa)</numerusform><numerusform>(%n GB necesarios para la cadena completa)</numerusform><numerusform>(%n GB necesarios para la cadena completa)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>Elegir directorio de datos</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>Se almacenará cuanto menos %1 GB de datos en este directorio, y crecerá con el transcurso del tiempo.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternodo: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>No hay ninguna billetera disponible.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>Esta billetera es de solo lectura y no puede firmar transacciones.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>Automático (recomendado)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Origen de la comisión:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>La billetera debe estar desbloqueada para crear y firmar esta transacción.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>Ingresa una clave secreta de operador BLS válida de esquema básico.</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>La clave secreta del operador no coincide con la clave pública registrada de este masternodo.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>Ya hay otra operación de masternodo en curso.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>La operación finalizó sin devolver una transacción.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>La transacción se creó pero no se envió a la red.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>La transacción se envió correctamente.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>ID de transacción: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>Compartido</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>Filtrar lista de Masternodes</translation>
     </message>
@@ -1689,6 +1919,22 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
     <message>
         <source>Hide banned</source>
         <translation>Ocultar bloqueados</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>Registrar un nuevo masternodo o evonode con esta billetera</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>Registrar masternodo…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>Crear un masternodo con colateral aportado por varias partes, o continuar una sesión guardada</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>Masternodo compartido…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
         <translation>Filtrar por</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>Actualizar servicio…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>Actualizar registrador…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>Cambiar dirección de recompensa…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>Rotar claves…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>Disolver…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Crear disolución de reserva…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>Revocar…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>Dirección colateral</translation>
     </message>
@@ -1717,6 +1991,158 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
     <message>
         <source>Voting Address</source>
         <translation>Dirección de votación</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>Registrar un masternodo requiere una billetera.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>El registro de masternodos aún no admite billeteras con firmante externo.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>El registro de masternodos requiere una billetera con claves privadas.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>El registro de masternodos no está disponible hasta que el nodo esté listo.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>Registrar un nuevo masternodo o EvoNode con esta billetera</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>Administrar masternodos compartidos requiere una billetera.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>Administrar masternodos compartidos requiere una billetera con claves privadas.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>La administración de masternodos compartidos no está disponible hasta que el nodo esté listo.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>Los masternodos compartidos requieren el hard fork v24, que aún no está activo en esta red.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>Crear o continuar una sesión de registro de masternodo compartido entre varias partes</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>Esta transacción no es una disolución legible de un masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Participación %1 de %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>un script no reconocido</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternodo: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>Este masternodo no está en la lista actual de masternodos.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>Servicio: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>Dirección del colateral: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>Comisión pagada por: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>Aprobado por: todos los propietarios de participaciones</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>Aprobado por: solo tu firma</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>Pagos:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>Comisión: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>El capital de cada participación se devuelve a su propia dirección de reembolso. Esta acción no se puede deshacer.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>Nota: esta transacción no devuelve el capital completo de cada participación. Esta acción no se puede deshacer.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>Transacción: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>¿Transmitir esta disolución de reserva?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>Error en la transmisión</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>Disolución de reserva enviada</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>Masternodo no encontrado</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>Este mensaje trata de un masternodo que aún no está en la lista.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>Nada que abrir</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>Requiere una billetera capaz de firmar transacciones</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>Requiere la clave de propietario de este masternodo en la billetera</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>Requiere una de las claves de propietario de participación de este masternodo en esta billetera</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>Ya guardada en este equipo el %1</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>Aún no creada en este equipo</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>Filtra por una de las direcciones de propietario de participación de este masternodo</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>Bloqueado por %n día</numerusform><numerusform>Bloqueado por %n días</numerusform><numerusform>Bloqueado por %n días</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>Bloqueado por menos de un día</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>Bloqueado</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>Activo por %n día</numerusform><numerusform>Activo por %n días</numerusform><numerusform>Activo por %n días</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>Masternodo compartido · tienes %1 de %2 participaciones</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>Activo por menos de un día</translation>
+        <source>Banned for %1</source>
+        <translation>Bloqueado por %1</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>Activo durante %1</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>Compartido (tienes %1 de %2)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>Compartido (%1 participaciones)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
     <message>
         <source>ProTx Hash</source>
         <translation>Hash ProTx</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>Una de las claves elegidas ya está en uso por un masternodo o una participación registrados. Cada clave de propietario y de votación solo puede usarse una vez en toda la red.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>La dirección de servicio elegida ya está en uso por un masternodo registrado.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>Una dirección de reembolso o de recompensa no puede usarse también como dirección de propietario de participación o de votación. Usa direcciones distintas para los pagos y para las claves.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>La firma de consentimiento de un participante no coincide con la transacción final. Esto ocurre cuando los términos o la transacción de financiación cambiaron después de firmar; reúne firmas nuevas.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>La red aún no acepta esta versión de transacción. Espera a que se active la actualización de red que la introduce.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Esta función aún no está activa en la red. Espera a que se active la actualización de red que la introduce.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>Ya hay una disolución pendiente para este masternodo.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>No se pudo financiar la transacción.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>No se pudo financiar la transacción: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+Rechazo de la red: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>Detalles: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>Migrar billetera</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>¿Seguro que quieres migrar la billetera &lt;i&gt;%1&lt;/i&gt;?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>Al migrar la billetera, esta se convertirá en una o más billeteras de descriptores. Será necesario hacer una nueva copia de seguridad de la billetera.
+Si esta billetera contiene scripts de solo lectura, se creará una nueva billetera que contenga esos scripts de solo lectura.
+Si esta billetera contiene scripts resolubles pero no vigilados, se creará una billetera nueva y distinta que contenga esos scripts.
+
+El proceso de migración creará una copia de seguridad de la billetera antes de migrar. Este archivo de copia se llamará &lt;nombre de la billetera&gt;-&lt;marca de tiempo&gt;.legacy.bak y se encuentra en el directorio de esta billetera. En caso de una migración incorrecta, la copia de seguridad se puede restaurar con la función "Restaurar billetera".</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Migrar billetera</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>Migrando la billetera &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>La billetera '%1' se migró correctamente.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Los scripts de solo lectura se migraron a una nueva billetera llamada '%1'.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Los scripts resolubles pero no vigilados se migraron a una nueva billetera llamada '%1'.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>Error en la migración</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>Migración exitosa</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>Participación %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>La contribución "%1" tiene un ID de transacción de entrada mal formado.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>La contribución "%1" tiene una dirección de cambio no válida.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>La transacción preparada de la sesión no es un hexadecimal de transacción válido.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>La transacción preparada de la sesión no es un registro de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>Este mensaje se editó después de copiarse.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>Borrador</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>Términos bloqueados</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>Recopilando aprobaciones</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>Aprobaciones combinadas</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>Contribuciones firmadas</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>Transmitido</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>El archivo no es un JSON válido.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>El archivo no es un archivo de sesión de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>El archivo de sesión usa una versión de formato no admitida. Actualiza Dash Core para abrirlo.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>El archivo de sesión es para la red "%1" pero este nodo funciona en "%2". No se puede usar aquí.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>desconocida</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>El archivo de sesión no tiene ID de sesión.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>El archivo de sesión tiene una revisión no válida.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>El archivo de sesión no tiene etapa.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>El archivo de sesión está en la etapa desconocida "%1". Probablemente lo creó una versión más reciente de Dash Core.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>El archivo de sesión enumera %1 participaciones; un masternodo compartido puede tener como máximo %2.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>La entrada de participación %1 del archivo de sesión está mal formada.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>El archivo de sesión tiene un periodo inicial no válido.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>El archivo de sesión tiene una penalización por salida anticipada no válida.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>El archivo de sesión enumera %1 contribuciones; solo puede haber una por participación y como máximo %2 participaciones.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>La entrada de contribución %1 del archivo de sesión está mal formada.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>La entrada de contribución %1 del archivo de sesión tiene %2 entradas; en una contribución se pueden financiar como máximo %3.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>El archivo de sesión tiene un hash de consentimiento mal formado.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>La entrada de firma %1 del archivo de sesión está mal formada.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>El archivo de sesión enumera más de una firma para la participación %1.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>El archivo de sesión está marcado como "%1" pero le falta su transacción congelada o su hash de consentimiento.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>El archivo de sesión tiene una firma de una participación que no existe.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>El archivo de sesión afirma que las aprobaciones están combinadas, pero no todas las participaciones tienen una aprobación.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>El archivo de sesión afirma que las aprobaciones están combinadas, pero una aprobación no es válida: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>El archivo de sesión afirma que todas las contribuciones están firmadas, pero una o más entradas de financiación no están firmadas.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>No se pudo analizar el archivo de sesión: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>Un masternodo compartido necesita entre %1 y %2 participaciones (actualmente %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>La dirección de votación debe ser una dirección P2PKH válida.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>Participación %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>la dirección de propietario debe ser una dirección P2PKH válida.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>la dirección de propietario ya la usa la participación %1. Cada clave de propietario debe ser única.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>el importe debe estar entre %1 y %2.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>reembolso</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>recompensa</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>la dirección de %1 debe ser una dirección P2PKH o P2SH válida.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>la dirección de reembolso ya la usa la participación %1. Cada dirección de reembolso debe ser única.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>la dirección de %1 no debe ser la dirección de votación.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>la dirección de %1 no debe ser la dirección de propietario de la participación %2.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>Los importes de las participaciones deben sumar exactamente %1 (actualmente %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>El periodo inicial debe ser de %1 bloques como máximo (unos dos años).</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>La penalización inicial no puede ser negativa.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>La penalización inicial debe ser inferior al importe de la participación más pequeña (%1).</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>La financiación solo se puede cambiar mientras la sesión sea editable. Desbloquea primero los términos (esto descarta todas las aprobaciones reunidas).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>La contribución necesita una etiqueta de participante.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>La contribución no tiene entradas de financiación.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1" ya ha contribuido. Elimina primero la contribución existente.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>La entrada %1:%2 ya fue aportada por "%3".</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>El importe del cambio debe ser positivo.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>No se encontró ninguna contribución de "%1".</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>Solo se puede bloquear una sesión editable.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>El hash de consentimiento está mal formado.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>El hash de consentimiento no coincide con la transacción preparada. No firmes; reinicia el paso de preparación.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>El índice de salida del colateral no coincide con la transacción preparada.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>Los términos aún no están bloqueados; no hay nada que aprobar.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>La participación %1 de %2 no existe.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>La firma no es un base64 válido.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>La firma de %1 no se verifica con los términos actuales. Lo más probable es que se hiciera para una versión anterior de esta sesión: pide que %1 vuelva a firmar la versión actual.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>La tabla de participaciones del archivo de sesión no coincide con su transacción preparada. No firmes; solicita una copia nueva.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>La participación %1 del archivo de sesión no coincide con su transacción preparada. No firmes; solicita una copia nueva.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>La dirección de recompensa de la participación %1 en el archivo de sesión no coincide con su transacción preparada. No firmes; solicita una copia nueva.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Los términos que muestra el archivo de sesión no coinciden con su transacción preparada. No firmes; solicita una copia nueva.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>La financiación que muestra el archivo de sesión no coincide con su transacción preparada. No firmes; solicita una copia nueva.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>Ya hay registrada una firma distinta para esta participación. Una de las copias firmó una versión obsoleta de la sesión: pónganse de acuerdo en la última revisión y vuelvan a firmarla.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>Las entradas de financiación solo se pueden firmar una vez combinadas las aprobaciones.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>La transacción preparada no coincide con los términos que todos aprobaron. No la firmes ni la transmitas; solicita una copia nueva.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>Este mensaje es de otra sesión (Sesión %1). Estás trabajando en la Sesión %2.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>Las respuestas solo se pueden incorporar mientras los términos sigan siendo editables.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>La respuesta no coincide con tu borrador actual: se cambiaron los participantes, los importes o los términos. Pide al remitente que pegue tu última invitación y vuelva a responder.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>La participación de %1 ya tiene detalles de otra respuesta.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>Este mensaje no contiene términos bloqueados.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>Los términos bloqueados no contienen los detalles que enviaste.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>quien coordina</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>Los términos cambiaron desde que enviaste tus datos. Pide que %1 envíe la invitación actual y vuelve a responder.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>La copia importada es la revisión %1 de esta sesión; esta copia es la revisión %2 y queda reemplazada por aquella.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>La copia importada es la revisión %1 de esta sesión; esta copia ya está en la revisión %2. Envía al remitente el archivo más reciente.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>La copia importada tiene los términos bloqueados y reemplaza a esta copia editable.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>Los términos de esta sesión ya están bloqueados; la copia importada todavía es editable. Envía al remitente la actualización más reciente.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>Ambas copias de la Sesión %1 bloquearon términos distintos y no se pueden combinar. Pónganse de acuerdo en una copia, envíenla de nuevo y que todos aprueben esa.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>Ambas copias de la Sesión %1 cambiaron los mismos detalles y no se pueden combinar. Pónganse de acuerdo en una copia y envíenla de nuevo.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>Las copias con la financiación firmada no son la misma transacción. No se pueden fusionar.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>La entrada de financiación %1 tiene dos firmas distintas. Las copias no se pueden fusionar.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>La copia importada afirma que las aprobaciones están combinadas, pero ese estado no es válido: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>La copia importada afirma que todas las contribuciones están firmadas, pero ese estado no es válido: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>La copia importada afirma que el registro se transmitió, pero ese estado no es válido: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>La sesión no está recopilando aprobaciones.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>Aún no han firmado todas las participaciones (%1 de %2). Combina solo una sesión totalmente firmada.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>Las aprobaciones de los propietarios deben combinarse antes de firmar las contribuciones.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>Aún hay una entrada de financiación sin firmar.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>Aún hay %1 entradas de financiación sin firmar.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>La sesión no se puede transmitir hasta que todos los consentimientos y firmas de financiación estén en su lugar.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>ninguna</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>alrededor de 1 minuto</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>alrededor de %1 minutos</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>alrededor de 1 hora</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>alrededor de %1 horas</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>alrededor de 1 día</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>alrededor de %1 días</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>La comisión debe ser positiva.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>La penalización y la comisión superan la participación del participante que disuelve.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>Una disolución unilateral necesita al menos otra participación que reciba la penalización.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 moneda</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 monedas</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 aprobación</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 aprobaciones</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 participante</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 participantes</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 entrada de financiación</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 entradas de financiación</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 participación</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 participaciones</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 entrada</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 entradas</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>Grupo de crédito</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>Último cambio de bloque</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/D</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>Total bloqueado</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>Desbloqueos pendientes</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>Límite de retiro</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>Bloqueos verificados</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>Bloqueos no verificados</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>Bloqueos en espera de transacción</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>Transacciones sin protección</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>Masternodos</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>Cantidad de masternodos</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>Cantidad de EvoNodes</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ChainLocks</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Altura actual del bloque</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Hora del último bloque</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Hash del último bloque</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>Quórums</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Total: %1 (Habilitados: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Esperando la sincronización de la cadena de bloques…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 activos (salud %2%)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>El tipo de quórum rota, datos conservados durante %1</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>El tipo de quórum no rota, datos conservados durante %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>Al quórum actual le quedan %1</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>El quórum actual ha expirado</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>Última formación hace %1</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>Formado recientemente</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Este contenido fue enviado por un usuario. Podría no coincidir con lo descrito 
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>Abriendo billetera &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>Generar una nueva clave de operador</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>La clave secreta se muestra y se confirma antes de registrar, y no se guarda en ningún otro lugar.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Clave pública</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>Usar una clave pública de operador existente</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>Para un nodo alojado: el operador conserva la clave secreta y te da la clave pública.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>Clave pública BLS del operador (96 caracteres hexadecimales, esquema básico)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>Clave secreta BLS del operador (64 caracteres hexadecimales)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>Operaciones PSBT</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>Diálogo</translation>
     </message>
@@ -2968,10 +4148,6 @@ Debido a que se ha interrumpido el soporte, debes solicitarle al comerciante que
         <translation>Ver datos</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>Crear propuesta</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 enviado exitosamente para su propuesta "%2".
 
 Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede reanudar esto más tarde haciendo clic en "Reanudar propuesta".</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>General</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>Ciclos de votación</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/D</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>Último superbloque</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>Próximo superbloque</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>Bloque límite de votación</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>Nivel de participación</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>Masternodos votantes</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>EvoNodes votantes</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>Umbral de aprobación</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Nodo</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>Masternodos controlados</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>Votos controlados</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>Propuestas</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>Número de propuestas</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>Presupuesto asignado</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>Propuestas aprobadas</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>Propuestas sin financiar</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>Propuestas no aprobadas</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 votos</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 elegibles)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>Propuesta %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>%1% del presupuesto</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% asignado</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (faltan %2)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>Formulario</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>Seleccionar propuestas para mostrar</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>Filtrar lista de propuestas</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>Filtrar por título</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>Fecha límite de votación: esperando la sincronización…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>No hay propuestas activas en la red.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>Votos…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>Ver tus votos actuales y votar con los masternodos seleccionados</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>Crear propuesta</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>Reanudar propuesta</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>Número de propuestas:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>Propuestas activas</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>Mis propuestas</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>Votos de financiación actuales de los masternodos elegibles controlados por esta billetera. Los recuentos son votos ponderados.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (peso %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>Sin claves de votación</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>No hay propuestas registradas en el archivo de la billetera.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>No disponible</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>Se requiere un nodo sincronizado y una billetera desbloqueada.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>Reanudar propuesta</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>Copiar JSON sin procesar</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>Abrir URL de la propuesta…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>Votar Sí</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>Votar No</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Votar Abstención</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>Detalles de %1</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Esperando la sincronización de la cadena de bloques…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>Esperando la sincronización de gobernanza…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n masternodo disponible para votar</numerusform><numerusform>%n masternodos disponibles para votar</numerusform><numerusform>%n de masternodos disponibles para votar</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Superbloque inminente</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Periodo de votación finalizado</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>~%1 (%2 bloques) restantes para el superbloque</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>~%1 (%2 bloques) restantes para la votación</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% del presupuesto asignado (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>Estimado a partir de los bloques restantes y el tiempo objetivo de bloque. Los votos aún pueden retransmitirse después del plazo, pero es posible que no afecten al pago de este ciclo.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>No se puede interactuar con la gobernanza antes de que se complete la sincronización</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>Crea una nueva propuesta</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>Reanuda una propuesta existente</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>Crear propuestas cuesta %1, saldo insuficiente</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Error</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>No se puede validar la URL, posiblemente mal formada o protocolo desconocido.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>Advertencia de enlace externo</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>Estás a punto de abrir la siguiente URL en tu navegador predeterminado
+
+%1
+
+Este contenido fue enviado por un usuario. Puede que no coincida con lo descrito en el título.
+
+¿Deseas continuar?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>Error al votar</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>No hay ninguna billetera disponible.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>No se encontraron claves de votación de masternodos en la billetera.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>No se pudieron obtener los datos del masternodo.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>Por favor selecciona una propuesta para votar.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>Votar requiere una propuesta transmitida y un nodo sincronizado.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>No se pudo desbloquear la billetera.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>No se pudieron obtener los datos sincronizados del masternodo.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>El masternodo %1 ya no es elegible</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>Masternodo %1 no encontrado</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>Error al firmar voto para el masternodo %1</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>Masternodo %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>Votado exitosamente %n vez</numerusform><numerusform>Votado exitosamente %n veces</numerusform><numerusform>Votado exitosamente %n veces</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>Error al votar %n vez</numerusform><numerusform>Error al votar %n veces</numerusform><numerusform>Error al votar %n veces</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Errores:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>Resultados de la votación</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
     <message>
         <source>needs %1 more votes</source>
         <translation>necesita %1 votos más</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>Mis votos</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>Votar %1</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>Votos de la propuesta</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>Selecciona los masternodos con los que votar. Abajo se muestran los votos de financiación actuales. Cambiar un voto reemplaza el voto anterior de ese masternodo; la red limita las actualizaciones a una por hora.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternodo</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>Dirección de votación</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>Peso</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>Voto actual</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>Hora del voto</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>Hash ProTx</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Seleccionar todo</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>Borrar selección</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>Masternodos seleccionados: %1 · Peso del voto: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Mostrar pantalla de bienvenida al iniciar (predeterminado: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Error: Directorio de datos especificado "%1" no existe.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>Error: No se puede analizar el archivo de configuración: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
     <message>
         <source>Unroutable</source>
         <translation>No enrutable</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
         <translation>%1 y %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>ahora</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n mes</numerusform><numerusform>%n meses</numerusform><numerusform>%n meses</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
     <message>
         <source>UNKNOWN</source>
         <translation>DESCONOCIDO</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Compartido</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
         <translation>Recompensa del operador</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>Participaciones</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>Participante</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>Direcciones</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>Participación %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>tú</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>igual que el reembolso</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Propietario</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>Recompensa</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>Reembolso</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>Periodo inicial</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>ninguno</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>termina en el bloque %1</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>termina en el bloque %1 (%2 a partir de ahora)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>terminó (bloque %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>Penalización por salida anticipada</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>guardada en este equipo el %1</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>no creada en este equipo</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Disolución de reserva</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>Direcciones de red</translation>
     </message>
@@ -3537,6 +5235,66 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
         <source>Collateral Date</source>
         <translation>Fecha del colateral</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>hace %1</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>quedan %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Sí</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>No</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>Abstención</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>Sin votar</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>Plazo de votación vencido para este ciclo (bloque %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>Plazo de votación: quedan ~%1 (%2 bloques, bloque %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1S, %2N, %3A / %4 sin votar</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>Dirección Dash no válida: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copiar</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>Copiar al portapapeles</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>No hay ninguna billetera disponible.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>No se pudo generar una nueva dirección: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Participación %1 de %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
         <translation>&amp;Información</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>General</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Nombre</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>N/D</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>Número de conexiones</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>&amp;Abrir</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>Hora de inicio</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>Red</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>Hora del último bloque</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>Archivo de registro de depuración</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>Versión del cliente</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>Cadena de bloques</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>Grupo de memoria</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>Número actual de transacciones</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>Uso de memoria</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
     <message>
         <source>&amp;Repair</source>
         <translation>&amp;Reparar</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;General</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;Red</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>Go&amp;bernanza</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
     <message>
         <source>User Agent</source>
         <translation>Agente del Usuario</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>Datadir</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>Para especificar una ubicación no predeterminada del directorio de datos, usa la opción '%1'.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Blocksdir</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>Para especificar una ubicación no predeterminada del directorio de bloques, usa la opción '%1'.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>Direcciones locales</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>Direcciones de red que tu nodo Dash está usando actualmente para comunicarse con otros nodos.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>Número de Masternodes regulares</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>Número de EvoNodes</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>Altura de bloque actual</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>Hash del último bloque</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>Último hash de bloque de la cadena bloqueada</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>Última altura de bloque de la cadena bloqueada</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Abrir el archivo de depuración %1 desde el directorio de datos actual. Puede tardar unos segundos para ficheros de gran tamaño.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>Candados de InstantSend </translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
         <translation>&amp;Levantar prohibición</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>Dentro:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Salientes:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>Actividad de red deshabilitada</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>Ninguno</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>Total: %1 (Enabled: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>Ejecutando comando sin billetera</translation>
     </message>
@@ -4122,6 +5768,10 @@ Ahora será redirigido para monitorear y transmitir su nueva propuesta. Puede re
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: Protocolo de transporte cifrado BIP324</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;Gobernanza</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>Registrar masternodo</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Atrás</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Siguiente</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>Tipo de masternodo</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>Masternodo — %1 de colateral</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Proporciona servicios de red de Core y obtiene recompensas regulares de masternodo.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode — %1 de colateral</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>Además aloja Dash Platform, tiene cuatro veces el peso de voto y obtiene una mayor parte de las recompensas. Requiere un ID de nodo de la plataforma y servicios adicionales.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>Registrar EvoNode</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>Colateral</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>Enviar el colateral desde esta billetera a una nueva dirección</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>Una sola transacción financia el colateral y registra el masternodo.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Usar nueva dirección</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>Usar una salida de colateral existente de esta billetera</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>Una salida P2PKH sin gastar de exactamente el importe del colateral, confirmada y no utilizada por otro masternodo.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>Referenciar un colateral externo (p. ej., una billetera de hardware)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>Una salida P2PKH confirmada de exactamente el importe del colateral, mantenida fuera de esta billetera.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>Tras la revisión, se te pedirá firmar un mensaje con la clave del colateral fuera de esta billetera.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>ID de transacción del colateral (64 caracteres hexadecimales)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>ID de transacción:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>Índice de salida</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>Índice de salida:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>Direcciones de servicio</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>Direcciones públicas en las que tu masternodo prestará servicio a la red P2P de Core, separadas por comas o espacios. Cada entrada debe ser única en la red.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>Puede dejarse vacío; el masternodo permanecerá inactivo hasta que envíes una actualización de servicio con una dirección.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Claves</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Dirección de propietario</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>Controla este masternodo (P2PKH): su clave firma las actualizaciones del registrador. Usa una dirección nueva para mantener esa clave en esta billetera, o ingresa una dirección controlada por el propietario.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>Dirección de votación</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>Puede delegarse (P2PKH). Déjala vacía para votar con la clave de propietario; usa una dirección nueva para mantener una clave de votación independiente en esta billetera.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>Déjala vacía para usar la dirección de propietario</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>Clave de operador</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>El operador ejecuta el servidor del masternodo (BLS); solo la clave pública se registra en la cadena.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>Se muestra una clave secreta generada y debes confirmarla antes de registrar. No se almacena en esta billetera.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>Pago</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Dirección de pago</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>Recibe las recompensas de bloque de este masternodo (P2PKH o P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Recompensa del operador</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>Parte de la recompensa prometida al operador.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>El operador recibirá de forma permanente esta parte de todas las recompensas de este masternodo. Déjala en 0 salvo que tengas un acuerdo con tu operador.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>Servicios de la plataforma</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>ID de nodo de la plataforma</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>Derivado de la clave pública P2P de la plataforma (40 caracteres hexadecimales).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>Direcciones de la plataforma</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>Entradas ADDR:PORT, separadas por comas o espacios.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>P2P de la plataforma</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>API HTTPS de la plataforma</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>Puertos de la plataforma</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>Antes de la activación de v24 solo se pueden registrar los puertos de la plataforma; se aplican a la primera dirección de servicio.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Puerto P2P de la plataforma:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Puerto HTTPS de la plataforma:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>Origen de la comisión</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Revisión</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>Demostrar la propiedad del colateral</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>Firma el siguiente mensaje con la clave del colateral (por ejemplo, con la función de firmar mensajes de tu billetera de hardware) y pega la firma en base64 a continuación.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>Copiar mensaje</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>Firma</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>Pega aquí la firma en base64</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Guardar clave de operador</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Guarda esta clave generada antes de registrar. No se conserva en ningún otro lugar y no se puede recuperar desde la billetera.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Clave secreta del operador</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>Guárdala ahora: el registro no puede comenzar hasta que lo confirmes.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>Agrega esta línea a dash.conf en el servidor de tu masternodo:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copiar</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>Escribe los últimos 4 caracteres de la clave secreta para confirmar que la guardaste antes de registrar:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>Masternodo registrado</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Hash de la transacción de proveedor</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Próximos pasos</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Completado</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Paso %1 de %2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>La dirección seleccionada financia el colateral de %1 más la comisión de la transacción. La comisión exacta se calcula a partir de la configuración de tu billetera al registrar, y el cambio vuelve a esta dirección.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>La dirección seleccionada paga la comisión de la transacción.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>Ingresa una dirección de colateral válida (P2PKH o P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>Esta billetera no tiene ninguna salida sin gastar de exactamente %1. Financia el colateral desde la billetera en su lugar.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>Ingresa el ID de transacción del colateral como 64 caracteres hexadecimales.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>Los EvoNodes necesitan al menos una dirección de servicio para llevar los puertos de la plataforma antes de la activación de v24.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Ingresa una dirección de propietario válida (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>Ingresa una dirección de votación válida (P2PKH) o déjala vacía para usar la dirección de propietario.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>Las direcciones de propietario y de votación deben ser distintas de la dirección del colateral.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Ingresa una clave pública BLS de operador válida (96 caracteres hexadecimales, esquema básico).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>Ingresa una dirección de pago válida (P2PKH o P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>La dirección de pago debe ser distinta de las direcciones de propietario y de votación.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>La dirección de pago debe ser distinta de la dirección del colateral.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>Ingresa el ID de nodo de la plataforma como 40 caracteres hexadecimales.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>Ingresa tanto una dirección P2P como una dirección HTTPS de la plataforma; no se puede registrar una sin la otra.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>Ingresa al menos una dirección P2P y una dirección HTTPS de la plataforma, o borra las direcciones de servicio para configurarlo todo más tarde con una actualización de servicio.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>Ingresa al menos una dirección de servicio de Core cuando se establezcan los puntos de conexión de la plataforma, o borra todos los puntos de conexión de servicio para configurarlos más tarde con una actualización de servicio.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>Ninguna dirección de la billetera con fondos disponibles contiene el importe de colateral de %1. La dirección seleccionada también debe tener suficiente para la comisión calculada al registrar.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>Ninguna dirección gastable de la billetera tiene un saldo positivo disponible para pagar la comisión de la transacción.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>Pega la firma codificada en base64 del mensaje anterior, hecha con la clave del colateral.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>Atrás no está disponible después de la preparación porque cambiar el registro invalidaría el mensaje que se está firmando.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Continuar</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>Preparar</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Registrar</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Enviar</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Finalizar</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>No hay ninguna billetera disponible. El registro de masternodos requiere una billetera.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>Esta billetera es de solo lectura. El registro de masternodos requiere una billetera que pueda firmar transacciones.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Confirma que guardaste la clave secreta del operador escribiendo sus últimos 4 caracteres.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>Esta billetera no tiene ninguna salida sin gastar de exactamente %1 con una confirmación. Envía el colateral desde esta billetera en su lugar, o referencia uno que esté en otro lugar.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tipo</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Servicio</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>HTTPS de la plataforma</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Cantidad</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>Destino</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>Salida</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Origen</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Propietario</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>Votación</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>Operador</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Dirección</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>Porcentaje del operador</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>Comisión de red</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Nodo</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternodo</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>Sin definir: el nodo permanece inactivo hasta que envíes una actualización de servicio</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 de par a par, %2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>Esta billetera la envía como parte del registro</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>Una salida que esta billetera ya posee</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>Mantenido fuera de esta billetera: firmarás un mensaje con su clave</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>Igual que el propietario</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Financiación</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>No seleccionado</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>Se calcula al enviar usando la configuración de comisiones actual de la billetera</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>Preparar crea la transacción sin firmar y el mensaje que se firma con la clave del colateral. Todavía no se transmite nada.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>Registrar transmite una transacción desde esta billetera. Es posible que se te pida desbloquearla.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>Recién generada, se muestra y se confirma antes del registro, y no se guarda en ningún otro lugar</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>Proporcionada por quien ejecuta el nodo</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>El destino del colateral ya no es válido.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>La salida de colateral seleccionada ya la usa otro masternodo.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>La dirección de propietario ya no es válida.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>La dirección de votación ya no es válida.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>La clave pública del operador ya no es válida.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>La dirección de pago ya no es válida.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>El origen de comisión seleccionado ya no es válido.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>masternodo</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>Esta transacción crea %1 de colateral desde esta billetera y registra el %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>Esta transacción registra el colateral externo de %1 y lo establece como colateral de este %2.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>Esta transacción registra y bloquea la salida de colateral de %1 de la billetera para este %2.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> La comisión de red se calcula a partir del origen de comisión seleccionado usando la configuración de comisiones actual de la billetera.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>Confirmar el registro de %1</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>¿Quieres transmitir este registro de %1?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>Origen de la comisión: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>Las reglas de transacciones de proveedor de la red cambiaron mientras este asistente estaba abierto. Revisa de nuevo la página de servicios de la plataforma antes de registrar.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Preparando…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>Registrando…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>Las reglas de transacciones de proveedor de la red cambiaron mientras se recopilaba la firma del colateral. Descarta este registro preparado y revisa de nuevo la página de servicios de la plataforma.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>La firma del colateral no es un base64 válido.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>Enviando…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>Error en el registro</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>El registro finalizó sin devolver una transacción.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>La transacción de registro se creó pero no se envió a la red.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>La operación de preparación finalizó sin devolver una transacción.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>Dirección del colateral que contiene la clave: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>La transacción de registro se envió a la red.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>Queda registrada en esta billetera y aparece en Transacciones. El colateral externo permanece en el outpoint que registraste y esta billetera no lo controla.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>Queda registrada en esta billetera y aparece en Transacciones. El colateral permanece en la billetera pero está bloqueado mientras el masternodo esté registrado.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>Configura el servidor de tu masternodo con la clave secreta del operador que guardaste y reinicia allí dashd.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>Configura el servidor de tu masternodo con la clave secreta BLS que corresponde a la clave pública del operador que proporcionaste.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Asegúrate de que todas las direcciones y puertos de servicio registrados sean accesibles desde internet.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>Envía una transacción de Actualizar servicio cuando los puntos de conexión del servicio del nodo estén listos; permanece inactivo hasta entonces.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>Aprovisiona los servicios de Dash Platform (Tenderdash y Drive) con la clave de nodo de la plataforma que corresponde al ID de nodo que registraste.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>El EvoNode pasa a estar activo cuando se confirma el registro y el operador firma la primera actualización.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>El masternodo pasa a estar activo cuando el registro se confirma en la red.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>¿Descartar el registro preparado?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>El registro preparado se descartará. Se liberará cualquier bloqueo de colateral adquirido por este asistente.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>Mensaje de restauración de billetera</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>No especificado</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>Terminación del servicio</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>Claves comprometidas</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>Cambio de claves</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>Motivo:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Clave de operador:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automático usa el pago actual del operador y, después, el pago del masternodo. Selecciona una dirección solo para anular esa elección.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>Revocar servicio del masternodo</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>Al revocar se borra la dirección de servicio y se bloquea el masternodo por PoSe hasta que su propietario cambie la clave de operador. El colateral no se ve afectado.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>Revocar</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>Rotar clave de operador o de votación</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Cambiar estas claves requiere la aprobación de todos los propietarios de participaciones. Una persona inicia la solicitud; los demás la pegan, la aprueban y copian una respuesta.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. Nuevas claves</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>Déjalo en blanco para mantener la clave de operador actual</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copiar</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>Nueva clave de operador:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>El masternodo se bloquea en cuanto cambia la clave de operador, hasta que el nuevo operador envíe una actualización de servicio.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>Déjalo en blanco para mantener la dirección de votación actual</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>Nueva dirección de votación:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Origen de la comisión:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>Preparar solicitud</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>Finaliza en esta billetera: paga la comisión y debe enviar la transacción final.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Aprobaciones</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Envía la misma solicitud a todos los propietarios de participaciones. Las respuestas pueden llegar en cualquier orden.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Aprobar y copiar respuesta</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Enviar</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>Enviar rotación</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>ID de transacción</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>Clave de operador: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>sin cambios</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>Dirección de votación: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Primero prepara o pega una solicitud.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>Solo la billetera que preparó la solicitud puede enviarla.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Primero deben aprobar todas las participaciones (%1 de %2 hasta ahora).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>Ingresa una clave pública de operador válida.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>La dirección de votación debe ser una dirección P2PKH.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>Se envió la rotación de claves.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>Si el error dice que la billetera que financió la solicitud debe combinarla, finaliza en la billetera que preparó la solicitud.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
         <translation>o</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>Transacción sin firmar</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>El PSBT se ha copiado al portapapeles. También puedes guardarlo.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT guardado en el disco</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>Confirmar el envío de monedas</translation>
     </message>
@@ -4688,6 +7188,7 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT guardado</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>Una comisión superior a %1 se considera una comisión excesivamente alta.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>Está previsto que comience la confirmación en %n bloque.</numerusform><numerusform>Está previsto que comience la confirmación en %n bloques.</numerusform><numerusform>Está previsto que comience la confirmación en %n bloques.</numerusform></translation>
@@ -4900,6 +7405,1441 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     <message>
         <source>Create Unsigned</source>
         <translation>Crear sin firmar</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>Masternodo compartido</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Atrás</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Pegar</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>Guardar…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Siguiente</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Detalles</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>Financiado</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Aprobado</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>Firmado</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>todavía hay otra operación en curso.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>no hay ninguna billetera disponible.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>la billetera permaneció bloqueada.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>el nodo no dio ningún motivo.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>el registro no es una transacción válida.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>Masternodo compartido</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>Varias personas financian juntas un masternodo. Una persona coordina; todas las demás pegan lo que reciben y copian una respuesta. Nada llega a la red hasta la transmisión final.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Iniciar</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>Ingresarás quiénes participan y la configuración del masternodo, y luego invitarás a los demás.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>Iniciar un masternodo compartido</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Continuar</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>Pega una invitación, términos bloqueados, una solicitud de firma o cualquier respuesta que hayas recibido: la aplicación sabrá qué hacer.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>Pegar desde el portapapeles</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Abrir archivo…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Participantes</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>Quiénes participan y cuánto aporta cada uno. Los importes deben sumar exactamente %1; cada participación es de al menos %2.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nombre</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Cantidad</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>Yo</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>Agregar participante</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>Participante %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Quitar</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>Configuración del masternodo</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>Se aplican a todo el masternodo y son iguales para todos los participantes.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Direcciones de servicio:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>Direcciones públicas en las que el masternodo presta servicio a la red P2P de Core, separadas por comas o espacios. Puede dejarse vacío y configurarse después con una actualización de servicio.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Clave de operador:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>Quien ejecute el servidor necesita la clave secreta. Solo la clave pública se registra en la cadena.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>Copiar clave pública</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Nodo operado por:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>Se registra en los términos para que todos sepan quién puede iniciar y reactivar el nodo.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>Nombre del participante que conserva la clave secreta del operador</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Dirección de votación:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>Vota en las propuestas de gobernanza en nombre de todo el masternodo (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Usar nueva dirección</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Recompensa del operador:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>Parte de la recompensa prometida a quien ejecute el servidor.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>El operador recibirá de forma permanente esta parte de todas las recompensas antes de repartir nada entre los participantes.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Condiciones de salida</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>Qué ocurre si un participante quiere salir antes que los demás.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>Cómo funciona la salida</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>Cualquiera puede disolver el masternodo por su cuenta en cualquier momento y todos recuperan su capital. Durante el periodo inicial, quien disuelve en solitario paga la penalización por salida anticipada de su propia participación, y esta se reparte entre los demás. Si todos están de acuerdo, disolver es gratis en cualquier momento.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Periodo inicial:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>Bloques posteriores al registro durante los cuales salir en solitario cuesta la penalización.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Ninguno</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 meses</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 meses</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 año</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 años</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Penalización por salida anticipada:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>Tu contribución</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>Direcciones y monedas para tu participación. Solo tú ves las monedas; los demás solo ven las entradas de transacción resultantes.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>Tu participación</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>Este soy yo:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>Dirección de propietario:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>Controla tu participación: aprueba cambios de claves y disoluciones. Se mantiene en esta billetera.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>Dirección de reembolso:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>Recibe tu capital cuando se disuelve el masternodo. No se puede cambiar después.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>Dirección de recompensa (opcional):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>Recibe tu parte de las recompensas. Déjala vacía para usar la dirección de reembolso; puedes cambiarla después.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>Monedas</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>Comisión de red:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>Reservar monedas</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Liberar</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Guardar clave de operador</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Guarda esta clave generada antes de invitar a nadie. No se conserva en ningún otro lugar y no se puede recuperar desde la billetera.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Clave secreta del operador</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>Guárdala ahora: la invitación no puede enviarse hasta que lo confirmes.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copiar</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>Agrega esta línea a dash.conf en el servidor del masternodo:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>La invitación que estás a punto de enviar contiene solo la clave pública.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>Escribe los últimos 4 caracteres de la clave secreta para confirmar que la guardaste:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>Invitar a los participantes</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>Envía la misma invitación a todos. Cada persona reserva sus monedas y te devuelve sus datos.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>Copiar invitación</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>Invitación</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>Guardar invitación…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>Cambiaste el borrador. Los participantes que ya respondieron deben responder de nuevo.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>¿Bloquear estos términos?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>Bloquear fija todas las direcciones, importes y monedas. Después nadie puede editar: solo desbloquear, lo que descarta todas las aprobaciones.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>Aprobaciones</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>Copiar términos bloqueados</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>Términos bloqueados</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>Desbloquear términos…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>Firmas</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>Copiar solicitud de firma</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>Solicitud de firma</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>Lo que enviaste</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>Qué sigue</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>Liberar mis monedas</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>Masternodo compartido registrado</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>Qué ocurrió</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>Aparece en Masternodos después de una confirmación.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>Qué debes guardar</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>Tu clave de propietario de participación</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Disolución de reserva</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>Una disolución firmada que guardas sin conexión. Recupera tu capital incluso si pierdes esta billetera. Créala después de la primera confirmación.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Créala desde la lista de Masternodos (clic derecho en el masternodo) una vez confirmado el registro, y guárdala junto con la copia de seguridad de tu dirección de reembolso, por separado de esta billetera.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>Registro de la sesión</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>Guardar registro final…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Próximos pasos</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>Copiar registro final</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>Registro final</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Esperando a %1</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>quien coordina</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>Aprobar términos</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>Firmar contribución</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Completado</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Paso %1 de %2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>No hay ninguna billetera disponible.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>Esta billetera no puede firmar. Puedes ver, pero no participar.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>Un masternodo compartido necesita entre %1 y %2 participantes.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>Ingresa un nombre para el participante %1.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>El nombre "%1" se usa dos veces.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>Cada participación es de al menos %1.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>Los importes suman %1; deben ser exactamente %2.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>Selecciona el participante que eres tú.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Ingresa una clave pública BLS de operador válida (96 caracteres hexadecimales, esquema básico).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>Ingresa una dirección de votación válida (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>Establece la penalización por salida anticipada en 0 cuando no hay periodo inicial.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>La penalización por salida anticipada debe ser menor que la participación más pequeña (%1).</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Ingresa una dirección de propietario válida (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>Ingresa una dirección de reembolso válida (P2PKH o P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>Ingresa una dirección de recompensa válida (P2PKH o P2SH) o déjala vacía.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>La dirección de recompensa debe ser distinta de la dirección de votación y de todas las direcciones de propietario.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>Todos los participantes deben devolver sus datos antes de poder bloquear los términos.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Esta billetera es de solo lectura y no puede firmar.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>Guarda primero la clave secreta del operador. Se muestra una sola vez, en la página "Guardar clave de operador", y el archivo de sesión no la incluye.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>Reservar monedas y copiar detalles</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>Bloquear y aprobar</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>Bloquear términos</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Aprobar y copiar respuesta</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>Aprobar</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Reintentar</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>Firmar y copiar respuesta</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>Transmitir registro</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Cerrar</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Finalizar</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>Empezar de nuevo</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Confirma que guardaste la clave secreta del operador escribiendo sus últimos 4 caracteres.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>Ya aprobaste estos términos.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>Cada participante debe firmar sus propias monedas antes de poder transmitir el registro.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>Masternodo compartido — Sesión %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 de %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 de %2 — faltan %3</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 de %2 — sobran %3</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>Debe ser menor que la participación más pequeña (%1). Pon 0 solo si aceptas que cualquiera puede irse en cualquier momento gratis.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Cualquiera puede irse en cualquier momento gratis.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>Si %1 se va antes del bloque %2 de la vida del masternodo, %1 pierde %3, que se reparte entre los demás.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>Irse en solitario durante el periodo inicial cuesta %1, que se reparte entre los demás.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>Con una penalización de cero, el periodo inicial no tiene efecto: cualquiera puede disolver el masternodo en solitario en cualquier momento sin pagar nada.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>Participación %1 de %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>Participación %1 de %2 — %3 (tú)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>Elige qué participante eres.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>Reservadas: estas monedas no se pueden gastar hasta que termine la sesión o las liberes.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>Usa %1 (%2); el cambio de %3 vuelve a una nueva dirección tuya.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>Usa %1 (%2), sin cambio sobrante.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>Todos revisan estos términos exactos y aprueban una vez. Envía el mismo mensaje a todos.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>Lee cada línea. Aprobar firma estos términos exactos con tu clave de propietario. Todavía no se transmite nada.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>Todas las aprobaciones están incluidas. Ahora cada participante firma sus propias monedas. Las respuestas pueden llegar en cualquier orden.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>Firma las monedas que reservaste. Tu firma solo las gasta en este registro.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>%1 de %2 entradas de financiación están firmadas.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>Firma tu participación de %1. Tú no transmites nada.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>Enviaste: %1 · Código %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>los términos bloqueados</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>la solicitud de firma</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>el registro final</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>A continuación recibirás: %1. Pega el mensaje aquí cuando llegue.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 transmite el registro. Cuando el masternodo aparezca en tu lista, crea tu disolución de reserva.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>En esta billetera (%1). Haz una copia de seguridad de la billetera: aprueba cambios y disoluciones.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>En poder de %1. Necesaria en el servidor como masternodeblsprivkey.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>quien ejecuta el nodo</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>Configura el servidor del masternodo con la clave secreta del operador y reinicia allí dashd.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>Envía una actualización de servicio cuando las direcciones del nodo estén listas; permanece inactivo hasta entonces.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Asegúrate de que todas las direcciones y puertos de servicio registrados sean accesibles desde internet.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>Cada participante debe crear su propia disolución de reserva después de la primera confirmación.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 de %2 entradas</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1 de %2 respondieron</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1 de %2 firmaron</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 de %2 aprobaron</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Preparando…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>Error al preparar el registro: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>la transacción de financiación no es válida.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>dirección de reembolso no válida: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>dirección de recompensa no válida: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>dirección de propietario de participación no válida: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>la clave de operador no es una clave pública BLS válida.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>la dirección de votación debe ser una dirección P2PKH.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>la recompensa del operador debe estar entre 0% y 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>Respuesta inesperada del nodo.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>Los términos aún no están bloqueados.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>Error al aprobar: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>Aprobando…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>Aprobación</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>Error al combinar las aprobaciones: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>Combinando aprobaciones…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>Esta transacción también gasta %1, una moneda de esta billetera que no forma parte de tu contribución. No firmes; pide una sesión nueva a %2.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>Esta transacción gasta %1 de monedas de esta billetera para una participación de %2 pero devuelve solo %3 de cambio a esta billetera. No firmes; pide una sesión nueva a %4.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>Error al firmar: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>La transacción firmada no es la que revisaste. No la uses; pide una sesión nueva a %1.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>Contribución firmada</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>¿Desbloquear los términos?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>Desbloquear descarta %1. Todos deben volver a aprobar después de que bloquees.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>Colateral: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>Participantes: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>Confirmar registro de masternodo compartido</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>¿Transmitir este registro de masternodo compartido?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>Sesión %1 · Código %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>Error en la transmisión: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>todos</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>Copiado · Sesión %1 · Código %2: envíalo a %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>Guarda primero la clave secreta del operador. Solo se muestra aquí y el archivo de sesión no la incluye: sin ella el masternodo nunca podría ejecutarse.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>Guardar mensaje de masternodo compartido</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>Archivos de sesión (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>No se pudo abrir %1 para escritura.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>Guardado · Sesión %1 · Código %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>Abrir mensaje de masternodo compartido</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Ese mensaje es demasiado grande para ser un mensaje de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>No se pudo abrir %1 para lectura.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>Este mensaje trata de un masternodo existente. Ábrelo desde la lista de Masternodos.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>Firmas no contadas</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Recibido: %1 · Código %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>Esta respuesta es anterior a tus términos actuales (Código %1; el tuyo es %2). Pide al remitente que pegue tu último mensaje y responda de nuevo.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>Recibido de %1: %2 · Código %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>Esta billetera necesita al menos %1 disponibles para financiar tu participación de %2.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>¿Liberar tus monedas?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>Las monedas que reservaste para la Sesión %1 volverán a poder gastarse.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>Las monedas de los demás siguen reservadas. Si gastas estas, este registro nunca podrá transmitirse y los demás tendrán que empezar de nuevo.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>Liberadas: estas monedas se pueden volver a gastar.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>Se gastó una moneda reservada para esta sesión. El registro ya no puede completarse: empieza de nuevo.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>Este nodo aún no puede comprobar el valor de %1. Las entradas que sí puede comprobar suman %2 de los %3 del colateral.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>Las monedas reservadas suman %1, lo que no cubre el colateral de %2 más el cambio de %3 y una comisión de red. El registro nunca podría transmitirse.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>Entradas %1 − cambio %2 = %3 de colateral + %4 de comisión de red. Esa comisión es inusualmente alta; continúa solo si es intencionado.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>Entradas %1 − cambio %2 = %3 de colateral + %4 de comisión de red ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>¿Guardar primero la clave de operador?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>La clave secreta del operador no existe en ningún sitio salvo en esta ventana: el archivo de sesión solo lleva su mitad pública. Si cierras ahora, el masternodo nunca podría ejecutarse.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>¿Conservar esta sesión para más tarde?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>Guardar mantiene tus monedas reservadas para que puedas continuar donde lo dejaste. Descartar las libera; si los demás siguen esperándote, tendrán que empezar de nuevo.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>Guardar clave de operador</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>Guardar y cerrar</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>Descartar y liberar monedas</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Participación %1 de %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>Esta billetera no tiene ninguna de las claves de propietario de participación de este masternodo.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternodo: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>Participación</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>Dirección de reembolso</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>Recibe</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>No hay ninguna billetera disponible.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Esta billetera es de solo lectura y no puede firmar.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>Todavía hay otra operación en curso.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>Se canceló el desbloqueo de la billetera.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>La transacción no es un hexadecimal de transacción válido.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>Se gastó una moneda que necesita esta solicitud (%1:%2). Ya no se puede enviar: empieza de nuevo.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>Error interno: el resumen calculado aquí no coincide con el del nodo. No apruebes; informa de este problema.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>Se aprobó %1 con esta billetera.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>Los masternodos compartidos necesitan la actualización v24, que aún no está activa en esta red.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nombre</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Cantidad</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(tú)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Esta solicitud no paga a cada participación su capital completo. No la apruebes; pide una solicitud nueva a quien la preparó.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>Esta solicitud nombra una participación que este masternodo no tiene.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>Esta solicitud no gasta exactamente el colateral del masternodo. No la apruebes.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Esta solicitud retiene %1 del capital de las participaciones como comisión de transacción. No la apruebes; pide una solicitud nueva a quien la preparó.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>El portapapeles no contiene un mensaje de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>Este mensaje no es un mensaje de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>Esta transacción no es una disolución de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>sin nombre</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(tú)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>Propietario:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>aún sin definir</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>Reembolso:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>Recompensa:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>igual que el reembolso</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Participantes</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Servicio:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>Sin definir: se define más tarde con una actualización de servicio</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Clave de operador:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>sin definir</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Nodo operado por:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>no registrado</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Dirección de votación:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Recompensa del operador:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternodo</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Periodo inicial:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 bloques (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Penalización por salida anticipada:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Cualquiera puede irse en cualquier momento gratis.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>Irse en solitario durante el periodo inicial cuesta %1, que se reparte entre los demás; irse en conjunto es gratis.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Condiciones de salida</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>Contribuciones:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>Cambio devuelto:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>Colateral:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1, una vez bloqueados los términos</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>la salida n.º %1 paga el script de colateral compartido de %2</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Financiación</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>Sesión:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>Código:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>Preparado por la billetera:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>Identidad</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>La transacción no es un hexadecimal de transacción válido.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>La transacción no es una transacción de disolución.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>La carga útil de la transacción no se puede deserializar.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>La transacción disuelve un masternodo distinto.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>La transacción ya contiene firmas; se esperaba la transacción preparada sin firmar.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>La transacción no es una actualización compartida del registrador.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>La transacción actualiza un masternodo distinto.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Aprobado</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>Copiar solicitud</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>Guardar solicitud…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Pegar</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Abrir archivo…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>Este mensaje trata de una transacción distinta de la que ya está aquí. Una de las dos copias está obsoleta; conserva la actual y pide una respuesta nueva.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>Pega primero la solicitud en sí antes de pegar las aprobaciones.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>Este mensaje no contiene ninguna aprobación.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>A una aprobación le falta el número de participación o la firma.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>Una aprobación tiene un número de participación ilegible.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>El número de participación %1 está fuera de rango.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: la firma no es una firma compacta de 65 bytes en base64.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>La aprobación de %1 no coincide con la transacción preparada. Pide a %2 que pegue la solicitud actual y apruebe de nuevo.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 ya tiene una aprobación de otra respuesta.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>Este no es un mensaje de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>Este mensaje es para la red %1; esta billetera funciona en %2.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>Este mensaje trata de un tipo de cambio distinto para este masternodo.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>Este mensaje trata de un masternodo distinto.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>Copiado · Código %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>Guardar solicitud</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>Mensaje de masternodo compartido (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>No se pudo escribir en %1.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>Guardado · Código %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>Guardado en %1.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Ese mensaje es demasiado grande para ser un mensaje de masternodo compartido.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Recibido: %1 · Código %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>Recibido · Código %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>Abrir solicitud</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>Mensaje de masternodo compartido (*.json);;Todos los archivos (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>No se pudo leer %1.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>Aprobado por %1</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>Esperando a %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 de %2 aprobaron</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(presiona q para apagar y continuar más tarde)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>Presiona q para apagar</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     <message>
         <source>Date</source>
         <translation>Fecha</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tipo</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Registro de masternodo</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Actualización de masternodo</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Bloqueo de activos</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     <message>
         <source>Transaction total size</source>
         <translation>Tamaño total de transacción</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>Carga útil</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
         <translation>Transferencia de plataforma</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>Transacción de datos</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>Recepción de polvo</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Registro de masternodo</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Actualización de masternodo</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Bloqueo de activos</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     <message>
         <source>(n/a)</source>
         <translation>(nd)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>Registra un masternodo. La cantidad es el cambio neto en el saldo de esta billetera y normalmente es solo la comisión de red cuando el colateral permanece en esta billetera.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>Actualiza el registro de un masternodo existente. La cantidad es el cambio neto en el saldo de esta billetera, normalmente solo la comisión de red.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Bloquea fondos para su uso en Dash Platform. La cantidad es el cambio neto en el saldo de esta billetera, incluida la comisión de red.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
         <translation>Minado</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>Masternodo</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>Transferencia de plataforma</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Bloqueo de activos</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>Transacción de datos</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ Para obtener más información sobre el uso de esta consola, escribe %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>Clave pública BLS del operador (96 caracteres hexadecimales)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>Clave pública del operador:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>Cambiar la clave de operador bloquea de inmediato el masternodo por PoSe. El nuevo operador debe enviar una transacción de Actualizar servicio para reactivarlo.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Dirección de votación:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>Dirección de pago:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>Se conservan los pagos repartidos entre varias direcciones; usa el RPC para cambiarlos</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>Este diálogo no puede convertir de forma segura un masternodo con varios pagos en una sola dirección.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>Automático usa la dirección de pago principal actual del masternodo. Selecciona una dirección solo para anular esa elección.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>Actualizar registrador del masternodo</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>Actualiza la clave de operador, la dirección de votación o la dirección de pago. Todos los valores actuales están rellenados; solo se envían los campos modificados. La clave de propietario debe estar presente en esta billetera.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Enviar actualización</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>Ingresa una clave pública de operador válida para la versión actual de la transacción de proveedor.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>La dirección de votación debe ser una dirección de clave.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT, separadas por comas para varias entradas</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>Varias direcciones requieren transacciones de proveedor extendidas.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Direcciones de servicio:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>Dirección de servicio:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Clave de operador:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>ID de nodo de la plataforma (40 caracteres hexadecimales)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>ID de nodo de la plataforma:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>Direcciones P2P de la plataforma:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT o dominio:port, separadas por comas</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>Direcciones HTTPS de la plataforma:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Puerto P2P de la plataforma:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Puerto HTTPS de la plataforma:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>Dirección de pago del operador:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Automático usa el pago actual del operador y, después, el pago del masternodo. Selecciona una dirección solo para anular esa elección.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>Actualizar servicio del EvoNode</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>Actualizar servicio del masternodo</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>Actualiza los puntos de conexión de servicio registrados. Una actualización correcta también reactiva un masternodo bloqueado por PoSe. Todos los valores actuales están rellenados, de modo que los campos sin cambios se conservan.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Enviar actualización</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>Ingresa un ID de nodo de la plataforma válido (40 caracteres hexadecimales).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>Tu participación:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>Dirección que recibe las recompensas de esta participación</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Usar nueva dirección</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>Usar dirección de reembolso</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>Nueva dirección de recompensa:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>La comisión se paga desde esta dirección de tu billetera.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>Cambiar dirección de recompensa</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>Cambia dónde se paga tu parte de las recompensas de este masternodo. Solo se ve afectada tu participación; el importe de la participación y la dirección de reembolso nunca cambian.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Enviar actualización</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>Ingresa la dirección que debe recibir las recompensas.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>Ingresa una dirección Dash válida.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>La dirección de recompensa debe ser distinta de la dirección de votación y de todas las direcciones de propietario.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>Este masternodo no es compartido y no tiene tabla de participaciones.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>Elige una dirección de esta billetera desde la que pagar la comisión.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Send Coins</source>
         <translation>Enviar Dash</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>Error del firmante</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Advertencia: ¡Parece que no estamos completamente de acuerdo con nuestros pares! Podría necesitar una actualización, u otros nodos podrían necesitarla.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+No se puede limpiar la migración fallida</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+No se puede restaurar la copia de seguridad de la billetera.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>Ya tiene esa entrada.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>SQLiteDatabase: Se desconoce la versión %d del esquema de billetera SQLite. Solo se admite la versión %d</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>Nivel de registro específico de categoría no compatible -loglevel=%s. se espera -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Categorías válidas: %s. Valid loglevels: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>No se puede mezclar: ¡fondos de entrada no compatibles!</translation>
     </message>
@@ -5905,10 +10099,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Insufficient funds.</source>
         <translation>Fondos insuficientes.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>Número mínimo inválido de firmantes de spork especificados con -minsporkkeys</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Respuesta desconocida.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>Nivel de registro global no compatible: -loglevel=%s. Valores válidos: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>El comentario del Agente de Usuario (%s) contiene caracteres inseguros.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s archivo contiene todas las llaves privadas de esta billetera. ¡No lo compartas con nadie!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s no pudo validar el estado de la instantánea -assumeutxo. Esto indica un problema de hardware, un error en el software o una modificación defectuosa del software que permitió cargar una instantánea no válida. Como resultado, el nodo se apagará y dejará de usar cualquier estado construido sobre la instantánea, restableciendo la altura de la cadena de %d a %d. En el próximo reinicio, el nodo reanudará la sincronización desde %d sin usar ningún dato de la instantánea. Informa de este incidente a %s, indicando cómo obtuviste la instantánea. El chainstate de la instantánea no válida se dejará en el disco por si resulta útil para diagnosticar el problema que causó este error.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>La longitud total de la cadena de versión de red ( %i ) supera la longitud máxima ( %i ) . Reducir el número o tamaño de uacomments .</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>¡ADVERTENCIA! Error al reponer la keypool, por favor desbloquee su billetera para hacerlo.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>¡La billetera esta bloqueado, no se puede reponer keypool! Copias de seguridad automáticas y mezclado están deshabilitados, por favor desbloquee su billetera para reponer keypool.</translation>
     </message>
@@ -6085,10 +10271,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool debe ser por lo menos de %d MB</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>Copias de seguridad automáticas deshabilitadas</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>No se pudo analizar un archivo asmap %s</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>¡ERROR! Error al crear copia de seguridad automática</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>Error al cargar %s: las claves privadas solo se pueden deshabilitar durante la creación</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>Error al leer el archivo de configuración: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>Error: No se puede extraer el destino del scriptpubkey generado</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>Error: No se pudo agregar la transacción de solo lectura a la billetera de solo lectura</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>Error: No se pudieron eliminar las transacciones de solo lectura</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>Error: la suma de comprobación del archivo de volcado no coincide. Se ha calculado %s, se esperaba %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>Error: No se pudo crear la nueva billetera de solo lectura</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Error: No hay direcciones disponibles.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>Error: No se pudieron eliminar todas las transacciones de solo lectura</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>Error: Esta billetera ya usa SQLite</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>Error: Esta billetera ya es una billetera de descriptores</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>Error: No se pudo comenzar a leer todos los registros de la base de datos</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>Error: No se pudo hacer una copia de seguridad de tu billetera</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>Error: No se pudieron leer todos los registros de la base de datos</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>Error: No se pudieron eliminar los datos de solo lectura de la libreta de direcciones</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>¡Error al crear copia de seguridad %s!</translation>
     </message>
@@ -6161,6 +10383,22 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Error al borrar copia de seguridad, error: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>No se pudo terminar la limpieza interrumpida de la instantánea no válida.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>No se pudo terminar la promoción interrumpida del marcador de instantánea.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>No se pudo inspeccionar la limpieza interrumpida de la instantánea: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>No se pudo recuperar la limpieza interrumpida de la instantánea: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Entrada no encontrada o ya gastada</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>dbcache insuficiente para la verificación de bloques</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>La limpieza interrumpida de la instantánea tiene puntas de monedas y de EvoDB inconsistentes.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>A la limpieza interrumpida de la instantánea le falta su marcador EvoDB de instantánea.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>Permiso P2P no válido: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>Llave privada de Masternode inválida. Por favor ver la documentación.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>Entrada preseleccionada no válida %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>Valor no válido para %s: supera el máximo (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>Valor no válido para %s: debe ser &gt;= 0</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Mixing in progress…</source>
         <translation>Mezclado en curso…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>Se proporcionó más de una dirección de spork. Se usa %s.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>No hay suficientes descriptores de archivo disponibles. </translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>Entrada preseleccionada no encontrada %s</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>Entrada preseleccionada no resoluble %s</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>Los destinatarios de la plataforma no se pueden combinar con una posición de cambio explícita</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>Primero ingresa la contraseña de la billetera con walletpassphrase.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>La poda no se puede configurar con un valor negativo.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>El modo de poda es incompatible con -addressindex.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>El modo de poda es incompatible con -disablegovernance=false.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>El modo de poda es incompatible con -spentindex.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>La sección [%s] no se reconoce</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>Establece un título de ventana que se añade a "Dash Core - "</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>El firmante no devolvió la dirección</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>El firmante devolvió una dirección inesperada %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>El firmante devolvió un error: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>Falta el marcador EvoDB del chainstate de la instantánea. Se requiere reindexar.</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>Dirección de billetera especificada "%s" no existe</translation>
     </message>
@@ -6275,8 +10585,16 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Dirección de billetera especificada "%s" no es un directorio</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>El directorio de datos especificado "%s" no existe.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>La billetera evitará pagar menos que la comisión mínima de transmisión.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>No hay ningún ScriptPubKeyManager para esta dirección</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Los montos de transacción no deben ser negativos</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>La transacción abarca demasiado de una cadena de mempool</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates no es compatible con la cadena %s.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>No puedes iniciar un masternode con billetera habilitada.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>No hay mezclado disponible.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>ver debug.log para detalles.</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>Los desarrolladores de %s</translation>
     </message>
@@ -6379,16 +10689,16 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>%s usa cantidades denominadas exactas para enviar fondos, probablemente solo tengas que mezclar algunas otras monedas.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>La opción -reindex-chainstate no es compatible con -blockfilterindex. Desactiva temporalmente blockfilterindex mientras utilizas -reindex-chainstate o reemplaza -reindex-chainstate con -reindex para reconstruir por completo todos los índices.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>La opción -reindex-chainstate no es compatible con -txindex. Desactiva temporalmente txindex mientras utilizas -reindex-chainstate o reemplaza -reindex-chainstate por -reindex para reconstruir por completo todos los índices.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>La opción -reindex-chainstate no es compatible con -coinstatsindex. Desactiva temporalmente coinstatsindex mientras usas -reindex-chainstate o reemplaza -reindex-chainstate con -reindex para reconstruir por completo todos los índices.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>La opción -reindex-chainstate no es compatible con -txindex. Desactiva temporalmente txindex mientras utilizas -reindex-chainstate o reemplaza -reindex-chainstate por -reindex para reconstruir por completo todos los índices.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>La opción -reindex-chainstate no es compatible con -blockfilterindex. Desactiva temporalmente blockfilterindex mientras utilizas -reindex-chainstate o reemplaza -reindex-chainstate con -reindex para reconstruir por completo todos los índices.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Error leyendo %s!. Todas las llaves se han leído correctamente, pero los datos de transacciones o la libreta de direcciones pueden faltar o ser incorrectos.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>¡Error al leer %s! Es posible que falten datos de transacciones o que sean incorrectos. Reexplorando la billetera.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Error: No se puede identificar que los datos de la libreta de direcciones de la billetera pertenezcan a las billeteras migradas</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>Error: el registro de formato del archivo de volcado es incorrecto. Se obtuvo "%s", se esperaba "formato".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>Error: el registro del identificador del archivo de volcado es incorrecto. Se obtuvo "%s", se esperaba "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>Error: Se crearon descriptores duplicados durante la migración. Tu billetera puede estar dañada.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>Error: No se pudo avanzar el descriptor activo más allá del contador de cadena heredado durante la migración.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Error: No se puede identificar que la transacción %s de la billetera pertenezca a las billeteras migradas</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>Error: No se pueden generar descriptores para esta billetera heredada. Asegúrate de proporcionar la contraseña de la billetera si está cifrada.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>No se pudo eliminar el directorio del chainstate de la instantánea. Elimínalo manualmente antes de reiniciar.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Las conexiones salientes están restringidas a i2p (-onlynet=i2p) pero no se proporciona -i2psam</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>Los destinatarios de la plataforma no se pueden combinar con otra carga útil de transacción especial</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Por favor, compruebe si la fecha y hora en su computadora son correctas! Si su reloj esta mal, %s no trabajara correctamente. </translation>
     </message>
@@ -6489,6 +10831,26 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>El modo de poda no es compatible con -reindex-chainstate. En su lugar, utiliza -reindex completo.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>Falló el cambio de nombre de '%s' -&gt; '%s'. Debes resolverlo moviendo o eliminando manualmente el directorio de instantánea no válida %s; de lo contrario, volverás a encontrar el mismo error en el próximo inicio.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>El servicio onion automático de Tor no puede usar un bind onion comodín porque el demonio de Tor no podría reenviarnos las conexiones entrantes. Usa una dirección específica como -bind=127.0.0.1:&lt;puerto&gt;=onion, o desactiva el servicio con -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>El servicio onion automático de Tor requiere un bind onion dedicado. Usa una dirección específica como -bind=127.0.0.1:&lt;puerto&gt;=onion, o desactiva el servicio con -listenonion=0.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>El tamaño de las entradas supera el peso máximo. Intenta enviar una cantidad menor o consolida manualmente los UTXO de tu billetera</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>La cantidad total de las monedas preseleccionadas no cubre el objetivo de la transacción. Permite que se seleccionen otras entradas automáticamente o incluye más monedas manualmente</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Esta es la tarifa de cuota que debe pagar cuando las estimaciones de tarifas no estén disponibles.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>El índice de transacciones no se puede deshabilitar con la validación de gobernanza habilitada. Inicia con la opción de línea de comandos -disablegovernance o habilita el índice de transacciones.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>La transacción no es estándar (%s) y no se retransmitiría; enviar a direcciones de la plataforma requiere actualmente un nodo iniciado con -acceptnonstdtxn=1</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>La transacción requiere un destino de valor distinto de 0, una tasa de tarifa distinta de 0 o una entrada preseleccionada</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>No se pudo validar la instantánea UTXO. Reinicia para reanudar la descarga inicial normal de bloques, o intenta cargar otra instantánea.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>No se pueden reproducir bloques. Deberás reconstruir la base de datos utilizando -reindex-chainstate.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>Se encontró una entrada heredada inesperada en la billetera de descriptores. Cargando la billetera %s
+
+Es posible que la billetera haya sido manipulada o creada con fines maliciosos.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>Se proporcionó un formato de archivo de billetera desconocido "%s". Proporciona uno de los siguientes "bdb" o "sqlite".</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>Se encontró un descriptor no reconocido. Cargando la billetera %s
+
+Es posible que la billetera se haya creado en una versión más reciente.
+Intenta ejecutar la última versión del software.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>Nivel de registro específico por categoría no compatible %1$s=%2$s. Se esperaba %1$s=&lt;categoría&gt;:&lt;nivel de registro&gt;. Categorías válidas: %3$s. Niveles de registro válidos: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>Advertencia: claves privadas detectadas en la billetera {%s} con claves privadas deshabilitadas</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>Debes reconstruir la base de datos usando -reindex para habilitar -timestampindex</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>Ocurrió un error interno fatal, ver debug.log para más detalles</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>La verificación de bloques se interrumpió</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Importando…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>Modo de reescaneo incorrecto, retrocediendo al valor predeterminado</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>La inicialización de la verificación de validez falló. Se está apagando %s.</translation>
     </message>
@@ -6727,10 +11123,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>¡La sesión no está completa!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>La sesión caducó.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>Falló la firma de la transacción</translation>
     </message>
@@ -6759,10 +11151,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Error al actualizar la base de datos Evo</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>Tarifa necesaria &gt; tarifa pagada</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>Host %s en red no compatible</translation>
     </message>
@@ -6777,10 +11165,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>Puerto no válido especificado en %s: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>La última acción exitosa era demasiado reciente.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Intentando conectar…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>No se puede asignar memoria para -maxsigcachesize: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>No es posible enlazar con %s en este computador (enlazado ha dado el error %s)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>No fue posible firmar el mensaje de spork, ¿llave incorrecta?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>No se puede descargar la billetera antes de migrar</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>La red especificada en -onlynet '%s' es desconocida</translation>
     </message>
@@ -6887,12 +11279,12 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
         <translation>Esquema de URL no compatible, debe comenzar con udp://</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>Categoría de registro no compatible %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>Nivel de registro global no compatible %s=%s. Valores válidos: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>Queda muy poca cantidad de llaves: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>Categoría de registro no compatible %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Ve a Archivo &gt; Abrir billetera para cargar una billetera.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>No puede deshabilitar la validación de gobernanza en un masternode.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>Debes reconstruir la base de datos usando -reindex para habilitar -addressindex</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>Debes reconstruir la base de datos usando -reindex para habilitar -spentindex</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

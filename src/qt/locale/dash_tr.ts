@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>Yönetişim verileri senkronize ediliyor…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>Süper bloğa ~%n gün (%1 blok) kaldı</numerusform><numerusform>Süper bloğa ~%n gün (%1 blok) kaldı</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>Oylamaya ~%n gün (%1 blok) kaldı</numerusform><numerusform>Oylamaya ~%n gün (%1 blok) kaldı</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% bütçe taahhüt edildi (%2 %3).</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -774,12 +762,28 @@
         <translation>Panodan Kısmen İmzalanmış Blokzincir İşlemini Yükle</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>Hata ayıklama &amp;kütük dosyasını aç</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>Güncel veri klasöründen hata ayıklama kütük dosyasını açar</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>Cüzdan Oluştur…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>Tüm Cüzdanları Kapat…</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Cüzdanı Taşı</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>Bir cüzdanı taşı</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -844,6 +848,26 @@
     <message>
         <source>Up to date</source>
         <translation>Güncel</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Süper blok yaklaşıyor</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Oylama süresi sona erdi</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>Süper bloğa ~%1 (%2 blok) kaldı</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>Oylamaya ~%1 (%2 blok) kaldı</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% bütçe taahhüt edildi (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -987,8 +1011,8 @@
         <translation>tümünü seç(me)</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>kilit durumunu aç/kapa</translation>
+        <source>(un)lock all</source>
+        <translation>tümünün kilidini aç/kilitle</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1079,8 +1103,16 @@
         <translation>Para üstünü kopyala</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>Bu fonksiyonu kullanmak için lütfen "Liste modu"na geçin.</translation>
+        <source>Wallet error</source>
+        <translation>Cüzdan hatası</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>Bazı koinler kilitlenemedi.</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>Bazı koinlerin kilidi açılamadı.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1264,6 +1296,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>Paylaşımlı Masternode'u Feshet</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>Bu masternode %1. blokta kaydedildi ve zincir hâlâ %2. blokta. Bir onay bekleyin, ardından bu pencereyi yeniden açın.</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>Şimdi Feshet</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>Birlikte Feshet</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>Yedek Fesih</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>Masternode'u tek başınıza sonlandırır. Herkes anaparasını kendi iade adresinde geri alır.</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>Payınız:</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>İşlem ücreti, payınızın iadesinden ödenir.</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>Ücret:</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>İşlem ID'si</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>Erken çıkış: %1 ceza ödersiniz. %2. bloktan sonra ücretsiz (%3, %4).</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>%1 erken çıkış cezasını ödemeyi kabul ediyorum</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>Fesih ücretsiz olana kadar yalnızca %1 kaldı. Beklemeyi düşünün veya Birlikte Feshet seçeneğini kullanın; herkesin onayıyla şimdi ücretsizdir.</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>Erken dönem sona erdi; şimdi feshetmek ücretsizdir.</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (siz)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>Önce cezayı kabul etmek için kutuyu işaretleyin.</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>Bu pencere açıkken zincir cezasız sınırı geçti. Yukarıdaki önizleme yenilendi; gözden geçirin ve Şimdi Feshet düğmesine yeniden basın.</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>Bu paylaşımlı masternode şimdi feshedilsin mi? Tüm katılımcıların anaparası iade adreslerine döner ve masternode kazanç sağlamayı bırakır. Bu işlem geri alınamaz.</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>Fesih işlemi gönderildi.</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>İstediğiniz zaman ücretsizdir, ancak her pay sahibinin onaylaması gerekir. Bir kişi isteği hazırlar; diğerleri isteği yapıştırır, onaylar ve yanıtı geri kopyalar.</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. İstek</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>İşlem ücretinin düşüleceği pay.</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>Ücreti ödeyen:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>İsteği Hazırla</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Onaylar</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Aynı isteği her pay sahibine gönderin. Yanıtlar herhangi bir sırada gelebilir.</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>Bu istek şunları öder</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Onayla ve Yanıtı Kopyala</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Gönder</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>Fesih İşlemini Gönder</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>Ücret: %1, %2 tutarından ödenir.</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Önce bir istek hazırlayın veya yapıştırın.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Önce her payın onaylaması gerekir (şu ana kadar %1 / %2).</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>Çevrimdışı sakladığınız ve gerekmedikçe asla yayınlamadığınız imzalı bir fesih işlemi. Süresi hiç dolmaz ve bu cüzdan kaybolsa bile çalışır.</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Yedek Fesih Oluştur…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopyala</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>Tam anapara — %1. bloktan itibaren geçerli (~%2)</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>Tam anapara — şimdi geçerli, erken dönem sona erdi</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>Henüz oluşturulmadı</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>Anında — %1 ceza öder</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>İade adresi yedeğinizle birlikte, bu cüzdandan ayrı olarak saklayın.</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>%1 tarihinde kaydedildi</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>Yedek Fesihi Kaydet</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>Metin dosyası (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>Her iki işlem de aşağıda hazır, ancak hiçbir şey kaydedilmedi. Bunları kopyalayın veya dosyayı yeniden oluşturun.</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>%1 konumuna kaydedildi.</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Dash paylaşımlı masternode — yedek fesih</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>Oluşturulma: %1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>Aşağıdaki her blok, eksiksiz imzalı bir işlemdir. Bunlardan birini "sendrawtransaction" ile yalnızca masternode'u sonlandırıp anaparanızı geri almak istediğinizde yayınlayın. Süreleri hiç dolmaz. Bu dosyayı iade adresi yedeğinizle birlikte, cüzdandan ayrı olarak saklayın.</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>TAM ANAPARA — %1. bloktan itibaren geçerli (~%2)</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>TAM ANAPARA — şimdi geçerli, erken dönem sona erdi</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>ANINDA — %1 erken çıkış cezasını öder, hemen geçerlidir</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>%1 konumuna yazılamadı.</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1342,193 +1593,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>Form</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>Teklif listesini filtrele</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>Masternode Sayısı:</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>Bu cüzdanın oy verebileceği masternode sayısı (bu cüzdanın oy anahtarını tuttuğu masternodelar)</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>Ağda aktif teklif bulunmuyor.</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>Teklife Devam Et</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>Teklif Sayısı:</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>Teklif Oluştur</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>Görüntülenecek teklifleri seçin</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>Başlığa göre filtrele</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>Kullanılamıyor</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>Senkronize edilmiş bir düğüm ve kilidi açılmış bir cüzdan gereklidir.</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>Evet Oyu</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>Hayır Oyu</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>Çekimser Oy</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>Aktif Teklifler</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>Tekliflerim</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>Cüzdan dosyasında kayıtlı teklif bulunmuyor.</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>Teklife devam et</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>Ham JSON Kopyala</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>Teklif URL'sini Aç…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>%1 için ayrıntılar</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>Senkronizasyon tamamlanmadan yönetişimle etkileşim kurulamaz</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>Yeni bir teklif oluşturur</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>Mevcut bir teklife devam eder</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>Teklif oluşturma maliyeti %1, yetersiz bakiye</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>Hata</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>URL doğrulanamıyor, muhtemelen hatalı biçimlendirilmiş veya bilinmeyen protokol.</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>Harici Bağlantı Uyarısı</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>Varsayılan tarayıcınızda aşağıdaki URL'yi açmak üzeresiniz
-
-%1
-
-Bu içerik bir kullanıcı tarafından gönderilmiştir. Başlıkta açıklananla eşleşmeyebilir.
-
-Devam etmek istiyor musunuz?</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>Oylama Başarısız</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>Kullanılabilir cüzdan yok.</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>Cüzdanda masternode oylama anahtarı bulunamadı.</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>Lütfen oy verilecek bir teklif seçin.</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>Cüzdanın kilidi açılamıyor.</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>Masternode listesi alınamıyor. Lütfen daha sonra tekrar deneyin.</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>Masternode %1 bulunamadı</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>Masternode %1 için oy imzalanamadı</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>Masternode %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>%n kez başarıyla oy verildi</numerusform><numerusform>%n kez başarıyla oy verildi</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>%n kez oy verilemedi</numerusform><numerusform>%n kez oy verilemedi</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>Hatalar:</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>Oylama Sonuçları</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1549,6 +1613,109 @@ Devam etmek istiyor musunuz?</translation>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;%1 Temel Bilgiler&lt;/h3&gt; %1 size paranızın gerçek kaynağını gizleyerek tam bir gizlilik imkanı sağlar. Cüzdanınızdaki Dash farklı "girdiler"den oluşur, bunu ayrı gizli paralar olarak düşünebilirsiniz.&lt;br&gt; %1 sizin girdilerinizi başka iki kişinin girdileri ile karıştırmak için yenilikçi bir işlem kullanır ve bu sırada paranın cüzdanınızdan çıkmasına gerek kalmaz. Her an paranızın kontrolü sizdedir.&lt;hr&gt; &lt;b&gt;%1 işlemi şöyle işler:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 işlem girdilerinizi standart birimlere bölerek başlar. Bu birimler 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH ve 10 DASH'dir -- her gün kullandığınız kağıt para gibi düşünebilirsiniz.&lt;/li&gt; &lt;li&gt;Sonra cüzdanınız ağdaki özel ayarlanmış yazılım düğümlerine talepler gönderir, bunşara "ana düğümler" denir. Bu ana düğümlere sizin belli bir miktar birimi karıştırmak istediğiniz bilgisi gider. Ana düğümlere kimliğinizi açık edecek bir bilgi gönderilmez, bu yüzden "kim" olduğunuzu bilmezler.&lt;/li&gt; &lt;li&gt;Aynı birimleri karıştırmak istediğini belirten iki başka kişi daha benzer mesajlar gönderince, karıştırma işlemi başlar. Ana düğüm giridleri karıştırır ve üç kullanıcının da cüzdanına şimdi dönüştürülmüş olan girdiyi kendilerne ödemelerini emreder. Cüzdanınız bu birimleri doğrudan kendisine öder ama farklı bir adres kullanır (buna değişim adresi denir).&lt;/li&gt; &lt;li&gt;Paranızı tamamen gizlemek için cüzdanınız bu işlemi her birim için birkaç defa tekrar etmelidir. Her işlem tamamlandığına buna bir "tur" denir. Her bir %1 turu paranızın kaynağının bulunmasını üstel olarak zorlaştırır.&lt;/li&gt; &lt;li&gt;Bu karışım işlemi arkaplanda sizin tarafınızdan bir müdahale olmadan gerçekleşir. Bir işlem yapmak istediğinizde bakiyeniz zaten karışmış olacaktır. Ek bir beklemeye gerek kalmaz.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;ÖNEMLİ:&lt;/b&gt; Cüzdanınızda bu "değişim adreslerinden" sadece 1000 tane vardır. Her bir karışım işleminde bu adreslerden 9 taneye kadar kullanılır. Bu da 1000 adresin yaklaşık 100 karışım işlemine yeteceği anlamına gelir. 900 tanesi kullanıldığı zaman, cüzdanınızın daha fazla adres oluşturması gerekir. Yalnız bunu ancak otomatik yedekleme etkinse yapabilir.&lt;br&gt; Sonuç olarak yedeklemeyi kapatan kullanıcılar aynı zamanda %1 de kapatmış olurlar. &lt;hr&gt;Daha fazla bilgi için lütfen &lt;a style="%2" href="%3"&gt;%1 dökümantasyonuna&lt;/a&gt; göz atın.         </translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>Genel</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>İstemci sürümü</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Mevcut değil</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>Kullanıcı Yazılımı</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>Veri konumu</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>Varsayılan olmayan bir veri klasörü konumu belirtmek için '%1' seçeneğini kullanın.</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>Blocksdir</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>Varsayılan olmayan bir blok klasörü konumu belirtmek için '%1' seçeneğini kullanın.</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>Başlama zamanı</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Ağ</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>İsim</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>Bağlantı sayısı</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>Yerel Adresler</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>Dash düğümünüzün diğer düğümlerle iletişim kurmak için şu anda kullandığı ağ adresleri.</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>Blok zinciri</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Güncel blok yüksekliği</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Son blok zamanı</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Son blok karması</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>Bellek Alanı</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>Güncel işlem sayısı</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>Bellek kullanımı</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>Gelen:</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>Giden:</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Ağ etkinliği devre dışı bırakıldı</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Yok</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Devam etmek istiyor musunuz?</translation>
         <translation><numerusform>(tam zincir için %n GB gerekli)</numerusform><numerusform>(tam zincir için %n GB gerekli)</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>Veri klasörünü seçin</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>Bu dizinde en az %1 GB lık veri depolanacak ve zamanla büyüyecek.</translation>
     </message>
@@ -1653,6 +1824,61 @@ Devam etmek istiyor musunuz?</translation>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Kullanılabilir cüzdan yok.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>Bu cüzdan yalnızca izleme amaçlıdır ve işlemleri imzalayamaz.</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>Otomatik (önerilir)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Ücret kaynağı:</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>Bu işlemi oluşturmak ve imzalamak için cüzdanın kilidi açık olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>Geçerli bir basic-scheme BLS operatör gizli anahtarı girin.</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>Operatör gizli anahtarı, bu masternode'un kayıtlı genel anahtarıyla eşleşmiyor.</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>Başka bir masternode işlemi zaten sürüyor.</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>İşlem, bir işlem döndürmeden tamamlandı.</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>İşlem oluşturuldu ancak ağa gönderilmedi.</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>İşlem başarıyla gönderildi.</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>İşlem ID'si: %1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Devam etmek istiyor musunuz?</translation>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>Paylaşımlı</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>Ana düğüm listesini filtrele</translation>
     </message>
@@ -1689,6 +1919,22 @@ Devam etmek istiyor musunuz?</translation>
     <message>
         <source>Hide banned</source>
         <translation>Yasaklıları gizle</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>Bu cüzdanı kullanarak yeni bir masternode veya EvoNode kaydet</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>Masternode Kaydet…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>Teminatı birden fazla tarafça havuzlanan bir masternode oluştur veya kaydedilmiş bir oturuma devam et</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>Paylaşımlı Masternode…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Devam etmek istiyor musunuz?</translation>
         <translation>Filtrele</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>Hizmeti Güncelle…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>Kayıt Bilgilerini Güncelle…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>Ödül Adresini Değiştir…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>Anahtarları Yenile…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>Feshet…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>Yedek Fesih Oluştur…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>Geçersiz Kıl…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>Teminat Adresi</translation>
     </message>
@@ -1717,6 +1991,158 @@ Devam etmek istiyor musunuz?</translation>
     <message>
         <source>Voting Address</source>
         <translation>Oylama Adresi</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>Masternode kaydetmek için bir cüzdan gerekir.</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>Masternode kaydı henüz harici imzalayıcı cüzdanlarını desteklemiyor.</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>Masternode kaydı için özel anahtarları olan bir cüzdan gerekir.</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>Masternode kaydı, düğüm hazır olana kadar kullanılamaz.</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>Bu cüzdanı kullanarak yeni bir masternode veya EvoNode kaydet</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>Paylaşımlı masternode'ları yönetmek için bir cüzdan gerekir.</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>Paylaşımlı masternode'ları yönetmek için özel anahtarları olan bir cüzdan gerekir.</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>Paylaşımlı masternode yönetimi, düğüm hazır olana kadar kullanılamaz.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>Paylaşımlı masternode'lar, bu ağda henüz etkin olmayan v24 hard fork'unu gerektirir.</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>Çok taraflı bir paylaşımlı masternode kayıt oturumu oluştur veya devam et</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>Bu işlem, okunabilir bir paylaşımlı masternode fesih işlemi değil.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Pay %1 / %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>tanınmayan bir betik</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>Bu masternode, güncel masternode listesinde yok.</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>Hizmet: %1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>Teminat adresi: %1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>Ücreti ödeyen: %1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>Onaylayan: her pay sahibi</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>Onaylayan: yalnızca sizin imzanız</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>Ödemeler:</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>Ücret: %1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>Her payın anaparası kendi iade adresine geri gönderilir. Bu işlem geri alınamaz.</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>Not: bu işlem her payın anaparasının tamamını iade etmiyor. Bu işlem geri alınamaz.</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>İşlem: %1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>Bu yedek fesih yayınlansın mı?</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>Yayınlama başarısız oldu</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>Yedek fesih gönderildi</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>Masternode bulunamadı</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>Bu ileti, henüz listede olmayan bir masternode ile ilgili.</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>Açılacak bir şey yok</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>İşlem imzalayabilen bir cüzdan gerekir</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>Cüzdanda bu masternode'un sahip anahtarı gerekir</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>Bu cüzdanda bu masternode'un pay sahibi anahtarlarından biri gerekir</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>Bu bilgisayarda %1 tarihinde zaten kaydedildi</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>Bu bilgisayarda henüz oluşturulmadı</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>Bu masternode'un pay sahibi adreslerinden birine göre filtreler</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Devam etmek istiyor musunuz?</translation>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>%n gün yasaklı</numerusform><numerusform>%n gün yasaklı</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>Bir günden az süredir yasaklı</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>Yasaklı</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>%n gündür aktif</numerusform><numerusform>%n gündür aktif</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>Paylaşımlı masternode · %2 paydan %1 tanesi sizde</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>Bir günden az süredir aktif</translation>
+        <source>Banned for %1</source>
+        <translation>%1 süredir yasaklı</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>%1 süredir aktif</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>Paylaşımlı (%2 paydan %1 sizde)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>Paylaşımlı (%1 pay)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Devam etmek istiyor musunuz?</translation>
     <message>
         <source>ProTx Hash</source>
         <translation>ProTx Karması</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>Seçilen anahtarlardan biri, kayıtlı bir masternode veya pay tarafından zaten kullanılıyor. Her sahip ve oylama anahtarı ağ genelinde yalnızca bir kez kullanılabilir.</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>Seçilen hizmet adresi, kayıtlı bir masternode tarafından zaten kullanılıyor.</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>Bir iade veya ödül adresi, aynı zamanda pay sahibi veya oylama adresi olarak kullanılamaz. Ödemeler ve anahtarlar için farklı adresler kullanın.</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>Bir katılımcının onay imzası nihai işlemle eşleşmiyor. Bu durum, imzalandıktan sonra şartlar veya fonlama işlemi değiştiğinde olur; yeni imzalar toplayın.</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Ağ bu işlem sürümünü henüz kabul etmiyor. Bunu getiren ağ yükseltmesinin etkinleşmesini bekleyin.</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>Bu özellik ağda henüz etkin değil. Bunu getiren ağ yükseltmesinin etkinleşmesini bekleyin.</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>Bu masternode için bir fesih işlemi zaten beklemede.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>İşlem fonlanamadı.</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>İşlem fonlanamadı: %1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+Ağ reddi: %1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>Ayrıntılar: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>Cüzdanı taşı</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>&lt;i&gt;%1&lt;/i&gt; cüzdanını taşımak istediğinizden emin misiniz?</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>Cüzdanı taşımak, bu cüzdanı bir veya daha fazla tanımlayıcı (descriptor) cüzdanına dönüştürecektir. Yeni bir cüzdan yedeği alınması gerekecektir.
+Bu cüzdan yalnızca izlenen (watchonly) betikler içeriyorsa, bu betikleri içeren yeni bir cüzdan oluşturulur.
+Bu cüzdan çözülebilir ancak izlenmeyen betikler içeriyorsa, bu betikleri içeren farklı ve yeni bir cüzdan oluşturulur.
+
+Taşıma işlemi, taşımadan önce cüzdanın bir yedeğini oluşturur. Bu yedek dosyası &lt;cüzdan adı&gt;-&lt;zaman damgası&gt;.legacy.bak olarak adlandırılır ve bu cüzdanın klasöründe bulunabilir. Yanlış bir taşıma durumunda yedek, "Cüzdanı Geri Yükle" işleviyle geri yüklenebilir.</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>Cüzdanı Taşı</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>&lt;b&gt;%1&lt;/b&gt; cüzdanı taşınıyor…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>'%1' cüzdanı başarıyla taşındı.</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Yalnızca izlenen betikler, '%1' adlı yeni bir cüzdana taşındı.</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>Çözülebilir ancak izlenmeyen betikler, '%1' adlı yeni bir cüzdana taşındı.</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>Taşıma başarısız oldu</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>Taşıma Başarılı</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>Pay %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>"%1" katkısının girdi işlem kimliği hatalı biçimlendirilmiş.</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>"%1" katkısının para üstü adresi geçersiz.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>Oturumun hazırlanan işlemi geçerli bir işlem hex değeri değil.</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>Oturumun hazırlanan işlemi bir paylaşımlı masternode kaydı değil.</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>Bu ileti kopyalandıktan sonra düzenlendi.</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>Taslak</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>Şartlar kilitlendi</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>Onaylar toplanıyor</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>Onaylar birleştirildi</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>Katkılar imzalandı</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>Yayınlandı</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>Dosya geçerli bir JSON değil.</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>Dosya, bir paylaşımlı masternode oturum dosyası değil.</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>Oturum dosyası desteklenmeyen bir biçim sürümü kullanıyor. Açmak için Dash Core'u güncelleyin.</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>Oturum dosyası "%1" ağı için, ancak bu düğüm "%2" ağında çalışıyor. Burada kullanılamaz.</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>bilinmiyor</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>Oturum dosyasında oturum kimliği yok.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>Oturum dosyasının revizyonu geçersiz.</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>Oturum dosyasında aşama bilgisi yok.</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>Oturum dosyası bilinmeyen "%1" aşamasında. Muhtemelen daha yeni bir Dash Core tarafından oluşturulmuş.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>Oturum dosyası %1 pay listeliyor; bir paylaşımlı masternode en fazla %2 paya sahip olabilir.</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>Oturum dosyasındaki %1 numaralı pay girdisi hatalı biçimlendirilmiş.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>Oturum dosyasındaki erken dönem geçersiz.</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>Oturum dosyasındaki erken çıkış cezası geçersiz.</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>Oturum dosyası %1 katkı listeliyor; pay başına en fazla bir katkı olabilir ve en fazla %2 pay olabilir.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>Oturum dosyasındaki %1 numaralı katkı girdisi hatalı biçimlendirilmiş.</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>Oturum dosyasındaki %1 numaralı katkı girdisinde %2 girdi var; tek bir katkıda en fazla %3 girdi fonlanabilir.</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>Oturum dosyasındaki onay karması hatalı biçimlendirilmiş.</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>Oturum dosyasındaki %1 numaralı imza girdisi hatalı biçimlendirilmiş.</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>Oturum dosyası, %1 numaralı pay için birden fazla imza listeliyor.</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>Oturum dosyası "%1" olarak işaretlenmiş ancak dondurulmuş işlemi veya onay karması eksik.</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>Oturum dosyasında, var olmayan bir pay için imza bulunuyor.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>Oturum dosyası onayların birleştirildiğini belirtiyor, ancak her payın bir onayı yok.</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>Oturum dosyası onayların birleştirildiğini belirtiyor, ancak bir onay geçersiz: %1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>Oturum dosyası her katkının imzalandığını belirtiyor, ancak bir veya daha fazla fonlama girdisi imzasız.</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>Oturum dosyası ayrıştırılamadı: %1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>Bir paylaşımlı masternode %1 ile %2 arasında pay gerektirir (şu anda %3).</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>Oylama adresi geçerli bir P2PKH adresi olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>Pay %1:</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>sahip adresi geçerli bir P2PKH adresi olmalıdır.</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>sahip adresi zaten %1 numaralı pay tarafından kullanılıyor. Her sahip anahtarı benzersiz olmalıdır.</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>tutar %1 ile %2 arasında olmalıdır.</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>iade</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>ödül</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>%1 adresi geçerli bir P2PKH veya P2SH adresi olmalıdır.</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>iade adresi zaten %1 numaralı pay tarafından kullanılıyor. Her iade adresi benzersiz olmalıdır.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>%1 adresi oylama adresi olmamalıdır.</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>%1 adresi, %2 numaralı payın sahip adresi olmamalıdır.</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>Pay tutarlarının toplamı tam olarak %1 olmalıdır (şu anda %2).</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>Erken dönem en fazla %1 blok (yaklaşık iki yıl) olabilir.</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>Erken çıkış cezası negatif olamaz.</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>Erken çıkış cezası, en küçük pay tutarından (%1) düşük olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>Fonlama yalnızca oturum düzenlenebilir durumdayken değiştirilebilir. Önce şartların kilidini açın (bu, toplanan tüm onayları siler).</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>Katkı için bir katılımcı etiketi gerekir.</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>Katkıda fonlama girdisi yok.</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1" zaten katkıda bulundu. Önce mevcut katkıyı kaldırın.</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>%1:%2 girdisi zaten "%3" tarafından katkı olarak verildi.</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>Para üstü tutarı pozitif olmalıdır.</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>"%1" tarafından yapılmış bir katkı bulunamadı.</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>Yalnızca düzenlenebilir bir oturum kilitlenebilir.</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>Onay karması hatalı biçimlendirilmiş.</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>Onay karması hazırlanan işlemle eşleşmiyor. İmzalamayın; hazırlık adımını baştan başlatın.</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>Teminat çıktı dizini hazırlanan işlemle eşleşmiyor.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>Şartlar henüz kilitlenmedi; onaylanacak bir şey yok.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>%2 paydan %1 numaralı pay mevcut değil.</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>İmza geçerli bir base64 değil.</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>%1 tarafından verilen imza, güncel şartlara göre doğrulanmıyor. Büyük olasılıkla bu oturumun eski bir sürümü için atılmış; %1 kişisinden güncel sürümü yeniden imzalamasını isteyin.</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Oturum dosyasındaki pay tablosu, hazırlanan işlemiyle eşleşmiyor. İmzalamayın; yeni bir kopya isteyin.</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Oturum dosyasındaki %1 numaralı pay, hazırlanan işlemiyle eşleşmiyor. İmzalamayın; yeni bir kopya isteyin.</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Oturum dosyasındaki %1 numaralı payın ödül adresi, hazırlanan işlemiyle eşleşmiyor. İmzalamayın; yeni bir kopya isteyin.</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Oturum dosyasında gösterilen şartlar, hazırlanan işlemiyle eşleşmiyor. İmzalamayın; yeni bir kopya isteyin.</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>Oturum dosyasında gösterilen fonlama, hazırlanan işlemiyle eşleşmiyor. İmzalamayın; yeni bir kopya isteyin.</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>Bu pay için farklı bir imza zaten kayıtlı. Kopyalardan biri oturumun eski bir sürümünü imzalamış; en son revizyon üzerinde anlaşın ve yeniden imzalatın.</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>Fonlama girdileri yalnızca onaylar birleştirildikten sonra imzalanabilir.</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>Hazırlanan işlem, herkesin onayladığı şartlarla eşleşmiyor. İmzalamayın veya yayınlamayın; yeni bir kopya isteyin.</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>Bu ileti farklı bir oturum içindir (Oturum %1). Şu anda Oturum %2 üzerinde çalışıyorsunuz.</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>Yanıtlar yalnızca şartlar hâlâ düzenlenebilirken işlenebilir.</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>Yanıt mevcut taslağınızla eşleşmiyor: katılımcılar, tutarlar veya şartlar değiştirilmiş. Gönderenden en son davetinizi yapıştırmasını isteyin ve yeniden yanıtlayın.</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>%1 adlı kişinin payında zaten başka bir yanıttan gelen ayrıntılar var.</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>Bu ileti kilitli şartlar içermiyor.</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>Kilitli şartlar, gönderdiğiniz ayrıntıları içermiyor.</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>koordinatör</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>Ayrıntılarınızı gönderdiğinizden beri şartlar değişti. %1 kişisinden güncel daveti göndermesini isteyin ve yeniden yanıtlayın.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>İçe aktarılan kopya bu oturumun %1. revizyonu; bu kopya %2. revizyon ve onun tarafından geçersiz kılındı.</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>İçe aktarılan kopya bu oturumun %1. revizyonu; bu kopya zaten %2. revizyonda. Gönderene daha yeni dosyayı gönderin.</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>İçe aktarılan kopyanın şartları kilitli ve bu düzenlenebilir kopyanın yerini alıyor.</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>Bu oturumun şartları zaten kilitli; içe aktarılan kopya hâlâ düzenlenebilir. Gönderene daha yeni güncellemeyi gönderin.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>Oturum %1'in her iki kopyası da farklı şartları kilitledi ve birleştirilemez. Bir kopya üzerinde anlaşın, onu yeniden gönderin ve herkesin onu onaylamasını sağlayın.</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>Oturum %1'in her iki kopyası da aynı ayrıntıları değiştirdi ve birleştirilemez. Bir kopya üzerinde anlaşın ve yeniden gönderin.</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>Fonlama imzalı kopyalar aynı işlem değil. Birleştirilemezler.</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>%1 fonlama girdisinin iki farklı imzası var. Kopyalar birleştirilemez.</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>İçe aktarılan kopya onayların birleştirildiğini belirtiyor, ancak bu durum geçersiz: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>İçe aktarılan kopya her katkının imzalandığını belirtiyor, ancak bu durum geçersiz: %1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>İçe aktarılan kopya kaydın yayınlandığını belirtiyor, ancak bu durum geçersiz: %1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>Oturum onay toplamıyor.</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>Henüz her pay imzalamadı (%1 / %2). Yalnızca tamamen imzalanmış bir oturumu birleştirin.</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>Katkılar imzalanmadan önce sahip onayları birleştirilmelidir.</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>Bir fonlama girdisi hâlâ imzasız.</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>%1 fonlama girdisi hâlâ imzasız.</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>Oturum, her onay ve fonlama imzası yerinde olmadan yayınlanamaz.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>yok</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>yaklaşık 1 dakika</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>yaklaşık %1 dakika</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>yaklaşık 1 saat</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>yaklaşık %1 saat</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>yaklaşık 1 gün</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>yaklaşık %1 gün</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>Ücret pozitif olmalıdır.</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>Ceza ve ücret, feshi yapan katılımcının payını aşıyor.</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>Tek taraflı bir fesih için cezayı alacak en az bir başka pay gerekir.</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 koin</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 koin</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>1 onay</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>%1 onay</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>1 katılımcı</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>%1 katılımcı</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>1 fonlama girdisi</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>%1 fonlama girdisi</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>1 pay</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>%1 pay</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>1 girdi</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>%1 girdi</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Devam etmek istiyor musunuz?</translation>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>Kredi Havuzu</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>Son blok değişikliği</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Mevcut değil</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>Toplam kilitli</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>Bekleyen kilit açmalar</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>Çekim limiti</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>AnındaGönder</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>Doğrulanmış kilitler</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>Doğrulanmamış kilitler</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>İşlem bekleyen kilitler</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>Korumasız işlemler</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>Masternode'lar</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>Masternode sayısı</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>EvoNode sayısı</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>ZincirKilidi</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>Güncel blok yüksekliği</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>Son blok zamanı</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>Son blok karması</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>Quorum'lar</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Toplam: %1 (Etkin: %2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Blok zinciri senkronizasyonu bekleniyor…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 aktif (%2% sağlık)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>Quorum türü döner, veriler %1 boyunca saklanır</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>Quorum türü dönmez, veriler %1 boyunca saklanır</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>Güncel quorum'un %1 süresi kaldı</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>Güncel quorum'un süresi doldu</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>Son oluşum %1 önce</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>Yakın zamanda oluşturuldu</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Devam etmek istiyor musunuz?</translation>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>&lt;b&gt;%1&lt;/b&gt; Cüzdan Açılıyor…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>Yeni bir operatör anahtarı oluştur</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>Gizli anahtar kayıttan önce gösterilir ve doğrulanır, ardından başka hiçbir yerde saklanmaz.</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>Genel anahtar</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>Mevcut bir operatör genel anahtarını kullan</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>Barındırılan bir düğüm için: operatör gizli anahtarı kendisi tutar ve size genel anahtarı verir.</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>Operatör BLS genel anahtarı (96 onaltılık karakter, basic scheme)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>Operatör BLS gizli anahtarı (64 onaltılık karakter)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>PSBT İşlemleri</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>Diyalog</translation>
     </message>
@@ -2968,10 +4148,6 @@ Desteğin sonlandırılması nedeniyle, satıcıdan size BIP21 uyumlu bir URI sa
         <translation>Yük Görüntüle</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>Teklif Oluştur</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>Teklifiniz "%2" için %1 başarıyla gönderildi.
 
 Şimdi yeni teklifinizi izleme ve yayınlama sayfasına yönlendirileceksiniz, daha sonra "Teklife Devam Et" düğmesine tıklayarak devam edebilirsiniz.</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>Genel</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>Oylama döngüleri</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>Mevcut değil</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>Son süper blok</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>Sonraki süper blok</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>Oylama kapanış bloğu</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>Katılım</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>Oy veren masternode'lar</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>Oy veren EvoNode'lar</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>Geçme eşiği</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Düğüm</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>Kontrol edilen masternode'lar</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>Kontrol edilen oylar</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>Teklifler</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>Teklif Sayısı</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>Tahsis edilen bütçe</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>Geçen Teklifler</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>Fonlanmayan teklifler</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>Başarısız Olan Teklifler</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 oy</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 uygun)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>Teklif %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>Bütçenin %1%</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% tahsis edildi</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (%2 eksik)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>Form</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>Görüntülenecek teklifleri seçin</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>Teklif listesini filtrele</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>Başlığa göre filtrele</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>Oylama son tarihi: senkronizasyon bekleniyor…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>Ağda aktif teklif bulunmuyor.</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>Oylar…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>Mevcut oylarınızı görüntüleyin ve seçili masternode'larla oy verin</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>Teklif Oluştur</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>Teklife Devam Et</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>Teklif Sayısı:</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>Aktif Teklifler</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>Tekliflerim</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>Bu cüzdan tarafından kontrol edilen uygun masternode'lardan gelen güncel fonlama oyları. Sayılar ağırlıklı oylardır.</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1: %2 (ağırlık %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>Oylama anahtarı yok</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>Cüzdan dosyasında kayıtlı teklif bulunmuyor.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Kullanılamıyor</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>Senkronize olmuş bir düğüm ve kilidi açık bir cüzdan gereklidir.</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>Teklife devam et</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>Ham JSON Kopyala</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>Teklif URL'sini Aç…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>Evet Oyu</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>Hayır Oyu</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>Çekimser Oy</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>%1 için ayrıntılar</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>Blok zinciri senkronizasyonu bekleniyor…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>Yönetim senkronizasyonu bekleniyor…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>%n masternode oy vermeye uygun</numerusform><numerusform>%n masternode oy vermeye uygun</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>Süper blok yaklaşıyor</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>Oylama süresi sona erdi</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>Süper bloğa ~%1 (%2 blok) kaldı</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>Oylamaya ~%1 (%2 blok) kaldı</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% bütçe taahhüt edildi (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>Kalan bloklardan ve hedef blok süresinden tahmin edilmiştir. Oylar son tarihten sonra da iletilebilir, ancak bu döngünün ödemesini etkilemeyebilir.</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>Senkronizasyon tamamlanmadan yönetimle etkileşim kurulamaz</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>Yeni bir teklif oluşturur</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>Mevcut bir teklife devam eder</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>Teklif oluşturma maliyeti %1, yetersiz bakiye</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Hata</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>URL doğrulanamıyor, muhtemelen hatalı biçimlendirilmiş veya bilinmeyen protokol.</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>Harici Bağlantı Uyarısı</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>Varsayılan tarayıcınızda aşağıdaki URL'yi açmak üzeresiniz
+
+%1
+
+Bu içerik bir kullanıcı tarafından gönderildi. Başlıkta anlatılanla eşleşmeyebilir.
+
+Devam etmek istiyor musunuz?</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>Oylama Başarısız</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>Kullanılabilir cüzdan yok.</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>Cüzdanda masternode oylama anahtarı bulunamadı.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>Masternode verileri alınamıyor.</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>Lütfen oy verilecek bir teklif seçin.</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>Oy vermek için yayınlanmış bir teklif ve senkronize olmuş bir düğüm gerekir.</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>Cüzdanın kilidi açılamıyor.</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>Senkronize masternode verileri alınamıyor.</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>Masternode %1 artık uygun değil</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>Masternode %1 bulunamadı</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>Masternode %1 için oy imzalanamadı</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>Masternode %1: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>%n kez başarıyla oy verildi</numerusform><numerusform>%n kez başarıyla oy verildi</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>%n kez oy verilemedi</numerusform><numerusform>%n kez oy verilemedi</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Hatalar:</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>Oylama Sonuçları</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>needs %1 more votes</source>
         <translation>%1 oy daha gerekiyor</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>Oylarım</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>%1 için Oy Ver</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>Teklif Oyları</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>Oy verilecek masternode'ları seçin. Güncel fonlama oyları aşağıda gösterilir. Bir oyu değiştirmek, o masternode'un önceki oyunun yerini alır; ağ güncellemeleri saatte bir ile sınırlar.</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>Oylama Adresi</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>Ağırlık</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>Güncel Oy</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>Oy Zamanı</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>ProTx Karması</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Tümünü Seç</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>Seçimi Temizle</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>Seçilen masternode: %1 · Oy ağırlığı: %2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Başlatıldığında başlangıç ekranını göster (varsayılan: %u)</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>Hata: Belirtilen veri dizini "%1" mevcut değil.</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>Hata: Yapılandırma dosyası ayrıştırılmıyor: %1.</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Unroutable</source>
         <translation>Yönlendirilemiyor</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 ve %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>şimdi</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n ay</numerusform><numerusform>%n ay</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>UNKNOWN</source>
         <translation>BİLİNMİYOR</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Paylaşımlı</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>Operatör Ödülü</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>Paylar</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>Katılımcı</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>Adresler</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>Pay %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>siz</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>iade ile aynı</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Sahip</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>Ödül</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>İade</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>Erken dönem</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>yok</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>%1. blokta biter</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>%1. blokta biter (şu andan yaklaşık %2 sonra)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>sona erdi (%1. blok)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>Erken çıkış cezası</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>%1 tarihinde bu bilgisayarda kaydedildi</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>bu bilgisayarda oluşturulmadı</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Yedek fesih</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>Ağ Adresleri</translation>
     </message>
@@ -3537,6 +5235,66 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>Collateral Date</source>
         <translation>Teminat Tarihi</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>%1 önce</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>%1 kaldı</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Evet</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Hayır</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>Çekimser</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>Oy kullanılmadı</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>Bu döngü için oylama son tarihi geçti (blok %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>Oylama son tarihi: ~%1 kaldı (%2 blok, blok %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>%1E, %2H, %3Ç / %4 oy kullanılmadı</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>Geçersiz Dash adresi: %1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopyala</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>Panoya kopyala</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Kullanılabilir cüzdan yok.</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>Yeni adres oluşturulamadı: %1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Pay %1 / %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>&amp;Malumat</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>Genel</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>İsim</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>Mevcut değil</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>Bağlantı sayısı</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>&amp;Aç</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>Başlama zamanı</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>Şebeke</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>Son blok zamanı</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>Hata ayıklama kütük dosyası</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>İstemci sürümü</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>Blok zinciri</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>Bellek Alanı</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>Güncel işlem sayısı</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>Bellek kullanımı</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>&amp;Repair</source>
         <translation>&amp;Onar</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>&amp;Genel</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>&amp;Ağ</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>Yö&amp;netim</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>User Agent</source>
         <translation>Kullanıcı Yazılımı</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>Veri konumu</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>Veri dizininin varsayılan olmayan bir konumunu belirtmek için '%1' seçeneğini kullanın.</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>Blocksdir</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>Bloklar dizininin varsayılan olmayan bir konumunu belirtmek için '%1' seçeneğini kullanın.</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>Yerel Adresler</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>Dash düğümünüzün diğer düğümlerle iletişim kurmak için şu anda kullandığı ağ adresleri.</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>Normal Masternode sayısı</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>EvoNode sayısı</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>Mevcut blok yüksekliği</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>Son block hash'ı</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>En son ZincirKilitli blok hash'ı</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>En son ZincirKilitli blok yüksekliği</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Güncel veri klasöründen %1 hata ayıklama kütük dosyasını açar. Büyük kütük dosyaları için bu birkaç saniye alabilir.</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>AnındaGönder kilitleri</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>&amp;Yasaklamayı Kaldır</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>İçeri:</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>Dışarı:</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>Ağ etkinliği devre dışı bırakıldı</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>Yok</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>Toplam: %1 (Etkinleştirilen: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>Cüzdan olmaksızın komut yürütme</translation>
     </message>
@@ -4122,6 +5768,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>v2: BIP324 şifreli taşıma protokolü</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>&amp;Yönetim</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>Masternode Kaydet</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Geri</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>İleri</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>İptal</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>Masternode türü</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>Masternode — %1 teminat</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Core ağ hizmetleri sağlar ve düzenli masternode ödülleri kazanır.</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>EvoNode — %1 teminat</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>Ek olarak Dash Platform'u barındırır, dört kat oylama ağırlığına sahiptir ve ödüllerden daha büyük bir pay alır. Bir Platform düğüm kimliği ve ek hizmetler gerektirir.</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>EvoNode Kaydet</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>Teminat</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>Bu cüzdandan yeni bir adrese teminat gönder</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>Tek bir işlem teminatı fonlar ve masternode'u kaydeder.</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Yeni adres kullan</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>Bu cüzdanın mevcut bir teminat çıktısını kullan</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>Tam olarak teminat tutarında, harcanmamış, onaylanmış ve başka bir masternode tarafından kullanılmayan bir P2PKH çıktısı.</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>Harici bir teminata başvur (ör. donanım cüzdanı)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>Bu cüzdanın dışında tutulan, tam olarak teminat tutarında onaylanmış bir P2PKH çıktısı.</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>İncelemeden sonra, bu cüzdanın dışındaki teminat anahtarıyla bir iletiyi imzalamanız istenecek.</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>Teminat işlem kimliği (64 onaltılık karakter)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>İşlem ID'si:</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>Çıktı dizini</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>Çıktı dizini:</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>Hizmet adresleri</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>Masternode'unuzun Core P2P ağına hizmet vereceği, virgül veya boşlukla ayrılmış genel adresler. Her girdi ağda benzersiz olmalıdır.</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>Boş bırakılabilir; bu durumda masternode, bir adresle hizmet güncellemesi gönderene kadar etkin olmaz.</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>Anahtarlar</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Sahip adresi</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>Bu masternode'u kontrol eder (P2PKH): anahtarı kayıt güncellemelerini imzalar. Bu anahtarı bu cüzdanda tutmak için yeni bir adres kullanın veya sahibin kontrol ettiği bir adres girin.</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>Oylama adresi</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>Devredilebilir (P2PKH). Sahip anahtarıyla oy vermek için boş bırakın; bu cüzdanda ayrı bir oylama anahtarı tutmak için yeni bir adres kullanın.</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>Sahip adresini kullanmak için boş bırakın</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>Operatör anahtarı</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>Operatör masternode sunucusunu çalıştırır (BLS); zincire yalnızca genel anahtar kaydedilir.</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>Oluşturulan gizli anahtar gösterilir ve kayıttan önce onaylanmalıdır. Bu cüzdanda saklanmaz.</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>Ödeme</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Ödeme adresi</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>Bu masternode'un blok ödüllerini alır (P2PKH veya P2SH).</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Operatör ödülü</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>Operatöre vaat edilen ödül payı.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>Operatör, bu masternode'un tüm ödüllerinden bu payı kalıcı olarak alacaktır. Operatörünüzle bir anlaşmanız yoksa 0'da bırakın.</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>Platform hizmetleri</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>Platform düğüm kimliği</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>Platform P2P genel anahtarından türetilir (40 onaltılık karakter).</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>Platform adresleri</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>ADDR:PORT girdileri, virgül veya boşlukla ayrılmış.</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>Platform P2P</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>Platform HTTPS API</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>Platform bağlantı noktaları</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>v24 etkinleşmesinden önce yalnızca Platform bağlantı noktaları kaydedilebilir; bunlar ilk hizmet adresine uygulanır.</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Platform P2P bağlantı noktası:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Platform HTTPS bağlantı noktası:</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>Ücret kaynağı</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>İnceleme</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>Teminat sahipliğini kanıtla</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>Aşağıdaki iletiyi teminat anahtarıyla imzalayın (örneğin donanım cüzdanınızın ileti imzalama özelliğiyle), ardından base64 imzayı aşağıya yapıştırın.</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>İletiyi kopyala</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>İmza</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>Base64 imzayı buraya yapıştırın</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Operatör anahtarını kaydet</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Kayıttan önce oluşturulan bu anahtarı kaydedin. Başka hiçbir yerde saklanmaz ve cüzdandan kurtarılamaz.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Operatör gizli anahtarı</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>Şimdi kaydedin — onaylamadan kayıt başlayamaz.</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>Bu satırı masternode sunucunuzdaki dash.conf dosyasına ekleyin:</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopyala</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>Kayıttan önce kaydettiğinizi onaylamak için gizli anahtarın son 4 karakterini yazın:</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>Masternode kaydedildi</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>Provider işlem karması</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Sonraki adımlar</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Tamamlandı</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Adım %1 / %2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>Seçilen adres, %1 teminatı ve işlem ücretini fonlar. Kesin ücret, kayıt sırasında cüzdan ayarlarınızdan hesaplanır ve para üstü bu adrese döner.</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>Seçilen adres işlem ücretini öder.</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>Geçerli bir teminat adresi girin (P2PKH veya P2SH).</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>Bu cüzdanda tam olarak %1 tutarında harcanmamış çıktı yok. Bunun yerine teminatı cüzdandan fonlayın.</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>Teminat işlem kimliğini 64 onaltılık karakter olarak girin.</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>EvoNode'lar, v24 etkinleşmesinden önce Platform bağlantı noktalarını taşımak için en az bir hizmet adresi gerektirir.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Geçerli bir sahip adresi girin (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>Geçerli bir oylama adresi girin (P2PKH) veya sahip adresini kullanmak için boş bırakın.</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>Sahip ve oylama adresleri teminat adresinden farklı olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Geçerli bir operatör BLS genel anahtarı girin (96 onaltılık karakter, basic scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>Geçerli bir ödeme adresi girin (P2PKH veya P2SH).</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>Ödeme adresi, sahip ve oylama adreslerinden farklı olmalıdır.</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>Ödeme adresi teminat adresinden farklı olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>Platform düğüm kimliğini 40 onaltılık karakter olarak girin.</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>Hem bir Platform P2P hem de bir Platform HTTPS adresi girin; biri diğeri olmadan kaydedilemez.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>En az bir Platform P2P ve bir Platform HTTPS adresi girin veya her şeyi daha sonra bir hizmet güncellemesiyle ayarlamak için hizmet adreslerini temizleyin.</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>Platform uç noktaları ayarlandığında en az bir Core hizmet adresi girin veya bunları daha sonra bir hizmet güncellemesiyle ayarlamak için tüm hizmet uç noktalarını temizleyin.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>Hiçbir harcanabilir cüzdan adresinde %1 teminat tutarı yok. Seçilen adres ayrıca kayıt sırasında hesaplanan ücret için yeterli bakiyeye de sahip olmalıdır.</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>Hiçbir harcanabilir cüzdan adresinde işlem ücretini ödemeye yetecek pozitif bakiye yok.</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>Yukarıdaki iletinin teminat anahtarıyla yapılmış base64 kodlu imzasını yapıştırın.</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>Hazırlıktan sonra Geri kullanılamaz, çünkü kaydı değiştirmek imzalanmakta olan iletiyi geçersiz kılar.</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Devam</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>Hazırla</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Kaydet</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Gönder</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Bitir</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>Kullanılabilir cüzdan yok. Masternode kaydı için bir cüzdan gerekir.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>Bu cüzdan yalnızca izleme amaçlıdır. Masternode kaydı, işlem imzalayabilen bir cüzdan gerektirir.</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Operatör gizli anahtarını kaydettiğinizi, son 4 karakterini yazarak onaylayın.</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>Bu cüzdanda tam olarak %1 tutarında, onayı olan harcanmamış çıktı yok. Bunun yerine teminatı bu cüzdandan gönderin veya başka yerde tutulan bir çıktıya başvurun.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tür</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Hizmet</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>Platform HTTPS</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Tutar</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>Hedef</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>Çıktı</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Kaynak</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>Sahip</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>Oylama</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>Operatör</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>Adres</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>Operatör payı</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>Ağ ücreti</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>Düğüm</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>EvoNode</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>Ayarlanmadı — düğüm, bir hizmet güncellemesi gönderene kadar etkin olmaz</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>%1 eşler arası, %2 HTTPS</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>Bu cüzdan, kaydın bir parçası olarak gönderir</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>Bu cüzdanın zaten sahip olduğu bir çıktı</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>Bu cüzdanın dışında tutuluyor — anahtarıyla bir iletiyi imzalayacaksınız</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>Sahiple aynı</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Fonlama</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>Seçilmedi</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>Gönderim sırasında cüzdanın güncel ücret ayarlarıyla hesaplanır</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>Hazırlama, imzasız işlemi ve teminat anahtarıyla imzalanacak iletiyi oluşturur. Henüz hiçbir şey yayınlanmaz.</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>Kayıt, bu cüzdandan bir işlem yayınlar. Cüzdanın kilidini açmanız istenebilir.</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>Yeni oluşturulur, kayıttan önce gösterilir ve onaylanır, başka hiçbir yerde saklanmaz</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>Düğümü çalıştıran kişi tarafından sağlanır</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>Teminat hedefi artık geçerli değil.</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>Seçilen teminat çıktısı zaten başka bir masternode tarafından kullanılıyor.</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>Sahip adresi artık geçerli değil.</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>Oylama adresi artık geçerli değil.</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>Operatör genel anahtarı artık geçerli değil.</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>Ödeme adresi artık geçerli değil.</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>Seçilen ücret kaynağı artık geçerli değil.</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>masternode</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>Bu işlem, bu cüzdandan %1 tutarında teminat oluşturur ve %2 kaydını yapar.</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>Bu işlem, harici %1 teminatını kaydeder ve bu %2 için teminat yapar.</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>Bu işlem, cüzdanın %1 teminat çıktısını bu %2 için kaydeder ve kilitler.</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> Ağ ücreti, cüzdanın güncel ücret ayarları kullanılarak seçilen ücret kaynağından hesaplanır.</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>%1 kaydını onayla</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>Bu %1 kaydını yayınlamak istiyor musunuz?</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>Ücret kaynağı: %1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>Bu sihirbaz açıkken ağın provider-işlem kuralları değişti. Kayıttan önce Platform hizmetleri sayfasını yeniden gözden geçirin.</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Hazırlanıyor…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>Kaydediliyor…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>Teminat imzası toplanırken ağın provider-işlem kuralları değişti. Hazırlanan bu kaydı atın ve Platform hizmetleri sayfasını yeniden gözden geçirin.</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>Teminat imzası geçerli bir base64 değil.</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>Gönderiliyor…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>Kayıt başarısız oldu</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>Kayıt, bir işlem döndürmeden tamamlandı.</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>Kayıt işlemi oluşturuldu ancak ağa gönderilmedi.</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>Hazırlama işlemi, bir işlem döndürmeden tamamlandı.</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>Anahtarı tutan teminat adresi: %1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>Kayıt işlemi ağa gönderildi.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>Bu cüzdanda kayıtlıdır ve İşlemler altında görünür. Harici teminat, kaydettiğiniz çıktı noktasında kalır ve bu cüzdan tarafından kontrol edilmez.</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>Bu cüzdanda kayıtlıdır ve İşlemler altında görünür. Teminat cüzdanda kalır, ancak masternode kayıtlı olduğu sürece kilitlidir.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>Masternode sunucunuzu kaydettiğiniz operatör gizli anahtarıyla yapılandırın, ardından orada dashd'yi yeniden başlatın.</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>Masternode sunucunuzu, sağladığınız operatör genel anahtarına karşılık gelen BLS gizli anahtarıyla yapılandırın.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Kayıtlı her hizmet adresinin ve bağlantı noktasının internetten erişilebilir olduğundan emin olun.</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>Düğümün hizmet uç noktaları hazır olduktan sonra bir Hizmet Güncelleme işlemi gönderin; o zamana kadar etkin olmaz.</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>Dash Platform hizmetlerini (Tenderdash ve Drive), kaydettiğiniz düğüm kimliğine karşılık gelen Platform düğüm anahtarıyla hazırlayın.</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>EvoNode, kayıt onaylandığında ve ilk güncelleme operatör tarafından imzalandığında etkin olur.</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>Masternode, kayıt ağda onaylandığında etkin olur.</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>Hazırlanan kayıt atılsın mı?</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>Hazırlanan kayıt atılacak. Bu sihirbazın aldığı teminat kilidi serbest bırakılacak.</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>Cüzdan geri yükleme mesajı</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>Belirtilmemiş</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>Hizmetin sonlandırılması</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>Anahtarlar ele geçirildi</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>Anahtar değişikliği</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>Neden:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatör anahtarı:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Otomatik, önce güncel operatör ödeme adresini, ardından masternode ödeme adresini kullanır. Bu seçimi geçersiz kılmak için yalnızca bir adres seçin.</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>Masternode Hizmetini Geçersiz Kıl</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>Geçersiz kılma, hizmet adresini temizler ve masternode'u, sahibi operatör anahtarını değiştirene kadar PoSe ile yasaklar. Teminat etkilenmez.</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>Geçersiz Kıl</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>Operatör veya Oylama Anahtarını Yenile</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>Bu anahtarları değiştirmek, her pay sahibinin onayını gerektirir. Bir kişi isteği başlatır; diğerleri isteği yapıştırır, onaylar ve yanıtı geri kopyalar.</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. Yeni anahtarlar</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>Mevcut operatör anahtarını korumak için boş bırakın</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopyala</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>Yeni operatör anahtarı:</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>Operatör anahtarı değiştiği anda masternode yasaklanır; yeni operatör bir hizmet güncellemesi gönderene kadar böyle kalır.</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>Mevcut oylama adresini korumak için boş bırakın</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>Yeni oylama adresi:</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>Ücret kaynağı:</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>İsteği Hazırla</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>Bu cüzdanda bitirin — ücreti öder ve son işlemi göndermelidir.</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. Onaylar</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>Aynı isteği her pay sahibine gönderin. Yanıtlar herhangi bir sırada gelebilir.</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Onayla ve Yanıtı Kopyala</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. Gönder</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>Yenilemeyi Gönder</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>İşlem ID'si</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>Operatör anahtarı: %1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>değişmedi</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>Oylama adresi: %1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>Önce bir istek hazırlayın veya yapıştırın.</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>İsteği yalnızca hazırlayan cüzdan gönderebilir.</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>Önce her payın onaylaması gerekir (şu ana kadar %1 / %2).</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>Geçerli bir operatör genel anahtarı girin.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>Oylama adresi bir P2PKH adresi olmalıdır.</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>Anahtar yenileme gönderildi.</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>Hata, isteği fonlayan cüzdanın onu birleştirmesi gerektiğini söylüyorsa, isteği hazırlayan cüzdanda bitirin.</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
         <translation>veya</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>İmzasız İşlem</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBT panoya kopyalandı. Ayrıca kaydedebilirsiniz.</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBT diske kaydedildi</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>Bitcoin gönderimini onaylayın</translation>
     </message>
@@ -4688,6 +7188,7 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBT kaydedildi</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>%1 tutarından yüksek bir ücret saçma derecede yüksek bir ücret olarak kabul edilir.</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>%n blok içinde onaylamanın başlayacağı tahmin ediliyor.</numerusform><numerusform>%n blok içinde onaylamanın başlayacağı tahmin ediliyor.</numerusform></translation>
@@ -4900,6 +7405,1441 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     <message>
         <source>Create Unsigned</source>
         <translation>İmzasız Oluştur</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>Paylaşımlı Masternode</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Geri</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Yapıştır</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>Kaydet…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>İptal</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>İleri</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Ayrıntılar</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>Fonlandı</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Onaylandı</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>İmzalandı</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>başka bir işlem hâlâ çalışıyor.</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>kullanılabilir cüzdan yok.</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>cüzdan kilitli kaldı.</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>düğüm bir neden belirtmedi.</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>kayıt geçerli bir işlem değil.</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>Paylaşımlı masternode</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>Birkaç kişi tek bir masternode'u birlikte fonlar. Bir kişi koordine eder; diğerleri aldıklarını yapıştırır ve yanıtı geri kopyalar. Son yayınlamaya kadar ağa hiçbir şey ulaşmaz.</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Başlat</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>Kimlerin katıldığını ve masternode ayarlarını gireceksiniz, ardından diğerlerini davet edeceksiniz.</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>Paylaşımlı Masternode Başlat</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>Devam</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>Bir davet, kilitli şartlar, bir imza isteği veya aldığınız herhangi bir yanıtı yapıştırın — uygulama ne yapacağını bilecektir.</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>Panodan Yapıştır</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Dosya Aç…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Katılımcılar</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>Kimlerin katıldığı ve her birinin ne kadar katkıda bulunduğu. Tutarların toplamı tam olarak %1 olmalıdır; her pay en az %2 olmalıdır.</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>İsim</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Tutar</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>Ben</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>Katılımcı Ekle</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>Katılımcı %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Kaldır</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>Masternode ayarları</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>Bunlar masternode'un tamamı için geçerlidir ve her katılımcı için aynıdır.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Hizmet adresleri:</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>Masternode'un Core P2P ağına hizmet verdiği, virgül veya boşlukla ayrılmış genel adresler. Boş bırakılabilir ve daha sonra bir hizmet güncellemesiyle ayarlanabilir.</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatör anahtarı:</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>Sunucuyu çalıştıran kişinin gizli anahtara ihtiyacı vardır. Zincire yalnızca genel anahtar kaydedilir.</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>Genel Anahtarı Kopyala</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Düğümü çalıştıran:</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>Düğümü kimin başlatıp canlandırabileceğini herkes bilsin diye şartlara kaydedilir.</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>Operatör gizli anahtarını tutan katılımcının adı</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Oylama adresi:</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>Tüm masternode adına yönetim tekliflerine oy verir (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Yeni adres kullan</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Operatör ödülü:</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>Sunucuyu çalıştıran kişiye vaat edilen ödül payı.</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>Operatör, katılımcılar arasında herhangi bir bölüşüm yapılmadan önce tüm ödüllerden bu payı kalıcı olarak alacaktır.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Çıkış şartları</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>Bir katılımcı diğerlerinden önce ayrılmak isterse ne olur.</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>Ayrılma nasıl işler</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>Herkes masternode'u istediği zaman tek başına feshedebilir ve herkes anaparasını geri alır. Erken dönemde tek başına fesheden kişi, erken çıkış cezasını kendi payından öder ve bu ceza diğerleri arasında bölüştürülür. Herkes kabul ederse fesih her zaman ücretsizdir.</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Erken dönem:</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>Kayıttan sonra, tek başına ayrılmanın ceza gerektirdiği blok sayısı.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Yok</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 ay</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 ay</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 yıl</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 yıl</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Erken çıkış cezası:</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>Katkınız</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>Payınız için adresler ve koinler. Koinleri yalnızca siz görürsünüz; diğerleri yalnızca ortaya çıkan işlem girdilerini görür.</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>Payınız</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>Bu benim:</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>Sahip adresi:</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>Payınızı kontrol eder: anahtar değişikliklerini ve fesihleri onaylar. Bu cüzdanda tutulur.</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>İade adresi:</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>Masternode feshedildiğinde anaparanızı alır. Daha sonra değiştirilemez.</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>Ödül adresi (isteğe bağlı):</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>Ödüllerden payınızı alır. İade adresini kullanmak için boş bırakın; daha sonra değiştirebilirsiniz.</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>Koinler</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>Ağ ücreti:</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>Koinleri Rezerve Et</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>Serbest Bırak</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>Operatör anahtarını kaydet</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>Kimseyi davet etmeden önce oluşturulan bu anahtarı kaydedin. Başka hiçbir yerde saklanmaz ve cüzdandan kurtarılamaz.</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>Operatör gizli anahtarı</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>Şimdi kaydedin — onaylamadan davet gönderilemez.</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopyala</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>Bu satırı masternode sunucusundaki dash.conf dosyasına ekleyin:</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>Göndermek üzere olduğunuz davet yalnızca genel anahtarı içerir.</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>Kaydettiğinizi onaylamak için gizli anahtarın son 4 karakterini yazın:</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>Katılımcıları davet et</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>Aynı daveti herkese gönderin. Her kişi koinlerini rezerve eder ve ayrıntılarını size geri gönderir.</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>Daveti Kopyala</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>Davet</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>Daveti Kaydet…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>Taslağı değiştirdiniz. Zaten yanıt vermiş katılımcıların yeniden yanıt vermesi gerekir.</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>Bu şartlar kilitlensin mi?</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>Kilitleme her adresi, tutarı ve koini sabitler. Sonrasında kimse düzenleyemez — yalnızca kilit açılabilir ve bu tüm onayları siler.</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>Onaylar</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>Kilitli Şartları Kopyala</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>Kilitli Şartlar</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>Şartların kilidini aç…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>İmzalar</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>İmza İsteğini Kopyala</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>İmza İsteği</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>Gönderdikleriniz</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>Sırada ne var</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>Koinlerimi serbest bırak</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>Paylaşımlı masternode kaydedildi</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>Ne oldu</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>Bir onaydan sonra Masternode'lar altında görünür.</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>Güvende tutulacaklar</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>Pay sahibi anahtarınız</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>Yedek fesih</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>Çevrimdışı sakladığınız imzalı bir fesih işlemi. Bu cüzdan kaybolsa bile anaparanızı kurtarır. İlk onaydan sonra oluşturun.</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>Kayıt onaylandıktan sonra Masternode'lar listesinden (masternode'a sağ tıklayın) oluşturun ve iade adresi yedeğinizle birlikte, bu cüzdandan ayrı olarak saklayın.</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>Oturum kaydı</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>Nihai Kaydı Kaydet…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>Sonraki adımlar</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>Nihai Kaydı Kopyala</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>Nihai Kayıt</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>%1 bekleniyor</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>koordinatör</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>Şartları onayla</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>Katkıyı imzala</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Tamamlandı</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>Adım %1 / %2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Kullanılabilir cüzdan yok.</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>Bu cüzdan imzalayamaz. Görüntüleyebilirsiniz ancak katılamazsınız.</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>Bir paylaşımlı masternode %1 ile %2 arasında katılımcı gerektirir.</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>%1. katılımcı için bir ad girin.</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>"%1" adı iki kez kullanılmış.</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>Her pay en az %1 olmalıdır.</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>Tutarların toplamı %1; tam olarak %2 olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>Sizin olan katılımcıyı seçin.</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>Geçerli bir operatör BLS genel anahtarı girin (96 onaltılık karakter, basic scheme).</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>Geçerli bir oylama adresi girin (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>Erken dönem yoksa erken çıkış cezasını 0 yapın.</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>Erken çıkış cezası en küçük paydan (%1) düşük olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>Geçerli bir sahip adresi girin (P2PKH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>Geçerli bir iade adresi girin (P2PKH veya P2SH).</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>Geçerli bir ödül adresi girin (P2PKH veya P2SH) veya boş bırakın.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Ödül adresi, oylama adresinden ve tüm sahip adreslerinden farklı olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>Şartlar kilitlenmeden önce her katılımcı ayrıntılarını geri göndermelidir.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Bu cüzdan yalnızca izleme amaçlıdır ve imzalayamaz.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>Önce operatör gizli anahtarını kaydedin. "Operatör anahtarını kaydet" sayfasında yalnızca bir kez gösterilir ve oturum dosyası onu taşımaz.</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>Koinleri Rezerve Et ve Ayrıntıları Kopyala</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>Kilitle ve Onayla</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>Şartları Kilitle</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>Onayla ve Yanıtı Kopyala</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>Onayla</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Yeniden Dene</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>İmzala ve Yanıtı Kopyala</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>Kaydı Yayınla</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Kapat</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>Bitir</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>Baştan Başla</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>Operatör gizli anahtarını kaydettiğinizi, son 4 karakterini yazarak onaylayın.</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>Bu şartları zaten onayladınız.</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>Kayıt yayınlanmadan önce her katılımcı kendi koinlerini imzalamalıdır.</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>Paylaşımlı Masternode — Oturum %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 / %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 / %2 — %3 eksik</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 / %2 — %3 fazla</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>En küçük paydan (%1) düşük olmalıdır. Yalnızca herkesin istediği zaman ücretsiz ayrılabileceğini kabul ediyorsanız 0 yapın.</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Herkes istediği zaman ücretsiz ayrılabilir.</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>%1, masternode'un %2. bloğundan önce ayrılırsa %1, %3 tutarını kaybeder ve bu tutar diğerleri arasında bölüştürülür.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>Erken dönemde tek başına ayrılmak %1 tutarında ceza gerektirir; ceza diğerleri arasında bölüştürülür.</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>Ceza sıfır olduğunda erken dönemin etkisi yoktur: herkes masternode'u istediği zaman tek başına feshedebilir ve hiçbir şey ödemez.</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>Pay %1 / %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>Pay %1 / %2 — %3 (siz)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>Hangi katılımcı olduğunuzu seçin.</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>Rezerve edildi — bu koinler, oturum bitene veya siz serbest bırakana kadar harcanamaz.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>%1 kullanır (%2); %3 para üstü size ait yeni bir adrese döner.</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>%1 kullanır (%2), para üstü kalmaz.</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>Herkes bu şartları aynen inceler ve bir kez onaylar. Aynı iletiyi hepsine gönderin.</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>Her satırı okuyun. Onaylamak, bu şartları sahip anahtarınızla aynen imzalar. Henüz hiçbir şey yayınlanmaz.</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>Tüm onaylar eklendi. Şimdi her katılımcı kendi koinlerini imzalar. Yanıtlar herhangi bir sırada gelebilir.</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>Rezerve ettiğiniz koinleri imzalar. İmzanız onları yalnızca bu kayda harcar.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>%1 / %2 fonlama girdisi imzalandı.</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>%1 payınızı imzalar. Siz hiçbir şey yayınlamazsınız.</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>Gönderdiğiniz: %1 · Kod %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>kilitli şartlar</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>imza isteği</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>nihai kayıt</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>Sırada şunu alacaksınız: %1. Geldiğinde buraya yapıştırın.</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 kaydı yayınlar. Masternode listenizde göründüğünde yedek fesihinizi oluşturun.</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>Bu cüzdanda (%1). Cüzdanı yedekleyin — değişiklikleri ve fesihleri onaylar.</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>%1 tarafından tutulur. Sunucuda masternodeblsprivkey olarak gereklidir.</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>düğümü çalıştıran kişi</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>Masternode sunucusunu operatör gizli anahtarıyla yapılandırın ve orada dashd'yi yeniden başlatın.</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>Düğümün adresleri hazır olduğunda bir hizmet güncellemesi gönderin; o zamana kadar etkin olmaz.</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>Kayıtlı her hizmet adresinin ve bağlantı noktasının internetten erişilebilir olduğundan emin olun.</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>Her katılımcı ilk onaydan sonra kendi yedek fesihini oluşturmalıdır.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>%1 / %2 girdi</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%1 / %2 yanıt verdi</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%1 / %2 imzaladı</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 / %2 onayladı</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>Hazırlanıyor…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>Kaydı hazırlama başarısız oldu: %1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>fonlama işlemi geçerli değil.</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>geçersiz iade adresi: %1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>geçersiz ödül adresi: %1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>geçersiz pay sahibi adresi: %1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>operatör anahtarı geçerli bir BLS genel anahtarı değil.</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>oylama adresi bir P2PKH adresi olmalıdır.</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>operatör ödülü şu aralıkta olmalıdır: 0% ile 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>Düğümden beklenmeyen yanıt.</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>Şartlar henüz kilitlenmedi.</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>Onaylama başarısız oldu: %1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>Onaylanıyor…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>Onay</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>Onayları birleştirme başarısız oldu: %1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>Onaylar birleştiriliyor…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>Bu işlem ayrıca, bu cüzdana ait ve katkınızın parçası olmayan bir koini (%1) harcıyor. İmzalamayın; %2 kişisinden yeni bir oturum isteyin.</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>Bu işlem, %2 payı için bu cüzdanın koinlerinden %1 harcıyor ancak bu cüzdana yalnızca %3 para üstü iade ediyor. İmzalamayın; %4 kişisinden yeni bir oturum isteyin.</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>İmzalama başarısız oldu: %1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>İmzalanan işlem, incelediğiniz işlem değil. Kullanmayın; %1 kişisinden yeni bir oturum isteyin.</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>İmzalı Katkı</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>Şartların kilidi açılsın mı?</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>Kilidi açmak %1 siler. Yeniden kilitledikten sonra herkesin tekrar onaylaması gerekir.</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>Teminat: %1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>Katılımcılar: %1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>Paylaşımlı masternode kaydını onayla</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>Bu paylaşımlı masternode kaydı yayınlansın mı?</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>Oturum %1 · Kod %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>Yayınlama başarısız oldu: %1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>herkes</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>Kopyalandı · Oturum %1 · Kod %2 — alıcı: %3.</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>Önce operatör gizli anahtarını kaydedin. Yalnızca burada gösterilir ve oturum dosyası onu taşımaz: onsuz masternode asla çalıştırılamaz.</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>Paylaşımlı masternode iletisini kaydet</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>Oturum dosyaları (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>%1 yazmak için açılamadı.</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>Kaydedildi · Oturum %1 · Kod %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>Paylaşımlı masternode iletisini aç</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Bu ileti, bir paylaşımlı masternode iletisi olamayacak kadar büyük.</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>%1 okumak için açılamadı.</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>Bu ileti mevcut bir masternode ile ilgili. Masternode'lar listesinden açın.</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>Sayılmayan imzalar</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Alındı: %1 · Kod %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>Bu yanıt güncel şartlarınızdan eski (Kod %1; sizinki %2). Gönderenden en son iletinizi yapıştırmasını isteyin ve yeniden yanıtlayın.</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>%1 kişisinden alındı: %2 · Kod %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>Bu cüzdanda %2 payınızı fonlamak için harcanabilir en az %1 olmalıdır.</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>Koinleriniz serbest bırakılsın mı?</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>Oturum %1 için rezerve ettiğiniz koinler yeniden harcanabilir hale gelir.</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>Diğer herkesin koinleri rezerve kalır. Bunları harcarsanız bu kayıt asla yayınlanamaz ve diğerlerinin baştan başlaması gerekir.</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>Serbest bırakıldı — bu koinler yeniden harcanabilir.</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>Bu oturum için rezerve edilmiş bir koin harcandı. Kayıt artık tamamlanamaz — baştan başlayın.</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>%1 bu düğümde henüz değer açısından doğrulanamıyor. Doğrulayabildiği girdiler, %3 teminatın %2 kadarını oluşturuyor.</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>Rezerve edilen koinlerin toplamı %1; bu, %2 teminatı artı %3 para üstünü ve bir ağ ücretini karşılamıyor. Kayıt asla yayınlanamaz.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>Girdiler %1 − para üstü %2 = %3 teminat + %4 ağ ücreti. Bu ücret olağandışı büyük; yalnızca bilerek yapıyorsanız devam edin.</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>Girdiler %1 − para üstü %2 = %3 teminat + %4 ağ ücreti ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>Operatör anahtarı önce kaydedilsin mi?</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>Operatör gizli anahtarı bu pencere dışında hiçbir yerde yok — oturum dosyası yalnızca genel yarısını taşır. Şimdi kapatırsanız masternode asla çalıştırılamaz.</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>Bu oturum daha sonrası için saklansın mı?</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>Kaydetmek koinlerinizi rezerve tutar, böylece kaldığınız yerden devam edebilirsiniz. Atmak onları serbest bırakır; diğerleri hâlâ sizi bekliyorsa baştan başlamaları gerekir.</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>Operatör Anahtarını Kaydet</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>Kaydet ve Kapat</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>At ve Koinleri Serbest Bırak</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>Pay %1 / %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>Bu cüzdan, bu masternode'un pay sahibi anahtarlarından hiçbirini tutmuyor.</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>Masternode: %1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>Pay</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>İade adresi</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>Alır</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>Kullanılabilir cüzdan yok.</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>Bu cüzdan yalnızca izleme amaçlıdır ve imzalayamaz.</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>Başka bir işlem hâlâ çalışıyor.</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>Cüzdan kilidi açma iptal edildi.</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>İşlem geçerli bir işlem hex değeri değil.</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>Bu isteğin ihtiyaç duyduğu bir koin (%1:%2) harcandı. Artık gönderilemez — baştan başlayın.</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>Dahili hata: burada hesaplanan özet, düğümün hesapladığıyla eşleşmiyor. Onaylamayın; lütfen bunu bildirin.</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>%1 bu cüzdanla onaylandı.</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>Paylaşımlı masternode'lar, bu ağda henüz etkin olmayan v24 yükseltmesini gerektirir.</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>İsim</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Tutar</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(siz)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Bu istek her paya anaparasının tamamını ödemiyor. Onaylamayın; hazırlayan kişiden yeni bir istek isteyin.</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>Bu istek, bu masternode'da bulunmayan bir paydan söz ediyor.</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>Bu istek tam olarak masternode'un teminatını harcamıyor. Onaylamayın.</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>Bu istek payların anaparasından %1 tutarını işlem ücreti olarak tutuyor. Onaylamayın; hazırlayan kişiden yeni bir istek isteyin.</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>Panoda paylaşımlı masternode iletisi yok.</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>Bu ileti bir paylaşımlı masternode iletisi değil.</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>Bu işlem bir paylaşımlı masternode feshi değil.</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>adsız</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(siz)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>Sahip:</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>henüz ayarlanmadı</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>İade:</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>Ödül:</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>iade ile aynı</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>Katılımcılar</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>Hizmet:</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>Ayarlanmadı — daha sonra bir hizmet güncellemesiyle ayarlanır</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatör anahtarı:</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>ayarlanmadı</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>Düğümü çalıştıran:</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>kaydedilmedi</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Oylama adresi:</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>Operatör ödülü:</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>Erken dönem:</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 blok (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>Erken çıkış cezası:</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>Herkes istediği zaman ücretsiz ayrılabilir.</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>Erken dönemde tek başına ayrılmak %1 tutarında ceza gerektirir; ceza diğerleri arasında bölüştürülür. Birlikte ayrılmak ücretsizdir.</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>Çıkış şartları</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>Katkılar:</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>İade edilen para üstü:</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>Teminat:</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1, şartlar kilitlendikten sonra</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>#%1 numaralı çıktı, %2 paylaşımlı teminat betiğine öder</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>Fonlama</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>Oturum:</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>Kod:</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>Hazırlayan cüzdan:</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>Kimlik</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>İşlem geçerli bir işlem hex değeri değil.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>İşlem bir fesih işlemi değil.</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>İşlem yükü seri durumdan çıkarılamıyor.</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>İşlem farklı bir masternode'u feshediyor.</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>İşlem zaten imzalar taşıyor; hazırlanmış imzasız işlem bekleniyordu.</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>İşlem bir paylaşımlı kayıt güncellemesi değil.</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>İşlem farklı bir masternode'u güncelliyor.</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>Onaylandı</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>İsteği Kopyala</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>İsteği Kaydet…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Yapıştır</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>Dosya Aç…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>Bu ileti, burada zaten bulunandan farklı bir işlemle ilgili. İki kopyadan biri eski; güncel olanı koruyun ve yeni bir yanıt isteyin.</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>Onayları yapıştırmadan önce isteğin kendisini yapıştırın.</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>Bu ileti hiçbir onay içermiyor.</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>Bir onayda pay numarası veya imza eksik.</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>Bir onayın pay numarası okunamıyor.</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>%1 numaralı pay aralığın dışında.</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1: imza, base64 kodlu 65 baytlık sıkıştırılmış imza değil.</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>%1 kişisinin onayı hazırlanan işlemle eşleşmiyor. %2 kişisinden güncel isteği yapıştırmasını ve yeniden onaylamasını isteyin.</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 için başka bir yanıttan gelen bir onay zaten var.</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>Bu bir paylaşımlı masternode iletisi değil.</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>Bu ileti %1 ağı içindir; bu cüzdan %2 üzerinde çalışıyor.</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>Bu ileti, bu masternode'da farklı türde bir değişiklikle ilgili.</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>Bu ileti farklı bir masternode ile ilgili.</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>Kopyalandı · Kod %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>İsteği Kaydet</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>Paylaşımlı masternode iletisi (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>%1 konumuna yazılamadı.</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>Kaydedildi · Kod %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>%1 konumuna kaydedildi.</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>Bu ileti, bir paylaşımlı masternode iletisi olamayacak kadar büyük.</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>Alındı: %1 · Kod %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>Alındı · Kod %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>İsteği Aç</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>Paylaşımlı masternode iletisi (*.json);;Tüm dosyalar (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>%1 okunamadı.</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>%1 tarafından onaylandı</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>%1 bekleniyor</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 / %2 onayladı</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(kapatmak ve daha sonra devam etmek için q tuşuna basın)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>kapatmak için q tuşuna basın</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     <message>
         <source>Date</source>
         <translation>Tarih</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tür</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Masternode Kaydı</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Masternode Güncellemesi</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Varlık Kilidi</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     <message>
         <source>Transaction total size</source>
         <translation>İşlemin toplam boyutu</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>Yük</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
         <translation>Platform Transferi</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>Veri İşlemi</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>Toz Alımı</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>Masternode Kaydı</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>Masternode Güncellemesi</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Varlık Kilidi</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     <message>
         <source>(n/a)</source>
         <translation>(mevcut değil)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>Bir masternode kaydeder. Tutar, bu cüzdanın net bakiye değişimidir ve teminat bu cüzdanda kaldığında normalde yalnızca ağ ücretidir.</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>Mevcut bir masternode kaydını günceller. Tutar, bu cüzdanın net bakiye değişimidir ve normalde yalnızca ağ ücretidir.</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Dash Platform'da kullanılmak üzere fonları kilitler. Tutar, bu cüzdanın net bakiye değişimidir ve ağ ücretini içerir.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
         <translation>Madenden çıkarılan</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>Masternode</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>Platform Transferi</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>Varlık Kilidi</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>Veri İşlemi</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ Bu konsolu kullanma hakkında daha fazla bilgi için %6 yazın.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>Operatör BLS genel anahtarı (96 onaltılık karakter)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>Operatör genel anahtarı:</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>Operatör anahtarını değiştirmek masternode'u hemen PoSe ile yasaklar. Yeni operatörün onu canlandırmak için bir Hizmet Güncelleme işlemi göndermesi gerekir.</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>Oylama adresi:</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>Ödeme adresi:</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>Birden fazla ödeme payı korunur; bunları değiştirmek için RPC kullanın</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>Bu pencere, çoklu ödemeli bir masternode'u güvenli biçimde tek bir adrese indirgeyemez.</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>Otomatik, masternode'un güncel birincil ödeme adresini kullanır. Bu seçimi geçersiz kılmak için yalnızca bir adres seçin.</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>Masternode Kayıt Bilgilerini Güncelle</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>Operatör anahtarını, oylama adresini veya ödeme adresini güncelleyin. Tüm mevcut değerler önceden doldurulur; yalnızca değişen alanlar gönderilir. Sahip anahtarı bu cüzdanda bulunmalıdır.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Güncellemeyi Gönder</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>Güncel provider işlem sürümü için geçerli bir operatör genel anahtarı girin.</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>Oylama adresi bir anahtar adresi olmalıdır.</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT, birden fazla girdi için virgülle ayırın</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>Birden fazla adres, genişletilmiş provider işlemleri gerektirir.</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>Hizmet adresleri:</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>Hizmet adresi:</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>Operatör anahtarı:</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>Platform düğüm kimliği (40 onaltılık karakter)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>Platform düğüm kimliği:</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>Platform P2P adresleri:</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT veya alan adı:port, virgülle ayrılmış</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>Platform HTTPS adresleri:</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>Platform P2P bağlantı noktası:</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>Platform HTTPS bağlantı noktası:</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>Operatör ödeme adresi:</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>Otomatik, önce güncel operatör ödeme adresini, ardından masternode ödeme adresini kullanır. Bu seçimi geçersiz kılmak için yalnızca bir adres seçin.</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>EvoNode Hizmetini Güncelle</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>Masternode Hizmetini Güncelle</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>Kayıtlı hizmet uç noktalarını güncelleyin. Başarılı bir güncelleme, PoSe ile yasaklanmış bir masternode'u da canlandırır. Her mevcut değer önceden doldurulur, böylece değişmeyen alanlar korunur.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Güncellemeyi Gönder</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>Geçerli bir Platform düğüm kimliği girin (40 onaltılık karakter).</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>Payınız:</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>Bu payın ödüllerini alan adres</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>Yeni adres kullan</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>İade adresini kullan</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>Yeni ödül adresi:</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>Ücret, cüzdanınızın bu adresinden ödenir.</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>Ödül Adresini Değiştir</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>Bu masternode'un ödüllerinden payınızın ödendiği yeri değiştirin. Yalnızca payınız etkilenir; payın tutarı ve iade adresi asla değişmez.</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>Güncellemeyi Gönder</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>Ödülleri alacak adresi girin.</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>Geçerli bir Dash adresi girin.</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>Ödül adresi, oylama adresinden ve tüm sahip adreslerinden farklı olmalıdır.</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>Bu masternode paylaşımlı değil ve pay tablosu yok.</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>Ücretin ödeneceği, bu cüzdana ait bir adres seçin.</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Send Coins</source>
         <translation>Bitcoini Gönder</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>İmzalayıcı hatası</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Uyarı: eşlerimizle tamamen mutabık değiliz gibi görünüyor! Güncelleme yapmanız gerekebilir ya da diğer düğümlerin güncelleme yapmaları gerekebilir.</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+Başarısız taşımanın temizliği yapılamıyor</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+Cüzdan yedeği geri yüklenemiyor.</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>Bu girdi zaten var.</translation>
     </message>
@@ -5863,10 +10061,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>SQLiteDatabase: Bilinmeyen sqlite cüzdan şema sürümü %d. Yalnızca %d sürümü destekleniyor</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>Desteklenmeyen kategoriye özgü günlük kaydı seviyesi -loglevel=%s. Beklenen -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Geçerli kategoriler: %s. Geçerli günlük seviyeleri: %s.</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>Karıştırılamıyor: hiç uyumlu girdi bulunamadı!</translation>
     </message>
@@ -5905,10 +10099,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Insufficient funds.</source>
         <translation>Yetersiz bakiye.</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>-minsporkkeys ile belirtilmiş geçersiz minimum spork imzacısı sayısı</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Bilinmeyen cevap.</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>Desteklenmeyen genel günlük kaydı seviyesi -loglevel=%s. Geçerli değerler: %s.</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>Kullanıcı Aracı açıklaması (%s) güvensiz karakterler içermektedir.</translation>
     </message>
@@ -6017,6 +10203,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s dosyası bu cüzdana ait tüm özel anahtarları tutuyor. Kimseyle paylaşmayın!</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s, -assumeutxo anlık görüntü durumunu doğrulayamadı. Bu, bir donanım sorununa, yazılımdaki bir hataya veya geçersiz bir anlık görüntünün yüklenmesine izin veren kötü bir yazılım değişikliğine işaret eder. Bunun sonucunda düğüm kapanacak ve anlık görüntü üzerine kurulmuş tüm durumu kullanmayı bırakarak zincir yüksekliğini %d değerinden %d değerine sıfırlayacaktır. Bir sonraki yeniden başlatmada düğüm, hiçbir anlık görüntü verisi kullanmadan %d yüksekliğinden eşitlemeye devam edecektir. Lütfen anlık görüntüyü nasıl edindiğiniz dahil bu olayı %s adresine bildirin. Geçersiz anlık görüntü zincir durumu, bu hataya neden olan sorunu teşhis etmede yardımcı olması ihtimaline karşı diskte bırakılacaktır.</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Ağ sürümü zincirinin toplam boyutu (%i) en yüksek boyutu geçmektedir (%i). Kullanıcı aracı açıklamasının sayısı veya boyutunu azaltınız.</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>UYARI! Anahtar havuzu yenilenemedi, lütfen devam etmek için cüzdanınızın kilidini açın.</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>Cüzdanınız kilitli, anahtar havuzu yenilenemiyor! Otomatik yedekleme ve karışım kapalı, anahtar havuzunu yenilemek için lütfen cüzdanınızın kilidini açın.</translation>
     </message>
@@ -6085,10 +10271,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool en az %d MB olmalıdır</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>Otomatik yedekleme kapalı</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>%s asmap dosyası ayrıştırılamadı</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>HATA! Otomatik yedek oluşturulamadı</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>%s yüklenirken hata oluştu: Özel anahtarlar yalnızca oluşturma sırasında devre dışı bırakılabilir</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>Yapılandırma dosyası okunurken hata: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>Hata: Oluşturulan scriptpubkey'den hedef çıkarılamıyor</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>Hata: Yalnızca izlenen işlem, yalnızca izlenen cüzdana eklenemedi</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>Hata: Yalnızca izlenen işlemler silinemedi</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>Hata: Döküm dosyası sağlama toplamı eşleşmiyor. Hesaplanan %s, beklenen %s</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>Hata: Yeni yalnızca izlenen cüzdan oluşturulamadı</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Hata: Kullanılabilir adres yok.</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>Hata: Tüm yalnızca izlenen işlemler silinemedi</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>Hata: Bu cüzdan zaten SQLite kullanıyor</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>Hata: Bu cüzdan zaten bir tanımlayıcı cüzdan</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>Hata: Veritabanındaki tüm kayıtları okumaya başlanamıyor</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>Hata: Cüzdanınızın yedeği alınamıyor</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>Hata: Veritabanındaki tüm kayıtlar okunamıyor</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>Hata: Yalnızca izlenen adres defteri verileri kaldırılamıyor</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>Yedek %s oluşturulamadı!</translation>
     </message>
@@ -6161,6 +10383,22 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>Yedek silinemedi, hata: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>Yarıda kalan geçersiz anlık görüntü temizliği tamamlanamadı.</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>Yarıda kalan anlık görüntü işaretçisi yükseltmesi tamamlanamadı.</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>Yarıda kalan anlık görüntü temizliği incelenemedi: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>Yarıda kalan anlık görüntü temizliği kurtarılamadı: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Girdi bulunamadı veya zaten harcanmış</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>Blok doğrulaması için yetersiz dbcache</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>Yarıda kalan anlık görüntü temizliğinde koin ve EvoDB uçları tutarsız.</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>Yarıda kalan anlık görüntü temizliğinde anlık görüntü EvoDB işaretçisi eksik.</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>Geçersiz P2P izni: '%s'</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>Geçersiz masternodeblsprivkey. Lütfen dökümanlara göz atın.</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>Geçersiz önceden seçilmiş girdi %s</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>%s için geçersiz değer: azami değeri aşıyor (%d)</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>%s için geçersiz değer: &gt;= 0 olmalıdır</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Mixing in progress…</source>
         <translation>Karışım devam ediyor…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>Birden fazla spork adresi sağlandı. %s kullanılıyor.</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Kafi derecede dosya tanımlayıcıları mevcut değil.</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>Önceden seçilmiş girdi bulunamadı %s</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>Önceden seçilmiş girdi çözülebilir değil %s</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>Platform alıcıları açık bir para üstü konumuyla birleştirilemez</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>Lütfen önce walletpassphrase ile cüzdan parolasını girin.</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>Budama negatif bir değerle yapılandırılamaz.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>Prune modu -addressindex ile uyumsuz.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>Prune modu -disablegovernance=false ile uyumsuz.</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>Prune modu -spentindex ile uyumsuz.</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>[%s] bölümü tanınmadı.</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>Pencere başlığını ayarlar; "Dash Core - " ifadesinin sonuna eklenir</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>İmzalayıcı adresi yansıtmadı</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>İmzalayıcı beklenmeyen bir adres yansıttı %s</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>İmzalayıcı hata döndürdü: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>Anlık görüntü zincir durumu EvoDB işaretçisi eksik. Yeniden dizinleme gerekli.</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>Belirtilen -walletdir "%s" mevcut değil.</translation>
     </message>
@@ -6275,8 +10585,16 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Belirtilen -walletdir "%s" dizin değildir</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>Belirtilen "%s" veri klasörü mevcut değil.</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>Cüzdan en az aktarma ücretinden daha az ödeme yapmaktan sakınacaktır.</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>Bu adres için ScriptPubKeyManager yok</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>İşlem tutarı negatif olmamalıdır</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>İşlem çok uzun bir mempool zincirine sahip</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates %s zincirinde desteklenmiyor.</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Cüzdan etkinleştirilmişken bir ana düğüm başlatamazsınız.</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>karışım mevcut değil.</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>ayrıntlar için debug.log dosyasına bakın</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>%s geliştiricileri</translation>
     </message>
@@ -6379,16 +10689,16 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>%s para göndermek için tam olarak birimlendirilmiş meblağlar kullanır, sadece biraz daha fazla parayı anonim hale getirmeniz gerekiyor.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate seçeneği -blockfilterindex ile uyumlu değil. Lütfen -reindex-chainstate kullanırken blockfilterindex'i geçici olarak devre dışı bırakın veya tüm indeksleri tamamen yeniden oluşturmak için -reindex-chainstate yerine -reindex kullanın.</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate seçeneği -txindex ile uyumlu değil. Lütfen -reindex-chainstate kullanırken txindex'i geçici olarak devre dışı bırakın veya tüm indeksleri tamamen yeniden oluşturmak için -reindex-chainstate yerine -reindex kullanın.</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>-reindex-chainstate seçeneği -coinstatsindex ile uyumlu değil. Lütfen -reindex-chainstate kullanırken coinstatsindex'i geçici olarak devre dışı bırakın veya tüm indeksleri tamamen yeniden oluşturmak için -reindex-chainstate yerine -reindex kullanın.</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstate seçeneği -txindex ile uyumlu değil. Lütfen -reindex-chainstate kullanırken txindex'i geçici olarak devre dışı bırakın veya tüm indeksleri tamamen yeniden oluşturmak için -reindex-chainstate yerine -reindex kullanın.</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstate seçeneği -blockfilterindex ile uyumlu değil. Lütfen -reindex-chainstate kullanırken blockfilterindex'i geçici olarak devre dışı bırakın veya tüm indeksleri tamamen yeniden oluşturmak için -reindex-chainstate yerine -reindex kullanın.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>%s dosyasının okunması sırasında bir hata meydana geldi! Tüm anahtarlar doğru bir şekilde okundu, ancak işlem verileri ya da adres defteri ögeleri hatalı veya eksik olabilir.</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>%s okunurken hata! İşlem verileri eksik veya yanlış olabilir. Cüzdan yeniden taranıyor.</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Hata: Cüzdandaki adres defteri verilerinin taşınan cüzdanlara ait olduğu belirlenemiyor</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>Hata: Döküm dosyası format kaydı yanlış. Alınan "%s", beklenen "format".</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>Hata: Döküm dosyası tanımlayıcı kaydı yanlış. Alınan "%s", beklenen "%s".</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>Hata: Taşıma sırasında yinelenen tanımlayıcılar oluşturuldu. Cüzdanınız bozulmuş olabilir.</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>Hata: Taşıma sırasında etkin tanımlayıcı, eski zincir sayacını geçecek şekilde ilerletilemedi.</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>Hata: Cüzdandaki %s işleminin taşınan cüzdanlara ait olduğu belirlenemiyor</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>Hata: Bu eski cüzdan için tanımlayıcılar üretilemiyor. Şifreliyse cüzdanın parolasını sağladığınızdan emin olun.</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>Anlık görüntü zincir durumu klasörü kaldırılamadı. Yeniden başlatmadan önce elle kaldırın.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Giden bağlantılar i2p ile sınırlı (-onlynet=i2p) ancak -i2psam sağlanmadı</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>Platform alıcıları başka bir özel işlem yüküyle birleştirilemez</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>Lütfen bilgisayarınızın saat ve tarihinin doğru olduğunu kontrol ediniz! Saatinizde gecikme varsa %s doğru şekilde çalışamaz.</translation>
     </message>
@@ -6489,6 +10831,26 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>Budama modu -reindex-chainstate ile uyumlu değil. Bunun yerine tam -reindex kullanın.</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>'%s' -&gt; '%s' yeniden adlandırması başarısız oldu. Bunu, geçersiz anlık görüntü klasörünü (%s) elle taşıyarak veya silerek çözmelisiniz; aksi takdirde bir sonraki başlatmada aynı hatayla karşılaşırsınız.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Otomatik Tor onion hizmeti, Tor arka plan programı gelen bağlantıları bize iletemeyeceği için joker karakterli bir onion bağlamasını kullanamaz. -bind=127.0.0.1:&lt;port&gt;=onion gibi belirli bir adres kullanın veya hizmeti -listenonion=0 ile devre dışı bırakın.</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>Otomatik Tor onion hizmeti özel bir onion bağlaması gerektirir. -bind=127.0.0.1:&lt;port&gt;=onion gibi belirli bir adres kullanın veya hizmeti -listenonion=0 ile devre dışı bırakın.</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>Girdi boyutu azami ağırlığı aşıyor. Lütfen daha küçük bir tutar göndermeyi deneyin veya cüzdanınızın UTXO'larını elle birleştirin</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>Önceden seçilmiş koinlerin toplam tutarı işlem hedefini karşılamıyor. Lütfen diğer girdilerin otomatik seçilmesine izin verin veya elle daha fazla koin ekleyin</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>İşlem ücret tahminleri mevcut olmadığında ödeyebileceğiniz işlem ücreti budur.</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>Yönetim doğrulaması etkinken işlem dizini devre dışı bırakılamaz. Ya -disablegovernance komut satırı anahtarıyla başlatın ya da işlem dizinini etkinleştirin.</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>İşlem standart dışı (%s) ve aktarılmaz; Platform adreslerine göndermek şu anda -acceptnonstdtxn=1 ile başlatılmış bir düğüm gerektirir</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>İşlem, sıfır olmayan değerli bir hedef, sıfır olmayan bir ücret oranı veya önceden seçilmiş bir girdi gerektirir</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>UTXO anlık görüntüsü doğrulanamadı. Normal ilk blok indirmesine devam etmek için yeniden başlatın veya farklı bir anlık görüntü yüklemeyi deneyin.</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>Bloklar tekrarlanamıyor. -Reindex-chainstate kullanarak veritabanını yeniden kurmanız gerekecek.</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>Tanımlayıcı cüzdanında beklenmeyen eski bir girdi bulundu. %s cüzdanı yükleniyor
+
+Cüzdan üzerinde oynama yapılmış veya kötü niyetle oluşturulmuş olabilir.
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>Bilinmeyen cüzdan dosya formatı "%s" sağlandı. Lütfen "bdb" veya "sqlite"'den birini sağlayın.</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>Tanınmayan tanımlayıcı bulundu. %s cüzdanı yükleniyor
+
+Cüzdan daha yeni bir sürümde oluşturulmuş olabilir.
+Lütfen yazılımın en son sürümünü çalıştırmayı deneyin.
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>Desteklenmeyen kategoriye özgü günlük düzeyi %1$s=%2$s. Beklenen biçim: %1$s=&lt;category&gt;:&lt;loglevel&gt;. Geçerli kategoriler: %3$s. Geçerli günlük düzeyleri: %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>Uyarı: Özel anahtarların devre dışı bırakıldığı {%s} cüzdanında özel anahtarlar algılandı</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>-timestampindex etkinleştirmek için -reindex kullanarak veritabanını yeniden oluşturmanız gerekiyor</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>Önemli bir dahili hata oluştu, ayrıntılar için debug.log'a bakın</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>Blok doğrulaması kesintiye uğradı</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>İçe aktarılıyor…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>Yanlış -rescan modu, varsayılan değere geri dönüyor.</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>Başlatma sınaması başarısız oldu. %s kapatılıyor.</translation>
     </message>
@@ -6727,10 +11123,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Oturum tamamlanmadı!</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>Oturum zaman aşımına uğradı.</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>Muamelenin imzalanması başarısız oldu</translation>
     </message>
@@ -6759,10 +11151,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Evo veritabanı yükseltilemedi</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>Gereken ücret &gt; ödenen ücret</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>Desteklenmeyen ağda %s ana bilgisayarı</translation>
     </message>
@@ -6777,10 +11165,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>%s içinde geçersiz port belirtildi: '%s'</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>Son başarılı eylemi çok yakında yapıldı.</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Bağlanmaya çalışılıyor…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>-maxsigcachesize için bellek ayrılamıyor: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>Bu bilgisayarda %s ögesine bağlanılamadı (bağlanma %s hatasını verdi)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Spork mesajı imzalanamadı, anahtar mı yanlış?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>Taşımadan önce cüzdan yüklemesi kaldırılamıyor</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>-onlynet için bilinmeyen bir şebeke belirtildi: '%s'</translation>
     </message>
@@ -6887,12 +11279,12 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
         <translation>Desteklenmeyen URL şeması, udp:// ile başlamalıdır</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>Desteklenmeyen günlük kaydı kategorisi %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>Desteklenmeyen genel günlük düzeyi %s=%s. Geçerli değerler: %s.</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>Çok az sayıda anahtar kaldı: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>Desteklenmeyen günlük kaydı kategorisi %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Bir cüzdan yüklemek için Dosya &gt; Cüzdan Aç'a gidin.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>Bir anadüğümde yönetim doğrulamasını devre dışı bırakamazsınız.</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>-addressindex etkinleştirmek için -reindex kullanarak veritabanını yeniden oluşturmanız gerekiyor</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>-spentindex etkinleştirmek için -reindex kullanarak veritabanını yeniden oluşturmanız gerekiyor</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>

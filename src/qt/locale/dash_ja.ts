@@ -612,18 +612,6 @@
         <source>Synchronizing governance data…</source>
         <translation>ガバナンスデータを同期中…</translation>
     </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for superblock</source>
-        <translation><numerusform>スーパーブロックまであと約%n日（%1ブロック）</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>~%n day(s) (%1 blocks) left for voting</source>
-        <translation><numerusform>投票終了まであと約%n日（%1ブロック）</numerusform></translation>
-    </message>
-    <message>
-        <source>~%1% of budget committed (%2 %3).</source>
-        <translation>~%1% の予算が割り当て済み (%2 %3)。</translation>
-    </message>
     <message>
         <source>Wallet: %1
 </source>
@@ -773,12 +761,28 @@
         <translation>クリップボードから一部署名済みのブロックチェーン取引をロード</translation>
     </message>
     <message>
+        <source>Open &amp;debug log file</source>
+        <translation>デバッグログファイルを開く (&amp;D)</translation>
+    </message>
+    <message>
+        <source>Open the debug log file from the current data directory</source>
+        <translation>現在のデータディレクトリからデバッグログファイルを開きます</translation>
+    </message>
+    <message>
         <source>Create Wallet…</source>
         <translation>ウォレットを作成する…</translation>
     </message>
     <message>
         <source>Close All Wallets…</source>
         <translation>全てのウォレットを閉じます...</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>ウォレットを移行</translation>
+    </message>
+    <message>
+        <source>Migrate a wallet</source>
+        <translation>ウォレットを移行します</translation>
     </message>
     <message>
         <source>Ctrl+Shift+D</source>
@@ -843,6 +847,26 @@
     <message>
         <source>Up to date</source>
         <translation>バージョンは最新です</translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>スーパーブロックが間近です</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>投票期間が終了しました</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>スーパーブロックまで残り約%1 (%2 ブロック)</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>投票終了まで残り約%1 (%2 ブロック)</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% の予算が割り当て済み (%2 / %3)</translation>
     </message>
     <message>
         <source>Error</source>
@@ -986,8 +1010,8 @@
         <translation>すべて選択/選択解除</translation>
     </message>
     <message>
-        <source>toggle lock state</source>
-        <translation>トグルロック状態</translation>
+        <source>(un)lock all</source>
+        <translation>すべてロック/アンロック</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1078,8 +1102,16 @@
         <translation>チェンジアドレスをコピー</translation>
     </message>
     <message>
-        <source>Please switch to "List mode" to use this function.</source>
-        <translation>この機能を使うにはリストモードにスイッチしてください。</translation>
+        <source>Wallet error</source>
+        <translation>ウォレットエラー</translation>
+    </message>
+    <message>
+        <source>Failed to lock some coins.</source>
+        <translation>一部のコインをロックできませんでした。</translation>
+    </message>
+    <message>
+        <source>Failed to unlock some coins.</source>
+        <translation>一部のコインをアンロックできませんでした。</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1263,6 +1295,225 @@
     </message>
 </context>
 <context>
+    <name>DissolveDialog</name>
+    <message>
+        <source>Dissolve Shared Masternode</source>
+        <translation>共有マスターノードの解消</translation>
+    </message>
+    <message>
+        <source>This masternode was registered in block %1 and the chain is still at block %2. Wait for one confirmation, then reopen this window.</source>
+        <translation>このマスターノードはブロック %1 で登録されましたが、チェーンはまだブロック %2 です。1 回の承認を待ってから、このウィンドウを開き直してください。</translation>
+    </message>
+    <message>
+        <source>Dissolve Now</source>
+        <translation>今すぐ解消</translation>
+    </message>
+    <message>
+        <source>Dissolve Together</source>
+        <translation>全員で解消</translation>
+    </message>
+    <message>
+        <source>Standby Dissolution</source>
+        <translation>待機用解消</translation>
+    </message>
+    <message>
+        <source>Ends the masternode on your own. Everyone gets their principal back at their refund address.</source>
+        <translation>自分だけでマスターノードを終了します。全員が返金アドレスで元本を受け取ります。</translation>
+    </message>
+    <message>
+        <source>Your share:</source>
+        <translation>あなたの持分：</translation>
+    </message>
+    <message>
+        <source>Transaction fee, paid from your share's refund.</source>
+        <translation>取引手数料。あなたの持分の返金額から支払われます。</translation>
+    </message>
+    <message>
+        <source>Fee:</source>
+        <translation>手数料：</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>トランザクションID</translation>
+    </message>
+    <message>
+        <source>Early exit: you pay the %1 penalty. Free after block %2 (%3, %4).</source>
+        <translation>早期退出：%1 のペナルティを支払います。ブロック %2 以降は無料です (%3、%4)。</translation>
+    </message>
+    <message>
+        <source>I accept paying the %1 early-exit penalty</source>
+        <translation>%1 の早期退出ペナルティの支払いに同意します</translation>
+    </message>
+    <message>
+        <source>Only %1 until dissolving is free. Consider waiting, or use Dissolve Together — with everyone's approval it is free now.</source>
+        <translation>解消が無料になるまであと %1 です。待つことをお勧めします。または「全員で解消」を使えば、全員の承認により今すぐ無料で解消できます。</translation>
+    </message>
+    <message>
+        <source>The early period has ended — dissolving now is free.</source>
+        <translation>早期期間は終了しました。今すぐ解消しても無料です。</translation>
+    </message>
+    <message>
+        <source>%1 (you)</source>
+        <translation>%1 (あなた)</translation>
+    </message>
+    <message>
+        <source>Tick the box to accept the penalty first.</source>
+        <translation>先にチェックボックスをオンにしてペナルティに同意してください。</translation>
+    </message>
+    <message>
+        <source>The chain crossed the penalty-free boundary while this dialog was open. The preview above has been refreshed — review it and press Dissolve Now again.</source>
+        <translation>このダイアログを開いている間に、チェーンがペナルティ無料の境界を越えました。上のプレビューを更新しました。内容を確認してから、もう一度「今すぐ解消」を押してください。</translation>
+    </message>
+    <message>
+        <source>Dissolve this shared masternode now? Every participant's principal returns to their refund address and the masternode stops earning. This cannot be undone.</source>
+        <translation>この共有マスターノードを今すぐ解消しますか？ 参加者全員の元本がそれぞれの返金アドレスに戻り、マスターノードは報酬を得られなくなります。この操作は元に戻せません。</translation>
+    </message>
+    <message>
+        <source>The dissolution was sent.</source>
+        <translation>解消トランザクションを送信しました。</translation>
+    </message>
+    <message>
+        <source>Free at any time, but every share owner must approve. One person prepares the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>いつでも無料ですが、持分オーナー全員の承認が必要です。1 人がリクエストを作成し、他の全員がそれを貼り付けて承認し、返信をコピーして返します。</translation>
+    </message>
+    <message>
+        <source>1. Request</source>
+        <translation>1. リクエスト</translation>
+    </message>
+    <message>
+        <source>The share the transaction fee is deducted from.</source>
+        <translation>取引手数料を差し引く持分です。</translation>
+    </message>
+    <message>
+        <source>Fee paid by:</source>
+        <translation>手数料の負担者：</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>リクエストを作成</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. 承認</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>同じリクエストをすべての持分オーナーに送ってください。返信は順不同で受け取れます。</translation>
+    </message>
+    <message>
+        <source>This request pays out</source>
+        <translation>このリクエストによる支払い</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>承認して返信をコピー</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. 送信</translation>
+    </message>
+    <message>
+        <source>Send Dissolution</source>
+        <translation>解消トランザクションを送信</translation>
+    </message>
+    <message>
+        <source>Fee: %1, paid out of %2.</source>
+        <translation>手数料：%1 (%2 から支払い)。</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>先にリクエストを作成するか貼り付けてください。</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>先にすべての持分が承認する必要があります (現在 %2 件中 %1 件)。</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline and never broadcast unless you need it. It never expires and works even if this wallet is lost.</source>
+        <translation>オフラインで保管し、必要になるまでブロードキャストしない署名済みの解消トランザクションです。有効期限はなく、このウォレットを紛失しても使えます。</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>待機用解消を作成…</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+    <message>
+        <source>Full principal — valid from block %1 (~%2)</source>
+        <translation>元本全額 — ブロック %1 (~%2) から有効</translation>
+    </message>
+    <message>
+        <source>Full principal — valid now, the early period has ended</source>
+        <translation>元本全額 — 早期期間が終了したため今すぐ有効</translation>
+    </message>
+    <message>
+        <source>Not created yet</source>
+        <translation>未作成</translation>
+    </message>
+    <message>
+        <source>Immediate — pays the %1 penalty</source>
+        <translation>即時 — %1 のペナルティを支払います</translation>
+    </message>
+    <message>
+        <source>Store it with your refund-address backup, separately from this wallet.</source>
+        <translation>返金アドレスのバックアップと一緒に、このウォレットとは別の場所に保管してください。</translation>
+    </message>
+    <message>
+        <source>Saved on %1</source>
+        <translation>%1 に保存済み</translation>
+    </message>
+    <message>
+        <source>Save Standby Dissolution</source>
+        <translation>待機用解消を保存</translation>
+    </message>
+    <message>
+        <source>Text file (*.txt)</source>
+        <translation>テキストファイル (*.txt)</translation>
+    </message>
+    <message>
+        <source>Both transactions are ready below, but nothing was saved. Copy them or create the file again.</source>
+        <translation>両方のトランザクションは下に表示されていますが、何も保存されていません。コピーするか、もう一度ファイルを作成してください。</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>%1 に保存しました。</translation>
+    </message>
+    <message>
+        <source>Dash shared masternode — standby dissolution</source>
+        <translation>Dash 共有マスターノード — 待機用解消</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>マスターノード：%1</translation>
+    </message>
+    <message>
+        <source>Created: %1</source>
+        <translation>作成日時：%1</translation>
+    </message>
+    <message>
+        <source>Each block below is a complete signed transaction. Broadcast one of them with "sendrawtransaction" only when you want to end the masternode and get your principal back. They never expire. Store this file with your refund-address backup, separately from the wallet.</source>
+        <translation>以下の各ブロックは、署名済みの完全なトランザクションです。マスターノードを終了して元本を取り戻したいときにだけ、いずれか 1 つを "sendrawtransaction" でブロードキャストしてください。有効期限はありません。このファイルは、返金アドレスのバックアップと一緒に、ウォレットとは別の場所に保管してください。</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid from block %1 (~%2)</source>
+        <translation>元本全額 — ブロック %1 (~%2) から有効</translation>
+    </message>
+    <message>
+        <source>FULL PRINCIPAL — valid now, the early period has ended</source>
+        <translation>元本全額 — 早期期間が終了したため今すぐ有効</translation>
+    </message>
+    <message>
+        <source>IMMEDIATE — pays the %1 early-exit penalty, valid right away</source>
+        <translation>即時 — %1 の早期退出ペナルティを支払い、すぐに有効</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>%1 に書き込めませんでした。</translation>
+    </message>
+</context>
+<context>
     <name>EditAddressDialog</name>
     <message>
         <source>Edit Address</source>
@@ -1341,193 +1592,6 @@
     </message>
 </context>
 <context>
-    <name>GovernanceList</name>
-    <message>
-        <source>Form</source>
-        <translation>フォーム</translation>
-    </message>
-    <message>
-        <source>Filter proposal list</source>
-        <translation>提案リストを絞り込む</translation>
-    </message>
-    <message>
-        <source>Masternode Count:</source>
-        <translation>マスターノード数：</translation>
-    </message>
-    <message>
-        <source>Number of masternodes this wallet can vote with (masternodes for which this wallet holds the voting key)</source>
-        <translation>このウォレットで投票できるマスターノードの数（このウォレットが投票キーを保持しているマスターノード）</translation>
-    </message>
-    <message>
-        <source>No active proposals on the network.</source>
-        <translation>ネットワーク上にアクティブな提案はありません。</translation>
-    </message>
-    <message>
-        <source>Resume Proposal</source>
-        <translation>提案を再開</translation>
-    </message>
-    <message>
-        <source>Proposal Count:</source>
-        <translation>提案回数：</translation>
-    </message>
-    <message>
-        <source>Create Proposal</source>
-        <translation>提案を作成</translation>
-    </message>
-    <message>
-        <source>Select proposals to display</source>
-        <translation>表示する提案を選択</translation>
-    </message>
-    <message>
-        <source>Filter by Title</source>
-        <translation>タイトルで絞り込む</translation>
-    </message>
-    <message>
-        <source>Unavailable</source>
-        <translation>利用不可</translation>
-    </message>
-    <message>
-        <source>A synced node and an unlocked wallet are required.</source>
-        <translation>同期されたノードとロック解除されたウォレットが必要です。</translation>
-    </message>
-    <message>
-        <source>Vote Yes</source>
-        <translation>賛成票を投じる</translation>
-    </message>
-    <message>
-        <source>Vote No</source>
-        <translation>反対票を投じる</translation>
-    </message>
-    <message>
-        <source>Vote Abstain</source>
-        <translation>棄権票を投じる</translation>
-    </message>
-    <message>
-        <source>Active Proposals</source>
-        <translation>アクティブな提案</translation>
-    </message>
-    <message>
-        <source>My Proposals</source>
-        <translation>自分の提案</translation>
-    </message>
-    <message>
-        <source>No proposals recorded in wallet file.</source>
-        <translation>ウォレットファイルに記録された提案はありません。</translation>
-    </message>
-    <message>
-        <source>Resume proposal</source>
-        <translation>提案を再開</translation>
-    </message>
-    <message>
-        <source>Copy Raw JSON</source>
-        <translation>JSONをコピー</translation>
-    </message>
-    <message>
-        <source>Open Proposal URL…</source>
-        <translation>提案のURLを開く…</translation>
-    </message>
-    <message>
-        <source>Details for %1</source>
-        <translation>%1 の詳細</translation>
-    </message>
-    <message>
-        <source>Cannot interact with governance before sync completes</source>
-        <translation>同期が完了するまでガバナンスと対話できません</translation>
-    </message>
-    <message>
-        <source>Creates a new proposal</source>
-        <translation>新しい提案を作成します</translation>
-    </message>
-    <message>
-        <source>Resumes an existing proposal</source>
-        <translation>既存の提案を再開します</translation>
-    </message>
-    <message>
-        <source>Creating proposals costs %1, insufficient balance</source>
-        <translation>提案の作成には %1 かかります。残高が不足しています</translation>
-    </message>
-    <message>
-        <source>Error</source>
-        <translation>エラー</translation>
-    </message>
-    <message>
-        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
-        <translation>URLを検証できません。不正な形式または不明なプロトコルの可能性があります。</translation>
-    </message>
-    <message>
-        <source>External Link Warning</source>
-        <translation>外部リンク警告</translation>
-    </message>
-    <message>
-        <source>You are about to open the following URL in your default browser
-
-%1
-
-This content was submitted by a user. It may not match what is described in the title.
-
-Do you wish to continue?</source>
-        <translation>デフォルトのブラウザで以下のURLを開こうとしています
-
-%1
-
-このコンテンツはユーザーによって送信されました。タイトルに記載されている内容と一致しない場合があります。
-
-続行しますか？</translation>
-    </message>
-    <message>
-        <source>Voting Failed</source>
-        <translation>投票に失敗しました</translation>
-    </message>
-    <message>
-        <source>No wallet available.</source>
-        <translation>ウォレットが利用できません。</translation>
-    </message>
-    <message>
-        <source>No masternode voting keys found in wallet.</source>
-        <translation>ウォレットにマスターノード投票キーが見つかりません。</translation>
-    </message>
-    <message>
-        <source>Please select a proposal to vote on.</source>
-        <translation>投票する提案を選択してください。</translation>
-    </message>
-    <message>
-        <source>Unable to unlock wallet.</source>
-        <translation>ウォレットのロックを解除できません。</translation>
-    </message>
-    <message>
-        <source>Unable to get masternode list. Please try again later.</source>
-        <translation>マスターノードリストを取得できません。後でもう一度お試しください。</translation>
-    </message>
-    <message>
-        <source>Masternode %1 not found</source>
-        <translation>マスターノード %1 が見つかりません</translation>
-    </message>
-    <message>
-        <source>Failed to sign vote for masternode %1</source>
-        <translation>マスターノード %1 の投票への署名に失敗しました</translation>
-    </message>
-    <message>
-        <source>Masternode %1: %2</source>
-        <translation>マスターノード %1: %2</translation>
-    </message>
-    <message numerus="yes">
-        <source>Voted successfully %n time(s)</source>
-        <translation><numerusform>%n 回の投票に成功しました</numerusform></translation>
-    </message>
-    <message numerus="yes">
-        <source>Failed to vote %n time(s)</source>
-        <translation><numerusform>%n 回の投票に失敗しました</numerusform></translation>
-    </message>
-    <message>
-        <source>Errors:</source>
-        <translation>エラー：</translation>
-    </message>
-    <message>
-        <source>Voting Results</source>
-        <translation>投票結果</translation>
-    </message>
-</context>
-<context>
     <name>HelpMessageDialog</name>
     <message>
         <source>version</source>
@@ -1548,6 +1612,109 @@ Do you wish to continue?</source>
     <message>
         <source>&lt;h3&gt;%1 Basics&lt;/h3&gt; %1 gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; %1 uses an innovative process to mix your inputs with the inputs of two or more other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The %1 process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1 begins by breaking your transaction inputs down into standard denominations. These denominations are 0.001 DASH, 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two or more other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of %1 makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be mixed. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have %1 disabled. &lt;hr&gt;For more information, see the &lt;a style="%2" href="%3"&gt;%1 documentation&lt;/a&gt;.</source>
         <translation>&lt;h3&gt;%1の基本内容&lt;/h3&gt; %1は、お客様の資金の出所を隠すことで、本当の意味での金融プライバシーを提供します。お客様のウォレットにあるすべてのDashは、異なる「入力」で構成されており、別個の独立したコインと考えることができます。&lt;br&gt;%1は、革新的なプロセスによって、お客様のインプットと他の2人以上のインプットをミキシングしますが、お客様のウォレットからコインが出ることはありません。お客様はいつでも自分のお金を管理できます。&lt;hr&gt; &lt;b&gt;%1のプロセスは次のように機能します。&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;%1は最初に取引の入力を標準的な金額に分解します。0.001 DASH、0.01 DASH、0.1 DASH、1 DASH、10 DASHなど、あなたが毎日使っている紙幣と同じような金額になります。&lt;/li&gt; &lt;li&gt;お客様のウォレットは、ネットワーク上にある「マスターノード」と呼ばれる特別に設定されたソフトウェアノードにリクエストを送ります。このとき、これらのマスタノードには、お客様が特定の金額を混合することに関心があると伝えられます。個人を特定できるような情報はマスタノードに送られないため、お客様が「誰」であるか知られることはありません。&lt;/li&gt; &lt;li&gt;他の2人以上の人物が同じようなメッセージを送り、同じ金額のミキシングを希望すると、ミキシングセッションが開始されます。マスターノードは入力をミキシングし、3人のユーザー全員のウォレットに、その時点で変換された入力を3人全員に支払うように指示します。お客様のウォレットは、その金額をウォレット自体に直接支払いますが、別のアドレス（変更アドレスと呼ぶ）になります。&lt;/li&gt; &lt;li&gt;お客様の資金を完全に隠すために、お客様のウォレットではこのプロセスを各金額で何度も繰り返される必要があります。このプロセスが完了する度に、「ラウンド」と呼ばれます。%1の各ラウンドは、お客様の資金が発生した場所を判断するのを指数関数的に難しくします。&lt;/li&gt; &lt;li&gt;このミキシングプロセスはバックグラウンドで行われ、お客様側の介入は一切ありません。お客様が取引をしたいときは、お客様の資金はすでにミキシングされています。さらに待つ必要はありません。&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;重要事項：&lt;/b&gt; お客様のウォレットには、この「変更アドレス」が1000個しか入っていません。ミキシング作業が発生する度に、お客様のアドレスのうち最大9個が使用されます。したがって、この1000個のアドレスは、約100回までのミキシング作業に使えるということです。そのうち900個を使い切ると、お客様はご自身のウォレットにさらにアドレスを作成する必要があります。ただし、これは自動バックアップを有効にしている場合に限ります。&lt;br&gt;そのため、バックアップを無効にしているユーザーは、%1も無効になります。&lt;hr&gt;詳細は、&lt;a style="%2" href="%3"&gt;%1のドキュメント&lt;/a&gt;を参照してください。</translation>
+    </message>
+</context>
+<context>
+    <name>InformationWidget</name>
+    <message>
+        <source>General</source>
+        <translation>一般</translation>
+    </message>
+    <message>
+        <source>Client version</source>
+        <translation>クライアントのバージョン</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/A</translation>
+    </message>
+    <message>
+        <source>User Agent</source>
+        <translation>ユーザーエージェント</translation>
+    </message>
+    <message>
+        <source>Datadir</source>
+        <translation>データディレクトリ</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the data directory use the '%1' option.</source>
+        <translation>データディレクトリをデフォルト以外の場所に指定するには、'%1' オプションを使用します。</translation>
+    </message>
+    <message>
+        <source>Blocksdir</source>
+        <translation>ブロックディレクトリ</translation>
+    </message>
+    <message>
+        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
+        <translation>ブロックディレクトリをデフォルト以外の場所に指定するには、'%1' オプションを使用します。</translation>
+    </message>
+    <message>
+        <source>Startup time</source>
+        <translation>起動した日時</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>ネットワーク</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名前</translation>
+    </message>
+    <message>
+        <source>Number of connections</source>
+        <translation>接続数</translation>
+    </message>
+    <message>
+        <source>Local Addresses</source>
+        <translation>ローカルアドレス</translation>
+    </message>
+    <message>
+        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
+        <translation>あなたの Dash ノードが他のノードとの通信に現在使用しているネットワークアドレスです。</translation>
+    </message>
+    <message>
+        <source>Block chain</source>
+        <translation>ブロックチェーン</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>現在のブロックの高さ</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>最終ブロックの日時</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>直近のブロックハッシュ</translation>
+    </message>
+    <message>
+        <source>Memory Pool</source>
+        <translation>メモリープール</translation>
+    </message>
+    <message>
+        <source>Current number of transactions</source>
+        <translation>現在のトランザクション数</translation>
+    </message>
+    <message>
+        <source>Memory usage</source>
+        <translation>メモリ使用量</translation>
+    </message>
+    <message>
+        <source>In:</source>
+        <translation>入力：</translation>
+    </message>
+    <message>
+        <source>Out:</source>
+        <translation>出力：</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>ネットワークアクティビティは無効化されました</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>なし</translation>
     </message>
 </context>
 <context>
@@ -1610,6 +1777,10 @@ Do you wish to continue?</source>
         <translation><numerusform>（完全なチェーンには %n GB が必要です）</numerusform></translation>
     </message>
     <message>
+        <source>Choose data directory</source>
+        <translation>データディレクトリを選択</translation>
+    </message>
+    <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
         <translation>少なくとも%1GBのデータをこのディレクトリに保存する必要があります。またこのデータは時間とともに増加していきます。</translation>
     </message>
@@ -1653,6 +1824,61 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>MasternodeActionDialog</name>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>マスターノード：%1</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>利用可能なウォレットがありません。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign transactions.</source>
+        <translation>このウォレットはウォッチオンリーのため、トランザクションに署名できません。</translation>
+    </message>
+    <message>
+        <source>Automatic (recommended)</source>
+        <translation>自動 (推奨)</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>手数料の出所：</translation>
+    </message>
+    <message>
+        <source>The wallet must be unlocked to create and sign this transaction.</source>
+        <translation>このトランザクションを作成して署名するには、ウォレットのアンロックが必要です。</translation>
+    </message>
+    <message>
+        <source>Enter a valid basic-scheme BLS operator secret key.</source>
+        <translation>有効な basic-scheme の BLS オペレーター秘密鍵を入力してください。</translation>
+    </message>
+    <message>
+        <source>The operator secret key does not match this masternode's registered public key.</source>
+        <translation>オペレーター秘密鍵が、このマスターノードに登録された公開鍵と一致しません。</translation>
+    </message>
+    <message>
+        <source>Another masternode operation is already in progress.</source>
+        <translation>別のマスターノード操作がすでに実行中です。</translation>
+    </message>
+    <message>
+        <source>The operation completed without returning a transaction.</source>
+        <translation>操作は完了しましたが、トランザクションは返されませんでした。</translation>
+    </message>
+    <message>
+        <source>The transaction was created but was not sent to the network.</source>
+        <translation>トランザクションは作成されましたが、ネットワークに送信されませんでした。</translation>
+    </message>
+    <message>
+        <source>The transaction was sent successfully.</source>
+        <translation>トランザクションを送信しました。</translation>
+    </message>
+    <message>
+        <source>Transaction ID: %1</source>
+        <translation>トランザクションID：%1</translation>
+    </message>
+</context>
+<context>
     <name>MasternodeList</name>
     <message>
         <source>Form</source>
@@ -1675,6 +1901,10 @@ Do you wish to continue?</source>
         <translation>Evo</translation>
     </message>
     <message>
+        <source>Shared</source>
+        <translation>共有</translation>
+    </message>
+    <message>
         <source>Filter masternode list</source>
         <translation>マスターノードのリストをフィルター</translation>
     </message>
@@ -1689,6 +1919,22 @@ Do you wish to continue?</source>
     <message>
         <source>Hide banned</source>
         <translation>禁止を非表示</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or evonode using this wallet</source>
+        <translation>このウォレットを使って新しいマスターノードまたはEvoノードを登録します</translation>
+    </message>
+    <message>
+        <source>Register Masternode…</source>
+        <translation>マスターノードを登録…</translation>
+    </message>
+    <message>
+        <source>Create a masternode with collateral pooled by multiple parties, or continue a saved session</source>
+        <translation>複数の参加者で担保をプールしたマスターノードを作成するか、保存済みのセッションを再開します</translation>
+    </message>
+    <message>
+        <source>Shared Masternode…</source>
+        <translation>共有マスターノード…</translation>
     </message>
     <message>
         <source>Node Count:</source>
@@ -1707,6 +1953,34 @@ Do you wish to continue?</source>
         <translation>フィルタ</translation>
     </message>
     <message>
+        <source>Update Service…</source>
+        <translation>サービスを更新…</translation>
+    </message>
+    <message>
+        <source>Update Registrar…</source>
+        <translation>登録情報を更新…</translation>
+    </message>
+    <message>
+        <source>Change Reward Address…</source>
+        <translation>報酬アドレスを変更…</translation>
+    </message>
+    <message>
+        <source>Rotate Keys…</source>
+        <translation>キーをローテーション…</translation>
+    </message>
+    <message>
+        <source>Dissolve…</source>
+        <translation>解消…</translation>
+    </message>
+    <message>
+        <source>Create Standby Dissolution…</source>
+        <translation>待機用解消を作成…</translation>
+    </message>
+    <message>
+        <source>Revoke…</source>
+        <translation>取り消し…</translation>
+    </message>
+    <message>
         <source>Collateral Address</source>
         <translation>担保アドレス</translation>
     </message>
@@ -1717,6 +1991,158 @@ Do you wish to continue?</source>
     <message>
         <source>Voting Address</source>
         <translation>投票アドレス</translation>
+    </message>
+    <message>
+        <source>Registering a masternode requires a wallet.</source>
+        <translation>マスターノードを登録するにはウォレットが必要です。</translation>
+    </message>
+    <message>
+        <source>Masternode registration does not yet support external-signer wallets.</source>
+        <translation>マスターノードの登録は、外部署名者のウォレットにはまだ対応していません。</translation>
+    </message>
+    <message>
+        <source>Masternode registration requires a wallet with private keys.</source>
+        <translation>マスターノードを登録するには、秘密鍵を持つウォレットが必要です。</translation>
+    </message>
+    <message>
+        <source>Masternode registration is unavailable until the node is ready.</source>
+        <translation>ノードの準備が整うまで、マスターノードの登録は利用できません。</translation>
+    </message>
+    <message>
+        <source>Register a new masternode or EvoNode using this wallet</source>
+        <translation>このウォレットを使って新しいマスターノードまたはEvoノードを登録します</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet.</source>
+        <translation>共有マスターノードを管理するにはウォレットが必要です。</translation>
+    </message>
+    <message>
+        <source>Managing shared masternodes requires a wallet with private keys.</source>
+        <translation>共有マスターノードを管理するには、秘密鍵を持つウォレットが必要です。</translation>
+    </message>
+    <message>
+        <source>Shared masternode management is unavailable until the node is ready.</source>
+        <translation>ノードの準備が整うまで、共有マスターノードの管理は利用できません。</translation>
+    </message>
+    <message>
+        <source>Shared masternodes require the v24 hard fork, which is not active on this network yet.</source>
+        <translation>共有マスターノードにはv24ハードフォークが必要ですが、このネットワークではまだ有効化されていません。</translation>
+    </message>
+    <message>
+        <source>Create or continue a multi-party shared masternode registration session</source>
+        <translation>複数の参加者による共有マスターノード登録セッションを作成または再開します</translation>
+    </message>
+    <message>
+        <source>This transaction is not a readable shared masternode dissolution.</source>
+        <translation>このトランザクションは、読み取り可能な共有マスターノードの解消トランザクションではありません。</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>持分 %1 / %2</translation>
+    </message>
+    <message>
+        <source>an unrecognised script</source>
+        <translation>認識できないスクリプト</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>マスターノード：%1</translation>
+    </message>
+    <message>
+        <source>This masternode is not in the current masternode list.</source>
+        <translation>このマスターノードは現在のマスターノードリストにありません。</translation>
+    </message>
+    <message>
+        <source>Service: %1</source>
+        <translation>サービス：%1</translation>
+    </message>
+    <message>
+        <source>Collateral address: %1</source>
+        <translation>担保アドレス：%1</translation>
+    </message>
+    <message>
+        <source>Fee paid by: %1</source>
+        <translation>手数料の負担者：%1</translation>
+    </message>
+    <message>
+        <source>Approved by: every share owner</source>
+        <translation>承認者：持分オーナー全員</translation>
+    </message>
+    <message>
+        <source>Approved by: your signature only</source>
+        <translation>承認者：あなたの署名のみ</translation>
+    </message>
+    <message>
+        <source>Payouts:</source>
+        <translation>支払い：</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Fee: %1</source>
+        <translation>手数料：%1</translation>
+    </message>
+    <message>
+        <source>Every share's principal is returned to its own refund address. This cannot be undone.</source>
+        <translation>各持分の元本は、それぞれの返金アドレスに戻ります。この操作は元に戻せません。</translation>
+    </message>
+    <message>
+        <source>Note: this transaction does not return every share's full principal. This cannot be undone.</source>
+        <translation>注意：このトランザクションでは、すべての持分の元本全額は返金されません。この操作は元に戻せません。</translation>
+    </message>
+    <message>
+        <source>Transaction: %1</source>
+        <translation>トランザクション：%1</translation>
+    </message>
+    <message>
+        <source>Broadcast this standby dissolution?</source>
+        <translation>この待機用解消をブロードキャストしますか？</translation>
+    </message>
+    <message>
+        <source>Broadcast failed</source>
+        <translation>ブロードキャストに失敗しました</translation>
+    </message>
+    <message>
+        <source>Standby dissolution sent</source>
+        <translation>待機用解消を送信しました</translation>
+    </message>
+    <message>
+        <source>Masternode not found</source>
+        <translation>マスターノードが見つかりません</translation>
+    </message>
+    <message>
+        <source>This message is about a masternode that is not in the list yet.</source>
+        <translation>このメッセージは、まだリストにないマスターノードに関するものです。</translation>
+    </message>
+    <message>
+        <source>Nothing to open</source>
+        <translation>開くものがありません</translation>
+    </message>
+    <message>
+        <source>Requires a wallet capable of signing transactions</source>
+        <translation>トランザクションに署名できるウォレットが必要です</translation>
+    </message>
+    <message>
+        <source>Requires this masternode's owner key in the wallet</source>
+        <translation>このマスターノードのオーナーキーがウォレットに必要です</translation>
+    </message>
+    <message>
+        <source>Requires one of this masternode's share owner keys in this wallet</source>
+        <translation>このウォレットに、このマスターノードの持分オーナーキーのいずれかが必要です</translation>
+    </message>
+    <message>
+        <source>Already saved on this computer on %1</source>
+        <translation>%1 にこのコンピューターに保存済み</translation>
+    </message>
+    <message>
+        <source>Not created on this computer yet</source>
+        <translation>このコンピューターにはまだ作成されていません</translation>
+    </message>
+    <message>
+        <source>Filters by one of this masternode's share owner addresses</source>
+        <translation>このマスターノードの持分オーナーアドレスのいずれかで絞り込みます</translation>
     </message>
     <message>
         <source>Details for Masternode %1</source>
@@ -1737,25 +2163,29 @@ Do you wish to continue?</source>
 </context>
 <context>
     <name>MasternodeModel</name>
-    <message numerus="yes">
-        <source>Banned for %n day(s)</source>
-        <translation><numerusform>%n日間禁止</numerusform></translation>
-    </message>
-    <message>
-        <source>Banned for less than a day</source>
-        <translation>1日未満の禁止</translation>
-    </message>
     <message>
         <source>Banned</source>
         <translation>禁止</translation>
     </message>
-    <message numerus="yes">
-        <source>Active for %n day(s)</source>
-        <translation><numerusform>%n日間アクティブ</numerusform></translation>
+    <message>
+        <source>Shared masternode · you hold %1 of %2 shares</source>
+        <translation>共有マスターノード · %2 のうち %1 の持分を保有</translation>
     </message>
     <message>
-        <source>Active for less than a day</source>
-        <translation>1日未満のアクティブ</translation>
+        <source>Banned for %1</source>
+        <translation>%1 間禁止中</translation>
+    </message>
+    <message>
+        <source>Active for %1</source>
+        <translation>%1 間アクティブ</translation>
+    </message>
+    <message>
+        <source>Shared (you hold %1 of %2)</source>
+        <translation>共有 (%2 のうち %1 を保有)</translation>
+    </message>
+    <message>
+        <source>Shared (%1 shares)</source>
+        <translation>共有 (%1 の持分)</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
@@ -1792,6 +2222,603 @@ Do you wish to continue?</source>
     <message>
         <source>ProTx Hash</source>
         <translation>ProTxハッシュ</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeOperationRunner</name>
+    <message>
+        <source>One of the chosen keys is already in use by a registered masternode or share. Every owner and voting key may be used only once network-wide.</source>
+        <translation>選択したキーのいずれかが、登録済みのマスターノードまたは持分ですでに使用されています。オーナーキーと投票キーは、ネットワーク全体で 1 回しか使用できません。</translation>
+    </message>
+    <message>
+        <source>The chosen service address is already in use by a registered masternode.</source>
+        <translation>選択したサービスアドレスは、登録済みのマスターノードですでに使用されています。</translation>
+    </message>
+    <message>
+        <source>A refund or reward address may not double as a share owner or voting address. Use distinct addresses for payouts and keys.</source>
+        <translation>返金アドレスや報酬アドレスを、持分オーナーアドレスや投票アドレスと兼用することはできません。支払い用とキー用で別々のアドレスを使用してください。</translation>
+    </message>
+    <message>
+        <source>A participant's consent signature does not match the final transaction. This happens when the terms or the funding transaction changed after signing; collect fresh signatures.</source>
+        <translation>参加者の同意署名が最終トランザクションと一致しません。署名後に条件または入金トランザクションが変更された場合に発生します。新しい署名を集め直してください。</translation>
+    </message>
+    <message>
+        <source>The network does not accept this transaction version yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>ネットワークはこのトランザクションバージョンにまだ対応していません。対応するネットワークアップグレードが有効化されるまでお待ちください。</translation>
+    </message>
+    <message>
+        <source>This feature is not active on the network yet. Wait for the network upgrade that introduces it to activate.</source>
+        <translation>この機能はネットワークでまだ有効になっていません。導入するネットワークアップグレードが有効化されるまでお待ちください。</translation>
+    </message>
+    <message>
+        <source>A dissolution for this masternode is already pending.</source>
+        <translation>このマスターノードの解消はすでに保留中です。</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded.</source>
+        <translation>トランザクションに資金を割り当てられませんでした。</translation>
+    </message>
+    <message>
+        <source>The transaction could not be funded: %1</source>
+        <translation>トランザクションに資金を割り当てられませんでした：%1</translation>
+    </message>
+    <message>
+        <source>
+
+Network rejection: %1</source>
+        <translation>
+
+ネットワークによる拒否：%1</translation>
+    </message>
+    <message>
+        <source>Details: %1</source>
+        <translation>詳細：%1</translation>
+    </message>
+</context>
+<context>
+    <name>MigrateWalletActivity</name>
+    <message>
+        <source>Migrate wallet</source>
+        <translation>ウォレットを移行</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to migrate the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>ウォレット &lt;i&gt;%1&lt;/i&gt; を移行してもよろしいですか？</translation>
+    </message>
+    <message>
+        <source>Migrating the wallet will convert this wallet to one or more descriptor wallets. A new wallet backup will need to be made.
+If this wallet contains any watchonly scripts, a new wallet will be created which contains those watchonly scripts.
+If this wallet contains any solvable but not watched scripts, a different and new wallet will be created which contains those scripts.
+
+The migration process will create a backup of the wallet before migrating. This backup file will be named &lt;wallet name&gt;-&lt;timestamp&gt;.legacy.bak and can be found in the directory for this wallet. In the event of an incorrect migration, the backup can be restored with the "Restore Wallet" functionality.</source>
+        <translation>ウォレットを移行すると、このウォレットが 1 つ以上のディスクリプタウォレットに変換されます。新しいウォレットバックアップを作成する必要があります。
+このウォレットにウォッチオンリースクリプトが含まれている場合、それらのウォッチオンリースクリプトを含む新しいウォレットが作成されます。
+このウォレットに、解決可能だが監視されていないスクリプトが含まれている場合、それらのスクリプトを含む別の新しいウォレットが作成されます。
+
+移行処理では、移行前にウォレットのバックアップが作成されます。このバックアップファイルの名前は &lt;ウォレット名&gt;-&lt;タイムスタンプ&gt;.legacy.bak で、このウォレットのディレクトリにあります。移行が正しく行われなかった場合は、「ウォレットを復元」機能でバックアップを復元できます。</translation>
+    </message>
+    <message>
+        <source>Migrate Wallet</source>
+        <translation>ウォレットを移行</translation>
+    </message>
+    <message>
+        <source>Migrating Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
+        <translation>ウォレット &lt;b&gt;%1&lt;/b&gt; を移行しています…</translation>
+    </message>
+    <message>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation>ウォレット '%1' を正常に移行しました。</translation>
+    </message>
+    <message>
+        <source>Watchonly scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>ウォッチオンリースクリプトは、'%1' という名前の新しいウォレットに移行されました。</translation>
+    </message>
+    <message>
+        <source>Solvable but not watched scripts have been migrated to a new wallet named '%1'.</source>
+        <translation>解決可能だが監視されていないスクリプトは、'%1' という名前の新しいウォレットに移行されました。</translation>
+    </message>
+    <message>
+        <source>Migration failed</source>
+        <translation>移行に失敗しました</translation>
+    </message>
+    <message>
+        <source>Migration Successful</source>
+        <translation>移行に成功しました</translation>
+    </message>
+</context>
+<context>
+    <name>MnShareSession</name>
+    <message>
+        <source>Share %1</source>
+        <translation>持分 %1</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has a malformed input transaction id.</source>
+        <translation>拠出 "%1" の入力トランザクションIDの形式が不正です。</translation>
+    </message>
+    <message>
+        <source>Contribution "%1" has an invalid change address.</source>
+        <translation>拠出 "%1" のおつりアドレスが無効です。</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not valid transaction hex.</source>
+        <translation>セッションの準備済みトランザクションは、有効なトランザクションの16進数ではありません。</translation>
+    </message>
+    <message>
+        <source>The session's prepared transaction is not a shared masternode registration.</source>
+        <translation>セッションの準備済みトランザクションは、共有マスターノードの登録ではありません。</translation>
+    </message>
+    <message>
+        <source>This message was edited after it was copied.</source>
+        <translation>このメッセージは、コピー後に編集されました。</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation>下書き</translation>
+    </message>
+    <message>
+        <source>Terms locked</source>
+        <translation>条件確定済み</translation>
+    </message>
+    <message>
+        <source>Collecting approvals</source>
+        <translation>承認を収集中</translation>
+    </message>
+    <message>
+        <source>Approvals combined</source>
+        <translation>承認を統合済み</translation>
+    </message>
+    <message>
+        <source>Contributions signed</source>
+        <translation>拠出に署名済み</translation>
+    </message>
+    <message>
+        <source>Broadcast</source>
+        <translation>ブロードキャスト済み</translation>
+    </message>
+    <message>
+        <source>The file is not valid JSON.</source>
+        <translation>ファイルは有効なJSONではありません。</translation>
+    </message>
+    <message>
+        <source>The file is not a shared masternode session file.</source>
+        <translation>ファイルは共有マスターノードのセッションファイルではありません。</translation>
+    </message>
+    <message>
+        <source>The session file uses an unsupported format version. Update Dash Core to open it.</source>
+        <translation>このセッションファイルは未対応のフォーマットバージョンです。開くには Dash Core を更新してください。</translation>
+    </message>
+    <message>
+        <source>The session file is for the "%1" network but this node runs "%2". It cannot be used here.</source>
+        <translation>このセッションファイルは "%1" ネットワーク用ですが、このノードは "%2" で動作しています。ここでは使用できません。</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>不明</translation>
+    </message>
+    <message>
+        <source>The session file has no session id.</source>
+        <translation>セッションファイルにセッションIDがありません。</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid revision.</source>
+        <translation>セッションファイルのリビジョンが無効です。</translation>
+    </message>
+    <message>
+        <source>The session file has no stage.</source>
+        <translation>セッションファイルにステージがありません。</translation>
+    </message>
+    <message>
+        <source>The session file is at the unknown stage "%1". It was probably created by a newer Dash Core.</source>
+        <translation>セッションファイルのステージ "%1" は不明です。より新しい Dash Core で作成された可能性があります。</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 shares; a shared masternode can have at most %2.</source>
+        <translation>セッションファイルには %1 口の持分が記載されています。共有マスターノードの持分は最大 %2 口までです。</translation>
+    </message>
+    <message>
+        <source>Share entry %1 in the session file is malformed.</source>
+        <translation>セッションファイルの持分エントリ %1 の形式が不正です。</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early period.</source>
+        <translation>セッションファイルの早期期間が無効です。</translation>
+    </message>
+    <message>
+        <source>The session file has an invalid early-exit penalty.</source>
+        <translation>セッションファイルの早期退出ペナルティが無効です。</translation>
+    </message>
+    <message>
+        <source>The session file lists %1 contributions; there can be at most one per share, and at most %2 shares.</source>
+        <translation>セッションファイルには %1 件の拠出が記載されています。拠出は持分ごとに最大 1 件で、持分は最大 %2 口です。</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file is malformed.</source>
+        <translation>セッションファイルの拠出エントリ %1 の形式が不正です。</translation>
+    </message>
+    <message>
+        <source>Contribution entry %1 in the session file has %2 inputs; at most %3 can be funded in one contribution.</source>
+        <translation>セッションファイルの拠出エントリ %1 には %2 個のインプットがあります。1 回の拠出で資金を出せるのは最大 %3 個です。</translation>
+    </message>
+    <message>
+        <source>The session file has a malformed consent hash.</source>
+        <translation>セッションファイルの同意ハッシュの形式が不正です。</translation>
+    </message>
+    <message>
+        <source>Signature entry %1 in the session file is malformed.</source>
+        <translation>セッションファイルの署名エントリ %1 の形式が不正です。</translation>
+    </message>
+    <message>
+        <source>The session file lists more than one signature for share %1.</source>
+        <translation>セッションファイルに、持分 %1 の署名が複数記載されています。</translation>
+    </message>
+    <message>
+        <source>The session file is marked "%1" but is missing its frozen transaction or consent hash.</source>
+        <translation>セッションファイルは "%1" とマークされていますが、確定済みトランザクションまたは同意ハッシュがありません。</translation>
+    </message>
+    <message>
+        <source>The session file has a signature for a share that does not exist.</source>
+        <translation>セッションファイルに、存在しない持分の署名があります。</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but not every share has an approval.</source>
+        <translation>セッションファイルでは承認が統合済みとされていますが、承認のない持分があります。</translation>
+    </message>
+    <message>
+        <source>The session file claims the approvals are combined, but an approval is invalid: %1</source>
+        <translation>セッションファイルでは承認が統合済みとされていますが、無効な承認があります：%1</translation>
+    </message>
+    <message>
+        <source>The session file claims every contribution is signed, but one or more funding inputs are unsigned.</source>
+        <translation>セッションファイルではすべての拠出が署名済みとされていますが、未署名の資金インプットが残っています。</translation>
+    </message>
+    <message>
+        <source>The session file could not be parsed: %1</source>
+        <translation>セッションファイルを解析できませんでした：%1</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 shares (currently %3).</source>
+        <translation>共有マスターノードには %1 〜 %2 口の持分が必要です (現在 %3 口)。</translation>
+    </message>
+    <message>
+        <source>The voting address must be a valid P2PKH address.</source>
+        <translation>投票アドレスは有効な P2PKH アドレスである必要があります。</translation>
+    </message>
+    <message>
+        <source>Share %1:</source>
+        <translation>持分 %1：</translation>
+    </message>
+    <message>
+        <source>the owner address must be a valid P2PKH address.</source>
+        <translation>オーナーアドレスは有効な P2PKH アドレスである必要があります。</translation>
+    </message>
+    <message>
+        <source>the owner address is already used by share %1. Every owner key must be unique.</source>
+        <translation>オーナーアドレスはすでに持分 %1 で使用されています。オーナーキーはすべて一意である必要があります。</translation>
+    </message>
+    <message>
+        <source>the amount must be between %1 and %2.</source>
+        <translation>金額は %1 から %2 の間である必要があります。</translation>
+    </message>
+    <message>
+        <source>refund</source>
+        <translation>返金</translation>
+    </message>
+    <message>
+        <source>reward</source>
+        <translation>報酬</translation>
+    </message>
+    <message>
+        <source>the %1 address must be a valid P2PKH or P2SH address.</source>
+        <translation>%1アドレスは有効な P2PKH または P2SH アドレスである必要があります。</translation>
+    </message>
+    <message>
+        <source>the refund address is already used by share %1. Every refund address must be unique.</source>
+        <translation>返金アドレスはすでに持分 %1 で使用されています。返金アドレスはすべて一意である必要があります。</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be the voting address.</source>
+        <translation>%1アドレスを投票アドレスと同じにすることはできません。</translation>
+    </message>
+    <message>
+        <source>the %1 address must not be share %2's owner address.</source>
+        <translation>%1アドレスを持分 %2 のオーナーアドレスと同じにすることはできません。</translation>
+    </message>
+    <message>
+        <source>The share amounts must sum to exactly %1 (currently %2).</source>
+        <translation>持分の金額の合計は、ちょうど %1 である必要があります (現在 %2)。</translation>
+    </message>
+    <message>
+        <source>The early period must be at most %1 blocks (about two years).</source>
+        <translation>早期期間は最大 %1 ブロック (約 2 年) までです。</translation>
+    </message>
+    <message>
+        <source>The early penalty cannot be negative.</source>
+        <translation>早期ペナルティを負の値にすることはできません。</translation>
+    </message>
+    <message>
+        <source>The early penalty must be below the smallest share amount (%1).</source>
+        <translation>早期ペナルティは、最小の持分の金額 (%1) 未満である必要があります。</translation>
+    </message>
+    <message>
+        <source>Funding can only be changed while the session is editable. Unlock the terms first (this discards all collected approvals).</source>
+        <translation>資金の変更は、セッションが編集可能な間のみ行えます。先に条件のロックを解除してください (集めた承認はすべて破棄されます)。</translation>
+    </message>
+    <message>
+        <source>The contribution needs a participant label.</source>
+        <translation>拠出には参加者ラベルが必要です。</translation>
+    </message>
+    <message>
+        <source>The contribution has no funding inputs.</source>
+        <translation>拠出に資金インプットがありません。</translation>
+    </message>
+    <message>
+        <source>"%1" has already contributed. Remove the existing contribution first.</source>
+        <translation>"%1" はすでに拠出しています。先に既存の拠出を削除してください。</translation>
+    </message>
+    <message>
+        <source>Input %1:%2 is already contributed by "%3".</source>
+        <translation>インプット %1:%2 は、すでに "%3" によって拠出されています。</translation>
+    </message>
+    <message>
+        <source>The change amount must be positive.</source>
+        <translation>おつりの金額は正の値である必要があります。</translation>
+    </message>
+    <message>
+        <source>No contribution from "%1" was found.</source>
+        <translation>"%1" による拠出が見つかりませんでした。</translation>
+    </message>
+    <message>
+        <source>Only an editable session can be locked.</source>
+        <translation>ロックできるのは編集可能なセッションのみです。</translation>
+    </message>
+    <message>
+        <source>The consent hash is malformed.</source>
+        <translation>同意ハッシュの形式が不正です。</translation>
+    </message>
+    <message>
+        <source>The consent hash does not match the prepared transaction. Do not sign; restart the preparation step.</source>
+        <translation>同意ハッシュが準備済みトランザクションと一致しません。署名せず、準備の手順をやり直してください。</translation>
+    </message>
+    <message>
+        <source>The collateral output index does not match the prepared transaction.</source>
+        <translation>担保のアウトプットインデックスが準備済みトランザクションと一致しません。</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet; there is nothing to approve.</source>
+        <translation>条件がまだロックされていないため、承認するものがありません。</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 does not exist.</source>
+        <translation>%2 口中の持分 %1 は存在しません。</translation>
+    </message>
+    <message>
+        <source>The signature is not valid base64.</source>
+        <translation>署名が有効な base64 ではありません。</translation>
+    </message>
+    <message>
+        <source>The signature from %1 does not verify against the current terms. It was most likely made for an older version of this session — ask %1 to re-sign the current version.</source>
+        <translation>%1 の署名が現在の条件で検証できませんでした。このセッションの古いバージョンに対して作成された可能性が高いため、%1 に現在のバージョンへ再署名してもらってください。</translation>
+    </message>
+    <message>
+        <source>The session file's share table does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>セッションファイルの持分テーブルが準備済みトランザクションと一致しません。署名せず、新しいコピーを依頼してください。</translation>
+    </message>
+    <message>
+        <source>Share %1 in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>セッションファイルの持分 %1 が準備済みトランザクションと一致しません。署名せず、新しいコピーを依頼してください。</translation>
+    </message>
+    <message>
+        <source>Share %1's reward address in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>セッションファイルの持分 %1 の報酬アドレスが準備済みトランザクションと一致しません。署名せず、新しいコピーを依頼してください。</translation>
+    </message>
+    <message>
+        <source>The terms shown in the session file do not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>セッションファイルに表示された条件が準備済みトランザクションと一致しません。署名せず、新しいコピーを依頼してください。</translation>
+    </message>
+    <message>
+        <source>The funding shown in the session file does not match its prepared transaction. Do not sign; request a fresh copy.</source>
+        <translation>セッションファイルに表示された資金が準備済みトランザクションと一致しません。署名せず、新しいコピーを依頼してください。</translation>
+    </message>
+    <message>
+        <source>A different signature for this share is already recorded. One of the copies signed a stale version of the session — agree on the latest revision and have it re-signed.</source>
+        <translation>この持分には、別の署名がすでに記録されています。コピーのうち 1 つが古いバージョンのセッションに署名したようです。最新のリビジョンで合意し、再署名してもらってください。</translation>
+    </message>
+    <message>
+        <source>Funding inputs can only be signed once the approvals are combined.</source>
+        <translation>資金インプットに署名できるのは、承認が統合された後のみです。</translation>
+    </message>
+    <message>
+        <source>The prepared transaction does not match the terms everyone approved. Do not sign or broadcast it; request a fresh copy.</source>
+        <translation>準備済みトランザクションが、全員が承認した条件と一致しません。署名もブロードキャストもせず、新しいコピーを依頼してください。</translation>
+    </message>
+    <message>
+        <source>This message is for a different session (Session %1). You are working on Session %2.</source>
+        <translation>このメッセージは別のセッション (セッション %1) のものです。現在はセッション %2 を操作しています。</translation>
+    </message>
+    <message>
+        <source>Replies can only be absorbed while the terms are still editable.</source>
+        <translation>返信を取り込めるのは、条件がまだ編集可能な間のみです。</translation>
+    </message>
+    <message>
+        <source>The reply does not match your current draft: the participants, amounts or terms were changed. Ask the sender to paste your latest invitation and reply again.</source>
+        <translation>返信が現在の下書きと一致しません。参加者、金額、または条件が変更されました。送信者に最新の招待を貼り付けてもらい、もう一度返信してもらってください。</translation>
+    </message>
+    <message>
+        <source>%1's share already has details from another reply.</source>
+        <translation>%1 の持分には、別の返信の詳細がすでにあります。</translation>
+    </message>
+    <message>
+        <source>This message does not carry locked terms.</source>
+        <translation>このメッセージにはロック済みの条件が含まれていません。</translation>
+    </message>
+    <message>
+        <source>The locked terms do not contain the details you sent.</source>
+        <translation>ロック済みの条件に、あなたが送信した詳細が含まれていません。</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>コーディネーター</translation>
+    </message>
+    <message>
+        <source>The terms changed since you sent your details. Ask %1 to send the current invitation and reply again.</source>
+        <translation>詳細を送信した後に条件が変更されました。%1 に現在の招待を送ってもらい、もう一度返信してください。</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is revision %2 and is superseded by it.</source>
+        <translation>インポートしたコピーはこのセッションのリビジョン %1 で、このコピーはリビジョン %2 のため、置き換えられます。</translation>
+    </message>
+    <message>
+        <source>The imported copy is revision %1 of this session; this copy is already at revision %2. Send the sender the newer file.</source>
+        <translation>インポートしたコピーはこのセッションのリビジョン %1 ですが、このコピーはすでにリビジョン %2 です。送信者に新しい方のファイルを送ってください。</translation>
+    </message>
+    <message>
+        <source>The imported copy has locked terms and supersedes this editable copy.</source>
+        <translation>インポートしたコピーは条件がロック済みで、この編集可能なコピーに置き換わります。</translation>
+    </message>
+    <message>
+        <source>This session's terms are already locked; the imported copy is still editable. Send the sender the newer update.</source>
+        <translation>このセッションの条件はすでにロックされていますが、インポートしたコピーはまだ編集可能です。送信者に新しい方の更新を送ってください。</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 locked different terms and cannot be combined. Agree on one copy, send it out again, and have everybody approve that one.</source>
+        <translation>セッション %1 の両方のコピーが異なる条件をロックしたため、統合できません。1 つのコピーで合意してもう一度全員に送り、全員にそれを承認してもらってください。</translation>
+    </message>
+    <message>
+        <source>Both copies of Session %1 changed the same details and cannot be combined. Agree on one copy and send it out again.</source>
+        <translation>セッション %1 の両方のコピーが同じ項目を変更したため、統合できません。1 つのコピーで合意して、もう一度全員に送ってください。</translation>
+    </message>
+    <message>
+        <source>The funding-signed copies are not the same transaction. They cannot be merged.</source>
+        <translation>資金に署名済みのコピー同士が同じトランザクションではないため、統合できません。</translation>
+    </message>
+    <message>
+        <source>Funding input %1 has two different signatures. The copies cannot be merged.</source>
+        <translation>資金インプット %1 に 2 つの異なる署名があります。コピーを統合できません。</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the approvals are combined, but that state is invalid: %1</source>
+        <translation>インポートしたコピーでは承認が統合済みとされていますが、その状態は無効です：%1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims every contribution is signed, but that state is invalid: %1</source>
+        <translation>インポートしたコピーではすべての拠出が署名済みとされていますが、その状態は無効です：%1</translation>
+    </message>
+    <message>
+        <source>The imported copy claims the registration was broadcast, but that state is invalid: %1</source>
+        <translation>インポートしたコピーでは登録がブロードキャスト済みとされていますが、その状態は無効です：%1</translation>
+    </message>
+    <message>
+        <source>The session is not collecting approvals.</source>
+        <translation>セッションは承認を収集していません。</translation>
+    </message>
+    <message>
+        <source>Not every share has signed yet (%1 of %2). Combine only a fully signed session.</source>
+        <translation>まだすべての持分が署名したわけではありません (%2 口中 %1 口)。統合できるのは、全員が署名したセッションのみです。</translation>
+    </message>
+    <message>
+        <source>The owner approvals have to be combined before the contributions are signed.</source>
+        <translation>拠出に署名する前に、オーナーの承認を統合する必要があります。</translation>
+    </message>
+    <message>
+        <source>One funding input is still unsigned.</source>
+        <translation>未署名の資金インプットが 1 個残っています。</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs are still unsigned.</source>
+        <translation>未署名の資金インプットが %1 個残っています。</translation>
+    </message>
+    <message>
+        <source>The session cannot be broadcast before every consent and funding signature is in place.</source>
+        <translation>すべての同意署名と資金署名がそろうまで、セッションをブロードキャストできません。</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>なし</translation>
+    </message>
+    <message>
+        <source>about 1 minute</source>
+        <translation>約 1 分</translation>
+    </message>
+    <message>
+        <source>about %1 minutes</source>
+        <translation>約 %1 分</translation>
+    </message>
+    <message>
+        <source>about 1 hour</source>
+        <translation>約 1 時間</translation>
+    </message>
+    <message>
+        <source>about %1 hours</source>
+        <translation>約 %1 時間</translation>
+    </message>
+    <message>
+        <source>about 1 day</source>
+        <translation>約 1 日</translation>
+    </message>
+    <message>
+        <source>about %1 days</source>
+        <translation>約 %1 日</translation>
+    </message>
+    <message>
+        <source>The fee must be positive.</source>
+        <translation>手数料は正の値である必要があります。</translation>
+    </message>
+    <message>
+        <source>The penalty and fee exceed the dissolving participant's share.</source>
+        <translation>ペナルティと手数料が、解消する参加者の持分を超えています。</translation>
+    </message>
+    <message>
+        <source>A unilateral dissolution needs at least one other share to receive the penalty.</source>
+        <translation>単独での解消には、ペナルティを受け取る他の持分が少なくとも 1 口必要です。</translation>
+    </message>
+    <message>
+        <source>1 coin</source>
+        <translation>1 コイン</translation>
+    </message>
+    <message>
+        <source>%1 coins</source>
+        <translation>%1 コイン</translation>
+    </message>
+    <message>
+        <source>1 approval</source>
+        <translation>承認 1 件</translation>
+    </message>
+    <message>
+        <source>%1 approvals</source>
+        <translation>承認 %1 件</translation>
+    </message>
+    <message>
+        <source>1 participant</source>
+        <translation>参加者 1 人</translation>
+    </message>
+    <message>
+        <source>%1 participants</source>
+        <translation>参加者 %1 人</translation>
+    </message>
+    <message>
+        <source>1 funding input</source>
+        <translation>資金インプット 1 個</translation>
+    </message>
+    <message>
+        <source>%1 funding inputs</source>
+        <translation>資金インプット %1 個</translation>
+    </message>
+    <message>
+        <source>1 share</source>
+        <translation>持分 1 口</translation>
+    </message>
+    <message>
+        <source>%1 shares</source>
+        <translation>持分 %1 口</translation>
+    </message>
+    <message>
+        <source>1 input</source>
+        <translation>インプット 1 個</translation>
+    </message>
+    <message>
+        <source>%1 inputs</source>
+        <translation>インプット %1 個</translation>
     </message>
 </context>
 <context>
@@ -1949,6 +2976,121 @@ Do you wish to continue?</source>
     </message>
 </context>
 <context>
+    <name>NetworkWidget</name>
+    <message>
+        <source>Credit Pool</source>
+        <translation>クレジットプール</translation>
+    </message>
+    <message>
+        <source>Last block change</source>
+        <translation>最終ブロックの変更</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/A</translation>
+    </message>
+    <message>
+        <source>Total locked</source>
+        <translation>ロック総額</translation>
+    </message>
+    <message>
+        <source>Pending unlocks</source>
+        <translation>保留中のアンロック</translation>
+    </message>
+    <message>
+        <source>Withdrawal limit</source>
+        <translation>引き出し上限</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Verified locks</source>
+        <translation>検証済みロック</translation>
+    </message>
+    <message>
+        <source>Unverified locks</source>
+        <translation>未検証ロック</translation>
+    </message>
+    <message>
+        <source>Locks awaiting transaction</source>
+        <translation>トランザクション待ちのロック</translation>
+    </message>
+    <message>
+        <source>Unprotected transactions</source>
+        <translation>保護されていないトランザクション</translation>
+    </message>
+    <message>
+        <source>Masternodes</source>
+        <translation>マスターノード</translation>
+    </message>
+    <message>
+        <source>Masternode count</source>
+        <translation>マスターノード数</translation>
+    </message>
+    <message>
+        <source>EvoNode count</source>
+        <translation>Evoノード数</translation>
+    </message>
+    <message>
+        <source>ChainLocks</source>
+        <translation>チェーンロック</translation>
+    </message>
+    <message>
+        <source>Current block height</source>
+        <translation>現在のブロックの高さ</translation>
+    </message>
+    <message>
+        <source>Last block time</source>
+        <translation>最終ブロックの日時</translation>
+    </message>
+    <message>
+        <source>Last block hash</source>
+        <translation>直近のブロックハッシュ</translation>
+    </message>
+    <message>
+        <source>Quorums</source>
+        <translation>クォーラム</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>合計：%1 (有効：%2)</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>ブロックチェーンの同期を待っています…</translation>
+    </message>
+    <message>
+        <source>%1 active (%2% health)</source>
+        <translation>%1 がアクティブ (正常率 %2%)</translation>
+    </message>
+    <message>
+        <source>Quorum type rotates, data retained for %1</source>
+        <translation>クォーラムの種類はローテーションします。データは %1 保持されます</translation>
+    </message>
+    <message>
+        <source>Quorum type does not rotate, data retained for %1</source>
+        <translation>クォーラムの種類はローテーションしません。データは %1 保持されます</translation>
+    </message>
+    <message>
+        <source>Current quorum has %1 remaining</source>
+        <translation>現在のクォーラムの残り期間は %1 です</translation>
+    </message>
+    <message>
+        <source>Current quorum has expired</source>
+        <translation>現在のクォーラムは期限切れです</translation>
+    </message>
+    <message>
+        <source>Last formed %1 ago</source>
+        <translation>最後の形成は %1 前です</translation>
+    </message>
+    <message>
+        <source>Last formed recently</source>
+        <translation>最近形成されました</translation>
+    </message>
+</context>
+<context>
     <name>OpenURIDialog</name>
     <message>
         <source>Open URI</source>
@@ -1987,6 +3129,40 @@ Do you wish to continue?</source>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation>&lt;b&gt;%1&lt;/b&gt;のウォレットを開封中…</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorKeyWidget</name>
+    <message>
+        <source>Generate a new operator key</source>
+        <translation>新しいオペレーターキーを生成する</translation>
+    </message>
+    <message>
+        <source>The secret key is shown and confirmed before registering, then kept nowhere else.</source>
+        <translation>秘密鍵は登録前に表示・確認され、それ以外の場所には保存されません。</translation>
+    </message>
+    <message>
+        <source>Public key</source>
+        <translation>公開鍵</translation>
+    </message>
+    <message>
+        <source>Use an existing operator public key</source>
+        <translation>既存のオペレーター公開鍵を使用する</translation>
+    </message>
+    <message>
+        <source>For a hosted node: the operator keeps the secret key and gives you the public key.</source>
+        <translation>ホスティングされたノードの場合：オペレーターが秘密鍵を保管し、あなたに公開鍵を渡します。</translation>
+    </message>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters, basic scheme)</source>
+        <translation>オペレーター BLS 公開鍵 (16進数96文字、basic scheme)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorSecretWidget</name>
+    <message>
+        <source>Operator BLS secret key (64 hexadecimal characters)</source>
+        <translation>オペレーター BLS 秘密鍵 (16進数64文字)</translation>
     </message>
 </context>
 <context>
@@ -2692,6 +3868,10 @@ https://explore.transifex.com/dash/dash/</translation>
 <context>
     <name>PSBTOperationsDialog</name>
     <message>
+        <source>PSBT Operations</source>
+        <translation>PSBT操作</translation>
+    </message>
+    <message>
         <source>Dialog</source>
         <translation>ダイアログ</translation>
     </message>
@@ -2968,10 +4148,6 @@ Due to discontinued support, you should request the merchant to provide you with
         <translation>ペイロードを表示</translation>
     </message>
     <message>
-        <source>margin-left: 8px;</source>
-        <translation>margin-left: 8px;</translation>
-    </message>
-    <message>
         <source>Create Proposal</source>
         <translation>提案を作成</translation>
     </message>
@@ -3006,6 +4182,372 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>提案 "%2" のために %1 が正常に送信されました。
 
 新しい提案の監視とブロードキャストのためにリダイレクトされます。後で"提案を再開"をクリックして再開できます。</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalInfo</name>
+    <message>
+        <source>General</source>
+        <translation>一般</translation>
+    </message>
+    <message>
+        <source>Voting cycles</source>
+        <translation>投票サイクル</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/A</translation>
+    </message>
+    <message>
+        <source>Last superblock</source>
+        <translation>直近のスーパーブロック</translation>
+    </message>
+    <message>
+        <source>Next superblock</source>
+        <translation>次のスーパーブロック</translation>
+    </message>
+    <message>
+        <source>Voting cutoff block</source>
+        <translation>投票締め切りブロック</translation>
+    </message>
+    <message>
+        <source>Participation</source>
+        <translation>参加状況</translation>
+    </message>
+    <message>
+        <source>Masternodes voting</source>
+        <translation>投票中のマスターノード</translation>
+    </message>
+    <message>
+        <source>EvoNodes voting</source>
+        <translation>投票中のEvoノード</translation>
+    </message>
+    <message>
+        <source>Passing threshold</source>
+        <translation>可決しきい値</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>ノード</translation>
+    </message>
+    <message>
+        <source>Masternodes controlled</source>
+        <translation>管理しているマスターノード数</translation>
+    </message>
+    <message>
+        <source>Votes controlled</source>
+        <translation>管理している票数</translation>
+    </message>
+    <message>
+        <source>Proposals</source>
+        <translation>提案</translation>
+    </message>
+    <message>
+        <source>Proposal Count</source>
+        <translation>提案数</translation>
+    </message>
+    <message>
+        <source>Budget allocated</source>
+        <translation>割り当て済み予算</translation>
+    </message>
+    <message>
+        <source>Passing Proposals</source>
+        <translation>可決見込みの提案</translation>
+    </message>
+    <message>
+        <source>Unfunded proposals</source>
+        <translation>資金未確保の提案</translation>
+    </message>
+    <message>
+        <source>Failing Proposals</source>
+        <translation>否決見込みの提案</translation>
+    </message>
+    <message>
+        <source>%1 votes</source>
+        <translation>%1 票</translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>%1 (%2 eligible)</source>
+        <translation>%1 (%2 が投票可能)</translation>
+    </message>
+    <message>
+        <source>Proposal %1</source>
+        <translation>提案 %1</translation>
+    </message>
+    <message>
+        <source>%1% of budget</source>
+        <translation>予算の %1%</translation>
+    </message>
+    <message>
+        <source>/ %1</source>
+        <translation>/ %1</translation>
+    </message>
+    <message>
+        <source>%1% allocated</source>
+        <translation>%1% 割り当て済み</translation>
+    </message>
+    <message>
+        <source>%1 / %2 (%3%)</source>
+        <translation>%1 / %2 (%3%)</translation>
+    </message>
+    <message>
+        <source>%1 (short %2)</source>
+        <translation>%1 (%2 不足)</translation>
+    </message>
+</context>
+<context>
+    <name>ProposalList</name>
+    <message>
+        <source>Form</source>
+        <translation>フォーム</translation>
+    </message>
+    <message>
+        <source>Select proposals to display</source>
+        <translation>表示する提案を選択</translation>
+    </message>
+    <message>
+        <source>Filter proposal list</source>
+        <translation>提案リストを絞り込む</translation>
+    </message>
+    <message>
+        <source>Filter by Title</source>
+        <translation>タイトルで絞り込み</translation>
+    </message>
+    <message>
+        <source>Voting deadline: waiting for sync…</source>
+        <translation>投票期限：同期を待っています…</translation>
+    </message>
+    <message>
+        <source>No active proposals on the network.</source>
+        <translation>ネットワーク上にアクティブな提案はありません。</translation>
+    </message>
+    <message>
+        <source>Votes…</source>
+        <translation>投票…</translation>
+    </message>
+    <message>
+        <source>View your current votes and vote with selected masternodes</source>
+        <translation>現在の投票を確認し、選択したマスターノードで投票します</translation>
+    </message>
+    <message>
+        <source>Create Proposal</source>
+        <translation>提案を作成</translation>
+    </message>
+    <message>
+        <source>Resume Proposal</source>
+        <translation>提案を再開</translation>
+    </message>
+    <message>
+        <source>Proposal Count:</source>
+        <translation>提案数：</translation>
+    </message>
+    <message>
+        <source>Active Proposals</source>
+        <translation>アクティブな提案</translation>
+    </message>
+    <message>
+        <source>My Proposals</source>
+        <translation>自分の提案</translation>
+    </message>
+    <message>
+        <source>Current funding votes from eligible masternodes controlled by this wallet. Counts are weighted votes.</source>
+        <translation>このウォレットが管理する、投票可能なマスターノードによる現在の資金調達投票です。数は加重票です。</translation>
+    </message>
+    <message>
+        <source>%1: %2 (weight %3)</source>
+        <translation>%1：%2 (加重 %3)</translation>
+    </message>
+    <message>
+        <source>No voting keys</source>
+        <translation>投票キーがありません</translation>
+    </message>
+    <message>
+        <source>No proposals recorded in wallet file.</source>
+        <translation>ウォレットファイルに記録された提案はありません。</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>利用不可</translation>
+    </message>
+    <message>
+        <source>A synced node and an unlocked wallet are required.</source>
+        <translation>同期されたノードとロック解除されたウォレットが必要です。</translation>
+    </message>
+    <message>
+        <source>Resume proposal</source>
+        <translation>提案を再開</translation>
+    </message>
+    <message>
+        <source>Copy Raw JSON</source>
+        <translation>生のJSONをコピー</translation>
+    </message>
+    <message>
+        <source>Open Proposal URL…</source>
+        <translation>提案のURLを開く…</translation>
+    </message>
+    <message>
+        <source>Vote Yes</source>
+        <translation>賛成票を投じる</translation>
+    </message>
+    <message>
+        <source>Vote No</source>
+        <translation>反対票を投じる</translation>
+    </message>
+    <message>
+        <source>Vote Abstain</source>
+        <translation>棄権票を投じる</translation>
+    </message>
+    <message>
+        <source>Details for %1</source>
+        <translation>%1 の詳細</translation>
+    </message>
+    <message>
+        <source>Waiting for blockchain sync…</source>
+        <translation>ブロックチェーンの同期を待っています…</translation>
+    </message>
+    <message>
+        <source>Waiting for governance sync…</source>
+        <translation>ガバナンスの同期を待っています…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n masternode(s) available for voting</source>
+        <translation><numerusform>投票可能なマスターノード：%n 台</numerusform></translation>
+    </message>
+    <message>
+        <source>Superblock imminent</source>
+        <translation>スーパーブロックが間近です</translation>
+    </message>
+    <message>
+        <source>Voting period ended</source>
+        <translation>投票期間が終了しました</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for superblock</source>
+        <translation>スーパーブロックまで残り約%1 (%2 ブロック)</translation>
+    </message>
+    <message>
+        <source>~%1 (%2 blocks) left for voting</source>
+        <translation>投票終了まで残り約%1 (%2 ブロック)</translation>
+    </message>
+    <message>
+        <source>~%1% of budget committed (%2 / %3)</source>
+        <translation>~%1% の予算が割り当て済み (%2 / %3)</translation>
+    </message>
+    <message>
+        <source>Estimated from the remaining blocks and target block time. Votes can still be relayed after the deadline, but may not affect this cycle's payment.</source>
+        <translation>残りブロック数と目標ブロック時間からの推定値です。締め切り後も投票はリレーされますが、このサイクルの支払いには反映されない場合があります。</translation>
+    </message>
+    <message>
+        <source>Cannot interact with governance before sync completes</source>
+        <translation>同期が完了するまでガバナンスと対話できません</translation>
+    </message>
+    <message>
+        <source>Creates a new proposal</source>
+        <translation>新しい提案を作成します</translation>
+    </message>
+    <message>
+        <source>Resumes an existing proposal</source>
+        <translation>既存の提案を再開します</translation>
+    </message>
+    <message>
+        <source>Creating proposals costs %1, insufficient balance</source>
+        <translation>提案の作成には %1 が必要ですが、残高が不足しています</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>エラー</translation>
+    </message>
+    <message>
+        <source>Cannot validate URL, potentially malformed or unknown protocol.</source>
+        <translation>URLを検証できません。形式が不正であるか、未知のプロトコルの可能性があります。</translation>
+    </message>
+    <message>
+        <source>External Link Warning</source>
+        <translation>外部リンクの警告</translation>
+    </message>
+    <message>
+        <source>You are about to open the following URL in your default browser
+
+%1
+
+This content was submitted by a user. It may not match what is described in the title.
+
+Do you wish to continue?</source>
+        <translation>次のURLを既定のブラウザーで開こうとしています
+
+%1
+
+この内容はユーザーによって投稿されたものです。タイトルの説明と一致しない場合があります。
+
+続行しますか？</translation>
+    </message>
+    <message>
+        <source>Voting Failed</source>
+        <translation>投票に失敗しました</translation>
+    </message>
+    <message>
+        <source>No wallet available.</source>
+        <translation>利用可能なウォレットがありません。</translation>
+    </message>
+    <message>
+        <source>No masternode voting keys found in wallet.</source>
+        <translation>ウォレットにマスターノード投票キーが見つかりません。</translation>
+    </message>
+    <message>
+        <source>Unable to fetch masternode data.</source>
+        <translation>マスターノードのデータを取得できません。</translation>
+    </message>
+    <message>
+        <source>Please select a proposal to vote on.</source>
+        <translation>投票する提案を選択してください。</translation>
+    </message>
+    <message>
+        <source>Voting requires a broadcast proposal and a synced node.</source>
+        <translation>投票には、ブロードキャスト済みの提案と同期済みのノードが必要です。</translation>
+    </message>
+    <message>
+        <source>Unable to unlock wallet.</source>
+        <translation>ウォレットをアンロックできません。</translation>
+    </message>
+    <message>
+        <source>Unable to fetch synced masternode data.</source>
+        <translation>同期済みのマスターノードのデータを取得できません。</translation>
+    </message>
+    <message>
+        <source>Masternode %1 is no longer eligible</source>
+        <translation>マスターノード %1 はもう投票資格がありません</translation>
+    </message>
+    <message>
+        <source>Masternode %1 not found</source>
+        <translation>マスターノード %1 が見つかりません</translation>
+    </message>
+    <message>
+        <source>Failed to sign vote for masternode %1</source>
+        <translation>マスターノード %1 の投票への署名に失敗しました</translation>
+    </message>
+    <message>
+        <source>Masternode %1: %2</source>
+        <translation>マスターノード %1：%2</translation>
+    </message>
+    <message numerus="yes">
+        <source>Voted successfully %n time(s)</source>
+        <translation><numerusform>%n 回の投票に成功しました</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>Failed to vote %n time(s)</source>
+        <translation><numerusform>%n 回の投票に失敗しました</numerusform></translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>エラー：</translation>
+    </message>
+    <message>
+        <source>Voting Results</source>
+        <translation>投票結果</translation>
     </message>
 </context>
 <context>
@@ -3057,6 +4599,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>needs %1 more votes</source>
         <translation>あと %1 票必要</translation>
+    </message>
+    <message>
+        <source>My Votes</source>
+        <translation>自分の投票</translation>
     </message>
     <message>
         <source>Hash</source>
@@ -3139,6 +4685,57 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     </message>
 </context>
 <context>
+    <name>ProposalVoteDialog</name>
+    <message>
+        <source>Vote %1</source>
+        <translation>%1 に投票</translation>
+    </message>
+    <message>
+        <source>Proposal Votes</source>
+        <translation>提案への投票</translation>
+    </message>
+    <message>
+        <source>Select the masternodes to vote with. Current funding votes are shown below. Changing a vote replaces that masternode's previous vote; the network limits updates to once per hour.</source>
+        <translation>投票に使用するマスターノードを選択してください。現在の資金調達への投票は下に表示されています。投票を変更すると、そのマスターノードの以前の投票は置き換えられます。ネットワークによる更新は 1 時間に 1 回に制限されています。</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>マスターノード</translation>
+    </message>
+    <message>
+        <source>Voting Address</source>
+        <translation>投票アドレス</translation>
+    </message>
+    <message>
+        <source>Weight</source>
+        <translation>重み</translation>
+    </message>
+    <message>
+        <source>Current Vote</source>
+        <translation>現在の投票</translation>
+    </message>
+    <message>
+        <source>Vote Time</source>
+        <translation>投票日時</translation>
+    </message>
+    <message>
+        <source>ProTx Hash</source>
+        <translation>ProTxハッシュ</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>すべて選択</translation>
+    </message>
+    <message>
+        <source>Clear Selection</source>
+        <translation>選択を解除</translation>
+    </message>
+    <message>
+        <source>Masternodes selected: %1 · Vote weight: %2</source>
+        <translation>選択したマスターノード：%1 · 投票の重み：%2</translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Do you want to reset settings to default values, or to abort without making changes?</source>
@@ -3185,14 +4782,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>起動時にスプラッシュ・スクリーンを表示（デフォルト：%u）</translation>
-    </message>
-    <message>
-        <source>Error: Specified data directory "%1" does not exist.</source>
-        <translation>エラー：指定されたデータ・ディレクトリ「%1」は存在しません。</translation>
-    </message>
-    <message>
-        <source>Error: Cannot parse configuration file: %1.</source>
-        <translation>エラー：%1の構成ファイルを解析できません。</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3257,6 +4846,31 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>Unroutable</source>
         <translation>ルート化不可</translation>
+    </message>
+    <message>
+        <source>IPv4</source>
+        <extracomment>Name of IPv4 network in peer info</extracomment>
+        <translation>IPv4</translation>
+    </message>
+    <message>
+        <source>IPv6</source>
+        <extracomment>Name of IPv6 network in peer info</extracomment>
+        <translation>IPv6</translation>
+    </message>
+    <message>
+        <source>Onion</source>
+        <extracomment>Name of Tor network in peer info</extracomment>
+        <translation>Onion</translation>
+    </message>
+    <message>
+        <source>I2P</source>
+        <extracomment>Name of I2P network in peer info</extracomment>
+        <translation>I2P</translation>
+    </message>
+    <message>
+        <source>CJDNS</source>
+        <extracomment>Name of CJDNS network in peer info</extracomment>
+        <translation>CJDNS</translation>
     </message>
     <message>
         <source>Internal</source>
@@ -3354,6 +4968,14 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>%1 と %2</translation>
     </message>
     <message>
+        <source>now</source>
+        <translation>今</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n month(s)</source>
+        <translation><numerusform>%n か月</numerusform></translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3400,6 +5022,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>UNKNOWN</source>
         <translation>不明</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>共有</translation>
     </message>
     <message>
         <source>to %1</source>
@@ -3470,6 +5096,78 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>オペレーター報酬</translation>
     </message>
     <message>
+        <source>Shares</source>
+        <translation>持分</translation>
+    </message>
+    <message>
+        <source>Participant</source>
+        <translation>参加者</translation>
+    </message>
+    <message>
+        <source>Addresses</source>
+        <translation>アドレス</translation>
+    </message>
+    <message>
+        <source>Share %1</source>
+        <translation>持分 %1</translation>
+    </message>
+    <message>
+        <source>you</source>
+        <translation>あなた</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>返金アドレスと同じ</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>オーナー</translation>
+    </message>
+    <message>
+        <source>Reward</source>
+        <translation>報酬</translation>
+    </message>
+    <message>
+        <source>Refund</source>
+        <translation>返金</translation>
+    </message>
+    <message>
+        <source>Early period</source>
+        <translation>早期期間</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>なし</translation>
+    </message>
+    <message>
+        <source>ends block %1</source>
+        <translation>ブロック %1 で終了</translation>
+    </message>
+    <message>
+        <source>ends block %1 (about %2 from now)</source>
+        <translation>ブロック %1 で終了 (約 %2 後)</translation>
+    </message>
+    <message>
+        <source>ended (block %1)</source>
+        <translation>終了済み (ブロック %1)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty</source>
+        <translation>早期退出ペナルティ</translation>
+    </message>
+    <message>
+        <source>saved on this computer on %1</source>
+        <translation>%1 にこのコンピューターに保存済み</translation>
+    </message>
+    <message>
+        <source>not created on this computer</source>
+        <translation>このコンピューターには未作成</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>待機用解消</translation>
+    </message>
+    <message>
         <source>Network Addresses</source>
         <translation>ネットワークアドレス</translation>
     </message>
@@ -3537,6 +5235,66 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>Collateral Date</source>
         <translation>担保日</translation>
     </message>
+    <message>
+        <source>%1 ago</source>
+        <translation>%1 前</translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation>残り %1</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>賛成</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>反対</translation>
+    </message>
+    <message>
+        <source>Abstain</source>
+        <translation>棄権</translation>
+    </message>
+    <message>
+        <source>Not voted</source>
+        <translation>未投票</translation>
+    </message>
+    <message>
+        <source>Voting deadline passed for this cycle (block %1)</source>
+        <translation>このサイクルの投票期限は過ぎました (ブロック %1)</translation>
+    </message>
+    <message>
+        <source>Voting deadline: ~%1 left (%2 blocks, block %3)</source>
+        <translation>投票期限：残り約%1 (%2 ブロック、ブロック %3)</translation>
+    </message>
+    <message>
+        <source>%1Y, %2N, %3A / %4 unvoted</source>
+        <translation>賛成 %1、反対 %2、棄権 %3 / 未投票 %4</translation>
+    </message>
+    <message>
+        <source>Invalid Dash address: %1</source>
+        <translation>無効なDashアドレス：%1</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+    <message>
+        <source>Copy to clipboard</source>
+        <translation>クリップボードにコピー</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>利用可能なウォレットがありません。</translation>
+    </message>
+    <message>
+        <source>Could not generate a new address: %1</source>
+        <translation>新しいアドレスを生成できませんでした：%1</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>持分 %1 / %2</translation>
+    </message>
 </context>
 <context>
     <name>QRDialog</name>
@@ -3596,60 +5354,12 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>インフォメーション (&amp;I)</translation>
     </message>
     <message>
-        <source>General</source>
-        <translation>一般</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>名前</translation>
-    </message>
-    <message>
         <source>N/A</source>
         <translation>N/A</translation>
     </message>
     <message>
-        <source>Number of connections</source>
-        <translation>接続数</translation>
-    </message>
-    <message>
-        <source>&amp;Open</source>
-        <translation>開く (&amp;O)</translation>
-    </message>
-    <message>
-        <source>Startup time</source>
-        <translation>起動した日時</translation>
-    </message>
-    <message>
         <source>Network</source>
         <translation>ネットワーク</translation>
-    </message>
-    <message>
-        <source>Last block time</source>
-        <translation>最終ブロックの日時</translation>
-    </message>
-    <message>
-        <source>Debug log file</source>
-        <translation>デバッグ用ログファイル</translation>
-    </message>
-    <message>
-        <source>Client version</source>
-        <translation>クライアントのバージョン</translation>
-    </message>
-    <message>
-        <source>Block chain</source>
-        <translation>ブロックチェーン</translation>
-    </message>
-    <message>
-        <source>Memory Pool</source>
-        <translation>メモリープール</translation>
-    </message>
-    <message>
-        <source>Current number of transactions</source>
-        <translation>現在のトランザクション数</translation>
-    </message>
-    <message>
-        <source>Memory usage</source>
-        <translation>メモリ使用量</translation>
     </message>
     <message>
         <source>&amp;Console</source>
@@ -3678,6 +5388,18 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>&amp;Repair</source>
         <translation>修復(&amp;R)</translation>
+    </message>
+    <message>
+        <source>&amp;General</source>
+        <translation>一般 (&amp;G)</translation>
+    </message>
+    <message>
+        <source>&amp;Network</source>
+        <translation>ネットワーク (&amp;N)</translation>
+    </message>
+    <message>
+        <source>Go&amp;vernance</source>
+        <translation>ガバナンス (&amp;V)</translation>
     </message>
     <message>
         <source>Wallet:</source>
@@ -3763,62 +5485,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
     <message>
         <source>User Agent</source>
         <translation>ユーザーエージェント</translation>
-    </message>
-    <message>
-        <source>Datadir</source>
-        <translation>データディレクトリ</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the data directory use the '%1' option.</source>
-        <translation>データディレクトリのデフォルトでない場所を指定するには、「%1」のオプションを使用します。</translation>
-    </message>
-    <message>
-        <source>Blocksdir</source>
-        <translation>ブロックディレクトリ</translation>
-    </message>
-    <message>
-        <source>To specify a non-default location of the blocks directory use the '%1' option.</source>
-        <translation>ブロックディレクトリのデフォルトでない場所を指定するには、「%1」のオプションを使用します。</translation>
-    </message>
-    <message>
-        <source>Local Addresses</source>
-        <translation>ローカルアドレス</translation>
-    </message>
-    <message>
-        <source>Network addresses that your Dash node is currently using to communicate with other nodes.</source>
-        <translation>あなたの Dash ノードが他のノードとの通信に現在使用しているネットワークアドレス。</translation>
-    </message>
-    <message>
-        <source>Number of regular Masternodes</source>
-        <translation>レギュラーマスターノードの数</translation>
-    </message>
-    <message>
-        <source>Number of EvoNodes</source>
-        <translation>Evoノードの数</translation>
-    </message>
-    <message>
-        <source>Current block height</source>
-        <translation>現在のブロックの高さ</translation>
-    </message>
-    <message>
-        <source>Last block hash</source>
-        <translation>直近のブロックハッシュ</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block hash</source>
-        <translation>最新のチェーンロックされたブロックハッシュ</translation>
-    </message>
-    <message>
-        <source>Latest ChainLocked block height</source>
-        <translation>最新のチェーンロックされたブロックの高さ</translation>
-    </message>
-    <message>
-        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>現在のデータディレクトリから %1 デバッグ用ログファイルを開きます。ログファイルが巨大な場合数秒かかることがあります。</translation>
-    </message>
-    <message>
-        <source>InstantSend locks</source>
-        <translation>インスタントセンドロック</translation>
     </message>
     <message>
         <source>(none)</source>
@@ -4041,26 +5707,6 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <translation>Banを解除する (&amp;U)</translation>
     </message>
     <message>
-        <source>In:</source>
-        <translation>入力：</translation>
-    </message>
-    <message>
-        <source>Out:</source>
-        <translation>出力：</translation>
-    </message>
-    <message>
-        <source>Network activity disabled</source>
-        <translation>ネットワーク活動は無効化されました</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation>なし</translation>
-    </message>
-    <message>
-        <source>Total: %1 (Enabled: %2)</source>
-        <translation>合計: %1 (有効: %2)</translation>
-    </message>
-    <message>
         <source>Executing command without any wallet</source>
         <translation>ウォレットなしでコマンドを実行する</translation>
     </message>
@@ -4122,6 +5768,10 @@ You will now be redirected to monitor and broadcast your new proposal, you can r
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
         <translation>バージョン2: BIP324で暗号化されたトランスポートプロトコル</translation>
+    </message>
+    <message>
+        <source>&amp;Governance</source>
+        <translation>ガバナンス (&amp;G)</translation>
     </message>
     <message>
         <source>&amp;Copy address</source>
@@ -4386,6 +6036,681 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>RegisterMasternodeWizard</name>
+    <message>
+        <source>Register Masternode</source>
+        <translation>マスターノードを登録</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>戻る</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>次へ</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>キャンセル</translation>
+    </message>
+    <message>
+        <source>Masternode type</source>
+        <translation>マスターノードの種類</translation>
+    </message>
+    <message>
+        <source>Masternode — %1 collateral</source>
+        <translation>マスターノード — 担保 %1</translation>
+    </message>
+    <message>
+        <source>Provides Core network services and earns regular masternode rewards.</source>
+        <translation>Core ネットワークのサービスを提供し、定期的なマスターノード報酬を得ます。</translation>
+    </message>
+    <message>
+        <source>EvoNode — %1 collateral</source>
+        <translation>Evoノード — 担保 %1</translation>
+    </message>
+    <message>
+        <source>Additionally hosts Dash Platform, has four times the voting weight and earns a larger share of rewards. Requires a Platform node ID and extra services.</source>
+        <translation>さらに Dash プラットフォームをホストし、投票の重みが 4 倍で、報酬のより大きな割合を得ます。プラットフォームノードIDと追加のサービスが必要です。</translation>
+    </message>
+    <message>
+        <source>Register EvoNode</source>
+        <translation>Evoノードを登録</translation>
+    </message>
+    <message>
+        <source>Collateral</source>
+        <translation>担保</translation>
+    </message>
+    <message>
+        <source>Send collateral from this wallet to a new address</source>
+        <translation>このウォレットから新しいアドレスに担保を送る</translation>
+    </message>
+    <message>
+        <source>A single transaction funds the collateral and registers the masternode.</source>
+        <translation>1 回のトランザクションで、担保の入金とマスターノードの登録を行います。</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>新しいアドレスを使用</translation>
+    </message>
+    <message>
+        <source>Use an existing collateral output of this wallet</source>
+        <translation>このウォレットの既存の担保アウトプットを使用する</translation>
+    </message>
+    <message>
+        <source>An unspent P2PKH output of exactly the collateral amount, confirmed and not used by another masternode.</source>
+        <translation>担保額とちょうど同額で、承認済みかつ他のマスターノードで使用されていない未使用の P2PKH アウトプット。</translation>
+    </message>
+    <message>
+        <source>Reference an external collateral (e.g. hardware wallet)</source>
+        <translation>外部の担保を参照する (例：ハードウェアウォレット)</translation>
+    </message>
+    <message>
+        <source>A confirmed P2PKH output of exactly the collateral amount, held outside this wallet.</source>
+        <translation>担保額とちょうど同額で、このウォレットの外部に保管されている承認済みの P2PKH アウトプット。</translation>
+    </message>
+    <message>
+        <source>After review you will be asked to sign a message with the collateral key outside this wallet.</source>
+        <translation>確認後、このウォレットの外部にある担保キーでメッセージに署名するよう求められます。</translation>
+    </message>
+    <message>
+        <source>Collateral transaction id (64 hexadecimal characters)</source>
+        <translation>担保のトランザクションID (16進数64文字)</translation>
+    </message>
+    <message>
+        <source>Transaction ID:</source>
+        <translation>トランザクションID：</translation>
+    </message>
+    <message>
+        <source>Output index</source>
+        <translation>アウトプットインデックス</translation>
+    </message>
+    <message>
+        <source>Output index:</source>
+        <translation>アウトプットインデックス：</translation>
+    </message>
+    <message>
+        <source>Service addresses</source>
+        <translation>サービスアドレス</translation>
+    </message>
+    <message>
+        <source>Public addresses your masternode will serve the Core P2P network on, separated by commas or spaces. Each entry must be unique on the network.</source>
+        <translation>マスターノードが Core P2P ネットワークでサービスを提供する公開アドレス。カンマまたはスペースで区切ります。各エントリはネットワーク上で一意である必要があります。</translation>
+    </message>
+    <message>
+        <source>May be left empty; the masternode then stays inactive until you send a service update with an address.</source>
+        <translation>空欄でも構いません。その場合、アドレス付きのサービス更新を送信するまでマスターノードは非アクティブのままです。</translation>
+    </message>
+    <message>
+        <source>Keys</source>
+        <translation>キー</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>オーナーアドレス</translation>
+    </message>
+    <message>
+        <source>Controls this masternode (P2PKH): its key signs registrar updates. Use a new address to keep that key in this wallet, or enter an address controlled by the owner.</source>
+        <translation>このマスターノードを管理します (P2PKH)。そのキーが登録情報の更新に署名します。キーをこのウォレットに保持するには新しいアドレスを使用し、オーナーが管理するアドレスを使う場合はそのアドレスを入力してください。</translation>
+    </message>
+    <message>
+        <source>Voting address</source>
+        <translation>投票アドレス</translation>
+    </message>
+    <message>
+        <source>May be delegated (P2PKH). Leave empty to vote with the owner key; use a new address to keep a separate voting key in this wallet.</source>
+        <translation>委任できます (P2PKH)。オーナーキーで投票する場合は空欄にしてください。このウォレットに別の投票キーを保持するには、新しいアドレスを使用します。</translation>
+    </message>
+    <message>
+        <source>Leave empty to use the owner address</source>
+        <translation>空欄の場合はオーナーアドレスを使用</translation>
+    </message>
+    <message>
+        <source>Operator key</source>
+        <translation>オペレーターキー</translation>
+    </message>
+    <message>
+        <source>The operator runs the masternode server (BLS); only the public key is registered on-chain.</source>
+        <translation>オペレーターはマスターノードのサーバーを運用します (BLS)。オンチェーンに登録されるのは公開鍵のみです。</translation>
+    </message>
+    <message>
+        <source>A generated secret key is shown and must be confirmed before registering. It is not stored in this wallet.</source>
+        <translation>生成された秘密鍵は表示され、登録前に確認が必要です。このウォレットには保存されません。</translation>
+    </message>
+    <message>
+        <source>Payout</source>
+        <translation>支払い</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>支払いアドレス</translation>
+    </message>
+    <message>
+        <source>Receives this masternode's block rewards (P2PKH or P2SH).</source>
+        <translation>このマスターノードのブロック報酬を受け取ります (P2PKH または P2SH)。</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>オペレーター報酬</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to the operator.</source>
+        <translation>オペレーターに約束する報酬の割合。</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards of this masternode. Leave it at 0 unless you have an agreement with your operator.</source>
+        <translation>オペレーターは、このマスターノードのすべての報酬のうちこの割合を恒久的に受け取ります。オペレーターと取り決めがない限り、0 のままにしてください。</translation>
+    </message>
+    <message>
+        <source>Platform services</source>
+        <translation>プラットフォームサービス</translation>
+    </message>
+    <message>
+        <source>Platform node ID</source>
+        <translation>プラットフォームノードID</translation>
+    </message>
+    <message>
+        <source>Derived from the Platform P2P public key (40 hexadecimal characters).</source>
+        <translation>プラットフォームP2P公開鍵から導出されます (16進数40文字)。</translation>
+    </message>
+    <message>
+        <source>Platform addresses</source>
+        <translation>プラットフォームアドレス</translation>
+    </message>
+    <message>
+        <source>ADDR:PORT entries, separated by commas or spaces.</source>
+        <translation>ADDR:PORT 形式のエントリ。カンマまたはスペースで区切ります。</translation>
+    </message>
+    <message>
+        <source>Platform P2P</source>
+        <translation>プラットフォームP2P</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS API</source>
+        <translation>プラットフォームHTTPS API</translation>
+    </message>
+    <message>
+        <source>Platform ports</source>
+        <translation>プラットフォームのポート</translation>
+    </message>
+    <message>
+        <source>Before v24 activation only the Platform ports can be registered; they apply to the first service address.</source>
+        <translation>v24 の有効化前は、プラットフォームのポートのみ登録できます。ポートは最初のサービスアドレスに適用されます。</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>プラットフォームP2Pポート：</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>プラットフォームHTTPSポート：</translation>
+    </message>
+    <message>
+        <source>Fee source</source>
+        <translation>手数料の出所</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>確認</translation>
+    </message>
+    <message>
+        <source>Prove collateral ownership</source>
+        <translation>担保の所有権を証明</translation>
+    </message>
+    <message>
+        <source>Sign the following message with the collateral key (for example with your hardware wallet's sign-message feature), then paste the base64 signature below.</source>
+        <translation>担保キーで次のメッセージに署名し (例：ハードウェアウォレットのメッセージ署名機能を使用)、base64 の署名を下に貼り付けてください。</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation>メッセージをコピー</translation>
+    </message>
+    <message>
+        <source>Signature</source>
+        <translation>署名</translation>
+    </message>
+    <message>
+        <source>Paste the base64 signature here</source>
+        <translation>base64 の署名をここに貼り付け</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>オペレーターキーを保存</translation>
+    </message>
+    <message>
+        <source>Save this generated key before registering. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>登録前に、生成されたこのキーを保存してください。他にはどこにも保管されず、ウォレットから復元することもできません。</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>オペレーター秘密鍵</translation>
+    </message>
+    <message>
+        <source>Save it now — registration cannot start until you confirm it.</source>
+        <translation>今すぐ保存してください。確認するまで登録を開始できません。</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on your masternode server:</source>
+        <translation>マスターノードのサーバーの dash.conf に、次の行を追加してください：</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it before registering:</source>
+        <translation>保存したことを確認するため、登録前に秘密鍵の末尾 4 文字を入力してください：</translation>
+    </message>
+    <message>
+        <source>Masternode registered</source>
+        <translation>マスターノードを登録しました</translation>
+    </message>
+    <message>
+        <source>Provider transaction hash</source>
+        <translation>プロバイダートランザクションのハッシュ</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>次のステップ</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>完了</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>ステップ %1 / %2 · %3</translation>
+    </message>
+    <message>
+        <source>The selected address funds the %1 collateral plus the transaction fee. The exact fee is calculated from your wallet settings when you register, and change returns to this address.</source>
+        <translation>選択したアドレスから、担保 %1 とトランザクション手数料が支払われます。正確な手数料は登録時にウォレットの設定から計算され、おつりはこのアドレスに戻ります。</translation>
+    </message>
+    <message>
+        <source>The selected address pays the transaction fee.</source>
+        <translation>選択したアドレスからトランザクション手数料が支払われます。</translation>
+    </message>
+    <message>
+        <source>Enter a valid collateral address (P2PKH or P2SH).</source>
+        <translation>有効な担保アドレス (P2PKH または P2SH) を入力してください。</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1. Fund the collateral from the wallet instead.</source>
+        <translation>このウォレットには、ちょうど %1 の未使用アウトプットがありません。代わりに、ウォレットから担保を入金してください。</translation>
+    </message>
+    <message>
+        <source>Enter the collateral transaction id as 64 hexadecimal characters.</source>
+        <translation>担保のトランザクションIDを16進数64文字で入力してください。</translation>
+    </message>
+    <message>
+        <source>EvoNodes need at least one service address to carry the Platform ports before v24 activation.</source>
+        <translation>v24 の有効化前は、Evoノードにはプラットフォームのポートを載せるサービスアドレスが少なくとも 1 つ必要です。</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>有効なオーナーアドレス (P2PKH) を入力してください。</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH), or leave it empty to use the owner address.</source>
+        <translation>有効な投票アドレス (P2PKH) を入力してください。オーナーアドレスを使用する場合は空欄にしてください。</translation>
+    </message>
+    <message>
+        <source>The owner and voting addresses must differ from the collateral address.</source>
+        <translation>オーナーアドレスと投票アドレスは、担保アドレスと異なる必要があります。</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>有効なオペレーター BLS 公開鍵 (16進数96文字、basic scheme) を入力してください。</translation>
+    </message>
+    <message>
+        <source>Enter a valid payout address (P2PKH or P2SH).</source>
+        <translation>有効な支払いアドレス (P2PKH または P2SH) を入力してください。</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the owner and voting addresses.</source>
+        <translation>支払いアドレスは、オーナーアドレスおよび投票アドレスと異なる必要があります。</translation>
+    </message>
+    <message>
+        <source>The payout address must differ from the collateral address.</source>
+        <translation>支払いアドレスは、担保アドレスと異なる必要があります。</translation>
+    </message>
+    <message>
+        <source>Enter the Platform node ID as 40 hexadecimal characters.</source>
+        <translation>プラットフォームノードIDを16進数40文字で入力してください。</translation>
+    </message>
+    <message>
+        <source>Enter both a Platform P2P and a Platform HTTPS address; one cannot be registered without the other.</source>
+        <translation>プラットフォームP2Pとプラットフォーム HTTPS の両方のアドレスを入力してください。一方だけでは登録できません。</translation>
+    </message>
+    <message>
+        <source>Enter at least one Platform P2P and one Platform HTTPS address, or clear the service addresses to set everything later with a service update.</source>
+        <translation>プラットフォームP2Pとプラットフォーム HTTPS のアドレスを少なくとも 1 つずつ入力するか、サービスアドレスを空にして、すべてを後でサービス更新で設定してください。</translation>
+    </message>
+    <message>
+        <source>Enter at least one Core service address when Platform endpoints are set, or clear all service endpoints to set them later with a service update.</source>
+        <translation>プラットフォームのエンドポイントを設定する場合は、Core のサービスアドレスを少なくとも 1 つ入力してください。または、すべてのサービスエンドポイントを空にして、後でサービス更新で設定してください。</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address holds the %1 collateral amount. The selected address must also have enough for the fee calculated when you register.</source>
+        <translation>担保額 %1 を保有している、使用可能なウォレットアドレスがありません。選択するアドレスには、登録時に計算される手数料を賄える残高も必要です。</translation>
+    </message>
+    <message>
+        <source>No spendable wallet address has a positive balance available to pay the transaction fee.</source>
+        <translation>トランザクション手数料を支払える、残高がプラスの使用可能なウォレットアドレスがありません。</translation>
+    </message>
+    <message>
+        <source>Paste the base64-encoded signature of the message above, made with the collateral key.</source>
+        <translation>上のメッセージに担保キーで署名した、base64 エンコードの署名を貼り付けてください。</translation>
+    </message>
+    <message>
+        <source>Back is unavailable after preparation because changing the registration would invalidate the message being signed.</source>
+        <translation>準備後は、登録内容を変更すると署名中のメッセージが無効になるため、「戻る」は使用できません。</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>続行</translation>
+    </message>
+    <message>
+        <source>Prepare</source>
+        <translation>準備</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>登録</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>送信</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>完了</translation>
+    </message>
+    <message>
+        <source>No wallet is available. Masternode registration requires a wallet.</source>
+        <translation>利用可能なウォレットがありません。マスターノードを登録するにはウォレットが必要です。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only. Masternode registration requires a wallet that can sign transactions.</source>
+        <translation>このウォレットはウォッチオンリーです。マスターノードを登録するには、トランザクションに署名できるウォレットが必要です。</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>オペレーター秘密鍵の末尾 4 文字を入力して、保存したことを確認してください。</translation>
+    </message>
+    <message>
+        <source>This wallet has no unspent output of exactly %1 with a confirmation. Send the collateral from this wallet instead, or reference one held elsewhere.</source>
+        <translation>このウォレットには、ちょうど %1 で承認済みの未使用アウトプットがありません。代わりにこのウォレットから担保を送るか、別の場所に保管されている担保を参照してください。</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>種類</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>サービス</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS</source>
+        <translation>プラットフォームHTTPS</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金額</translation>
+    </message>
+    <message>
+        <source>Destination</source>
+        <translation>送金先</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>アウトプット</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>資金元</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation>オーナー</translation>
+    </message>
+    <message>
+        <source>Voting</source>
+        <translation>投票</translation>
+    </message>
+    <message>
+        <source>Operator</source>
+        <translation>オペレーター</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>アドレス</translation>
+    </message>
+    <message>
+        <source>Operator share</source>
+        <translation>オペレーターの取り分</translation>
+    </message>
+    <message>
+        <source>Network fee</source>
+        <translation>ネットワーク手数料</translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation>ノード</translation>
+    </message>
+    <message>
+        <source>EvoNode</source>
+        <translation>Evoノード</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>マスターノード</translation>
+    </message>
+    <message>
+        <source>Not set — the node stays inactive until you send a service update</source>
+        <translation>未設定 — サービス更新を送信するまでノードは非アクティブのままです</translation>
+    </message>
+    <message>
+        <source>%1 peer-to-peer, %2 HTTPS</source>
+        <translation>ピアツーピア %1、HTTPS %2</translation>
+    </message>
+    <message>
+        <source>This wallet sends it as part of the registration</source>
+        <translation>登録の一環として、このウォレットが送金します</translation>
+    </message>
+    <message>
+        <source>An output this wallet already holds</source>
+        <translation>このウォレットがすでに保有しているアウトプット</translation>
+    </message>
+    <message>
+        <source>Held outside this wallet — you will sign a message with its key</source>
+        <translation>このウォレットの外部に保管されています — そのキーでメッセージに署名します</translation>
+    </message>
+    <message>
+        <source>Same as owner</source>
+        <translation>オーナーと同じ</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>資金</translation>
+    </message>
+    <message>
+        <source>Not selected</source>
+        <translation>未選択</translation>
+    </message>
+    <message>
+        <source>Calculated at submission using the wallet's current fee settings</source>
+        <translation>送信時に、ウォレットの現在の手数料設定で計算されます</translation>
+    </message>
+    <message>
+        <source>Preparing creates the unsigned transaction and the message to sign with the collateral key. Nothing is broadcast yet.</source>
+        <translation>準備すると、未署名のトランザクションと、担保キーで署名するメッセージが作成されます。この時点ではまだ何もブロードキャストされません。</translation>
+    </message>
+    <message>
+        <source>Registering broadcasts a transaction from this wallet. You may be asked to unlock it.</source>
+        <translation>登録すると、このウォレットからトランザクションがブロードキャストされます。アンロックを求められる場合があります。</translation>
+    </message>
+    <message>
+        <source>Newly generated, shown and confirmed before registration, and kept nowhere else</source>
+        <translation>新たに生成され、登録前に表示・確認されます。他にはどこにも保管されません</translation>
+    </message>
+    <message>
+        <source>Supplied by whoever runs the node</source>
+        <translation>ノードを運用する人が用意します</translation>
+    </message>
+    <message>
+        <source>The collateral destination is no longer valid.</source>
+        <translation>担保の送金先が無効になりました。</translation>
+    </message>
+    <message>
+        <source>The selected collateral output is already used by another masternode.</source>
+        <translation>選択した担保アウトプットは、すでに別のマスターノードで使用されています。</translation>
+    </message>
+    <message>
+        <source>The owner address is no longer valid.</source>
+        <translation>オーナーアドレスが無効になりました。</translation>
+    </message>
+    <message>
+        <source>The voting address is no longer valid.</source>
+        <translation>投票アドレスが無効になりました。</translation>
+    </message>
+    <message>
+        <source>The operator public key is no longer valid.</source>
+        <translation>オペレーター公開鍵が無効になりました。</translation>
+    </message>
+    <message>
+        <source>The payout address is no longer valid.</source>
+        <translation>支払いアドレスが無効になりました。</translation>
+    </message>
+    <message>
+        <source>The selected fee source is no longer valid.</source>
+        <translation>選択した手数料の出所が無効になりました。</translation>
+    </message>
+    <message>
+        <source>masternode</source>
+        <translation>マスターノード</translation>
+    </message>
+    <message>
+        <source>This transaction creates %1 of collateral from this wallet and registers the %2.</source>
+        <translation>このトランザクションは、このウォレットから %1 の担保を作成し、%2 を登録します。</translation>
+    </message>
+    <message>
+        <source>This transaction registers the external %1 collateral and makes it the collateral for this %2.</source>
+        <translation>このトランザクションは、外部の担保 %1 を登録し、この %2 の担保に設定します。</translation>
+    </message>
+    <message>
+        <source>This transaction registers and locks the wallet's %1 collateral output for this %2.</source>
+        <translation>このトランザクションは、ウォレットの担保アウトプット %1 を、この %2 用に登録してロックします。</translation>
+    </message>
+    <message>
+        <source> The network fee is calculated from the selected fee source using the wallet's current fee settings.</source>
+        <translation> ネットワーク手数料は、選択した手数料の出所から、ウォレットの現在の手数料設定で計算されます。</translation>
+    </message>
+    <message>
+        <source>Confirm %1 registration</source>
+        <translation>%1 の登録の確認</translation>
+    </message>
+    <message>
+        <source>Do you want to broadcast this %1 registration?</source>
+        <translation>この %1 の登録をブロードキャストしますか？</translation>
+    </message>
+    <message>
+        <source>Fee source: %1</source>
+        <translation>手数料の出所：%1</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while this wizard was open. Review the Platform services page again before registering.</source>
+        <translation>このウィザードを開いている間に、ネットワークのプロバイダートランザクションのルールが変更されました。登録する前に、プラットフォームサービスのページをもう一度確認してください。</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>準備しています…</translation>
+    </message>
+    <message>
+        <source>Registering…</source>
+        <translation>登録しています…</translation>
+    </message>
+    <message>
+        <source>The network's provider-transaction rules changed while the collateral signature was being collected. Discard this prepared registration and review the Platform services page again.</source>
+        <translation>担保の署名を収集している間に、ネットワークのプロバイダートランザクションのルールが変更されました。準備済みの登録を破棄し、プラットフォームサービスのページをもう一度確認してください。</translation>
+    </message>
+    <message>
+        <source>The collateral signature is not valid base64.</source>
+        <translation>担保の署名が有効な base64 ではありません。</translation>
+    </message>
+    <message>
+        <source>Submitting…</source>
+        <translation>送信しています…</translation>
+    </message>
+    <message>
+        <source>Registration failed</source>
+        <translation>登録に失敗しました</translation>
+    </message>
+    <message>
+        <source>The registration completed without returning a transaction.</source>
+        <translation>登録は完了しましたが、トランザクションは返されませんでした。</translation>
+    </message>
+    <message>
+        <source>The registration transaction was created but was not sent to the network.</source>
+        <translation>登録トランザクションは作成されましたが、ネットワークに送信されませんでした。</translation>
+    </message>
+    <message>
+        <source>The prepare operation completed without returning a transaction.</source>
+        <translation>準備の操作は完了しましたが、トランザクションは返されませんでした。</translation>
+    </message>
+    <message>
+        <source>Collateral address holding the key: %1</source>
+        <translation>キーを保有する担保アドレス：%1</translation>
+    </message>
+    <message>
+        <source>The registration transaction was sent to the network.</source>
+        <translation>登録トランザクションをネットワークに送信しました。</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The external collateral remains at the outpoint you registered and is not controlled by this wallet.</source>
+        <translation>このウォレットに記録され、「トランザクション」に表示されます。外部の担保は、登録したアウトポイントに残り、このウォレットでは管理されません。</translation>
+    </message>
+    <message>
+        <source>It is recorded in this wallet and appears under Transactions. The collateral stays in the wallet but is locked while the masternode is registered.</source>
+        <translation>このウォレットに記録され、「トランザクション」に表示されます。担保はウォレット内に残りますが、マスターノードが登録されている間はロックされます。</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the operator secret key you saved, then restart dashd there.</source>
+        <translation>保存したオペレーター秘密鍵でマスターノードのサーバーを設定し、そこで dashd を再起動してください。</translation>
+    </message>
+    <message>
+        <source>Configure your masternode server with the BLS secret key matching the operator public key you provided.</source>
+        <translation>指定したオペレーター公開鍵に対応する BLS 秘密鍵で、マスターノードのサーバーを設定してください。</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>登録したすべてのサービスアドレスとポートに、インターネットから到達できることを確認してください。</translation>
+    </message>
+    <message>
+        <source>Send an Update Service transaction after the node's service endpoints are ready; it stays inactive until then.</source>
+        <translation>ノードのサービスエンドポイントの準備ができたら、サービス更新トランザクションを送信してください。それまでノードは非アクティブのままです。</translation>
+    </message>
+    <message>
+        <source>Provision the Dash Platform services (Tenderdash and Drive) with the Platform node key matching the node ID you registered.</source>
+        <translation>登録したノードIDに対応するプラットフォームノードキーで、Dash プラットフォームのサービス (Tenderdash と Drive) をプロビジョニングしてください。</translation>
+    </message>
+    <message>
+        <source>The EvoNode becomes active once the registration is confirmed and the first update is signed by the operator.</source>
+        <translation>Evoノードは、登録が承認され、オペレーターが最初の更新に署名すると、アクティブになります。</translation>
+    </message>
+    <message>
+        <source>The masternode becomes active once the registration is confirmed on the network.</source>
+        <translation>マスターノードは、登録がネットワーク上で承認されるとアクティブになります。</translation>
+    </message>
+    <message>
+        <source>Discard prepared registration?</source>
+        <translation>準備済みの登録を破棄しますか？</translation>
+    </message>
+    <message>
+        <source>The prepared registration will be discarded. Any collateral lock acquired by this wizard will be released.</source>
+        <translation>準備済みの登録は破棄されます。このウィザードが取得した担保のロックはすべて解除されます。</translation>
+    </message>
+</context>
+<context>
     <name>RescanWalletActivity</name>
     <message>
         <source>Rescan unavailable</source>
@@ -4438,6 +6763,168 @@ For more information on using this console, type %6.
         <source>Restore wallet message</source>
         <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
         <translation>ウォレット復元メッセージ</translation>
+    </message>
+</context>
+<context>
+    <name>RevokeDialog</name>
+    <message>
+        <source>Not specified</source>
+        <translation>指定なし</translation>
+    </message>
+    <message>
+        <source>Termination of service</source>
+        <translation>サービスの終了</translation>
+    </message>
+    <message>
+        <source>Compromised keys</source>
+        <translation>キーの漏洩</translation>
+    </message>
+    <message>
+        <source>Change of keys</source>
+        <translation>キーの変更</translation>
+    </message>
+    <message>
+        <source>Reason:</source>
+        <translation>理由：</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>オペレーターキー：</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>自動の場合は、現在のオペレーターの支払い先、次にマスターノードの支払い先を使用します。この選択を上書きする場合にのみ、アドレスを選択してください。</translation>
+    </message>
+    <message>
+        <source>Revoke Masternode Service</source>
+        <translation>マスターノードのサービスを取り消す</translation>
+    </message>
+    <message>
+        <source>Revoking clears the service address and PoSe-bans the masternode until its owner changes the operator key. The collateral is not affected.</source>
+        <translation>取り消すと、サービスアドレスがクリアされ、オーナーがオペレーターキーを変更するまで、このマスターノードはPoSeで禁止されます。担保には影響しません。</translation>
+    </message>
+    <message>
+        <source>Revoke</source>
+        <translation>取り消し</translation>
+    </message>
+</context>
+<context>
+    <name>RotateSharedKeysDialog</name>
+    <message>
+        <source>Rotate Operator or Voting Key</source>
+        <translation>オペレーターキーまたは投票キーのローテーション</translation>
+    </message>
+    <message>
+        <source>Changing these keys needs an approval from every share owner. One person starts the request; everyone else pastes it, approves, and copies back a reply.</source>
+        <translation>これらのキーの変更には、持分オーナー全員の承認が必要です。1 人がリクエストを開始し、他の全員がそれを貼り付けて承認し、返信をコピーして返します。</translation>
+    </message>
+    <message>
+        <source>1. New keys</source>
+        <translation>1. 新しいキー</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current operator key</source>
+        <translation>現在のオペレーターキーを維持する場合は空欄にしてください</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+    <message>
+        <source>New operator key:</source>
+        <translation>新しいオペレーターキー：</translation>
+    </message>
+    <message>
+        <source>The masternode is banned the moment the operator key changes, until the new operator sends a service update.</source>
+        <translation>オペレーターキーが変更された時点でマスターノードは禁止され、新しいオペレーターがサービス更新を送信するまで続きます。</translation>
+    </message>
+    <message>
+        <source>Leave blank to keep the current voting address</source>
+        <translation>現在の投票アドレスを維持する場合は空欄にしてください</translation>
+    </message>
+    <message>
+        <source>New voting address:</source>
+        <translation>新しい投票アドレス：</translation>
+    </message>
+    <message>
+        <source>Fee source:</source>
+        <translation>手数料の出所：</translation>
+    </message>
+    <message>
+        <source>Prepare Request</source>
+        <translation>リクエストを作成</translation>
+    </message>
+    <message>
+        <source>Finish on this wallet — it pays the fee and must send the final transaction.</source>
+        <translation>このウォレットで完了してください — 手数料を支払い、最終トランザクションを送信する必要があります。</translation>
+    </message>
+    <message>
+        <source>2. Approvals</source>
+        <translation>2. 承認</translation>
+    </message>
+    <message>
+        <source>Send the same request to every share owner. Replies can come back in any order.</source>
+        <translation>同じリクエストをすべての持分オーナーに送ってください。返信は順不同で受け取れます。</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>承認して返信をコピー</translation>
+    </message>
+    <message>
+        <source>3. Send</source>
+        <translation>3. 送信</translation>
+    </message>
+    <message>
+        <source>Send Rotation</source>
+        <translation>ローテーションを送信</translation>
+    </message>
+    <message>
+        <source>Transaction ID</source>
+        <translation>トランザクションID</translation>
+    </message>
+    <message>
+        <source>Operator key: %1</source>
+        <translation>オペレーターキー：%1</translation>
+    </message>
+    <message>
+        <source>unchanged</source>
+        <translation>変更なし</translation>
+    </message>
+    <message>
+        <source>→ %1</source>
+        <translation>→ %1</translation>
+    </message>
+    <message>
+        <source>Voting address: %1</source>
+        <translation>投票アドレス：%1</translation>
+    </message>
+    <message>
+        <source>Prepare or paste a request first.</source>
+        <translation>先にリクエストを作成するか貼り付けてください。</translation>
+    </message>
+    <message>
+        <source>Only the wallet that prepared the request can send it.</source>
+        <translation>リクエストを送信できるのは、それを作成したウォレットのみです。</translation>
+    </message>
+    <message>
+        <source>Every share must approve first (%1 of %2 so far).</source>
+        <translation>先にすべての持分が承認する必要があります (現在 %2 件中 %1 件)。</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key.</source>
+        <translation>有効なオペレーター公開鍵を入力してください。</translation>
+    </message>
+    <message>
+        <source>The voting address must be a P2PKH address.</source>
+        <translation>投票アドレスは P2PKH アドレスである必要があります。</translation>
+    </message>
+    <message>
+        <source>The key rotation was sent.</source>
+        <translation>キーのローテーションを送信しました。</translation>
+    </message>
+    <message>
+        <source>If the error says the wallet that funded the request must combine it, finish on the wallet that prepared the request.</source>
+        <translation>リクエストの資金を出したウォレットで統合する必要があるというエラーが出た場合は、リクエストを作成したウォレットで完了してください。</translation>
     </message>
 </context>
 <context>
@@ -4679,6 +7166,19 @@ For more information on using this console, type %6.
         <translation>または</translation>
     </message>
     <message>
+        <source>Unsigned Transaction</source>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation>未署名のトランザクション</translation>
+    </message>
+    <message>
+        <source>The PSBT has been copied to the clipboard. You can also save it.</source>
+        <translation>PSBTをクリップボードにコピーしました。保存することもできます。</translation>
+    </message>
+    <message>
+        <source>PSBT saved to disk</source>
+        <translation>PSBTをディスクに保存しました</translation>
+    </message>
+    <message>
         <source>Confirm send coins</source>
         <translation>送金を確認する</translation>
     </message>
@@ -4688,6 +7188,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>PSBT saved</source>
+        <extracomment>Popup message when a PSBT has been saved to a file</extracomment>
         <translation>PSBTが保存されました</translation>
     </message>
     <message>
@@ -4799,6 +7300,10 @@ For more information on using this console, type %6.
         <source>A fee higher than %1 is considered an absurdly high fee.</source>
         <translation>%1 よりも高い手数料の場合手数料が異常に高すぎると判断されます。</translation>
     </message>
+    <message>
+        <source>%1/kB</source>
+        <translation>%1/kB</translation>
+    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation><numerusform>%n ブロック以内に検証が開始されると予想されます</numerusform></translation>
@@ -4900,6 +7405,1441 @@ For more information on using this console, type %6.
     <message>
         <source>Create Unsigned</source>
         <translation>未署名を作成</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnCreateDialog</name>
+    <message>
+        <source>Shared Masternode</source>
+        <translation>共有マスターノード</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>戻る</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>貼り付け</translation>
+    </message>
+    <message>
+        <source>Save…</source>
+        <translation>保存…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>キャンセル</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>次へ</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>詳細</translation>
+    </message>
+    <message>
+        <source>Funded</source>
+        <translation>入金済み</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>承認済み</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>署名済み</translation>
+    </message>
+    <message>
+        <source>another operation is still running.</source>
+        <translation>別の操作がまだ実行中です。</translation>
+    </message>
+    <message>
+        <source>no wallet is available.</source>
+        <translation>利用可能なウォレットがありません。</translation>
+    </message>
+    <message>
+        <source>the wallet stayed locked.</source>
+        <translation>ウォレットがロックされたままでした。</translation>
+    </message>
+    <message>
+        <source>the node gave no reason.</source>
+        <translation>ノードから理由は示されませんでした。</translation>
+    </message>
+    <message>
+        <source>the registration is not a valid transaction.</source>
+        <translation>登録が有効なトランザクションではありません。</translation>
+    </message>
+    <message>
+        <source>Shared masternode</source>
+        <translation>共有マスターノード</translation>
+    </message>
+    <message>
+        <source>Several people fund one masternode together. One person coordinates; everyone else pastes what they receive and copies back a reply. Nothing reaches the network until the final broadcast.</source>
+        <translation>複数の人が共同で 1 つのマスターノードに資金を出します。1 人が取りまとめ、他の全員は受け取ったものを貼り付けて返信をコピーして返します。最後のブロードキャストまで、ネットワークには何も送信されません。</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>開始</translation>
+    </message>
+    <message>
+        <source>You will enter who takes part and the masternode settings, then invite the others.</source>
+        <translation>参加者とマスターノードの設定を入力してから、他の人を招待します。</translation>
+    </message>
+    <message>
+        <source>Start a Shared Masternode</source>
+        <translation>共有マスターノードを開始</translation>
+    </message>
+    <message>
+        <source>Continue</source>
+        <translation>続行</translation>
+    </message>
+    <message>
+        <source>Paste an invitation, locked terms, a signing request or any reply you received — the app will know what to do.</source>
+        <translation>受け取った招待、ロック済みの条件、署名リクエスト、または返信を貼り付けてください。アプリが自動的に判別して処理します。</translation>
+    </message>
+    <message>
+        <source>Paste From Clipboard</source>
+        <translation>クリップボードから貼り付け</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>ファイルを開く…</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>参加者</translation>
+    </message>
+    <message>
+        <source>Who takes part, and how much each contributes. Amounts must add up to exactly %1; every share is at least %2.</source>
+        <translation>参加者と、それぞれの拠出額。金額の合計はちょうど %1 になる必要があります。各持分は少なくとも %2 です。</translation>
+    </message>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名前</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金額</translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation>自分</translation>
+    </message>
+    <message>
+        <source>Add Participant</source>
+        <translation>参加者を追加</translation>
+    </message>
+    <message>
+        <source>Participant %1</source>
+        <translation>参加者 %1</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>削除</translation>
+    </message>
+    <message>
+        <source>Masternode settings</source>
+        <translation>マスターノードの設定</translation>
+    </message>
+    <message>
+        <source>These apply to the whole masternode and are the same for every participant.</source>
+        <translation>これらはマスターノード全体に適用され、すべての参加者で共通です。</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>サービスアドレス：</translation>
+    </message>
+    <message>
+        <source>Public addresses the masternode serves the Core P2P network on, separated by commas or spaces. May be left empty and set later with a service update.</source>
+        <translation>マスターノードが Core P2P ネットワークでサービスを提供する公開アドレス。カンマまたはスペースで区切ります。空欄でも構いません。後からサービス更新で設定できます。</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>オペレーターキー：</translation>
+    </message>
+    <message>
+        <source>Whoever runs the server needs the secret key. Only the public key is registered on-chain.</source>
+        <translation>サーバーを運用する人が秘密鍵を必要とします。オンチェーンに登録されるのは公開鍵のみです。</translation>
+    </message>
+    <message>
+        <source>Copy Public Key</source>
+        <translation>公開鍵をコピー</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>ノードの運用者：</translation>
+    </message>
+    <message>
+        <source>Recorded in the terms so everyone knows who can start and revive the node.</source>
+        <translation>条件に記録され、ノードの起動と復旧ができるのが誰かを全員が把握できます。</translation>
+    </message>
+    <message>
+        <source>Name of the participant who keeps the operator secret</source>
+        <translation>オペレーター秘密鍵を保管する参加者の名前</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>投票アドレス：</translation>
+    </message>
+    <message>
+        <source>Votes on governance proposals for the whole masternode (P2PKH).</source>
+        <translation>マスターノード全体として、ガバナンス提案に投票します (P2PKH)。</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>新しいアドレスを使用</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>オペレーター報酬：</translation>
+    </message>
+    <message>
+        <source>Share of the reward promised to whoever runs the server.</source>
+        <translation>サーバーを運用する人に約束する報酬の割合。</translation>
+    </message>
+    <message>
+        <source>The operator will permanently receive this share of all rewards before anything is split between the participants.</source>
+        <translation>オペレーターは、参加者の間で分配される前に、すべての報酬のうちこの割合を恒久的に受け取ります。</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>退出条件</translation>
+    </message>
+    <message>
+        <source>What happens if one participant wants out before the others.</source>
+        <translation>他の参加者より先に 1 人が退出したい場合の扱い。</translation>
+    </message>
+    <message>
+        <source>How leaving works</source>
+        <translation>退出の仕組み</translation>
+    </message>
+    <message>
+        <source>Anyone can dissolve the masternode on their own at any time, and everyone gets their principal back. During the early period, whoever dissolves alone pays the early-exit penalty out of their own share and it is split among the others. If everyone agrees, dissolving is free at any time.</source>
+        <translation>誰でもいつでも単独でマスターノードを解消でき、全員が元本を取り戻せます。早期期間中に単独で解消する人は、自分の持分から早期退出ペナルティを支払い、それが他の参加者に分配されます。全員が同意すれば、いつでも無料で解消できます。</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>早期期間：</translation>
+    </message>
+    <message>
+        <source>Blocks after registration during which leaving alone costs the penalty.</source>
+        <translation>登録後、単独での退出にペナルティがかかるブロック数。</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>なし</translation>
+    </message>
+    <message>
+        <source>3 months</source>
+        <translation>3 か月</translation>
+    </message>
+    <message>
+        <source>6 months</source>
+        <translation>6 か月</translation>
+    </message>
+    <message>
+        <source>1 year</source>
+        <translation>1 年</translation>
+    </message>
+    <message>
+        <source>2 years</source>
+        <translation>2 年</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>早期退出ペナルティ：</translation>
+    </message>
+    <message>
+        <source>Your contribution</source>
+        <translation>あなたの拠出</translation>
+    </message>
+    <message>
+        <source>Addresses and coins for your share. Only you see the coins; the others only see the resulting transaction inputs.</source>
+        <translation>あなたの持分のアドレスとコイン。コインが見えるのはあなただけで、他の参加者には結果のトランザクションインプットのみが見えます。</translation>
+    </message>
+    <message>
+        <source>Your share</source>
+        <translation>あなたの持分</translation>
+    </message>
+    <message>
+        <source>This is me:</source>
+        <translation>これは自分：</translation>
+    </message>
+    <message>
+        <source>Owner address:</source>
+        <translation>オーナーアドレス：</translation>
+    </message>
+    <message>
+        <source>Controls your share: approves key changes and dissolutions. Kept in this wallet.</source>
+        <translation>あなたの持分を管理し、キーの変更や解消を承認します。このウォレットに保管されます。</translation>
+    </message>
+    <message>
+        <source>Refund address:</source>
+        <translation>返金アドレス：</translation>
+    </message>
+    <message>
+        <source>Receives your principal when the masternode is dissolved. Cannot be changed later.</source>
+        <translation>マスターノードが解消されたときに、あなたの元本を受け取ります。後から変更できません。</translation>
+    </message>
+    <message>
+        <source>Reward address (optional):</source>
+        <translation>報酬アドレス (任意)：</translation>
+    </message>
+    <message>
+        <source>Receives your part of the rewards. Leave empty to use the refund address; you can change it later.</source>
+        <translation>あなたの報酬の取り分を受け取ります。空欄の場合は返金アドレスを使用します。後から変更できます。</translation>
+    </message>
+    <message>
+        <source>Coins</source>
+        <translation>コイン</translation>
+    </message>
+    <message>
+        <source>Network fee:</source>
+        <translation>ネットワーク手数料：</translation>
+    </message>
+    <message>
+        <source>Reserve Coins</source>
+        <translation>コインを確保</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>解放</translation>
+    </message>
+    <message>
+        <source>Save operator key</source>
+        <translation>オペレーターキーを保存</translation>
+    </message>
+    <message>
+        <source>Save this generated key before inviting anyone. It is kept nowhere else and cannot be recovered from the wallet.</source>
+        <translation>誰かを招待する前に、生成されたこのキーを保存してください。他にはどこにも保管されず、ウォレットから復元することもできません。</translation>
+    </message>
+    <message>
+        <source>Operator secret key</source>
+        <translation>オペレーター秘密鍵</translation>
+    </message>
+    <message>
+        <source>Save it now — the invitation cannot go out until you confirm it.</source>
+        <translation>今すぐ保存してください。確認するまで招待を送れません。</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+    <message>
+        <source>Add this line to dash.conf on the masternode server:</source>
+        <translation>マスターノードのサーバーの dash.conf に、次の行を追加してください：</translation>
+    </message>
+    <message>
+        <source>The invitation you are about to send contains only the public key.</source>
+        <translation>これから送信する招待には、公開鍵のみが含まれます。</translation>
+    </message>
+    <message>
+        <source>Type the last 4 characters of the secret key to confirm you saved it:</source>
+        <translation>保存したことを確認するため、秘密鍵の末尾 4 文字を入力してください：</translation>
+    </message>
+    <message>
+        <source>Invite participants</source>
+        <translation>参加者を招待</translation>
+    </message>
+    <message>
+        <source>Send the same invitation to everyone. Each person reserves their coins and sends you back their details.</source>
+        <translation>同じ招待を全員に送ってください。各自がコインを確保し、詳細をあなたに返信します。</translation>
+    </message>
+    <message>
+        <source>Copy Invitation</source>
+        <translation>招待をコピー</translation>
+    </message>
+    <message>
+        <source>Invitation</source>
+        <translation>招待</translation>
+    </message>
+    <message>
+        <source>Save Invitation…</source>
+        <translation>招待を保存…</translation>
+    </message>
+    <message>
+        <source>You changed the draft. Participants who already replied must reply again.</source>
+        <translation>下書きを変更しました。すでに返信した参加者は、もう一度返信する必要があります。</translation>
+    </message>
+    <message>
+        <source>Lock these terms?</source>
+        <translation>この条件をロックしますか？</translation>
+    </message>
+    <message>
+        <source>Locking fixes every address, amount and coin. Afterwards nobody can edit — only unlock, which discards all approvals.</source>
+        <translation>ロックすると、すべてのアドレス、金額、コインが確定します。その後は誰も編集できず、ロック解除のみ可能で、その場合はすべての承認が破棄されます。</translation>
+    </message>
+    <message>
+        <source>Approvals</source>
+        <translation>承認</translation>
+    </message>
+    <message>
+        <source>Copy Locked Terms</source>
+        <translation>ロック済みの条件をコピー</translation>
+    </message>
+    <message>
+        <source>Locked Terms</source>
+        <translation>ロック済みの条件</translation>
+    </message>
+    <message>
+        <source>Unlock terms…</source>
+        <translation>条件のロックを解除…</translation>
+    </message>
+    <message>
+        <source>Signatures</source>
+        <translation>署名</translation>
+    </message>
+    <message>
+        <source>Copy Signing Request</source>
+        <translation>署名リクエストをコピー</translation>
+    </message>
+    <message>
+        <source>Signing Request</source>
+        <translation>署名リクエスト</translation>
+    </message>
+    <message>
+        <source>What you sent</source>
+        <translation>送信した内容</translation>
+    </message>
+    <message>
+        <source>What comes next</source>
+        <translation>次の手順</translation>
+    </message>
+    <message>
+        <source>Release my coins</source>
+        <translation>自分のコインを解放</translation>
+    </message>
+    <message>
+        <source>Shared masternode registered</source>
+        <translation>共有マスターノードを登録しました</translation>
+    </message>
+    <message>
+        <source>What happened</source>
+        <translation>実行された内容</translation>
+    </message>
+    <message>
+        <source>It appears under Masternodes after one confirmation.</source>
+        <translation>1 回の承認後、「マスターノード」に表示されます。</translation>
+    </message>
+    <message>
+        <source>What to keep safe</source>
+        <translation>安全に保管するもの</translation>
+    </message>
+    <message>
+        <source>Your share owner key</source>
+        <translation>あなたの持分オーナーキー</translation>
+    </message>
+    <message>
+        <source>Standby dissolution</source>
+        <translation>待機用解消</translation>
+    </message>
+    <message>
+        <source>A signed dissolution you keep offline. It recovers your principal even if this wallet is lost. Create it after the first confirmation.</source>
+        <translation>オフラインで保管する署名済みの解消トランザクション。このウォレットを紛失しても元本を取り戻せます。最初の承認後に作成してください。</translation>
+    </message>
+    <message>
+        <source>Create it from the Masternodes list (right-click the masternode) once the registration is confirmed, and store it with your refund-address backup, separately from this wallet.</source>
+        <translation>登録が承認されたら、マスターノードの一覧 (マスターノードを右クリック) から作成し、返金アドレスのバックアップと一緒に、このウォレットとは別の場所に保管してください。</translation>
+    </message>
+    <message>
+        <source>Session record</source>
+        <translation>セッションの記録</translation>
+    </message>
+    <message>
+        <source>Save Final Record…</source>
+        <translation>最終記録を保存…</translation>
+    </message>
+    <message>
+        <source>Next steps</source>
+        <translation>次のステップ</translation>
+    </message>
+    <message>
+        <source>Copy Final Record</source>
+        <translation>最終記録をコピー</translation>
+    </message>
+    <message>
+        <source>Final Record</source>
+        <translation>最終記録</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>%1 を待っています</translation>
+    </message>
+    <message>
+        <source>the coordinator</source>
+        <translation>コーディネーター</translation>
+    </message>
+    <message>
+        <source>Approve terms</source>
+        <translation>条件を承認</translation>
+    </message>
+    <message>
+        <source>Sign contribution</source>
+        <translation>拠出に署名</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>完了</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2 · %3</source>
+        <translation>ステップ %1 / %2 · %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>利用可能なウォレットがありません。</translation>
+    </message>
+    <message>
+        <source>This wallet cannot sign. You can view, but not take part.</source>
+        <translation>このウォレットでは署名できません。閲覧はできますが、参加はできません。</translation>
+    </message>
+    <message>
+        <source>A shared masternode needs between %1 and %2 participants.</source>
+        <translation>共有マスターノードには %1 〜 %2 人の参加者が必要です。</translation>
+    </message>
+    <message>
+        <source>Enter a name for participant %1.</source>
+        <translation>参加者 %1 の名前を入力してください。</translation>
+    </message>
+    <message>
+        <source>The name "%1" is used twice.</source>
+        <translation>名前 "%1" が重複しています。</translation>
+    </message>
+    <message>
+        <source>Each share is at least %1.</source>
+        <translation>各持分は少なくとも %1 必要です。</translation>
+    </message>
+    <message>
+        <source>The amounts add up to %1; they must be exactly %2.</source>
+        <translation>金額の合計は %1 ですが、ちょうど %2 である必要があります。</translation>
+    </message>
+    <message>
+        <source>Select the participant that is you.</source>
+        <translation>自分に当たる参加者を選択してください。</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator BLS public key (96 hexadecimal characters, basic scheme).</source>
+        <translation>有効なオペレーター BLS 公開鍵 (16進数96文字、basic scheme) を入力してください。</translation>
+    </message>
+    <message>
+        <source>Enter a valid voting address (P2PKH).</source>
+        <translation>有効な投票アドレス (P2PKH) を入力してください。</translation>
+    </message>
+    <message>
+        <source>Set the early-exit penalty to 0 when there is no early period.</source>
+        <translation>早期期間がない場合は、早期退出ペナルティを 0 に設定してください。</translation>
+    </message>
+    <message>
+        <source>The early-exit penalty must be less than the smallest share (%1).</source>
+        <translation>早期退出ペナルティは、最小の持分 (%1) 未満である必要があります。</translation>
+    </message>
+    <message>
+        <source>Enter a valid owner address (P2PKH).</source>
+        <translation>有効なオーナーアドレス (P2PKH) を入力してください。</translation>
+    </message>
+    <message>
+        <source>Enter a valid refund address (P2PKH or P2SH).</source>
+        <translation>有効な返金アドレス (P2PKH または P2SH) を入力してください。</translation>
+    </message>
+    <message>
+        <source>Enter a valid reward address (P2PKH or P2SH), or leave it empty.</source>
+        <translation>有効な報酬アドレス (P2PKH または P2SH) を入力するか、空欄にしてください。</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>報酬アドレスは、投票アドレスおよびすべてのオーナーアドレスと異なる必要があります。</translation>
+    </message>
+    <message>
+        <source>Every participant must send back their details before the terms can be locked.</source>
+        <translation>条件をロックする前に、すべての参加者が詳細を返信する必要があります。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>このウォレットはウォッチオンリーのため、署名できません。</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown once, on the "Save operator key" page, and the session file does not carry it.</source>
+        <translation>先にオペレーター秘密鍵を保存してください。秘密鍵は「オペレーターキーを保存」ページで 1 回だけ表示され、セッションファイルには含まれません。</translation>
+    </message>
+    <message>
+        <source>Reserve Coins and Copy Details</source>
+        <translation>コインを確保して詳細をコピー</translation>
+    </message>
+    <message>
+        <source>Lock and Approve</source>
+        <translation>ロックして承認</translation>
+    </message>
+    <message>
+        <source>Lock Terms</source>
+        <translation>条件をロック</translation>
+    </message>
+    <message>
+        <source>Approve and Copy Reply</source>
+        <translation>承認して返信をコピー</translation>
+    </message>
+    <message>
+        <source>Approve</source>
+        <translation>承認</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>再試行</translation>
+    </message>
+    <message>
+        <source>Sign and Copy Reply</source>
+        <translation>署名して返信をコピー</translation>
+    </message>
+    <message>
+        <source>Broadcast Registration</source>
+        <translation>登録をブロードキャスト</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>閉じる</translation>
+    </message>
+    <message>
+        <source>Finish</source>
+        <translation>完了</translation>
+    </message>
+    <message>
+        <source>Start Over</source>
+        <translation>最初からやり直す</translation>
+    </message>
+    <message>
+        <source>Confirm you saved the operator secret key by typing its last 4 characters.</source>
+        <translation>オペレーター秘密鍵の末尾 4 文字を入力して、保存したことを確認してください。</translation>
+    </message>
+    <message>
+        <source>You already approved these terms.</source>
+        <translation>この条件はすでに承認済みです。</translation>
+    </message>
+    <message>
+        <source>Every participant must sign their own coins before the registration can be broadcast.</source>
+        <translation>登録をブロードキャストする前に、すべての参加者が自分のコインに署名する必要があります。</translation>
+    </message>
+    <message>
+        <source>Shared Masternode — Session %1</source>
+        <translation>共有マスターノード — セッション %1</translation>
+    </message>
+    <message>
+        <source>%1 of %2%3✓</source>
+        <translation>%1 / %2%3✓</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 missing</source>
+        <translation>%1 / %2 — %3 不足</translation>
+    </message>
+    <message>
+        <source>%1 of %2 — %3 too much</source>
+        <translation>%1 / %2 — %3 超過</translation>
+    </message>
+    <message>
+        <source>Must be less than the smallest share (%1). Set to 0 only if you accept that anyone can leave at any time for free.</source>
+        <translation>最小の持分 (%1) 未満である必要があります。誰でもいつでも無料で退出できることを受け入れる場合にのみ、0 に設定してください。</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>誰でもいつでも無料で退出できます。</translation>
+    </message>
+    <message>
+        <source>If %1 leaves before block %2 of the masternode's life, %1 forfeits %3, split among the others.</source>
+        <translation>マスターノードの稼働ブロック %2 より前に %1 が退出した場合、%1 は %3 を失い、それが他の参加者に分配されます。</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others.</source>
+        <translation>早期期間中に単独で退出すると %1 かかり、それが他の参加者に分配されます。</translation>
+    </message>
+    <message>
+        <source>With a zero penalty the early period has no effect: anyone can dissolve the masternode alone at any time and pay nothing.</source>
+        <translation>ペナルティが 0 の場合、早期期間は無効です。誰でもいつでも単独でマスターノードを解消でき、何も支払う必要はありません。</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 — %4</source>
+        <translation>持分 %1 / %2 — %3 — %4</translation>
+    </message>
+    <message>
+        <source>Share %1 of %2 — %3 (you)</source>
+        <translation>持分 %1 / %2 — %3 (あなた)</translation>
+    </message>
+    <message>
+        <source>Choose which participant you are.</source>
+        <translation>あなたがどの参加者かを選択してください。</translation>
+    </message>
+    <message>
+        <source>Reserved — these coins cannot be spent until the session ends or you release them.</source>
+        <translation>確保済み — これらのコインは、セッションが終了するか解放するまで使用できません。</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2); change %3 returns to a new address of yours.</source>
+        <translation>%1 (%2) を使用します。おつり %3 はあなたの新しいアドレスに戻ります。</translation>
+    </message>
+    <message>
+        <source>Uses %1 (%2), with no change left over.</source>
+        <translation>%1 (%2) を使用します。おつりは残りません。</translation>
+    </message>
+    <message>
+        <source>Everyone reviews these exact terms and approves once. Send the same message to all.</source>
+        <translation>全員がこの条件をそのまま確認し、1 回だけ承認します。同じメッセージを全員に送ってください。</translation>
+    </message>
+    <message>
+        <source>Read every line. Approving signs these exact terms with your owner key. Nothing is broadcast yet.</source>
+        <translation>すべての行を読んでください。承認すると、この条件にあなたのオーナーキーで署名します。この時点ではまだ何もブロードキャストされません。</translation>
+    </message>
+    <message>
+        <source>All approvals are embedded. Every participant now signs their own coins. Replies can come in any order.</source>
+        <translation>すべての承認が埋め込まれています。次に、各参加者が自分のコインに署名します。返信は順不同で受け取れます。</translation>
+    </message>
+    <message>
+        <source>Signs the coins you reserved. Your signature only spends them into this registration.</source>
+        <translation>あなたが確保したコインに署名します。署名は、それらをこの登録に使用するためだけのものです。</translation>
+    </message>
+    <message>
+        <source>%1 of %2 funding inputs are signed.</source>
+        <translation>資金インプット %2 個のうち %1 個が署名済みです。</translation>
+    </message>
+    <message>
+        <source>Signs your %1 share. Nothing is broadcast by you.</source>
+        <translation>あなたの %1 の持分に署名します。あなたがブロードキャストすることはありません。</translation>
+    </message>
+    <message>
+        <source>You sent: %1 · Code %2 · %3</source>
+        <translation>送信済み：%1 · コード %2 · %3</translation>
+    </message>
+    <message>
+        <source>the locked terms</source>
+        <translation>ロック済みの条件</translation>
+    </message>
+    <message>
+        <source>the signing request</source>
+        <translation>署名リクエスト</translation>
+    </message>
+    <message>
+        <source>the final record</source>
+        <translation>最終記録</translation>
+    </message>
+    <message>
+        <source>Next you will receive %1. Paste it here when it arrives.</source>
+        <translation>次に %1 を受け取ります。届いたらここに貼り付けてください。</translation>
+    </message>
+    <message>
+        <source>%1 broadcasts the registration. When the masternode appears in your list, create your standby dissolution.</source>
+        <translation>%1 が登録をブロードキャストします。マスターノードがリストに表示されたら、待機用解消を作成してください。</translation>
+    </message>
+    <message>
+        <source>In this wallet (%1). Back up the wallet — it approves changes and dissolutions.</source>
+        <translation>このウォレット (%1) に保管されています。このウォレットは変更や解消を承認するため、バックアップしてください。</translation>
+    </message>
+    <message>
+        <source>Held by %1. Needed on the server as masternodeblsprivkey.</source>
+        <translation>%1 が保管しています。サーバーでは masternodeblsprivkey として必要です。</translation>
+    </message>
+    <message>
+        <source>whoever runs the node</source>
+        <translation>ノードの運用者</translation>
+    </message>
+    <message>
+        <source>Configure the masternode server with the operator secret key and restart dashd there.</source>
+        <translation>マスターノードのサーバーにオペレーター秘密鍵を設定し、そこで dashd を再起動してください。</translation>
+    </message>
+    <message>
+        <source>Send a service update once the node's addresses are ready; it stays inactive until then.</source>
+        <translation>ノードのアドレスの準備ができたらサービス更新を送信してください。それまでノードは非アクティブのままです。</translation>
+    </message>
+    <message>
+        <source>Make sure every registered service address and port is reachable from the internet.</source>
+        <translation>登録したすべてのサービスアドレスとポートに、インターネットから到達できることを確認してください。</translation>
+    </message>
+    <message>
+        <source>Each participant should create their own standby dissolution after the first confirmation.</source>
+        <translation>各参加者は、最初の承認後に、自分の待機用解消を作成してください。</translation>
+    </message>
+    <message>
+        <source>%1 of %2 inputs</source>
+        <translation>インプット %2 個のうち %1 個</translation>
+    </message>
+    <message>
+        <source>%1 of %2 replied</source>
+        <translation>%2 人中 %1 人が返信済み</translation>
+    </message>
+    <message>
+        <source>%1 of %2 signed</source>
+        <translation>%2 人中 %1 人が署名済み</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%2 人中 %1 人が承認済み</translation>
+    </message>
+    <message>
+        <source>Preparing…</source>
+        <translation>準備しています…</translation>
+    </message>
+    <message>
+        <source>Preparing the registration failed: %1</source>
+        <translation>登録の準備に失敗しました：%1</translation>
+    </message>
+    <message>
+        <source>the funding transaction is not valid.</source>
+        <translation>入金トランザクションが無効です。</translation>
+    </message>
+    <message>
+        <source>invalid refund address: %1</source>
+        <translation>無効な返金アドレス：%1</translation>
+    </message>
+    <message>
+        <source>invalid reward address: %1</source>
+        <translation>無効な報酬アドレス：%1</translation>
+    </message>
+    <message>
+        <source>invalid share owner address: %1</source>
+        <translation>無効な持分オーナーアドレス：%1</translation>
+    </message>
+    <message>
+        <source>the operator key is not a valid BLS public key.</source>
+        <translation>オペレーターキーが有効な BLS 公開鍵ではありません。</translation>
+    </message>
+    <message>
+        <source>the voting address must be a P2PKH address.</source>
+        <translation>投票アドレスは P2PKH アドレスである必要があります。</translation>
+    </message>
+    <message>
+        <source>the operator reward must be between 0% and 100%.</source>
+        <translation>オペレーター報酬は 0% から 100%.</translation>
+    </message>
+    <message>
+        <source>Unexpected reply from the node.</source>
+        <translation>ノードからの予期しない応答です。</translation>
+    </message>
+    <message>
+        <source>The terms are not locked yet.</source>
+        <translation>条件はまだロックされていません。</translation>
+    </message>
+    <message>
+        <source>Approving failed: %1</source>
+        <translation>承認に失敗しました：%1</translation>
+    </message>
+    <message>
+        <source>Approving…</source>
+        <translation>承認しています…</translation>
+    </message>
+    <message>
+        <source>Approval</source>
+        <translation>承認</translation>
+    </message>
+    <message>
+        <source>Combining approvals failed: %1</source>
+        <translation>承認の統合に失敗しました：%1</translation>
+    </message>
+    <message>
+        <source>Combining approvals…</source>
+        <translation>承認を統合しています…</translation>
+    </message>
+    <message>
+        <source>This transaction also spends %1, a coin of this wallet that is not part of your contribution. Do not sign; ask %2 for a fresh session.</source>
+        <translation>このトランザクションは、あなたの拠出に含まれない、このウォレットのコイン %1 も使用します。署名せず、%2 に新しいセッションを依頼してください。</translation>
+    </message>
+    <message>
+        <source>This transaction spends %1 of this wallet's coins for a %2 share but returns only %3 of change to this wallet. Do not sign; ask %4 for a fresh session.</source>
+        <translation>このトランザクションは、%2 の持分のためにこのウォレットのコインを %1 使用しますが、このウォレットに戻るおつりは %3 のみです。署名せず、%4 に新しいセッションを依頼してください。</translation>
+    </message>
+    <message>
+        <source>Signing failed: %1</source>
+        <translation>署名に失敗しました：%1</translation>
+    </message>
+    <message>
+        <source>The signed transaction is not the one you reviewed. Do not use it; ask %1 for a fresh session.</source>
+        <translation>署名済みのトランザクションが、確認したものと異なります。使用せず、%1 に新しいセッションを依頼してください。</translation>
+    </message>
+    <message>
+        <source>Signed Contribution</source>
+        <translation>署名済みの拠出</translation>
+    </message>
+    <message>
+        <source>Unlock the terms?</source>
+        <translation>条件のロックを解除しますか？</translation>
+    </message>
+    <message>
+        <source>Unlocking discards %1. Everyone must approve again after you lock.</source>
+        <translation>ロックを解除すると %1 が破棄されます。再度ロックした後、全員がもう一度承認する必要があります。</translation>
+    </message>
+    <message>
+        <source>Collateral: %1</source>
+        <translation>担保：%1</translation>
+    </message>
+    <message>
+        <source>Participants: %1</source>
+        <translation>参加者：%1</translation>
+    </message>
+    <message>
+        <source>Confirm shared masternode registration</source>
+        <translation>共有マスターノードの登録の確認</translation>
+    </message>
+    <message>
+        <source>Broadcast this shared masternode registration?</source>
+        <translation>この共有マスターノードの登録をブロードキャストしますか？</translation>
+    </message>
+    <message>
+        <source>Session %1 · Code %2</source>
+        <translation>セッション %1 · コード %2</translation>
+    </message>
+    <message>
+        <source>Broadcast failed: %1</source>
+        <translation>ブロードキャストに失敗しました：%1</translation>
+    </message>
+    <message>
+        <source>everyone</source>
+        <translation>全員</translation>
+    </message>
+    <message>
+        <source>Copied · Session %1 · Code %2 — send it to %3.</source>
+        <translation>コピーしました · セッション %1 · コード %2 — %3 に送ってください。</translation>
+    </message>
+    <message>
+        <source>Save the operator secret key first. It is shown only here, and the session file does not carry it: without it the masternode could never be run.</source>
+        <translation>先にオペレーター秘密鍵を保存してください。秘密鍵はここにだけ表示され、セッションファイルには含まれません。秘密鍵がないと、マスターノードを運用できません。</translation>
+    </message>
+    <message>
+        <source>Save shared masternode message</source>
+        <translation>共有マスターノードのメッセージを保存</translation>
+    </message>
+    <message>
+        <source>Session files (*.json)</source>
+        <translation>セッションファイル (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for writing.</source>
+        <translation>書き込み用に %1 を開けませんでした。</translation>
+    </message>
+    <message>
+        <source>Saved · Session %1 · Code %2</source>
+        <translation>保存しました · セッション %1 · コード %2</translation>
+    </message>
+    <message>
+        <source>Open shared masternode message</source>
+        <translation>共有マスターノードのメッセージを開く</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>このメッセージは、共有マスターノードのメッセージとしては大きすぎます。</translation>
+    </message>
+    <message>
+        <source>Could not open %1 for reading.</source>
+        <translation>読み込み用に %1 を開けませんでした。</translation>
+    </message>
+    <message>
+        <source>This message is about an existing masternode. Open it from the Masternodes list.</source>
+        <translation>このメッセージは既存のマスターノードに関するものです。マスターノードの一覧から開いてください。</translation>
+    </message>
+    <message>
+        <source>Signatures not counted</source>
+        <translation>署名はカウントされませんでした</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>%1 を受信しました · コード %2</translation>
+    </message>
+    <message>
+        <source>This reply is older than your current terms (Code %1; yours is %2). Ask the sender to paste your latest message and reply again.</source>
+        <translation>この返信は現在の条件より古いものです (コード %1、あなたのコードは %2)。送信者に最新のメッセージを貼り付けてもらい、もう一度返信してもらってください。</translation>
+    </message>
+    <message>
+        <source>Received %1's %2 · Code %3</source>
+        <translation>%1 の %2 を受信しました · コード %3</translation>
+    </message>
+    <message>
+        <source>This wallet needs at least %1 spendable to fund your %2 share.</source>
+        <translation>このウォレットには、あなたの %2 の持分に資金を出すために、使用可能な残高が少なくとも %1 必要です。</translation>
+    </message>
+    <message>
+        <source>Release your coins?</source>
+        <translation>コインを解放しますか？</translation>
+    </message>
+    <message>
+        <source>The coins you reserved for Session %1 become spendable again.</source>
+        <translation>セッション %1 のために確保したコインが、再び使用可能になります。</translation>
+    </message>
+    <message>
+        <source>Everyone else's coins stay reserved. If you spend these, this registration can never be broadcast and the others have to start over.</source>
+        <translation>他の参加者のコインは確保されたままです。これらのコインを使用すると、この登録はブロードキャストできなくなり、他の参加者は最初からやり直す必要があります。</translation>
+    </message>
+    <message>
+        <source>Released — these coins can be spent again.</source>
+        <translation>解放しました — これらのコインは再び使用できます。</translation>
+    </message>
+    <message>
+        <source>A coin reserved for this session was spent. The registration can no longer be completed — start over.</source>
+        <translation>このセッションのために確保したコインが使用されました。登録を完了できなくなりました。最初からやり直してください。</translation>
+    </message>
+    <message>
+        <source>%1 cannot be value-checked on this node yet. The inputs it can check total %2 of the %3 collateral.</source>
+        <translation>%1 の金額は、このノードではまだ確認できません。確認できるインプットの合計は、担保 %3 のうち %2 です。</translation>
+    </message>
+    <message>
+        <source>The reserved coins total %1, which does not cover the %2 collateral plus %3 change and a network fee. The registration could never be broadcast.</source>
+        <translation>確保したコインの合計は %1 で、担保 %2 とおつり %3、ネットワーク手数料を賄えません。この登録はブロードキャストできません。</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee. That fee is unusually large; continue only if it is intended.</source>
+        <translation>インプット %1 − おつり %2 = 担保 %3 + ネットワーク手数料 %4。この手数料は異常に大きいです。意図している場合のみ続行してください。</translation>
+    </message>
+    <message>
+        <source>Inputs %1 − change %2 = %3 collateral + %4 network fee ✓</source>
+        <translation>インプット %1 − おつり %2 = 担保 %3 + ネットワーク手数料 %4 ✓</translation>
+    </message>
+    <message>
+        <source>Save the operator key first?</source>
+        <translation>先にオペレーターキーを保存しますか？</translation>
+    </message>
+    <message>
+        <source>The operator secret key exists nowhere but this window — the session file carries only its public half. Close now and the masternode could never be run.</source>
+        <translation>オペレーター秘密鍵はこのウィンドウにしか存在せず、セッションファイルには公開鍵の半分しか含まれません。今閉じると、マスターノードを運用できなくなります。</translation>
+    </message>
+    <message>
+        <source>Keep this session for later?</source>
+        <translation>このセッションを後のために保持しますか？</translation>
+    </message>
+    <message>
+        <source>Saving keeps your coins reserved so you can carry on where you left off. Discarding releases them; if the others are still waiting for you, they have to start over.</source>
+        <translation>保存すると、コインは確保されたままになり、中断したところから再開できます。破棄すると解放されます。他の参加者があなたを待っている場合、最初からやり直す必要があります。</translation>
+    </message>
+    <message>
+        <source>Save Operator Key</source>
+        <translation>オペレーターキーを保存</translation>
+    </message>
+    <message>
+        <source>Save and Close</source>
+        <translation>保存して閉じる</translation>
+    </message>
+    <message>
+        <source>Discard and Release Coins</source>
+        <translation>破棄してコインを解放</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnDialog</name>
+    <message>
+        <source>Share %1 of %2</source>
+        <translation>持分 %1 / %2</translation>
+    </message>
+    <message>
+        <source>This wallet does not hold any of this masternode's share owner keys.</source>
+        <translation>このウォレットには、このマスターノードの持分オーナーキーがありません。</translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+    <message>
+        <source>Masternode: %1</source>
+        <translation>マスターノード：%1</translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation>持分</translation>
+    </message>
+    <message>
+        <source>Refund address</source>
+        <translation>返金アドレス</translation>
+    </message>
+    <message>
+        <source>Receives</source>
+        <translation>受取額</translation>
+    </message>
+    <message>
+        <source>%1 — %2 — %3</source>
+        <translation>%1 — %2 — %3</translation>
+    </message>
+    <message>
+        <source>No wallet is available.</source>
+        <translation>利用可能なウォレットがありません。</translation>
+    </message>
+    <message>
+        <source>This wallet is watch-only and cannot sign.</source>
+        <translation>このウォレットはウォッチオンリーのため、署名できません。</translation>
+    </message>
+    <message>
+        <source>Another operation is still running.</source>
+        <translation>別の操作がまだ実行中です。</translation>
+    </message>
+    <message>
+        <source>Wallet unlock was cancelled.</source>
+        <translation>ウォレットのアンロックはキャンセルされました。</translation>
+    </message>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>トランザクションが有効なトランザクションの16進数ではありません。</translation>
+    </message>
+    <message>
+        <source>A coin this request needs (%1:%2) was spent. It can no longer be sent — start over.</source>
+        <translation>このリクエストに必要なコイン (%1:%2) が使用されました。送信できなくなりました。最初からやり直してください。</translation>
+    </message>
+    <message>
+        <source>Internal error: the digest computed here does not match the node's. Do not approve; please report this.</source>
+        <translation>内部エラー：ここで計算したダイジェストが、ノードのものと一致しません。承認せず、報告してください。</translation>
+    </message>
+    <message>
+        <source>Approved %1 with this wallet.</source>
+        <translation>このウォレットで %1 を承認しました。</translation>
+    </message>
+    <message>
+        <source>Shared masternodes need the v24 upgrade, which is not active on this network yet.</source>
+        <translation>共有マスターノードには v24 アップグレードが必要ですが、このネットワークではまだ有効化されていません。</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnStatusBoard</name>
+    <message>
+        <source>#</source>
+        <translation>#</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名前</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金額</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(あなた)</translation>
+    </message>
+</context>
+<context>
+    <name>SharedMnWidgets</name>
+    <message>
+        <source>This request does not pay every share its full principal. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>このリクエストでは、すべての持分に元本全額が支払われるわけではありません。承認せず、作成者に新しいリクエストを依頼してください。</translation>
+    </message>
+    <message>
+        <source>This request names a share this masternode does not have.</source>
+        <translation>このリクエストには、このマスターノードに存在しない持分が指定されています。</translation>
+    </message>
+    <message>
+        <source>This request does not spend exactly the masternode's collateral. Do not approve it.</source>
+        <translation>このリクエストは、マスターノードの担保とちょうど同額を使用していません。承認しないでください。</translation>
+    </message>
+    <message>
+        <source>This request keeps %1 of the shares' principal as a transaction fee. Do not approve it; ask whoever prepared it for a fresh request.</source>
+        <translation>このリクエストでは、持分の元本のうち %1 がトランザクション手数料として差し引かれます。承認せず、作成者に新しいリクエストを依頼してください。</translation>
+    </message>
+    <message>
+        <source>The clipboard does not contain a shared masternode message.</source>
+        <translation>クリップボードに共有マスターノードのメッセージがありません。</translation>
+    </message>
+    <message>
+        <source>This message is not a shared masternode message.</source>
+        <translation>このメッセージは、共有マスターノードのメッセージではありません。</translation>
+    </message>
+    <message>
+        <source>This transaction is not a shared masternode dissolution.</source>
+        <translation>このトランザクションは、共有マスターノードの解消ではありません。</translation>
+    </message>
+    <message>
+        <source>unnamed</source>
+        <translation>名前なし</translation>
+    </message>
+    <message>
+        <source>(you)</source>
+        <translation>(あなた)</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1 (%2%)</translation>
+    </message>
+    <message>
+        <source>Owner:</source>
+        <translation>オーナー：</translation>
+    </message>
+    <message>
+        <source>not set yet</source>
+        <translation>未設定</translation>
+    </message>
+    <message>
+        <source>Refund:</source>
+        <translation>返金：</translation>
+    </message>
+    <message>
+        <source>Reward:</source>
+        <translation>報酬：</translation>
+    </message>
+    <message>
+        <source>same as refund</source>
+        <translation>返金アドレスと同じ</translation>
+    </message>
+    <message>
+        <source>Participants</source>
+        <translation>参加者</translation>
+    </message>
+    <message>
+        <source>Service:</source>
+        <translation>サービス：</translation>
+    </message>
+    <message>
+        <source>Not set — set later with a service update</source>
+        <translation>未設定 — 後からサービス更新で設定します</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>オペレーターキー：</translation>
+    </message>
+    <message>
+        <source>not set</source>
+        <translation>未設定</translation>
+    </message>
+    <message>
+        <source>Node run by:</source>
+        <translation>ノードの運用者：</translation>
+    </message>
+    <message>
+        <source>not recorded</source>
+        <translation>記録なし</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>投票アドレス：</translation>
+    </message>
+    <message>
+        <source>Operator reward:</source>
+        <translation>オペレーター報酬：</translation>
+    </message>
+    <message>
+        <source>Masternode</source>
+        <translation>マスターノード</translation>
+    </message>
+    <message>
+        <source>Early period:</source>
+        <translation>早期期間：</translation>
+    </message>
+    <message>
+        <source>%1 blocks (%2)</source>
+        <translation>%1 ブロック (%2)</translation>
+    </message>
+    <message>
+        <source>Early-exit penalty:</source>
+        <translation>早期退出ペナルティ：</translation>
+    </message>
+    <message>
+        <source>Anyone can leave at any time for free.</source>
+        <translation>誰でもいつでも無料で退出できます。</translation>
+    </message>
+    <message>
+        <source>Leaving alone during the early period costs %1, split among the others; leaving together is free.</source>
+        <translation>早期期間中に単独で退出すると %1 かかり、それが他の参加者に分配されます。一緒に退出する場合は無料です。</translation>
+    </message>
+    <message>
+        <source>Exit terms</source>
+        <translation>退出条件</translation>
+    </message>
+    <message>
+        <source>Contributions:</source>
+        <translation>拠出：</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1、%2</translation>
+    </message>
+    <message>
+        <source>Change returned:</source>
+        <translation>返却されるおつり：</translation>
+    </message>
+    <message>
+        <source>Collateral:</source>
+        <translation>担保：</translation>
+    </message>
+    <message>
+        <source>%1, once the terms are locked</source>
+        <translation>%1 (条件のロック後)</translation>
+    </message>
+    <message>
+        <source>output #%1 pays the %2 shared collateral script</source>
+        <translation>アウトプット #%1 が、共有担保スクリプトに %2 を支払います</translation>
+    </message>
+    <message>
+        <source>Funding</source>
+        <translation>資金</translation>
+    </message>
+    <message>
+        <source>Session:</source>
+        <translation>セッション：</translation>
+    </message>
+    <message>
+        <source>Code:</source>
+        <translation>コード：</translation>
+    </message>
+    <message>
+        <source>Prepared by wallet:</source>
+        <translation>準備したウォレット：</translation>
+    </message>
+    <message>
+        <source>Identity</source>
+        <translation>識別情報</translation>
+    </message>
+</context>
+<context>
+    <name>SharedSigCollector</name>
+    <message>
+        <source>The transaction is not valid transaction hex.</source>
+        <translation>トランザクションが有効なトランザクションの16進数ではありません。</translation>
+    </message>
+    <message>
+        <source>The transaction is not a dissolution transaction.</source>
+        <translation>トランザクションは解消トランザクションではありません。</translation>
+    </message>
+    <message>
+        <source>The transaction payload is not deserializable.</source>
+        <translation>トランザクションのペイロードをデシリアライズできません。</translation>
+    </message>
+    <message>
+        <source>The transaction dissolves a different masternode.</source>
+        <translation>このトランザクションは、別のマスターノードを解消するものです。</translation>
+    </message>
+    <message>
+        <source>The transaction already carries signatures; expected the unsigned prepared transaction.</source>
+        <translation>トランザクションにはすでに署名が含まれています。未署名の準備済みトランザクションが必要です。</translation>
+    </message>
+    <message>
+        <source>The transaction is not a shared registrar update.</source>
+        <translation>トランザクションは共有マスターノードの登録情報の更新ではありません。</translation>
+    </message>
+    <message>
+        <source>The transaction updates a different masternode.</source>
+        <translation>このトランザクションは、別のマスターノードを更新するものです。</translation>
+    </message>
+    <message>
+        <source>Approved</source>
+        <translation>承認済み</translation>
+    </message>
+    <message>
+        <source>Copy Request</source>
+        <translation>リクエストをコピー</translation>
+    </message>
+    <message>
+        <source>Save Request…</source>
+        <translation>リクエストを保存…</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>貼り付け</translation>
+    </message>
+    <message>
+        <source>Open File…</source>
+        <translation>ファイルを開く…</translation>
+    </message>
+    <message>
+        <source>This message is about a different transaction than the one already here. One of the two copies is stale; keep the current one and ask for a fresh reply.</source>
+        <translation>このメッセージは、すでにここにあるものとは別のトランザクションに関するものです。2 つのコピーのうち一方が古くなっています。現在のものを保持し、新しい返信を依頼してください。</translation>
+    </message>
+    <message>
+        <source>Paste the request itself before pasting approvals.</source>
+        <translation>承認を貼り付ける前に、リクエスト自体を貼り付けてください。</translation>
+    </message>
+    <message>
+        <source>This message does not contain any approvals.</source>
+        <translation>このメッセージには承認が含まれていません。</translation>
+    </message>
+    <message>
+        <source>An approval is missing its share number or its signature.</source>
+        <translation>承認に、持分番号または署名がありません。</translation>
+    </message>
+    <message>
+        <source>An approval has an unreadable share number.</source>
+        <translation>承認の持分番号を読み取れません。</translation>
+    </message>
+    <message>
+        <source>Share number %1 is out of range.</source>
+        <translation>持分番号 %1 は範囲外です。</translation>
+    </message>
+    <message>
+        <source>%1: the signature is not a base64 65-byte compact signature.</source>
+        <translation>%1：署名が、base64 の 65 バイトのコンパクト署名ではありません。</translation>
+    </message>
+    <message>
+        <source>%1's approval does not match the prepared transaction. Ask %2 to paste the current request and approve again.</source>
+        <translation>%1 の承認が準備済みトランザクションと一致しません。%2 に現在のリクエストを貼り付けて、もう一度承認してもらってください。</translation>
+    </message>
+    <message>
+        <source>%1 already has an approval from another reply.</source>
+        <translation>%1 は、別の返信ですでに承認済みです。</translation>
+    </message>
+    <message>
+        <source>This is not a shared masternode message.</source>
+        <translation>これは共有マスターノードのメッセージではありません。</translation>
+    </message>
+    <message>
+        <source>This message is for the %1 network; this wallet runs on %2.</source>
+        <translation>このメッセージは %1 ネットワーク用ですが、このウォレットは %2 で動作しています。</translation>
+    </message>
+    <message>
+        <source>This message is about a different kind of change to this masternode.</source>
+        <translation>このメッセージは、このマスターノードに対する別の種類の変更に関するものです。</translation>
+    </message>
+    <message>
+        <source>This message is about a different masternode.</source>
+        <translation>このメッセージは別のマスターノードに関するものです。</translation>
+    </message>
+    <message>
+        <source>Copied · Code %1</source>
+        <translation>コピーしました · コード %1</translation>
+    </message>
+    <message>
+        <source>Save Request</source>
+        <translation>リクエストを保存</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json)</source>
+        <translation>共有マスターノードのメッセージ (*.json)</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>%1 に書き込めませんでした。</translation>
+    </message>
+    <message>
+        <source>Saved · Code %1</source>
+        <translation>保存しました · コード %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1.</source>
+        <translation>%1 に保存しました。</translation>
+    </message>
+    <message>
+        <source>That message is too large to be a shared masternode message.</source>
+        <translation>このメッセージは、共有マスターノードのメッセージとしては大きすぎます。</translation>
+    </message>
+    <message>
+        <source>Received %1 · Code %2</source>
+        <translation>%1 を受信しました · コード %2</translation>
+    </message>
+    <message>
+        <source>Received · Code %1</source>
+        <translation>受信しました · コード %1</translation>
+    </message>
+    <message>
+        <source>Open Request</source>
+        <translation>リクエストを開く</translation>
+    </message>
+    <message>
+        <source>Shared masternode message (*.json);;All files (*)</source>
+        <translation>共有マスターノードのメッセージ (*.json);;すべてのファイル (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>%1 を読み取れませんでした。</translation>
+    </message>
+    <message>
+        <source>Approved by %1</source>
+        <translation>%1 が承認済み</translation>
+    </message>
+    <message>
+        <source>Waiting for %1</source>
+        <translation>%1 を待っています</translation>
+    </message>
+    <message>
+        <source>%1 of %2 approved</source>
+        <translation>%1 / %2 が承認済み</translation>
     </message>
 </context>
 <context>
@@ -5077,17 +9017,6 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
-    <name>SplashScreen</name>
-    <message>
-        <source>(press q to shutdown and continue later)</source>
-        <translation>(Qを押してシャットダウンし、後で続ける)</translation>
-    </message>
-    <message>
-        <source>press q to shutdown</source>
-        <translation>Qを押してシャットダウンする</translation>
-    </message>
-</context>
-<context>
     <name>TrafficGraphWidget</name>
     <message>
         <source>kB/s</source>
@@ -5158,6 +9087,22 @@ For more information on using this console, type %6.
     <message>
         <source>Date</source>
         <translation>日付</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>タイプ</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>マスターノード登録</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>マスターノード更新</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>アセットロック</translation>
     </message>
     <message>
         <source>Source</source>
@@ -5246,6 +9191,10 @@ For more information on using this console, type %6.
     <message>
         <source>Transaction total size</source>
         <translation>トランザクションの全体サイズ</translation>
+    </message>
+    <message>
+        <source>Payload</source>
+        <translation>ペイロード</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -5355,8 +9304,24 @@ For more information on using this console, type %6.
         <translation>プラットフォーム送金</translation>
     </message>
     <message>
+        <source>Data Transaction</source>
+        <translation>データトランザクション</translation>
+    </message>
+    <message>
         <source>Dust Receive</source>
         <translation>ダスト受信</translation>
+    </message>
+    <message>
+        <source>Masternode Registration</source>
+        <translation>マスターノード登録</translation>
+    </message>
+    <message>
+        <source>Masternode Update</source>
+        <translation>マスターノード更新</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>アセットロック</translation>
     </message>
     <message>
         <source>%1 Mixing</source>
@@ -5385,6 +9350,18 @@ For more information on using this console, type %6.
     <message>
         <source>(n/a)</source>
         <translation>(n/a)</translation>
+    </message>
+    <message>
+        <source>Registers a masternode. The amount is this wallet's net balance change and is normally only the network fee when the collateral remains in this wallet.</source>
+        <translation>マスターノードを登録します。金額はこのウォレットの残高の正味の変化で、担保がこのウォレットに残る場合は通常ネットワーク手数料のみです。</translation>
+    </message>
+    <message>
+        <source>Updates an existing masternode registration. The amount is this wallet's net balance change, normally only the network fee.</source>
+        <translation>既存のマスターノードの登録情報を更新します。金額はこのウォレットの残高の正味の変化で、通常はネットワーク手数料のみです。</translation>
+    </message>
+    <message>
+        <source>Locks funds for use on Dash Platform. The amount is this wallet's net balance change, including the network fee.</source>
+        <translation>Dash プラットフォームで使用するために資金をロックします。金額はこのウォレットの残高の正味の変化で、ネットワーク手数料を含みます。</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -5486,8 +9463,20 @@ For more information on using this console, type %6.
         <translation>採掘済</translation>
     </message>
     <message>
+        <source>Masternode</source>
+        <translation>マスターノード</translation>
+    </message>
+    <message>
         <source>Platform Transfer</source>
         <translation>プラットフォーム送金</translation>
+    </message>
+    <message>
+        <source>Asset Lock</source>
+        <translation>アセットロック</translation>
+    </message>
+    <message>
+        <source>Data Transaction</source>
+        <translation>データトランザクション</translation>
     </message>
     <message>
         <source>Dust Receive</source>
@@ -5636,6 +9625,199 @@ For more information on using this console, type %6.
     </message>
 </context>
 <context>
+    <name>UpdateRegistrarDialog</name>
+    <message>
+        <source>Operator BLS public key (96 hexadecimal characters)</source>
+        <translation>オペレーター BLS 公開鍵 (16進数96文字)</translation>
+    </message>
+    <message>
+        <source>Operator public key:</source>
+        <translation>オペレーター公開鍵：</translation>
+    </message>
+    <message>
+        <source>Changing the operator key immediately PoSe-bans the masternode. The new operator must send an Update Service transaction to revive it.</source>
+        <translation>オペレーターキーを変更すると、マスターノードは直ちにPoSeで禁止されます。復旧するには、新しいオペレーターがサービス更新トランザクションを送信する必要があります。</translation>
+    </message>
+    <message>
+        <source>Voting address:</source>
+        <translation>投票アドレス：</translation>
+    </message>
+    <message>
+        <source>Payout address:</source>
+        <translation>支払いアドレス：</translation>
+    </message>
+    <message>
+        <source>Multiple payout shares are preserved; use the RPC to change them</source>
+        <translation>複数の支払い分担は維持されます。変更するにはRPCを使用してください</translation>
+    </message>
+    <message>
+        <source>This dialog cannot safely flatten a multi-payout masternode into one address.</source>
+        <translation>このダイアログでは、複数の支払い先を持つマスターノードを 1 つのアドレスに安全にまとめることはできません。</translation>
+    </message>
+    <message>
+        <source>Automatic uses the masternode's current primary payout address. Select an address only to override that choice.</source>
+        <translation>自動の場合は、マスターノードの現在の主要な支払いアドレスを使用します。この選択を上書きする場合にのみ、アドレスを選択してください。</translation>
+    </message>
+    <message>
+        <source>Update Masternode Registrar</source>
+        <translation>マスターノードの登録情報を更新</translation>
+    </message>
+    <message>
+        <source>Update the operator key, voting address, or payout address. All current values are prefilled; only changed fields are sent. The owner key must be present in this wallet.</source>
+        <translation>オペレーターキー、投票アドレス、または支払いアドレスを更新します。現在の値はすべて入力済みで、変更した項目のみが送信されます。オーナーキーがこのウォレットにある必要があります。</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>更新を送信</translation>
+    </message>
+    <message>
+        <source>Enter a valid operator public key for the current provider-transaction version.</source>
+        <translation>現在のプロバイダートランザクションのバージョンに対応した、有効なオペレーター公開鍵を入力してください。</translation>
+    </message>
+    <message>
+        <source>The voting address must be a key address.</source>
+        <translation>投票アドレスはキーアドレスである必要があります。</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateServiceDialog</name>
+    <message>
+        <source>IP:PORT, comma-separated for multiple entries</source>
+        <translation>IP:PORT。複数の場合はカンマ区切り</translation>
+    </message>
+    <message>
+        <source>Multiple addresses require extended provider transactions.</source>
+        <translation>複数のアドレスには、拡張プロバイダートランザクションが必要です。</translation>
+    </message>
+    <message>
+        <source>Service addresses:</source>
+        <translation>サービスアドレス：</translation>
+    </message>
+    <message>
+        <source>Service address:</source>
+        <translation>サービスアドレス：</translation>
+    </message>
+    <message>
+        <source>Operator key:</source>
+        <translation>オペレーターキー：</translation>
+    </message>
+    <message>
+        <source>Platform node ID (40 hexadecimal characters)</source>
+        <translation>プラットフォームノードID (16進数40文字)</translation>
+    </message>
+    <message>
+        <source>Platform node ID:</source>
+        <translation>プラットフォームノードID：</translation>
+    </message>
+    <message>
+        <source>Platform P2P addresses:</source>
+        <translation>プラットフォームP2Pアドレス：</translation>
+    </message>
+    <message>
+        <source>IP:PORT or domain:port, comma-separated</source>
+        <translation>IP:PORT または domain:port。カンマ区切り</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS addresses:</source>
+        <translation>プラットフォームHTTPSアドレス：</translation>
+    </message>
+    <message>
+        <source>Platform P2P port:</source>
+        <translation>プラットフォームP2Pポート：</translation>
+    </message>
+    <message>
+        <source>Platform HTTPS port:</source>
+        <translation>プラットフォームHTTPSポート：</translation>
+    </message>
+    <message>
+        <source>Operator payout address:</source>
+        <translation>オペレーターの支払いアドレス：</translation>
+    </message>
+    <message>
+        <source>Automatic uses the current operator payout, then the masternode payout. Select an address only to override that choice.</source>
+        <translation>自動の場合は、現在のオペレーターの支払い先、次にマスターノードの支払い先を使用します。この選択を上書きする場合にのみ、アドレスを選択してください。</translation>
+    </message>
+    <message>
+        <source>Update EvoNode Service</source>
+        <translation>Evoノードのサービスを更新</translation>
+    </message>
+    <message>
+        <source>Update Masternode Service</source>
+        <translation>マスターノードのサービスを更新</translation>
+    </message>
+    <message>
+        <source>Update the registered service endpoints. A successful update also revives a PoSe-banned masternode. Every current value is prefilled so unchanged fields are preserved.</source>
+        <translation>登録済みのサービスエンドポイントを更新します。更新に成功すると、PoSeで禁止されているマスターノードも復旧します。現在の値はすべて入力済みのため、変更しない項目は維持されます。</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>更新を送信</translation>
+    </message>
+    <message>
+        <source>Enter a valid Platform node ID (40 hexadecimal characters).</source>
+        <translation>有効なプラットフォームノードID (16進数40文字) を入力してください。</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateShareDialog</name>
+    <message>
+        <source>Your share:</source>
+        <translation>あなたの持分：</translation>
+    </message>
+    <message>
+        <source>Address that receives this share's rewards</source>
+        <translation>この持分の報酬を受け取るアドレス</translation>
+    </message>
+    <message>
+        <source>Use new address</source>
+        <translation>新しいアドレスを使用</translation>
+    </message>
+    <message>
+        <source>Use refund address</source>
+        <translation>返金アドレスを使用</translation>
+    </message>
+    <message>
+        <source>New reward address:</source>
+        <translation>新しい報酬アドレス：</translation>
+    </message>
+    <message>
+        <source>The fee is paid from this address of your wallet.</source>
+        <translation>手数料は、ウォレット内のこのアドレスから支払われます。</translation>
+    </message>
+    <message>
+        <source>Change Reward Address</source>
+        <translation>報酬アドレスを変更</translation>
+    </message>
+    <message>
+        <source>Change where your share of this masternode's rewards is paid. Only your share is affected; the share's amount and refund address never change.</source>
+        <translation>このマスターノードの報酬のうち、あなたの持分の支払い先を変更します。影響を受けるのはあなたの持分のみで、持分の金額と返金アドレスは変更されません。</translation>
+    </message>
+    <message>
+        <source>Send Update</source>
+        <translation>更新を送信</translation>
+    </message>
+    <message>
+        <source>Enter the address that should receive the rewards.</source>
+        <translation>報酬を受け取るアドレスを入力してください。</translation>
+    </message>
+    <message>
+        <source>Enter a valid Dash address.</source>
+        <translation>有効なDashアドレスを入力してください。</translation>
+    </message>
+    <message>
+        <source>The reward address must differ from the voting address and every owner address.</source>
+        <translation>報酬アドレスは、投票アドレスおよびすべてのオーナーアドレスと異なる必要があります。</translation>
+    </message>
+    <message>
+        <source>This masternode is not shared and has no share table.</source>
+        <translation>このマスターノードは共有ではなく、持分テーブルがありません。</translation>
+    </message>
+    <message>
+        <source>Choose an address of this wallet to pay the fee from.</source>
+        <translation>手数料を支払う、このウォレットのアドレスを選択してください。</translation>
+    </message>
+</context>
+<context>
     <name>WalletController</name>
     <message>
         <source>Close wallet</source>
@@ -5702,6 +9884,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Send Coins</source>
         <translation>送金</translation>
+    </message>
+    <message>
+        <source>Signer error</source>
+        <translation>署名者エラー</translation>
     </message>
     <message>
         <source>Can't display address</source>
@@ -5791,6 +9977,18 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>警告： ピアと完全に同意しないようです！あなたはアップグレードする必要があるかもしれません。または他のノードがアップグレードする必要があるかもしれません。</translation>
     </message>
     <message>
+        <source>
+Unable to cleanup failed migration</source>
+        <translation>
+失敗した移行をクリーンアップできません</translation>
+    </message>
+    <message>
+        <source>
+Unable to restore backup of wallet.</source>
+        <translation>
+ウォレットのバックアップを復元できません。</translation>
+    </message>
+    <message>
         <source>Already have that input.</source>
         <translation>常時そのインプットを保持</translation>
     </message>
@@ -5863,10 +10061,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>SQLiteのデータベース: SQLiteのウォレットスキーマのバージョン%dが不明です。サポートされているのはバージョン%dのみです</translation>
     </message>
     <message>
-        <source>Unsupported category-specific logging level -loglevel=%s. Expected -loglevel=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %s. Valid loglevels: %s.</source>
-        <translation>サポートされていないカテゴリ固有のログレベル: -loglevel=%s。想定されているものは、-loglevel=&lt;category&gt;:&lt;loglevel&gt;。有効なカテゴリ: %s。有効なログレベル: %s。</translation>
-    </message>
-    <message>
         <source>Can't mix: no compatible inputs found!</source>
         <translation>ミキシング不可: 互換性のあるインプットが見つかりません</translation>
     </message>
@@ -5905,10 +10099,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Insufficient funds.</source>
         <translation>残高が不足しています</translation>
-    </message>
-    <message>
-        <source>Invalid minimum number of spork signers specified with -minsporkkeys</source>
-        <translation>-minsporkkeysで指定されたスポーク署名者の最小数が無効です</translation>
     </message>
     <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
@@ -5983,10 +10173,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>不明なレスポンス</translation>
     </message>
     <message>
-        <source>Unsupported global logging level -loglevel=%s. Valid values: %s.</source>
-        <translation>-loglevel=%sのグローバルログレベルがサポートされていません。有効な値: %s。</translation>
-    </message>
-    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation>ユーザーエージェントのコメント (%s) には安全でない文字が含まれています。</translation>
     </message>
@@ -6017,6 +10203,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>%s ファイルはこのウォレットのプライベートキーをすべて保有しています。誰ともシェアしないでください。</translation>
+    </message>
+    <message>
+        <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
+        <translation>%s が -assumeutxo スナップショットの状態の検証に失敗しました。これは、ハードウェアの問題、ソフトウェアのバグ、または無効なスナップショットの読み込みを許してしまった不正なソフトウェア改変を示しています。その結果、ノードはシャットダウンし、スナップショットを基に構築された状態の使用を停止して、チェーンの高さを %d から %d にリセットします。次回の再起動時、ノードはスナップショットのデータを使用せず、%d から同期を再開します。スナップショットの入手方法を含め、この問題を %s に報告してください。このエラーの原因の診断に役立つ場合に備え、無効なスナップショットのチェーンステートはディスクに残されます。</translation>
     </message>
     <message>
         <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
@@ -6067,10 +10257,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>ネットワークバージョン文字 (%i) の長さが最大の長さ (%i) を超えています。UAコメントの数や長さを削減してください。</translation>
     </message>
     <message>
-        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
-        <translation>警告! キープールの補充に失敗しました、ウォレットをアンロックしてキープールを補充してください</translation>
-    </message>
-    <message>
         <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
         <translation>ウォレットがロックされているのでキープールを補充できません!自動バックアップとミキシングが無効なので、ウォレットをアンロックしてキープールを補充してください。</translation>
     </message>
@@ -6085,10 +10271,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempoolは最低でも %d MB必要です</translation>
-    </message>
-    <message>
-        <source>Automatic backups disabled</source>
-        <translation>自動バックアップ無効</translation>
     </message>
     <message>
         <source>Cannot set -forcednsseed to true when setting -dnsseed to false.</source>
@@ -6111,16 +10293,24 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>%sのasmapファイルを解析できませんでした</translation>
     </message>
     <message>
-        <source>ERROR! Failed to create automatic backup</source>
-        <translation>エラー! 自動バックアップ作成失敗</translation>
-    </message>
-    <message>
         <source>Error loading %s: Private keys can only be disabled during creation</source>
         <translation>%sの読み込みエラー：プライベートキーは作成時にのみ無効化できます。</translation>
     </message>
     <message>
+        <source>Error reading configuration file: %s</source>
+        <translation>設定ファイルの読み込みエラー: %s</translation>
+    </message>
+    <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
         <translation>エラー: 生成されたscriptpubkeyから送信先を抽出できません</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx to watchonly wallet</source>
+        <translation>エラー: ウォッチオンリーのトランザクションをウォッチオンリーのウォレットに追加できませんでした</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions</source>
+        <translation>エラー: ウォッチオンリーのトランザクションを削除できませんでした</translation>
     </message>
     <message>
         <source>Error: Couldn't create cursor into database</source>
@@ -6133,6 +10323,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Error: Dumpfile checksum does not match. Computed %s, expected %s</source>
         <translation>エラー: ダンプファイルのチェックサムが一致しません。算出されたものは%s、一致するものは%sです</translation>
+    </message>
+    <message>
+        <source>Error: Failed to create new watchonly wallet</source>
+        <translation>エラー: 新しいウォッチオンリーのウォレットを作成できませんでした</translation>
     </message>
     <message>
         <source>Error: Got key that was not hex: %s</source>
@@ -6151,6 +10345,34 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>エラー: 利用可能なアドレスがありません。</translation>
     </message>
     <message>
+        <source>Error: Not all watchonly txs could be deleted</source>
+        <translation>エラー: すべてのウォッチオンリーのトランザクションを削除することはできませんでした</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation>エラー: このウォレットはすでにSQLiteを使用しています</translation>
+    </message>
+    <message>
+        <source>Error: This wallet is already a descriptor wallet</source>
+        <translation>エラー: このウォレットはすでにディスクリプタウォレットです</translation>
+    </message>
+    <message>
+        <source>Error: Unable to begin reading all records in the database</source>
+        <translation>エラー: データベース内のすべてのレコードの読み込みを開始できません</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation>エラー: ウォレットのバックアップを作成できません</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation>エラー: データベース内のすべてのレコードを読み込めません</translation>
+    </message>
+    <message>
+        <source>Error: Unable to remove watchonly address book data</source>
+        <translation>エラー: ウォッチオンリーのアドレス帳データを削除できません</translation>
+    </message>
+    <message>
         <source>Failed to create backup %s!</source>
         <translation>バックアップ作成 %s失敗!</translation>
     </message>
@@ -6161,6 +10383,22 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Failed to delete backup, error: %s</source>
         <translation>バックアップ削除失敗、エラー: %s</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted invalid snapshot cleanup.</source>
+        <translation>中断された無効なスナップショットのクリーンアップを完了できませんでした。</translation>
+    </message>
+    <message>
+        <source>Failed to finish interrupted snapshot marker promotion.</source>
+        <translation>中断されたスナップショットマーカーの昇格を完了できませんでした。</translation>
+    </message>
+    <message>
+        <source>Failed to inspect interrupted snapshot cleanup: %s</source>
+        <translation>中断されたスナップショットのクリーンアップを検査できませんでした: %s</translation>
+    </message>
+    <message>
+        <source>Failed to recover interrupted snapshot cleanup: %s</source>
+        <translation>中断されたスナップショットのクリーンアップを復旧できませんでした: %s</translation>
     </message>
     <message>
         <source>Failed to rescan the wallet during initialization</source>
@@ -6187,12 +10425,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>入力内容が見つからないか、すでに使用済みです</translation>
     </message>
     <message>
+        <source>Insufficient dbcache for block verification</source>
+        <translation>ブロック検証に必要なdbcacheが不足しています</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup has inconsistent coins and EvoDB tips.</source>
+        <translation>中断されたスナップショットのクリーンアップで、コインとEvoDBの先頭が一致していません。</translation>
+    </message>
+    <message>
+        <source>Interrupted snapshot cleanup is missing its snapshot EvoDB marker.</source>
+        <translation>中断されたスナップショットのクリーンアップに、スナップショットのEvoDBマーカーがありません。</translation>
+    </message>
+    <message>
         <source>Invalid P2P permission: '%s'</source>
         <translation>無効なP2P許可：「%s」</translation>
     </message>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>マスターノードBLS秘密鍵が無効です。ドキュメントをお読み下さい。</translation>
+    </message>
+    <message>
+        <source>Invalid pre-selected input %s</source>
+        <translation>事前選択されたインプット %s が無効です</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: exceeds maximum (%d)</source>
+        <translation>%s の値が無効です: 最大値 (%d) を超えています</translation>
+    </message>
+    <message>
+        <source>Invalid value for %s: must be &gt;= 0</source>
+        <translation>%s の値が無効です: 0以上である必要があります</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
@@ -6209,6 +10471,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Mixing in progress…</source>
         <translation>ミキシング中…</translation>
+    </message>
+    <message>
+        <source>More than one spork address is provided. Using %s.</source>
+        <translation>複数のスポークアドレスが指定されています。%s を使用します。</translation>
     </message>
     <message>
         <source>No addresses available</source>
@@ -6231,12 +10497,36 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>使用可能なファイルディスクリプタが不足しています。</translation>
     </message>
     <message>
+        <source>Not found pre-selected input %s</source>
+        <translation>事前選択されたインプット %s が見つかりません</translation>
+    </message>
+    <message>
+        <source>Not solvable pre-selected input %s</source>
+        <translation>事前選択されたインプット %s は解決できません</translation>
+    </message>
+    <message>
+        <source>Platform recipients cannot be combined with an explicit change position</source>
+        <translation>プラットフォームの受取人は、明示的なおつりの位置と併用できません</translation>
+    </message>
+    <message>
+        <source>Please enter the wallet passphrase with walletpassphrase first.</source>
+        <translation>先に walletpassphrase でウォレットのパスフレーズを入力してください。</translation>
+    </message>
+    <message>
         <source>Prune cannot be configured with a negative value.</source>
         <translation>剪定値は負の値に設定できません。</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -addressindex.</source>
+        <translation>プルーニングモードは -addressindex と互換性がありません。</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -disablegovernance=false.</source>
         <translation>プルーンモードは、-disablegovernance=falseと互換性がありません。</translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -spentindex.</source>
+        <translation>プルーニングモードは -spentindex と互換性がありません。</translation>
     </message>
     <message>
         <source>Prune mode is incompatible with -txindex.</source>
@@ -6263,6 +10553,26 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>[%s]のセクションは認識されません。</translation>
     </message>
     <message>
+        <source>Sets a window title which is appended to "Dash Core - "</source>
+        <translation>"Dash Core - " の後ろに追加されるウィンドウタイトルを設定します</translation>
+    </message>
+    <message>
+        <source>Signer did not echo address</source>
+        <translation>署名者がアドレスをエコーバックしませんでした</translation>
+    </message>
+    <message>
+        <source>Signer echoed unexpected address %s</source>
+        <translation>署名者が予期しないアドレス %s をエコーバックしました</translation>
+    </message>
+    <message>
+        <source>Signer returned error: %s</source>
+        <translation>署名者がエラーを返しました: %s</translation>
+    </message>
+    <message>
+        <source>Snapshot chainstate EvoDB marker is missing. Reindex is required.</source>
+        <translation>スナップショットのチェーンステートのEvoDBマーカーがありません。再インデックスが必要です。</translation>
+    </message>
+    <message>
         <source>Specified -walletdir "%s" does not exist</source>
         <translation>指定された-walletdirの「%s」は存在しません</translation>
     </message>
@@ -6275,8 +10585,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>指定された-walletdirの「%s」はディレクトリではありません</translation>
     </message>
     <message>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation>指定されたデータディレクトリ "%s" は存在しません。</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>ウォレットは最小中継手数料を下回る額の支払を拒否します。</translation>
+    </message>
+    <message>
+        <source>There is no ScriptPubKeyManager for this address</source>
+        <translation>このアドレスに対応するScriptPubKeyManagerがありません</translation>
     </message>
     <message>
         <source>This is expected because you are running a pruned node.</source>
@@ -6299,8 +10617,8 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>トランザクションの総額はマイナスではあってはいけません。。</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation>トランザクションのmempoolチェーンが長過ぎます。</translation>
+        <source>acceptstalefeeestimates is not supported on %s chain.</source>
+        <translation>acceptstalefeeestimates は %s チェーンではサポートされていません。</translation>
     </message>
     <message>
         <source>Transaction must have at least one recipient</source>
@@ -6363,14 +10681,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>ウォレットを有効にした状態でマスターノードを起動することはできません。</translation>
     </message>
     <message>
-        <source>no mixing available.</source>
-        <translation>ミキシングは利用できません。</translation>
-    </message>
-    <message>
-        <source>see debug.log for details.</source>
-        <translation>詳細はdebug.logを参照してください。</translation>
-    </message>
-    <message>
         <source>The %s developers</source>
         <translation>%s の開発者</translation>
     </message>
@@ -6379,16 +10689,16 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>%sは正確に換算した金額を送金するため、単純にいくらかのコインをミキシングする必要があるかもしれません。</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstateのオプションは-blockfilterindexと互換性がありません。-reindex-chainstateを使用する際は、一時的にblockfilterindexを無効にしてください。また、全てのインデックスを完全に再構築するには、-reindex-chainstateを-reindexに置き換えてください。</translation>
+        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstateのオプションは-txindexと互換性がありません。-reindex-chainstateを使用する際は、一時的にtxindexを無効にしてください。また、全てのインデックスを完全に再構築するには、-reindex-chainstateを-reindexに置き換えてください。</translation>
     </message>
     <message>
         <source>-reindex-chainstate option is not compatible with -coinstatsindex. Please temporarily disable coinstatsindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
         <translation>-reindex-chainstateのオプションは-coinstatsindexと互換性がありません。-reindex-chainstateを使用する際は、一時的にcoinstatsindexを無効にしてください。また、全てのインデックスを完全に再構築するには、-reindex-chainstateを-reindexに置き換えてください。</translation>
     </message>
     <message>
-        <source>-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
-        <translation>-reindex-chainstateのオプションは-txindexと互換性がありません。-reindex-chainstateを使用する際は、一時的にtxindexを無効にしてください。また、全てのインデックスを完全に再構築するには、-reindex-chainstateを-reindexに置き換えてください。</translation>
+        <source>-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes.</source>
+        <translation>-reindex-chainstateのオプションは-blockfilterindexと互換性がありません。-reindex-chainstateを使用する際は、一時的にblockfilterindexを無効にしてください。また、全てのインデックスを完全に再構築するには、-reindex-chainstateを-reindexに置き換えてください。</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -6415,12 +10725,40 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>%s の読み込みエラー! すべてのキーは正しく読み取れますが、トランザクションデータやアドレス帳のエントリが失われたか、正しくない可能性があります。</translation>
     </message>
     <message>
+        <source>Error reading %s! Transaction data may be missing or incorrect. Rescanning wallet.</source>
+        <translation>%s の読み込みエラー! トランザクションデータが欠落しているか、正しくない可能性があります。ウォレットを再スキャンします。</translation>
+    </message>
+    <message>
+        <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>エラー: ウォレット内のアドレス帳データが、移行されたウォレットのものであると識別できません</translation>
+    </message>
+    <message>
         <source>Error: Dumpfile format record is incorrect. Got "%s", expected "format".</source>
         <translation>エラー: ダンプファイルの形式記録が正しくありません。「%s」を取得しましたが、「format」が求められています。</translation>
     </message>
     <message>
         <source>Error: Dumpfile identifier record is incorrect. Got "%s", expected "%s".</source>
         <translation>エラー: ダンプファイルの識別記録が正しくありません。「%s」を取得しましたが、「%s」が適切です。</translation>
+    </message>
+    <message>
+        <source>Error: Duplicate descriptors created during migration. Your wallet may be corrupted.</source>
+        <translation>エラー: 移行中に重複したディスクリプタが作成されました。ウォレットが破損している可能性があります。</translation>
+    </message>
+    <message>
+        <source>Error: Failed to advance active descriptor past legacy chain counter during migration.</source>
+        <translation>エラー: 移行中に、アクティブなディスクリプタをレガシーチェーンカウンターより先に進めることができませんでした。</translation>
+    </message>
+    <message>
+        <source>Error: Transaction %s in wallet cannot be identified to belong to migrated wallets</source>
+        <translation>エラー: ウォレット内のトランザクション %s が、移行されたウォレットのものであると識別できません</translation>
+    </message>
+    <message>
+        <source>Error: Unable to produce descriptors for this legacy wallet. Make sure to provide the wallet's passphrase if it is encrypted.</source>
+        <translation>エラー: このレガシーウォレットのディスクリプタを生成できません。ウォレットが暗号化されている場合は、必ずパスフレーズを入力してください。</translation>
+    </message>
+    <message>
+        <source>Failed to remove the snapshot chainstate directory. Remove it manually before restarting.</source>
+        <translation>スナップショットのチェーンステートのディレクトリを削除できませんでした。再起動する前に手動で削除してください。</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>
@@ -6479,6 +10817,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>アウトバウンド接続はi2p(-onlynet=i2p)に制限されていますが、-i2psamが指定されていません</translation>
     </message>
     <message>
+        <source>Platform recipients cannot be combined with another special transaction payload</source>
+        <translation>プラットフォームの受取人は、別の特殊トランザクションのペイロードと併用できません</translation>
+    </message>
+    <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
         <translation>あなたのPCの日付と時刻が正しいことを確認して下さい！ もしあなたの時計が正しくなければ %s が正確に動作しません。</translation>
     </message>
@@ -6489,6 +10831,26 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
         <translation>Pruneモードは、-reindex-chainstateと互換性がありません。代わりに-reindexをフルで使用してください。</translation>
+    </message>
+    <message>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation>'%s' から '%s' への名前変更に失敗しました。無効なスナップショットのディレクトリ %s を手動で移動または削除して解決してください。そうしないと、次回の起動時に同じエラーが発生します。</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>自動Torオニオンサービスでは、ワイルドカードのオニオンバインドを使用できません。Torデーモンが受信接続を転送できないためです。-bind=127.0.0.1:&lt;port&gt;=onion のように特定のアドレスを使用するか、-listenonion=0 でこのサービスを無効にしてください。</translation>
+    </message>
+    <message>
+        <source>The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:&lt;port&gt;=onion, or disable the service with -listenonion=0.</source>
+        <translation>自動Torオニオンサービスには、専用のオニオンバインドが必要です。-bind=127.0.0.1:&lt;port&gt;=onion のように特定のアドレスを使用するか、-listenonion=0 でこのサービスを無効にしてください。</translation>
+    </message>
+    <message>
+        <source>The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs</source>
+        <translation>インプットのサイズが最大ウェイトを超えています。送金額を減らすか、ウォレットのUTXOを手動で統合してみてください</translation>
+    </message>
+    <message>
+        <source>The preselected coins total amount does not cover the transaction target. Please allow other inputs to be automatically selected or include more coins manually</source>
+        <translation>事前選択されたコインの合計額が、トランザクションの目標額に足りません。他のインプットを自動選択させるか、コインを手動で追加してください</translation>
     </message>
     <message>
         <source>This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection.</source>
@@ -6503,16 +10865,54 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>これは手数料の推定機能が利用できない場合に支払うトランザクション手数料です。</translation>
     </message>
     <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>ガバナンスの検証が有効な場合、トランザクションインデックスを無効にすることはできません。-disablegovernance コマンドラインスイッチを付けて起動するか、トランザクションインデックスを有効にしてください。</translation>
+    </message>
+    <message>
+        <source>Transaction is non-standard (%s) and would not relay; sending to Platform addresses currently requires a node started with -acceptnonstdtxn=1</source>
+        <translation>トランザクションは非標準 (%s) であり、リレーされません。プラットフォームアドレスへの送信には、現在 -acceptnonstdtxn=1 を付けて起動したノードが必要です</translation>
+    </message>
+    <message>
         <source>Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input</source>
         <translation>トランザクションには、非ゼロ値の宛先、非ゼロの手数料率、または事前選択された入力のいずれかが必要です</translation>
+    </message>
+    <message>
+        <source>UTXO snapshot failed to validate. Restart to resume normal initial block download, or try loading a different snapshot.</source>
+        <translation>UTXOスナップショットの検証に失敗しました。再起動して通常の初期ブロックダウンロードを再開するか、別のスナップショットの読み込みを試してください。</translation>
     </message>
     <message>
         <source>Unable to replay blocks. You will need to rebuild the database using -reindex-chainstate.</source>
         <translation>ブロックを再生できません。 -reindex-chainstateを使用してデータベースを再構築する必要があります。</translation>
     </message>
     <message>
+        <source>Unexpected legacy entry in descriptor wallet found. Loading wallet %s
+
+The wallet might have been tampered with or created with malicious intent.
+</source>
+        <translation>ディスクリプタウォレットに予期しないレガシーエントリが見つかりました。ウォレット %s を読み込み中
+
+ウォレットが改ざんされたか、悪意を持って作成された可能性があります。
+</translation>
+    </message>
+    <message>
         <source>Unknown wallet file format "%s" provided. Please provide one of "bdb" or "sqlite".</source>
         <translation>不明なウォレットファイルの形式「%s」が提供されました。「bdb」または「sqlite」のいずれかを提供してください。</translation>
+    </message>
+    <message>
+        <source>Unrecognized descriptor found. Loading wallet %s
+
+The wallet might had been created on a newer version.
+Please try running the latest software version.
+</source>
+        <translation>認識できないディスクリプタが見つかりました。ウォレット %s を読み込み中
+
+ウォレットがより新しいバージョンで作成された可能性があります。
+最新バージョンのソフトウェアを実行してみてください。
+</translation>
+    </message>
+    <message>
+        <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
+        <translation>カテゴリ別のログレベル %1$s=%2$s はサポートされていません。%1$s=&lt;category&gt;:&lt;loglevel&gt; の形式で指定してください。有効なカテゴリ: %3$s。有効なログレベル: %4$s。</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
@@ -6525,10 +10925,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Warning: Private keys detected in wallet {%s} with disabled private keys</source>
         <translation>警告：プライベートキーが、無効化されたものと一緒にウォレット{%s}で検出されました</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -timestampindex</source>
-        <translation>-timestampindexを有効にするには、-reindexを使用してデータベースを再構築する必要があります</translation>
     </message>
     <message>
         <source>%s -- Incorrect seed, it should be a hex string</source>
@@ -6569,6 +10965,10 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>A fatal internal error occurred, see debug.log for details</source>
         <translation>致命的な内部エラーが発生しました。詳細は、debug.logを参照してください。</translation>
+    </message>
+    <message>
+        <source>Block verification was interrupted</source>
+        <translation>ブロックの検証が中断されました</translation>
     </message>
     <message>
         <source>Cannot create socket (socket() returned error %s)</source>
@@ -6683,10 +11083,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>インポートしています…</translation>
     </message>
     <message>
-        <source>Incorrect -rescan mode, falling back to default value</source>
-        <translation>再スキャンモードが正しくないため、デフォルト値に戻ります</translation>
-    </message>
-    <message>
         <source>Initialization sanity check failed. %s is shutting down.</source>
         <translation>初期化時の健全性チェックに失敗しました。%s を終了します。</translation>
     </message>
@@ -6727,10 +11123,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>セッション未完了！</translation>
     </message>
     <message>
-        <source>Session timed out.</source>
-        <translation>セッションタイムアウト</translation>
-    </message>
-    <message>
         <source>Signing transaction failed</source>
         <translation>トランザクションの署名に失敗</translation>
     </message>
@@ -6759,10 +11151,6 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>Evo データベースのアップグレードに失敗しました</translation>
     </message>
     <message>
-        <source>Fee needed &gt; fee paid</source>
-        <translation>必要な手数料 &gt; 支払われた手数料</translation>
-    </message>
-    <message>
         <source>Host %s on unsupported network</source>
         <translation>ホスト %s はサポートされていないネットワーク上にあります</translation>
     </message>
@@ -6777,10 +11165,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>Invalid port specified in %s: '%s'</source>
         <translation>%s で指定されたポートが無効です：「%s」</translation>
-    </message>
-    <message>
-        <source>Last successful action was too recent.</source>
-        <translation>直近の成功したアクションが最新過ぎでした。</translation>
     </message>
     <message>
         <source>Missing solving data for estimating transaction size</source>
@@ -6847,6 +11231,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>接続中です…</translation>
     </message>
     <message>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
+        <translation>-maxsigcachesize 用のメモリを確保できません: '%s' MiB</translation>
+    </message>
+    <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
         <translation>このコンピュータの %s にバインドすることができません (バインドが返したエラーは %s)</translation>
     </message>
@@ -6875,6 +11263,10 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>スポークメッセージに署名できません、キーが間違ってませんか?</translation>
     </message>
     <message>
+        <source>Unable to unload the wallet before migrating</source>
+        <translation>移行前にウォレットをアンロードできません</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>-onlynet で指定された '%s' は未知のネットワークです</translation>
     </message>
@@ -6887,12 +11279,12 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation>サポートされていないURLスキームです、udp:// で始まる必要があります</translation>
     </message>
     <message>
-        <source>Unsupported logging category %s=%s.</source>
-        <translation>サポートされていないロギングカテゴリ %s=%s.</translation>
+        <source>Unsupported global logging level %s=%s. Valid values: %s.</source>
+        <translation>グローバルなログレベル %s=%s はサポートされていません。有効な値: %s。</translation>
     </message>
     <message>
-        <source>Very low number of keys left: %d</source>
-        <translation>非常に少ない数のキー: %d</translation>
+        <source>Unsupported logging category %s=%s.</source>
+        <translation>サポートされていないロギングカテゴリ %s=%s.</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -6917,14 +11309,6 @@ Go to File &gt; Open Wallet to load a wallet.
     <message>
         <source>You can not disable governance validation on a masternode.</source>
         <translation>マスターノードでガバナンスの検証を無効化することはできません。</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -addressindex</source>
-        <translation>-addressindexを有効にするには、-reindexを使用してデータベースを再構築する必要があります</translation>
-    </message>
-    <message>
-        <source>You need to rebuild the database using -reindex to enable -spentindex</source>
-        <translation>-spentindexを有効にするには、-reindexを使用してデータベースを再構築する必要があります</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>
