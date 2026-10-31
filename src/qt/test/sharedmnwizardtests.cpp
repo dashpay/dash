@@ -321,11 +321,19 @@ void SharedMnWizardTests::coordinatorResumesSavedSession()
 
     // Without the reservation the coordinator's own row is free again, but bob's
     // and carol's still belong to them
-    QVERIFY2(dialog.m_session.removeContribution(QStringLiteral("alice"), error), qPrintable(error));
-    dialog.refreshShareTable();
+    dialog.releaseCoins();
+    QVERIFY(dialog.myContribution() == nullptr);
     QVERIFY(dialog.m_me_group->button(0)->isEnabled());
     QVERIFY(!dialog.m_me_group->button(1)->isEnabled());
     QVERIFY(!dialog.m_me_group->button(2)->isEnabled());
+
+    // Once no share is this wallet's, no row may stay checked: the next sync
+    // of the table would read it back as the coordinator's share
+    dialog.m_my_share = -1;
+    dialog.refreshShareTable();
+    QVERIFY(dialog.m_me_group->checkedButton() == nullptr);
+    dialog.syncSharesFromTable();
+    QCOMPARE(dialog.myShareIndex(), -1);
 
     // The operator key everybody was invited to is kept: a fresh one from the
     // key widget would invalidate the terms the others are answering
