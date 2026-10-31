@@ -1721,7 +1721,7 @@ void SharedMnCreateDialog::refreshShareTable()
         }
         if (auto* me = qobject_cast<QRadioButton*>(m_me_group->button(row))) {
             me->setChecked(row == m_my_share);
-            me->setEnabled(editable && !reserved);
+            me->setEnabled(editable && !reserved && !shareTakenByOther(row));
         }
     }
     m_add_share_button->setEnabled(editable && shares.size() < CProRegTx::MAX_SHARES);

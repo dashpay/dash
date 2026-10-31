@@ -319,6 +319,14 @@ void SharedMnWizardTests::coordinatorResumesSavedSession()
     QVERIFY(!dialog.m_me_group->button(0)->isEnabled());
     QVERIFY(!dialog.m_me_group->button(1)->isEnabled());
 
+    // Without the reservation the coordinator's own row is free again, but bob's
+    // and carol's still belong to them
+    QVERIFY2(dialog.m_session.removeContribution(QStringLiteral("alice"), error), qPrintable(error));
+    dialog.refreshShareTable();
+    QVERIFY(dialog.m_me_group->button(0)->isEnabled());
+    QVERIFY(!dialog.m_me_group->button(1)->isEnabled());
+    QVERIFY(!dialog.m_me_group->button(2)->isEnabled());
+
     // The operator key everybody was invited to is kept: a fresh one from the
     // key widget would invalidate the terms the others are answering
     QVERIFY(dialog.m_operator_key_from_import);
