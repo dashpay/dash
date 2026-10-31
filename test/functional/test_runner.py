@@ -380,6 +380,8 @@ BASE_SCRIPTS = [
     'feature_shutdown.py',
     'p2p_ibd_txrelay.py',
     'rpc_coinjoin.py',
+    'wallet_coinjoin_rebalance.py --legacy-wallet',
+    'wallet_coinjoin_rebalance.py --descriptors',
     'rpc_masternode.py',
     'rpc_mnauth.py',
     'rpc_verifychainlock.py',
