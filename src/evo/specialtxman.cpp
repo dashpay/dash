@@ -157,8 +157,8 @@ static bool ApplyProUpServTx(CDeterministicMNState& state_mn, const CProUpServTx
 }
 
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                            const CChain& chain, const llmq::CQuorumManager& qman,
-                            const chainlock::Chainlocks& chainlocks, BlockValidationState& state)
+                            const CChain& chain, const llmq::CQuorumManager& qman, const chainlock::Chainlocks& chainlocks,
+                            bool enforce_branch_binding, BlockValidationState& state)
 {
     if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return true;
@@ -178,6 +178,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
 
     auto best_clsig = chainlocks.GetBestChainLock();
     if (best_clsig.getHeight() == pindex->nHeight - 1 && cbTx.bestCLHeightDiff == 0 &&
+        (!enforce_branch_binding || (pindex->pprev && best_clsig.getBlockHash() == pindex->pprev->GetBlockHash())) &&
         cbtx_sig == best_clsig.getSig()) {
         // matches our best clsig which still hold values for the previous block
         WITH_LOCK(cached_mutex, cached.emplace(pindex, cbtx_sig, cbTx.bestCLHeightDiff, /*verified_here=*/false));
@@ -212,8 +213,17 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
         }
         int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
-        if (best_clsig.getHeight() == curBlockCoinbaseCLHeight && best_clsig.getSig() == cbtx_sig) {
-            // matches our best (but outdated) clsig, no need to verify it again
+        const CBlockIndex* pAncestor = pindex->GetAncestor(curBlockCoinbaseCLHeight);
+        if (pAncestor == nullptr) {
+            // Defense-in-depth: the range check above keeps curBlockCoinbaseCLHeight in
+            // [0, pindex->nHeight - 1], so GetAncestor() should never return nullptr here.
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff-ancestor");
+        }
+        uint256 curBlockCoinbaseCLBlockHash = pAncestor->GetBlockHash();
+        if (best_clsig.getHeight() == curBlockCoinbaseCLHeight &&
+            (!enforce_branch_binding || best_clsig.getBlockHash() == curBlockCoinbaseCLBlockHash) &&
+            best_clsig.getSig() == cbtx_sig) {
+            // The cached signature authenticates this candidate's ancestor.
             WITH_LOCK(cached_mutex, cached.emplace(pindex, cbtx_sig, cbTx.bestCLHeightDiff, /*verified_here=*/false));
             return true;
         }
@@ -225,13 +235,6 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
             WITH_LOCK(cached_mutex, cached.emplace(pindex, cbtx_sig, cbTx.bestCLHeightDiff, /*verified_here=*/true));
             return true;
         }
-        const CBlockIndex* pAncestor = pindex->GetAncestor(curBlockCoinbaseCLHeight);
-        if (pAncestor == nullptr) {
-            // Defense-in-depth: the range check above keeps curBlockCoinbaseCLHeight in
-            // [0, pindex->nHeight - 1], so GetAncestor() should never return nullptr here.
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff-ancestor");
-        }
-        uint256 curBlockCoinbaseCLBlockHash = pAncestor->GetBlockHash();
         chainlock::ChainLockSig clsig{curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbtx_sig};
         llmq::VerifyRecSigStatus ret = chainlock::VerifyChainLock(consensus_params, chain, qman, clsig);
         if (ret != llmq::VerifyRecSigStatus::Valid) {
@@ -1068,7 +1071,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             LogPrint(BCLog::BENCHMARK, "      - CalcCbTxMerkleRootQuorums: %.2fms [%.2fs]\n",
                      0.001 * (nTime6_2 - nTime6_1), nTimeMerkleQuorums * 0.000001);
 
-            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, chain, m_qman, m_chainlocks, state)) {
+            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, chain, m_qman, m_chainlocks,
+                                        rules.chainlock_branch_binding, state)) {
                 // pass the state returned by the function above
                 return false;
             }
