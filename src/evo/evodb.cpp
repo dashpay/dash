@@ -463,7 +463,7 @@ std::string DescribePhase(const EvoGenerationRecord& record, std::optional<EvoPr
 bool CEvoDB::CreateSnapshotGeneration(const uint256& base, int base_height)
 {
     LOCK(cs);
-    if (m_snapshot_generation) return false;
+    if (m_snapshot_generation || m_revoked_generation) return false;
     uint32_t generation{1};
     db->Read(EVODB_GENERATION_NEXT, generation);
     // Generation 0 names the NORMAL keyspace; never wrap into it.
@@ -507,6 +507,7 @@ util::Result<void> CEvoDB::LoadSnapshotGenerations(const uint256& config_fingerp
     LOCK(cs);
     if (!Assume(TransactionsClean())) return util::Error{_("Evo database transactions are pending at startup.")};
     BindSnapshotGeneration(std::nullopt);
+    m_revoked_generation = false;
     std::vector<EvoGenerationRecord> records;
     {
         std::unique_ptr<CDBIterator> it{db->NewIterator()};
@@ -665,18 +666,32 @@ bool CEvoDB::AbandonSnapshotGeneration()
     AssertLockHeld(::cs_main);
     LOCK(cs);
     if (!Assume(!active_transaction.has_value())) return false;
+    ClearSnapshotTransactions();
+    return DiscardBoundGeneration();
+}
+
+void CEvoDB::RevokeSnapshotGeneration()
+{
+    AssertLockHeld(::cs_main);
+    LOCK(cs);
+    if (m_snapshot_generation) m_revoked_generation = true;
+    ClearSnapshotTransactions();
+    BindSnapshotGeneration(std::nullopt);
+}
+
+void CEvoDB::ClearSnapshotTransactions()
+{
     if (auto it{transaction_contexts.find(EvoDbIdentity::SNAPSHOT)}; it != transaction_contexts.end()) {
         it->second->cur_transaction.Clear();
         it->second->root_transaction.Clear();
         it->second->root_batch.Clear();
     }
-    return DiscardBoundGeneration();
 }
 
 bool CEvoDB::DiscardSnapshotMarkers()
 {
     LOCK(cs);
-    if (!Assume(TransactionsClean())) return false;
+    if (!Assume(TransactionsClean()) || m_rejection_failpoint) return false;
     return DiscardBoundGeneration();
 }
 

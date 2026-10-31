@@ -582,7 +582,7 @@ public:
 
     /** Start a new, unpublished snapshot generation for a snapshot whose base
      *  block is `base`, and bind the SNAPSHOT identity to it. Fails if a
-     *  generation is already live. */
+     *  generation is already live, a revoked one included. */
     bool CreateSnapshotGeneration(const uint256& base, int base_height) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /** Publish the bound generation together with the dual-chainstate markers
@@ -617,6 +617,12 @@ public:
      *  one synced batch, preserving NORMAL. The REJECTED record remains until
      *  CollectRejectedGenerations(), after the coins directory is invalidated. */
     bool DiscardSnapshotMarkers() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    /** Stop using the bound generation for the rest of this run when its
+     *  rejection could not be saved: views bound to it are retired, as a saved
+     *  rejection retires them, and what it has not written is dropped. Its
+     *  records stay on disk for startup recovery to reject; until then no new
+     *  generation can be created. */
+    void RevokeSnapshotGeneration() EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs);
     //! Whether a rejected generation still awaits its coins invalidation, or
     //! the generation records cannot be read.
     bool HasRejectedGeneration() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
@@ -635,6 +641,13 @@ public:
     {
         LOCK(cs);
         m_promotion_failpoint = failpoint;
+    }
+    //! Make DiscardSnapshotMarkers fail without writing, as if the rejection
+    //! could not be persisted.
+    void SetRejectionFailpointForTesting(bool fail) EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        m_rejection_failpoint = fail;
     }
     //! Records merged per batch, so tests can stop a merge part-way.
     void SetMergeBatchSizeForTesting(size_t size) EXCLUSIVE_LOCKS_REQUIRED(!cs)
@@ -671,6 +684,8 @@ private:
     }
 
     void BindSnapshotGeneration(std::optional<EvoGenerationRecord> record) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    //! Drop what the SNAPSHOT transaction trees hold, without writing it.
+    void ClearSnapshotTransactions() EXCLUSIVE_LOCKS_REQUIRED(cs);
     void UpdateLiveGeneration() EXCLUSIVE_LOCKS_REQUIRED(cs);
     //! Whether no transaction is open and every transaction tree is committed.
     bool TransactionsClean() const EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -687,6 +702,9 @@ private:
     //! The live generation the SNAPSHOT identity reads and writes.
     std::optional<EvoGenerationRecord> m_snapshot_generation GUARDED_BY(cs);
     PromotionFailpoint m_promotion_failpoint GUARDED_BY(cs){PromotionFailpoint::NONE};
+    bool m_rejection_failpoint GUARDED_BY(cs){false};
+    //! A revoked generation is still live on disk.
+    bool m_revoked_generation GUARDED_BY(cs){false};
     MNListEquivalence m_mn_list_equivalence GUARDED_BY(cs);
     size_t m_merge_batch_size GUARDED_BY(cs){10000};
 };

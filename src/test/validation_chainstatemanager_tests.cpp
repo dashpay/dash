@@ -2669,6 +2669,74 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
     BOOST_CHECK(!m_node.evodb->ReadBestBlock(EvoDbIdentity::SNAPSHOT, obsolete_marker));
 }
 
+//! A rejection that cannot be persisted leaves the generation on disk for
+//! startup recovery, but the rest of the run no longer reads it, not even a
+//! turn that bound it before the rejection.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_unsaved_rejection_stops_reading_the_snapshot, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    CEvoDB& evodb{*m_node.evodb};
+    const auto snapshot_only_key{std::make_pair(std::string{"test_snapshot_only"}, uint256::ONE)};
+    {
+        LOCK(::cs_main);
+        auto tx = evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        evodb.Write(snapshot_only_key, uint8_t{1});
+        tx->Commit();
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    }
+    BOOST_REQUIRE(evodb.ActiveView().identity == EvoDbIdentity::SNAPSHOT);
+
+    {
+        // A DKG phase thread binds the active view for its round, which then
+        // waits at its start for background validation to complete.
+        TestDKGHandler dkg{m_node, chainman, m_args.GetDataDirNet()};
+        std::optional<EvoDbIdentity> round_view;
+        std::optional<bool> round_read;
+        std::promise<void> bound;
+        auto round = std::async(std::launch::async, [&] {
+            return RunActiveEvoRound(&evodb, "test dkg round", [&] {
+                round_view = Assert(EvoViewScope::InnermostAny())->identity;
+                bound.set_value();
+                dkg.handler.WaitForNextPhase(std::nullopt, llmq::QuorumPhase::Idle);
+                uint8_t value;
+                round_read = evodb.Read(snapshot_only_key, value);
+            });
+        });
+        bound.get_future().wait();
+
+        evodb.SetRejectionFailpointForTesting(true);
+        BOOST_REQUIRE(chainman.HandleSnapshotStateMismatch("test rejection", [](bilingual_str) {}));
+        evodb.SetRejectionFailpointForTesting(false);
+
+        // The round resumes once the snapshot is out of use, and its binding
+        // no longer resolves.
+        const bool resumed{round.wait_for(10s) == std::future_status::ready};
+        if (!resumed) dkg.handler.RequestStop(); // so a failure doesn't hang in the future's destructor
+        BOOST_REQUIRE(resumed);
+        BOOST_CHECK(!round.get());
+        BOOST_CHECK(round_view == EvoDbIdentity::SNAPSHOT);
+        BOOST_CHECK(!round_read);
+    }
+
+    BOOST_CHECK(evodb.ActiveView().identity == EvoDbIdentity::NORMAL);
+    {
+        const ActiveEvoViewScope turn{&evodb};
+        uint8_t value;
+        BOOST_CHECK(!evodb.Read(snapshot_only_key, value));
+    }
+
+    // Until startup recovery rejects the generation still on disk, no other
+    // can be created.
+    BOOST_CHECK(evodb.HasDualChainstateMarker());
+    BOOST_CHECK(!evodb.CreateSnapshotGeneration(uint256::ONE, 1));
+    this->SimulateNodeRestart();
+    this->LoadVerifyActivateChainstate();
+    BOOST_CHECK(!m_node.evodb->GetSnapshotGeneration());
+    BOOST_CHECK(!m_node.evodb->HasDualChainstateMarker());
+    BOOST_CHECK(fs::exists(m_args.GetDataDirNet() / "chainstate_snapshot_INVALID"));
+}
+
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_first_rename, SnapshotTestSetup)
 {
     this->SetupSnapshot();
