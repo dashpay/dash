@@ -113,6 +113,13 @@ _Note: we ship releases for only some supported HOSTs so consider providing limi
 
 - [Verifying build output attestations](/contrib/guix/README.md#verifying-build-output-attestations)
 
+CI also Guix-builds each release tag and publishes its `noncodesigned.SHA256SUMS` as the `guix-sigs-v${VERSION}` artifact of the `Guix Build` run, with a Sigstore attestation. Verify it, then compare it with the guix.sigs attestations or check binaries against it:
+
+```sh
+gh attestation verify noncodesigned.SHA256SUMS --repo dashpay/dash \
+    --signer-workflow dashpay/dash/.github/workflows/guix-build.yml --source-ref "refs/tags/v${VERSION}"
+```
+
 ### Commit your non codesigned signature to guix.sigs
 
 ```sh
