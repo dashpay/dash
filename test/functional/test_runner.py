@@ -704,9 +704,11 @@ def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enab
         print(f"{BOLD[1]}WARNING!{BOLD[0]} There may be insufficient free space in {tmpdir} to run the Dash functional test suite. "
               f"Running the test suite with fewer than {min_space // (1024 * 1024)} MB of free space might cause tests to fail.")
 
+    # Upstream reads the tests out of the build directory, which relies on the
+    # build system linking or copying them there. CMake does that (see
+    # test/CMakeLists.txt), but Autotools does not, so keep using the source
+    # directory while both build systems are supported.
     tests_dir = src_dir + '/test/functional/'
-    # This allows `test_runner.py` to work from an out-of-source build directory using a symlink,
-    # a hard link or a copy on any platform. See https://github.com/bitcoin/bitcoin/pull/27561.
     sys.path.append(tests_dir)
 
     if not skipunit:

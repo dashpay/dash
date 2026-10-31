@@ -235,6 +235,7 @@ jobs:
     if: |
       vars.SKIP_LINUX64 == '' ||
       vars.SKIP_LINUX64_ASAN == '' ||
+      vars.SKIP_LINUX64_CMAKE == '' ||
       vars.SKIP_LINUX64_FUZZ == '' ||
       vars.SKIP_LINUX64_SQLITE == ''
     with:
@@ -348,6 +349,20 @@ jobs:
       depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
     secrets: *remote-ccache-auth
+
+  src-linux64_cmake:
+    name: linux64_cmake-build
+    uses: ./.github/workflows/build-src-cmake.yml
+    needs: [check-skip, container, depends-linux64]
+    if: ${{ vars.SKIP_LINUX64_CMAKE == '' }}
+    with:
+      build-target: linux64_cmake
+      container-path: ${{ needs.container.outputs.path }}
+      depends-key: ${{ needs.depends-linux64.outputs.key }}
+      depends-host: ${{ needs.depends-linux64.outputs.host }}
+      depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
+      depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
+      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
 
   src-linux64_fuzz:
     name: linux64_fuzz-build
@@ -527,7 +542,7 @@ jobs:
     name: Prune old ccache generations
     # Each develop push saves a new ccache/ctcache entry per target; keep only
     # the newest so the 10 GB repository cache stops evicting fresh ones.
-    needs: [src-aarch64-linux, src-linux64, src-linux64_asan, src-linux64_fuzz, src-linux64_multiprocess, src-linux64_nowallet, src-linux64_sqlite, src-linux64_tsan, src-mac, src-win64]
+    needs: [src-aarch64-linux, src-linux64, src-linux64_asan, src-linux64_cmake, src-linux64_fuzz, src-linux64_multiprocess, src-linux64_nowallet, src-linux64_sqlite, src-linux64_tsan, src-mac, src-win64]
     if: |
       !cancelled() &&
       github.event_name == 'push' &&
