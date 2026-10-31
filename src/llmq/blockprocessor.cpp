@@ -695,9 +695,9 @@ static bool ScanNeedsMissingHistory(const ChainstateManager& chainman, const Evo
     const auto& consensus{chainman.GetConsensus()};
     if (!LacksQuorumHistory(view, consensus) || pindex->nHeight < consensus.DIP0003Height) return false;
     const CBlockIndex* last_missing{pindex->GetAncestor(std::min(pindex->nHeight, view.base_height))};
+    if (chainman.IsQuorumTypeEnabled(llmqType, last_missing->pprev)) return true;
     const CBlockIndex* first_minable{pindex->GetAncestor(consensus.DIP0003Height)};
-    return chainman.IsQuorumTypeEnabled(llmqType, last_missing->pprev) ||
-           chainman.IsQuorumTypeEnabled(llmqType, first_minable->pprev);
+    return chainman.IsQuorumTypeEnabled(llmqType, first_minable->pprev);
 }
 
 //! A short scan that needs the missing history has an unknown result, not a
