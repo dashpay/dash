@@ -29,6 +29,7 @@
 #include <hash.h>
 #include <primitives/block.h>
 #include <util/system.h>
+#include <util/time.h>
 
 CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager& dmnman,
                                          llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
@@ -910,14 +911,14 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
     AssertLockHeld(::cs_main);
 
     try {
-        static int64_t nTimeLoop = 0;
-        static int64_t nTimeQuorum = 0;
-        static int64_t nTimeDMN = 0;
-        static int64_t nTimeMnehf = 0;
-        static int64_t nTimePayload = 0;
-        static int64_t nTimeCreditPool = 0;
+        static SteadyClock::duration nTimeLoop{};
+        static SteadyClock::duration nTimeQuorum{};
+        static SteadyClock::duration nTimeDMN{};
+        static SteadyClock::duration nTimeMnehf{};
+        static SteadyClock::duration nTimePayload{};
+        static SteadyClock::duration nTimeCreditPool{};
 
-        int64_t nTime1 = GetTimeMicros();
+        const auto nTime1{SteadyClock::now()};
 
         std::optional<CCbTx> opt_cbTx{std::nullopt};
         if (fCheckCbTxMerkleRoots && block.vtx.size() > 0 && block.vtx[0]->nType == TRANSACTION_COINBASE) {
@@ -945,10 +946,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
         }
 
-        int64_t nTime2 = GetTimeMicros();
+        const auto nTime2{SteadyClock::now()};
         nTimePayload += nTime2 - nTime1;
-        LogPrint(BCLog::BENCHMARK, "      - GetTxPayload: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1),
-                 nTimePayload * 0.000001);
+        LogPrint(BCLog::BENCHMARK, "      - GetTxPayload: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime2 - nTime1),
+                 Ticks<SecondsDouble>(nTimePayload));
 
         CRangesSet indexes;
         if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) {
@@ -982,9 +983,9 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
         }
 
-        int64_t nTime3 = GetTimeMicros();
+        const auto nTime3{SteadyClock::now()};
         nTimeLoop += nTime3 - nTime2;
-        LogPrint(BCLog::BENCHMARK, "      - Loop: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeLoop * 0.000001);
+        LogPrint(BCLog::BENCHMARK, "      - Loop: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime3 - nTime2), Ticks<SecondsDouble>(nTimeLoop));
 
         if (opt_cbTx.has_value()) {
             if (!CheckCreditPoolDiffForBlock(block, pindex, *opt_cbTx, blockSubsidy, state)) {
@@ -994,20 +995,20 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
         }
 
-        int64_t nTime4 = GetTimeMicros();
+        const auto nTime4{SteadyClock::now()};
         nTimeCreditPool += nTime4 - nTime3;
-        LogPrint(BCLog::BENCHMARK, "      - CheckCreditPoolDiffForBlock: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3),
-                 nTimeCreditPool * 0.000001);
+        LogPrint(BCLog::BENCHMARK, "      - CheckCreditPoolDiffForBlock: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime4 - nTime3),
+                 Ticks<SecondsDouble>(nTimeCreditPool));
 
         if (!m_qblockman.ProcessBlock(chainstate, block, pindex, state, fJustCheck, fCheckCbTxMerkleRoots)) {
             // pass the state returned by the function above
             return false;
         }
 
-        int64_t nTime5 = GetTimeMicros();
+        const auto nTime5{SteadyClock::now()};
         nTimeQuorum += nTime5 - nTime4;
-        LogPrint(BCLog::BENCHMARK, "      - m_qblockman.ProcessBlock: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4),
-                 nTimeQuorum * 0.000001);
+        LogPrint(BCLog::BENCHMARK, "      - m_qblockman.ProcessBlock: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime5 - nTime4),
+                 Ticks<SecondsDouble>(nTimeQuorum));
 
         CDeterministicMNList mn_list;
         if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0003)) {
@@ -1027,15 +1028,15 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
         }
 
-        int64_t nTime6 = GetTimeMicros();
+        const auto nTime6{SteadyClock::now()};
         nTimeDMN += nTime6 - nTime5;
-        LogPrint(BCLog::BENCHMARK, "      - m_dmnman.ProcessBlock: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5),
-                 nTimeDMN * 0.000001);
+        LogPrint(BCLog::BENCHMARK, "      - m_dmnman.ProcessBlock: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime6 - nTime5),
+                 Ticks<SecondsDouble>(nTimeDMN));
 
         if (opt_cbTx.has_value()) {
-            static int64_t nTimeMerkleMNL = 0;
-            static int64_t nTimeMerkleQuorums = 0;
-            static int64_t nTimeCbTxCL = 0;
+            static SteadyClock::duration nTimeMerkleMNL{};
+            static SteadyClock::duration nTimeMerkleQuorums{};
+            static SteadyClock::duration nTimeCbTxCL{};
 
             uint256 calculatedMerkleRootMNL;
             if (!CalcCbTxMerkleRootMNList(calculatedMerkleRootMNL, mn_list.to_sml(), state)) {
@@ -1046,10 +1047,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-mnmerkleroot");
             }
 
-            int64_t nTime6_1 = GetTimeMicros();
+            const auto nTime6_1{SteadyClock::now()};
             nTimeMerkleMNL += nTime6_1 - nTime6;
             LogPrint(BCLog::BENCHMARK, "      - CalcCbTxMerkleRootMNList: %.2fms [%.2fs]\n",
-                     0.001 * (nTime6_1 - nTime6), nTimeMerkleMNL * 0.000001);
+                     Ticks<MillisecondsDouble>(nTime6_1 - nTime6), Ticks<SecondsDouble>(nTimeMerkleMNL));
 
             if (opt_cbTx->nVersion >= CCbTx::Version::MERKLE_ROOT_QUORUMS) {
                 uint256 calculatedMerkleRootQuorums;
@@ -1062,34 +1063,34 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
                 }
             }
 
-            int64_t nTime6_2 = GetTimeMicros();
+            const auto nTime6_2{SteadyClock::now()};
             nTimeMerkleQuorums += nTime6_2 - nTime6_1;
 
             LogPrint(BCLog::BENCHMARK, "      - CalcCbTxMerkleRootQuorums: %.2fms [%.2fs]\n",
-                     0.001 * (nTime6_2 - nTime6_1), nTimeMerkleQuorums * 0.000001);
+                     Ticks<MillisecondsDouble>(nTime6_2 - nTime6_1), Ticks<SecondsDouble>(nTimeMerkleQuorums));
 
             if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, chain, m_qman, m_chainlocks, state)) {
                 // pass the state returned by the function above
                 return false;
             }
 
-            int64_t nTime6_3 = GetTimeMicros();
+            const auto nTime6_3{SteadyClock::now()};
             nTimeCbTxCL += nTime6_3 - nTime6_2;
             LogPrint(BCLog::BENCHMARK, "      - CheckCbTxBestChainlock: %.2fms [%.2fs]\n",
-                     0.001 * (nTime6_3 - nTime6_2), nTimeCbTxCL * 0.000001);
+                     Ticks<MillisecondsDouble>(nTime6_3 - nTime6_2), Ticks<SecondsDouble>(nTimeCbTxCL));
         }
 
-        int64_t nTime7 = GetTimeMicros();
+        const auto nTime7{SteadyClock::now()};
 
         if (!m_mnhfman->ProcessBlock(block, pindex, fJustCheck, state)) {
             // pass the state returned by the function above
             return false;
         }
 
-        int64_t nTime8 = GetTimeMicros();
+        const auto nTime8{SteadyClock::now()};
         nTimeMnehf += nTime8 - nTime7;
-        LogPrint(BCLog::BENCHMARK, "      - m_mnhfman->ProcessBlock: %.2fms [%.2fs]\n", 0.001 * (nTime8 - nTime7),
-                 nTimeMnehf * 0.000001);
+        LogPrint(BCLog::BENCHMARK, "      - m_mnhfman->ProcessBlock: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime8 - nTime7),
+                 Ticks<SecondsDouble>(nTimeMnehf));
 
         if (DeploymentActiveAfter(pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && bls::bls_legacy_scheme.load()) {
             // NOTE: The block next to the activation is the one that is using new rules.

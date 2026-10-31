@@ -49,6 +49,7 @@
 #include <net_processing.h>
 #include <netbase.h>
 #include <netgroup.h>
+#include <node/blockmanager_args.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
 #include <node/chainstate.h>
@@ -179,9 +180,7 @@ using node::ShouldPersistMempool;
 using node::NodeContext;
 using node::ThreadImport;
 using node::VerifyLoadedChainstate;
-using node::fPruneMode;
 using node::fReindex;
-using node::nPruneTarget;
 #ifdef ENABLE_WALLET
 using wallet::DEFAULT_DISABLE_WALLET;
 #endif // ENABLE_WALLET
@@ -1220,7 +1219,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         InitWarning(warnings);
     }
 
-    if (!fs::is_directory(gArgs.GetBlocksDirPath())) {
+    if (!fs::is_directory(args.GetBlocksDirPath())) {
         return InitError(strprintf(_("Specified blocks directory \"%s\" does not exist."), args.GetArg("-blocksdir", "")));
     }
 
@@ -1324,29 +1323,6 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     result = init::SetLoggingLevel(args);
     if (!result) return InitError(util::ErrorString(result));
 
-    // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
-    int64_t nPruneArg = args.GetIntArg("-prune", 0);
-    if (nPruneArg < 0) {
-        return InitError(_("Prune cannot be configured with a negative value."));
-    }
-    nPruneTarget = (uint64_t) nPruneArg * 1024 * 1024;
-    if (nPruneArg == 1) {  // manual pruning: -prune=1
-        nPruneTarget = std::numeric_limits<uint64_t>::max();
-        fPruneMode = true;
-    } else if (nPruneTarget) {
-        if (args.GetBoolArg("-regtest", false)) {
-            // we use 1MB blocks to test this on regtest
-            if (nPruneTarget < 550 * 1024 * 1024) {
-                return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), 550));
-            }
-        } else {
-            if (nPruneTarget < MIN_DISK_SPACE_FOR_BLOCK_FILES) {
-                return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
-            }
-        }
-        fPruneMode = true;
-    }
-
     nConnectTimeout = args.GetIntArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
     if (nConnectTimeout <= 0) {
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
@@ -1443,6 +1419,12 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             .datadir = args.GetDataDirNet(),
         };
         if (const auto error{ApplyArgsManOptions(args, chainman_opts_dummy)}) {
+            return InitError(*error);
+        }
+        node::BlockManager::Options blockman_opts_dummy{
+            .chainparams = chainparams,
+        };
+        if (const auto error{ApplyArgsManOptions(args, blockman_opts_dummy)}) {
             return InitError(*error);
         }
     }
@@ -1646,7 +1628,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         if (args.IsArgSet("-asmap")) {
             fs::path asmap_path = args.GetPathArg("-asmap", DEFAULT_ASMAP_FILENAME);
             if (!asmap_path.is_absolute()) {
-                asmap_path = gArgs.GetDataDirNet() / asmap_path;
+                asmap_path = args.GetDataDirNet() / asmap_path;
             }
             if (!fs::exists(asmap_path)) {
                 InitError(strprintf(_("Could not find asmap file %s"), fs::quoted(fs::PathToString(asmap_path))));
@@ -1693,7 +1675,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     assert(!node.banman);
-    node.banman = std::make_unique<BanMan>(gArgs.GetDataDirNet() / "banlist", &uiInterface, args.GetIntArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
+    node.banman = std::make_unique<BanMan>(args.GetDataDirNet() / "banlist", &uiInterface, args.GetIntArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
     assert(!node.connman);
     node.connman = std::make_unique<CConnman>(GetRand<uint64_t>(),
                                               GetRand<uint64_t>(),
@@ -1962,7 +1944,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // ********************************************************* Step 7a: Load sporks
 
     if (!node.sporkman->LoadCache()) {
-        auto file_path = fs::PathToString(gArgs.GetDataDirNet() / "sporks.dat");
+        auto file_path = fs::PathToString(args.GetDataDirNet() / "sporks.dat");
         return InitError(strprintf(_("Failed to load sporks cache from %s"), file_path));
     }
 
@@ -1979,6 +1961,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
     DBOptions dash_db_options;
     node::ReadDatabaseArgs(args, dash_db_options);
+
+    node::BlockManager::Options blockman_opts{
+        .chainparams = chainparams,
+    };
+    Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
     // cache size calculations
     CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
@@ -2049,7 +2036,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             return {node::ChainstateLoadStatus::SUCCESS, {}};
         });
 
-        node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
+        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;
 
         node::ChainstateLoadOptions options;
@@ -2268,7 +2255,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     bool fLoadCacheFiles = !(fReindex || fReindexChainState) && WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip() != nullptr);
 
     if (!node.netfulfilledman->LoadCache(fLoadCacheFiles)) {
-        auto file_path = fs::PathToString(gArgs.GetDataDirNet() / "netfulfilled.dat");
+        auto file_path = fs::PathToString(args.GetDataDirNet() / "netfulfilled.dat");
         if (fLoadCacheFiles) {
             return InitError(strprintf(_("Failed to load fulfilled requests cache from %s"), file_path));
         }
@@ -2276,7 +2263,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     if (!node.mn_metaman->LoadCache(fLoadCacheFiles)) {
-        auto file_path = fs::PathToString(gArgs.GetDataDirNet() / "mncache.dat");
+        auto file_path = fs::PathToString(args.GetDataDirNet() / "mncache.dat");
         if (fLoadCacheFiles) {
             return InitError(strprintf(_("Failed to load masternode cache from %s"), file_path));
         }
@@ -2285,7 +2272,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     if (is_governance_enabled) {
         if (!node.govman->LoadCache(fLoadCacheFiles)) {
-            auto file_path = fs::PathToString(gArgs.GetDataDirNet() / "governance.dat");
+            auto file_path = fs::PathToString(args.GetDataDirNet() / "governance.dat");
             if (fLoadCacheFiles) {
                 return InitError(strprintf(_("Failed to load governance cache from %s"), file_path));
             }
@@ -2413,12 +2400,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 11: import blocks
 
-    if (!CheckDiskSpace(gArgs.GetDataDirNet())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), fs::quoted(fs::PathToString(gArgs.GetDataDirNet()))));
+    if (!CheckDiskSpace(args.GetDataDirNet())) {
+        InitError(strprintf(_("Error: Disk space is low for %s"), fs::quoted(fs::PathToString(args.GetDataDirNet()))));
         return false;
     }
-    if (!CheckDiskSpace(gArgs.GetBlocksDirPath())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), fs::quoted(fs::PathToString(gArgs.GetBlocksDirPath()))));
+    if (!CheckDiskSpace(args.GetBlocksDirPath())) {
+        InitError(strprintf(_("Error: Disk space is low for %s"), fs::quoted(fs::PathToString(args.GetBlocksDirPath()))));
         return false;
     }
 

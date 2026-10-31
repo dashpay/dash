@@ -358,6 +358,7 @@ BITCOIN_CORE_H = \
   netfulfilledman.h \
   netgroup.h \
   netmessagemaker.h \
+  node/blockmanager_args.h \
   node/blockstorage.h \
   node/caches.h \
   node/chainstate.h \
@@ -448,6 +449,7 @@ BITCOIN_CORE_H = \
   util/edge.h \
   util/epochguard.h \
   util/error.h \
+  util/exception.h \
   util/fastrange.h \
   util/fees.h \
   util/fs.h \
@@ -640,6 +642,7 @@ libbitcoin_node_a_SOURCES = \
   net_processing.cpp \
   netfulfilledman.cpp \
   netgroup.cpp \
+  node/blockmanager_args.cpp \
   node/blockstorage.cpp \
   node/caches.cpp \
   node/chainstate.cpp \
@@ -1069,6 +1072,7 @@ libbitcoin_util_a_SOURCES = \
   util/check.cpp \
   util/edge.cpp \
   util/error.cpp \
+  util/exception.cpp \
   util/fees.cpp \
   util/fs.cpp \
   util/fs_helpers.cpp \
@@ -1381,6 +1385,7 @@ libdashkernel_la_SOURCES = \
   uint256.cpp \
   util/bytevectorhash.cpp \
   util/check.cpp \
+  util/exception.cpp \
   util/fs.cpp \
   util/fs_helpers.cpp \
   util/getuniquepath.cpp \

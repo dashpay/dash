@@ -12,6 +12,7 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/system.h>
+#include <util/time.h>
 #include <walletinitinterface.h>
 
 #include <algorithm>
@@ -77,20 +78,20 @@ class RpcHttpRequest
 {
 public:
     HTTPRequest* m_req;
-    int64_t m_startTime;
+    SteadyClock::time_point m_startTime;
     int m_status{0};
     std::string user;
     std::string command;
 
     RpcHttpRequest(HTTPRequest* req) :
         m_req{req},
-        m_startTime{GetTimeMicros()}
+        m_startTime{SteadyClock::now()}
     {}
 
     ~RpcHttpRequest()
     {
         const bool is_external = find(g_external_usernames.begin(), g_external_usernames.end(), user) != g_external_usernames.end();
-        LogPrint(BCLog::BENCHMARK, "HTTP RPC request handled: user=%s command=%s external=%s status=%d elapsed_time_ms=%d\n", user, command, is_external, m_status, (GetTimeMicros() - m_startTime) / 1000);
+        LogPrint(BCLog::BENCHMARK, "HTTP RPC request handled: user=%s command=%s external=%s status=%d elapsed_time_ms=%d\n", user, command, is_external, m_status, Ticks<std::chrono::milliseconds>(SteadyClock::now() - m_startTime));
     }
 
     bool send_reply(int status, const std::string& response = "")

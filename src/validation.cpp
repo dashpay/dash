@@ -1758,6 +1758,10 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
 
         for (const COutPoint& hashTx : coins_to_uncache)
             active_chainstate.CoinsTip().Uncache(hashTx);
+        TRACE2(mempool, rejected,
+                tx->GetHash().data(),
+                result.m_state.GetRejectReason().c_str()
+        );
     }
     // After we've (potentially) uncached entries, ensure our coins cache is still within its size limits
     BlockValidationState state_dummy;
@@ -3473,7 +3477,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
-    int64_t nTime1 = GetTimeMicros();
+    const auto nTime1{SteadyClock::now()};
 
     CBlockIndex *pindexDelete = m_chain.Tip();
     assert(pindexDelete);
@@ -3548,13 +3552,13 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         GetMainSignals().BlockDisconnected(pblock, pindexDelete);
     }
 
-    int64_t nTime2 = GetTimeMicros();
+    const auto nTime2{SteadyClock::now()};
 
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx) {
         nSigOps += GetLegacySigOpCount(*tx);
     }
-    ::g_stats_client->timing("DisconnectTip_ms", (nTime2 - nTime1) / 1000, 1.0f);
+    ::g_stats_client->timing("DisconnectTip_ms", Ticks<std::chrono::milliseconds>(nTime2 - nTime1), 1.0f);
     ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(block, PROTOCOL_VERSION), 1.0f);
     ::g_stats_client->gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
     ::g_stats_client->gauge("blocks.tip.Version", block.nVersion, 1.0f);
@@ -7003,9 +7007,9 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     return std::move(opts);
 }
 
-ChainstateManager::ChainstateManager(Options options)
+ChainstateManager::ChainstateManager(Options options, node::BlockManager::Options blockman_options)
     : m_options{Flatten(std::move(options))},
-      m_blockman{{m_options.chainparams}} {}
+      m_blockman{std::move(blockman_options)} {}
 
 ChainstateManager::~ChainstateManager()
 {

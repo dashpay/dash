@@ -18,6 +18,7 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <node/blockstorage.h>
+#include <util/time.h>
 
 using node::ReadBlockFromDisk;
 
@@ -82,11 +83,11 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                                const llmq::CQuorumBlockProcessor& quorum_block_processor, uint256& merkleRootRet,
                                BlockValidationState& state)
 {
-    static int64_t nTimeMined = 0;
-    static int64_t nTimeLoop = 0;
-    static int64_t nTimeMerkle = 0;
+    static SteadyClock::duration nTimeMined{};
+    static SteadyClock::duration nTimeLoop{};
+    static SteadyClock::duration nTimeMerkle{};
 
-    int64_t nTime1 = GetTimeMicros();
+    const auto nTime1{SteadyClock::now()};
 
     auto retVal = quorum_block_processor.GetQcHashes(pindexPrev);
     if (!retVal) {
@@ -95,8 +96,8 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     // The returned quorums are in reversed order, so the most recent one is at index 0
     auto [qcHashes, qcIndexedHashes] = retVal.value();
 
-    int64_t nTime2 = GetTimeMicros(); nTimeMined += nTime2 - nTime1;
-    LogPrint(BCLog::BENCHMARK, "            - GetQcHashes: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeMined * 0.000001);
+    const auto nTime2{SteadyClock::now()}; nTimeMined += nTime2 - nTime1;
+    LogPrint(BCLog::BENCHMARK, "            - GetQcHashes: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime2 - nTime1), Ticks<SecondsDouble>(nTimeMined));
 
     // now add the commitments from the current block, which are not returned by GetMinedAndActiveCommitmentsUntilBlock
     // due to the use of pindexPrev (we don't have the tip index here)
@@ -155,14 +156,14 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     }
     std::sort(vec_hashes_final.begin(), vec_hashes_final.end());
 
-    int64_t nTime3 = GetTimeMicros(); nTimeLoop += nTime3 - nTime2;
-    LogPrint(BCLog::BENCHMARK, "            - Loop: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeLoop * 0.000001);
+    const auto nTime3{SteadyClock::now()}; nTimeLoop += nTime3 - nTime2;
+    LogPrint(BCLog::BENCHMARK, "            - Loop: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime3 - nTime2), Ticks<SecondsDouble>(nTimeLoop));
 
     bool mutated = false;
     merkleRootRet = ComputeMerkleRoot(vec_hashes_final, &mutated);
 
-    int64_t nTime4 = GetTimeMicros(); nTimeMerkle += nTime4 - nTime3;
-    LogPrint(BCLog::BENCHMARK, "            - ComputeMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeMerkle * 0.000001);
+    const auto nTime4{SteadyClock::now()}; nTimeMerkle += nTime4 - nTime3;
+    LogPrint(BCLog::BENCHMARK, "            - ComputeMerkleRoot: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime4 - nTime3), Ticks<SecondsDouble>(nTimeMerkle));
 
     if (mutated) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "mutated-calc-cbtx-quorummerkleroot");

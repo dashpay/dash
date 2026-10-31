@@ -277,7 +277,7 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
         .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
         .mn_sync = m_node.mn_sync.get(),
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts);
+    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, node::BlockManager::Options{.chainparams = chainparams});
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",
         .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),

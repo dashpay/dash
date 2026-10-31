@@ -13,6 +13,7 @@
 #include <clientversion.h>
 #include <core_io.h>
 #include <streams.h>
+#include <util/exception.h>
 #include <util/system.h>
 #include <util/translation.h>
 

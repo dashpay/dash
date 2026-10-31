@@ -23,6 +23,7 @@
 #include <protocol.h>
 #include <script/script.h>
 #include <script/standard.h>
+#include <util/exception.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/system.h>
