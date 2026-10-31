@@ -149,15 +149,19 @@ ProviderTxError UnavailableProviderTxError()
     return {.code = interfaces::ProviderTxErrorCode::INTERNAL_ERROR, .message = EvoStateUnavailableMessage()};
 }
 
-//! Set the misc warning, and log `e` once per operation and active Evo view.
+//! Set the misc warning and log `e`, once per operation and active Evo view:
+//! GUI models poll these operations, and each warning notifies the GUI.
 void ReportEvoStateUnavailable(const CEvoDB* evodb, std::string_view operation, const evo::LocalStateError& e)
 {
-    WarnLocalEvoStateUnavailable(strprintf("%s could not read it", operation));
-    uiInterface.NotifyAlertChanged();
     static Mutex mutex;
-    static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> logged;
+    static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> reported;
     const EvoViewToken view{evodb ? evodb->ActiveView() : EvoViewToken{}};
-    if (WITH_LOCK(mutex, return logged.emplace(operation, view.db, view.identity, view.generation).second)) {
+    if (WITH_LOCK(mutex, return reported.emplace(operation, view.db, view.identity, view.generation).second)) {
+        // Without a snapshot, only pruning removes the block data Evo state is
+        // derived from.
+        const bool pruned{evodb && !evodb->HasLiveGeneration() && dynamic_cast<const BlockDataUnavailableError*>(&e)};
+        WarnLocalEvoStateUnavailable(strprintf("%s could not read it", operation), pruned);
+        uiInterface.NotifyAlertChanged();
         LogPrintf("ERROR: %s: Evo state unavailable: %s\n", operation, e.what());
     }
 }

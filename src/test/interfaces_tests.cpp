@@ -156,23 +156,41 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
     CEvoDB& evodb{*Assert(m_node.evodb)};
     const CBlockIndex* tip{WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain().Tip())};
     NotifyMNListTip(*Assert(m_node.dmnman), tip);
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    const auto list_unavailable{
+        [](const CBlockIndex*) { throw BlockDataUnavailableError("masternode list unavailable"); }};
+
+    // Without a snapshot, the list can be missing only because block data was
+    // pruned, and the warning says so.
+    {
+        const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(list_unavailable);
+        BOOST_CHECK(!node->evo().getListAtChainTip().first);
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(nullptr);
+        consensus.DIP0003Height = dip3_height;
+        BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Block data was pruned; restart with -reindex") !=
+                    std::string::npos);
+        SetMiscWarning(Untranslated(""));
+    }
+
     BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
     BOOST_REQUIRE(
         evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
 
     // With DIP3 counted from genesis the tip's masternode list must be read
     // from EvoDB, and that read fails as unavailable.
-    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
     const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
-    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting([](const CBlockIndex*) {
-        throw BlockDataUnavailableError("masternode list unavailable");
-    });
+    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(list_unavailable);
     interfaces::GOV::GovernanceInfo info;
     BOOST_CHECK_NO_THROW(info = node->gov().getGovernanceInfo());
     BOOST_CHECK(!info.fundingthreshold.has_value());
     BOOST_CHECK_EQUAL(info.superblockcycle, Params().GetConsensus().nSuperblockCycle);
     BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
     BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") != std::string::npos);
+    // Polling the same operation again does not raise the warning again.
+    SetMiscWarning(Untranslated(""));
+    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") == std::string::npos);
 
     std::optional<std::vector<COutPoint>> collaterals{std::vector<COutPoint>{}};
     BOOST_CHECK_NO_THROW(collaterals = m_node.chain->listMNCollaterials({}));
