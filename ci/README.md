@@ -60,3 +60,49 @@ CPUs and 16 GiB of memory or more, roughly 40 GiB of free disk, and access to
 GitHub's cache service and the remote ccache (`CCACHE_REMOTE_URL`). These runs
 execute pull request code with access to that Docker daemon, so give each job
 a fresh, single-use machine.
+
+### Runner variables
+
+Every workflow job picks its runner label from a repository or organization
+variable, so a fork can move CI to other runners without editing workflows.
+Unset variables keep the defaults below. Most of these workflows run pull
+request code, and only the self-hosted rungs below apply an author allowlist,
+so a self-hosted label named by any other variable must be an isolated,
+single-use machine.
+
+| Variable | Workflow | Default |
+|---|---|---|
+| `RUNNER_DEFAULT_AMD64` | `build.yml` amd64 jobs | `ubuntu-24.04` |
+| `RUNNER_DEFAULT_ARM64` | `build.yml` arm64 jobs and ccache pruning | `ubuntu-24.04-arm` |
+| `RUNNER_AMD64`, `RUNNER_ARM64` | `build.yml` runs moved off the default runners by the backlog or the `blacksmith-ci` label | the defaults above |
+| `RUNNER_CHECK_SKIP` | `build.yml` `Check skip conditions`, the depends `Check cache` jobs and the existing-container checks | `ubuntu-24.04-arm` |
+| `RUNNER_CACHE_DEPENDS_SOURCES` | scheduled `cache-depends-sources.yml` | `ubuntu-24.04-arm` |
+| `RUNNER_GUIX_BUILD` | `guix-build.yml` | `ubuntu-24.04-arm` |
+| `RUNNER_CLANG_DIFF_FORMAT` | `clang-diff-format.yml` | `ubuntu-latest` |
+| `RUNNER_PREVENT_MASTER_PR` | `prevent-master-pr.yml` | `ubuntu-latest` |
+| `RUNNER_LABEL_MERGE_CONFLICTS` | `label-merge-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_MERGE_CHECK` | `merge-check.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_PREDICT_CONFLICTS` | `predict-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_SEMANTIC_PULL_REQUEST` | `semantic-pull-request.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_DOCKER_RELEASE` | `release_docker_hub.yml` | `ubuntu-22.04` |
+
+`RUNNER_DEFAULT_AMD64` and `RUNNER_AMD64` must name x86_64 runners, and
+`RUNNER_DEFAULT_ARM64` and `RUNNER_ARM64` aarch64 runners, because the
+container images and depends cache keys are per architecture.
+`RUNNER_GUIX_BUILD` must resolve to runners of a single architecture, because
+its build jobs run the image its image job builds.
+
+The depends `Check cache` jobs run on `RUNNER_CHECK_SKIP`, and a cache hit
+there skips the depends build. Blacksmith runners use their own cache rather
+than GitHub's, so `RUNNER_CHECK_SKIP` and the runners that build depends must
+use the same one: with Blacksmith default runners, set `RUNNER_CHECK_SKIP` to
+a Blacksmith label and leave `RUNNER_SELFHOSTED_FAST` unset.
+
+The backlog that moves runs to `RUNNER_AMD64`/`RUNNER_ARM64` counts queued
+jobs in the dashpay repositories listed in `select_dynamic_runner.py`, and
+treats every label that is not `self-hosted`, a self-hosted rung or a
+`blacksmith-` label as GitHub-hosted. A fork that sets the default runners
+does not need to set `RUNNER_AMD64`/`RUNNER_ARM64`.
+
+The self-hosted rungs (`RUNNER_SELFHOSTED`, `RUNNER_SELFHOSTED_ARM64`,
+`RUNNER_SELFHOSTED_FAST`) are described above and in `build.yml`.

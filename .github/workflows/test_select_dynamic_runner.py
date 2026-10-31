@@ -262,6 +262,47 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         self.assertEqual(outputs["runner_arm64"], "blacksmith-arm64")
         self.assertIn("amd64-github-fallback", outputs["decision_reason"])
 
+    def test_default_runner_vars_replace_hosted_defaults(self):
+        def fetch_json(_url):
+            raise RuntimeError("boom")
+
+        outputs = MODULE.select_runners(
+            event_name="push",
+            event={},
+            threshold=10,
+            arm64_threshold=30,
+            runner_amd64_var="",
+            runner_arm64_var="",
+            fetch_json=fetch_json,
+            repos=[REPO],
+            runner_default_amd64_var="default-amd64",
+            runner_default_arm64_var="default-arm64",
+        )
+
+        self.assertEqual(outputs["use_blacksmith"], "false")
+        self.assertEqual(outputs["runner_amd64"], "default-amd64")
+        self.assertEqual(outputs["runner_arm64"], "default-arm64")
+        self.assertEqual(outputs["runner_prelint"], "default-amd64")
+        self.assertEqual(outputs["runner_prelint_arm64"], "default-arm64")
+        self.assertEqual(outputs["runner_fast"], "default-amd64")
+
+    def test_escalation_overrides_default_runner_vars(self):
+        outputs = MODULE.select_runners(
+            event_name="push",
+            event={},
+            threshold=10,
+            arm64_threshold=30,
+            runner_amd64_var="blacksmith-amd64",
+            runner_arm64_var="blacksmith-arm64",
+            fetch_json=lambda url: backlog_responses(11)[url],
+            repos=[REPO],
+            runner_default_amd64_var="default-amd64",
+            runner_default_arm64_var="default-arm64",
+        )
+
+        self.assertEqual(outputs["runner_amd64"], "blacksmith-amd64")
+        self.assertEqual(outputs["runner_arm64"], "default-arm64")
+
     # --- pre-lint runner selection (self-hosted rung) -----------------------
 
     def _select(self, **overrides):
