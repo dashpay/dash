@@ -20,6 +20,8 @@ from test_framework.util import (
     rpc_port,
 )
 
+WILDCARD_ONION_ERROR = "Error: The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0."
+
 
 class BindExtraTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -72,20 +74,23 @@ class BindExtraTest(BitcoinTestFramework):
         self.extra_args = list(map(lambda e: e[0], self.expected))
         self.setup_nodes()
 
+    def check_binds(self, i, expected_services):
+        pid = self.nodes[i].process.pid
+        binds = set(get_bind_addrs(pid))
+        # Remove IPv6 addresses because on some CI environments "::1" is not configured
+        # on the system (so our test_ipv6_local() would return False), but it is
+        # possible to bind on "::". This makes it unpredictable whether to expect
+        # that bitcoind has bound on "::1" (for RPC) and "::" (for P2P).
+        ipv6_addr_len_bytes = 32
+        binds = set(filter(lambda e: len(e[0]) != ipv6_addr_len_bytes, binds))
+        # Remove RPC ports. They are not relevant for this test.
+        binds = set(filter(lambda e: e[1] != rpc_port(i), binds))
+        assert_equal(binds, set(expected_services))
+
     def run_test(self):
         for i, (args, expected_services) in enumerate(self.expected):
             self.log.info(f"Checking listening ports of node {i} with {args}")
-            pid = self.nodes[i].process.pid
-            binds = set(get_bind_addrs(pid))
-            # Remove IPv6 addresses because on some CI environments "::1" is not configured
-            # on the system (so our test_ipv6_local() would return False), but it is
-            # possible to bind on "::". This makes it unpredictable whether to expect
-            # that bitcoind has bound on "::1" (for RPC) and "::" (for P2P).
-            ipv6_addr_len_bytes = 32
-            binds = set(filter(lambda e: len(e[0]) != ipv6_addr_len_bytes, binds))
-            # Remove RPC ports. They are not relevant for this test.
-            binds = set(filter(lambda e: e[1] != rpc_port(i), binds))
-            assert_equal(binds, set(expected_services))
+            self.check_binds(i, expected_services)
 
         self.log.info("Test -listenonion with a normal bind and no dedicated onion bind")
         self.stop_node(2)
@@ -94,6 +99,15 @@ class BindExtraTest(BitcoinTestFramework):
             "Error: The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0.",
         )
 
+        self.log.info("Test -bind without an onion bind starts with the default -listenonion")
+        self.nodes[2].replace_in_config([("listenonion=0\n", "")])
+        self.start_node(2, extra_args=self.extra_args[2] + ["-torcontrol=127.0.0.1:1"])
+        self.check_binds(2, self.expected[2][1])
+        self.stop_node(2)
+
+        self.log.info("Test wildcard onion bind with the default -listenonion")
+        self.nodes[2].assert_start_raises_init_error([f"-bind=0.0.0.0:{p2p_port(2)}=onion"], WILDCARD_ONION_ERROR)
+
         self.log.info("Test -bind with dedicated onion bind starts when -listenonion=1")
         self.restart_node(1, extra_args=self.extra_args[1] + ["-listenonion=1", "-torcontrol=127.0.0.1:1"])
 
@@ -101,8 +115,12 @@ class BindExtraTest(BitcoinTestFramework):
         self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(
             [f"-bind=0.0.0.0:{p2p_port(0)}=onion", "-listenonion=1", "-torcontrol=127.0.0.1:1"],
-            "Error: The automatic Tor onion service cannot use a wildcard onion bind because the Tor daemon wouldn't be able to forward incoming connections to us. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0.",
+            WILDCARD_ONION_ERROR,
         )
+
+        self.log.info("Test wildcard onion bind with -listenonion=0")
+        self.start_node(0, extra_args=[f"-bind=0.0.0.0:{p2p_port(0)}=onion", "-listenonion=0"])
+        self.stop_node(0)
 
 if __name__ == '__main__':
     BindExtraTest().main()
