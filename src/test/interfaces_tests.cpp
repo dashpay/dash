@@ -716,6 +716,86 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorum)
     check("commitment record missing", type, block_60, tip, UNAVAILABLE);
 }
 
+// In a snapshot view, a quorum missing from the commitments mined above the
+// base may still have been mined at or below it. An unmined hash is invalid
+// only once the eligible window lies above the base, and only under an
+// anchoring ChainLock; a quorum mined below the height never is. A node with
+// no Evo state to read cannot tell at all.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_snapshot_view)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    constexpr auto FOUND{PlatformQuorumStatus::FOUND};
+    constexpr auto INVALID{PlatformQuorumStatus::INVALID};
+    constexpr auto UNAVAILABLE{PlatformQuorumStatus::UNAVAILABLE};
+    // With DIP3 active at the base, quorums can have been mined at or below it.
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Dip3HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~Dip3HeightRestore() { params.DIP0003Height = height; }
+    } dip3_restore{consensus, std::exchange(consensus.DIP0003Height, 1)};
+
+    // The quorum based at 40 was mined below the snapshot base at 50, where
+    // only NORMAL holds it; the snapshot view holds the ones based at 60, 70,
+    // 80 and 90, each mined one block later.
+    std::map<int, uint256> hashes;
+    const auto write_commitment{[&](int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        const CChain& active{m_node.chainman->ActiveChain()};
+        const auto qc{llmq::testutils::CreateValidCommitment(params, active[base]->GetBlockHash())};
+        llmq::testutils::WriteMinedCommitment(evodb, qc, active[base + 1]->GetBlockHash(),
+                                              /*mined_height=*/base + 1, /*quorum_height=*/base);
+        hashes.emplace(base, qc.quorumHash);
+    }};
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction()};
+        write_commitment(40);
+        db_tx->Commit();
+        const CBlockIndex* base{m_node.chainman->ActiveChain()[50]};
+        BOOST_REQUIRE(evodb.CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+    }
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+    evodb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        for (const int base : {60, 70, 80, 90}) write_commitment(base);
+        db_tx->Commit();
+    }
+    const uint256 unknown{InsecureRand256()};
+
+    CheckPlatformQuorum(llmq, "window above the base", type, hashes.at(90), 100, FOUND);
+    CheckPlatformQuorum(llmq, "absent, no ChainLock", type, unknown, 100, UNAVAILABLE);
+
+    RecordChainLock(*m_node.chainlocks, 100, WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
+    CheckPlatformQuorum(llmq, "absent, window above the base", type, unknown, 100, INVALID);
+    // A window reaching the base cannot be read in full, so not even a quorum
+    // in it is answered.
+    CheckPlatformQuorum(llmq, "window reaching the base", type, hashes.at(70), 75, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "absent, window reaching the base", type, unknown, 75, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "mined below the base", type, hashes.at(40), 55, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "mined below the base, out of the window", type, hashes.at(40), 100, UNAVAILABLE);
+    // A caller bound to a view other than the active chain's gets no answer
+    // about the active chain.
+    {
+        const EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CheckPlatformQuorum(llmq, "bound to another view", type, hashes.at(90), 100, UNAVAILABLE);
+    }
+
+    {
+        auto evodb_owner{std::move(m_node.evodb)};
+        CheckPlatformQuorum(llmq, "no Evo database", type, hashes.at(90), 100, UNAVAILABLE);
+        m_node.evodb = std::move(evodb_owner);
+    }
+    m_node.chainlocks->ResetChainlock();
+}
+
 // getInstantSendLock returns the network-serialized islock for a locked txid, and an empty vector
 // both for unknown txids and while InstantSend is disabled (spork gate inside the manager).
 BOOST_AUTO_TEST_CASE(getInstantSendLock)

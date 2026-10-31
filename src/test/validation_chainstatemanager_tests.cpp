@@ -2523,6 +2523,24 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
         BOOST_REQUIRE(pre_dip3);
         BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(platform_type, pre_dip3, 1).empty());
         BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(rotating_type, pre_dip3, 0, 0));
+
+        // Neither can a type that was not enabled up to the base, so its short
+        // scan is complete too.
+        const auto unenabled_type{Consensus::LLMQType::LLMQ_TEST_V17};
+        BOOST_REQUIRE(!chainman.IsQuorumTypeEnabled(unenabled_type, snapshot_tip));
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(unenabled_type, snapshot_tip, 1).empty());
+        BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(unenabled_type, snapshot_tip, 0, 0));
+
+        // A type retired before the base but enabled at the first block DIP3
+        // lets mine may have history there, even with DIP3 from genesis.
+        const auto retired_type{Consensus::LLMQType::LLMQ_TEST_INSTANTSEND};
+        BOOST_REQUIRE(!chainman.IsQuorumTypeEnabled(retired_type, snapshot_tip));
+        BOOST_REQUIRE(chainman.IsQuorumTypeEnabled(retired_type, snapshot_tip->GetAncestor(0)));
+        BOOST_CHECK_THROW(qblockman.GetMinedCommitmentsUntilBlock(retired_type, snapshot_tip, 1),
+                          BlockDataUnavailableError);
+        consensus.DIP0003Height = 0;
+        BOOST_CHECK_THROW(qblockman.GetMinedCommitmentsUntilBlock(retired_type, snapshot_tip, 1),
+                          BlockDataUnavailableError);
     }
     SetMiscWarning(Untranslated(""));
 }
