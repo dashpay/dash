@@ -5,6 +5,8 @@
 #include <chainparams.h>
 #include <consensus/consensus.h>
 #include <evo/assetlocktx.h>
+#include <evo/evodb.h>
+#include <evo/snapshot_config.h>
 #include <evo/specialtx.h>
 #include <hash.h>
 #include <instantsend/instantsend.h>
@@ -26,7 +28,9 @@
 #include <util/strencodings.h>
 #include <validation.h>
 
+#include <limits>
 #include <string_view>
+#include <utility>
 
 #include <boost/test/unit_test.hpp>
 
@@ -176,6 +180,46 @@ BOOST_FIXTURE_TEST_CASE(missing_quorum_does_not_drop_batch, NetInstantSendTest)
     BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[1].islock_hash}));
     BOOST_CHECK(!sigman.HasRecoveredSig(params.type, locks[1].islock->GetRequestId(), locks[1].islock->txid));
     BOOST_CHECK(sigman.FetchPendingReconstructed().empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(unavailable_quorum_history_skips_only_its_lock, NetInstantSendTest)
+{
+    // Under a snapshot view, quorums mined at or below the base are in history
+    // this node does not have. The quorum at 24 is mined within 34..42.
+    CEvoDB& evodb{*m_node.evodb};
+    const CBlockIndex* base{WITH_LOCK(cs_main, return m_node.chainman->ActiveChain()[48])};
+    BOOST_REQUIRE(evodb.CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct HeightRestore {
+        int& height;
+        const int saved;
+        ~HeightRestore() { height = saved; }
+    };
+    const HeightRestore dip3_restore{consensus.DIP0003Height, std::exchange(consensus.DIP0003Height, 1)};
+    // Without DIP0024 quorums the non-rotating InstantSend type stays enabled,
+    // so a quorum of it may have been mined below the base.
+    const HeightRestore dip0024_quorums_restore{
+        consensus.DIP0024QuorumsHeight,
+        std::exchange(consensus.DIP0024QuorumsHeight, std::numeric_limits<int>::max())};
+
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto below_base = MakeLock(base->GetAncestor(24)->GetBlockHash(), key);
+    // A cycle above the base without a mined quorum, so its absence is known.
+    const auto no_quorum = MakeLock(WITH_LOCK(cs_main, return m_node.chainman->ActiveChain()[60]->GetBlockHash()), key);
+    const std::vector<instantsend::PendingISLockEntry> locks{{{1, below_base}, ::SerializeHash(*below_base)},
+                                                             {{2, no_quorum}, ::SerializeHash(*no_quorum)}};
+
+    EvoViewScope snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    Uint256HashSet failed;
+    BOOST_CHECK_NO_THROW(failed = ProcessBatch(net, params, /*offset=*/0, locks));
+    // The lock that cannot be verified is not reported as failed, which would
+    // blame its peer; the rest of the batch is still checked.
+    BOOST_CHECK(!failed.contains(locks[0].islock_hash));
+    BOOST_CHECK(failed.contains(locks[1].islock_hash));
+    BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[0].islock_hash}));
 }
 
 BOOST_FIXTURE_TEST_CASE(cached_recovered_sig_does_not_authenticate_other_lock, NetInstantSendTest)
