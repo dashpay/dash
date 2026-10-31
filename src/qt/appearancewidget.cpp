@@ -88,6 +88,7 @@ AppearanceWidget::AppearanceWidget(QWidget* parent) :
     prevWeightBoldArg{GUIUtil::currentWeightArg(GUIUtil::FontWeight::Bold)}
 {
     ui->setupUi(this);
+    ui->fontScaleSlider->setRange(GUIUtil::FONT_SCALE_MIN, GUIUtil::FONT_SCALE_MAX);
 
     for (const QString& entry : GUIUtil::listThemes()) {
         ui->theme->addItem(entry, QVariant(entry));
