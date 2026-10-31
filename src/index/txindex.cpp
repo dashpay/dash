@@ -8,9 +8,12 @@
 #include <node/blockstorage.h>
 #include <util/fs_helpers.h>
 #include <util/system.h>
+#include <util/zstd.h>
 #include <validation.h>
 
 using node::OpenBlockFile;
+using node::OpenRecordPayload;
+using node::RecordHeaderPos;
 
 constexpr uint8_t DB_TXINDEX{'t'};
 
@@ -80,19 +83,17 @@ bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CTransactionRe
         return false;
     }
 
-    AutoFile file{OpenBlockFile(postx, true)};
+    AutoFile file{OpenBlockFile(RecordHeaderPos(postx), true)};
     if (file.IsNull()) {
         LogError("%s: OpenBlockFile failed\n", __func__);
         return false;
     }
     CBlockHeader header;
     try {
-        file >> header;
-        if (FileSeek64(file.Get(), postx.nTxOffset, SEEK_CUR)) {
-            LogError("%s: fseek(...) failed\n", __func__);
-            return false;
-        }
-        file >> tx;
+        util::ZstdFileReader block_in{OpenRecordPayload(file)};
+        block_in >> header;
+        block_in.ignore(postx.nTxOffset);
+        block_in >> tx;
     } catch (const std::exception& e) {
         LogError("%s: Deserialize or I/O error - %s\n", __func__, e.what());
         return false;

@@ -10,6 +10,7 @@
 #include <txdb.h>
 #include <uint256.h>
 #include <util/time.h>
+#include <util/zstd.h>
 
 #include <cstdint>
 #include <functional>
@@ -50,6 +51,8 @@ struct ChainstateManagerOpts {
     DBOptions block_tree_db{};
     DBOptions coins_db{};
     CoinsViewOptions coins_view{};
+    //! zstd compression level for newly written block and undo records, 0 to store them uncompressed
+    int block_compression{util::DefaultZstdLevel()};
 };
 
 } // namespace kernel

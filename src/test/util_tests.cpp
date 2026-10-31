@@ -5,6 +5,7 @@
 #include <clientversion.h>
 #include <hash.h> // For Hash()
 #include <key.h>  // For CKey
+#include <streams.h>
 #include <sync.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
@@ -22,11 +23,13 @@
 #include <util/string.h>
 #include <util/time.h>
 #include <util/vector.h>
+#include <util/zstd.h>
 
 #include <array>
 #include <cmath>
 #include <fstream>
 #include <deque>
+#include <ios>
 #include <optional>
 #include <limits>
 #include <map>
@@ -1978,6 +1981,114 @@ BOOST_AUTO_TEST_CASE(padding_test)
 
     /* An empty string should be padded if non-zero length specified */
     BOOST_CHECK_EQUAL(PadString("", 1), " ");
+}
+
+BOOST_AUTO_TEST_CASE(util_zstd_roundtrip)
+{
+    std::vector<std::byte> data(10000);
+    for (size_t i{0}; i < data.size(); ++i) data[i] = std::byte(i % 7);
+    if (!util::ZstdAvailable()) {
+        BOOST_CHECK(util::ZstdCompress(data, 3).empty());
+        BOOST_CHECK(!util::ZstdDecompress(data, data.size()));
+        BOOST_CHECK_EQUAL(util::ZstdMaxLevel(), 0);
+        return;
+    }
+
+    const auto compressed{util::ZstdCompress(data, 3)};
+    BOOST_CHECK(!compressed.empty());
+    BOOST_CHECK(compressed.size() < data.size());
+
+    const auto restored{util::ZstdDecompress(compressed, data.size())};
+    BOOST_REQUIRE(restored);
+    BOOST_CHECK(*restored == data);
+
+    const auto empty{util::ZstdCompress({}, 3)};
+    BOOST_CHECK(!empty.empty());
+    const auto restored_empty{util::ZstdDecompress(empty, 0)};
+    BOOST_REQUIRE(restored_empty);
+    BOOST_CHECK(restored_empty->empty());
+
+    // content size above the caller's bound, truncated frame, garbage
+    BOOST_CHECK(!util::ZstdDecompress(compressed, data.size() - 1));
+    BOOST_CHECK(!util::ZstdDecompress(Span{compressed}.first(compressed.size() / 2), data.size()));
+    BOOST_CHECK(!util::ZstdDecompress(data, data.size()));
+
+    // a frame whose header does not record the content size: 128 KiB window, one raw last block
+    DataStream unsized;
+    unsized << uint32_t{0xFD2FB528} << uint8_t{0x00} << uint8_t{(17 - 10) << 3};
+    const uint32_t block_header{1 | (static_cast<uint32_t>(data.size()) << 3)};
+    unsized << uint8_t(block_header) << uint8_t(block_header >> 8) << uint8_t(block_header >> 16);
+    unsized.write(data);
+    const auto restored_unsized{util::ZstdDecompress(MakeByteSpan(unsized), data.size())};
+    BOOST_REQUIRE(restored_unsized);
+    BOOST_CHECK(*restored_unsized == data);
+    BOOST_CHECK(!util::ZstdDecompress(MakeByteSpan(unsized), data.size() - 1));
+    BOOST_CHECK(!util::ZstdDecompress(MakeByteSpan(unsized).first(unsized.size() - 1), data.size()));
+    // only the first frame is decompressed, like ZstdFileReader does
+    unsized << uint32_t{0xdeadbeef};
+    BOOST_CHECK(util::ZstdDecompress(MakeByteSpan(unsized), data.size()) == data);
+
+    BOOST_CHECK(util::ZstdMaxLevel() >= 19);
+
+    // streaming reader over a file holding the frame followed by other data
+    const fs::path path{m_args.GetDataDirBase() / "zstd_frame.dat"};
+    {
+        AutoFile file{fsbridge::fopen(path, "wb")};
+        file.write(compressed);
+        file << uint32_t{0xdeadbeef};
+    }
+    {
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true};
+        std::vector<std::byte> streamed(data.size());
+        for (size_t pos{0}; pos < streamed.size(); pos += 1000) reader.read(Span{streamed}.subspan(pos, 1000));
+        BOOST_CHECK(streamed == data);
+        BOOST_CHECK_THROW(reader.read(Span{streamed}.first(1)), std::ios_base::failure);
+        uint32_t trailer;
+        file >> trailer;
+        BOOST_CHECK_EQUAL(trailer, 0xdeadbeef);
+    }
+    {
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true};
+        std::vector<std::byte> tail(data.size() - 1234);
+        reader.ignore(1234);
+        reader.read(tail);
+        BOOST_CHECK(std::ranges::equal(tail, Span{data}.subspan(1234)));
+    }
+    {
+        // a frame that decompresses to more than the caller allows
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true, /*max_out=*/data.size() - 1};
+        std::vector<std::byte> streamed(data.size());
+        BOOST_CHECK_THROW(reader.read(streamed), std::ios_base::failure);
+    }
+    {
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true, /*max_out=*/data.size()};
+        std::vector<std::byte> streamed(data.size());
+        reader.read(streamed);
+        BOOST_CHECK(streamed == data);
+    }
+    {
+        // the frame cut short by the recorded size
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size() / 2, /*compressed=*/true};
+        std::vector<std::byte> streamed(data.size());
+        BOOST_CHECK_THROW(reader.read(streamed), std::ios_base::failure);
+    }
+    {
+        // a plain record is passed through
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size() + sizeof(uint32_t), /*compressed=*/false};
+        reader.ignore(compressed.size());
+        uint32_t trailer;
+        reader >> trailer;
+        BOOST_CHECK_EQUAL(trailer, 0xdeadbeef);
+        // neither reads nor skips may leave the record
+        BOOST_CHECK_THROW(reader >> trailer, std::ios_base::failure);
+        BOOST_CHECK_THROW(reader.ignore(1), std::ios_base::failure);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

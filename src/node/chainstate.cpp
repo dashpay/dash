@@ -22,6 +22,7 @@
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/translation.h>
+#include <util/zstd.h>
 #include <validation.h>
 
 #include <bls/bls.h>
@@ -190,6 +191,11 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
     // in the past, but is now trying to run unpruned.
     if (chainman.m_blockman.m_have_pruned && !options.prune) {
         return {ChainstateLoadStatus::FAILURE, _("You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain")};
+    }
+
+    // Before anything reads block data, e.g. ReplayBlocks after an unclean shutdown
+    if (chainman.m_blockman.m_have_compressed_records && !util::ZstdAvailable()) {
+        return {ChainstateLoadStatus::FAILURE_INCOMPATIBLE_DB, _("The block files contain zstd-compressed records, but this build has no zstd support. Use a build with zstd support, or restart with -reindex to re-download the blocks.")};
     }
 
     // At this point blocktree args are consistent with what's on disk.

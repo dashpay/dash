@@ -149,6 +149,12 @@ AC_ARG_WITH([bdb],
   [use_bdb=$withval],
   [use_bdb=auto])
 
+AC_ARG_WITH([zstd],
+  [AS_HELP_STRING([--without-zstd],
+  [disable zstd compression of block and undo files (default is enabled if libzstd is found)])],
+  [use_zstd=$withval],
+  [use_zstd=auto])
+
 AC_ARG_ENABLE([usdt],
   [AS_HELP_STRING([--enable-usdt],
   [enable tracepoints for Userspace, Statically Defined Tracing (default is yes if sys/sdt.h is found)])],
@@ -1695,7 +1701,23 @@ AC_CHECK_LIB([gmp],  [__gmpz_init],GMP_LIBS=-lgmp, AC_MSG_ERROR(libgmp missing))
 CPPFLAGS="$TEMP_CPPFLAGS"
 LDFLAGS="$TEMP_LDFLAGS"
 
+dnl zstd check
+if test "$use_zstd" != "no"; then
+  PKG_CHECK_MODULES([ZSTD], [libzstd >= 1.4.0],
+    [AC_DEFINE([ENABLE_ZSTD], [1], [Define this symbol to enable zstd compression])
+     use_zstd=yes],
+    [if test "$use_zstd" = "yes"; then
+       AC_MSG_ERROR([libzstd version 1.4.0 or greater not found.])
+     fi
+     AC_MSG_WARN([libzstd version 1.4.0 or greater not found, disabling zstd compression])
+     use_zstd=no])
+fi
+if test "$use_zstd" = "yes" && test "$suppress_external_warnings" != "no"; then
+  ZSTD_CFLAGS=SUPPRESS_WARNINGS($ZSTD_CFLAGS)
+fi
+
 AM_CONDITIONAL([ENABLE_ZMQ], [test "$use_zmq" = "yes"])
+AM_CONDITIONAL([ENABLE_ZSTD], [test "$use_zstd" = "yes"])
 
 dnl libmultiprocess library check
 
@@ -2104,6 +2126,7 @@ if test $bitcoin_enable_qt != "no"; then
     echo "    with qr       = $use_qr"
 fi
 echo "  with zmq        = $use_zmq"
+echo "  with zstd       = $use_zstd"
 if test $enable_fuzz = "no"; then
     echo "  with test       = $use_tests"
 else

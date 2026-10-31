@@ -5,6 +5,8 @@
 #ifndef BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 #define BITCOIN_KERNEL_BLOCKMANAGER_OPTS_H
 
+#include <util/zstd.h>
+
 class CChainParams;
 
 namespace kernel {
@@ -15,6 +17,8 @@ namespace kernel {
  */
 struct BlockManagerOpts {
     const CChainParams& chainparams;
+    //! zstd compression level for newly written block and undo records, 0 to store them uncompressed
+    int block_compression{util::DefaultZstdLevel()};
 };
 
 } // namespace kernel

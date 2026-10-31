@@ -27,6 +27,7 @@ You can find installation instructions in the `build-*.md` file for your platfor
 | Dependency | Releases | Version used | Minimum required | Runtime |
 | --- | --- | --- | --- | --- |
 | libgmp | [link](https://gmplib.org/download/gmp/)<sup>[ \* ](#note1)</sup> | 6.3.0 | [6.2.0](https://github.com/dashpay/bls-signatures/pull/92) | No |
+| [zstd](../depends/packages/zstd.mk) (block file compression) | [link](https://github.com/facebook/zstd/releases) | 1.5.7 | 1.4.0 | No |
 
 ### GUI
 | Dependency | Releases | Version used | Minimum required | Runtime |

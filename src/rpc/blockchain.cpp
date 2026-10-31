@@ -2371,8 +2371,8 @@ static RPCHelpMan getblockstats()
 
                 tx_total_in += prevoutput.nValue;
                 size_t prevout_size = GetSerializeSize(prevoutput, PROTOCOL_VERSION) + PER_UTXO_OVERHEAD;
-                utxo_size_inc -= prevout_size;
-                utxo_size_inc_actual -= prevout_size;
+                utxo_size_inc -= static_cast<int64_t>(prevout_size);
+                utxo_size_inc_actual -= static_cast<int64_t>(prevout_size);
             }
 
             CAmount txfee = tx_total_in - tx_total_out;

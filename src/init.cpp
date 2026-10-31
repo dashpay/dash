@@ -94,6 +94,7 @@
 #include <util/threadnames.h>
 #include <util/time.h>
 #include <util/translation.h>
+#include <util/zstd.h>
 #include <validation.h>
 #include <validationinterface.h>
 #include <walletinitinterface.h>
@@ -172,6 +173,7 @@ using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
 using node::DEFAULT_STOPAFTERBLOCKIMPORT;
+using node::MAX_RECOMMENDED_BLOCK_COMPRESSION_LEVEL;
 using node::g_indexes_ready_to_sync;
 using node::LoadChainstate;
 using node::MempoolPath;
@@ -607,6 +609,7 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-alertnotify=<cmd>", "Execute command when an alert is raised (%s in cmd is replaced by message)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #endif
     argsman.AddArg("-assumevalid=<hex>", strprintf("If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet: %s, devnet: %s)", defaultChainParams->GetConsensus().defaultAssumeValid.GetHex(), testnetChainParams->GetConsensus().defaultAssumeValid.GetHex(), devnetChainParams->GetConsensus().defaultAssumeValid.GetHex()), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-blockcompression=<level>", strprintf("zstd compression level for newly written block and undo files, 0 to store them uncompressed; builds without zstd support accept 0 only (default: %d)", util::DefaultZstdLevel()), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksdir=<dir>", "Specify directory to hold blocks subdirectory for *.dat files (default: <datadir>)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-fastprune", "Use smaller block files and lower minimum prune height for testing purposes", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-tinyblk", "Use smaller block files for testing purposes", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
@@ -1345,6 +1348,17 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             }
         }
         fPruneMode = true;
+    }
+
+    const int64_t block_compression{args.GetIntArg("-blockcompression", util::DefaultZstdLevel())};
+    if (!util::ZstdAvailable() && block_compression != 0) {
+        return InitError(_("-blockcompression requires a build with zstd support."));
+    }
+    if (block_compression < 0 || block_compression > util::ZstdMaxLevel()) {
+        return InitError(strprintf(_("-blockcompression must be between 0 and %d."), util::ZstdMaxLevel()));
+    }
+    if (block_compression > MAX_RECOMMENDED_BLOCK_COMPRESSION_LEVEL) {
+        InitWarning(strprintf(_("-blockcompression=%d: levels above %d cost much more CPU per block for no measurable gain."), block_compression, MAX_RECOMMENDED_BLOCK_COMPRESSION_LEVEL));
     }
 
     nConnectTimeout = args.GetIntArg("-timeout", DEFAULT_CONNECT_TIMEOUT);

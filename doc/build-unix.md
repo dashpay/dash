@@ -64,6 +64,10 @@ executables, which are based on BerkeleyDB 4.8. If you do not care about wallet 
 
 To build Dash Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
+zstd compresses block and undo files on disk (see: `--with-zstd`, package `libzstd-dev`
+on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
+contain compressed records.
+
 Optional port mapping libraries (see: `--with-miniupnpc` and `--with-natpmp`):
 
 ```sh
@@ -146,6 +150,10 @@ are based on Berkeley DB 4.8. If you do not care about wallet compatibility,
 pass `--with-incompatible-bdb` to configure. Otherwise, you can build Berkeley DB [yourself](#berkeley-db).
 
 To build Dash Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
+
+zstd compresses block and undo files on disk (see: `--with-zstd`, package `libzstd-dev`
+on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
+contain compressed records.
 
 Optional port mapping libraries (see: `--with-miniupnpc` and `--with-natpmp`):
 
@@ -252,7 +260,7 @@ Setup and Build Example: Arch Linux
 This example lists the steps necessary to setup and build a command line only distribution of the latest changes on Arch Linux:
 
 ```sh
-pacman --sync --needed autoconf automake base-devel boost cmake gcc git libbacktrace libevent libtool make patch pkgconf python sqlite
+pacman --sync --needed autoconf automake base-devel boost cmake gcc git libbacktrace libevent libtool make patch pkgconf python sqlite zstd
 git clone https://github.com/dashpay/dash.git
 cd dash/
 ./autogen.sh
