@@ -623,6 +623,18 @@ static CBLSPublicKey RegtestOperatorPubKey(uint32_t index)
     return DeriveOperatorKey(seed, /*coin_type=*/1, index).GetPublicKey();
 }
 
+static CTransactionRef ProUpRegAssigning(const CBLSPublicKey& operator_key)
+{
+    CProUpRegTx payload;
+    payload.nVersion = ProTxVersion::BasicBLS;
+    payload.pubKeyOperator.Set(operator_key);
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+    SetTxPayload(tx, payload);
+    return MakeTransactionRef(tx);
+}
+
 //! Issuance is lowest-index-first and retrieval covers issued indexes only. A
 //! seed-only restore (fresh database) hands out the same keys in the same
 //! order, skipping only indexes reported in use, and they are the vector keys
@@ -643,6 +655,14 @@ BOOST_FIXTURE_TEST_CASE(operator_keys_rederive_after_restore, OperatorKeyWalletS
         BOOST_REQUIRE(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
         BOOST_CHECK(key == key_0);
         BOOST_CHECK(m_wallet->GetOperatorKey(2, key) == PlatformKeyStatus::INVALID_ARGUMENT);
+
+        // No key leaves the wallet unless its consumption is on disk first.
+        GetMockableDatabase(*m_wallet).m_pass = false;
+        BOOST_CHECK(m_wallet->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::DATABASE_ERROR);
+        BOOST_CHECK(!key.IsValid());
+        GetMockableDatabase(*m_wallet).m_pass = true;
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(index, 2U);
     }
 
     // The restored wallet has no issuance record; only the masternode list
@@ -664,6 +684,13 @@ BOOST_FIXTURE_TEST_CASE(operator_keys_rederive_after_restore, OperatorKeyWalletS
     BOOST_CHECK_EQUAL(index, 6U);
     BOOST_REQUIRE(wallet_b->GetOperatorKey(5, key) == PlatformKeyStatus::SUCCESS);
     BOOST_CHECK(key.GetPublicKey() == key_5);
+
+    // An unreadable record of public keys is derived again, so the masternode list is still checked.
+    const auto [wallet_c, iface_c]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
+    LOCK(wallet_c->cs_wallet);
+    BOOST_REQUIRE(wallet_c->WritePlatformData("operatorkeys/pubkeys", {0x00}));
+    BOOST_REQUIRE(wallet_c->IssueOperatorKey(key_0_in_use, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 1U);
 }
 
 //! A locked wallet neither issues nor re-derives, and unlocking gives back
@@ -700,20 +727,12 @@ BOOST_FIXTURE_TEST_CASE(operator_key_counter_advances_from_synced_protx, Operato
     WITH_LOCK(m_wallet->cs_wallet,
               BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key_0) == PlatformKeyStatus::SUCCESS));
 
-    CProUpRegTx payload;
-    payload.nVersion = ProTxVersion::BasicBLS;
-    payload.pubKeyOperator.Set(key_0.GetPublicKey());
-    CMutableTransaction tx;
-    tx.nVersion = 3;
-    tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
-    SetTxPayload(tx, payload);
-
     // Restore: the public keys are stored while the seed is at hand, then the
     // wallet is encrypted and locked before the chain is synced.
     const auto [wallet_b, iface_b]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
     WITH_LOCK(wallet_b->cs_wallet, BOOST_REQUIRE(wallet_b->TopUpOperatorKeys() == PlatformKeyStatus::SUCCESS));
     BOOST_REQUIRE(wallet_b->EncryptWallet("passphrase"));
-    wallet_b->transactionAddedToMempool(MakeTransactionRef(tx), /*nAcceptTime=*/0);
+    wallet_b->transactionAddedToMempool(ProUpRegAssigning(key_0.GetPublicKey()), /*nAcceptTime=*/0);
 
     BOOST_REQUIRE(wallet_b->Unlock("passphrase"));
     LOCK(wallet_b->cs_wallet);
@@ -721,6 +740,28 @@ BOOST_FIXTURE_TEST_CASE(operator_key_counter_advances_from_synced_protx, Operato
     BOOST_CHECK(key == key_0);
     BOOST_REQUIRE(wallet_b->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::SUCCESS);
     BOOST_CHECK_EQUAL(index, 1U);
+
+    // A used key whose consumption cannot be recorded aborts the sync instead
+    // of being dropped silently.
+    GetMockableDatabase(*wallet_b).m_pass = false;
+    BOOST_CHECK_THROW(wallet_b->transactionAddedToMempool(ProUpRegAssigning(RegtestOperatorPubKey(2)), /*nAcceptTime=*/0),
+                      std::runtime_error);
+    GetMockableDatabase(*wallet_b).m_pass = true;
+
+    // Key 1000 lies outside the initial window. The hit on key 999 empties the
+    // window, which needs the seed to be refilled: key 1000 is seen only after
+    // an unlock.
+    const auto [wallet_c, iface_c]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
+    WITH_LOCK(wallet_c->cs_wallet, BOOST_REQUIRE(wallet_c->TopUpOperatorKeys() == PlatformKeyStatus::SUCCESS));
+    BOOST_REQUIRE(wallet_c->EncryptWallet("passphrase"));
+    wallet_c->transactionAddedToMempool(ProUpRegAssigning(RegtestOperatorPubKey(999)), /*nAcceptTime=*/0);
+    BOOST_REQUIRE(wallet_c->Unlock("passphrase"));
+    BOOST_REQUIRE(wallet_c->Lock());
+    wallet_c->transactionAddedToMempool(ProUpRegAssigning(RegtestOperatorPubKey(1000)), /*nAcceptTime=*/0);
+    BOOST_REQUIRE(wallet_c->Unlock("passphrase"));
+    LOCK(wallet_c->cs_wallet);
+    BOOST_REQUIRE(wallet_c->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 1001U);
 }
 
 //! Two independent wallet instances restored from the same recovery phrase:
