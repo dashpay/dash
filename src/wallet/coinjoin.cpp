@@ -431,6 +431,7 @@ CoinJoinDenomCounts CWallet::GetDenominationCounts() const
     if (!CCoinJoinClientOptions::IsEnabled()) return counts;
 
     const auto& denoms = CoinJoin::GetStandardDenominations();
+    std::array<std::set<uint256>, std::tuple_size_v<decltype(counts.fully_mixed)>> fully_mixed_parents;
 
     LOCK(cs_wallet);
     for (const auto& outpoint : setWalletUTXO) {
@@ -448,7 +449,9 @@ CoinJoinDenomCounts CWallet::GetDenominationCounts() const
 
         const size_t idx = static_cast<size_t>(denom_it - denoms.begin());
         counts.total[idx]++;
-        if (IsFullyMixed(outpoint)) counts.fully_mixed[idx]++;
+        if (IsFullyMixed(outpoint) && fully_mixed_parents[idx].insert(outpoint.hash).second) {
+            counts.fully_mixed[idx]++;
+        }
     }
 
     return counts;
