@@ -56,6 +56,11 @@ bool isP2PKHorP2SHAddress(const QString& address)
     return std::holds_alternative<PKHash>(dest) || std::holds_alternative<ScriptHash>(dest);
 }
 
+QString masternodeStateUnavailableText()
+{
+    return QObject::tr("Masternode state is not available on this node yet. Try again later.");
+}
+
 QLabel* makeTitle(const QString& text, QWidget* parent, double point_size)
 {
     auto* label{new QLabel(text, parent)};

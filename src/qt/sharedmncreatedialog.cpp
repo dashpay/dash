@@ -1191,8 +1191,8 @@ void SharedMnCreateDialog::enterPage(Page page)
         QString gate;
         if (m_wallet_model == nullptr) {
             gate = tr("No wallet is available.");
-        } else if (!m_v24_active) {
-            gate = SharedMnV24InactiveMessage();
+        } else if (!m_v24_active.value_or(false)) {
+            gate = SharedMnV24InactiveMessage(m_v24_active);
         } else if (!canSign()) {
             gate = tr("This wallet cannot sign. You can view, but not take part.");
         }
@@ -1317,9 +1317,10 @@ bool SharedMnCreateDialog::validatePage(Page page, QString& err)
         for (const QString& entry : MasternodeWidgetUtil::tokenizeEndpointList(m_service_edit->text())) {
             net_info.core_p2p.push_back(entry.toStdString());
         }
-        const uint16_t version{m_node.evo().getProviderTxCapabilities().version};
-        if (const auto error{
-                m_node.evo().validateProviderNetInfo(net_info, MnType::Regular, version, /*optional=*/true)}) {
+        if (const auto capabilities{m_node.evo().getProviderTxCapabilities()}; !capabilities) {
+            err = MasternodeWidgetUtil::masternodeStateUnavailableText();
+        } else if (const auto error{m_node.evo().validateProviderNetInfo(net_info, MnType::Regular,
+                                                                         capabilities->version, /*optional=*/true)}) {
             err = QString::fromStdString(error->message.translated);
         }
         break;
@@ -2180,8 +2181,8 @@ void SharedMnCreateDialog::pushSessionToWidgets()
 
 void SharedMnCreateDialog::startSession()
 {
-    if (!m_v24_active) {
-        showError(SharedMnV24InactiveMessage());
+    if (!m_v24_active.value_or(false)) {
+        showError(SharedMnV24InactiveMessage(m_v24_active));
         return;
     }
     if (m_wallet_model == nullptr) {

@@ -181,8 +181,10 @@ public:
     //! Check if block is chainlocked.
     virtual bool hasChainLock(int height, const uint256& hash) = 0;
 
-    //! Return list of MN Collateral from outputs
-    virtual std::vector<COutPoint> listMNCollaterials(const std::vector<std::pair<const CTransactionRef&, uint32_t>>& outputs) = 0;
+    //! Return list of MN Collateral from outputs, or nullopt when the
+    //! masternode list is not available.
+    virtual std::optional<std::vector<COutPoint>> listMNCollaterials(
+        const std::vector<std::pair<const CTransactionRef&, uint32_t>>& outputs) = 0;
 
     //! Return the loader that registers wallets with the node's CoinJoin
     //! client manager, or nullptr when the node runs without one.
@@ -279,8 +281,9 @@ public:
     virtual bool isNonStandardSpecialTx(const CTransactionRef& tx, std::string& reason) = 0;
 
     //! Whether v24 hard fork rules apply to the next block, which is what
-    //! enables version 2 asset lock transactions by consensus.
-    virtual bool isV24Active() = 0;
+    //! enables version 2 asset lock transactions by consensus. Nullopt when
+    //! this node cannot evaluate the deployment yet.
+    virtual std::optional<bool> isV24Active() = 0;
 
     //! Check if any block has been pruned.
     virtual bool havePruned() = 0;

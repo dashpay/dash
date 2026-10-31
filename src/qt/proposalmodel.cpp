@@ -43,8 +43,7 @@ QString formatProposalAmount(const BitcoinUnit& unit, const CAmount& amount)
 } // anonymous namespace
 
 Proposal::Proposal(ClientModel& client_model, const CGovernanceObject& govObj,
-                   const interfaces::GOV::GovernanceInfo& govInfo, int collateral_confs,
-                   bool is_broadcast) :
+                   const interfaces::GOV::GovernanceInfo& govInfo, int collateral_confs, bool is_broadcast) :
     m_is_broadcast{is_broadcast},
     m_block_height{client_model.getNumBlocks()},
     m_collateral_confs{collateral_confs},
@@ -54,7 +53,8 @@ Proposal::Proposal(ClientModel& client_model, const CGovernanceObject& govObj,
     m_hash_object{QString::fromStdString(govObj.GetHash().ToString())},
     m_hash_parent{QString::fromStdString(govObj.Object().hashParent.ToString())},
     m_json{QString::fromStdString(govObj.GetInnerJson().write(2))},
-    m_objHash{govObj.GetHash()}
+    m_objHash{govObj.GetHash()},
+    m_votes{client_model.node().gov().getObjVotes(govObj, VOTE_SIGNAL_FUNDING)}
 {
     UniValue prop_data;
     if (!prop_data.read(govObj.GetDataAsPlainString())) {
@@ -62,11 +62,16 @@ Proposal::Proposal(ClientModel& client_model, const CGovernanceObject& govObj,
     }
 
     m_funded_height = client_model.node().gov().getProposalFundedHeight(govObj.GetHash());
-    m_votes = client_model.node().gov().getObjVotes(govObj, VOTE_SIGNAL_FUNDING);
-    for (const auto& vote : client_model.node().gov().getCurrentVotes(govObj.GetHash())) {
-        if (vote.GetSignal() == VOTE_SIGNAL_FUNDING) {
-            m_current_votes.emplace(vote.GetMasternodeOutpoint(), vote);
+    // Without the masternode list the votes are unknown, not absent: the
+    // proposal then reports no votes, and its feed keeps its current data.
+    if (const auto current_votes{client_model.node().gov().getCurrentVotes(govObj.GetHash())}) {
+        for (const auto& vote : *current_votes) {
+            if (vote.GetSignal() == VOTE_SIGNAL_FUNDING) {
+                m_current_votes.emplace(vote.GetMasternodeOutpoint(), vote);
+            }
         }
+    } else {
+        m_votes.reset();
     }
 
     if (const UniValue& titleValue = prop_data.find_value("name"); titleValue.isStr()) {
@@ -169,7 +174,8 @@ ProposalStatus Proposal::status(bool is_fundable) const
     if (m_block_height % m_gov_info.superblockcycle >= m_gov_info.superblockcycle - m_gov_info.superblockmaturitywindow) {
         return is_fundable ? ProposalStatus::Passing : ProposalStatus::Failing;
     }
-    if (getAbsoluteYesCount() < m_gov_info.fundingthreshold) {
+    // Only proposals judged against a known masternode list are listed.
+    if (Assume(m_gov_info.fundingthreshold) && getAbsoluteYesCount() < *m_gov_info.fundingthreshold) {
         return ProposalStatus::Voting;
     }
     return is_fundable ? ProposalStatus::Passing : ProposalStatus::Unfunded;

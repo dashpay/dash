@@ -20,9 +20,9 @@
 #include <evo/specialtxman.h>
 #include <interfaces/node.h>
 #include <llmq/context.h>
-#include <node/mempool_args.h>
 #include <messagesigner.h>
 #include <netbase.h>
+#include <node/mempool_args.h>
 #include <node/miner.h>
 #include <policy/policy.h>
 #include <pow.h>
@@ -35,6 +35,7 @@
 #include <txmempool.h>
 #include <util/std23.h>
 #include <validation.h>
+#include <validationinterface.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -2603,6 +2604,34 @@ struct TestChainV24PendingSetup : public TestChainV24SignalBeforeV19Setup {
         assert(!bls::bls_legacy_scheme.load());
     }
 };
+
+// A view whose tip notifications stopped, as NORMAL's do once a snapshot
+// chainstate is active, still evicts cached lists as it processes blocks.
+BOOST_AUTO_TEST_CASE(list_cache_follows_processed_blocks_past_a_stale_tip)
+{
+    TestChainDIP3Setup setup;
+    auto& chainman{*Assert(setup.m_node.chainman)};
+    auto& dmnman{*Assert(setup.m_node.dmnman)};
+    const CScript coinbase_script{GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey())};
+    const CBlockIndex* stale_tip{WITH_LOCK(::cs_main, return chainman.ActiveTip())};
+    // Lists a live quorum may still use stay cached for this many blocks.
+    int quorum_window{0};
+    for (const auto& params : Params().GetConsensus().llmqs) {
+        quorum_window = std::max(quorum_window, params.dkgInterval * (params.keepOldConnections + 1));
+    }
+    for (int i{0}; i < 4 * quorum_window; ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_script);
+        SyncWithValidationInterfaceQueue();
+        dmnman.UpdatedBlockTip(stale_tip);
+    }
+    const int processed_height{WITH_LOCK(::cs_main, return chainman.ActiveHeight())};
+    // Cleanup runs once the cache holds more than MAX_CACHED_LISTS (64) lists,
+    // so lists added since the last cleanup are at most that many blocks old.
+    for (const int height : dmnman.CachedListHeightsForTesting()) {
+        BOOST_CHECK_MESSAGE(height == stale_tip->nHeight || height + quorum_window + 64 >= processed_height,
+                            "list at height " << height << " outlived its quorums");
+    }
+}
 
 // DIP3 can only be activated with legacy scheme (v19 is activated later)
 BOOST_AUTO_TEST_CASE(dip3_activation_legacy)
