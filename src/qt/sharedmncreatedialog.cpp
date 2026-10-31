@@ -1724,6 +1724,13 @@ void SharedMnCreateDialog::refreshShareTable()
             me->setEnabled(editable && !reserved && !shareTakenByOther(row));
         }
     }
+    // An exclusive group ignores unchecking its checked button, and a stale
+    // check would be read back as this wallet's share
+    if (auto* const checked{m_me_group->checkedButton()}; checked != nullptr && m_me_group->id(checked) != m_my_share) {
+        m_me_group->setExclusive(false);
+        checked->setChecked(false);
+        m_me_group->setExclusive(true);
+    }
     m_add_share_button->setEnabled(editable && shares.size() < CProRegTx::MAX_SHARES);
     m_remove_share_button->setEnabled(editable && shares.size() > CProRegTx::MIN_SHARES);
     m_updating = false;
