@@ -59,6 +59,9 @@ static std::optional<int> GetBlockHeight(llmq::CInstantSendManager& is_manager, 
 struct NetInstantSend::BatchVerificationData {
     CBLSBatchVerifier<NodeId, uint256> batchVerifier{false, true, BATCH_VERIFIER_SOURCE_THRESHOLD};
     Uint256HashMap<llmq::CRecoveredSig> recSigs;
+    //! Locks signed by a quorum this node has no record of: below its snapshot
+    //! base. They can be neither verified nor blamed on the peer.
+    Uint256HashSet unverifiable;
     size_t verifyCount{0};
     size_t alreadyVerified{0};
 };
@@ -142,10 +145,19 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
         if (cycleHeight + dkgInterval < tipHeight) {
             nSignHeight = cycleHeight + dkgInterval - 1;
         }
-        // For RegTest non-rotating quorum cycleHash has directly quorum hash
-        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, active_chain, m_qman,
-                                                                             id, nSignHeight, signOffset)
-                                              : m_qman.GetQuorum(llmq_params.type, islock->cycleHash);
+        llmq::CQuorumCPtr quorum;
+        try {
+            // For RegTest non-rotating quorum cycleHash has directly quorum hash
+            quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, active_chain, m_qman, id,
+                                                                            nSignHeight, signOffset)
+                                             : m_qman.GetQuorum(llmq_params.type, islock->cycleHash);
+        } catch (const evo::LocalStateError& e) {
+            // Skip only this lock: the rest of the batch stays verifiable.
+            LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: cannot select quorum: %s\n",
+                     __func__, islock->txid.ToString(), hash.ToString(), e.what());
+            data->unverifiable.emplace(hash);
+            continue;
+        }
 
         if (!quorum) {
             // Different cycle hashes can select different quorums within the same batch.
@@ -188,6 +200,8 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
         const auto& hash = pending.islock_hash;
         auto nodeId = pending.node_id;
         const auto& islock = pending.islock;
+
+        if (data.unverifiable.count(hash)) continue;
 
         const bool source_bad = data.batchVerifier.badSources.count(nodeId);
         const bool message_bad = data.batchVerifier.badMessages.count(hash);
