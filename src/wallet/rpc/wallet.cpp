@@ -933,7 +933,7 @@ static RPCHelpMan sethdseed()
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Already have this key (either as an HD seed or as a loose private key)");
         }
         CHDChain newHdChain;
-        if (!newHdChain.SetSeed(SecureVector(key.begin(), key.end()), true)) {
+        if (!newHdChain.SetSeed(SecureVector(UCharCast(key.begin()), UCharCast(key.end())), true)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key: SetSeed failed");
         }
         // add default account
