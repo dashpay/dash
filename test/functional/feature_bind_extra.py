@@ -7,6 +7,8 @@ Test starting bitcoind with -bind and/or -bind=...=onion and confirm
 that bind happens on the expected ports.
 """
 
+import socket
+
 from test_framework.netutil import (
     addr_to_hex,
     get_bind_addrs,
@@ -14,7 +16,9 @@ from test_framework.netutil import (
 from test_framework.test_framework import (
     BitcoinTestFramework,
 )
+from test_framework.test_node import ErrorMatch
 from test_framework.util import (
+    REGTEST_ONION_TARGET_PORT,
     assert_equal,
     p2p_port,
     rpc_port,
@@ -38,38 +42,39 @@ class BindExtraTest(BitcoinTestFramework):
     def setup_network(self):
         loopback_ipv4 = addr_to_hex("127.0.0.1")
 
-        # Start custom ports by reusing unused p2p ports
-        port = p2p_port(self.num_nodes)
+        # Start custom ports by reusing unused p2p ports. Take each one from p2p_port(),
+        # which never hands out the fixed regtest onion target port.
+        ports = iter(p2p_port(n) for n in range(self.num_nodes, self.num_nodes + 4))
 
         # Array of tuples [command line arguments, expected bind addresses].
         self.expected = []
 
         # Node0, no normal -bind=... with -bind=...=onion, thus only the tor target.
+        onion = next(ports)
         self.expected.append(
             [
-                [f"-bind=127.0.0.1:{port}=onion"],
-                [(loopback_ipv4, port)]
+                [f"-bind=127.0.0.1:{onion}=onion"],
+                [(loopback_ipv4, onion)]
             ],
         )
-        port += 1
 
         # Node1, both -bind=... and -bind=...=onion.
+        port, onion = next(ports), next(ports)
         self.expected.append(
             [
-                [f"-bind=127.0.0.1:{port}", f"-bind=127.0.0.1:{port + 1}=onion"],
-                [(loopback_ipv4, port), (loopback_ipv4, port + 1)]
+                [f"-bind=127.0.0.1:{port}", f"-bind=127.0.0.1:{onion}=onion"],
+                [(loopback_ipv4, port), (loopback_ipv4, onion)]
             ],
         )
-        port += 2
 
-        # Node2, no -bind=...=onion, thus no extra port for Tor target.
+        # Node2, -bind=... with -listenonion=0 and no -bind=...=onion, thus no extra port for Tor target.
+        port = next(ports)
         self.expected.append(
             [
-                [f"-bind=127.0.0.1:{port}"],
+                [f"-bind=127.0.0.1:{port}", "-listenonion=0"],
                 [(loopback_ipv4, port)]
             ],
         )
-        port += 1
 
         self.extra_args = list(map(lambda e: e[0], self.expected))
         self.setup_nodes()
@@ -92,18 +97,26 @@ class BindExtraTest(BitcoinTestFramework):
             self.log.info(f"Checking listening ports of node {i} with {args}")
             self.check_binds(i, expected_services)
 
-        self.log.info("Test -listenonion with a normal bind and no dedicated onion bind")
+        self.log.info("Test -bind without an onion bind also listens on the default onion target with the default -listenonion")
         self.stop_node(2)
-        self.nodes[2].assert_start_raises_init_error(
-            self.extra_args[2] + ["-listenonion=1", "-torcontrol=127.0.0.1:1"],
-            "Error: The automatic Tor onion service requires a dedicated onion bind. Use a specific address such as -bind=127.0.0.1:<port>=onion, or disable the service with -listenonion=0.",
-        )
-
-        self.log.info("Test -bind without an onion bind starts with the default -listenonion")
         self.nodes[2].replace_in_config([("listenonion=0\n", "")])
-        self.start_node(2, extra_args=self.extra_args[2] + ["-torcontrol=127.0.0.1:1"])
-        self.check_binds(2, self.expected[2][1])
+        bind_args = [self.extra_args[2][0], "-torcontrol=127.0.0.1:1"]
+        self.start_node(2, extra_args=bind_args)
+        self.check_binds(2, self.expected[2][1] + [(addr_to_hex("127.0.0.1"), REGTEST_ONION_TARGET_PORT)])
         self.stop_node(2)
+
+        with socket.create_server(("127.0.0.1", REGTEST_ONION_TARGET_PORT)):
+            self.log.info("Test -bind still starts when another process holds the default onion target")
+            self.start_node(2, extra_args=bind_args)
+            self.check_binds(2, self.expected[2][1])
+            self.stop_node(2)
+
+            self.log.info("Test -listenonion=1 requires the default onion target")
+            self.nodes[2].assert_start_raises_init_error(
+                bind_args + ["-listenonion=1"],
+                f"Error: Unable to bind to 127.0.0.1:{REGTEST_ONION_TARGET_PORT} on this computer.",
+                match=ErrorMatch.PARTIAL_REGEX,
+            )
 
         self.log.info("Test wildcard onion bind with the default -listenonion")
         self.nodes[2].assert_start_raises_init_error([f"-bind=0.0.0.0:{p2p_port(2)}=onion"], WILDCARD_ONION_ERROR)
