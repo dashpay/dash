@@ -38,7 +38,7 @@ std::string ToString(const QuorumMembers& members)
 {
     std::stringstream ss;
     for (const auto& mn : members) {
-        ss << mn->proTxHash.ToString().substr(0, 4) << "|";
+        ss << mn->proTxHash.ToString().substr(0, 16) << "|";
     }
     return ss.str();
 }
