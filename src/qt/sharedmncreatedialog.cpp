@@ -1675,6 +1675,8 @@ void SharedMnCreateDialog::refreshShareTable()
     const auto& shares{m_session.shares()};
     const int rows{static_cast<int>(shares.size())};
     const bool editable{m_session.stage() == MnShareSession::Stage::Draft};
+    // Moving "me" to another row would hide the coins already reserved here
+    const bool reserved{myContribution() != nullptr};
     if (m_share_table->rowCount() != rows) {
         // Rebuilding drops the row's widgets, so only do it when rows moved
         m_share_table->setRowCount(0);
@@ -1719,7 +1721,7 @@ void SharedMnCreateDialog::refreshShareTable()
         }
         if (auto* me = qobject_cast<QRadioButton*>(m_me_group->button(row))) {
             me->setChecked(row == m_my_share);
-            me->setEnabled(editable);
+            me->setEnabled(editable && !reserved);
         }
     }
     m_add_share_button->setEnabled(editable && shares.size() < CProRegTx::MAX_SHARES);
