@@ -434,6 +434,7 @@ jobs:
       depends-host: ${{ needs.depends-mac.outputs.host }}
       depends-dep-opts: ${{ needs.depends-mac.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-mac.outputs.built-artifact }}
+      sdk-artifact: ${{ needs.depends-mac.outputs.sdk-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
     secrets: *remote-ccache-auth
 
