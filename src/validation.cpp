@@ -6917,6 +6917,9 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
     // directory.
     if (!evodb_synced || !m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
         LogPrintf("[snapshot] failed to record the snapshot rejection in EvoDB\n");
+        // The generation stays live for startup recovery to reject, but the
+        // rest of this run must not read it.
+        m_ibd_chainstate->m_evoDb.SetDefaultIdentity(EvoDbIdentity::NORMAL);
     }
     auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
     if (!rename_result) {
