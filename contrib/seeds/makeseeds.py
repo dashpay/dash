@@ -154,8 +154,8 @@ def ip_stats(ips: List[Dict]) -> str:
 def parse_args():
     argparser = argparse.ArgumentParser(description='Generate a list of dash node seed ip addresses.')
     argparser.add_argument("-a","--asmap", help='the location of the asmap asn database file (required)', required=True)
-    argparser.add_argument("protx_list", nargs='?', help='json as outputted by "protx list valid 1" (default: stdin)')
-    argparser.add_argument("onion_seeds", nargs='?', help='file with onion seeds, one per line')
+    argparser.add_argument("-p","--protx", help='the location of the protx list file, json as outputted by "protx list valid 1" (required)', required=True)
+    argparser.add_argument("-o","--onion", help='the location of the onion seeds file, one per line (optional)')
     return argparser.parse_args()
 
 def main():
@@ -166,16 +166,14 @@ def main():
         asmap = ASMap.from_binary(f.read())
     print('Done.', file=sys.stderr)
 
-    # This expects a json as outputted by "protx list valid 1"
-    if args.protx_list is not None:
-        with open(args.protx_list, 'r', encoding="utf8") as f:
-            mns = json.load(f)
-    else:
-        mns = json.load(sys.stdin)
+    print(f'Loading and parsing protx list "{args.protx}"…', end='', file=sys.stderr, flush=True)
+    with open(args.protx, 'r', encoding="utf8") as f:
+        mns = json.load(f)
+    print('Done.', file=sys.stderr)
 
     onions = []
-    if args.onion_seeds is not None:
-        with open(args.onion_seeds, 'r', encoding="utf8") as f:
+    if args.onion is not None:
+        with open(args.onion, 'r', encoding="utf8") as f:
             onions = f.read().split('\n')
 
     print(f'Total mns: {len(mns)}', file=sys.stderr)

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Dash Core Security Policy
+    url: https://github.com/dashpay/dash/blob/master/SECURITY.md
+    about: View security policy
+  - name: Dash Forum
+    url: https://www.dash.org/forum/
+    about: General Dash questions and support requests
