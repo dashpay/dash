@@ -103,7 +103,10 @@ jobs:
           path: dash
           fetch-depth: 0
 
+      # Attested tag builds must not restore caches that labelled
+      # pull_request_target runs can write
       - name: Cache depends sources
+        if: github.ref_type != 'tag'
         uses: actions/cache@v5
         with:
           path: dash/depends/sources
@@ -113,6 +116,7 @@ jobs:
 
       - name: Cache Guix and depends
         id: guix-cache-restore
+        if: github.ref_type != 'tag'
         uses: actions/cache@v5
         with:
           path: |
@@ -169,3 +173,55 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-path: ${{ github.workspace }}/dash/guix-build*/output/${{ matrix.build_target }}/*
+
+      - name: Upload SHA256SUMS fragment
+        uses: actions/upload-artifact@v6
+        with:
+          name: guix-sha256sums-${{ matrix.build_target }}
+          path: ${{ github.workspace }}/dash/guix-build*/output/${{ matrix.build_target }}/SHA256SUMS.part
+          if-no-files-found: error
+
+  # Publish the release's guix.sigs-format noncodesigned.SHA256SUMS with a
+  # keyless (Sigstore) attestation tying it to this workflow and tag
+  attest:
+    needs: build
+    if: github.repository == 'dashpay/dash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          path: dash
+
+      - name: Download SHA256SUMS fragments
+        uses: actions/download-artifact@v8
+        with:
+          pattern: guix-sha256sums-*
+          path: ${{ runner.temp }}/fragments
+          merge-multiple: true
+
+      - name: Create SHA256SUMS
+        working-directory: dash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir "${RUNNER_TEMP}/guix.sigs"
+          # Only finds the outputs of a build versioned exactly after the tag
+          env FORCE_VERSION="${VERSION}" \
+              OUTDIR_BASE="${RUNNER_TEMP}/fragments/guix-build-${VERSION}/output" \
+              GUIX_SIGS_REPO="${RUNNER_TEMP}/guix.sigs" SIGNER=dashcore-ci NO_SIGN=1 \
+            ./contrib/guix/guix-attest
+
+      - name: Attest SHA256SUMS
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/guix.sigs/*/*/noncodesigned.SHA256SUMS
+
+      - name: Upload SHA256SUMS
+        uses: actions/upload-artifact@v6
+        with:
+          name: guix-sigs-${{ github.ref_name }}
+          path: ${{ runner.temp }}/guix.sigs/
