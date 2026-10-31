@@ -7,13 +7,14 @@ Run this script from the root of the repository to update all translations from
 transifex.
 It will do the following automatically:
 
+- remove current translations
 - fetch all translations using the tx tool
 - post-process them into valid and committable format
   - remove invalid control characters
   - remove location tags (makes diffs less noisy)
-
-TODO:
-- auto-add new translations to the build system according to the translation process
+  - drop untranslated languages
+- update git for added translations
+- update build system
 '''
 import subprocess
 import re
@@ -22,18 +23,28 @@ import os
 import io
 import xml.etree.ElementTree as ET
 
+# Name of Qt lconvert tool
+LCONVERT = os.getenv('LCONVERT', 'lconvert')
 # Name of transifex tool
-TX = 'tx'
-# Name of source language file
-SOURCE_LANG = 'dash_en.ts'
+TX = os.getenv('TX', 'tx')
+# Name of source language file without extension
+SOURCE_LANG = 'dash_en'
 # Directory with locale files
 LOCALE_DIR = 'src/qt/locale'
-# Minimum number of messages for translation to be considered at all
-MIN_NUM_MESSAGES = 10
+# Minimum number of non-numerus messages for translation to be considered at all
+MIN_NUM_NONNUMERUS_MESSAGES = 120
 # Regexp to check for Bitcoin addresses
 ADDRESS_REGEXP = re.compile('([13]|bc1)[a-zA-Z0-9]{30,}')
 # Regexp to check for Dash addresses
 ADDRESS_REGEXP_DASH = re.compile('[X7][a-zA-Z0-9]{30,}')
+# Path to git
+GIT = os.getenv("GIT", "git")
+# Original content file suffix
+ORIGINAL_SUFFIX = '.orig'
+# Native Qt translation file (TS) format
+FORMAT_TS = '.ts'
+# XLIFF file format
+FORMAT_XLIFF = '.xlf'
 
 def check_at_repository_root():
     if not os.path.exists('.git'):
@@ -41,10 +52,38 @@ def check_at_repository_root():
         print('Execute this script at the root of the repository', file=sys.stderr)
         sys.exit(1)
 
+def remove_current_translations():
+    '''
+    Remove current translations.
+    We only want the active translations that are currently on transifex.
+    This leaves dash_en.ts untouched.
+    '''
+    for (_,name) in all_ts_files():
+        os.remove(name)
+
+def remove_orig_files():
+    '''
+    Remove temporary files that might be left behind.
+    '''
+    for (_,name) in all_ts_files(suffix=ORIGINAL_SUFFIX):
+        os.remove(name + ORIGINAL_SUFFIX)
+
 def fetch_all_translations():
-    if subprocess.call([TX, 'pull', '-f', '-a']):
+    if subprocess.call([TX, 'pull', '--translations', '--force', '--all']):
         print('Error while fetching translations', file=sys.stderr)
         sys.exit(1)
+
+def convert_xlf_to_ts():
+    xliff_files =  all_ts_files(file_format=FORMAT_XLIFF)
+    if not xliff_files:
+        return False
+
+    for (_, name) in xliff_files:
+        outname = name.replace(FORMAT_XLIFF, FORMAT_TS)
+        print('Converting %s to %s...' % (name, outname))
+        subprocess.check_call([LCONVERT, '-o', outname, '-i', name])
+        os.remove(name)
+    return True
 
 def find_format_specifiers(s):
     '''Find all format specifiers in a string.'''
@@ -56,7 +95,7 @@ def find_format_specifiers(s):
             break
         try:
             specifiers.append(s[percent+1])
-        except Exception:
+        except IndexError:
             print('Failed to get specifier')
         pos = percent+2
     return specifiers
@@ -105,10 +144,10 @@ def check_format_specifiers(source, translation, errors, numerus):
             return False
     return True
 
-def all_ts_files(suffix=''):
+def all_ts_files(file_format=FORMAT_TS, suffix='', include_source=False):
     for filename in os.listdir(LOCALE_DIR):
         # process only language files, and do not process source language
-        if not filename.endswith('.ts'+suffix) or filename == SOURCE_LANG+suffix:
+        if not filename.endswith(file_format + suffix) or (not include_source and filename == SOURCE_LANG + file_format + suffix):
             continue
         if suffix: # remove provided suffix
             filename = filename[0:-len(suffix)]
@@ -141,7 +180,42 @@ def contains_dash_addr(text, errors):
         return True
     return False
 
-def postprocess_translations(reduce_diff_hacks=False):
+def postprocess_message(filename, message, xliff_compatible_mode):
+    translation_node = message.find('translation')
+    if not xliff_compatible_mode and translation_node.get('type') == 'unfinished':
+        return False
+
+    numerus = message.get('numerus') == 'yes'
+    source = message.find('source').text
+    # pick all numerusforms
+    if numerus:
+        translations = [i.text for i in translation_node.findall('numerusform')]
+    else:
+        if translation_node.text is None or translation_node.text == source:
+            return False
+
+        translations = [translation_node.text]
+
+    for translation in translations:
+        if translation is None:
+            continue
+        errors = []
+        valid = check_format_specifiers(source, translation, errors, numerus) and not contains_bitcoin_addr(translation, errors)
+        valid = valid and not contains_dash_addr(translation, errors)
+
+        for error in errors:
+            print('%s: %s' % (filename, error))
+
+        if not valid:
+            return False
+
+    # Remove location tags
+    for location in message.findall('location'):
+        message.remove(location)
+
+    return True
+
+def postprocess_translations(xliff_compatible_mode, reduce_diff_hacks=False):
     print('Checking and postprocessing...')
 
     if reduce_diff_hacks:
@@ -150,13 +224,12 @@ def postprocess_translations(reduce_diff_hacks=False):
         ET._escape_cdata = escape_cdata
 
     for (filename,filepath) in all_ts_files():
-        os.rename(filepath, filepath+'.orig')
+        os.rename(filepath, filepath + ORIGINAL_SUFFIX)
 
-    have_errors = False
-    for (filename,filepath) in all_ts_files('.orig'):
+    for (filename,filepath) in all_ts_files(suffix=ORIGINAL_SUFFIX):
         # pre-fixups to cope with transifex output
         parser = ET.XMLParser(encoding='utf-8') # need to override encoding because 'utf8' is not understood only 'utf-8'
-        with open(filepath + '.orig', 'rb') as f:
+        with open(filepath + ORIGINAL_SUFFIX, 'rb') as f:
             data = f.read()
         # remove control characters; this must be done over the entire file otherwise the XML parser will fail
         data = remove_invalid_characters(data)
@@ -166,45 +239,21 @@ def postprocess_translations(reduce_diff_hacks=False):
         root = tree.getroot()
         for context in root.findall('context'):
             for message in context.findall('message'):
-                numerus = message.get('numerus') == 'yes'
-                source = message.find('source').text
-                translation_node = message.find('translation')
-                # pick all numerusforms
-                if numerus:
-                    translations = [i.text for i in translation_node.findall('numerusform')]
-                else:
-                    translations = [translation_node.text]
-
-                for translation in translations:
-                    if translation is None:
-                        continue
-                    errors = []
-                    valid = check_format_specifiers(source, translation, errors, numerus) and not contains_bitcoin_addr(translation, errors)
-                    valid = valid and not contains_dash_addr(translation, errors)
-
-                    for error in errors:
-                        print('%s: %s' % (filename, error))
-
-                    if not valid: # set type to unfinished and clear string if invalid
-                        translation_node.clear()
-                        translation_node.set('type', 'unfinished')
-                        have_errors = True
-
-                # Remove location tags
-                for location in message.findall('location'):
-                    message.remove(location)
-
-                # Remove entire message if it is an unfinished translation
-                if translation_node.get('type') == 'unfinished':
+                if not postprocess_message(filename, message, xliff_compatible_mode):
                     context.remove(message)
 
+            if not context.findall('message'):
+                root.remove(context)
+
         # check if document is (virtually) empty, and remove it if so
-        num_messages = 0
+        num_nonnumerus_messages = 0
         for context in root.findall('context'):
             for message in context.findall('message'):
-                num_messages += 1
-        if num_messages < MIN_NUM_MESSAGES:
-            print('Removing %s, as it contains only %i messages' % (filepath, num_messages))
+                if message.get('numerus') != 'yes':
+                    num_nonnumerus_messages += 1
+
+        if num_nonnumerus_messages < MIN_NUM_NONNUMERUS_MESSAGES:
+            print('Removing %s, as it contains only %i non-numerus messages' % (filepath, num_nonnumerus_messages))
             continue
 
         # write fixed-up tree
@@ -218,10 +267,44 @@ def postprocess_translations(reduce_diff_hacks=False):
                 f.write(out)
         else:
             tree.write(filepath, encoding='utf-8')
-    return have_errors
+
+def update_git():
+    '''
+    Add new files to git repository.
+    (Removing files isn't necessary here, as `git commit -a` will take care of removing files that are gone)
+    '''
+    file_paths = [filepath for (filename, filepath) in all_ts_files()]
+    subprocess.check_call([GIT, 'add'] + file_paths)
+
+def update_build_systems():
+    '''
+    Update build system and Qt resource descriptors.
+    '''
+    filename_lang = [re.match(r'((dash_(.*)).ts)$', filename).groups() for (filename, filepath) in all_ts_files(include_source=True)]
+    filename_lang.sort(key=lambda x: x[0])
+
+    # update qrc locales
+    with open('src/qt/dash_locale.qrc', 'w', encoding='utf8') as f:
+        f.write('<!DOCTYPE RCC><RCC version="1.0">\n')
+        f.write('    <qresource prefix="/translations">\n')
+        for (filename, basename, lang) in filename_lang:
+            f.write(f'        <file alias="{lang}">locale/{basename}.qm</file>\n')
+        f.write('    </qresource>\n')
+        f.write('</RCC>\n')
+
+    # update Makefile include
+    with open('src/Makefile.qt_locale.include', 'w', encoding='utf8') as f:
+        f.write('QT_TS = \\\n')
+        f.write(' \\\n'.join(f'  qt/locale/{filename}' for (filename, basename, lang) in filename_lang))
+        f.write('\n') # make sure last line doesn't end with a backslash
 
 if __name__ == '__main__':
     check_at_repository_root()
-    # fetch_all_translations()
-    postprocess_translations()
+    remove_current_translations()
+    fetch_all_translations()
+    xliff_compatible_mode = convert_xlf_to_ts()
+    postprocess_translations(xliff_compatible_mode)
+    update_git()
+    update_build_systems()
+    remove_orig_files()
 
