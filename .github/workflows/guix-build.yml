@@ -103,6 +103,27 @@ jobs:
           path: dash
           fetch-depth: 0
 
+      # On tag pushes actions/checkout (v4 and older) re-fetches the triggering
+      # tag as `+<commit>:refs/tags/<tag>`, replacing the annotated tag with a
+      # lightweight one. `git describe` skips lightweight tags, so the build
+      # would be versioned after the previous release. Restore the real tags.
+      - name: Restore annotated tags
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: dash
+        run: git fetch --force --tags origin
+
+      - name: Verify build version matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: dash
+        run: |
+          source contrib/shell/git-utils.bash
+          VERSION="$(git_head_version)"
+          if [[ "v${VERSION}" != "${GITHUB_REF_NAME}" ]]; then
+            echo "::error::Guix would build version '${VERSION}' for tag '${GITHUB_REF_NAME}'"
+            exit 1
+          fi
+          echo "Building version ${VERSION}"
+
       - name: Cache depends sources
         uses: actions/cache@v5
         with:
