@@ -15,6 +15,7 @@ from test_framework.messages import (
     CTransaction,
     CTxIn,
     CTxOut,
+    ser_compact_size,
 )
 from test_framework.psbt import (
     PSBT,
@@ -643,10 +644,10 @@ class PSBTTest(BitcoinTestFramework):
                 break
         psbt_in = dec["inputs"][input_idx]
         # Calculate the input weight
-        # (prevout + sequence + length of scriptSig + 2 bytes buffer) * 4 + len of scriptwitness
+        # prevout + sequence + length of scriptSig + scriptsig
         len_scriptsig = len(psbt_in["final_scriptSig"]["hex"]) // 2 if "final_scriptSig" in psbt_in else 0
-        len_scriptwitness = len(psbt_in["final_scriptwitness"]["hex"]) // 2 if "final_scriptwitness" in psbt_in else 0
-        input_weight = ((41 + len_scriptsig + 2) * 4) + len_scriptwitness
+        len_scriptsig += len(ser_compact_size(len_scriptsig))
+        input_weight = 40 + len_scriptsig
         low_input_weight = input_weight // 2
         high_input_weight = input_weight * 2
 
