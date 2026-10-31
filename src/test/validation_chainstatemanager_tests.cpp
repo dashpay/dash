@@ -61,11 +61,15 @@
 #include <versionbits.h>
 #include <warnings.h>
 
+#include <active/dkgsessionhandler.h>
+#include <active/masternode.h>
 #include <bls/bls.h>
 #include <evo/evodb.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <llmq/debug.h>
+#include <llmq/dkgsessionmgr.h>
 #include <llmq/net_signing.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
@@ -80,6 +84,7 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <future>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -108,6 +113,35 @@ void SeedSnapshotMarker(CEvoDB& evodb, const uint256& hash, int base_height = -1
     tx->Commit();
     BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
 }
+
+CBLSSecretKey MakeOperatorKey()
+{
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    return sk;
+}
+
+//! A DKG phase handler that no phase thread or block tip drives, so its phase stays Idle
+struct TestDKGHandler {
+    CActiveMasternodeManager mn_activeman;
+    llmq::CDKGDebugManager dkgdbgman;
+    llmq::CDKGSessionManager qdkgsman;
+    llmq::ActiveDKGSessionHandler handler;
+
+    TestDKGHandler(node::NodeContext& node, ChainstateManager& chainman, const fs::path& datadir) :
+        mn_activeman{*node.connman, *node.dmnman, MakeOperatorKey()},
+        dkgdbgman{*node.dmnman, *node.llmq_ctx->qsnapman, chainman},
+        qdkgsman{*node.dmnman, *node.llmq_ctx->qsnapman, chainman, *node.sporkman,
+                 util::DbWrapperParams{.path = datadir, .memory = true, .wipe = true}},
+        handler(*node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman, dkgdbgman, qdkgsman,
+                *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman, mn_activeman, chainman,
+                *node.sporkman, Params().GetConsensus().llmqs.front(), /*quorums_watch=*/false, /*quorums_idx=*/0)
+    {
+    }
+
+    //! Ends a wait that a failed check left running, so the test fails instead of hanging
+    ~TestDKGHandler() { handler.RequestStop(); }
+};
 
 //! The regtest assumeutxo fixture predates DIP3. Activate DIP3 from height 1
 //! for the lifetime of this guard, so the cold EvoDB holds no MN-list history
@@ -2585,6 +2619,97 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
     BOOST_CHECK(!m_node.evodb->ReadBestBlock(EvoDbIdentity::SNAPSHOT, obsolete_marker));
 }
 
+//! A rejection whose write fails leaves the generation on disk for startup
+//! recovery, but the rest of the run no longer reads it, not even a turn that
+//! bound it before the rejection, and the node still shuts down. An earlier
+//! rejection's invalid directory keeps its place, and the rejected snapshot's
+//! directory is still retired so that startup recovery rejects it.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_unsaved_rejection_stops_reading_the_snapshot, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    CEvoDB& evodb{*m_node.evodb};
+    const fs::path data_dir{m_args.GetDataDirNet()};
+    const fs::path earlier_invalid{data_dir / "chainstate_snapshot_INVALID"};
+    BOOST_REQUIRE(fs::create_directories(earlier_invalid / "earlier"));
+    // A deletion cut short in an earlier run left the dir the snapshot dir is moved to.
+    const fs::path discarded{data_dir / "chainstate_snapshot_todelete"};
+    BOOST_REQUIRE(fs::create_directories(discarded / "leftover"));
+    const auto snapshot_only_key{std::make_pair(std::string{"test_snapshot_only"}, uint256::ONE)};
+    {
+        LOCK(::cs_main);
+        auto tx = evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        evodb.Write(snapshot_only_key, uint8_t{1});
+        tx->Commit();
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    }
+    BOOST_REQUIRE(evodb.ActiveView().identity == EvoDbIdentity::SNAPSHOT);
+
+    {
+        // A DKG phase thread binds the active view for its round, which then
+        // waits at its start for background validation to complete.
+        TestDKGHandler dkg{m_node, chainman, m_args.GetDataDirNet()};
+        std::optional<EvoDbIdentity> round_view;
+        std::optional<bool> round_read;
+        std::promise<void> bound;
+        auto round = std::async(std::launch::async, [&] {
+            return RunActiveEvoRound(&evodb, "test dkg round", [&] {
+                round_view = Assert(EvoViewScope::InnermostAny())->identity;
+                bound.set_value();
+                dkg.handler.WaitForNextPhase(std::nullopt, llmq::QuorumPhase::Idle);
+                uint8_t value;
+                round_read = evodb.Read(snapshot_only_key, value);
+            });
+        });
+        bound.get_future().wait();
+
+        evodb.SetRejectionFailpointForTesting(true);
+        m_node.notifications->m_shutdown_on_fatal_error = false;
+        BOOST_REQUIRE_EQUAL(m_node.exit_status.load(), EXIT_SUCCESS);
+        BOOST_REQUIRE(chainman.HandleSnapshotStateMismatch("test rejection"));
+        evodb.SetRejectionFailpointForTesting(false);
+        BOOST_CHECK_EQUAL(m_node.exit_status.load(), EXIT_FAILURE);
+
+        // The round resumes once the snapshot is out of use, and its binding
+        // no longer resolves.
+        const bool resumed{round.wait_for(10s) == std::future_status::ready};
+        if (!resumed) dkg.handler.RequestStop(); // so a failure doesn't hang in the future's destructor
+        BOOST_REQUIRE(resumed);
+        BOOST_CHECK(!round.get());
+        BOOST_CHECK(round_view == EvoDbIdentity::SNAPSHOT);
+        BOOST_CHECK(!round_read);
+    }
+
+    BOOST_CHECK(evodb.ActiveView().identity == EvoDbIdentity::NORMAL);
+    {
+        const ActiveEvoViewScope turn{&evodb};
+        uint8_t value;
+        BOOST_CHECK(!evodb.Read(snapshot_only_key, value));
+    }
+
+    // Until startup recovery rejects the generation still on disk, no other
+    // can be created.
+    BOOST_CHECK(evodb.HasDualChainstateMarker());
+    BOOST_CHECK(!evodb.CreateSnapshotGeneration(uint256::ONE, 1));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot"));
+    BOOST_CHECK(!fs::exists(discarded));
+    // As if the node had stopped before deleting the directory it set aside.
+    BOOST_REQUIRE(fs::create_directories(discarded / "partial"));
+    this->SimulateNodeRestart();
+    this->LoadVerifyActivateChainstate();
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !m_node.chainman->IsSnapshotActive()));
+    BOOST_CHECK(!m_node.evodb->GetSnapshotGeneration());
+    BOOST_CHECK(!m_node.evodb->HasDualChainstateMarker());
+    BOOST_CHECK(fs::exists(earlier_invalid / "earlier"));
+    BOOST_CHECK(!fs::exists(discarded));
+    {
+        // The rejected generation was not promoted either.
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        uint8_t value;
+        BOOST_CHECK(!m_node.evodb->Read(snapshot_only_key, value));
+    }
+}
+
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_first_rename, SnapshotTestSetup)
 {
     this->SetupSnapshot();
@@ -2736,10 +2861,13 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_keeps_earlier_invalid
     const fs::path data_dir{gArgs.GetDataDirNet()};
     const fs::path earlier_invalid{data_dir / "chainstate_snapshot_INVALID"};
     BOOST_REQUIRE(fs::create_directories(earlier_invalid / "earlier"));
+    // What an interrupted earlier deletion left; it does not block this one.
+    BOOST_REQUIRE(fs::create_directories(data_dir / "chainstate_snapshot_todelete" / "partial"));
 
     BOOST_CHECK(std::get<0>(this->TryLoadChainstate()) == node::ChainstateLoadStatus::SUCCESS);
     BOOST_CHECK(fs::exists(earlier_invalid / "earlier"));
     BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot"));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot_todelete"));
     BOOST_CHECK(!m_node.evodb->HasRejectedGeneration());
     BOOST_CHECK(WITH_LOCK(::cs_main, return !m_node.chainman->IsSnapshotActive()));
 }

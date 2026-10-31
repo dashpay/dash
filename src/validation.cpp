@@ -6756,8 +6756,20 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason)
     // committed; a rejection raised mid-connection has not flushed them yet.
     m_ibd_chainstate->ForceFlushStateToDisk();
     m_snapshot_chainstate->ForceFlushStateToDisk();
-    const bool evodb_synced{m_ibd_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::NORMAL, /*sync=*/true) &&
-                            m_snapshot_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)};
+    // A failed LevelDB write throws. The rejection must still switch away from
+    // the snapshot, stop reading its generation and shut down.
+    const auto written{[](const char* what, const auto& write) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        try {
+            return write();
+        } catch (const std::exception& e) {
+            LogPrintf("[snapshot] %s failed: %s\n", what, e.what());
+            return false;
+        }
+    }};
+    const bool evodb_synced{written("syncing EvoDB", [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        return m_ibd_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::NORMAL, /*sync=*/true) &&
+               m_snapshot_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true);
+    })};
     if (!evodb_synced) {
         user_error += Untranslated("\nFailed to sync EvoDB before invalidating the snapshot.");
     }
@@ -6773,15 +6785,21 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason)
 
     // Record the rejection before restoring NORMAL: a snapshot directory left
     // behind without its generation can no longer be activated. If the
-    // rejection does not persist, startup recovery finishes it for the renamed
-    // directory.
-    if (!evodb_synced || !m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
+    // rejection does not persist, startup recovery finishes it once the
+    // snapshot directory is set aside.
+    if (!evodb_synced ||
+        !written("recording the snapshot rejection",
+                 [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers(); })) {
         LogPrintf("[snapshot] failed to record the snapshot rejection in EvoDB\n");
+        // The generation stays live on disk for startup recovery to reject,
+        // but the rest of this run must not read it.
+        m_ibd_chainstate->m_evoDb.RevokeSnapshotGeneration();
     }
     auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
     if (!rename_result) {
         user_error += Untranslated("\n") + util::ErrorString(rename_result);
-    } else if (!m_ibd_chainstate->m_evoDb.CollectRejectedGenerations()) {
+    } else if (!written("removing the rejected snapshot EvoDB generation",
+                        [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return m_ibd_chainstate->m_evoDb.CollectRejectedGenerations(); })) {
         LogPrintf("[snapshot] failed to remove the rejected snapshot EvoDB generation; retrying at startup\n");
     }
 
@@ -7218,15 +7236,13 @@ util::Result<void> Chainstate::InvalidateCoinsDBOnDisk()
 
     fs::path invalid_path{snapshot_datadir};
     invalid_path += node::SNAPSHOT_INVALID_SUFFIX;
-    std::string dbpath = fs::PathToString(snapshot_datadir);
-    std::string target = fs::PathToString(invalid_path);
-    LogPrintf("[snapshot] renaming snapshot datadir %s to %s\n", dbpath, target);
 
     // The invalid snapshot datadir is simply moved and not deleted because we may
     // want to do forensics later during issue investigation. The user is instructed
-    // accordingly in MaybeCompleteSnapshotValidation().
+    // accordingly in MaybeCompleteSnapshotValidation(). An earlier rejection's
+    // datadir keeps its place instead.
     try {
-        RenameDurably(snapshot_datadir, invalid_path);
+        node::SetAsideInvalidSnapshotDir(snapshot_datadir);
     } catch (const fs::filesystem_error& e) {
         auto src_str = fs::PathToString(snapshot_datadir);
         auto dest_str = fs::PathToString(invalid_path);
