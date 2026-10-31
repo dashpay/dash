@@ -683,13 +683,28 @@ static bool LacksQuorumHistory(const EvoViewToken& view, const Consensus::Params
     return view.identity == EvoDbIdentity::SNAPSHOT && view.base_height >= consensus.DIP0003Height;
 }
 
-//! A height-index scan such a view cannot satisfy would need the missing
-//! history, so its result is unknown, not short. A scan from below DIP3 is
-//! complete: no commitment can be mined there.
-static void RequireSatisfiedScan(const EvoViewToken& view, const Consensus::Params& consensus, const char* func,
-                                 Consensus::LLMQType llmqType, const CBlockIndex* pindex)
+//! Whether a height-index scan from `pindex` reaches history such a view
+//! lacks: a commitment of `llmqType` may have been mined at a height up to
+//! both `pindex` and the base. None can be below DIP3. A deployment-gated type
+//! stays enabled once enabled, and the types DIP0024 retires are enabled from
+//! DIP3 on, so a type enabled at neither end of that range has none in it.
+//! Evaluated before taking the EvoDB lock: deployment state may read EvoDB.
+static bool ScanNeedsMissingHistory(const ChainstateManager& chainman, const EvoViewToken& view,
+                                    Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {
-    if (!LacksQuorumHistory(view, consensus) || pindex->nHeight < consensus.DIP0003Height) return;
+    const auto& consensus{chainman.GetConsensus()};
+    if (!LacksQuorumHistory(view, consensus) || pindex->nHeight < consensus.DIP0003Height) return false;
+    const CBlockIndex* last_missing{pindex->GetAncestor(std::min(pindex->nHeight, view.base_height))};
+    const CBlockIndex* first_minable{pindex->GetAncestor(consensus.DIP0003Height)};
+    return chainman.IsQuorumTypeEnabled(llmqType, last_missing->pprev) ||
+           chainman.IsQuorumTypeEnabled(llmqType, first_minable->pprev);
+}
+
+//! A short scan that needs the missing history has an unknown result, not a
+//! short one.
+static void RequireSatisfiedScan(bool needs_missing_history, const char* func, Consensus::LLMQType llmqType)
+{
+    if (!needs_missing_history) return;
     throw BlockDataUnavailableError(
         strprintf("%s: commitments of LLMQ type %d at or below the snapshot base are not available", func,
                   std23::to_underlying(llmqType)));
@@ -751,7 +766,8 @@ std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(C
 std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const
 {
     AssertLockNotHeld(m_evoDb.cs);
-    const EvoViewToken view{m_evoDb.CurrentView()};
+    const bool needs_missing_history{
+        ScanNeedsMissingHistory(m_chainman, m_evoDb.CurrentView(), llmqType, pindex)};
     LOCK(m_evoDb.cs);
 
     auto dbIt = m_evoDb.GetCurTransaction().NewIteratorUniquePtr();
@@ -790,17 +806,17 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilB
         dbIt->Next();
     }
 
-    if (ret.size() < maxCount) RequireSatisfiedScan(view, m_chainman.GetConsensus(), __func__, llmqType, pindex);
+    if (ret.size() < maxCount) RequireSatisfiedScan(needs_missing_history, __func__, llmqType);
     return ret;
 }
 
 std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const
 {
     AssertLockNotHeld(m_evoDb.cs);
-    const EvoViewToken view{m_evoDb.CurrentView()};
+    const bool needs_missing_history{
+        ScanNeedsMissingHistory(m_chainman, m_evoDb.CurrentView(), llmqType, pindex)};
     const auto not_found{[&]() -> std::optional<const CBlockIndex*> {
-        RequireSatisfiedScan(view, m_chainman.GetConsensus(), "GetLastMinedCommitmentsByQuorumIndexUntilBlock", llmqType,
-                             pindex);
+        RequireSatisfiedScan(needs_missing_history, "GetLastMinedCommitmentsByQuorumIndexUntilBlock", llmqType);
         return std::nullopt;
     }};
     LOCK(m_evoDb.cs);

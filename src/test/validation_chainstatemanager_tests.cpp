@@ -1979,6 +1979,13 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
         BOOST_REQUIRE(pre_dip3);
         BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(platform_type, pre_dip3, 1).empty());
         BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(rotating_type, pre_dip3, 0, 0));
+
+        // Neither can a type that was not enabled up to the base, so its short
+        // scan is complete too.
+        const auto unenabled_type{Consensus::LLMQType::LLMQ_TEST_V17};
+        BOOST_REQUIRE(!chainman.IsQuorumTypeEnabled(unenabled_type, snapshot_tip));
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(unenabled_type, snapshot_tip, 1).empty());
+        BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(unenabled_type, snapshot_tip, 0, 0));
     }
     SetMiscWarning(Untranslated(""));
 }
