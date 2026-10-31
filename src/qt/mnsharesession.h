@@ -229,8 +229,8 @@ public:
     //! Early-exit penalty rules for the share amounts alone (empty = valid)
     static QString CheckEarlyPenalty(const std::vector<CAmount>& share_amounts, BitcoinUnits::Unit unit,
                                      uint32_t early_period_blocks, CAmount early_penalty);
-    //! Count, per-share bounds and sum rules for share amounts before any
-    //! address exists (empty = valid)
+    //! AreShareAmountsValid for the amounts entered before any address
+    //! exists (empty = valid); validateShares() runs the full list later
     static QString CheckShareAmounts(const std::vector<CAmount>& share_amounts, BitcoinUnits::Unit unit);
 
     //! Draft only: record a participant's funding contribution and rebuild

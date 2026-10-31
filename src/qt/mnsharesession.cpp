@@ -727,23 +727,8 @@ QString MnShareSession::CheckEarlyPenalty(const std::vector<CAmount>& share_amou
 
 QString MnShareSession::CheckShareAmounts(const std::vector<CAmount>& share_amounts, BitcoinUnits::Unit unit)
 {
-    // The consensus rules need a full share list, so stand in distinct keys and scripts for the
-    // addresses that have not been collected yet; only the amount rules can fire
-    CollateralShares shares;
-    uint160 voting_hash;
-    *voting_hash.begin() = 0xff;
-    for (size_t i = 0; i < share_amounts.size(); ++i) {
-        uint160 owner_hash, refund_hash;
-        *owner_hash.begin() = static_cast<unsigned char>(i + 1);
-        *(refund_hash.begin() + 1) = static_cast<unsigned char>(i + 1);
-        shares.emplace_back(share_amounts[i], GetScriptForDestination(PKHash(CKeyID{refund_hash})), CScript{},
-                            CKeyID{owner_hash});
-    }
     TxValidationState state;
-    if (IsShareListTriviallyValid(shares, /*early_period_blocks=*/0, /*early_penalty=*/0,
-                                  GetMnType(MnType::Regular).collat_amount, CKeyID{voting_hash}, state)) {
-        return {};
-    }
+    if (AreShareAmountsValid(share_amounts, GetMnType(MnType::Regular).collat_amount, state)) return {};
     return ShareListErrorText(state.GetRejectReason(), unit, CCollateralShare::MIN_AMOUNT, /*early_period_blocks=*/0);
 }
 
