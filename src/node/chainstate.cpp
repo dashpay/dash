@@ -48,6 +48,18 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
     fs::path invalid{snapshot};
     invalid += SNAPSHOT_INVALID_SUFFIX;
 
+    // Left behind only by a deletion that SetAsideInvalidSnapshotDir() did not
+    // finish; nothing reads it.
+    try {
+        const fs::path discarded{DiscardedSnapshotDir(snapshot)};
+        if (fs::exists(discarded)) {
+            LogPrintf("[snapshot] removing discarded snapshot chainstate directory %s\n", fs::PathToString(discarded));
+            RemoveAllDurably(discarded);
+        }
+    } catch (const fs::filesystem_error& e) {
+        LogPrintf("[snapshot] unable to remove discarded snapshot chainstate directory: %s\n", e.what());
+    }
+
     // A persisted rejection whose coins directory was not invalidated yet:
     // finish the invalidation, then drop the rejected generation. A live
     // generation owns the snapshot directory, so the rejected one's is gone.
@@ -55,15 +67,7 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
         if (fs::exists(snapshot) && !evodb.GetSnapshotGeneration()) {
             LogPrintf("[snapshot] completing interrupted invalid-snapshot coins invalidation\n");
             try {
-                // An earlier rejection's directory keeps its place: it may be
-                // the one the user was asked to report.
-                if (fs::exists(invalid)) {
-                    LogPrintf("[snapshot] %s already exists; deleting %s instead\n", fs::PathToString(invalid),
-                              fs::PathToString(snapshot));
-                    RemoveAllDurably(snapshot);
-                } else {
-                    RenameDurably(snapshot, invalid);
-                }
+                SetAsideInvalidSnapshotDir(snapshot);
             } catch (const fs::filesystem_error& e) {
                 error = strprintf(_("Failed to finish interrupted invalid snapshot cleanup: %s"), e.what());
                 return false;
