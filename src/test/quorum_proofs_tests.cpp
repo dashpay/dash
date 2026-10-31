@@ -19,6 +19,7 @@
 #include <node/blockstorage.h>
 #include <pow.h>
 #include <rpc/server.h>
+#include <set>
 #include <streams.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
@@ -109,6 +110,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
     CBlockIndex* saved_tip;
     int checkpoint_height;
     int handoff_height{0};
+    int contested_selections{0};
     bool mine_nonstandard_handoff{false};
     std::vector<llmq::CFinalCommitment> commitments;
     std::vector<CBLSSecretKey> keys;
@@ -134,6 +136,36 @@ struct QuorumProofGenerationSetup : TestingSetup {
         const_cast<Consensus::Params&>(Params().GetConsensus()) = saved_consensus;
     }
 
+    // ChainLock and InstantSend verification select from ScanQuorums while proofs select from
+    // ScanCommitments, so both must return the same quorums and name the same signer. Widening the
+    // pool beyond the fixture's single active quorum makes the choice between them non-trivial once
+    // two quorums are mined. Returns whether there was more than one candidate to choose from.
+    bool CheckSelectorsAgree(const Consensus::LLMQParams& params, const CBlockIndex* start)
+    {
+        const auto& qman = *m_node.llmq_ctx->qman;
+        for (const size_t count : {1, 2, 3}) {
+            const auto quorums = qman.ScanQuorums(params.type, start, count);
+            const auto scanned = qman.ScanCommitments(params.type, start, count);
+            BOOST_REQUIRE_EQUAL(quorums.size(), scanned.size());
+            for (size_t i = 0; i < quorums.size(); ++i) {
+                BOOST_CHECK(quorums[i]->qc->quorumHash == scanned[i].quorumHash);
+            }
+        }
+        auto pool = params;
+        pool.signingActiveQuorumCount = 2;
+        std::set<uint256> chosen;
+        for (int i = 0; i < 64; ++i) {
+            const uint256 id = ::SerializeHash(i);
+            const auto quorum = llmq::SelectQuorumForSigning(pool, qman, id, start);
+            const auto commitment = llmq::SelectCommitmentForSigning(pool, qman, id, start);
+            BOOST_REQUIRE(quorum && commitment);
+            BOOST_CHECK(quorum->qc->quorumHash == commitment->quorumHash);
+            chosen.insert(commitment->quorumHash);
+        }
+        BOOST_CHECK_EQUAL(chosen.size(), qman.ScanCommitments(pool.type, start, pool.signingActiveQuorumCount).size());
+        return chosen.size() > 1;
+    }
+
     void CreateHistory()
     {
         const auto& consensus = Params().GetConsensus();
@@ -142,7 +174,11 @@ struct QuorumProofGenerationSetup : TestingSetup {
         auto& chain = *WITH_LOCK(cs_main, return &chainman.ActiveChain());
         int first_height = checkpoint_height;
         for (const auto& quorum_params : consensus.llmqs) {
-            first_height = std::min(first_height, checkpoint_height - 2 * quorum_params.dkgInterval);
+            // A rotating scan of keepOldConnections quorums spans several cycles.
+            const int intervals = quorum_params.useRotation
+                                      ? quorum_params.keepOldConnections / quorum_params.signingActiveQuorumCount + 2
+                                      : 2;
+            first_height = std::min(first_height, checkpoint_height - intervals * quorum_params.dkgInterval);
         }
         handoff_height = checkpoint_height + params.dkgInterval;
         const int last_height = (mine_nonstandard_handoff ? handoff_height : checkpoint_height) +
@@ -158,6 +194,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
                                                                      chainlock::GenSigRequestId(height - 1),
                                                                      chain[height - 1 - llmq::SIGN_HEIGHT_OFFSET]);
                 BOOST_REQUIRE(signer);
+                if (CheckSelectorsAgree(params, chain[height - 1 - llmq::SIGN_HEIGHT_OFFSET])) ++contested_selections;
                 const auto match = std::find_if(commitments.begin(), commitments.end(), [&](const auto& entry) {
                     return entry.quorumHash == signer->quorumHash;
                 });
@@ -318,6 +355,58 @@ BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProo
         return error["message"].get_str().find("historical block unavailable") != std::string::npos;
     });
 }
+BOOST_FIXTURE_TEST_CASE(rotating_commitment_scan_resumes_below_cached_cycles, QuorumProofGenerationSetup)
+{
+    // A scan that finds only part of its request cached must continue below the
+    // last cached quorum's base block. Resuming below its mined block would revisit
+    // the commitments of that cycle mined before it.
+    CreateHistory();
+    const auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
+    const auto params = *Params().GetLLMQ(Params().GetConsensus().llmqTypeDIP0024InstantSend);
+    BOOST_REQUIRE(params.useRotation);
+    const int window = params.dkgMiningWindowEnd - params.dkgMiningWindowStart + 1;
+    const int newest_cycle = (checkpoint_height - params.dkgMiningWindowEnd) / params.dkgInterval * params.dkgInterval;
+    const int cycles = params.keepOldConnections / params.signingActiveQuorumCount + 1;
+
+    // Scans return the most recent cycle first, each cycle in quorumIndex order.
+    std::vector<uint256> expected;
+    for (int cycle = 0; cycle < cycles; ++cycle) {
+        const int cycle_height = newest_cycle - cycle * params.dkgInterval;
+        for (int index = 0; index < params.signingActiveQuorumCount; ++index) {
+            const auto* base = chain[cycle_height + index];
+            const auto* mined = chain[cycle_height + params.dkgMiningWindowStart + index % window];
+            BOOST_REQUIRE(base && mined);
+            llmq::CFinalCommitment qc;
+            qc.nVersion = llmq::CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION;
+            qc.llmqType = params.type;
+            qc.quorumHash = base->GetBlockHash();
+            qc.quorumIndex = index;
+            qc.signers.assign(params.size, true);
+            qc.validMembers.assign(params.size, true);
+            m_node.evodb->Write(std::make_pair(std::string{"q_mc"}, std::make_pair(params.type, qc.quorumHash)),
+                                std::make_pair(qc, mined->GetBlockHash()));
+            m_node.evodb->Write(std::make_tuple(std::string{"q_mcihi"}, params.type, index,
+                                                htobe32_internal(UINT32_MAX - mined->nHeight)),
+                                base->nHeight);
+            expected.push_back(qc.quorumHash);
+        }
+    }
+
+    const auto& qman = *m_node.llmq_ctx->qman;
+    const auto* start = chain[checkpoint_height];
+    const auto hashes = [](const std::vector<llmq::CFinalCommitment>& scanned) {
+        std::vector<uint256> result;
+        for (const auto& qc : scanned)
+            result.push_back(qc.quorumHash);
+        return result;
+    };
+    // The cold scan reads all of it at once but caches only keepOldConnections,
+    // so the second scan resumes below the cached cycles.
+    const auto cold = hashes(qman.ScanCommitments(params.type, start, expected.size()));
+    const auto resumed = hashes(qman.ScanCommitments(params.type, start, expected.size()));
+    BOOST_CHECK_EQUAL_COLLECTIONS(cold.begin(), cold.end(), expected.begin(), expected.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(resumed.begin(), resumed.end(), expected.begin(), expected.end());
+}
 BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGenerationSetup)
 {
     // A handoff must stay provable whatever shape the miner gave the mined
@@ -325,6 +414,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     // removes that quorum's key from every proof.
     mine_nonstandard_handoff = true;
     CreateHistory();
+    BOOST_CHECK_GT(contested_selections, 0);
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
     chainlock::CoinbaseChainLockReader reader(chain.Tip());
