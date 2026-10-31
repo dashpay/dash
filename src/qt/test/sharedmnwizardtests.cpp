@@ -43,7 +43,9 @@
 
 #include <univalue.h>
 
+#include <QAbstractButton>
 #include <QApplication>
+#include <QButtonGroup>
 #include <QClipboard>
 #include <QLabel>
 #include <QPushButton>
@@ -311,6 +313,11 @@ void SharedMnWizardTests::coordinatorResumesSavedSession()
     QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageInvite));
     QCOMPARE(dialog.myShareIndex(), 0);
     QVERIFY(dialog.allDetailsCollected());
+
+    // alice's coins are reserved, so the coordinator cannot move to another row
+    dialog.refreshShareTable();
+    QVERIFY(!dialog.m_me_group->button(0)->isEnabled());
+    QVERIFY(!dialog.m_me_group->button(1)->isEnabled());
 
     // The operator key everybody was invited to is kept: a fresh one from the
     // key widget would invalidate the terms the others are answering
