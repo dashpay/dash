@@ -402,10 +402,17 @@ bool CCoinJoinClientSession::SendDenominate(const std::vector<std::pair<CTxDSIn,
                      vecTxDSInTmp.size(), vecTxOutTmp.size(), tx.ToString());
 
     // store our entry for later use
-    LOCK(cs_coinjoin);
-    vecEntries.emplace_back(vecTxDSInTmp, vecTxOutTmp, CTransaction(txMyCollateral));
-    RelayIn(vecEntries.back(), connman);
-    nTimeLastSuccessfulStep = GetTime();
+    bool relayed{false};
+    {
+        LOCK(cs_coinjoin);
+        vecEntries.emplace_back(vecTxDSInTmp, vecTxOutTmp, CTransaction(txMyCollateral));
+        relayed = RelayIn(vecEntries.back(), connman);
+        nTimeLastSuccessfulStep = GetTime();
+    }
+
+    // The masternode has now seen our output scripts. Returning them to the keypool if the session
+    // fails would hand them out again, letting it link their next use to the inputs sent with them.
+    if (relayed) keyHolderStorage.KeepAll();
 
     return true;
 }
@@ -2428,11 +2435,11 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
     return true;
 }
 
-void CCoinJoinClientSession::RelayIn(const CCoinJoinEntry& entry, CConnman& connman) const
+bool CCoinJoinClientSession::RelayIn(const CCoinJoinEntry& entry, CConnman& connman) const
 {
-    if (!mixingMasternode) return;
+    if (!mixingMasternode) return false;
 
-    connman.ForNode(mixingMasternode->pdmnState->netInfo->GetPrimary(), [&entry, &connman, this](CNode* pnode) {
+    return connman.ForNode(mixingMasternode->pdmnState->netInfo->GetPrimary(), [&entry, &connman, this](CNode* pnode) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::RelayIn -- found master, relaying message to %s\n",
                          pnode->addr.ToStringAddrPort());
         CNetMsgMaker msgMaker(pnode->GetCommonVersion());
