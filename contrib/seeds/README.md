@@ -4,7 +4,7 @@ Utility to generate the seeds.txt list that is compiled into the client
 (see [src/chainparamsseeds.h](/src/chainparamsseeds.h) and other utilities in [contrib/seeds](/contrib/seeds)).
 
 The seeds compiled into the release are created from the current protx list and AS map
-data, like this:
+data. Run the following commands from the `/contrib/seeds` directory:
 
 ```bash
 dash-cli protx list valid true 2563000 > protx_list.json

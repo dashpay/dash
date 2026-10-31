@@ -167,11 +167,13 @@ def main():
     print('Done.', file=sys.stderr)
 
     # This expects a json as outputted by "protx list valid 1"
+    print('Loading and parsing protx list…', end='', file=sys.stderr, flush=True)
     if args.protx_list is not None:
         with open(args.protx_list, 'r', encoding="utf8") as f:
             mns = json.load(f)
     else:
         mns = json.load(sys.stdin)
+    print('Done.', file=sys.stderr)
 
     onions = []
     if args.onion_seeds is not None:
