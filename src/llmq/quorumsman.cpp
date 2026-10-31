@@ -28,6 +28,8 @@
 
 #include <cxxtimer.hpp>
 
+#include <type_traits>
+
 namespace llmq {
 CQuorumManager::CQuorumManager(CBLSWorker& _blsWorker, CDeterministicMNManager& dmnman, CEvoDB& _evoDb,
                                CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
@@ -176,9 +178,21 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     return ScanQuorums(llmqType, pindexStart, nCountRequested, &chain);
 }
 
-std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType,
-                                                     gsl::not_null<const CBlockIndex*> pindexStart,
-                                                     size_t nCountRequested, const CChain* chain) const
+template <typename T>
+PerLlmqTypeCache<std::vector<T>>& CQuorumManager::ScanCache() const
+{
+    if constexpr (std::is_same_v<T, CQuorumCPtr>) {
+        return scanQuorumsCache;
+    } else {
+        static_assert(std::is_same_v<T, CFinalCommitment>);
+        return scanCommitmentsCache;
+    }
+}
+
+template <typename T, typename ResumeFn, typename BuildFn>
+std::vector<T> CQuorumManager::ScanMined(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
+                                         size_t nCountRequested, bool use_cache, ResumeFn&& resume_block,
+                                         BuildFn&& build) const
 {
     if (nCountRequested == 0 || !m_chainman.IsQuorumTypeEnabled(llmqType, pindexStart)) {
         return {};
@@ -207,37 +221,39 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
     gsl::not_null<const CBlockIndex*> pIndexScanCommitments{pindexStore};
     size_t nScanCommitments{nCountRequested};
-    std::vector<CQuorumCPtr> vecResultQuorums;
+    std::vector<T> vecResult;
+    bool resume{false};
 
-    if (chain == nullptr) {
+    if (use_cache) {
         LOCK(m_cs_maps);
-        if (!scanQuorumsCache.IsInitialized()) {
+        auto& cache = ScanCache<T>();
+        if (!cache.IsInitialized()) {
             // NOTE: We store it for each block hash in the DKG mining phase here
             // and not for a single quorum hash per quorum like we do for other caches.
             // And we only do this for max_cycles() of the most recent quorums
             // because signing by old quorums requires the exact quorum hash to be specified
             // and quorum scanning isn't needed there.
-            scanQuorumsCache.Init(Params().GetConsensus(), [](const Consensus::LLMQParams& llmq) {
+            cache.Init(Params().GetConsensus(), [](const Consensus::LLMQParams& llmq) {
                 return llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart);
             });
         }
-        bool fCacheExists = scanQuorumsCache.get(llmqType, pindexStore->GetBlockHash(), vecResultQuorums);
+        bool fCacheExists = cache.get(llmqType, pindexStore->GetBlockHash(), vecResult);
         if (fCacheExists) {
             // We have exactly what requested so just return it
-            if (vecResultQuorums.size() == nCountRequested) {
-                return vecResultQuorums;
+            if (vecResult.size() == nCountRequested) {
+                return vecResult;
             }
             // If we have more cached than requested return only a subvector
-            if (vecResultQuorums.size() > nCountRequested) {
-                return {vecResultQuorums.begin(), vecResultQuorums.begin() + nCountRequested};
+            if (vecResult.size() > nCountRequested) {
+                return {vecResult.begin(), vecResult.begin() + nCountRequested};
             }
-            // If we have cached quorums but not enough, subtract what we have from the count and the set correct index where to start
-            // scanning for the rests
-            if (!vecResultQuorums.empty()) {
-                nScanCommitments -= vecResultQuorums.size();
-                // bail out if it's below genesis block
-                if (vecResultQuorums.back()->m_quorum_base_block_index->pprev == nullptr) return {};
-                pIndexScanCommitments = vecResultQuorums.back()->m_quorum_base_block_index->pprev;
+            // If we have cached quorums but not enough, subtract what we have from the count and
+            // continue scanning below the last cached one
+            if (!vecResult.empty()) {
+                nScanCommitments -= vecResult.size();
+                // Resolve the continuation point after releasing m_cs_maps: resume_block may take
+                // locks whose order is incompatible with m_cs_maps.
+                resume = true;
             }
         } else {
             // If there is nothing in cache request at least keepOldConnections because this gets cached then later
@@ -247,51 +263,73 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
         nScanCommitments = std::max(nCountRequested, static_cast<size_t>(llmq_params_opt->keepOldConnections));
     }
 
-    // Get the block indexes of the mined commitments to build the required quorums from
+    if (resume) {
+        const CBlockIndex* pLastIndex = resume_block(vecResult.back(), *llmq_params_opt);
+        // bail out if it's below genesis block
+        if (!pLastIndex || pLastIndex->pprev == nullptr) return {};
+        pIndexScanCommitments = pLastIndex->pprev;
+    }
+
+    // Get the block indexes of the mined commitments to build the required results from
     std::vector<const CBlockIndex*> pQuorumBaseBlockIndexes{ llmq_params_opt->useRotation ?
             quorumBlockProcessor.GetMinedCommitmentsIndexedUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments) :
             quorumBlockProcessor.GetMinedCommitmentsUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments)
     };
-    vecResultQuorums.reserve(vecResultQuorums.size() + pQuorumBaseBlockIndexes.size());
+    vecResult.reserve(vecResult.size() + pQuorumBaseBlockIndexes.size());
 
     for (auto& pQuorumBaseBlockIndex : pQuorumBaseBlockIndexes) {
         assert(pQuorumBaseBlockIndex);
         // populate cache for keepOldConnections most recent quorums only
-        bool populate_cache = vecResultQuorums.size() < static_cast<size_t>(llmq_params_opt->keepOldConnections);
+        bool populate_cache = vecResult.size() < static_cast<size_t>(llmq_params_opt->keepOldConnections);
 
         // We assume that every quorum asked for is available to us on hand, if this
         // fails then we can assume that something has gone wrong and we should stop
         // trying to process any further and return a blank.
-        CQuorumCPtr quorum;
-        if (chain) {
-            quorum = [&]() NO_THREAD_SAFETY_ANALYSIS {
-                return GetQuorum(llmqType, pQuorumBaseBlockIndex, *chain, populate_cache);
-            }();
-        } else {
-            quorum = GetQuorum(llmqType, pQuorumBaseBlockIndex, populate_cache);
-        }
-        if (!quorum) {
-            LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, blockHash=%s, populate_cache=%s\n",
-                      __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
-                      util::to_string(populate_cache));
+        std::optional<T> entry = build(pQuorumBaseBlockIndex, populate_cache);
+        if (!entry) {
             return {};
         }
-        vecResultQuorums.emplace_back(quorum);
+        vecResult.emplace_back(std::move(*entry));
     }
 
-    const size_t nCountResult{vecResultQuorums.size()};
-    if (nCountResult > 0 && chain == nullptr) {
+    const size_t nCountResult{vecResult.size()};
+    if (nCountResult > 0 && use_cache) {
         LOCK(m_cs_maps);
         // Don't cache more than keepOldConnections elements
         // because signing by old quorums requires the exact quorum hash
         // to be specified and quorum scanning isn't needed there.
         const size_t nCacheEndIndex = std::min(nCountResult, static_cast<size_t>(llmq_params_opt->keepOldConnections));
-        scanQuorumsCache.emplace(llmqType, pindexStore->GetBlockHash(),
-                                 {vecResultQuorums.begin(), vecResultQuorums.begin() + nCacheEndIndex});
+        ScanCache<T>().emplace(llmqType, pindexStore->GetBlockHash(), {vecResult.begin(), vecResult.begin() + nCacheEndIndex});
     }
     // Don't return more than nCountRequested elements
     const size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
-    return {vecResultQuorums.begin(), vecResultQuorums.begin() + nResultEndIndex};
+    return {vecResult.begin(), vecResult.begin() + nResultEndIndex};
+}
+
+std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType,
+                                                     gsl::not_null<const CBlockIndex*> pindexStart,
+                                                     size_t nCountRequested, const CChain* chain) const
+{
+    return ScanMined<CQuorumCPtr>(
+        llmqType, pindexStart, nCountRequested, /*use_cache=*/chain == nullptr,
+        [](const CQuorumCPtr& quorum, const Consensus::LLMQParams&) { return quorum->m_quorum_base_block_index; },
+        [&](gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool populate_cache) -> std::optional<CQuorumCPtr> {
+            CQuorumCPtr quorum;
+            if (chain) {
+                quorum = [&]() NO_THREAD_SAFETY_ANALYSIS {
+                    return GetQuorum(llmqType, pQuorumBaseBlockIndex, *chain, populate_cache);
+                }();
+            } else {
+                quorum = GetQuorum(llmqType, pQuorumBaseBlockIndex, populate_cache);
+            }
+            if (!quorum) {
+                LogPrintf("ScanQuorums: ERROR! Unexpected missing quorum with llmqType=%d, blockHash=%s, populate_cache=%s\n",
+                          std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString(),
+                          util::to_string(populate_cache));
+                return std::nullopt;
+            }
+            return quorum;
+        });
 }
 
 std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQType llmqType, size_t nCountRequested) const
@@ -301,120 +339,31 @@ std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQTyp
 }
 
 std::vector<CFinalCommitment> CQuorumManager::ScanCommitments(Consensus::LLMQType llmqType,
-                                                     gsl::not_null<const CBlockIndex*> pindexStart,
-                                                     size_t nCountRequested) const
+                                                              gsl::not_null<const CBlockIndex*> pindexStart,
+                                                              size_t nCountRequested) const
 {
-    if (nCountRequested == 0 || !m_chainman.IsQuorumTypeEnabled(llmqType, pindexStart)) {
-        return {};
-    }
-
-    gsl::not_null<const CBlockIndex*> pindexStore{pindexStart};
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
-    assert(llmq_params_opt.has_value());
-
-    // Quorum sets can only change during the mining phase of DKG.
-    // Find the closest known block index.
-    const int quorumCycleStartHeight = pindexStart->nHeight - (pindexStart->nHeight % llmq_params_opt->dkgInterval);
-    const int quorumCycleMiningStartHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowStart;
-    const int quorumCycleMiningEndHeight = quorumCycleStartHeight + llmq_params_opt->dkgMiningWindowEnd;
-
-    if (pindexStart->nHeight < quorumCycleMiningStartHeight) {
-        // too early for this cycle, use the previous one
-        // bail out if it's below genesis block
-        if (quorumCycleMiningEndHeight < llmq_params_opt->dkgInterval) return {};
-        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight - llmq_params_opt->dkgInterval);
-    } else if (pindexStart->nHeight > quorumCycleMiningEndHeight) {
-        // we are past the mining phase of this cycle, use it
-        pindexStore = pindexStart->GetAncestor(quorumCycleMiningEndHeight);
-    }
-    // everything else is inside the mining phase of this cycle, no pindexStore adjustment needed
-
-    gsl::not_null<const CBlockIndex*> pIndexScanCommitments{pindexStore};
-    size_t nScanCommitments{nCountRequested};
-    std::vector<CFinalCommitment> vecResultCommitments;
-    std::optional<uint256> continuationQuorumHash;
-
-    {
-        LOCK(m_cs_maps);
-        if (scanCommitmentsCache.empty()) {
-            for (const auto& llmq : Params().GetConsensus().llmqs) {
-                scanCommitmentsCache.try_emplace(llmq.type, llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart));
+    return ScanMined<CFinalCommitment>(
+        llmqType, pindexStart, nCountRequested, /*use_cache=*/true,
+        [&](const CFinalCommitment& last, const Consensus::LLMQParams& llmq_params) {
+            uint256 continuationBlockHash;
+            if (llmq_params.useRotation) {
+                // Rotating scans are keyed by quorum base blocks. Resuming from the
+                // mined block would revisit the other commitments from the same cycle.
+                continuationBlockHash = last.quorumHash;
+            } else {
+                continuationBlockHash = quorumBlockProcessor.GetMinedCommitment(llmqType, last.quorumHash).second;
             }
-        }
-        auto& cache = scanCommitmentsCache[llmqType];
-        bool fCacheExists = cache.get(pindexStore->GetBlockHash(), vecResultCommitments);
-        if (fCacheExists) {
-            // We have exactly what requested so just return it
-            if (vecResultCommitments.size() == nCountRequested) {
-                return vecResultCommitments;
+            return WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(continuationBlockHash));
+        },
+        [&](gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex, bool) -> std::optional<CFinalCommitment> {
+            auto [qc, _] = quorumBlockProcessor.GetMinedCommitment(llmqType, pQuorumBaseBlockIndex->GetBlockHash());
+            if (qc.IsNull()) {
+                LogPrintf("ScanCommitments: ERROR! Unexpected missing commitment with llmqType=%d, blockHash=%s\n",
+                          std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString());
+                return std::nullopt;
             }
-            // If we have more cached than requested return only a subvector
-            if (vecResultCommitments.size() > nCountRequested) {
-                return {vecResultCommitments.begin(), vecResultCommitments.begin() + nCountRequested};
-            }
-            // If we have cached quorums but not enough, subtract what we have from the count and the set correct index where to start
-            // scanning for the rests
-            if (!vecResultCommitments.empty()) {
-                nScanCommitments -= vecResultCommitments.size();
-                // Resolve the continuation point after releasing m_cs_maps. Both the
-                // mined-commitment lookup and block-index lookup take locks whose
-                // order is incompatible with m_cs_maps.
-                continuationQuorumHash = vecResultCommitments.back().quorumHash;
-            }
-        } else {
-            // If there is nothing in cache request at least keepOldConnections because this gets cached then later
-            nScanCommitments = std::max(nCountRequested, static_cast<size_t>(llmq_params_opt->keepOldConnections));
-        }
-    }
-
-    if (continuationQuorumHash) {
-        uint256 continuationBlockHash;
-        if (llmq_params_opt->useRotation) {
-            // Rotating scans are keyed by quorum base blocks. Resuming from the
-            // mined block would revisit the other commitments from the same cycle.
-            continuationBlockHash = *continuationQuorumHash;
-        } else {
-            continuationBlockHash = quorumBlockProcessor.GetMinedCommitment(llmqType, *continuationQuorumHash).second;
-        }
-        const CBlockIndex* pLastIndex = WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(continuationBlockHash));
-        if (!pLastIndex || pLastIndex->pprev == nullptr) return {};
-        pIndexScanCommitments = pLastIndex->pprev;
-    }
-
-    // Get the block indexes of the mined commitments to build the required quorums from
-    std::vector<const CBlockIndex*> pQuorumBaseBlockIndexes{ llmq_params_opt->useRotation ?
-            quorumBlockProcessor.GetMinedCommitmentsIndexedUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments) :
-            quorumBlockProcessor.GetMinedCommitmentsUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments)
-    };
-    vecResultCommitments.reserve(vecResultCommitments.size() + pQuorumBaseBlockIndexes.size());
-
-    for (auto& pQuorumBaseBlockIndex : pQuorumBaseBlockIndexes) {
-        assert(pQuorumBaseBlockIndex);
-        // We assume that every quorum asked for is available to us on hand, if this
-        // fails then we can assume that something has gone wrong and we should stop
-        // trying to process any further and return a blank.
-        auto [qc, _] = quorumBlockProcessor.GetMinedCommitment(llmqType, pQuorumBaseBlockIndex->GetBlockHash());
-        if (qc.IsNull()) {
-            LogPrintf("%s: ERROR! Unexpected missing commitment with llmqType=%d, blockHash=%s\n",
-                      __func__, std23::to_underlying(llmqType), pQuorumBaseBlockIndex->GetBlockHash().ToString());
-            return {};
-        }
-        vecResultCommitments.emplace_back(std::move(qc));
-    }
-
-    const size_t nCountResult{vecResultCommitments.size()};
-    if (nCountResult > 0) {
-        LOCK(m_cs_maps);
-        // Don't cache more than keepOldConnections elements
-        // because signing by old quorums requires the exact quorum hash
-        // to be specified and quorum scanning isn't needed there.
-        auto& cache = scanCommitmentsCache[llmqType];
-        const size_t nCacheEndIndex = std::min(nCountResult, static_cast<size_t>(llmq_params_opt->keepOldConnections));
-        cache.emplace(pindexStore->GetBlockHash(), {vecResultCommitments.begin(), vecResultCommitments.begin() + nCacheEndIndex});
-    }
-    // Don't return more than nCountRequested elements
-    const size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
-    return {vecResultCommitments.begin(), vecResultCommitments.begin() + nResultEndIndex};
+            return std::move(qc);
+        });
 }
 
 bool CQuorumManager::IsMasternode() const
@@ -751,20 +700,21 @@ CBlockIndex* SelectQuorumForSigningStartBlock(const CChain& active_chain, int si
     return active_chain[startBlockHeight];
 }
 
-CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
-                                   const uint256& selectionHash, const CBlockIndex* pindexStart)
-{
-    if (pindexStart == nullptr) {
-        return nullptr;
-    }
-    size_t poolSize = llmq_params.signingActiveQuorumCount;
+static const CFinalCommitment& SigningCandidateCommitment(const CQuorumCPtr& quorum) { return *quorum->qc; }
+static const CFinalCommitment& SigningCandidateCommitment(const CFinalCommitment& commitment) { return commitment; }
 
-    // don't remove connections for the currently in-progress DKG round
-    if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
-        auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
-        if (quorums.empty()) {
-            return nullptr;
-        }
+//! Index of the candidate that signs for selectionHash, or std::nullopt if none qualifies.
+//! Shared by SelectQuorumForSigning and SelectCommitmentForSigning so both pick the same signer.
+template <typename Candidate>
+static std::optional<size_t> SelectSigningCandidate(const Consensus::LLMQParams& llmq_params, bool rotation,
+                                                    const uint256& selectionHash,
+                                                    const std::vector<Candidate>& candidates)
+{
+    if (candidates.empty()) {
+        return std::nullopt;
+    }
+
+    if (rotation) {
         //log2 int
         int n = std::log2(llmq_params.signingActiveQuorumCount);
         //Extract last 64 bits of selectionHash
@@ -772,36 +722,41 @@ CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, con
         //Take last n bits of b
         uint64_t signer = (((1ull << n) - 1) & (b >> (64 - n - 1)));
 
-        if (signer > quorums.size()) {
-            return nullptr;
+        if (signer > candidates.size()) {
+            return std::nullopt;
         }
-        auto itQuorum = std::find_if(quorums.begin(),
-                                     quorums.end(),
-                                     [signer](const CQuorumCPtr& obj) {
-                                         return uint64_t(obj->qc->quorumIndex) == signer;
-                                     });
-        if (itQuorum == quorums.end()) {
-            return nullptr;
+        auto it = std::find_if(candidates.begin(), candidates.end(), [signer](const Candidate& candidate) {
+            return uint64_t(SigningCandidateCommitment(candidate).quorumIndex) == signer;
+        });
+        if (it == candidates.end()) {
+            return std::nullopt;
         }
-        return *itQuorum;
-    } else {
-        auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, poolSize);
-        if (quorums.empty()) {
-            return nullptr;
-        }
-
-        std::vector<std::pair<uint256, size_t>> scores;
-        scores.reserve(quorums.size());
-        for (const auto i : util::irange(quorums.size())) {
-            CHashWriter h(SER_NETWORK, 0);
-            h << llmq_params.type;
-            h << quorums[i]->qc->quorumHash;
-            h << selectionHash;
-            scores.emplace_back(h.GetHash(), i);
-        }
-        std::sort(scores.begin(), scores.end());
-        return quorums[scores.front().second];
+        return size_t(it - candidates.begin());
     }
+
+    std::vector<std::pair<uint256, size_t>> scores;
+    scores.reserve(candidates.size());
+    for (const auto i : util::irange(candidates.size())) {
+        CHashWriter h(SER_NETWORK, 0);
+        h << llmq_params.type;
+        h << SigningCandidateCommitment(candidates[i]).quorumHash;
+        h << selectionHash;
+        scores.emplace_back(h.GetHash(), i);
+    }
+    std::sort(scores.begin(), scores.end());
+    return scores.front().second;
+}
+
+CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
+                                   const uint256& selectionHash, const CBlockIndex* pindexStart)
+{
+    if (pindexStart == nullptr) {
+        return nullptr;
+    }
+    const bool rotation = IsQuorumRotationEnabled(llmq_params, pindexStart);
+    auto quorums = qman.ScanQuorums(llmq_params.type, pindexStart, llmq_params.signingActiveQuorumCount);
+    const auto selected = SelectSigningCandidate(llmq_params, rotation, selectionHash, quorums);
+    return selected ? quorums[*selected] : nullptr;
 }
 
 CQuorumCPtr SelectQuorumForSigning(const Consensus::LLMQParams& llmq_params, const CChain& active_chain, const CQuorumManager& qman,
@@ -830,50 +785,13 @@ VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CQuoru
 std::optional<CFinalCommitment> SelectCommitmentForSigning(const Consensus::LLMQParams& llmq_params, const CQuorumManager& qman,
                                                            const uint256& selectionHash, const CBlockIndex* pindexStart)
 {
-    size_t poolSize = llmq_params.signingActiveQuorumCount;
-
-    if (IsQuorumRotationEnabled(llmq_params, pindexStart)) {
-        auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, poolSize);
-        if (commitments.empty()) {
-            return std::nullopt;
-        }
-        //log2 int
-        int n = std::log2(llmq_params.signingActiveQuorumCount);
-        //Extract last 64 bits of selectionHash
-        uint64_t b = selectionHash.GetUint64(3);
-        //Take last n bits of b
-        uint64_t signer = (((1ull << n) - 1) & (b >> (64 - n - 1)));
-
-        if (signer > commitments.size()) {
-            return std::nullopt;
-        }
-        auto it = std::find_if(commitments.begin(),
-                                     commitments.end(),
-                                     [signer](const CFinalCommitment& obj) {
-                                         return uint64_t(obj.quorumIndex) == signer;
-                                     });
-        if (it == commitments.end()) {
-            return std::nullopt;
-        }
-        return *it;
-    } else {
-        auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, poolSize);
-        if (commitments.empty()) {
-            return std::nullopt;
-        }
-
-        std::vector<std::pair<uint256, size_t>> scores;
-        scores.reserve(commitments.size());
-        for (const auto i : util::irange(commitments.size())) {
-            CHashWriter h(SER_NETWORK, 0);
-            h << llmq_params.type;
-            h << commitments[i].quorumHash;
-            h << selectionHash;
-            scores.emplace_back(h.GetHash(), i);
-        }
-        std::sort(scores.begin(), scores.end());
-        return commitments[scores.front().second];
+    const bool rotation = IsQuorumRotationEnabled(llmq_params, pindexStart);
+    auto commitments = qman.ScanCommitments(llmq_params.type, pindexStart, llmq_params.signingActiveQuorumCount);
+    const auto selected = SelectSigningCandidate(llmq_params, rotation, selectionHash, commitments);
+    if (!selected) {
+        return std::nullopt;
     }
+    return std::move(commitments[*selected]);
 }
 
 VerifyRecSigStatus VerifyRecoveredSig(Consensus::LLMQType llmqType, const CChain& active_chain, const CQuorumManager& qman,

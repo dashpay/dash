@@ -85,8 +85,7 @@ private:
     mutable size_t m_inbound_request_count GUARDED_BY(cs_data_requests){0};
 
     mutable Mutex m_cs_maps;
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CFinalCommitment>>> scanCommitmentsCache
-        GUARDED_BY(m_cs_maps);
+    mutable PerLlmqTypeCache<std::vector<CFinalCommitment>> scanCommitmentsCache GUARDED_BY(m_cs_maps);
     mutable PerLlmqTypeCache<CQuorumPtr> mapQuorumsCache GUARDED_BY(m_cs_maps);
     mutable PerLlmqTypeCache<std::vector<CQuorumCPtr>> scanQuorumsCache GUARDED_BY(m_cs_maps);
 
@@ -190,6 +189,14 @@ private:
                                          gsl::not_null<const CBlockIndex*> pindexStart,
                                          size_t nCountRequested, const CChain* chain) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
+    //! Walks the mined commitments back from the DKG mining phase closest to pindexStart and builds an
+    //! element for each. resume_block maps the last cached element to the block to continue below.
+    template <typename T, typename ResumeFn, typename BuildFn>
+    std::vector<T> ScanMined(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
+                             size_t nCountRequested, bool use_cache, ResumeFn&& resume_block, BuildFn&& build) const
+        EXCLUSIVE_LOCKS_REQUIRED(!m_cs_maps);
+    template <typename T>
+    PerLlmqTypeCache<std::vector<T>>& ScanCache() const EXCLUSIVE_LOCKS_REQUIRED(m_cs_maps);
     bool BuildQuorumContributions(const CFinalCommitmentPtr& fqc, const std::shared_ptr<CQuorum>& quorum) const;
 
     CQuorumPtr BuildQuorumFromCommitment(Consensus::LLMQType llmqType,
