@@ -12,7 +12,6 @@ from test_framework.blocktools import (
     create_block
 )
 from test_framework.blocktools import create_coinbase
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.test_framework import BitcoinTestFramework
 
 from test_framework.script import (
@@ -164,7 +163,7 @@ class WalletPruningTest(BitcoinTestFramework):
         self.test_wallet_import_pruned(wallet_birthheight_2)
         self.test_wallet_import_pruned_with_missing_blocks(wallet_birthheight_1)
 
-        self.stop_node(1, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_node(1)
 
 if __name__ == '__main__':
     WalletPruningTest().main()

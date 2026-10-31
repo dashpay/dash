@@ -143,6 +143,12 @@ public:
     // It returns true, if NetHandler has a responsibility about having this type of inventory and has corresponding data.
     virtual bool AlreadyHave(const CInv& inv) { return false; }
 
+    // Whether announcements of this inv should be held until the handler can process the object. Held
+    // announcements are requested from their announcers once this returns false; dropping them instead would
+    // lose the object on that connection, because the peer doesn't announce an inv twice. The answer must
+    // depend only on the handler's state, so that it's the same for every inv the handler defers.
+    virtual bool DeferAnnouncement(const CInv& inv) { return false; }
+
     // It should return true, if there's data has been pushed
     virtual bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) { return false; }
 protected:

@@ -5,6 +5,7 @@
 #ifndef BITCOIN_GOVERNANCE_OBJECT_H
 #define BITCOIN_GOVERNANCE_OBJECT_H
 
+#include <governance/collateral.h>
 #include <governance/common.h>
 #include <governance/vote.h>
 #include <governance/votedb.h>
@@ -84,7 +85,6 @@ public:
 };
 
 static constexpr double GOVERNANCE_FILTER_FP_RATE = 0.001;
-static constexpr CAmount GOVERNANCE_PROPOSAL_FEE_TX = (1 * COIN);
 static constexpr int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
 static constexpr int64_t GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS = 1;
 static constexpr std::chrono::hours GOVERNANCE_UPDATE_MIN{1};
@@ -232,15 +232,18 @@ public:
 
     // CORE OBJECT FUNCTIONS
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool fCheckCollateral) const
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    /// `collateral` is where proposal collateral is looked up when `fCheckCollateral` is set
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                        const governance::CollateralSource* collateral, std::string& strError,
+                        bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman,
+                        const governance::CollateralSource* collateral, std::string& strError,
+                        bool& fMissingConfirmations, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /// Check the collateral transaction for the budget proposal/finalized budget
-    bool IsCollateralValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool IsCollateralValid(const governance::CollateralSource* collateral, const ChainstateManager& chainman,
+                           std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);

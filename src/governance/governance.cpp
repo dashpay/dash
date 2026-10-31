@@ -74,16 +74,22 @@ GovernanceStore::GovernanceStore() :
 
 CGovernanceManager::CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
                                        governance::SuperblockManager& superblocks, CDeterministicMNManager& dmnman,
-                                       CMasternodeSync& mn_sync) :
+                                       CMasternodeSync& mn_sync, const governance::CollateralSource* collateral) :
     m_db{std::make_unique<db_type>("governance.dat", "magicGovernanceCache")},
     m_mn_metaman{mn_metaman},
     m_chainman{chainman},
     m_superblocks{superblocks},
     m_dmnman{dmnman},
     m_mn_sync{mn_sync},
+    m_collateral{collateral},
     cmapVoteToObject{MAX_CACHE_SIZE},
     mapPostponedObjects{}
 {
+}
+
+bool CGovernanceManager::IsCollateralSourceBehind() const
+{
+    return m_collateral && !m_collateral->IsCollateralSynced();
 }
 
 CGovernanceManager::~CGovernanceManager()
@@ -249,7 +255,7 @@ bool CGovernanceManager::ProcessObject(const std::string& peer_str, const uint25
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     bool fMissingConfirmations = false;
-    bool fIsValid = govobj.IsValidLocally(tip_mn_list, m_chainman, strError, fMissingConfirmations, true);
+    bool fIsValid = govobj.IsValidLocally(tip_mn_list, m_chainman, m_collateral, strError, fMissingConfirmations, true);
 
     bool unused_rcb;
     if (fRateCheckBypassed && fIsValid && !MasternodeRateCheck(govobj, true, true, unused_rcb)) {
@@ -323,7 +329,7 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
 
     // MAKE SURE THIS OBJECT IS OK
 
-    if (!insert_obj.IsValidLocally(tip_mn_list, m_chainman, strError, true)) {
+    if (!insert_obj.IsValidLocally(tip_mn_list, m_chainman, m_collateral, strError, true)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- invalid governance object - %s - (nCachedBlockHeight %d) \n", strError, nCachedBlockHeight);
         return;
     }
@@ -883,8 +889,8 @@ void CGovernanceManager::CheckPostponedObjects()
 
         std::string strError;
         bool fMissingConfirmations;
-        if (govobj.IsCollateralValid(m_chainman, strError, fMissingConfirmations)) {
-            if (govobj.IsValidLocally(m_dmnman.GetListAtChainTip(), m_chainman, strError, false)) {
+        if (govobj.IsCollateralValid(m_collateral, m_chainman, strError, fMissingConfirmations)) {
+            if (govobj.IsValidLocally(m_dmnman.GetListAtChainTip(), m_chainman, /*collateral=*/nullptr, strError, false)) {
                 AddGovernanceObjectInternal(govobj, "<postponed>");
             } else {
                 LogPrint(BCLog::GOBJECT, "CGovernanceManager::CheckPostponedObjects -- %s invalid\n", nHash.ToString());

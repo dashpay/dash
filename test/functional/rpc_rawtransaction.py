@@ -16,7 +16,6 @@ from collections import OrderedDict
 from decimal import Decimal
 from itertools import product
 
-from test_framework.governance import EXPECTED_STDERR_NO_GOV_PRUNE
 from test_framework.messages import (
     COIN,
     CTransaction,
@@ -94,7 +93,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             self.import_deterministic_coinbase_privkeys()
             self.raw_multisig_transaction_legacy_tests()
         self.getrawtransaction_verbosity_tests()
-        self.stop_node(2, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
+        self.stop_node(2)
 
 
     def getrawtransaction_tests(self):

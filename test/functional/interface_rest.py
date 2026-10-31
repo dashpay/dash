@@ -291,6 +291,7 @@ class RESTTest (BitcoinTestFramework):
         self.generate(self.nodes[1], 5)
         expected_filter = {
             'txindex': {'synced': True, 'best_block_height': 208},
+            'govcollateralindex': {'synced': True, 'best_block_height': 208},
             'basic block filter index': {'synced': True, 'best_block_height': 208},
         }
         self.wait_until(lambda: self.nodes[0].getindexinfo() == expected_filter)
