@@ -827,6 +827,10 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
 
         for (const auto& recipient : vecSend_in) {
             if (recipient.fPlatformTransfer) {
+                // Consensus requires every credit output, and so the OP_RETURN total, to be positive.
+                if (recipient.nAmount <= 0) {
+                    return util::Error{_("Transaction amount too small")};
+                }
                 creditOutputs.emplace_back(recipient.nAmount, recipient.scriptPubKey);
                 platform_total += recipient.nAmount;
             } else {
