@@ -145,14 +145,15 @@ ProviderTxError UnavailableProviderTxError()
     return {.code = interfaces::ProviderTxErrorCode::INTERNAL_ERROR, .message = EvoStateUnavailableMessage()};
 }
 
-//! Set the misc warning, and log `e` once per operation and active Evo view.
+//! Set the misc warning and log `e`, once per operation and active Evo view:
+//! GUI models poll these operations, and each warning notifies the GUI.
 void ReportEvoStateUnavailable(const CEvoDB* evodb, std::string_view operation, const evo::LocalStateError& e)
 {
-    WarnLocalEvoStateUnavailable(strprintf("%s could not read it", operation));
     static Mutex mutex;
-    static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> logged;
+    static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> reported;
     const EvoViewToken view{evodb ? evodb->ActiveView() : EvoViewToken{}};
-    if (WITH_LOCK(mutex, return logged.emplace(operation, view.db, view.identity, view.generation).second)) {
+    if (WITH_LOCK(mutex, return reported.emplace(operation, view.db, view.identity, view.generation).second)) {
+        WarnLocalEvoStateUnavailable(strprintf("%s could not read it", operation));
         LogPrintf("ERROR: %s: Evo state unavailable: %s\n", operation, e.what());
     }
 }

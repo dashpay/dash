@@ -123,6 +123,10 @@ BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
     BOOST_CHECK_EQUAL(info.superblockcycle, Params().GetConsensus().nSuperblockCycle);
     BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
     BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") != std::string::npos);
+    // Polling the same operation again does not raise the warning again.
+    SetMiscWarning(Untranslated(""));
+    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") == std::string::npos);
 
     std::optional<std::vector<COutPoint>> collaterals{std::vector<COutPoint>{}};
     BOOST_CHECK_NO_THROW(collaterals = m_node.chain->listMNCollaterials({}));
