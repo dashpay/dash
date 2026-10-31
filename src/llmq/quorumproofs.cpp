@@ -10,6 +10,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
+#include <evo/viewcache.h>
 #include <hash.h>
 #include <limits>
 #include <llmq/blockprocessor.h>
@@ -57,6 +58,28 @@ public:
     {
         LOCK(m_mutex);
         m_entries.clear();
+    }
+};
+
+/** A ProofCache of Evo-derived values, partitioned by the Evo view they were
+ *  read under: a value read under one view is never served to another. */
+template <typename T, size_t Capacity>
+class ViewProofCache
+{
+    Mutex m_mutex;
+    EvoViewCache<Uint256LruHashMap<T, Capacity, Capacity + Capacity / 8>> m_parts GUARDED_BY(m_mutex);
+
+public:
+    bool Get(const EvoViewToken& view, const uint256& key, T& value) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        LOCK(m_mutex);
+        return m_parts.For(view).get(key, value);
+    }
+
+    void Insert(const EvoViewToken& view, const uint256& key, const T& value) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
+    {
+        LOCK(m_mutex);
+        m_parts.For(view).insert(key, value);
     }
 };
 
@@ -483,9 +506,10 @@ std::vector<CFinalCommitment> QuorumProofBuilder::ActiveCommitments(const CBlock
     // checked against the block's own quorum root below before it is kept. Every
     // proof from one checkpoint needs the same set, as does every quorum record at
     // one target. Reading it decodes each commitment's BLS key and signatures.
-    static ProofCache<std::vector<CFinalCommitment>, 64> sets;
+    static ViewProofCache<std::vector<CFinalCommitment>, 64> sets;
+    const EvoViewToken view{m_qman.CurrentView()};
     std::vector<CFinalCommitment> result;
-    if (sets.Get(index->GetBlockHash(), result)) return result;
+    if (sets.Get(view, index->GetBlockHash(), result)) return result;
     {
         LOCK(cs_main);
         for (const auto& [type, indexes] : m_quorum_block_processor.GetMinedAndActiveCommitmentsUntilBlock(index)) {
@@ -512,7 +536,7 @@ std::vector<CFinalCommitment> QuorumProofBuilder::ActiveCommitments(const CBlock
     bool mutated{false};
     Require(ComputeMerkleRoot(hashes, &mutated) == StateAt(index).quorumRoot && !mutated,
             "active quorum root mismatch");
-    sets.Insert(index->GetBlockHash(), sorted);
+    sets.Insert(view, index->GetBlockHash(), sorted);
     return sorted;
 }
 
@@ -549,9 +573,10 @@ MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const CBloc
     // Every EvoNode record at one target opens the same list, and hashing its
     // entries costs more than the lookup. The list is kept only once it hashes
     // to the block's own masternode root.
-    static ProofCache<MasternodeLeaves, 8> cache;
+    static ViewProofCache<MasternodeLeaves, 8> cache;
+    const EvoViewToken view{dmnman.EvoDb().CurrentView()};
     MasternodeLeaves result;
-    if (cache.Get(index->GetBlockHash(), result)) return result;
+    if (cache.Get(view, index->GetBlockHash(), result)) return result;
     const auto list = WITH_LOCK(cs_main, return dmnman.GetListForBlock(index));
     result.sml = list.to_sml();
     result.leaves.reserve(result.sml->mnList.size());
@@ -560,7 +585,7 @@ MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const CBloc
     const auto root = QuorumProofBuilder::StateAt(index).masternodeRoot;
     bool mutated{false};
     Require(ComputeMerkleRoot(result.leaves, &mutated) == root && !mutated, "masternode root mismatch");
-    cache.Insert(index->GetBlockHash(), result);
+    cache.Insert(view, index->GetBlockHash(), result);
     return result;
 }
 
@@ -577,11 +602,12 @@ std::optional<CFinalCommitment> QuorumProofBuilder::DetermineChainlockSigningCom
     // share a few dozen commitments. Heights map to a commitment's content hash,
     // which cannot alias across branches, and each commitment is stored once.
     // A year of testnet (hourly quorums) is ~80k candidate heights.
-    static ProofCache<uint256, 131072> selected;
-    static ProofCache<CFinalCommitment, 4096> commitments;
+    static ViewProofCache<uint256, 131072> selected;
+    static ViewProofCache<CFinalCommitment, 4096> commitments;
+    const EvoViewToken view{m_qman.CurrentView()};
     uint256 commitment_hash;
     CFinalCommitment cached;
-    if (selected.Get(key, commitment_hash) && commitments.Get(commitment_hash, cached)) return cached;
+    if (selected.Get(view, key, commitment_hash) && commitments.Get(view, commitment_hash, cached)) return cached;
     std::optional<CFinalCommitment> result;
     {
         LOCK(cs_main);
@@ -592,8 +618,8 @@ std::optional<CFinalCommitment> QuorumProofBuilder::DetermineChainlockSigningCom
     }
     if (result) {
         commitment_hash = ::SerializeHash(*result);
-        commitments.Insert(commitment_hash, *result);
-        selected.Insert(key, commitment_hash);
+        commitments.Insert(view, commitment_hash, *result);
+        selected.Insert(view, key, commitment_hash);
     }
     return result;
 }
@@ -603,24 +629,24 @@ static bool OnBranch(const CBlockIndex* tip, const CBlockIndex* index)
     return tip->GetAncestor(index->nHeight) == index;
 }
 
-static const CBlockIndex* MinedCommitmentBlock(const CQuorumBlockProcessor& processor, const CBlockIndex* tip,
-                                               const node::BlockManager& blocks, Consensus::LLMQType kind,
-                                               const uint256& quorum)
+static const CBlockIndex* MinedCommitmentBlock(const CQuorumBlockProcessor& processor, const EvoViewToken& view,
+                                               const CBlockIndex* tip, const node::BlockManager& blocks,
+                                               Consensus::LLMQType kind, const uint256& quorum)
 {
     const auto key = (CHashWriter(SER_GETHASH, 0) << kind << quorum).GetHash();
-    static ProofCache<uint256, 4096> cache;
+    static ViewProofCache<uint256, 4096> cache;
     uint256 mined_hash;
     LOCK(cs_main);
     // A quorum can be mined differently after a reorg. Reuse an entry only if
     // its exact mining block is an ancestor of this request's tip.
-    if (cache.Get(key, mined_hash)) {
+    if (cache.Get(view, key, mined_hash)) {
         const auto* mined = blocks.LookupBlockIndex(mined_hash);
         if (mined && OnBranch(tip, mined)) return mined;
     }
     const auto result = processor.GetMinedCommitment(kind, quorum);
     const auto* mined = blocks.LookupBlockIndex(result.second);
     if (result.first.IsNull() || !mined || !OnBranch(tip, mined)) return nullptr;
-    cache.Insert(key, result.second);
+    cache.Insert(view, key, result.second);
     return mined;
 }
 
@@ -664,6 +690,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
                                                           const chainlock::ChainLockSig& target) const
 {
     const auto& blocks = m_chainman.m_blockman;
+    const EvoViewToken view{m_qman.CurrentView()};
     const auto* targetIndex = m_tip->GetAncestor(target.getHeight());
     Require(checkpoint && targetIndex && OnBranch(m_tip, checkpoint) && checkpoint->nHeight < targetIndex->nHeight,
             "checkpoint/target not on chain");
@@ -690,7 +717,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
     while (!seedHashes.count(needed->quorumHash)) {
         Require(proof.links.size() < MAX_PROOF_CERTIFICATES - 1, "certificate budget exhausted");
         Require(!ShutdownRequested(), "proof construction interrupted");
-        const auto* mined = MinedCommitmentBlock(m_quorum_block_processor, m_tip, blocks, kind, needed->quorumHash);
+        const auto* mined = MinedCommitmentBlock(m_quorum_block_processor, view, m_tip, blocks, kind, needed->quorumHash);
         Require(mined != nullptr, "mining block unavailable");
         if (mined->nHeight <= checkpoint->nHeight) return std::nullopt;
         const auto mining = MiningTransaction(mined, kind, needed->quorumHash);
@@ -708,7 +735,8 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
             if (height > mined->nHeight + 8 && best) break;
             auto signer = DetermineChainlockSigningCommitment(height);
             if (!signer || signer->quorumHash == needed->quorumHash) continue;
-            const auto* previous = MinedCommitmentBlock(m_quorum_block_processor, m_tip, blocks, kind, signer->quorumHash);
+            const auto* previous = MinedCommitmentBlock(m_quorum_block_processor, view, m_tip, blocks, kind,
+                                                        signer->quorumHash);
             if (!previous || previous->nHeight >= mined->nHeight || (previous->nHeight <= checkpoint->nHeight && !seedHashes.count(signer->quorumHash))) continue;
             auto cert = certificate(*entry);
             if (!cert.Verify(*signer, checkpoint->nHeight, kind)) continue;

@@ -258,16 +258,23 @@ void ProposalList::updateProposalList()
         // Include unrelayed wallet proposals (0 confs, not yet broadcast)
         for (const auto& obj : getWalletProposals(/*pending=*/true)) {
             CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-            ret.m_proposals.emplace_back(std::make_shared<Proposal>(*clientModel, govObj, ret.m_gov_info, queryCollateralDepth(obj.collateralHash),
-                                                                     /*is_broadcast=*/false));
+            auto proposal{std::make_shared<Proposal>(*clientModel, govObj, ret.m_gov_info,
+                                                     queryCollateralDepth(obj.collateralHash),
+                                                     /*is_broadcast=*/false)};
+            // Without vote counts keep the current list until a later update.
+            if (!proposal->hasVotes()) return;
+            ret.m_proposals.emplace_back(std::move(proposal));
         }
     } else if (m_proposal_source == ProposalSource::Local) {
         // Discard network proposals and only include wallet proposals
         ret.m_proposals.clear();
         for (const auto& obj : getWalletProposals(/*pending=*/std::nullopt)) {
             CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-            ret.m_proposals.emplace_back(std::make_shared<Proposal>(*clientModel, govObj, ret.m_gov_info, queryCollateralDepth(obj.collateralHash),
-                                                                     /*is_broadcast=*/clientModel->node().gov().existsObj(obj.GetHash())));
+            auto proposal{
+                std::make_shared<Proposal>(*clientModel, govObj, ret.m_gov_info, queryCollateralDepth(obj.collateralHash),
+                                           /*is_broadcast=*/clientModel->node().gov().existsObj(obj.GetHash()))};
+            if (!proposal->hasVotes()) return;
+            ret.m_proposals.emplace_back(std::move(proposal));
         }
     }
 

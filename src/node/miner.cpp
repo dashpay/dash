@@ -220,6 +220,7 @@ void BlockAssembler::FillBlockPayments(CMutableTransaction& txNew, const CBlockI
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    const EvoViewScope evo_view{m_chainstate.EvoView()};
     const auto time_start{SteadyClock::now()};
 
     resetBlock();
@@ -814,6 +815,8 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 std::string error;
                 try {
                     if (!package_mn_list->ApplyTx(tx, state)) error = state.ToString();
+                } catch (const evo::LocalStateError&) {
+                    throw;
                 } catch (const std::runtime_error& e) {
                     // AddMN()/UpdateMN() report a unique-property conflict by throwing
                     error = e.what();

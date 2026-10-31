@@ -7,6 +7,7 @@
 #include <active/masternode.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <llmq/commitment.h>
 #include <llmq/options.h>
 #include <llmq/quorumsman.h>
@@ -645,10 +646,18 @@ void NetQuorum::StartVvecSyncThread(CQuorumCPtr pQuorum) const
         return;
     }
 
-    workerPool.push([pQuorum = std::move(pQuorum), this](int threadId) mutable {
-        DataRecoveryThread(std::move(pQuorum), CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR,
-                           /*protx_hash=*/uint256(), /*start_offset=*/0);
-    });
+    const auto release{[pQuorum] { pQuorum->ReleaseRecovery(); }};
+    workerPool.push(WithCapturedEvoView(
+        [pQuorum = std::move(pQuorum), release, this](int threadId) mutable {
+            try {
+                DataRecoveryThread(std::move(pQuorum), CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR,
+                                   /*protx_hash=*/uint256(), /*start_offset=*/0);
+            } catch (const evo::LocalStateError&) {
+                release();
+                throw;
+            }
+        },
+        release));
 }
 
 void NetQuorum::TryStartVvecSyncThread(gsl::not_null<const CBlockIndex*> block_index, CQuorumCPtr pQuorum,
@@ -679,10 +688,18 @@ void NetQuorum::StartSkShareRecoveryThread(gsl::not_null<const CBlockIndex*> pIn
         return;
     }
 
-    workerPool.push([pQuorum = std::move(pQuorum), pIndex, nDataMaskIn, this](int threadId) mutable {
-        const size_t size_offset = GetQuorumRecoveryStartOffset(*pQuorum, pIndex);
-        DataRecoveryThread(std::move(pQuorum), nDataMaskIn, m_role->GetProTxHash(), size_offset);
-    });
+    const auto release{[pQuorum] { pQuorum->ReleaseRecovery(); }};
+    workerPool.push(WithCapturedEvoView(
+        [pQuorum = std::move(pQuorum), pIndex, nDataMaskIn, release, this](int threadId) mutable {
+            try {
+                const size_t size_offset = GetQuorumRecoveryStartOffset(*pQuorum, pIndex);
+                DataRecoveryThread(std::move(pQuorum), nDataMaskIn, m_role->GetProTxHash(), size_offset);
+            } catch (const evo::LocalStateError&) {
+                release();
+                throw;
+            }
+        },
+        release));
 }
 
 size_t NetQuorum::GetQuorumRecoveryStartOffset(const CQuorum& quorum,
@@ -725,22 +742,24 @@ void NetQuorum::StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*
     LogPrint(BCLog::LLMQ, "NetQuorum::%s -- start\n", __func__);
 
     // do not block the caller thread
-    workerPool.push([pIndex, t, this](int threadId) {
+    workerPool.push(WithCapturedEvoView([pIndex, t, this](int threadId) {
         Uint256HashSet dbKeysToSkip;
 
-        if (LOCK(cs_cleanup); !cleanupQuorumsCache.IsInitialized()) {
-            cleanupQuorumsCache.Init(m_chainman.GetConsensus(), /*limit_by_connections=*/false);
-        }
+        const EvoViewToken view{m_qman.CurrentView()};
         for (const auto& params : Params().GetConsensus().llmqs) {
             if (quorumThreadInterrupt) {
                 break;
             }
             LOCK(cs_cleanup);
+            auto& cache{cleanupQuorumsCache.For(view)};
+            if (!cache.IsInitialized()) {
+                cache.Init(m_chainman.GetConsensus(), /*limit_by_connections=*/false);
+            }
             const CBlockIndex* pindex_loop{pIndex};
             Uint256HashSet quorum_keys;
             while (pindex_loop != nullptr && pIndex->nHeight - pindex_loop->nHeight < params.max_store_depth()) {
                 uint256 quorum_key;
-                if (cleanupQuorumsCache.get(params.type, pindex_loop->GetBlockHash(), quorum_key)) {
+                if (cache.get(params.type, pindex_loop->GetBlockHash(), quorum_key)) {
                     quorum_keys.insert(quorum_key);
                     if (quorum_keys.size() >= static_cast<size_t>(params.keepOldKeys)) break; // extra safety belt
                 }
@@ -749,8 +768,7 @@ void NetQuorum::StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*
             for (const auto& pQuorum : m_qman.ScanQuorums(params.type, pIndex, params.keepOldKeys - quorum_keys.size())) {
                 const uint256 quorum_key = MakeQuorumKey(*pQuorum);
                 quorum_keys.insert(quorum_key);
-                cleanupQuorumsCache.insert(params.type, pQuorum->m_quorum_base_block_index->GetBlockHash(),
-                                           quorum_key);
+                cache.insert(params.type, pQuorum->m_quorum_base_block_index->GetBlockHash(), quorum_key);
             }
             dbKeysToSkip.merge(quorum_keys);
         }
@@ -760,7 +778,7 @@ void NetQuorum::StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*
         }
 
         LogPrint(BCLog::LLMQ, "NetQuorum::StartCleanupOldQuorumDataThread -- done. time=%d\n", t.count());
-    });
+    }));
 }
 
 bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, CConnman& connman, const CSporkManager& sporkman,

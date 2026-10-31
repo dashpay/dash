@@ -7,6 +7,7 @@
 
 #include <bls/bls_ies.h>
 #include <evo/types.h>
+#include <evo/viewcache.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <llmq/cache.h>
 #include <llmq/params.h>
@@ -71,6 +72,7 @@ private:
     CQuorumBlockProcessor& quorumBlockProcessor;
     CQuorumSnapshotManager& m_qsnapman;
     const ChainstateManager& m_chainman;
+    CEvoDB& m_evoDb;
     llmq::CDKGSessionManager* m_qdkgsman{nullptr};
     llmq::QuorumRole* m_handler{nullptr};
 
@@ -85,10 +87,12 @@ private:
     mutable size_t m_inbound_request_count GUARDED_BY(cs_data_requests){0};
 
     mutable Mutex m_cs_maps;
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CFinalCommitment>>> scanCommitmentsCache
-        GUARDED_BY(m_cs_maps);
-    mutable PerLlmqTypeCache<CQuorumPtr> mapQuorumsCache GUARDED_BY(m_cs_maps);
-    mutable PerLlmqTypeCache<std::vector<CQuorumCPtr>> scanQuorumsCache GUARDED_BY(m_cs_maps);
+    struct ViewCaches {
+        std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CFinalCommitment>>> scanCommitmentsCache;
+        PerLlmqTypeCache<CQuorumPtr> mapQuorumsCache;
+        PerLlmqTypeCache<std::vector<CQuorumCPtr>> scanQuorumsCache;
+    };
+    mutable EvoViewCache<ViewCaches> m_view_caches GUARDED_BY(m_cs_maps);
 
     // On mainnet, we have around 62 quorums active at any point; let's cache a little more than double that to be safe.
     // it maps `quorum_hash` to `pindex`
@@ -133,6 +137,11 @@ public:
     static bool HasQuorum(Consensus::LLMQType llmqType, const CQuorumBlockProcessor& quorum_block_processor,
                           const uint256& quorumHash, const CChain& chain)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! The Evo view the calling operation reads.
+    EvoViewToken CurrentView() const { return m_evoDb.CurrentView(); }
+    //! The EvoDB this manager reads, for callers that bind an Evo view.
+    const CEvoDB& EvoDb() const { return m_evoDb; }
 
     // all these methods will lock cs_main for a short period of time
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const

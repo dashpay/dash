@@ -5,6 +5,7 @@
 #ifndef BITCOIN_LLMQ_NET_QUORUM_H
 #define BITCOIN_LLMQ_NET_QUORUM_H
 
+#include <evo/viewcache.h>
 #include <llmq/cache.h>
 #include <llmq/options.h>
 #include <llmq/quorums.h>
@@ -117,8 +118,8 @@ private:
     const bool m_quorums_recovery;
 
     mutable Mutex cs_cleanup;
-    mutable PerLlmqTypeCache<uint256> cleanupQuorumsCache
-        GUARDED_BY(cs_cleanup);
+    //! Quorum keys by base block, per Evo view.
+    mutable EvoViewCache<PerLlmqTypeCache<uint256>> cleanupQuorumsCache GUARDED_BY(cs_cleanup);
 
     mutable ctpl::thread_pool workerPool;
     mutable CThreadInterrupt quorumThreadInterrupt;

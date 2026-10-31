@@ -357,7 +357,7 @@ private:
 
     interfaces::Node& m_node;
     WalletModel* const m_wallet_model;
-    const bool m_v24_active;
+    const std::optional<bool> m_v24_active;
     MnShareSession m_session;
     //! Null without a wallet, when nothing can be prepared or signed here
     MasternodeOperationRunner* const m_runner;
