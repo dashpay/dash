@@ -7,6 +7,7 @@
 
 #include <bls/bls.h>
 #include <checkqueue.h>
+#include <evo/viewcache.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <llmq/cache.h>
 #include <llmq/params.h>
@@ -22,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <vector>
 
 class BlockValidationState;
 class CBlock;
@@ -47,6 +49,51 @@ using QcHashMap = std::map<Consensus::LLMQType, std::vector<uint256>>;
 //! As above, but keyed by quorumIndex, for rotation-enabled types.
 using QcIndexedHashMap = std::map<Consensus::LLMQType, std::map<int16_t, uint256>>;
 
+/** How a scan sequence of mined commitments, as a snapshot generation holds
+ *  it, continues past its oldest record. */
+enum class ScanSequenceEnd : uint8_t {
+    //! No older record exists.
+    END = 0,
+    //! Older records may exist; this node does not have them.
+    UNKNOWN = 1,
+};
+
+/** One sequence a commitment scan reads: the whole history of a type without
+ *  rotation, or of one quorum index with it. */
+struct ScanSequence {
+    //! Quorum base blocks of the eligible records, newest mined first.
+    std::vector<const CBlockIndex*> records;
+    ScanSequenceEnd end{ScanSequenceEnd::END};
+};
+
+/** The quorum base blocks a scan of `count` returns from `sequences`, in the
+ *  order the ordinary scan returns them: newest first without rotation, rank
+ *  by rank in ascending quorum index with it. nullopt when an UNKNOWN end is
+ *  reached before the prefix is complete, so the vector cannot be proven. */
+std::optional<std::vector<const CBlockIndex*>> TraverseScanSequences(bool indexed,
+                                                                     const std::vector<ScanSequence>& sequences,
+                                                                     size_t count);
+
+/** Local record of how each scan sequence of a type ends in a snapshot
+ *  generation. Never part of the snapshot wire format. */
+struct ScanCoverageRecord {
+    static constexpr uint16_t SCHEMA_VERSION{1};
+    uint16_t schema_version{SCHEMA_VERSION};
+    //! ScanSequenceEnd of each sequence: one per quorum index with rotation,
+    //! one otherwise.
+    std::vector<uint8_t> ends;
+
+    //! An unrecorded or unknown value never proves an end.
+    ScanSequenceEnd End(size_t sequence) const
+    {
+        return sequence < ends.size() && ends[sequence] == static_cast<uint8_t>(ScanSequenceEnd::END)
+                   ? ScanSequenceEnd::END
+                   : ScanSequenceEnd::UNKNOWN;
+    }
+
+    SERIALIZE_METHODS(ScanCoverageRecord, obj) { READWRITE(obj.schema_version, obj.ends); }
+};
+
 /** Erase a mined commitment unless another chainstate still contains its block. */
 bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chainstate,
                                         gsl::not_null<const CBlockIndex*> pindex,
@@ -69,7 +116,7 @@ private:
 
     // Cache the block in which a commitment was mined. Membership in a
     // particular chain is checked on every call so reorgs need no cache flush.
-    mutable PerLlmqTypeCache<uint256> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
+    mutable EvoViewCache<PerLlmqTypeCache<uint256>> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
 
     // Memoizes GetQcHashes(). The whole-result cache is keyed on the set of active
     // quorum base blocks, the LRU on those base-block hashes; neither key identifies
@@ -78,10 +125,13 @@ private:
     // invalidation next to the writes it has to follow, and ties their lifetime to the
     // block index whose CBlockIndex* the outer cache stores.
     mutable Mutex m_qc_hashes_cache_mutex;
-    mutable std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable QcHashMap m_qc_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable QcIndexedHashMap m_qc_indexed_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
+    struct QcHashesCache {
+        std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached;
+        PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru;
+        QcHashMap m_qc_hashes_cached;
+        QcIndexedHashMap m_qc_indexed_hashes_cached;
+    };
+    mutable EvoViewCache<QcHashesCache> m_qc_hashes GUARDED_BY(m_qc_hashes_cache_mutex);
 
     //! A block's commitment payloads are needed by CheckSpecialTx, the masternode list update,
     //! ProcessBlock and the CbTx quorum merkle root to avoid duplicated decodes of BLS elements.
@@ -137,6 +187,21 @@ public:
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, const CChain& chain) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs);
     std::pair<CFinalCommitment, uint256> GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
+    /** Seed how the scan sequences of a type end in `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedScanCoverage(const EvoViewToken& view, Consensus::LLMQType llmqType, const ScanCoverageRecord& coverage);
+    //! The scan coverage seeded in the calling operation's view, if any.
+    std::optional<ScanCoverageRecord> GetScanCoverage(Consensus::LLMQType llmqType) const;
+    //! How the current view's history of one scan sequence (a quorum index of
+    //! the `indexed` family, or the non-indexed one) ends: END where it holds
+    //! every commitment mined on its chain, UNKNOWN where older ones may exist
+    //! that it lacks.
+    ScanSequenceEnd SequenceEnd(Consensus::LLMQType llmqType, bool indexed, size_t sequence) const;
+    /** Seed a mined commitment and its height index into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedMinedCommitment(const EvoViewToken& view, Consensus::LLMQType llmqType, const uint256& quorum_hash,
+                             const CFinalCommitment& commitment, const uint256& mined_block_hash)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs, !m_qc_hashes_cache_mutex);
 
     /**
      * Serialized hashes of the commitments mined for the quorums active as of pindexPrev.
@@ -155,9 +220,25 @@ public:
                                                                                     const CBlockIndex* pindex,
                                                                                     size_t cycle) const;
     std::optional<const CBlockIndex*> GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const;
+    //! The up to `maxCount` most recent commitments of one quorum index mined
+    //! at or below `pindex`, newest first.
+    std::vector<const CBlockIndex*> GetMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType,
+                                                                               const CBlockIndex* pindex,
+                                                                               int quorumIndex, size_t maxCount) const;
+
 private:
     //! Called from every site that writes or erases mined commitment state.
     void DropQcHashesCache() EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);
+    //! Whether headers and the carried sequences of the snapshot view `view`
+    //! prove that the quorum at `quorum_index`, at or below its base, was
+    //! never mined.
+    bool ProvenNeverMined(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> quorum_index,
+                          const EvoViewToken& view) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! A scan of one sequence of `llmqType` from `pindex` came up short in the
+    //! current view: raise BlockDataUnavailableError unless it started below
+    //! DIP3 or SequenceEnd() says it ends there.
+    void RequireSatisfiedScan(Consensus::LLMQType llmqType, bool indexed, size_t sequence, const CBlockIndex* pindex,
+                              const char* func) const;
 
     bool GetCommitmentsFromBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex, std::multimap<Consensus::LLMQType, CFinalCommitment>& ret, BlockValidationState& state) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !m_commitment_payload_mutex);

@@ -990,6 +990,15 @@ public:
                 {AssumeutxoHash{uint256S("0x8a5bdd92252fc6b24663244bbe958c947bb036dc1f94ccd15439f48d8d1cb4e3")}, EvoSnapshotHash{uint256{}}, 200},
             },
         };
+        for (const auto& [height, data] : opts.assumeutxo_data) {
+            const bool duplicate_block{std::ranges::any_of(m_assumeutxo_data, [&](const auto& entry) {
+                return entry.second.blockhash == data.blockhash;
+            })};
+            if (duplicate_block || !m_assumeutxo_data.emplace(height, data).second) {
+                throw std::runtime_error(strprintf("Duplicate height or block hash in -assumeutxodata (%d:%s)", height,
+                                                   data.blockhash.ToString()));
+            }
+        }
 
         chainTxData = ChainTxData{
             0,

@@ -6,6 +6,7 @@
 
 #include <clientversion.h>
 #include <consensus/amount.h>
+#include <consensus/consensus.h>
 #include <consensus/merkle.h>
 #include <crypto/common.h>
 #include <crypto/sha256.h>
@@ -17,6 +18,7 @@
 #include <streams.h>
 #include <tinyformat.h>
 #include <util/check.h>
+#include <util/overflow.h>
 
 #include <algorithm>
 #include <ios>
@@ -125,28 +127,6 @@ void ValidateCanonicalMNInvariants(const CDeterministicMNList& list)
 
 } // namespace
 
-std::vector<QuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
-    int base_height, const std::vector<Consensus::LLMQParams>& enabled_llmqs)
-{
-    if (base_height < 0) throw std::invalid_argument("invalid reconstruction base height");
-    std::vector<QuorumReconstructionHeight> heights;
-    for (const auto& params : enabled_llmqs) {
-        if (params.dkgInterval <= 0 || params.signingActiveQuorumCount <= 0) {
-            throw std::invalid_argument("invalid reconstruction LLMQ parameters");
-        }
-        const int h{base_height - base_height % params.dkgInterval};
-        const size_t count{params.useRotation ? EVO_SNAPSHOT_ROTATION_CYCLES
-                                              : SnapshotCommitmentCount(params, /*rotation_enabled=*/false)};
-        const size_t first{params.useRotation ? 1U : 0U};
-        for (size_t i{first}; i < first + count; ++i) {
-            const int quorum_height{h - static_cast<int>(i) * params.dkgInterval};
-            heights.push_back({params.type, params.useRotation, quorum_height,
-                               quorum_height - llmq::WORK_DIFF_DEPTH});
-        }
-    }
-    return heights;
-}
-
 uint256 CanonicalMNListHash(const CDeterministicMNList& list)
 {
     CHashWriter writer{SER_DISK, CLIENT_VERSION};
@@ -227,6 +207,30 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
     }
     ValidateCanonicalMNInvariants(mn_list);
     mn_list.ForEachMN(/*onlyValid=*/false, [](const auto& dmn) { ValidateMNEncoding(dmn); });
+    if (base_coinbase) {
+        const CTransaction& coinbase{*base_coinbase};
+        // A 64-byte transaction could pass for an inner merkle node.
+        if (!coinbase.IsCoinBase() || coinbase.nType != TRANSACTION_COINBASE ||
+            coinbase.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD || ::GetSerializeSize(coinbase, PROTOCOL_VERSION) <= 64 ||
+            ::GetSerializeSize(coinbase, PROTOCOL_VERSION) > EVO_SNAPSHOT_MAX_COINBASE_BYTES) {
+            throw std::ios_base::failure("invalid evo snapshot base coinbase");
+        }
+        // The CbTx header precedes its scheme-dependent fields, so the height
+        // is readable without knowing the base's BLS scheme.
+        CDataStream payload{coinbase.vExtraPayload, SER_NETWORK, PROTOCOL_VERSION};
+        uint16_t cbtx_version;
+        int32_t cbtx_height;
+        payload >> cbtx_version >> cbtx_height;
+        if (cbtx_height != mn_list.GetHeightForSnapshotCodec()) {
+            throw std::ios_base::failure("evo snapshot base coinbase height mismatch");
+        }
+        if (base_coinbase_branch.size() > EVO_SNAPSHOT_MAX_COINBASE_BRANCH) {
+            throw std::ios_base::failure("oversized evo snapshot base coinbase branch");
+        }
+    } else if (!base_coinbase_branch.empty() || mn_list.GetCounts().total() != 0 || !quorums.empty()) {
+        // Without a CbTx at the base there can be no MN or quorum state.
+        throw std::ios_base::failure("evo snapshot state without a base coinbase");
+    }
     if (quorums.size() > Consensus::available_llmqs.size() ||
         historical_mn_list_diffs.size() > EvoSnapshotMaxHistoricalMNLists() ||
         quorum_modifiers.size() > EVO_SNAPSHOT_MAX_MODIFIERS ||
@@ -247,6 +251,23 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
     }
     if (credit_pool.indexes.RangeCount() > EVO_SNAPSHOT_MAX_RANGES) {
         throw std::ios_base::failure("oversized CRangesSet range count");
+    }
+    // The window entries sum to the pool's lately unlocked amount and end at
+    // the base, whose recorded balance is the pool's.
+    if (credit_history.size() > EVO_SNAPSHOT_MAX_CREDIT_HISTORY) {
+        throw std::ios_base::failure("oversized evo snapshot credit history");
+    }
+    CAmount window_unlocked{0};
+    for (const auto& entry : credit_history) {
+        const auto sum{CheckedAdd(window_unlocked, entry.unlocked)};
+        if (!MoneyRange(entry.credit_pool) || !MoneyRange(entry.unlocked) || !sum || !MoneyRange(*sum)) {
+            throw std::ios_base::failure("invalid evo snapshot credit history amount");
+        }
+        window_unlocked = *sum;
+    }
+    if (window_unlocked != credit_pool.latelyUnlocked ||
+        (!credit_history.empty() && credit_history.back().credit_pool != credit_pool.locked)) {
+        throw std::ios_base::failure("evo snapshot credit history disagrees with the credit pool");
     }
     // Consensus admits MNHF signals only for bits below VERSIONBITS_NUM_BITS
     // and records the mined height, which cannot exceed the base height.
@@ -279,13 +300,11 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
         }
         const size_t active_count{static_cast<size_t>(params.signingActiveQuorumCount)};
         const size_t total_count{SnapshotCommitmentCount(params, data.rotation_enabled)};
-        // Parameter-derived counts are maxima, not exact requirements: a young
-        // chain carries however much quorum history exists. The chain-aware
-        // validation and the completion-time CbTx quorum merkle root establish
-        // that nothing available was withheld.
-        if (data.active_commitments.size() > active_count ||
-            data.safety_commitments.size() > total_count - active_count ||
-            data.rotation_snapshots.size() > (data.rotation_enabled ? EVO_SNAPSHOT_ROTATION_CYCLES : size_t{0})) {
+        // Parameter-derived counts are maxima here. The chain-aware validation
+        // requires the exact sets the dependency planner derives.
+        if (data.active_commitments.size() > active_count || data.safety_commitments.size() > total_count - active_count ||
+            data.rotation_snapshots.size() > (data.rotation_enabled ? EvoSnapshotMaxRotationSnapshots(params) : size_t{0}) ||
+            data.bootstrap_work.size() > EVO_SNAPSHOT_MAX_BOOTSTRAP_WORK) {
             throw std::ios_base::failure("invalid params-derived evo per-type quorum counts");
         }
         std::set<uint256> quorum_hashes;
@@ -304,7 +323,7 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
         for (const auto& entry : data.rotation_snapshots) {
             if (entry.cycle_base_block_hash.IsNull() || entry.work_block_hash.IsNull() ||
                 !cycle_hashes.insert(entry.cycle_base_block_hash).second ||
-                !historical_hashes.contains(entry.work_block_hash) ||
+                (!historical_hashes.contains(entry.work_block_hash) && entry.work_block_hash != base_block_hash) ||
                 entry.snapshot.mnSkipListMode < SnapshotSkipMode::MODE_NO_SKIPPING ||
                 entry.snapshot.mnSkipListMode > SnapshotSkipMode::MODE_ALL_SKIPPED ||
                 entry.snapshot.activeQuorumMembers.size() > EVO_SNAPSHOT_MAX_MNS ||
@@ -319,7 +338,22 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
             required_work_hashes.insert(entry.work_block_hash);
             required_modifiers.emplace(data.llmq_type, entry.work_block_hash);
         }
+        if (require_canonical_order && !IsCanonicallySorted(data.bootstrap_work)) {
+            throw std::ios_base::failure("noncanonical evo bootstrap work order");
+        }
+        std::set<int32_t> bootstrap_heights;
+        for (const auto& entry : data.bootstrap_work) {
+            if (entry.cycle_base_height < 0 || entry.work_block_hash.IsNull() ||
+                !bootstrap_heights.insert(entry.cycle_base_height).second) {
+                throw std::ios_base::failure("invalid evo bootstrap work entry");
+            }
+            required_work_hashes.insert(entry.work_block_hash);
+            required_modifiers.emplace(data.llmq_type, entry.work_block_hash);
+        }
     }
+    // The base list is the work list for a work block equal to the base, so
+    // it has no historical diff of its own.
+    required_work_hashes.erase(base_block_hash);
     if (historical_hashes != required_work_hashes) {
         throw std::ios_base::failure("missing or extra historical MN-list diff target");
     }
@@ -344,6 +378,37 @@ uint256 GetEvoSnapshotHash(const EvoSnapshot& snapshot)
     uint256 hash;
     CSHA256().Write(UCharCast(stream.data()), stream.size()).Finalize(hash.begin());
     return hash;
+}
+
+uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint256>& branch, uint32_t index)
+{
+    uint256 hash{leaf};
+    for (const uint256& node : branch) {
+        hash = (index & 1) ? Hash(node, hash) : Hash(hash, node);
+        index >>= 1;
+    }
+    return hash;
+}
+
+std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t index)
+{
+    std::vector<uint256> level;
+    level.reserve(block.vtx.size());
+    for (const auto& tx : block.vtx)
+        level.push_back(tx->GetHash());
+    std::vector<uint256> branch;
+    while (level.size() > 1) {
+        // ComputeMerkleRoot pairs an odd last node with itself.
+        const size_t sibling{(index ^ 1) < level.size() ? (index ^ 1) : index};
+        branch.push_back(level[sibling]);
+        std::vector<uint256> next;
+        for (size_t i{0}; i < level.size(); i += 2) {
+            next.push_back(Hash(level[i], level[std::min(i + 1, level.size() - 1)]));
+        }
+        level = std::move(next);
+        index >>= 1;
+    }
+    return branch;
 }
 
 bool VerifyEvoSnapshotCbTx(const EvoSnapshot& snapshot, const CCbTx& cbtx, std::string& error)

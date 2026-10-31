@@ -7,6 +7,7 @@
 
 #include <bls/bls_ies.h>
 #include <evo/types.h>
+#include <evo/viewcache.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <llmq/cache.h>
 #include <llmq/params.h>
@@ -71,6 +72,7 @@ private:
     CQuorumBlockProcessor& quorumBlockProcessor;
     CQuorumSnapshotManager& m_qsnapman;
     const ChainstateManager& m_chainman;
+    CEvoDB& m_evoDb;
     llmq::CDKGSessionManager* m_qdkgsman{nullptr};
     llmq::QuorumRole* m_handler{nullptr};
 
@@ -85,10 +87,12 @@ private:
     mutable size_t m_inbound_request_count GUARDED_BY(cs_data_requests){0};
 
     mutable Mutex m_cs_maps;
-    mutable std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CFinalCommitment>>> scanCommitmentsCache
-        GUARDED_BY(m_cs_maps);
-    mutable PerLlmqTypeCache<CQuorumPtr> mapQuorumsCache GUARDED_BY(m_cs_maps);
-    mutable PerLlmqTypeCache<std::vector<CQuorumCPtr>> scanQuorumsCache GUARDED_BY(m_cs_maps);
+    struct ViewCaches {
+        std::map<Consensus::LLMQType, Uint256LruHashMap<std::vector<CFinalCommitment>>> scanCommitmentsCache;
+        PerLlmqTypeCache<CQuorumPtr> mapQuorumsCache;
+        PerLlmqTypeCache<std::vector<CQuorumCPtr>> scanQuorumsCache;
+    };
+    mutable EvoViewCache<ViewCaches> m_view_caches GUARDED_BY(m_cs_maps);
 
     // On mainnet, we have around 62 quorums active at any point; let's cache a little more than double that to be safe.
     // it maps `quorum_hash` to `pindex`
@@ -134,6 +138,11 @@ public:
                           const uint256& quorumHash, const CChain& chain)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    //! The Evo view the calling operation reads.
+    EvoViewToken CurrentView() const { return m_evoDb.CurrentView(); }
+    //! The EvoDB this manager reads, for callers that bind an Evo view.
+    const CEvoDB& EvoDb() const { return m_evoDb; }
+
     // all these methods will lock cs_main for a short period of time
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
@@ -156,6 +165,14 @@ public:
     std::vector<CFinalCommitment> ScanCommitments(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindexStart,
                                                   size_t nCountRequested) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps);
+
+    /** The quorum base blocks a scan of `count` from `start` returns, proven
+     *  in the calling view: ScanQuorums' normalization and index-family
+     *  dispatch over this view's commitment index, whose carried sequences
+     *  end as recorded when its snapshot was seeded. Throws
+     *  BlockDataUnavailableError when the prefix is not covered. */
+    std::vector<const CBlockIndex*> ProveScan(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> start,
+                                              size_t count) const;
 
     bool IsMasternode() const;
     bool IsWatching() const;
@@ -190,6 +207,8 @@ private:
                                          gsl::not_null<const CBlockIndex*> pindexStart,
                                          size_t nCountRequested, const CChain* chain) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_db, !m_cs_maps, !m_cache_cs);
+    std::vector<const CBlockIndex*> ProveScanFromCutoff(Consensus::LLMQType llmqType,
+                                                        gsl::not_null<const CBlockIndex*> cutoff, size_t count) const;
     bool BuildQuorumContributions(const CFinalCommitmentPtr& fqc, const std::shared_ptr<CQuorum>& quorum) const;
 
     CQuorumPtr BuildQuorumFromCommitment(Consensus::LLMQType llmqType,
@@ -207,6 +226,12 @@ private:
     void CacheWarmingThreadMain() const EXCLUSIVE_LOCKS_REQUIRED(!m_cache_cs);
     void MigrateOldQuorumDB(CEvoDB& evoDb) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_db);
 };
+
+/** The block a scan from `start` reads up to: inside a DKG mining window the
+ *  start itself, past it the window's end, before it the previous cycle's
+ *  window end. nullopt when that precedes genesis. */
+std::optional<const CBlockIndex*> NormalizeScanStart(const Consensus::LLMQParams& llmq_params,
+                                                     gsl::not_null<const CBlockIndex*> start);
 
 // when selecting a quorum for signing and verification, we use CQuorumManager::SelectQuorum with this offset as
 // starting height for scanning. This is because otherwise the resulting signatures would not be verifiable by nodes
