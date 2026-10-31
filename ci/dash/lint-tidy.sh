@@ -122,7 +122,6 @@ iwyu_tool.py \
   "src/util/bytevectorhash.cpp" \
   "src/util/check.cpp" \
   "src/util/error.cpp" \
-  "src/util/getuniquepath.cpp" \
   "src/util/hasher.cpp" \
   "src/util/message.cpp" \
   "src/util/moneystr.cpp" \
