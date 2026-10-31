@@ -33,6 +33,13 @@ int FindUnmatchedMasternodePayment(const std::vector<CTxOut>& expected,
                                    const std::vector<CTxOut>& actual,
                                    bool strict_multiplicity);
 
+/**
+ * Whether the masternode and superblock payments together can each be matched
+ * by a distinct coinbase output, so that one output never pays two obligations.
+ */
+bool HasDistinctRequiredPayments(const std::vector<CTxOut>& masternode_payments,
+                                 const std::vector<CTxOut>& superblock_payments, const std::vector<CTxOut>& actual);
+
 namespace Consensus { struct Params; }
 
 /**
