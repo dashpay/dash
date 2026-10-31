@@ -38,20 +38,10 @@ jobs:
         run: |
           git config --global --add safe.directory "$PWD"
           git fetch --no-tags -fu origin develop:develop
-          mkdir -p /cache/cppcheck
         shell: bash
-
-      - name: Restore cppcheck cache
-        uses: actions/cache/restore@v5
-        with:
-          path: /cache/cppcheck
-          key: cppcheck-${{ hashFiles('contrib/containers/ci/ci-slim.Dockerfile') }}-${{ github.sha }}
-          restore-keys: |
-            cppcheck-${{ hashFiles('contrib/containers/ci/ci-slim.Dockerfile') }}-
 
       - name: Run linters
         run: |
-          export CACHE_DIR="/cache"
           export BUILD_TARGET="linux64"
           export CHECK_DOC=1
 
@@ -77,17 +67,7 @@ jobs:
           git log --oneline ${COMMIT_RANGE} || echo "Could not show commit range"
 
           ./ci/dash/lint.sh
-          du -sh "${CACHE_DIR}/cppcheck"
         shell: bash
-
-      - name: Save cppcheck cache
-        if: |
-          github.event_name == 'push' &&
-          github.ref_name == github.event.repository.default_branch
-        uses: actions/cache/save@v5
-        with:
-          path: /cache/cppcheck
-          key: cppcheck-${{ hashFiles('contrib/containers/ci/ci-slim.Dockerfile') }}-${{ github.sha }}
 
       - name: Check whether develop has moved on
         id: freshness
