@@ -304,6 +304,15 @@ jobs:
       container-path: ${{ needs.container-slim.outputs.path }}
       runs-on: ${{ needs.check-skip.outputs['runner-prelint'] }}
 
+  # Slow and nothing waits for it: tests gate on lint alone.
+  cppcheck:
+    name: Cppcheck
+    uses: ./.github/workflows/cppcheck.yml
+    needs: [check-skip, container-slim]
+    with:
+      container-path: ${{ needs.container-slim.outputs.path }}
+      runs-on: ${{ needs.check-skip.outputs['runner-prelint'] }}
+
   src-aarch64-linux:
     name: aarch64-linux-build
     uses: ./.github/workflows/build-src.yml

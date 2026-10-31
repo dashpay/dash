@@ -1,0 +1,53 @@
+name: Cppcheck
+
+on:
+  workflow_call:
+    inputs:
+      container-path:
+        description: "Path to built container at registry"
+        required: true
+        type: string
+      runs-on:
+        description: "Runner label to use"
+        required: true
+        type: string
+
+jobs:
+  cppcheck:
+    name: Run cppcheck
+    runs-on: ${{ inputs.runs-on }}
+    container:
+      image: ${{ inputs.container-path }} # zizmor: ignore[unpinned-images] built earlier in this run by build-container.yml
+      options: --user root
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
+
+      - name: Restore cppcheck cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /cache/cppcheck
+          key: cppcheck-${{ hashFiles('contrib/containers/ci/ci-slim.Dockerfile') }}-${{ github.sha }}
+          restore-keys: |
+            cppcheck-${{ hashFiles('contrib/containers/ci/ci-slim.Dockerfile') }}-
+
+      - name: Run cppcheck
+        run: |
+          git config --global --add safe.directory "$PWD"
+          export CACHE_DIR="/cache"
+          test/lint/cppcheck-dash.py
+          du -sh "${CACHE_DIR}/cppcheck"
+        shell: bash
+
+      - name: Save cppcheck cache
+        if: |
+          github.event_name == 'push' &&
+          github.ref_name == github.event.repository.default_branch
+        uses: actions/cache/save@v5
+        with:
+          path: /cache/cppcheck
+          key: cppcheck-${{ hashFiles('contrib/containers/ci/ci-slim.Dockerfile') }}-${{ github.sha }}

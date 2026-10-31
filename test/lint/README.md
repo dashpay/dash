@@ -21,9 +21,10 @@ Reproducing the CI lint job
 The image above is not what CI uses: its default entrypoint runs `ci/lint/06_script.sh`,
 which merge-bases against `master` and runs checks (`check-doc.py`, subtree checks) that
 the CI lint job does not, and it has no cppcheck. The CI lint job
-(`.github/workflows/lint.yml`) runs `ci/dash/lint.sh` inside the `ci-slim` image. To
-reproduce it, build that image and run the same script with the same environment from the
-repository or worktree root:
+(`.github/workflows/lint.yml`) runs `ci/dash/lint.sh` inside the `ci-slim` image, and a
+separate cppcheck job (`.github/workflows/cppcheck.yml`) runs `test/lint/cppcheck-dash.py`
+in the same image. To reproduce them, build that image and run the same scripts with the
+same environment from the repository or worktree root:
 
 ```sh
 docker build -t dash-ci-slim --file ./contrib/containers/ci/ci-slim.Dockerfile ./contrib/containers/ci
@@ -34,9 +35,14 @@ docker build -t dash-ci-slim --file ./contrib/containers/ci/ci-slim.Dockerfile .
 GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
 docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
     -v "$PWD":"$PWD" -v "$GIT_COMMON_DIR":"$GIT_COMMON_DIR" -w "$PWD" \
-    -e CACHE_DIR="$PWD/ci/scratch/cache" -e BUILD_TARGET=linux64 -e CHECK_DOC=1 \
+    -e BUILD_TARGET=linux64 -e CHECK_DOC=1 \
     -e PULL_REQUEST=true -e COMMIT_RANGE="$(git merge-base develop HEAD)..HEAD" \
     dash-ci-slim bash -c 'git config --global --add safe.directory "$PWD" && ./ci/dash/lint.sh'
+
+docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD":"$PWD" -v "$GIT_COMMON_DIR":"$GIT_COMMON_DIR" -w "$PWD" \
+    -e CACHE_DIR="$PWD/ci/scratch/cache" \
+    dash-ci-slim bash -c 'git config --global --add safe.directory "$PWD" && test/lint/cppcheck-dash.py'
 ```
 
 CI builds `ci-slim` for both `linux/amd64` and `linux/arm64`, so a native build is fine;

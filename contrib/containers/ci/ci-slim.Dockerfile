@@ -8,13 +8,14 @@ RUN set -ex; \
         cmake \
         make \
         g++ \
+        python3 \
     && rm -rf /var/lib/apt/lists/*; \
     echo "Downloading Cppcheck version: ${CPPCHECK_VERSION}"; \
     curl -fL "https://github.com/danmar/cppcheck/archive/${CPPCHECK_VERSION}.tar.gz" -o /tmp/cppcheck.tar.gz; \
     mkdir -p /src/cppcheck && tar -xzf /tmp/cppcheck.tar.gz -C /src/cppcheck --strip-components=1; \
     rm /tmp/cppcheck.tar.gz; \
     cd /src/cppcheck; \
-    mkdir build && cd build && cmake .. && cmake --build . -j"$(nproc)"; \
+    mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DUSE_MATCHCOMPILER=ON .. && cmake --build . -j"$(nproc)"; \
     strip bin/cppcheck
 
 # Main image
