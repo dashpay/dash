@@ -1,7 +1,7 @@
 name: Check PR milestone
 
 on:
-  pull_request:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] reads only the milestone from the event; does not check out PR code
     types:
       - opened
       - edited
@@ -17,7 +17,7 @@ jobs:
   main:
     name: Require a milestone
     if: ${{ !github.event.pull_request.draft }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Check that a milestone is set
         env:
