@@ -251,6 +251,17 @@ public:
     {
         return PlatformKeyStatus::NOT_SUPPORTED;
     }
+    //! Derive the DIP-3 operator keys at indexes [first, first + count) from the mnemonic behind the root key.
+    virtual PlatformKeyStatus DeriveOperatorKeys(uint32_t coin_type, uint32_t first, uint32_t count,
+                                                 std::vector<CBLSSecretKey>& out) const
+    {
+        return PlatformKeyStatus::NOT_SUPPORTED;
+    }
+    //! Extended public key over the operator keys, see platformkeys::OperatorKeyChain.
+    virtual PlatformKeyStatus OperatorKeyChain(uint32_t coin_type, std::vector<unsigned char>& out) const
+    {
+        return PlatformKeyStatus::NOT_SUPPORTED;
+    }
     /** Adds script and derivation path information to a PSBT, and optionally signs it. */
     virtual TransactionError FillPSBT(PartiallySignedTransaction& psbt, const PrecomputedTransactionData& txdata, int sighash_type = 1 /* SIGHASH_ALL */, bool sign = true, bool bip32derivs = false, int* n_signed = nullptr, bool finalize = true) const { return TransactionError::INVALID_PSBT; }
 
@@ -599,6 +610,9 @@ private:
 
     bool AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey, const SecureString& mnemonic, const SecureString& mnemonic_passphrase) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
+    //! Rebuild the BIP39 seed from the stored mnemonic once it is checked to reproduce the descriptor root.
+    PlatformKeyStatus OperatorKeySeed(SecureVector& seed) const;
+
     KeyMap GetKeys() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
     // Cached FlatSigningProviders to avoid regenerating them each time they are needed.
@@ -681,6 +695,9 @@ public:
     bool SignSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std::vector<unsigned char>& vchSig) const override;
     PlatformKeyStatus GetPlatformKeySource(std::vector<unsigned char>& identifier) const override;
     PlatformKeyStatus DerivePlatformKey(const platformkeys::Path& path, platformkeys::ExtKey256& out) const override;
+    PlatformKeyStatus DeriveOperatorKeys(uint32_t coin_type, uint32_t first, uint32_t count,
+                                         std::vector<CBLSSecretKey>& out) const override;
+    PlatformKeyStatus OperatorKeyChain(uint32_t coin_type, std::vector<unsigned char>& out) const override;
     TransactionError FillPSBT(PartiallySignedTransaction& psbt, const PrecomputedTransactionData& txdata, int sighash_type = 1 /* SIGHASH_ALL */, bool sign = true, bool bip32derivs = false, int* n_signed = nullptr, bool finalize = true) const override;
 
     uint256 GetID() const override;
