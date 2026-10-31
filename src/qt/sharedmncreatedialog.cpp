@@ -3094,6 +3094,11 @@ void SharedMnCreateDialog::reserveCoins()
         showError(tr("Enter a valid owner address (P2PKH)."));
         return;
     }
+    // This wallet signs the share's approval with the owner key
+    if (!m_wallet_model->wallet().isSpendable(DecodeDestination(owner.toStdString()))) {
+        showError(tr("The owner address must belong to this wallet."));
+        return;
+    }
     if (!MasternodeWidgetUtil::isP2PKHorP2SHAddress(refund)) {
         showError(tr("Enter a valid refund address (P2PKH or P2SH)."));
         return;

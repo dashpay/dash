@@ -229,6 +229,13 @@ void SharedMnWizardTests::participantCannotChooseATakenShare()
         QVERIFY(dialog.myContribution() == nullptr);
         QVERIFY(!combo_row(dialog, 1)->isEnabled());
         QVERIFY(dialog.m_owner_edit->text() != answered.shares()[1].ownerAddress);
+
+        // An owner address from outside this wallet could never approve the share
+        dialog.m_owner_edit->setText(FreshP2PKHAddress());
+        dialog.reserveCoins();
+        QVERIFY(!dialog.m_error_label->text().isEmpty());
+        QVERIFY(dialog.myContribution() == nullptr);
+        QVERIFY(dialog.m_session.shares()[2].ownerAddress.isEmpty());
     }
 
     // This wallet already answered for bob's row and now moves to carol's:
