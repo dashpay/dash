@@ -3360,7 +3360,7 @@ void SharedMnCreateDialog::inferMyShare()
     if (m_wallet_model != nullptr) {
         for (size_t i = 0; i < shares.size(); ++i) {
             const CTxDestination dest{DecodeDestination(shares[i].ownerAddress.toStdString())};
-            if (IsValidDestination(dest) && m_wallet_model->wallet().isSpendable(dest)) {
+            if (std::holds_alternative<PKHash>(dest) && m_wallet_model->wallet().isSpendable(dest)) {
                 m_my_share = static_cast<int>(i);
                 return;
             }
@@ -3385,7 +3385,8 @@ bool SharedMnCreateDialog::shareTakenByOther(size_t index) const
     if (owner.isEmpty()) return false;
     if (m_wallet_model == nullptr) return true;
     const CTxDestination dest{DecodeDestination(owner.toStdString())};
-    return !IsValidDestination(dest) || !m_wallet_model->wallet().isSpendable(dest);
+    // Only a P2PKH owner can sign the share's approval
+    return !std::holds_alternative<PKHash>(dest) || !m_wallet_model->wallet().isSpendable(dest);
 }
 
 void SharedMnCreateDialog::loadMyShareAddresses()
