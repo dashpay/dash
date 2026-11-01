@@ -866,6 +866,10 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
 
         for (const auto& recipient : vecSend_in) {
             if (recipient.fPlatformTransfer) {
+                if (recipient.nAmount < MIN_PLATFORM_TRANSFER_AMOUNT) {
+                    return util::Error{strprintf(_("Amount for a Platform address must be at least %s"),
+                                                 FormatMoney(MIN_PLATFORM_TRANSFER_AMOUNT))};
+                }
                 creditOutputs.emplace_back(recipient.nAmount, recipient.scriptPubKey);
                 platform_total += recipient.nAmount;
             } else {

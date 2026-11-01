@@ -1364,6 +1364,14 @@ class AssetLocksTest(DashTestFramework):
         except JSONRPCException as e:
             assert "subtractfeefromamount is not supported for Platform addresses" in e.error['message']
 
+        self.log.info("Test a Platform recipient must get at least Platform's funding minimum")
+        below_min_error = "Amount for a Platform address must be at least 0.00056"
+        assert_raises_rpc_error(-6, below_min_error, node_wallet.sendtoaddress,
+                                platform_addr_from_key, Decimal("0.00055999"))
+        assert_raises_rpc_error(-6, below_min_error, node_wallet.sendmany, "",
+                                {platform_addr_from_key: 0, node_wallet.getnewaddress(): 1})
+        node_wallet.sendtoaddress(platform_addr_from_key, Decimal("0.00056"))
+
         val = node_wallet.validateaddress(platform_addr_from_key)
         assert_equal(val['isvalid'], True)
         assert_equal(val['isplatform'], True)
@@ -1373,7 +1381,7 @@ class AssetLocksTest(DashTestFramework):
         self.send_tx(lock_tx_v1)
 
         # mine all at once
-        locked += node.getblocktemplate()['masternode'][0]['amount'] + 3 * COIN
+        locked += node.getblocktemplate()['masternode'][0]['amount'] + 3 * COIN + 56000
         self.generate(node, 1)
         assert_equal(self.get_credit_pool_balance(), locked)
 

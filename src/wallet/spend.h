@@ -18,6 +18,13 @@ namespace wallet {
 //! Special value for setting a random position for change output
 constexpr int RANDOM_CHANGE_POSITION{-1};
 
+/**
+ * Smallest credit output Dash Platform will credit to a Platform address: its asset lock
+ * processing floor (50,000 duffs) plus the fee for the one output a claim needs (6,000 duffs).
+ * See calculate_address_funding_from_asset_lock_min_required_fee() in dashpay/platform.
+ */
+static constexpr CAmount MIN_PLATFORM_TRANSFER_AMOUNT{56'000};
+
 /** Get the marginal bytes if spending the specified output from this transaction.
  * Use CoinControl to determine whether to expect signature grinding when calculating the size of the input spend. */
 int CalculateMaximumSignedInputSize(const CTxOut& txout, const CWallet* pwallet, const CCoinControl* coin_control);
