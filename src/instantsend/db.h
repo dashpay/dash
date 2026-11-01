@@ -56,6 +56,7 @@ private:
      */
     void RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, const InstantSendLock& islock,
                                bool keep_cache = true) EXCLUSIVE_LOCKS_REQUIRED(cs_db);
+    void EraseInstantSendLockCache(const uint256& hash, const InstantSendLock& islock) EXCLUSIVE_LOCKS_REQUIRED(cs_db);
     /**
      * Marks an InstantSend Lock as archived.
      * @param batch Object used to batch many calls together
@@ -154,11 +155,12 @@ public:
     /**
      * Called when a ChainLock invalidated a IS Lock, removes any chained/children IS Locks and the invalidated IS Lock
      * @param islockHash IS Lock hash which has been invalidated
-     * @param txid Transaction id associated with the islockHash
+     * @param islock The invalidated IS Lock itself
      * @param nHeight height of the block which received a chainlock and invalidated the IS Lock
      * @return A vector of IS Lock hashes of all IS Locks removed
      */
-    std::vector<uint256> RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid, int nHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
+    std::vector<uint256> RemoveChainedInstantSendLocks(const uint256& islockHash, const InstantSendLock& islock,
+                                                       int nHeight) EXCLUSIVE_LOCKS_REQUIRED(!cs_db);
 };
 } // namespace instantsend
 

@@ -80,11 +80,18 @@ void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash,
     }
 
     if (!keep_cache) {
-        islockCache.erase(hash);
-        txidCache.erase(islock.txid);
-        for (const auto& in : islock.inputs) {
-            outpointCache.erase(in);
-        }
+        EraseInstantSendLockCache(hash, islock);
+    }
+}
+
+void CInstantSendDb::EraseInstantSendLockCache(const uint256& hash, const InstantSendLock& islock)
+{
+    AssertLockHeld(cs_db);
+
+    islockCache.erase(hash);
+    txidCache.erase(islock.txid);
+    for (const auto& in : islock.inputs) {
+        outpointCache.erase(in);
     }
 }
 
@@ -345,15 +352,15 @@ std::vector<uint256> CInstantSendDb::GetInstantSendLocksByParent(const uint256& 
     return result;
 }
 
-std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid,
-                                                                   int nHeight)
+std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256& islockHash,
+                                                                   const InstantSendLock& islock, int nHeight)
 {
     LOCK(cs_db);
     std::vector<uint256> result;
 
     std::vector<uint256> stack;
     Uint256HashSet added;
-    stack.emplace_back(txid);
+    stack.emplace_back(islock.txid);
 
     CDBBatch batch(*db);
     while (!stack.empty()) {
@@ -376,9 +383,11 @@ std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256
         }
     }
 
-    if (auto islock = GetInstantSendLockByHashInternal(islockHash, /*use_cache=*/false)) {
-        RemoveInstantSendLock(batch, islockHash, *islock, false);
+    if (GetInstantSendLockByHashInternal(islockHash, /*use_cache=*/false)) {
+        RemoveInstantSendLock(batch, islockHash, islock);
     }
+    // Also needed when the lock was already confirmed: that removed it from the db but kept it cached
+    EraseInstantSendLockCache(islockHash, islock);
     WriteInstantSendLockArchived(batch, islockHash, nHeight);
     result.emplace_back(islockHash);
 

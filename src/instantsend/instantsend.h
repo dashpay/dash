@@ -120,7 +120,7 @@ public:
     bool IsWaitingForTx(const uint256& txHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const;
     std::optional<std::pair</*islock_hash=*/uint256, /*txid=*/uint256>> ConflictingISLockIfAny(const CTransaction& tx) const;
-    bool RemoveConflictingISLockByTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    void RemoveConflictingISLocksByTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
     /* Helpers for communications between CInstantSendManager & NetInstantSend */
     // This helper returns up to 32 pending locks and remove them from queue of pending
