@@ -733,6 +733,10 @@ void SharedMnWalkthroughTests::walkthrough()
         QVERIFY2(int(dialog.currentPage()) == int(SharedMnCreateDialog::PageSignatures),
                  qPrintable(QStringLiteral("%1 did not reach Sign contribution: %2")
                                 .arg(who.who, dialog.m_error_label->text())));
+        // The last step before coins move shows the approved terms again
+        QVERIFY(dialog.m_signatures_unchanged->isVisibleTo(&dialog));
+        QVERIFY(dialog.m_signatures_terms->text().contains(dialog.m_session.shares()[dialog.m_my_share].ownerAddress));
+        QVERIFY(dialog.m_signatures_terms->text().contains("Your contribution"));
         Shots().capture(&dialog, who.role, QStringLiteral("23-%1-sign-contribution").arg(who.role),
                         who.who + " about to sign the coins they reserved");
 

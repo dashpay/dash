@@ -938,6 +938,16 @@ QWidget* SharedMnCreateDialog::createSignaturesPage()
     m_signatures_summary = makeHint(QString(), body);
     body_layout->addWidget(m_signatures_summary);
 
+    // The terms again, so the last step before coins move can be checked
+    // without going back to the approval
+    m_signatures_unchanged = makeHint(QString(), body);
+    body_layout->addWidget(m_signatures_unchanged);
+    {
+        auto* box{MakeTitledCard(body, body_layout, QString())};
+        m_signatures_terms = MakeSheetLabel(box->parentWidget());
+        box->addWidget(m_signatures_terms);
+    }
+
     body_layout->addStretch();
 
     auto* row{new QHBoxLayout()};
@@ -1970,6 +1980,13 @@ void SharedMnCreateDialog::refreshSignaturesPage()
     } else {
         m_signatures_summary->setText(QString());
     }
+    // A session only carries an approval that verifies against its consent
+    // digest, and an import that would change the terms behind it is refused
+    const bool approved{m_my_share >= 0 && !m_session.signatureFor(m_my_share).isEmpty()};
+    m_signatures_unchanged->setVisible(approved);
+    m_signatures_unchanged->setText(
+        tr("✓ These are the terms you approved: your approval covers every line below, and nothing in them has "
+           "changed since."));
 }
 
 void SharedMnCreateDialog::refreshWaitingPages()
@@ -2113,6 +2130,7 @@ void SharedMnCreateDialog::refreshTermSheets()
                                              m_wallet_model != nullptr ? std::optional{ownFunding()} : std::nullopt)};
     m_approvals_terms->setText(html);
     m_lock_terms_label->setText(html);
+    m_signatures_terms->setText(html);
     bool fatal{false};
     m_lock_funding_label->setText(fundingCheck(fatal));
 }

@@ -494,6 +494,8 @@ private:
     QLabel* m_signatures_title{nullptr};
     QLabel* m_signatures_purpose{nullptr};
     QLabel* m_signatures_summary{nullptr};
+    QLabel* m_signatures_unchanged{nullptr};
+    QLabel* m_signatures_terms{nullptr};
     QPushButton* m_copy_signing_button{nullptr};
 
     // Waiting pages
