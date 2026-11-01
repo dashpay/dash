@@ -13,7 +13,6 @@
 #include <sync.h>
 #include <tinyformat.h>
 #include <util/fs.h>
-#include <util/getuniquepath.h>
 #include <util/syserror.h>
 
 #include <cerrno>
@@ -53,32 +52,35 @@ static GlobalMutex cs_dir_locks;
  * is called.
  */
 static std::map<std::string, std::unique_ptr<fsbridge::FileLock>> dir_locks GUARDED_BY(cs_dir_locks);
-
-bool LockDirectory(const fs::path& directory, const fs::path& lockfile_name, bool probe_only)
+namespace util {
+LockResult LockDirectory(const fs::path& directory, const fs::path& lockfile_name, bool probe_only)
 {
     LOCK(cs_dir_locks);
     fs::path pathLockFile = directory / lockfile_name;
 
     // If a lock for this directory already exists in the map, don't try to re-lock it
     if (dir_locks.count(fs::PathToString(pathLockFile))) {
-        return true;
+        return LockResult::Success;
     }
 
     // Create empty lock file if it doesn't exist.
-    FILE* file = fsbridge::fopen(pathLockFile, "a");
-    if (file) fclose(file);
+    if (auto created{fsbridge::fopen(pathLockFile, "a")}) {
+        std::fclose(created);
+    } else {
+        return LockResult::ErrorWrite;
+    }
     auto lock = std::make_unique<fsbridge::FileLock>(pathLockFile);
     if (!lock->TryLock()) {
         LogError("Error while attempting to lock directory %s: %s\n", fs::PathToString(directory), lock->GetReason());
-        return false;
+        return LockResult::ErrorLock;
     }
     if (!probe_only) {
         // Lock successful and we're not just probing, put it into the map
         dir_locks.emplace(fs::PathToString(pathLockFile), std::move(lock));
     }
-    return true;
+    return LockResult::Success;
 }
-
+} // namespace util
 void UnlockDirectory(const fs::path& directory, const fs::path& lockfile_name)
 {
     LOCK(cs_dir_locks);
@@ -89,19 +91,6 @@ void ReleaseDirectoryLocks()
 {
     LOCK(cs_dir_locks);
     dir_locks.clear();
-}
-
-bool DirIsWritable(const fs::path& directory)
-{
-    fs::path tmpFile = GetUniquePath(directory);
-
-    FILE* file = fsbridge::fopen(tmpFile, "a");
-    if (!file) return false;
-
-    fclose(file);
-    remove(tmpFile);
-
-    return true;
 }
 
 bool CheckDiskSpace(const fs::path& dir, uint64_t additional_bytes)

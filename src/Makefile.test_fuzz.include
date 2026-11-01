@@ -12,6 +12,7 @@ TEST_FUZZ_H = \
     test/fuzz/FuzzedDataProvider.h \
     test/fuzz/util.h \
     test/util/mining.h \
+    test/fuzz/util/descriptor.h \
     test/fuzz/util/mempool.h \
     test/fuzz/util/net.h
 
@@ -21,6 +22,7 @@ libtest_fuzz_a_SOURCES = \
   test/fuzz/fuzz.cpp \
   test/util/mining.cpp \
   test/fuzz/util.cpp \
+  test/fuzz/util/descriptor.cpp \
   test/fuzz/util/mempool.cpp \
   test/fuzz/util/net.cpp \
   $(TEST_FUZZ_H)

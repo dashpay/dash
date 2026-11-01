@@ -5,7 +5,6 @@
 #include <test/util/setup_common.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
-#include <util/getuniquepath.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -88,21 +87,6 @@ BOOST_AUTO_TEST_CASE(fsbridge_fstream)
         BOOST_CHECK_EQUAL(input_buffer, "bitcoin");
     }
     {
-        fs::path p1 = GetUniquePath(tmpfolder);
-        fs::path p2 = GetUniquePath(tmpfolder);
-        fs::path p3 = GetUniquePath(tmpfolder);
-
-        // Ensure that the parent path is always the same.
-        BOOST_CHECK_EQUAL(tmpfolder, p1.parent_path());
-        BOOST_CHECK_EQUAL(tmpfolder, p2.parent_path());
-        BOOST_CHECK_EQUAL(tmpfolder, p3.parent_path());
-
-        // Ensure that generated paths are actually different.
-        BOOST_CHECK(p1 != p2);
-        BOOST_CHECK(p2 != p3);
-        BOOST_CHECK(p1 != p3);
-    }
-    {
         // Join an absolute path and a relative path.
         fs::path p = fsbridge::AbsPathJoin(tmpfolder, fs::u8path("fs_tests_∋_🏃"));
         BOOST_CHECK(p.is_absolute());
@@ -125,8 +109,8 @@ BOOST_AUTO_TEST_CASE(rename)
 {
     const fs::path tmpfolder{m_args.GetDataDirBase()};
 
-    const fs::path path1{GetUniquePath(tmpfolder)};
-    const fs::path path2{GetUniquePath(tmpfolder)};
+    const fs::path path1{tmpfolder / "a"};
+    const fs::path path2{tmpfolder / "b"};
 
     const std::string path1_contents{"1111"};
     const std::string path2_contents{"2222"};
@@ -161,13 +145,13 @@ BOOST_AUTO_TEST_CASE(create_directories)
     // Test fs::create_directories workaround.
     const fs::path tmpfolder{m_args.GetDataDirBase()};
 
-    const fs::path dir{GetUniquePath(tmpfolder)};
+    const fs::path dir{tmpfolder / "a"};
     fs::create_directory(dir);
     BOOST_CHECK(fs::exists(dir));
     BOOST_CHECK(fs::is_directory(dir));
     BOOST_CHECK(!fs::create_directories(dir));
 
-    const fs::path symlink{GetUniquePath(tmpfolder)};
+    const fs::path symlink{tmpfolder / "b"};
     fs::create_directory_symlink(dir, symlink);
     BOOST_CHECK(fs::exists(symlink));
     BOOST_CHECK(fs::is_symlink(symlink));
