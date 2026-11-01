@@ -46,6 +46,9 @@ on:
       built-artifact:
         description: "Artifact holding freshly built depends (empty when restored from cache)"
         value: ${{ jobs.build.outputs.built-artifact }}
+      sdk-artifact:
+        description: "Artifact holding prepared SDKs (empty when restored from cache)"
+        value: ${{ jobs.check-cache.outputs.sdk-artifact }}
 
 jobs:
   check-cache:
@@ -57,6 +60,7 @@ jobs:
       cache-key-prefix: ${{ steps.setup.outputs.cache-key-prefix }}
       host: ${{ steps.setup.outputs.HOST }}
       dep-opts: ${{ steps.setup.outputs.DEP_OPTS }}
+      sdk-artifact: ${{ steps.prepare-sdks.outputs.artifact }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -70,6 +74,7 @@ jobs:
             depends
             contrib/containers/ci/ci.Dockerfile
             contrib/containers/ci/ci-slim.Dockerfile
+            contrib/containers/guix/scripts/setup-sdk
 
       - name: Compute cache key
         id: setup
@@ -103,6 +108,36 @@ jobs:
           path: depends/built/${{ steps.setup.outputs.HOST }}
           key: ${{ steps.setup.outputs.cache-key }}
           lookup-only: true
+
+      - name: Cache SDKs
+        id: cache-sdk-check
+        uses: actions/cache@v5
+        if: inputs.build-target == 'mac'
+        with:
+          path: depends/SDKs
+          key: depends-sdks-${{ hashFiles('depends/hosts/darwin.mk') }}
+          restore-keys: depends-sdks-
+
+      - name: Prepare SDKs
+        id: prepare-sdks
+        if: inputs.build-target == 'mac' && steps.cache-sdk-check.outputs.cache-hit != 'true'
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+        run: |
+          ./contrib/containers/guix/scripts/setup-sdk
+          echo "artifact=depends-sdks-${BUILD_TARGET}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload prepared SDKs
+        # This originates in check-cache so both Build depends (when needed)
+        # and Build source can use it even when a PR cannot save the cache.
+        if: steps.prepare-sdks.outputs.artifact != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.prepare-sdks.outputs.artifact }}
+          path: depends/SDKs
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
 
   build:
     name: Build depends
@@ -142,6 +177,29 @@ jobs:
           path: depends/sources
           key: depends-sources-${{ hashFiles('depends/packages/*') }}
           restore-keys: depends-sources-
+
+      - name: Restore SDKs cache
+        id: sdk-cache
+        uses: actions/cache/restore@v5
+        if: inputs.build-target == 'mac'
+        with:
+          path: depends/SDKs
+          key: depends-sdks-${{ hashFiles('depends/hosts/darwin.mk') }}
+          restore-keys: depends-sdks-
+
+      - name: Download prepared SDKs
+        if: inputs.build-target == 'mac' && steps.sdk-cache.outputs.cache-hit != 'true' && needs.check-cache.outputs.sdk-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.check-cache.outputs.sdk-artifact }}
+          path: depends/SDKs
+
+      - name: Check prepared SDKs are present
+        if: inputs.build-target == 'mac' && steps.sdk-cache.outputs.cache-hit != 'true' && needs.check-cache.outputs.sdk-artifact == ''
+        run: |
+          echo "::error::SDK cache restore missed and no prepared SDK artifact was provided"
+          exit 1
+        shell: bash
 
       - name: Restore cached depends
         uses: actions/cache/restore@v5

@@ -108,21 +108,6 @@ RUN set -ex; \
         -o /usr/local/bin/clang-tidy-cache; \
     chmod +x /usr/local/bin/clang-tidy-cache;
 
-# The SDK lives in the image rather than in a per-run cache. depends/Makefile
-# looks for it under depends/SDKs, inside the checkout, so point it here.
-# Keep the version in sync with depends/hosts/darwin.mk.
-ARG XCODE_VERSION=26.1.1
-ARG XCODE_BUILD_ID=17B100
-ARG OSX_SDK_SHA256=9600fa93644df674ee916b5e2c8a6ba8dacf631996a65dc922d003b98b5ea3b1
-ENV SDK_PATH=/opt/SDKs
-RUN set -ex; \
-    OSX_SDK_BASENAME="Xcode-${XCODE_VERSION}-${XCODE_BUILD_ID}-extracted-SDK-with-libcxx-headers"; \
-    curl -fL "https://bitcoincore.org/depends-sources/sdks/${OSX_SDK_BASENAME}.tar" -o /tmp/sdk.tar; \
-    echo "${OSX_SDK_SHA256}  /tmp/sdk.tar" | sha256sum -c -; \
-    mkdir -p "${SDK_PATH}"; \
-    tar -C "${SDK_PATH}" -xf /tmp/sdk.tar; \
-    rm -f /tmp/sdk.tar
-
 RUN \
   mkdir -p /cache/ccache && \
   mkdir /cache/ctcache && \
