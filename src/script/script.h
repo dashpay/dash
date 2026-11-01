@@ -506,14 +506,15 @@ public:
      * CHECKMULTISIGs serialized in scriptSigs are
      * counted more accurately, assuming they are of the form
      *  ... OP_N CHECKMULTISIG ...
+     * CHECKDATASIG and CHECKDATASIGVERIFY count as one sigop each only if count_data_sigs is set.
      */
-    unsigned int GetSigOpCount(bool fAccurate) const;
+    unsigned int GetSigOpCount(bool fAccurate, bool count_data_sigs = false) const;
 
     /**
      * Accurately count sigOps, including sigOps in
      * pay-to-script-hash transactions:
      */
-    unsigned int GetSigOpCount(const CScript& scriptSig) const;
+    unsigned int GetSigOpCount(const CScript& scriptSig, bool count_data_sigs = false) const;
 
     bool IsPayToPublicKeyHash() const;
 
