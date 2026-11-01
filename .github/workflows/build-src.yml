@@ -171,13 +171,16 @@ jobs:
           # tests run code built from cached objects; drop the credential even
           # if the compile fails.
           trap 'rm -f "${RUNNER_TEMP}/ccache-netrc"' EXIT
-          CCACHE_MAXSIZE="600M"
+          CCACHE_MAXSIZE="300M"
           CACHE_DIR="/cache"
           mkdir /output
           BASE_OUTDIR="/output"
           source ./ci/dash/matrix.sh
           ./ci/dash/build_src.sh
           { echo "### ccache: ${BUILD_TARGET}"; echo '```'; ccache --show-stats; echo '```'; } >> "${GITHUB_STEP_SUMMARY}"
+          # Hits refresh mtime, so this keeps only what recent builds used
+          # and the saved cache stays near one build's working set.
+          ccache --evict-older-than 1d
           ccache -c
           du -hd0 "${BASE_OUTDIR}"
           rm -rf "${BASE_OUTDIR}"
