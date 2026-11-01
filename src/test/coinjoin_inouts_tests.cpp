@@ -17,6 +17,7 @@
 #include <protocol.h>
 #include <script/script.h>
 #include <streams.h>
+#include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
 #include <uint256.h>
@@ -29,6 +30,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -513,6 +515,184 @@ BOOST_AUTO_TEST_CASE(server_timeout_resets_only_sessions_that_cannot_advance)
         BOOST_TEST_CONTEXT(name)
         {
             BOOST_CHECK_EQUAL(ShouldResetTimedOutSession(session), reset);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(server_invalid_signature_rejects_only_its_sender)
+{
+    BOOST_REQUIRE(m_node.mn_sync);
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                  *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
+                                  *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync),
+                                  *Assert(m_node.isman));
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    CNode& sender = *MakePeer(/*id=*/7, /*ipv4=*/0x0a000001).release();
+    CNode& other = *MakePeer(/*id=*/8, /*ipv4=*/0x0a000002).release();
+    for (CNode* node : {&sender, &other}) {
+        node->fSuccessfullyConnected = true;
+        connman.AddTestNode(*node);
+        server.SeedParticipant(node->addr);
+    }
+    server.EnterSigningState();
+
+    std::vector<CService> status_recipients;
+    const auto capture_orig{CaptureMessage};
+    m_node.args->ForceSetArg("-capturemessages", "1");
+    CaptureMessage = [&status_recipients](const CAddress& addr, const std::string& msg_type,
+                                          Span<const unsigned char>, bool is_incoming) {
+        if (!is_incoming && msg_type == NetMsgType::DSSTATUSUPDATE) status_recipients.push_back(addr);
+    };
+
+    // A signature that fails validation is the sender's own doing. Only the sender is rejected:
+    // the other participant is not told to abandon a session it can still complete.
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    stream << std::vector<CTxIn>{CTxIn{COutPoint{uint256::ONE, 0}}};
+    BOOST_CHECK_NO_THROW(server.ProcessMessage(sender, NetMsgType::DSSIGNFINALTX, stream));
+
+    CaptureMessage = capture_orig;
+    m_node.args->ForceSetArg("-capturemessages", "0");
+
+    BOOST_CHECK(std::ranges::count(status_recipients, sender.addr) == 1);
+    BOOST_CHECK(std::ranges::count(status_recipients, other.addr) == 0);
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 2);
+
+    connman.ClearTestNodes();
+}
+
+BOOST_AUTO_TEST_CASE(server_unreachable_participant_ends_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    // Every participant has submitted an entry, so the final transaction is relayed to them. If
+    // one of them can no longer be reached, the others are told to abandon the session; they
+    // cannot be charged at its timeout for obeying, so it must end right away. If everyone can be
+    // reached, it moves on to signing.
+    for (const bool all_reachable : {true, false}) {
+        BOOST_TEST_CONTEXT("all_reachable=" << all_reachable)
+        {
+            TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                          *Assert(m_node.dmnman), *Assert(m_node.dstxman),
+                                          *Assert(m_node.mn_metaman), *Assert(m_node.mempool), mn_activeman,
+                                          *Assert(m_node.mn_sync), *Assert(m_node.isman));
+            for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+                auto peer = MakePeer(/*id=*/i, /*ipv4=*/0x0a000001 + i);
+                CMutableTransaction collateral;
+                collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+                server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
+                CCoinJoinEntry entry{{CTxDSIn{CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i)}}, P2PKHScript(), 0}},
+                                     {CTxOut{CoinJoin::GetSmallestDenomination(), P2PKHScript()}},
+                                     CTransaction{collateral}};
+                entry.addr = peer->addr;
+                server.SeedEntry(std::move(entry));
+                if (all_reachable || i == 0) {
+                    peer->fSuccessfullyConnected = true;
+                    connman.AddTestNode(*peer.release());
+                }
+            }
+            server.EnterAcceptingEntriesState();
+
+            server.CreateFinalTransaction(/*session_id=*/1, /*charge_fees=*/false);
+            BOOST_CHECK_EQUAL(server.GetState(), all_reachable ? int{POOL_STATE_SIGNING} : int{POOL_STATE_IDLE});
+
+            connman.ClearTestNodes();
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(server_charges_only_attributable_offenders)
+{
+    struct Case {
+        std::string name;
+        PoolState state;
+        int collaterals;
+        //! The submitted entries, entry i belonging to collateral i: {signed inputs, inputs}
+        std::vector<std::pair<int, int>> entries;
+        //! The collaterals expected to be found offending
+        std::vector<int> offenders;
+        size_t participants;
+        OffenderChargeRate rate;
+    };
+    const std::pair<int, int> sent{0, 1}, signed_entry{1, 1}, unsigned_entry{0, 1};
+    const std::vector<Case> cases{
+        {"accepting, two entries missing", POOL_STATE_ACCEPTING_ENTRIES, 5, {sent, sent, sent}, {3, 4}, 5, OffenderChargeRate::NORMAL},
+        {"accepting, every entry in", POOL_STATE_ACCEPTING_ENTRIES, 3, {sent, sent, sent}, {}, 3, OffenderChargeRate::NONE},
+        {"accepting, all entries but one missing", POOL_STATE_ACCEPTING_ENTRIES, 3, {sent}, {1, 2}, 3, OffenderChargeRate::REDUCED},
+        {"accepting, no entry at all", POOL_STATE_ACCEPTING_ENTRIES, 3, {}, {0, 1, 2}, 3, OffenderChargeRate::NONE},
+        // A single non-signer however many inputs it holds. Counted once per input it looked like every
+        // participant had failed, which exempts the session from charging.
+        {"signing, one participant leaves all of its inputs unsigned",
+         POOL_STATE_SIGNING,
+         4,
+         {{0, 4}, signed_entry, signed_entry, signed_entry},
+         {0},
+         4,
+         OffenderChargeRate::NORMAL},
+        {"signing, one participant signs only some of its inputs",
+         POOL_STATE_SIGNING,
+         4,
+         {{2, 3}, signed_entry, signed_entry, signed_entry},
+         {0},
+         4,
+         OffenderChargeRate::NORMAL},
+        {"signing, everyone signed", POOL_STATE_SIGNING, 3, {signed_entry, signed_entry, signed_entry}, {}, 3, OffenderChargeRate::NONE},
+        // Finalized on timeout without the last two participants' entries, so only the first two were asked to
+        // sign. Every one of them failing points at the masternode rather than at any one of them.
+        {"signing after a timeout, every participant asked to sign fails",
+         POOL_STATE_SIGNING,
+         4,
+         {unsigned_entry, unsigned_entry},
+         {0, 1},
+         2,
+         OffenderChargeRate::NONE},
+        {"signing after a timeout, all signers but one fail",
+         POOL_STATE_SIGNING,
+         5,
+         {unsigned_entry, unsigned_entry, signed_entry},
+         {0, 1},
+         3,
+         OffenderChargeRate::REDUCED},
+        {"queue", POOL_STATE_QUEUE, 3, {}, {}, 0, OffenderChargeRate::NONE},
+    };
+
+    for (const auto& [name, state, n_collaterals, entry_shapes, expected_offenders, participants, rate] : cases) {
+        BOOST_TEST_CONTEXT(name)
+        {
+            std::vector<CTransactionRef> collaterals;
+            for (int i = 0; i < n_collaterals; ++i) {
+                CMutableTransaction collateral;
+                collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+                collaterals.push_back(MakeTransactionRef(collateral));
+            }
+            std::vector<CCoinJoinEntry> entries;
+            for (size_t i = 0; i < entry_shapes.size(); ++i) {
+                const auto [n_signed, n_inputs] = entry_shapes[i];
+                std::vector<CTxDSIn> inputs;
+                for (int j = 0; j < n_inputs; ++j) {
+                    inputs.emplace_back(CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i * 16 + j)}},
+                                        P2PKHScript(), 0);
+                    inputs.back().fHasSig = j < n_signed;
+                }
+                entries.emplace_back(inputs, std::vector<CTxOut>{}, *collaterals[i]);
+            }
+
+            const auto offenders{FindSessionOffenders(state, collaterals, entries)};
+            // An entry carries its own copy of the collateral, so compare transactions, not pointers
+            std::vector<uint256> found, expected;
+            std::ranges::transform(offenders.collaterals, std::back_inserter(found),
+                                   [](const auto& collateral) { return collateral->GetHash(); });
+            std::ranges::transform(expected_offenders, std::back_inserter(expected),
+                                   [&collaterals](int i) { return collaterals[i]->GetHash(); });
+            BOOST_CHECK_EQUAL_COLLECTIONS(found.begin(), found.end(), expected.begin(), expected.end());
+            BOOST_CHECK_EQUAL(offenders.participants, participants);
+            BOOST_CHECK(GetOffenderChargeRate(offenders) == rate);
         }
     }
 }

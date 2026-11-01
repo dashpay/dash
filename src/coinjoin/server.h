@@ -49,6 +49,34 @@ struct CoinJoinSessionProgress {
  */
 bool ShouldResetTimedOutSession(const CoinJoinSessionProgress& session);
 
+/** The participants of a session that did not do their part at its current stage */
+struct CoinJoinSessionOffenders {
+    //! The collateral of each participant that failed, once per participant
+    std::vector<CTransactionRef> collaterals;
+    //! How many participants were expected to act at this stage
+    size_t participants{0};
+};
+
+/**
+ * Who failed to do their part at this stage of a session? While entries are being accepted, every
+ * admitted participant had to send one. While signing, only the participants whose entries made it
+ * into the final transaction were asked to sign: a session finalized on timeout still holds the
+ * collaterals of those that never sent one. A participant counts once however many of its inputs
+ * are unsigned.
+ */
+CoinJoinSessionOffenders FindSessionOffenders(PoolState state, const std::vector<CTransactionRef>& session_collaterals,
+                                              const std::vector<CCoinJoinEntry>& entries);
+
+/** How readily one of a session's offenders may be charged, on top of the random sampling every charge goes through */
+enum class OffenderChargeRate {
+    //! No offence, or every participant failed, which points at the masternode rather than at any one of them
+    NONE,
+    //! All but one participant failed: charge only some of the time
+    REDUCED,
+    NORMAL,
+};
+OffenderChargeRate GetOffenderChargeRate(const CoinJoinSessionOffenders& offenders);
+
 /** Used to keep track of current status of mixing pool
  */
 class CCoinJoinServer : public CCoinJoinBaseSession, public NetHandler
