@@ -12,12 +12,12 @@ noinst_LTLIBRARIES += $(LIBMIMALLOC_INT)
 LIBDASHBLS = $(LIBDASHBLS_INT) $(LIBMIMALLOC_INT) $(BLST_LIBS)
 
 # Flags for consumers of the library
-DASHBLS_CPPFLAGS = -isystem$(srcdir)/dashbls/include
+DASHBLS_CPPFLAGS = -isystem$(srcdir)/dashbls/include $(BLST_CPPFLAGS)
 
 # Flags used only when building the library itself. Its headers are treated
 # as system headers, as they are for consumers, so that Dash's warning set
 # (-Werror in CI) does not apply to the vendored code.
-DASHBLS_CPPFLAGS_INT =
+DASHBLS_CPPFLAGS_INT = $(BLST_CPPFLAGS)
 DASHBLS_CPPFLAGS_INT += -isystem$(srcdir)/dashbls/include/dashbls
 DASHBLS_CPPFLAGS_INT += -isystem$(srcdir)/dashbls/depends/mimalloc/include
 DASHBLS_CPPFLAGS_INT += -DBLSALLOC_MIMALLOC=1
