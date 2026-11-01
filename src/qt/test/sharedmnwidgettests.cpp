@@ -182,6 +182,14 @@ void SharedMnWidgetTests::termSheetEscapesUntrustedText()
     QVERIFY(!anonymous.contains("(you)"));
     QVERIFY(anonymous.contains("same as refund"));
 
+    // Only the addresses this wallet holds are marked as in it
+    QVERIFY(!html.contains("in this wallet"));
+    const QString ours{session.shares()[1].refundAddress};
+    const QString marked{SharedMnTermSheetHtml(session, /*you_share_index=*/1, BitcoinUnits::Unit::DASH,
+                                               [&](const QString& address) { return address == ours; })};
+    QCOMPARE(marked.count("in this wallet"), 1);
+    QVERIFY(marked.contains(ours + QStringLiteral(" <i>")));
+
     // The status board's two text lines name participants too, and are plain
     // text rather than the QLabel default of Qt::AutoText
     SharedMnStatusBoard board;

@@ -447,10 +447,19 @@ void SharedMnSizeFromContent(QDialog* dialog, int minimum_width)
     dialog->resize(size);
 }
 
-QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index, BitcoinUnits::Unit unit)
+QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index, BitcoinUnits::Unit unit,
+                              const std::function<bool(const QString& address)>& in_this_wallet)
 {
     const auto& shares{session.shares()};
     const auto& terms{session.terms()};
+    const auto address = [&](const QString& value, const QString& placeholder) {
+        QString html{EscapedOr(value, placeholder)};
+        if (!value.isEmpty() && in_this_wallet && in_this_wallet(value)) {
+            html += QStringLiteral(" <i>%1</i>")
+                        .arg(QCoreApplication::translate("SharedMnWidgets", "✓ in this wallet").toHtmlEscaped());
+        }
+        return html;
+    };
     CAmount total{0};
     for (const auto& share : shares) {
         total += share.amount;
@@ -480,15 +489,15 @@ QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index
 
         QStringList detail;
         detail << LabelledRow(QCoreApplication::translate("SharedMnWidgets", "Owner:"),
-                              EscapedOr(share.ownerAddress,
-                                        QCoreApplication::translate("SharedMnWidgets", "not set yet")));
+                              address(share.ownerAddress,
+                                      QCoreApplication::translate("SharedMnWidgets", "not set yet")));
         detail << LabelledRow(QCoreApplication::translate("SharedMnWidgets", "Refund:"),
-                              EscapedOr(share.refundAddress,
-                                        QCoreApplication::translate("SharedMnWidgets", "not set yet")));
+                              address(share.refundAddress,
+                                      QCoreApplication::translate("SharedMnWidgets", "not set yet")));
         detail << LabelledRow(QCoreApplication::translate("SharedMnWidgets", "Reward:"),
                               share.rewardAddress.isEmpty()
                                   ? QCoreApplication::translate("SharedMnWidgets", "same as refund").toHtmlEscaped()
-                                  : Escaped(share.rewardAddress));
+                                  : address(share.rewardAddress, QString()));
         participants += QStringLiteral("<tr><td valign='top' style='padding-right:8px'>%1</td>"
                                        "<td style='padding-bottom:6px'>%2<br>%3</td></tr>")
                             .arg(QString::number(i + 1), heading, detail.join(QStringLiteral("<br>")));
@@ -511,8 +520,8 @@ QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index
                               EscapedOr(session.operatorSecretHolder(),
                                         QCoreApplication::translate("SharedMnWidgets", "not recorded")));
     masternode << LabelledRow(QCoreApplication::translate("SharedMnWidgets", "Voting address:"),
-                              EscapedOr(terms.votingAddress,
-                                        QCoreApplication::translate("SharedMnWidgets", "not set")));
+                              address(terms.votingAddress,
+                                      QCoreApplication::translate("SharedMnWidgets", "not set")));
     masternode << LabelledRow(QCoreApplication::translate("SharedMnWidgets", "Operator reward:"),
                               QStringLiteral("%1%").arg(QString::number(terms.operatorReward / 100.0, 'f', 2)));
     cards << Card(QCoreApplication::translate("SharedMnWidgets", "Masternode"),

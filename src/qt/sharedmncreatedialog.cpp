@@ -2102,7 +2102,12 @@ void SharedMnCreateDialog::refreshBoards()
 
 void SharedMnCreateDialog::refreshTermSheets()
 {
-    const QString html{SharedMnTermSheetHtml(m_session, m_my_share, SharedMnDisplayUnit(m_wallet_model))};
+    const auto in_this_wallet = [this](const QString& address) {
+        const CTxDestination dest{DecodeDestination(address.toStdString())};
+        return m_wallet_model != nullptr && IsValidDestination(dest) && m_wallet_model->wallet().isSpendable(dest);
+    };
+    const QString html{
+        SharedMnTermSheetHtml(m_session, m_my_share, SharedMnDisplayUnit(m_wallet_model), in_this_wallet)};
     m_approvals_terms->setText(html);
     m_lock_terms_label->setText(html);
     bool fatal{false};

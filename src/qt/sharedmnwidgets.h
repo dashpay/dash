@@ -17,6 +17,7 @@
 #include <QWidget>
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 struct CMutableTransaction;
@@ -212,8 +213,12 @@ void SharedMnSizeFromContent(QDialog* dialog, int minimum_width);
 //!
 //! `you_share_index` is the share this wallet holds (-1 for none); that row is
 //! shown bold with a "(you)" marker. `unit` formats every amount - use
-//! SharedMnDisplayUnit(). Every value coming out of the envelope is
-//! HTML-escaped, because participant names are written by other people.
-QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index, BitcoinUnits::Unit unit);
+//! SharedMnDisplayUnit(). `in_this_wallet`, when given, says whether this
+//! wallet holds the key for an address; those addresses are marked so the
+//! reader can confirm which ones are theirs. Every value coming out of the
+//! envelope is HTML-escaped, because participant names are written by other
+//! people.
+QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index, BitcoinUnits::Unit unit,
+                              const std::function<bool(const QString& address)>& in_this_wallet = {});
 
 #endif // BITCOIN_QT_SHAREDMNWIDGETS_H
