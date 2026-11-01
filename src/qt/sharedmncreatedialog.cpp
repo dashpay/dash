@@ -49,6 +49,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QRegularExpression>
 #include <QSet>
 #include <QSpacerItem>
 #include <QSpinBox>
@@ -57,6 +58,7 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTextDocument>
+#include <QTextEdit>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -89,6 +91,7 @@ constexpr CAmount MAX_EXPECTED_FUNDING_FEE{COIN / 100};
 //! Width the broadcast confirmation is stretched to, so a grouped amount is
 //! never broken across lines
 constexpr int CONFIRM_MINIMUM_WIDTH{460};
+constexpr int CONFIRM_DETAILS_MINIMUM_HEIGHT{320};
 
 //! Width of a standalone amount field. BitcoinAmountField centres its editor
 //! inside whatever width a layout hands it, so it needs one of its own.
@@ -2716,6 +2719,9 @@ bool SharedMnCreateDialog::confirmBroadcast()
     QTextDocument sheet;
     sheet.setHtml(termSheetHtml());
     QString details{sheet.toPlainText().trimmed()};
+    // Plain text puts each participant's number on a line of its own
+    static const QRegularExpression share_number{QStringLiteral("(^|\\n)(\\d+)\\n")};
+    details.replace(share_number, QStringLiteral("\\1\\2. "));
     if (QString tx_error; const auto tx{sessionTx(tx_error)}) {
         details.prepend(tr("Transaction ID: %1").arg(QString::fromStdString(CTransaction(*tx).GetHash().ToString())) +
                         QStringLiteral("\n\n"));
@@ -2734,6 +2740,11 @@ bool SharedMnCreateDialog::confirmBroadcast()
     if (auto* const grid = qobject_cast<QGridLayout*>(confirmation.layout()); grid != nullptr) {
         grid->addItem(new QSpacerItem(CONFIRM_MINIMUM_WIDTH, 0, QSizePolicy::Minimum, QSizePolicy::Expanding),
                       grid->rowCount(), 0, 1, grid->columnCount());
+    }
+    // The details hold the whole term sheet; the message box's default few
+    // lines would leave nearly all of it behind a scroll bar
+    if (auto* const details = confirmation.findChild<QTextEdit*>(); details != nullptr) {
+        details->setMinimumHeight(CONFIRM_DETAILS_MINIMUM_HEIGHT);
     }
     return confirmation.exec() == QMessageBox::Yes;
 }

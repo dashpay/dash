@@ -779,6 +779,7 @@ void SharedMnWalkthroughTests::walkthrough()
         })};
         QVERIFY2(confirm != pilot.seen().end(), qPrintable(pilot.seen().join(QStringLiteral(" | "))));
         QVERIFY(confirm->contains(QStringLiteral("Transaction ID: ")));
+        QVERIFY(confirm->contains(QStringLiteral("\n1. ") + coord.m_session.shares()[0].label));
         for (const auto& share : coord.m_session.shares()) {
             QVERIFY(confirm->contains(share.ownerAddress));
         }
