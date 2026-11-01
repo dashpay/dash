@@ -198,6 +198,8 @@ private:
     void refreshCompletePage();
     void refreshBoards();
     void refreshTermSheets();
+    //! The term sheet as this wallet reads it: its share, its addresses and what it pays marked
+    QString termSheetHtml() const;
 
     // Widgets -> session
     void syncSharesFromTable();

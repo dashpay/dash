@@ -56,6 +56,7 @@
 #include <QStandardItemModel>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QTextDocument>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -2120,14 +2121,19 @@ void SharedMnCreateDialog::refreshBoards()
     }
 }
 
-void SharedMnCreateDialog::refreshTermSheets()
+QString SharedMnCreateDialog::termSheetHtml() const
 {
     const auto in_this_wallet = [this](const QString& address) {
         const CTxDestination dest{DecodeDestination(address.toStdString())};
         return m_wallet_model != nullptr && IsValidDestination(dest) && m_wallet_model->wallet().isSpendable(dest);
     };
-    const QString html{SharedMnTermSheetHtml(m_session, m_my_share, SharedMnDisplayUnit(m_wallet_model), in_this_wallet,
-                                             m_wallet_model != nullptr ? std::optional{ownFunding()} : std::nullopt)};
+    return SharedMnTermSheetHtml(m_session, m_my_share, SharedMnDisplayUnit(m_wallet_model), in_this_wallet,
+                                 m_wallet_model != nullptr ? std::optional{ownFunding()} : std::nullopt);
+}
+
+void SharedMnCreateDialog::refreshTermSheets()
+{
+    const QString html{termSheetHtml()};
     m_approvals_terms->setText(html);
     m_lock_terms_label->setText(html);
     m_signatures_terms->setText(html);
@@ -2705,15 +2711,23 @@ bool SharedMnCreateDialog::confirmBroadcast()
     detail << tr("Collateral: %1").arg(FormatAmount(m_wallet_model, collateral));
     detail << tr("Participants: %1").arg(participants);
     detail << fundingCheck(fatal);
-    SendConfirmationDialog confirmation{
-        tr("Confirm shared masternode registration"),
-        tr("Broadcast this shared masternode registration?"),
-        detail.join(QLatin1Char('\n')),
-        tr("Session %1 · Code %2").arg(m_session.sessionCode(), m_session.fingerprint()),
-        SEND_CONFIRM_DELAY,
-        /*enable_send=*/true,
-        /*always_show_unsigned=*/false,
-        this};
+    // Everything the registration commits to, so "Show Details" is the full
+    // term sheet rather than only the codes naming it
+    QTextDocument sheet;
+    sheet.setHtml(termSheetHtml());
+    QString details{sheet.toPlainText().trimmed()};
+    if (QString tx_error; const auto tx{sessionTx(tx_error)}) {
+        details.prepend(tr("Transaction ID: %1").arg(QString::fromStdString(CTransaction(*tx).GetHash().ToString())) +
+                        QStringLiteral("\n\n"));
+    }
+    SendConfirmationDialog confirmation{tr("Confirm shared masternode registration"),
+                                        tr("Broadcast this shared masternode registration?"),
+                                        detail.join(QLatin1Char('\n')),
+                                        details,
+                                        SEND_CONFIRM_DELAY,
+                                        /*enable_send=*/true,
+                                        /*always_show_unsigned=*/false,
+                                        this};
     confirmation.setWindowModality(Qt::WindowModal);
     // A QMessageBox is only as wide as its longest line, which wraps a
     // thousands separator across lines; make it wide enough to read

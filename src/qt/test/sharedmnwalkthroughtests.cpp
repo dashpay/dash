@@ -207,7 +207,7 @@ private:
             // counts down; wait for it rather than cancelling the flow.
             if (target != nullptr && !target->isEnabled()) return;
             m_pending = nullptr;
-            m_seen << (box->text() + QLatin1Char('\n') + box->informativeText());
+            m_seen << (box->text() + QLatin1Char('\n') + box->informativeText() + QLatin1Char('\n') + box->detailedText());
             if (!m_queued.isEmpty()) {
                 const Shot shot{m_queued.takeFirst()};
                 Shots().capture(box, shot.role, shot.page, shot.description, /*fixed_size=*/false);
@@ -772,6 +772,17 @@ void SharedMnWalkthroughTests::walkthrough()
     QVERIFY2(int(coord.currentPage()) == int(SharedMnCreateDialog::PageComplete),
              qPrintable(QStringLiteral("broadcast did not complete. Error: \"%1\"; modals: %2")
                             .arg(coord.m_error_label->text(), pilot.seen().join(QStringLiteral(" | ")))));
+    // Show Details carries the whole registration, not only the codes naming it
+    {
+        const auto confirm{std::find_if(pilot.seen().begin(), pilot.seen().end(), [](const QString& text) {
+            return text.startsWith(QStringLiteral("Broadcast this shared masternode registration?"));
+        })};
+        QVERIFY2(confirm != pilot.seen().end(), qPrintable(pilot.seen().join(QStringLiteral(" | "))));
+        QVERIFY(confirm->contains(QStringLiteral("Transaction ID: ")));
+        for (const auto& share : coord.m_session.shares()) {
+            QVERIFY(confirm->contains(share.ownerAddress));
+        }
+    }
     Shots().capture(&coord, "coord", "27-complete",
                     "Complete: the proTxHash, the \"what to keep safe\" checklist and the next steps");
 
