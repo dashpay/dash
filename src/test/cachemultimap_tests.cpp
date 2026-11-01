@@ -166,4 +166,43 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
     BOOST_CHECK(Compare(cmmapTest1, mapTest4));
 }
 
+BOOST_AUTO_TEST_CASE(cachemultimap_insert_evicts_sole_value_of_same_key)
+{
+    CacheMultiMap<int, int> cmmap(2);
+    BOOST_CHECK(cmmap.Insert(1, 10));
+    BOOST_CHECK(cmmap.Insert(2, 20));
+
+    // The cache is full and its oldest item is key 1's only value
+    BOOST_CHECK(cmmap.Insert(1, 11));
+
+    BOOST_CHECK_EQUAL(cmmap.GetSize(), 2U);
+    std::vector<int> vecVals;
+    BOOST_CHECK(cmmap.GetAll(1, vecVals));
+    BOOST_CHECK(vecVals == std::vector<int>{11});
+    BOOST_CHECK(cmmap.HasKey(2));
+
+    // The index still tracks the new item, so erasing it empties the cache
+    cmmap.Erase(1);
+    cmmap.Erase(2);
+    BOOST_CHECK_EQUAL(cmmap.GetSize(), 0U);
+    BOOST_CHECK(!cmmap.HasKey(1));
+}
+
+BOOST_AUTO_TEST_CASE(cachemultimap_get_all_in_value_range)
+{
+    CacheMultiMap<int, int> cmmap(5);
+    for (const int value : {1, 2, 3, 4})
+        BOOST_REQUIRE(cmmap.Insert(1, value));
+    BOOST_REQUIRE(cmmap.Insert(2, 2));
+    std::vector<int> values;
+    BOOST_CHECK(cmmap.GetAll(1, 2, 3, values));
+    BOOST_CHECK(values == (std::vector<int>{2, 3}));
+    values.clear();
+    BOOST_CHECK(cmmap.GetAll(1, 5, 6, values));
+    BOOST_CHECK(values.empty());
+    BOOST_CHECK(!cmmap.GetAll(3, 1, 4, values));
+    BOOST_CHECK(!cmmap.GetAll(1, 3, 2, values));
+    BOOST_CHECK(values.empty());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -16,6 +16,8 @@
 #include <timedata.h>
 #include <util/string.h>
 
+#include <tuple>
+
 static_assert(CGovernanceVote::COMPACT_SIG_SIZE == CPubKey::COMPACT_SIGNATURE_SIZE);
 static_assert(CGovernanceVote::BLS_SIG_SIZE == CBLSSignature::SerSize);
 
@@ -262,31 +264,6 @@ bool operator==(const CGovernanceVote& vote1, const CGovernanceVote& vote2)
 
 bool operator<(const CGovernanceVote& vote1, const CGovernanceVote& vote2)
 {
-    bool fResult = (vote1.masternodeOutpoint < vote2.masternodeOutpoint);
-    if (!fResult) {
-        return false;
-    }
-    fResult = (vote1.masternodeOutpoint == vote2.masternodeOutpoint);
-
-    fResult = fResult && (vote1.nParentHash < vote2.nParentHash);
-    if (!fResult) {
-        return false;
-    }
-    fResult = (vote1.nParentHash == vote2.nParentHash);
-
-    fResult = fResult && (vote1.nVoteOutcome < vote2.nVoteOutcome);
-    if (!fResult) {
-        return false;
-    }
-    fResult = (vote1.nVoteOutcome == vote2.nVoteOutcome);
-
-    fResult = fResult && (vote1.nVoteSignal == vote2.nVoteSignal);
-    if (!fResult) {
-        return false;
-    }
-    fResult = (vote1.nVoteSignal == vote2.nVoteSignal);
-
-    fResult = fResult && (vote1.nTime < vote2.nTime);
-
-    return fResult;
+    return std::tie(vote1.masternodeOutpoint, vote1.nParentHash, vote1.nVoteOutcome, vote1.nVoteSignal, vote1.nTime) <
+           std::tie(vote2.masternodeOutpoint, vote2.nParentHash, vote2.nVoteOutcome, vote2.nVoteSignal, vote2.nTime);
 }
