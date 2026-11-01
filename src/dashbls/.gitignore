@@ -17,15 +17,6 @@ main
 .o
 obj/
 src/*.o
-depends/relic/CTestTestfile.cmake
-depends/relic/bench/CTestTestfile.cmake
-depends/relic/bin
-depends/relic/include/relic_conf.h
-depends/relic/include/relic_conf.h.in
-depends/relic/include/relic_conf.h.old
-depends/relic/include/stamp-h1
-depends/relic/test/CTestTestfile.cmake
-contrib/gmp-6.1.2/
 
 .idea
 .vscode

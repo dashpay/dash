@@ -19,8 +19,13 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <array>
+
+extern "C" {
+#include "blst.h"
+}
 
 namespace bls {
 
@@ -60,8 +65,41 @@ class Util {
  public:
     static void Hash256(uint8_t* output, const uint8_t* message,
                         size_t messageLen) {
-        md_map_sh256(output, message, messageLen);
+        blst_sha256(output, message, messageLen);
     }
+
+static void md_hmac(uint8_t *mac, const uint8_t *in, size_t in_len, const uint8_t *key,
+    size_t key_len) {
+    constexpr size_t block_size = 64;
+    constexpr size_t md_len = 32;
+    // The pads and the padded key are derived from the key, so they live in
+    // the same secure memory as the private keys (see SecAlloc).
+    uint8_t *buf = SecAlloc<uint8_t>(block_size + md_len + block_size + in_len + block_size);
+    if (buf == NULL)
+        throw std::runtime_error("out of memory");
+    uint8_t *opad = buf;                          // block_size + md_len
+    uint8_t *ipad = opad + block_size + md_len;   // block_size + in_len
+    uint8_t *_key = ipad + block_size + in_len;   // block_size
+
+    if (key_len > block_size) {
+        Hash256(_key, key, key_len);
+        key_len = md_len;
+    } else {
+        memcpy(_key, key, key_len);
+    }
+    memset(_key + key_len, 0, block_size - key_len);
+    key = _key;
+
+    for (size_t i = 0; i < block_size; i++) {
+        opad[i] = 0x5C ^ key[i];
+        ipad[i] = 0x36 ^ key[i];
+    }
+    memcpy(ipad + block_size, in, in_len);
+    Hash256(opad + block_size, ipad, block_size + in_len);
+    Hash256(mac, opad, block_size + md_len);
+
+    SecFree(buf);
+}
 
     static std::string HexStr(const uint8_t* data, size_t len) {
         std::stringstream s;
@@ -80,8 +118,8 @@ class Util {
     }
 
     /*
-     * Securely allocates a portion of memory, using libsodium. This prevents
-     * paging to disk, and zeroes out the memory when it's freed.
+     * Securely allocates a portion of memory. This prevents paging to disk,
+     * and zeroes out the memory when it's freed.
      */
     template<class T>
     static T* SecAlloc(size_t numTs) {

@@ -657,7 +657,6 @@ PYBIND11_MODULE(dashbls, m)
                 return other * self;
             },
             py::is_operator())
-
         .def(
             "__repr__",
             [](const G2Element &ele) {

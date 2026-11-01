@@ -5,8 +5,6 @@ include_directories(
         ${INCLUDE_DIRECTORIES}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../depends/relic/include
-        ${CMAKE_CURRENT_BINARY_DIR}/../depends/relic/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../depends/catch2/include
 )
 

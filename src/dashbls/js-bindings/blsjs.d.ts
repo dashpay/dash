@@ -48,7 +48,6 @@ export declare class G1Element {
   deepcopy(): G1Element;
   getFingerprint(): number;
   add(el: G1Element): G1Element;
-  mul(bn: Bignum): G1Element;
   equalTo(el: G1Element): boolean;
   delete(): void;
 }
@@ -63,7 +62,6 @@ export declare class G2Element {
   negate(): G2Element;
   deepcopy(): G2Element;
   add(el: G2Element): G2Element;
-  mul(bn: Bignum): G2Element;
   equalTo(el: G2Element): boolean;
   delete(): void;
 }
@@ -82,12 +80,6 @@ export declare class PrivateKey {
   delete(): void;
 }
 
-export declare class Bignum {
-  static fromString(s: string, radix: number): Bignum;
-  toString(radix: number): string;
-  delete(): void;
-}
-
 export declare class Util {
   static hash256(msg: Uint8Array): Uint8Array;
   static hexStr(msg: Uint8Array): string;
@@ -100,7 +92,6 @@ export interface ModuleInstance {
   G1Element: typeof G1Element;
   G2Element: typeof G2Element;
   PrivateKey: typeof PrivateKey;
-  Bignum: typeof Bignum;
   Util: typeof Util;
 }
 

@@ -92,11 +92,6 @@ jobs:
     - name: Build the sdist
       run: uv build --sdist --out-dir dist
 
-    - name: Prepare build system
-      run: |
-        sudo apt-get update
-        sudo apt-get install -qq --yes libgmp-dev
-
     - name: Install from the sdist and run the unit tests
       run: |
         uv venv .venv-sdist

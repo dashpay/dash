@@ -31,27 +31,16 @@ ExtendedPrivateKey ExtendedPrivateKey::FromSeed(const Bytes& bytes) {
 
     // Hash the seed into 64 bytes, half will be sk, half will be cc
     hashInput[bytes.size()] = 0;
-    md_hmac(ILeft, hashInput, bytes.size() + 1, prefix, sizeof(prefix));
+    Util::md_hmac(ILeft, hashInput, bytes.size() + 1, prefix, sizeof(prefix));
 
     hashInput[bytes.size()] = 1;
-    md_hmac(IRight, hashInput, bytes.size() + 1, prefix, sizeof(prefix));
+    Util::md_hmac(IRight, hashInput, bytes.size() + 1, prefix, sizeof(prefix));
 
     // Make sure private key is less than the curve order
-    bn_t* skBn = Util::SecAlloc<bn_t>(1);
-    bn_t order;
-    bn_new(order);
-    g1_get_ord(order);
-
-    bn_new(*skBn);
-    bn_read_bin(*skBn, ILeft, PrivateKey::PRIVATE_KEY_SIZE);
-    bn_mod_basic(*skBn, *skBn, order);
-    bn_write_bin(ILeft, PrivateKey::PRIVATE_KEY_SIZE, *skBn);
-
     ExtendedPrivateKey esk(ExtendedPublicKey::REVISION, 0, 0, 0,
                            ChainCode::FromBytes(Bytes(IRight, ChainCode::SIZE)),
-                           PrivateKey::FromBytes(Bytes(ILeft, PrivateKey::PRIVATE_KEY_SIZE)));
+                           PrivateKey::FromBytes(Bytes(ILeft, PrivateKey::PRIVATE_KEY_SIZE), true));
 
-    Util::SecFree(skBn);
     Util::SecFree(ILeft);
     Util::SecFree(hashInput);
     return esk;
@@ -101,13 +90,13 @@ ExtendedPrivateKey ExtendedPrivateKey::PrivateChild(uint32_t i, const bool fLega
     }
     hmacInput[inputLen - 1] = 0;
 
-    md_hmac(ILeft, hmacInput, inputLen,
+    Util::md_hmac(ILeft, hmacInput, inputLen,
                     hmacKey, ChainCode::SIZE);
 
     // Change 1 byte to generate a different sequence for chaincode
     hmacInput[inputLen - 1] = 1;
 
-    md_hmac(IRight, hmacInput, inputLen,
+    Util::md_hmac(IRight, hmacInput, inputLen,
                     hmacKey, ChainCode::SIZE);
 
     PrivateKey newSk = PrivateKey::FromBytes(Bytes(ILeft, PrivateKey::PRIVATE_KEY_SIZE), true);

@@ -15,21 +15,13 @@
 #ifndef SRC_EXTENDEDPRIVATEKEY_HPP_
 #define SRC_EXTENDEDPRIVATEKEY_HPP_
 
-#include "relic_conf.h"
-
 #include <vector>
-
-#if defined GMP && ARITH == GMP
-#include <gmp.h>
-#endif
 
 #include "chaincode.hpp"
 #include "elements.hpp"
 #include "extendedpublickey.hpp"
 #include "privatekey.hpp"
 
-#include "relic.h"
-#include "relic_test.h"
 
 namespace bls {
 /*

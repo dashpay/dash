@@ -40,8 +40,6 @@ class BLS {
     static bool Init();
 
     static void SetSecureAllocator(Util::SecureAllocCallback allocCb, Util::SecureFreeCallback freeCb);
-
-    static void CheckRelicErrors(bool should_throw = true);
 };
 } // end namespace bls
 
