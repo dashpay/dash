@@ -17,7 +17,7 @@ jobs:
   main:
     name: Require a milestone
     if: ${{ !github.event.pull_request.draft }}
-    runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_CHECK_MILESTONE || vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Check that a milestone is set
         env:

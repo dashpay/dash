@@ -77,11 +77,13 @@ single-use machine.
 | `RUNNER_AMD64`, `RUNNER_ARM64` | `build.yml` runs moved off the default runners by the backlog or the `blacksmith-ci` label | the defaults above |
 | `RUNNER_CHECK_SKIP` | `build.yml` `Check skip conditions`, the depends `Check cache` jobs and the existing-container checks | `ubuntu-24.04-arm` |
 | `RUNNER_CACHE_DEPENDS_SOURCES` | scheduled `cache-depends-sources.yml` | `ubuntu-24.04-arm` |
-| `RUNNER_GUIX_BUILD` | `guix-build.yml` | `ubuntu-24.04-arm` |
+| `RUNNER_GUIX_BUILD` | `guix-build.yml` image and build jobs | `ubuntu-24.04-arm` |
+| `RUNNER_GUIX_ATTEST` | `guix-build.yml` release-tag `attest` job | `ubuntu-24.04` |
 | `RUNNER_CLANG_DIFF_FORMAT` | `clang-diff-format.yml` | `ubuntu-latest` |
 | `RUNNER_PREVENT_MASTER_PR` | `prevent-master-pr.yml` | `ubuntu-latest` |
 | `RUNNER_LABEL_MERGE_CONFLICTS` | `label-merge-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
 | `RUNNER_MERGE_CHECK` | `merge-check.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
+| `RUNNER_CHECK_MILESTONE` | `check-milestone.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
 | `RUNNER_PREDICT_CONFLICTS` | `predict-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
 | `RUNNER_SEMANTIC_PULL_REQUEST` | `semantic-pull-request.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
 | `RUNNER_DOCKER_RELEASE` | `release_docker_hub.yml` | `ubuntu-22.04` |

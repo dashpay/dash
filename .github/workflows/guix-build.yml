@@ -186,7 +186,7 @@ jobs:
   attest:
     needs: build
     if: github.repository == 'dashpay/dash' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.RUNNER_GUIX_ATTEST || 'ubuntu-24.04' }}
     permissions:
       id-token: write
       attestations: write
