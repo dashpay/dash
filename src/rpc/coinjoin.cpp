@@ -448,6 +448,7 @@ static RPCHelpMan getcoinjoininfo()
                             {RPCResult::Type::NUM, "denomination", "The denomination of the mixing session in " + CURRENCY_UNIT + ""},
                             {RPCResult::Type::STR_HEX, "state", "Current state of the mixing session"},
                             {RPCResult::Type::NUM, "entries_count", "The number of entries in the mixing session"},
+                            {RPCResult::Type::NUM, "collaterals_count", "The number of accepted collaterals in the mixing session"},
                         }},
                     RPCResult{"for non-masternodes without wallet support",
                       RPCResult::Type::OBJ, "", /*optional=*/false, "", {}},
