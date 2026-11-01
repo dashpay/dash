@@ -112,6 +112,9 @@ public:
     /** Passthrough to CDeterministicMNManager::UpdatedBlockTip */
     void UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex);
 
+    void ResetPlatformBans(const CBlock& block, const CBlockIndex& index) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void DiscardDeterministicMNBlock(const uint256& block_hash);
+
 private:
     friend class CMNListBuilder;
 
