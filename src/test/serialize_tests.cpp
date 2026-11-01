@@ -556,10 +556,15 @@ BOOST_AUTO_TEST_CASE(limited_vector_formatter_compile_time)
     }
 }
 
-enum class BaseFormat {
-    RAW,
-    HEX,
+struct BaseFormat {
+    const enum {
+        RAW,
+        HEX,
+    } m_base_format;
+    SER_PARAMS_OPFUNC
 };
+constexpr BaseFormat RAW{BaseFormat::RAW};
+constexpr BaseFormat HEX{BaseFormat::HEX};
 
 /// (Un)serialize a number as raw byte or 2 hexadecimal chars.
 class Base
@@ -573,7 +578,7 @@ public:
     template <typename Stream>
     void Serialize(Stream& s) const
     {
-        if (s.GetParams() == BaseFormat::RAW) {
+        if (s.GetParams().m_base_format == BaseFormat::RAW) {
             s << m_base_data;
         } else {
             s << Span{HexStr(Span{&m_base_data, 1})};
@@ -583,7 +588,7 @@ public:
     template <typename Stream>
     void Unserialize(Stream& s)
     {
-        if (s.GetParams() == BaseFormat::RAW) {
+        if (s.GetParams().m_base_format == BaseFormat::RAW) {
             s >> m_base_data;
         } else {
             std::string hex{"aa"};
@@ -602,6 +607,8 @@ public:
         LOWER,
         UPPER,
     } m_derived_format;
+
+    SER_PARAMS_OPFUNC
 };
 
 class Derived : public Base
@@ -611,7 +618,7 @@ public:
 
     SERIALIZE_METHODS_PARAMS(Derived, obj, DerivedAndBaseFormat, fmt)
     {
-        READWRITE(WithParams(fmt.m_base_format, AsBase<Base>(obj)));
+        READWRITE(fmt.m_base_format(AsBase<Base>(obj)));
 
         if (ser_action.ForRead()) {
             std::string str;
@@ -631,20 +638,20 @@ BOOST_AUTO_TEST_CASE(with_params_base)
 
     DataStream stream;
 
-    stream << WithParams(BaseFormat::RAW, b);
+    stream << RAW(b);
     BOOST_CHECK_EQUAL(stream.str(), "\x0F");
 
     b.m_base_data = 0;
-    stream >> WithParams(BaseFormat::RAW, b);
+    stream >> RAW(b);
     BOOST_CHECK_EQUAL(b.m_base_data, 0x0F);
 
     stream.clear();
 
-    stream << WithParams(BaseFormat::HEX, b);
+    stream << HEX(b);
     BOOST_CHECK_EQUAL(stream.str(), "0f");
 
     b.m_base_data = 0;
-    stream >> WithParams(BaseFormat::HEX, b);
+    stream >> HEX(b);
     BOOST_CHECK_EQUAL(b.m_base_data, 0x0F);
 }
 
@@ -654,27 +661,30 @@ BOOST_AUTO_TEST_CASE(with_params_vector_of_base)
 
     DataStream stream;
 
-    stream << WithParams(BaseFormat::RAW, v);
+    stream << RAW(v);
     BOOST_CHECK_EQUAL(stream.str(), "\x02\x0F\xFF");
 
     v[0].m_base_data = 0;
     v[1].m_base_data = 0;
-    stream >> WithParams(BaseFormat::RAW, v);
+    stream >> RAW(v);
     BOOST_CHECK_EQUAL(v[0].m_base_data, 0x0F);
     BOOST_CHECK_EQUAL(v[1].m_base_data, 0xFF);
 
     stream.clear();
 
-    stream << WithParams(BaseFormat::HEX, v);
+    stream << HEX(v);
     BOOST_CHECK_EQUAL(stream.str(), "\x02"
                                     "0fff");
 
     v[0].m_base_data = 0;
     v[1].m_base_data = 0;
-    stream >> WithParams(BaseFormat::HEX, v);
+    stream >> HEX(v);
     BOOST_CHECK_EQUAL(v[0].m_base_data, 0x0F);
     BOOST_CHECK_EQUAL(v[1].m_base_data, 0xFF);
 }
+
+constexpr DerivedAndBaseFormat RAW_LOWER{{BaseFormat::RAW}, DerivedAndBaseFormat::DerivedFormat::LOWER};
+constexpr DerivedAndBaseFormat HEX_UPPER{{BaseFormat::HEX}, DerivedAndBaseFormat::DerivedFormat::UPPER};
 
 BOOST_AUTO_TEST_CASE(with_params_derived)
 {
@@ -682,17 +692,11 @@ BOOST_AUTO_TEST_CASE(with_params_derived)
     d.m_base_data = 0x0F;
     d.m_derived_data = "xY";
 
-    DerivedAndBaseFormat fmt;
-
     DataStream stream;
 
-    fmt.m_base_format = BaseFormat::RAW;
-    fmt.m_derived_format = DerivedAndBaseFormat::DerivedFormat::LOWER;
-    stream << WithParams(fmt, d);
+    stream << RAW_LOWER(d);
 
-    fmt.m_base_format = BaseFormat::HEX;
-    fmt.m_derived_format = DerivedAndBaseFormat::DerivedFormat::UPPER;
-    stream << WithParams(fmt, d);
+    stream << HEX_UPPER(d);
 
     BOOST_CHECK_EQUAL(stream.str(), "\x0F\x02xy"
                                     "0f\x02XY");

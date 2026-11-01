@@ -708,17 +708,17 @@ BOOST_AUTO_TEST_CASE(cnetaddr_serialize_v1)
     DataStream s{};
     const auto ser_params{CAddress::V1_NETWORK};
 
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "00000000000000000000000000000000");
     s.clear();
 
     addr = LookupHost("1.2.3.4", false).value();
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "00000000000000000000ffff01020304");
     s.clear();
 
     addr = LookupHost("1a1b:2a2b:3a3b:4a4b:5a5b:6a6b:7a7b:8a8b", false).value();
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "1a1b2a2b3a3b4a4b5a5b6a6b7a7b8a8b");
     s.clear();
 
@@ -726,12 +726,12 @@ BOOST_AUTO_TEST_CASE(cnetaddr_serialize_v1)
     BOOST_CHECK(!addr.SetSpecial("6hzph5hv6337r6p2.onion"));
 
     BOOST_REQUIRE(addr.SetSpecial("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"));
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "00000000000000000000000000000000");
     s.clear();
 
     addr.SetInternal("a");
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "fd6b88c08724ca978112ca1bbdcafac2");
     s.clear();
 }
@@ -742,17 +742,17 @@ BOOST_AUTO_TEST_CASE(cnetaddr_serialize_v2)
     DataStream s{};
     const auto ser_params{CAddress::V2_NETWORK};
 
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "021000000000000000000000000000000000");
     s.clear();
 
     addr = LookupHost("1.2.3.4", false).value();
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "010401020304");
     s.clear();
 
     addr = LookupHost("1a1b:2a2b:3a3b:4a4b:5a5b:6a6b:7a7b:8a8b", false).value();
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "02101a1b2a2b3a3b4a4b5a5b6a6b7a7b8a8b");
     s.clear();
 
@@ -760,12 +760,12 @@ BOOST_AUTO_TEST_CASE(cnetaddr_serialize_v2)
     BOOST_CHECK(!addr.SetSpecial("6hzph5hv6337r6p2.onion"));
 
     BOOST_REQUIRE(addr.SetSpecial("kpgvmscirrdqpekbqjsvw5teanhatztpp2gl6eee4zkowvwfxwenqaid.onion"));
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "042053cd5648488c4707914182655b7664034e09e66f7e8cbf1084e654eb56c5bd88");
     s.clear();
 
     BOOST_REQUIRE(addr.SetInternal("a"));
-    s << WithParams(ser_params, addr);
+    s << ser_params(addr);
     BOOST_CHECK_EQUAL(HexStr(s), "0210fd6b88c08724ca978112ca1bbdcafac2");
     s.clear();
 }
@@ -780,7 +780,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("01"          // network type (IPv4)
                        "04"          // address length
                        "01020304")}; // address
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(addr.IsValid());
     BOOST_CHECK(addr.IsIPv4());
     BOOST_CHECK(addr.IsAddrV1Compatible());
@@ -791,7 +791,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("01"      // network type (IPv4)
                        "04"      // address length
                        "0102")}; // address
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure, HasReason("end of data"));
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure, HasReason("end of data"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
 
@@ -799,7 +799,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("01"          // network type (IPv4)
                        "05"          // address length
                        "01020304")}; // address
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure,
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure,
                           HasReason("BIP155 IPv4 address with length 5 (should be 4)"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
@@ -808,7 +808,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("01"          // network type (IPv4)
                        "fd0102"      // address length (513 as CompactSize)
                        "01020304")}; // address
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure,
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure,
                           HasReason("Address too long: 513 > 512"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
@@ -817,7 +817,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("02"                                  // network type (IPv6)
                        "10"                                  // address length
                        "0102030405060708090a0b0c0d0e0f10")}; // address
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(addr.IsValid());
     BOOST_CHECK(addr.IsIPv6());
     BOOST_CHECK(addr.IsAddrV1Compatible());
@@ -830,7 +830,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
         "10"                                  // address length
         "fd6b88c08724ca978112ca1bbdcafac2")}; // address: 0xfd + sha256("bitcoin")[0:5] +
                                               // sha256(name)[0:10]
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(addr.IsInternal());
     BOOST_CHECK(addr.IsAddrV1Compatible());
     BOOST_CHECK_EQUAL(addr.ToStringAddr(), "zklycewkdo64v6wc.internal");
@@ -840,7 +840,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("02"    // network type (IPv6)
                        "04"    // address length
                        "00")}; // address
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure,
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure,
                           HasReason("BIP155 IPv6 address with length 4 (should be 16)"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
@@ -849,7 +849,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("02"                                  // network type (IPv6)
                        "10"                                  // address length
                        "00000000000000000000ffff01020304")}; // address
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(!addr.IsValid());
     BOOST_REQUIRE(s.empty());
 
@@ -857,7 +857,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("02"                                  // network type (IPv6)
                        "10"                                  // address length
                        "fd87d87eeb430102030405060708090a")}; // address
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(!addr.IsValid());
     BOOST_REQUIRE(s.empty());
 
@@ -865,7 +865,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     s << Span{ParseHex("03"                      // network type (TORv2)
                        "0a"                      // address length
                        "f1f2f3f4f5f6f7f8f9fa")}; // address
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(!addr.IsValid());
     BOOST_REQUIRE(s.empty());
 
@@ -875,7 +875,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "79bcc625184b05194975c28b66b66b04" // address
                        "69f7f6556fb1ac3189a79b40dda32f1f"
                        )};
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(addr.IsValid());
     BOOST_CHECK(addr.IsTor());
     BOOST_CHECK(!addr.IsAddrV1Compatible());
@@ -888,7 +888,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "00" // address length
                        "00" // address
                        )};
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure,
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure,
                           HasReason("BIP155 TORv3 address with length 0 (should be 32)"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
@@ -898,7 +898,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "20"                               // address length
                        "a2894dabaec08c0051a481a6dac88b64" // address
                        "f98232ae42d4b6fd2fa81952dfe36a87")};
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(addr.IsValid());
     BOOST_CHECK(addr.IsI2P());
     BOOST_CHECK(!addr.IsAddrV1Compatible());
@@ -911,7 +911,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "03" // address length
                        "00" // address
                        )};
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure,
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure,
                           HasReason("BIP155 I2P address with length 3 (should be 32)"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
@@ -921,7 +921,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "10"                               // address length
                        "fc000001000200030004000500060007" // address
                        )};
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(addr.IsValid());
     BOOST_CHECK(addr.IsCJDNS());
     BOOST_CHECK(!addr.IsAddrV1Compatible());
@@ -933,7 +933,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "10"                               // address length
                        "aa000001000200030004000500060007" // address
                        )};
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(addr.IsCJDNS());
     BOOST_CHECK(!addr.IsValid());
     BOOST_REQUIRE(s.empty());
@@ -943,7 +943,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "01" // address length
                        "00" // address
                        )};
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure,
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure,
                           HasReason("BIP155 CJDNS address with length 1 (should be 16)"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
@@ -953,7 +953,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "fe00000002"     // address length (CompactSize's MAX_SIZE)
                        "01020304050607" // address
                        )};
-    BOOST_CHECK_EXCEPTION(s >> WithParams(ser_params, addr), std::ios_base::failure,
+    BOOST_CHECK_EXCEPTION(s >> ser_params(addr), std::ios_base::failure,
                           HasReason("Address too long: 33554432 > 512"));
     BOOST_REQUIRE(!s.empty()); // The stream is not consumed on invalid input.
     s.clear();
@@ -963,7 +963,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "04"       // address length
                        "01020304" // address
                        )};
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(!addr.IsValid());
     BOOST_REQUIRE(s.empty());
 
@@ -972,7 +972,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
                        "00" // address length
                        ""   // address
                        )};
-    s >> WithParams(ser_params, addr);
+    s >> ser_params(addr);
     BOOST_CHECK(!addr.IsValid());
     BOOST_REQUIRE(s.empty());
 }

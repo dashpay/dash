@@ -541,7 +541,7 @@ private:
             // an invalid entry and subsequent attempts at registering ADDRv2 entries get blocked. We cannot
             // apply this treatment ADDRv1 compatible addresses for backwards compatibility with the existing map.
             const auto& ser_params{v.IsAddrV1Compatible() ? CNetAddr::V1 : CNetAddr::V2};
-            return ::SerializeHash(WithParams(ser_params, v), /*nType=*/SER_GETHASH, /*nVersion=*/PROTOCOL_VERSION);
+            return ::SerializeHash(ser_params(v), /*nType=*/SER_GETHASH, /*nVersion=*/PROTOCOL_VERSION);
         } else {
             return ::SerializeHash(v, /*nType=*/SER_GETHASH, /*nVersion=*/PROTOCOL_VERSION);
         }
