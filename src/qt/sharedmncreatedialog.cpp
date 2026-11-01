@@ -962,6 +962,24 @@ QWidget* SharedMnCreateDialog::createWaitingPage(Page page_id)
         widgets.sent = makeHint(QString(), box->parentWidget());
         widgets.sent->setTextFormat(Qt::PlainText);
         box->addWidget(widgets.sent);
+        // The reply is copied once, as the page is entered; a clipboard
+        // overwritten before it reached the coordinator must not strand it
+        widgets.copy = new QPushButton(tr("Copy My Reply"), box->parentWidget());
+        SharedMnMakeSecondary(widgets.copy);
+        connect(widgets.copy, &QPushButton::clicked, this, [this, page_id] {
+            switch (page_id) {
+            case PageWaitTerms:
+                copySession(tr("Details"));
+                break;
+            case PageWaitSigning:
+                copySession(tr("Approval"));
+                break;
+            default:
+                copySession(tr("Signed Contribution"));
+                break;
+            }
+        });
+        box->addWidget(widgets.copy, 0, Qt::AlignLeft);
     }
     {
         auto* box{MakeTitledCard(body, body_layout, tr("What comes next"))};

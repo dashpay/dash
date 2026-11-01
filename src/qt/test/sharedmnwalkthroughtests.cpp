@@ -65,6 +65,7 @@
 #include <QTextStream>
 #include <QTimer>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -600,6 +601,16 @@ void SharedMnWalkthroughTests::walkthrough()
         QVERIFY2(!reply.isEmpty(), qPrintable(who.who + " must copy a Details reply"));
         QVERIFY(!reply_code.isEmpty());
         details_replies << reply;
+
+        // The waiting page copies the same reply again for a lost clipboard
+        QApplication::clipboard()->clear();
+        const auto waiting{std::find_if(dialog.m_waiting_pages.begin(), dialog.m_waiting_pages.end(),
+                                        [](const auto& entry) {
+                                            return entry.first == SharedMnCreateDialog::PageWaitTerms;
+                                        })};
+        QVERIFY(waiting != dialog.m_waiting_pages.end());
+        waiting->second.copy->click();
+        QCOMPARE(QApplication::clipboard()->text(), reply);
         Shots().capture(&dialog, who.role, QStringLiteral("14-%1-waiting-for-terms").arg(who.role),
                         who.who + " waiting for the coordinator: what was sent and what comes next");
     }

@@ -495,6 +495,7 @@ private:
     struct WaitingPage {
         QLabel* title{nullptr};
         QLabel* sent{nullptr};
+        QPushButton* copy{nullptr};
         QLabel* next{nullptr};
         QPushButton* release{nullptr};
     };
