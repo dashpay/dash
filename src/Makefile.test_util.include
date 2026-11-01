@@ -31,6 +31,9 @@ TEST_UTIL_H = \
 if ENABLE_WALLET
 TEST_UTIL_H += wallet/test/util.h
 endif # ENABLE_WALLET
+if ENABLE_PLATFORM_GUI
+TEST_UTIL_H += test/util/platform_client.h
+endif
 
 libtest_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
 libtest_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -54,5 +57,8 @@ libtest_util_a_SOURCES = \
 if ENABLE_WALLET
 libtest_util_a_SOURCES += wallet/test/util.cpp
 endif # ENABLE_WALLET
+if ENABLE_PLATFORM_GUI
+libtest_util_a_SOURCES += test/util/platform_client.cpp
+endif
 
 libtest_util_a_SOURCES += $(TEST_UTIL_H)

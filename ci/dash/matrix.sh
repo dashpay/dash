@@ -30,6 +30,8 @@ elif [ "$BUILD_TARGET" = "linux64_multiprocess" ]; then
   source ./ci/test/00_setup_env_native_multiprocess.sh
 elif [ "$BUILD_TARGET" = "linux64_nowallet" ]; then
   source ./ci/test/00_setup_env_native_nowallet_libbitcoinkernel.sh
+elif [ "$BUILD_TARGET" = "linux64_platform_gui" ]; then
+  source ./ci/test/00_setup_env_native_platform_gui.sh
 elif [ "$BUILD_TARGET" = "linux64_sqlite" ]; then
   source ./ci/test/00_setup_env_native_sqlite.sh
 elif [ "$BUILD_TARGET" = "linux64_tsan" ]; then
