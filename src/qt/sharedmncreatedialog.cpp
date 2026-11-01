@@ -849,17 +849,6 @@ QWidget* SharedMnCreateDialog::createInvitePage()
     auto [body, body_layout]{MasternodeWidgetUtil::makeScrollBody(page, layout)};
     addBoard(PageInvite, body, body_layout);
 
-    auto* row{new QHBoxLayout()};
-    m_copy_invitation_button = new QPushButton(tr("Copy Invitation"), body);
-    connect(m_copy_invitation_button, &QPushButton::clicked, this, [this] { copySession(tr("Invitation")); });
-    row->addWidget(m_copy_invitation_button);
-    m_save_invitation_button = new QPushButton(tr("Save Invitation…"), body);
-    SharedMnMakeSecondary(m_save_invitation_button);
-    connect(m_save_invitation_button, &QPushButton::clicked, this, &SharedMnCreateDialog::saveSession);
-    row->addWidget(m_save_invitation_button);
-    row->addStretch();
-    body_layout->addLayout(row);
-
     m_invite_edit_warning = makeHint(tr("You changed the draft. Participants who already replied must reply again."),
                                      body);
     m_invite_edit_warning->setStyleSheet(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_WARNING));
@@ -881,6 +870,17 @@ QWidget* SharedMnCreateDialog::createInvitePage()
         m_lock_confirm_card->setVisible(false);
     }
     body_layout->addStretch();
+
+    auto* row{new QHBoxLayout()};
+    m_copy_invitation_button = new QPushButton(tr("Copy Invitation"), page);
+    connect(m_copy_invitation_button, &QPushButton::clicked, this, [this] { copySession(tr("Invitation")); });
+    row->addWidget(m_copy_invitation_button);
+    m_save_invitation_button = new QPushButton(tr("Save Invitation…"), page);
+    SharedMnMakeSecondary(m_save_invitation_button);
+    connect(m_save_invitation_button, &QPushButton::clicked, this, &SharedMnCreateDialog::saveSession);
+    row->addWidget(m_save_invitation_button);
+    row->addStretch();
+    layout->addLayout(row);
     return page;
 }
 
@@ -908,17 +908,18 @@ QWidget* SharedMnCreateDialog::createApprovalsPage()
         box->addWidget(m_approvals_terms);
     }
 
+    body_layout->addStretch();
+
     auto* row{new QHBoxLayout()};
-    m_copy_terms_button = new QPushButton(tr("Copy Locked Terms"), body);
+    m_copy_terms_button = new QPushButton(tr("Copy Locked Terms"), page);
     connect(m_copy_terms_button, &QPushButton::clicked, this, [this] { copySession(tr("Locked Terms")); });
     row->addWidget(m_copy_terms_button);
-    m_unlock_button = new QPushButton(tr("Unlock terms…"), body);
+    m_unlock_button = new QPushButton(tr("Unlock terms…"), page);
     SharedMnMakeSecondary(m_unlock_button);
     connect(m_unlock_button, &QPushButton::clicked, this, &SharedMnCreateDialog::unlockTerms);
     row->addWidget(m_unlock_button);
     row->addStretch();
-    body_layout->addLayout(row);
-    body_layout->addStretch();
+    layout->addLayout(row);
     return page;
 }
 
@@ -937,13 +938,14 @@ QWidget* SharedMnCreateDialog::createSignaturesPage()
     m_signatures_summary = makeHint(QString(), body);
     body_layout->addWidget(m_signatures_summary);
 
+    body_layout->addStretch();
+
     auto* row{new QHBoxLayout()};
-    m_copy_signing_button = new QPushButton(tr("Copy Signing Request"), body);
+    m_copy_signing_button = new QPushButton(tr("Copy Signing Request"), page);
     connect(m_copy_signing_button, &QPushButton::clicked, this, [this] { copySession(tr("Signing Request")); });
     row->addWidget(m_copy_signing_button);
     row->addStretch();
-    body_layout->addLayout(row);
-    body_layout->addStretch();
+    layout->addLayout(row);
     return page;
 }
 
@@ -1078,17 +1080,18 @@ QWidget* SharedMnCreateDialog::createCompletePage()
         box->addWidget(m_next_steps);
     }
 
+    body_layout->addStretch();
+
     auto* row{new QHBoxLayout()};
-    m_copy_record_button = new QPushButton(tr("Copy Final Record"), body);
+    m_copy_record_button = new QPushButton(tr("Copy Final Record"), page);
     connect(m_copy_record_button, &QPushButton::clicked, this, [this] { copySession(tr("Final Record")); });
     row->addWidget(m_copy_record_button);
-    m_complete_release_button = new QPushButton(tr("Release my coins"), body);
+    m_complete_release_button = new QPushButton(tr("Release my coins"), page);
     m_complete_release_button->setFlat(true);
     connect(m_complete_release_button, &QPushButton::clicked, this, &SharedMnCreateDialog::releaseReservedCoins);
     row->addWidget(m_complete_release_button);
     row->addStretch();
-    body_layout->addLayout(row);
-    body_layout->addStretch();
+    layout->addLayout(row);
     return page;
 }
 
