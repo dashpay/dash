@@ -1695,6 +1695,27 @@ AC_CHECK_LIB([gmp],  [__gmpz_init],GMP_LIBS=-lgmp, AC_MSG_ERROR(libgmp missing))
 CPPFLAGS="$TEMP_CPPFLAGS"
 LDFLAGS="$TEMP_LDFLAGS"
 
+dnl blst (BLS12-381 backend of src/dashbls): from the depends prefix given by
+dnl CONFIG_SITE, or from the system. Failing both, take it from depends/<host>
+dnl when blst has been built there, so a plain ./configure works with system
+dnl libraries otherwise. -idirafter keeps system headers ahead of the other
+dnl headers in that prefix.
+AC_CHECK_HEADER([blst.h], [have_blst=yes], [have_blst=no])
+if test "$have_blst" = "yes"; then
+  AC_CHECK_LIB([blst], [blst_p1_compress], [BLST_LIBS=-lblst], AC_MSG_ERROR([libblst missing]))
+else
+  blst_prefix="$(cd "$srcdir" && pwd)/depends/$host"
+  AC_MSG_CHECKING([for blst in $blst_prefix])
+  if test -f "$blst_prefix/include/blst.h" && test -f "$blst_prefix/lib/libblst.a"; then
+    AC_MSG_RESULT([yes])
+    BLST_CPPFLAGS="-idirafter $blst_prefix/include"
+    BLST_LIBS="$blst_prefix/lib/libblst.a"
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([blst not found: build depends (make -C depends) or install blst])
+  fi
+fi
+
 AM_CONDITIONAL([ENABLE_ZMQ], [test "$use_zmq" = "yes"])
 
 dnl libmultiprocess library check
@@ -2030,6 +2051,8 @@ AC_SUBST(BACKTRACE_FLAGS)
 AC_SUBST(BACKTRACE_LDFLAGS)
 AC_SUBST(BACKTRACE_LIBS)
 AC_SUBST(GMP_LIBS)
+AC_SUBST(BLST_CPPFLAGS)
+AC_SUBST(BLST_LIBS)
 AC_SUBST(NATPMP_CPPFLAGS)
 AC_SUBST(NATPMP_LIBS)
 AC_SUBST(DSYMUTIL_FLAT)
@@ -2066,7 +2089,7 @@ CPPFLAGS="$CPPFLAGS_TEMP"
 dnl The ECDH module is required by the wallet's Platform key provider
 dnl (DashPay contact request encryption, wallet/platformkeys.cpp).
 ac_configure_args="${ac_configure_args} --disable-shared --with-pic --enable-benchmark=no --enable-module-recovery --enable-module-ecdh --disable-openssl-tests"
-AC_CONFIG_SUBDIRS([src/dashbls src/secp256k1])
+AC_CONFIG_SUBDIRS([src/secp256k1])
 
 AC_OUTPUT
 

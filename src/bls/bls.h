@@ -10,21 +10,17 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 
-// bls-dash uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
-#undef ERROR
-#undef DEBUG
 #include <dashbls/bls.hpp>
 #include <dashbls/privatekey.hpp>
 #include <dashbls/elements.hpp>
 #include <dashbls/schemes.hpp>
 #include <dashbls/threshold.hpp>
-#undef DOUBLE
-#undef SEED
 
 #include <array>
 #include <atomic>
 #include <mutex>
 #include <ranges>
+#include <type_traits>
 
 namespace bls {
     extern std::atomic<bool> bls_legacy_scheme;
@@ -127,7 +123,11 @@ public:
         if (!fValid) {
             return std::vector<uint8_t>(SerSize, 0);
         }
-        return impl.Serialize(specificLegacyScheme);
+        if constexpr (std::is_same_v<ImplType, bls::PrivateKey>) {
+            return impl.Serialize();
+        } else {
+            return impl.Serialize(specificLegacyScheme);
+        }
     }
 
     std::array<uint8_t, SerSize> ToBytes(const bool specificLegacyScheme) const
@@ -135,7 +135,11 @@ public:
         if (!fValid) {
             return std::array<uint8_t, SerSize>{};
         }
-        return impl.SerializeToArray(specificLegacyScheme);
+        if constexpr (std::is_same_v<ImplType, bls::PrivateKey>) {
+            return impl.SerializeToArray();
+        } else {
+            return impl.SerializeToArray(specificLegacyScheme);
+        }
     }
 
     const uint256& GetHash() const
