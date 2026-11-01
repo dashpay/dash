@@ -2,7 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <bls/bls.h>
 #include <chainparams.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <interfaces/wallet.h>
 #include <key.h>
 #include <key_io.h>
@@ -210,6 +213,65 @@ BOOST_AUTO_TEST_CASE(ecdh_symmetry)
     BOOST_CHECK(s_ab == s_ba);
 }
 
+//! Phrase that test/functional/wallet_upgradetohd.py restores.
+static constexpr const char* REGTEST_MNEMONIC{
+    "similar behave slot swim scissors throw planet view ghost laugh drift calm"};
+
+static bool NeverInUse(const CBLSPublicKey&) { return false; }
+
+//! Operator keys must come out identical to DashSync and dashj for the same
+//! recovery phrase: published answers for m/9'/coin'/3'/3'/0 on testnet, plus
+//! mainnet, further indexes and a passphrase computed with the same scheme.
+BOOST_AUTO_TEST_CASE(operator_key_vectors)
+{
+    struct Vector {
+        const char* mnemonic;
+        const char* passphrase;
+        uint32_t coin_type;
+        uint32_t index;
+        const char* secret;
+        const char* public_legacy;
+        const char* public_basic;
+    };
+    static constexpr const char* DASHSYNC_MNEMONIC{
+        "enemy check owner stumble unaware debris suffer peanut good fabric bleak outside"};
+    static constexpr const char* DASHJ_MNEMONIC{
+        "bundle liberty enlist super solution elder minor shell fold vivid multiply throw"};
+    const Vector vectors[]{
+        {DASHSYNC_MNEMONIC, "", 1, 0, "344e7bf67fddf1c2d2f629f2392ce2b4af99393cd8a4c70d4bbaef7aaf4c364b",
+         "157b10706659e25eb362b5d902d809f9160b1688e201ee6e94b40f9b5062d7074683ef05a2d5efb7793c47059c878dfa",
+         "957b10706659e25eb362b5d902d809f9160b1688e201ee6e94b40f9b5062d7074683ef05a2d5efb7793c47059c878dfa"},
+        {DASHJ_MNEMONIC, "", 1, 0, "392e5db8a1fb59608723c9d77320909924dbb06e397ce195429a1c4a7fcefb45",
+         "0cb6db5b5827e24138abb32e3476c5c7768bda0431c78030d62e9c5b107d3d73f5c78043401c5e8ad8f21a460a02bbbe",
+         "8cb6db5b5827e24138abb32e3476c5c7768bda0431c78030d62e9c5b107d3d73f5c78043401c5e8ad8f21a460a02bbbe"},
+        {DASHSYNC_MNEMONIC, "", 5, 0, "0461b8370ac28e7d7c453ab769d6edc97e9a79e400ae100bfbbf7ea9d834fd2c",
+         "8efa464e7d58cfd90f3bb1bac18598928ffc7c112d4c64455c0ec72915fcab770a402c439ccc728288f3369ebbd530a5",
+         "aefa464e7d58cfd90f3bb1bac18598928ffc7c112d4c64455c0ec72915fcab770a402c439ccc728288f3369ebbd530a5"},
+        {DASHSYNC_MNEMONIC, "", 1, 1, "25abfe0eeb4535a8e07d6c56f524296111b52bf42751e0d27809d1b991b3ea7e", "", ""},
+        {DASHSYNC_MNEMONIC, "", 1, 2, "385f03e9082612ff2db91b0d6eeddbe6c4e810deb867aaebcbd2976e7d762d57", "", ""},
+        {REGTEST_MNEMONIC, "", 1, 0, "60a5ae2824bf8dcd7b37b751b73ba419d0ebfe6f6f58aaf6a26eaa9ec43fd686", "",
+         "a5776ac29c3f02a57157d05303248615ce4676a8fc06e61602ecc5cf3d6c0ecbf6a438edd5b6f3d51941cea51894065b"},
+        {REGTEST_MNEMONIC, "", 1, 1, "51a5ec2e84ef20a7ab8cb6b7d591711604973abc2528ebb7cd2ae835833eb1c5", "", ""},
+        {REGTEST_MNEMONIC, "custom-passphrase", 1, 0,
+         "6ab36f50b340904e85d52fbab8223459b1d0b415ac950d7c02eb2b1503d808a4", "", ""},
+    };
+    for (const auto& vector : vectors) {
+        SecureVector seed;
+        CMnemonic::ToSeed(SecureString{vector.mnemonic}, SecureString{vector.passphrase}, seed);
+        const CBLSSecretKey key{DeriveOperatorKey(seed, vector.coin_type, vector.index)};
+        BOOST_CHECK_EQUAL(key.ToString(), vector.secret);
+        BOOST_CHECK(OperatorPubKey(OperatorKeyChain(seed, vector.coin_type), vector.index) == key.GetPublicKey());
+        if (*vector.public_legacy) {
+            BOOST_CHECK_EQUAL(key.GetPublicKey().ToString(/*specificLegacyScheme=*/true), vector.public_legacy);
+        }
+        if (*vector.public_basic) {
+            BOOST_CHECK_EQUAL(key.GetPublicKey().ToString(/*specificLegacyScheme=*/false), vector.public_basic);
+        }
+    }
+    BOOST_CHECK(!DeriveOperatorKey(SecureVector(64, 0), 1, 0x80000000u).IsValid());
+    BOOST_CHECK(!OperatorPubKey(OperatorKeyChain(SecureVector(64, 0), 1), 0x80000000u).IsValid());
+}
+
 //! Mnemonic behind Dip14Seed() above.
 static constexpr const char* DIP14_MNEMONIC{
     "birth kingdom trash renew flavor utility donkey gasp regular alert pave layer"};
@@ -391,6 +453,11 @@ BOOST_FIXTURE_TEST_CASE(platform_key_source_must_be_unambiguous, Dip14WalletSetu
 
     const auto ambiguous{m_iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(ambiguous.status == PlatformKeyStatus::AMBIGUOUS_SOURCE);
+
+    uint32_t index;
+    CBLSSecretKey operator_key;
+    LOCK(m_wallet->cs_wallet);
+    BOOST_CHECK(m_wallet->IssueOperatorKey(NeverInUse, index, operator_key) == PlatformKeyStatus::AMBIGUOUS_SOURCE);
 }
 
 //! An imported root xprv is sufficient for Platform derivation. The mnemonic
@@ -405,6 +472,13 @@ BOOST_FIXTURE_TEST_CASE(xprv_only_wallet_derives_platform_keys, FriendshipWallet
     ExtKey256 expected;
     BOOST_REQUIRE(DeriveExtKey(master, IdentityAuthKeyPath(static_cast<uint32_t>(Params().ExtCoinType()), 0, 0), expected));
     BOOST_CHECK(result.value == expected.key.GetPubKey());
+
+    // Operator keys are the exception: the mobile wallets derive them from
+    // the BIP39 seed, which an imported xprv does not carry.
+    uint32_t index;
+    CBLSSecretKey operator_key;
+    LOCK(wallet->cs_wallet);
+    BOOST_CHECK(wallet->IssueOperatorKey(NeverInUse, index, operator_key) == PlatformKeyStatus::NOT_SUPPORTED);
 }
 
 //! The standardized Platform paths are absolute paths from m. An imported
@@ -509,6 +583,150 @@ BOOST_FIXTURE_TEST_CASE(legacy_wallet_has_no_platform_keys, FriendshipWalletSetu
     auto iface = interfaces::MakeWallet(m_context, wallet);
     const auto result{iface->getPlatformPubKey(IdentityAuthKey{0, 0})};
     BOOST_CHECK(result.status == PlatformKeyStatus::NOT_SUPPORTED);
+
+    uint32_t index;
+    CBLSSecretKey operator_key;
+    LOCK(wallet->cs_wallet);
+    BOOST_CHECK(wallet->IssueOperatorKey(NeverInUse, index, operator_key) == PlatformKeyStatus::NOT_SUPPORTED);
+}
+
+//! Descriptor wallet restored from the phrase behind the regtest operator-key
+//! vectors.
+struct OperatorKeyWalletSetup : public FriendshipWalletSetup {
+    OperatorKeyWalletSetup() :
+        FriendshipWalletSetup(SecureString{REGTEST_MNEMONIC})
+    {
+    }
+};
+
+//! Issuance is lowest-index-first and retrieval covers issued indexes only. A
+//! seed-only restore (fresh database) hands out the same keys in the same
+//! order, skipping only indexes reported in use, and they are the vector keys
+//! a mobile wallet shows for this phrase.
+BOOST_FIXTURE_TEST_CASE(operator_keys_rederive_after_restore, OperatorKeyWalletSetup)
+{
+    uint32_t index;
+    CBLSSecretKey key_0, key_1, key;
+    {
+        LOCK(m_wallet->cs_wallet);
+        BOOST_CHECK(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::INVALID_ARGUMENT);
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key_0) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(index, 0U);
+        BOOST_CHECK_EQUAL(key_0.ToString(), "60a5ae2824bf8dcd7b37b751b73ba419d0ebfe6f6f58aaf6a26eaa9ec43fd686");
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key_1) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(index, 1U);
+        BOOST_CHECK_EQUAL(key_1.ToString(), "51a5ec2e84ef20a7ab8cb6b7d591711604973abc2528ebb7cd2ae835833eb1c5");
+        BOOST_REQUIRE(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK(key == key_0);
+        BOOST_CHECK(m_wallet->GetOperatorKey(2, key) == PlatformKeyStatus::INVALID_ARGUMENT);
+
+        // No key leaves the wallet unless its consumption is on disk first.
+        GetMockableDatabase(*m_wallet).m_pass = false;
+        BOOST_CHECK(m_wallet->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::DATABASE_ERROR);
+        BOOST_CHECK(!key.IsValid());
+        GetMockableDatabase(*m_wallet).m_pass = true;
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::SUCCESS);
+        BOOST_CHECK_EQUAL(index, 2U);
+    }
+
+    // The restored wallet has no issuance record; only the masternode list
+    // tells it that key 0 is taken.
+    const auto [wallet_b, iface_b]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
+    const auto key_0_in_use{[&key_0](const CBLSPublicKey& pubkey) { return pubkey == key_0.GetPublicKey(); }};
+    LOCK(wallet_b->cs_wallet);
+    BOOST_REQUIRE(wallet_b->IssueOperatorKey(key_0_in_use, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 1U);
+    BOOST_CHECK(key == key_1);
+    BOOST_REQUIRE(wallet_b->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK(key == key_0);
+}
+
+//! A locked wallet neither issues nor re-derives, and unlocking gives back
+//! the key issued before encryption.
+BOOST_FIXTURE_TEST_CASE(operator_keys_need_unlocked_wallet, OperatorKeyWalletSetup)
+{
+    uint32_t index;
+    CBLSSecretKey before, key;
+    {
+        LOCK(m_wallet->cs_wallet);
+        BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, before) == PlatformKeyStatus::SUCCESS);
+    }
+    BOOST_REQUIRE(m_wallet->EncryptWallet("passphrase"));
+    BOOST_REQUIRE(m_wallet->IsLocked());
+
+    LOCK(m_wallet->cs_wallet);
+    BOOST_CHECK(m_wallet->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(!key.IsValid());
+
+    BOOST_REQUIRE(m_wallet->Unlock("passphrase"));
+    BOOST_REQUIRE(m_wallet->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK(key == before);
+}
+
+//! A provider transaction seen on the sync path that assigns one of the
+//! lookahead keys moves the counter past it, so a restored wallet learns its
+//! used indexes from a rescan rather than from the masternode list, even
+//! while locked.
+static CBLSPublicKey RegtestOperatorPubKey(uint32_t index)
+{
+    SecureVector seed;
+    CMnemonic::ToSeed(SecureString{REGTEST_MNEMONIC}, SecureString{}, seed);
+    return DeriveOperatorKey(seed, /*coin_type=*/1, index).GetPublicKey();
+}
+
+static CTransactionRef ProUpRegAssigning(const CBLSPublicKey& operator_key)
+{
+    CProUpRegTx payload;
+    payload.nVersion = ProTxVersion::BasicBLS;
+    payload.pubKeyOperator.Set(operator_key, /*specificLegacyScheme=*/false);
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+    SetTxPayload(tx, payload);
+    return MakeTransactionRef(tx);
+}
+
+BOOST_FIXTURE_TEST_CASE(operator_key_counter_advances_from_synced_protx, OperatorKeyWalletSetup)
+{
+    uint32_t index;
+    CBLSSecretKey key_0, key;
+    WITH_LOCK(m_wallet->cs_wallet,
+              BOOST_REQUIRE(m_wallet->IssueOperatorKey(NeverInUse, index, key_0) == PlatformKeyStatus::SUCCESS));
+
+    // Restore: the lookahead is built while the seed is at hand, then the
+    // wallet is encrypted and locked before the chain is synced.
+    const auto [wallet_b, iface_b]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
+    WITH_LOCK(wallet_b->cs_wallet, BOOST_REQUIRE(wallet_b->SetupOperatorKeyChain()));
+    BOOST_REQUIRE(wallet_b->EncryptWallet("passphrase"));
+    wallet_b->transactionAddedToMempool(ProUpRegAssigning(key_0.GetPublicKey()), /*nAcceptTime=*/0);
+
+    BOOST_REQUIRE(wallet_b->Unlock("passphrase"));
+    LOCK(wallet_b->cs_wallet);
+    BOOST_REQUIRE(wallet_b->GetOperatorKey(0, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK(key == key_0);
+    BOOST_REQUIRE(wallet_b->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 1U);
+
+    // A used key whose consumption cannot be recorded aborts the sync instead
+    // of being dropped silently.
+    GetMockableDatabase(*wallet_b).m_pass = false;
+    BOOST_CHECK_THROW(wallet_b->transactionAddedToMempool(ProUpRegAssigning(RegtestOperatorPubKey(2)), /*nAcceptTime=*/0),
+                      std::runtime_error);
+    GetMockableDatabase(*wallet_b).m_pass = true;
+
+    // Key 50 lies outside the initial window and is seen only because the hit
+    // on key 49 rebuilt the window from the new counter, which needs no seed:
+    // the wallet stays locked throughout the sync.
+    const auto [wallet_c, iface_c]{MakeSeededWallet(SecureString{REGTEST_MNEMONIC})};
+    WITH_LOCK(wallet_c->cs_wallet, BOOST_REQUIRE(wallet_c->SetupOperatorKeyChain()));
+    BOOST_REQUIRE(wallet_c->EncryptWallet("passphrase"));
+    wallet_c->transactionAddedToMempool(ProUpRegAssigning(RegtestOperatorPubKey(49)), /*nAcceptTime=*/0);
+    wallet_c->transactionAddedToMempool(ProUpRegAssigning(RegtestOperatorPubKey(50)), /*nAcceptTime=*/0);
+    BOOST_REQUIRE(wallet_c->Unlock("passphrase"));
+    LOCK(wallet_c->cs_wallet);
+    BOOST_REQUIRE(wallet_c->IssueOperatorKey(NeverInUse, index, key) == PlatformKeyStatus::SUCCESS);
+    BOOST_CHECK_EQUAL(index, 51U);
 }
 
 //! Two independent wallet instances restored from the same recovery phrase:
