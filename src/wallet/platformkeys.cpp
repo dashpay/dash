@@ -4,6 +4,8 @@
 
 #include <wallet/platformkeys.h>
 
+#include <crypto/common.h>
+#include <crypto/hmac_sha256.h>
 #include <secp256k1.h>
 #include <secp256k1_ecdh.h>
 
@@ -88,8 +90,15 @@ bool DeriveExtKey(const CExtKey& parent, const Path& path, ExtKey256& out)
 
     CKey key{parent.key};
     ChainCode chaincode{parent.chaincode};
+    std::array<uint8_t, 4> parent_fingerprint{};
 
-    for (const auto& element : path) {
+    for (size_t i{0}; i < path.size(); ++i) {
+        const auto& element{path[i]};
+        if (i + 1 == path.size()) {
+            const CKeyID parent_id{key.GetPubKey().GetID()};
+            std::copy_n(parent_id.begin(), parent_fingerprint.size(), parent_fingerprint.begin());
+        }
+
         CKey child_key;
         ChainCode child_cc;
         bool ok{false};
@@ -107,6 +116,7 @@ bool DeriveExtKey(const CExtKey& parent, const Path& path, ExtKey256& out)
 
     out.key = key;
     out.chaincode = chaincode;
+    out.parent_fingerprint = parent_fingerprint;
     return true;
 }
 
@@ -144,9 +154,33 @@ bool ComputeECDHSecret(const CKey& key, const CPubKey& counterparty, SecureVecto
     return true;
 }
 
+bool ComputeAccountReferenceMac(const CKey& key, const CompactXpub& compact_xpub, uint256& mac_out)
+{
+    if (!key.IsValid()) return false;
+    CHMAC_SHA256{key.begin(), key.size()}.Write(compact_xpub.data(), compact_xpub.size()).Finalize(mac_out.begin());
+    return true;
+}
+
+uint32_t AccountReferenceFromMac(const uint256& mac)
+{
+    // DIP-15: (version << 28) | (ASK28 ^ account). With version 0 and
+    // account 0, the reference is ASK28, the top 28 bits of the MAC's last
+    // four bytes.
+    return ReadBE32(mac.begin() + 28) >> 4;
+}
+
 } // namespace wallet::platformkeys
 
 namespace wallet {
+
+bool CompactXpubBytes(const FriendshipXpub& xpub, CompactXpub& compact_out)
+{
+    if (!xpub.pubkey.IsCompressed()) return false;
+    auto it{std::copy(xpub.parent_fingerprint.begin(), xpub.parent_fingerprint.end(), compact_out.begin())};
+    it = std::copy(xpub.chaincode.begin(), xpub.chaincode.end(), it);
+    std::copy(xpub.pubkey.begin(), xpub.pubkey.end(), it);
+    return true;
+}
 
 bool DeriveFriendshipPaymentDestination(const FriendshipXpub& xpub, uint32_t index, CTxDestination& destination_out)
 {
