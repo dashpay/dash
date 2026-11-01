@@ -1663,6 +1663,8 @@ class DashTestFramework(BitcoinTestFramework):
 
         outputs = {mn.collateral_address: mn.get_collateral_value(), mn.fundsAddr: 1}
         collateral_txid = self.nodes[0].sendmany("", outputs)
+        # ChainLock signers only count the age from when they first saw the tx
+        self.sync_mempools()
         self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
         mn.bury_tx(self, genIdx=0, txid=collateral_txid, depth=1)
         collateral_vout = mn.get_collateral_vout(self.nodes[0], collateral_txid)
@@ -1675,6 +1677,8 @@ class DashTestFramework(BitcoinTestFramework):
                                    platform_node_id=platform_node_id, addrs_platform_p2p=addrs_platform_p2p, addrs_platform_https=addrs_platform_https)
         assert protx_result is not None
 
+        # ChainLock signers only count the age from when they first saw the tx
+        self.sync_mempools()
         self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
         mn.bury_tx(self, genIdx=0, txid=protx_result, depth=1)
 
@@ -1703,6 +1707,8 @@ class DashTestFramework(BitcoinTestFramework):
         try:
             protx_result = evo_info.update_service(self.nodes[0], True, f'127.0.0.1:{evo_info.nodePort}', platform_node_id, addrs_platform_p2p, addrs_platform_https, operator_reward_address, funds_address)
             assert protx_result is not None
+            # ChainLock signers only count the age from when they first saw the tx
+            self.sync_mempools()
             self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
             evo_info.bury_tx(self, genIdx=0, txid=protx_result, depth=1)
             self.log.info("Updated EvoNode %s: platformNodeID=%s, platformP2PPort=%s, platformHTTPPort=%s" % (evo_info.proTxHash, platform_node_id, addrs_platform_p2p, addrs_platform_https))
