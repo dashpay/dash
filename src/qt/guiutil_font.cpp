@@ -26,6 +26,7 @@
 #include <QWidget>
 
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -579,6 +580,15 @@ const std::vector<std::pair<QString, bool>>& knownFonts() { return g_fonts_known
 
 void setFontScale(int font_scale) { g_font_registry.SetFontScale(font_scale); }
 int fontScale() { return g_font_registry.GetFontScale(); }
+
+bool setFontScaleFromArg()
+{
+    if (!gArgs.IsArgSet("-font-scale")) return true;
+    const int64_t font_scale{gArgs.GetIntArg("-font-scale", fontScale())};
+    if (font_scale < FONT_SCALE_MIN || font_scale > FONT_SCALE_MAX) return false;
+    setFontScale(static_cast<int>(font_scale));
+    return true;
+}
 
 int currentWeightArg(FontWeight slot)
 {

@@ -74,6 +74,7 @@
 #include <QVBoxLayout>
 #include <QWindow>
 
+#include <algorithm>
 #include <functional>
 
 namespace {
@@ -88,6 +89,8 @@ constexpr int GOV_CYCLE_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / (GOV_CYCLE_FRAME_COUN
 
 // Per-frame interval for the spinner animation
 constexpr int SPINNER_FRAME_MS{STATUSBAR_ICON_CYCLE_MS / SPINNER_FRAMES};
+
+constexpr int FONT_SCALE_SHORTCUT_STEP{3};
 } // anonymous namespace
 
 BitcoinGUI::BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle, QWidget* parent) :
@@ -514,12 +517,53 @@ void BitcoinGUI::createActions()
     m_mask_values_action->setStatusTip(tr("Mask the values in the Overview tab"));
     m_mask_values_action->setCheckable(true);
 
+    m_zoom_in_action = new QAction(tr("Zoom &In"), this);
+    m_zoom_in_action->setObjectName("zoomInAction");
+    m_zoom_in_action->setStatusTip(tr("Increase the font size"));
+
+    m_zoom_out_action = new QAction(tr("Zoom &Out"), this);
+    m_zoom_out_action->setObjectName("zoomOutAction");
+    m_zoom_out_action->setStatusTip(tr("Decrease the font size"));
+
+    // Without a wallet the RPC console is the central widget and already binds these keys to its own font size
+    if (walletFrame) {
+        m_zoom_in_action->setShortcuts({QKeySequence(QKeySequence::ZoomIn), QKeySequence(tr("Ctrl+="))});
+        m_zoom_out_action->setShortcuts({QKeySequence(QKeySequence::ZoomOut), QKeySequence(tr("Ctrl+_"))});
+    }
+
+    m_zoom_reset_action = new QAction(tr("Reset &Zoom"), this);
+    m_zoom_reset_action->setObjectName("zoomResetAction");
+    m_zoom_reset_action->setShortcut(QKeySequence(tr("Ctrl+0")));
+    m_zoom_reset_action->setStatusTip(tr("Reset the font size to default"));
+
+    // Enabled by setClientModel() once the font scale can be persisted
+    for (QAction* action : {m_zoom_in_action, m_zoom_out_action, m_zoom_reset_action}) {
+        action->setEnabled(false);
+    }
+
     connect(quitAction, &QAction::triggered, this, &BitcoinGUI::quitRequested);
     connect(aboutAction, &QAction::triggered, this, &BitcoinGUI::aboutClicked);
     connect(aboutQtAction, &QAction::triggered, qApp, QApplication::aboutQt);
     connect(optionsAction, &QAction::triggered, this, &BitcoinGUI::optionsClicked);
     connect(showHelpMessageAction, &QAction::triggered, this, &BitcoinGUI::showHelpMessageClicked);
     connect(showCoinJoinHelpAction, &QAction::triggered, this, &BitcoinGUI::showCoinJoinHelpClicked);
+    // The macOS menu bar keeps these shortcuts live while the separate RPC console window has focus,
+    // so let them resize the console text there like its own shortcuts do on other platforms
+    connect(m_zoom_in_action, &QAction::triggered, this, [this] {
+        if (rpcConsole->isWindow() && rpcConsole->isActiveWindow()) {
+            rpcConsole->fontBigger();
+        } else {
+            adjustFontScale(FONT_SCALE_SHORTCUT_STEP);
+        }
+    });
+    connect(m_zoom_out_action, &QAction::triggered, this, [this] {
+        if (rpcConsole->isWindow() && rpcConsole->isActiveWindow()) {
+            rpcConsole->fontSmaller();
+        } else {
+            adjustFontScale(-FONT_SCALE_SHORTCUT_STEP);
+        }
+    });
+    connect(m_zoom_reset_action, &QAction::triggered, this, [this] { adjustFontScale(0); });
 
     // Jump directly to tabs in RPC-console
     connect(openInfoAction, &QAction::triggered, this, &BitcoinGUI::showInfo);
@@ -706,6 +750,11 @@ void BitcoinGUI::createMenuBar()
     });
 #endif
 
+    window_menu->addSeparator();
+    window_menu->addAction(m_zoom_in_action);
+    window_menu->addAction(m_zoom_out_action);
+    window_menu->addAction(m_zoom_reset_action);
+
     if (walletFrame) {
 #ifdef Q_OS_MACOS
         window_menu->addSeparator();
@@ -735,6 +784,27 @@ void BitcoinGUI::createMenuBar()
     help->addSeparator();
     help->addAction(aboutAction);
     help->addAction(aboutQtAction);
+}
+
+void BitcoinGUI::adjustFontScale(int delta)
+{
+    const int current_scale{GUIUtil::fontScale()};
+    const int new_scale{delta == 0
+            ? GUIUtil::defaultFontScale()
+            : std::clamp(current_scale + delta, GUIUtil::FONT_SCALE_MIN, GUIUtil::FONT_SCALE_MAX)};
+
+    if (new_scale == current_scale) {
+        return;
+    }
+
+    GUIUtil::setFontScale(new_scale);
+    GUIUtil::updateFonts();
+    updateWidth();
+
+    // With -nosettings there is no settings file to write, so the zoom only lasts for this session
+    if (clientModel && clientModel->getOptionsModel() && gArgs.GetSettingsPath()) {
+        clientModel->getOptionsModel()->setOption(OptionsModel::FontScale, new_scale);
+    }
 }
 
 void BitcoinGUI::createToolBars()
@@ -926,6 +996,11 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
             unitDisplayControl->setOptionsModel(optionsModel);
             m_mask_values_action->setChecked(optionsModel->getOption(OptionsModel::OptionID::MaskValues).toBool());
 
+            const bool font_scale_overridden{optionsModel->isOptionOverridden("-font-scale")};
+            for (QAction* action : {m_zoom_in_action, m_zoom_out_action, m_zoom_reset_action}) {
+                action->setEnabled(!font_scale_overridden);
+            }
+
             connect(optionsModel, &OptionsModel::displayUnitChanged, this, [this]() { m_last_gov_cycle_height.reset(); updateGovernanceCycleIcon(); });
             connect(optionsModel, &OptionsModel::showCoinJoinChanged, this, &BitcoinGUI::updateCoinJoinVisibility);
             connect(optionsModel, &OptionsModel::showGovernanceChanged, this, &BitcoinGUI::updateGovernanceVisibility);
@@ -955,6 +1030,9 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(nullptr);
+        for (QAction* action : {m_zoom_in_action, m_zoom_out_action, m_zoom_reset_action}) {
+            action->setEnabled(false);
+        }
 
 #ifdef Q_OS_MACOS
         if(dockIconMenu)
