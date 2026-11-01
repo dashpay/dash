@@ -1985,12 +1985,13 @@ void SharedMnCreateDialog::refreshSignaturesPage()
         m_signatures_summary->setText(QString());
     }
     // A session only carries an approval that verifies against its consent
-    // digest, and an import that would change the terms behind it is refused
+    // digest, which covers the transaction and the registration's fields but
+    // not the names and notes the envelope adds around them
     const bool approved{m_my_share >= 0 && !m_session.signatureFor(m_my_share).isEmpty()};
     m_signatures_unchanged->setVisible(approved);
     m_signatures_unchanged->setText(
-        tr("✓ These are the terms you approved: your approval covers every line below, and nothing in them has "
-           "changed since."));
+        tr("✓ Your approval covers every amount, address, key and exit term below, and none of them has changed "
+           "since. Participant names, \"Node run by\" and the Identity section are notes it does not cover."));
 }
 
 void SharedMnCreateDialog::refreshWaitingPages()

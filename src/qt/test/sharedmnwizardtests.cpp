@@ -523,6 +523,11 @@ void SharedMnWizardTests::refusesToSignCoinsOutsideOwnContribution()
     QCOMPARE(dialog.myShareIndex(), 1);
     QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageSignatures));
 
+    // The term sheet counts the extra coin as paid by this wallet, and none of
+    // the change as coming back to it
+    QCOMPARE(dialog.ownFunding().spent, 10 * COIN);
+    QCOMPARE(dialog.ownFunding().change, CAmount{0});
+
     // The extra coin is named as soon as the session is adopted, and the
     // primary button will not sign it away
     const QString outpoint{known_txid + QStringLiteral(":0")};
@@ -616,6 +621,11 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
         QString sign_error;
         QVERIFY(!dialog.signOwnFundingInputs(complete, sign_error));
         QCOMPARE(sign_error, refusal);
+        // The sheet already warned before signing was ever tried
+        QCOMPARE(dialog.ownFunding().spent, 450 * COIN);
+        QCOMPARE(dialog.ownFunding().change, returned);
+        QVERIFY2(dialog.m_signatures_terms->text().contains(QStringLiteral("⚠")),
+                 qPrintable(dialog.m_signatures_terms->text()));
     };
 
     // Honest: the change comes back to this wallet, so nothing stands in the way
@@ -627,6 +637,12 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
         dialog.handleImportedText(honest.toJsonString());
         QVERIFY2(dialog.m_funding_refusal.isEmpty(), qPrintable(dialog.m_funding_refusal));
         QVERIFY2(dialog.m_next_button->isEnabled(), qPrintable(dialog.m_next_button->toolTip()));
+        // 450 in, 100 back: exactly the 350 share, with nothing to warn about
+        QCOMPARE(dialog.ownFunding().spent, 450 * COIN);
+        QCOMPARE(dialog.ownFunding().change, 100 * COIN);
+        const QString sheet{dialog.m_signatures_terms->text()};
+        QVERIFY2(sheet.contains(QStringLiteral("Your contribution: %1").arg(amount(350 * COIN))), qPrintable(sheet));
+        QVERIFY(!sheet.contains(QStringLiteral("⚠")));
     }
     // Honest coordinator paying a 0.05 DASH fee, above the usual cap, out of its
     // own coin: what leaves on top of the share is the fee it chose
