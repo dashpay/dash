@@ -239,6 +239,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
 
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].bit = 15;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nTimeout = 1857340800;       // Thursday, November 9, 2028 0:00:00
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nWindowSize = 4032;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdStart = 3226;     // 80% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdMin = 2420;       // 60% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nFalloffCoeff = 5;          // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].useEHF = true;
+
         consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000c15981a81af44a6abe1a"); // 2563000
         consensus.defaultAssumeValid = uint256S("0x000000000000000346a1804da4832b0b69dd9a7f96b14c7cb54585a9ac6ae98f"); // 2563000
 
@@ -450,6 +459,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
 
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].bit = 15;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nWindowSize = 100;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdStart = 80;       // 80% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdMin = 60;         // 60% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nFalloffCoeff = 5;          // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].useEHF = true;
+
         consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000003ed573a939487fc"); // 1550000
         consensus.defaultAssumeValid = uint256S("0x000000116cd3c11d44c88cbc0a26804bd277a5d790f684ec3a8aaa820690318c"); // 1550000
 
@@ -633,6 +651,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nThresholdMin = 72;         // 60% of 120
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].bit = 15;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nStartTime = 1751328000;    // July 1, 2025
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nWindowSize = 120;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdStart = 96;       // 80% of 120
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdMin = 72;         // 60% of 120
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nFalloffCoeff = 5;          // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].useEHF = true;
 
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};
@@ -930,6 +957,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].nFalloffCoeff = 5;                 // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_EVO_SHARES].useEHF = true;
 
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].bit = 15;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nWindowSize = 250;
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdStart = 250 / 5 * 4;     // 80% of window size
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nThresholdMin = 250 / 5 * 3;       // 60% of window size
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].nFalloffCoeff = 5;                 // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_QUARTER_STEPS].useEHF = true;
+
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};
 
@@ -1028,6 +1064,7 @@ public:
         UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST);
         UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
         UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+        UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST_DIP0024);
         UpdateLLMQInstantSendDIP0024(opts);
         // V20 features for CbTx (credit pool, CL) have no meaning without masternodes
         assert(consensus.V20Height >= consensus.DIP0003Height);
@@ -1145,7 +1182,7 @@ private:
      */
     void UpdateLLMQTestParameters(const RegTestOptions& opts, const Consensus::LLMQType llmqType)
     {
-        assert(llmqType == Consensus::LLMQType::LLMQ_TEST || llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND || llmqType == Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+        assert(llmqType == Consensus::LLMQType::LLMQ_TEST || llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND || llmqType == Consensus::LLMQType::LLMQ_TEST_PLATFORM || llmqType == Consensus::LLMQType::LLMQ_TEST_DIP0024);
 
         const auto it = opts.llmq_test_parameters.find(llmqType);
         if (it == opts.llmq_test_parameters.end()) return;

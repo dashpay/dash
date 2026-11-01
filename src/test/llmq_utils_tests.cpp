@@ -3,27 +3,43 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <test/util/llmq_tests.h>
+#include <test/util/masternode.h>
 #include <test/util/setup_common.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <dbwrapper.h>
+#include <deploymentstatus.h>
+#include <evo/cbtx.h>
+#include <evo/deterministicmns.h>
+#include <evo/evodb.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <llmq/context.h>
 #include <llmq/net_signing.h>
 #include <llmq/params.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
+#include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <netaddress.h>
 #include <random.h>
 #include <streams.h>
+#include <util/strencodings.h>
+#include <validation.h>
+#include <versionbits.h>
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
+#include <array>
+#include <limits>
 #include <map>
+#include <optional>
 #include <set>
+#include <tuple>
 #include <vector>
 
 using namespace llmq;
@@ -619,6 +635,548 @@ BOOST_AUTO_TEST_CASE(deterministic_connection_symmetry_test)
     uniqueResults.insert(conn23);
     // Each pair should produce one of its members, but pairs may have overlapping results
     BOOST_CHECK(uniqueResults.size() >= 2 && uniqueResults.size() <= 3);
+}
+
+BOOST_AUTO_TEST_CASE(legacy_quarter_walk_pinned)
+{
+    using Positions = std::vector<std::vector<size_t>>;
+    const auto walk = [](size_t list_size, size_t quorums, size_t quarter, const std::vector<size_t>& used,
+                         const std::set<size_t>& rejected) {
+        return llmq::utils::WalkLegacyQuarters(list_size, quorums, quarter, used,
+                                               [&](size_t, size_t pos) { return rejected.count(pos) == 0; });
+    };
+
+    // (a) no skips
+    auto res = walk(6, 2, 2, {0, 0}, {});
+    BOOST_REQUIRE(res.has_value());
+    BOOST_CHECK(res->quarters == (Positions{{0, 1}, {2, 3}}));
+    BOOST_CHECK(res->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayLegacyQuarters(5, 3, 2, {}) == (Positions{{0, 1}, {2, 3}, {4, 0}}));
+
+    // (b) first skip at position 0 leaves firstSkippedIndex at 0, so the second entry stays absolute
+    // and becomes the new base; the third is relative to that base
+    res = walk(8, 1, 4, {0}, {0, 2, 5});
+    BOOST_REQUIRE(res.has_value());
+    BOOST_CHECK(res->quarters == (Positions{{1, 3, 4, 6}}));
+    BOOST_CHECK((res->skip_list == std::vector<int>{0, 2, 3}));
+    // the decoder has the same first_entry_index == 0 quirk and reproduces the positions
+    BOOST_CHECK(llmq::utils::ReplayLegacyQuarters(8, 1, 4, res->skip_list) == res->quarters);
+
+    // (c) the builder stops early once no unused candidate is left, the replay pads by wrapping
+    res = walk(5, 2, 3, {0, 3}, {});
+    BOOST_REQUIRE(res.has_value());
+    BOOST_CHECK(res->quarters == (Positions{{0, 1, 2}, {3, 4}}));
+    BOOST_CHECK(res->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayLegacyQuarters(5, 2, 3, res->skip_list) == (Positions{{0, 1, 2}, {3, 4, 0}}));
+
+    // a full pass without progress gives up
+    BOOST_CHECK(!walk(3, 1, 2, {0}, {0, 1, 2}).has_value());
+
+    // (d) serialized snapshot holding (b)'s skip list
+    llmq::CQuorumSnapshot snapshot{{true, false, true, true, false, false, false, true},
+                                   SnapshotSkipMode::MODE_SKIPPING_ENTRIES, {0, 2, 3}};
+    DataStream ss{};
+    ss << snapshot;
+    BOOST_CHECK_EQUAL(HexStr(ss), "01000000" "08" "8d" "03" "00000000" "02000000" "03000000");
+}
+
+namespace {
+using Positions = std::vector<std::vector<size_t>>;
+
+// can_add that rejects positions already used by the index (and records additions) or failing for index 0
+struct StepWalkFixture {
+    std::vector<std::vector<bool>> used;
+    std::set<size_t> failing_for_index0;
+
+    StepWalkFixture(size_t list_size, size_t quorums) : used(quorums, std::vector<bool>(list_size, false)) {}
+
+    bool CanAdd(size_t i, size_t pos)
+    {
+        if (used[i][pos] || (i == 0 && failing_for_index0.count(pos) != 0)) return false;
+        used[i][pos] = true;
+        return true;
+    }
+    std::optional<llmq::utils::QuarterWalkResult> Walk(size_t list_size, size_t quorums, size_t quarter)
+    {
+        return llmq::utils::WalkNewQuarters(list_size, quorums, quarter,
+                                            [this](size_t i, size_t pos) { return CanAdd(i, pos); });
+    }
+};
+} // namespace
+
+BOOST_AUTO_TEST_CASE(quarter_walk_roundtrip_exhaustive)
+{
+    for (size_t list_size = 0; list_size <= 5; ++list_size) {
+        for (size_t quorums = 1; quorums <= 3; ++quorums) {
+            for (size_t quarter = 1; quarter <= 2; ++quarter) {
+                const size_t used_combos = size_t{1} << (list_size * quorums);
+                for (size_t used_mask = 0; used_mask < used_combos; ++used_mask) {
+                    for (size_t fail_mask = 0; fail_mask < (size_t{1} << list_size); ++fail_mask) {
+                        StepWalkFixture fx(list_size, quorums);
+                        for (size_t i = 0; i < quorums; ++i) {
+                            for (size_t p = 0; p < list_size; ++p) {
+                                fx.used[i][p] = (used_mask >> (i * list_size + p)) & 1;
+                            }
+                        }
+                        for (size_t p = 0; p < list_size; ++p) {
+                            if ((fail_mask >> p) & 1) fx.failing_for_index0.insert(p);
+                        }
+                        const auto walk = fx.Walk(list_size, quorums, quarter);
+                        BOOST_REQUIRE(walk.has_value());
+                        const auto replayed = llmq::utils::ReplayNewQuarters(list_size, quorums, quarter, walk->skip_list);
+                        BOOST_REQUIRE(replayed.has_value());
+                        BOOST_CHECK(*replayed == walk->quarters);
+                        BOOST_CHECK_LE(walk->skip_list.size(), 2 * list_size * quorums);
+                        BOOST_REQUIRE_EQUAL(walk->quarters.size(), quorums);
+                        for (size_t i = 0; i < quorums; ++i) {
+                            const auto& q = walk->quarters[i];
+                            BOOST_CHECK_LE(q.size(), quarter);
+                            BOOST_CHECK_EQUAL(std::set<size_t>(q.begin(), q.end()).size(), q.size());
+                            if (q.size() < quarter) {
+                                for (size_t p = 0; p < list_size; ++p) {
+                                    // fx.used now includes the additions
+                                    BOOST_CHECK(fx.used[i][p] || (i == 0 && fx.failing_for_index0.count(p) != 0));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_collision_case)
+{
+    // the legacy encoding records skips [0] for both of these
+    StepWalkFixture index1_has_0(1, 2);
+    index1_has_0.used[1][0] = true;
+    const auto a = index1_has_0.Walk(1, 2, 1);
+    BOOST_REQUIRE(a.has_value());
+    BOOST_CHECK(a->quarters == (Positions{{0}, {}}));
+
+    StepWalkFixture index0_has_0(1, 2);
+    index0_has_0.used[0][0] = true;
+    const auto b = index0_has_0.Walk(1, 2, 1);
+    BOOST_REQUIRE(b.has_value());
+    BOOST_CHECK(b->quarters == (Positions{{}, {0}}));
+
+    BOOST_CHECK(a->skip_list != b->skip_list);
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(1, 2, 1, a->skip_list) == a->quarters);
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(1, 2, 1, b->skip_list) == b->quarters);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_addmn_failure_short)
+{
+    StepWalkFixture fx(5, 1);
+    fx.failing_for_index0 = {1, 2, 3};
+    const auto walk = fx.Walk(5, 1, 3);
+    BOOST_REQUIRE(walk.has_value());
+    BOOST_CHECK(walk->quarters == (Positions{{0, 4}}));
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(5, 1, 3, walk->skip_list) == walk->quarters);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_empty_list)
+{
+    StepWalkFixture fx(0, 3);
+    const auto walk = fx.Walk(0, 3, 2);
+    BOOST_REQUIRE(walk.has_value());
+    BOOST_CHECK(walk->quarters == (Positions{{}, {}, {}}));
+    BOOST_CHECK(walk->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(0, 3, 2, {}) == walk->quarters);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_replay_rejects_malformed)
+{
+    const auto replay = [](const std::vector<int>& skips) {
+        return llmq::utils::ReplayNewQuarters(4, 2, 2, skips);
+    };
+    BOOST_CHECK(!replay({-1}).has_value());
+    BOOST_CHECK(!replay({0, 0}).has_value());
+    BOOST_CHECK(!replay({3, -1}).has_value());
+    BOOST_CHECK(!replay({0, std::numeric_limits<int>::max(), 1}).has_value());
+
+    // a valid list with one extra trailing entry is not fully consumed
+    BOOST_CHECK(replay({1}).has_value());
+    BOOST_CHECK(!replay({1, 1, 1, 1, 1, 1, 1, 1, 1, 1}).has_value());
+    StepWalkFixture fx(4, 2);
+    fx.failing_for_index0 = {1};
+    const auto walk = fx.Walk(4, 2, 2);
+    BOOST_REQUIRE(walk.has_value());
+    BOOST_REQUIRE(!walk->skip_list.empty());
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(4, 2, 2, walk->skip_list).has_value());
+    auto extended = walk->skip_list;
+    extended.push_back(1000); // a skip step the walk never reaches
+    BOOST_CHECK(!llmq::utils::ReplayNewQuarters(4, 2, 2, extended).has_value());
+
+    // wrapping around within one quarter would repeat a position, which the walk never does
+    BOOST_CHECK(!llmq::utils::ReplayNewQuarters(2, 1, 3, {}).has_value());
+    BOOST_CHECK(!llmq::utils::ReplayNewQuarters(3, 1, 3, std::vector<int>{1}).has_value());
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(2, 1, 2, {}) == (Positions{{0, 1}}));
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_snapshot_roundtrip)
+{
+    const auto check = [](StepWalkFixture& fx, size_t list_size, size_t quorums, size_t quarter) {
+        const auto walk = fx.Walk(list_size, quorums, quarter);
+        BOOST_REQUIRE(walk.has_value());
+        BOOST_REQUIRE(!walk->skip_list.empty());
+        llmq::CQuorumSnapshot snapshot{std::vector<bool>(list_size, true), SnapshotSkipMode::MODE_SKIPPING_ENTRIES,
+                                       walk->skip_list};
+        DataStream ss{};
+        ss << snapshot;
+        llmq::CQuorumSnapshot decoded;
+        ss >> decoded;
+        BOOST_CHECK(decoded.mnSkipListMode == SnapshotSkipMode::MODE_SKIPPING_ENTRIES);
+        const auto replayed = llmq::utils::ReplayNewQuarters(list_size, quorums, quarter, decoded.mnSkipList);
+        BOOST_REQUIRE(replayed.has_value());
+        BOOST_CHECK(*replayed == walk->quarters);
+    };
+
+    StepWalkFixture collision(1, 2);
+    collision.used[0][0] = true;
+    check(collision, 1, 2, 1);
+
+    StepWalkFixture failure(5, 1);
+    failure.failing_for_index0 = {1, 2, 3};
+    check(failure, 5, 1, 3);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_steps_prediction_rule)
+{
+    using llmq::utils::QuarterStepsRuleForPrediction;
+    constexpr std::optional<bool> active{true}, inactive{false}, unknown{std::nullopt};
+    // {period, state after the work block, rule at the cycle base}: up to ceil(7 / period) periods start
+    // between the block after the work block and the cycle base
+    const std::vector<std::tuple<int, ThresholdState, std::optional<bool>>> cases{
+        // longer than WORK_DIFF_DEPTH (mainnet 4032, testnet 100): at most one period starts in between
+        {4032, ThresholdState::ACTIVE, active},
+        {4032, ThresholdState::FAILED, inactive},
+        {4032, ThresholdState::DEFINED, inactive},
+        {4032, ThresholdState::STARTED, inactive},
+        {4032, ThresholdState::LOCKED_IN, unknown},
+        {7, ThresholdState::STARTED, inactive},
+        // shorter (the 5-block window of feature_llmq_rotation_short_quarters.py): two may start
+        {5, ThresholdState::ACTIVE, active},
+        {5, ThresholdState::FAILED, inactive},
+        {5, ThresholdState::DEFINED, inactive},
+        {5, ThresholdState::STARTED, unknown},
+        {5, ThresholdState::LOCKED_IN, unknown},
+        {4, ThresholdState::DEFINED, inactive},
+        // three or more: even DEFINED may reach ACTIVE
+        {3, ThresholdState::DEFINED, unknown},
+        {1, ThresholdState::DEFINED, unknown},
+        {1, ThresholdState::FAILED, inactive},
+        {1, ThresholdState::ACTIVE, active},
+        // no overflow for the longest period -vbparams accepts
+        {std::numeric_limits<int>::max(), ThresholdState::STARTED, inactive},
+    };
+    for (const auto& [period, state, expected] : cases) {
+        BOOST_CHECK_MESSAGE(QuarterStepsRuleForPrediction(state, period) == expected,
+                            strprintf("period %d state %d", period, static_cast<int>(state)));
+    }
+}
+
+namespace {
+// Regtest chain with v19/v20 active from height 109 and quarter_steps always active
+struct QuarterStepsChainSetup : public TestChainSetup {
+    QuarterStepsChainSetup() :
+        TestChainSetup(103, CBaseChainParams::REGTEST,
+                       {"-dip3params=100:500", "-testactivationheight=v19@109", "-testactivationheight=v20@109",
+                        "-testactivationheight=mn_rr@109", "-vbparams=quarter_steps:-1:999999999999"}),
+        chainman(*Assert(m_node.chainman)),
+        dmnman(*Assert(m_node.dmnman)),
+        qsnapman(*Assert(Assert(m_node.llmq_ctx)->qsnapman)),
+        llmq_params(*Assert(Params().GetLLMQ(Consensus::LLMQType::LLMQ_TEST_DIP0024))),
+        utxos(BuildSimpleUtxoMap(m_coinbase_txns)),
+        coinbase_pk(GetScriptForRawPubKey(coinbaseKey.GetPubKey()))
+    {
+        MineTo(110);
+    }
+
+    const CBlockIndex* Tip() const { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); }
+
+    void Mine(const std::vector<CMutableTransaction>& txs = {})
+    {
+        CreateAndProcessBlock(txs, coinbase_pk);
+        dmnman.UpdatedBlockTip(Tip());
+    }
+
+    void MineTo(int height)
+    {
+        while (Tip()->nHeight < height)
+            Mine();
+    }
+
+    CMutableTransaction RegisterTx(int port, CBLSSecretKey& operator_key)
+    {
+        CKey owner_key;
+        return CreateProRegTx(chainman, utxos, port, GenerateRandomAddress(), coinbaseKey, owner_key, operator_key);
+    }
+
+    CMutableTransaction RevokeTx(const uint256& pro_tx_hash, const CBLSSecretKey& operator_key)
+    {
+        CProUpRevTx pro_tx;
+        pro_tx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+        pro_tx.proTxHash = pro_tx_hash;
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
+        const auto spent = FundTransaction(chainman, tx, utxos, coinbase_pk, 1 * COIN);
+        pro_tx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        pro_tx.sig = operator_key.Sign(::SerializeHash(pro_tx), bls::bls_legacy_scheme);
+        SetTxPayload(tx, pro_tx);
+        SignTransaction(tx, spent, coinbaseKey);
+        return tx;
+    }
+
+    CMutableTransaction UpServTx(const uint256& pro_tx_hash, const CBLSSecretKey& operator_key, int port)
+    {
+        CProUpServTx pro_tx;
+        pro_tx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+        pro_tx.netInfo = NetInfoInterface::MakeNetInfo(pro_tx.nVersion);
+        pro_tx.proTxHash = pro_tx_hash;
+        BOOST_REQUIRE(pro_tx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)) ==
+                      NetInfoStatus::Success);
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+        const auto spent = FundTransaction(chainman, tx, utxos, coinbase_pk, 1 * COIN);
+        pro_tx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        pro_tx.sig = operator_key.Sign(::SerializeHash(pro_tx), bls::bls_legacy_scheme);
+        SetTxPayload(tx, pro_tx);
+        SignTransaction(tx, spent, coinbaseKey);
+        return tx;
+    }
+
+    std::vector<std::array<llmq::utils::QuorumMembers, 4>> Quarters(int cycle_height)
+    {
+        const CBlockIndex* base = Assert(Tip()->GetAncestor(cycle_height));
+        const CBlockIndex* work = Assert(base->GetAncestor(cycle_height - llmq::WORK_DIFF_DEPTH));
+        // v20 modifier of a work block without a coinbase chainlock
+        BOOST_REQUIRE(!GetNonNullCoinbaseChainlock(work).has_value());
+        const uint256 modifier = ::SerializeHash(std::make_pair(llmq_params.type, work->GetBlockHash()));
+        return llmq::utils::ComputeRotationQuarters(llmq_params, {dmnman, qsnapman, chainman, base}, work, cycle_height,
+                                                    modifier, /*predicting=*/false);
+    }
+
+    size_t CountStoredSnapshots()
+    {
+        const std::string prefix{"llmq_S"};
+        std::unique_ptr<CDBIterator> it(Assert(m_node.evodb)->GetRawDB().NewIterator());
+        size_t count{0};
+        for (it->Seek(prefix); it->Valid(); it->Next()) {
+            std::pair<std::string, uint256> key;
+            if (!it->GetKey(key) || key.first != prefix) break;
+            ++count;
+        }
+        return count;
+    }
+
+    ChainstateManager& chainman;
+    CDeterministicMNManager& dmnman;
+    llmq::CQuorumSnapshotManager& qsnapman;
+    const Consensus::LLMQParams llmq_params;
+    SimpleUTXOMap utxos;
+    const CScript coinbase_pk;
+};
+
+std::vector<uint256> ProTxHashes(const llmq::utils::QuorumMembers& members)
+{
+    std::vector<uint256> ret;
+    for (const auto& dmn : members)
+        ret.push_back(dmn->proTxHash);
+    return ret;
+}
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(quarter_steps_builder_matches_rebuild, QuarterStepsChainSetup)
+{
+    // Two masternodes for quarters of one member each, first eligible at cycle 144: by its third cycle
+    // every index has used both
+    CBLSSecretKey op1, op2;
+    Mine({RegisterTx(1, op1), RegisterTx(2, op2)});
+    const int cycle{192};
+    MineTo(cycle);
+
+    const size_t quarter_size{static_cast<size_t>(llmq_params.size / 4)};
+    const auto built = Quarters(cycle);
+    BOOST_REQUIRE_EQUAL(built.size(), static_cast<size_t>(llmq_params.signingActiveQuorumCount));
+    BOOST_REQUIRE(std::ranges::any_of(built, [&](const auto& q) { return q[3].size() < quarter_size; }));
+
+    MineTo(cycle + llmq_params.dkgInterval);
+    const auto next = Quarters(cycle + llmq_params.dkgInterval);
+    BOOST_REQUIRE_EQUAL(next.size(), built.size());
+    for (size_t i = 0; i < built.size(); ++i) {
+        const auto expected = ProTxHashes(built[i][3]);
+        const auto rebuilt = ProTxHashes(next[i][2]);
+        BOOST_CHECK_EQUAL_COLLECTIONS(rebuilt.begin(), rebuilt.end(), expected.begin(), expected.end());
+    }
+}
+
+namespace {
+using CycleQuarters = std::vector<std::array<llmq::utils::QuorumMembers, 4>>;
+
+// Mines to cycle and builds its quarters; no index may repeat a masternode, and the new quarters of the previous
+// cycle, if built, must be rebuilt unchanged
+void BuildAndCheckCycle(QuarterStepsChainSetup& setup, std::map<int, CycleQuarters>& built, int cycle)
+{
+    setup.MineTo(cycle);
+    auto& quarters = built[cycle] = setup.Quarters(cycle);
+    BOOST_REQUIRE_EQUAL(quarters.size(), static_cast<size_t>(setup.llmq_params.signingActiveQuorumCount));
+    for (const auto& q : quarters) {
+        std::vector<uint256> composition;
+        for (const auto& quarter : q) {
+            const auto hashes = ProTxHashes(quarter);
+            composition.insert(composition.end(), hashes.begin(), hashes.end());
+        }
+        BOOST_CHECK_EQUAL(std::set<uint256>(composition.begin(), composition.end()).size(), composition.size());
+    }
+    if (const auto prev = built.find(cycle - setup.llmq_params.dkgInterval); prev != built.end()) {
+        for (size_t i = 0; i < quarters.size(); ++i) {
+            const auto expected = ProTxHashes(prev->second[i][3]);
+            const auto rebuilt = ProTxHashes(quarters[i][2]);
+            BOOST_CHECK_EQUAL_COLLECTIONS(rebuilt.begin(), rebuilt.end(), expected.begin(), expected.end());
+        }
+    }
+}
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(quarter_steps_excludes_previous_members_by_protxhash, QuarterStepsChainSetup)
+{
+    // Two masternodes for quarters of one member each: cycle 144 gives each index one of them, cycle 168 the
+    // other. Between their work blocks (136 and 160) the first moves to a new address and the second takes its
+    // former one, so from cycle 192 one index has two previous members whose historical states share an
+    // address. Both must stay excluded for that index.
+    CBLSSecretKey op1, op2;
+    const auto reg1 = RegisterTx(1, op1);
+    const auto reg2 = RegisterTx(2, op2);
+    Mine({reg1, reg2});
+    MineTo(144);
+    Mine({UpServTx(reg1.GetHash(), op1, 3)});
+    Mine({UpServTx(reg2.GetHash(), op2, 1)});
+
+    std::map<int, CycleQuarters> built;
+    for (const int cycle : {168, 192, 216}) {
+        BuildAndCheckCycle(*this, built, cycle);
+    }
+
+    size_t conflicting{0};
+    for (const auto& q : built[192]) {
+        BOOST_REQUIRE_EQUAL(q[1].size(), 1U);
+        BOOST_REQUIRE_EQUAL(q[2].size(), 1U);
+        CDeterministicMNList history;
+        history.AddMN(q[1][0]);
+        try {
+            history.AddMN(q[2][0]);
+        } catch (const std::runtime_error&) {
+            ++conflicting;
+        }
+        BOOST_CHECK(q[3].empty());
+    }
+    BOOST_CHECK_EQUAL(conflicting, 1U);
+}
+
+BOOST_FIXTURE_TEST_CASE(quarter_steps_candidate_ignores_previous_members_properties, QuarterStepsChainSetup)
+{
+    // Three masternodes for quarters of one member each: cycle 144 leaves the third unused. Before cycle 168's
+    // work block, index 0's member moves to a new address and the unused one takes its former address. The
+    // unused candidate is visited first at 168 and must join index 0 despite that index's previous member's
+    // historical address.
+    std::map<uint256, std::pair<int, CBLSSecretKey>> mns;
+    std::vector<CMutableTransaction> regs;
+    for (const int port : {1, 2, 3}) {
+        CBLSSecretKey op;
+        regs.push_back(RegisterTx(port, op));
+        mns.emplace(regs.back().GetHash(), std::make_pair(port, op));
+    }
+    Mine(regs);
+
+    std::map<int, CycleQuarters> built;
+    BuildAndCheckCycle(*this, built, 144);
+    std::set<uint256> unused;
+    for (const auto& [hash, _] : mns) {
+        unused.insert(hash);
+    }
+    for (const auto& q : built[144]) {
+        BOOST_REQUIRE_EQUAL(q[3].size(), 1U);
+        unused.erase(q[3][0]->proTxHash);
+    }
+    BOOST_REQUIRE_EQUAL(unused.size(), 1U);
+    const uint256 moved{built[144][0][3][0]->proTxHash};
+    const uint256 newcomer{*unused.begin()};
+    Mine({UpServTx(moved, mns.at(moved).second, 10)});
+    Mine({UpServTx(newcomer, mns.at(newcomer).second, mns.at(moved).first)});
+
+    BuildAndCheckCycle(*this, built, 168);
+    BOOST_REQUIRE_EQUAL(built[168][0][3].size(), 1U);
+    BOOST_CHECK(built[168][0][3][0]->proTxHash == newcomer);
+    BuildAndCheckCycle(*this, built, 192);
+}
+
+BOOST_FIXTURE_TEST_CASE(quarter_steps_zero_candidates_store_snapshot, QuarterStepsChainSetup)
+{
+    CBLSSecretKey op;
+    const auto reg = RegisterTx(1, op);
+    Mine({reg});
+    Mine({RevokeTx(reg.GetHash(), op)});
+    const int cycle{120};
+    MineTo(cycle);
+
+    const CBlockIndex* base = Tip()->GetAncestor(cycle);
+    const auto work_list = dmnman.GetListForBlock(base->GetAncestor(cycle - llmq::WORK_DIFF_DEPTH));
+    BOOST_REQUIRE_EQUAL(work_list.GetCounts().total(), 1U);
+    BOOST_REQUIRE_EQUAL(work_list.GetCounts().enabled(), 0U);
+
+    const auto quarters = Quarters(cycle);
+    BOOST_CHECK(qsnapman.GetSnapshotForBlock(llmq_params.type, base).has_value());
+    BOOST_REQUIRE_EQUAL(quarters.size(), static_cast<size_t>(llmq_params.signingActiveQuorumCount));
+    for (const auto& q : quarters) {
+        for (const auto& quarter : q) {
+            BOOST_CHECK(quarter.empty());
+        }
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(quarter_steps_prediction_writes_no_snapshot, QuarterStepsChainSetup)
+{
+    CBLSSecretKey op1, op2;
+    Mine({RegisterTx(1, op1), RegisterTx(2, op2)});
+    const int cycle{192};
+    MineTo(cycle - llmq::WORK_DIFF_DEPTH);
+
+    const size_t before{CountStoredSnapshots()};
+    BOOST_REQUIRE_GT(before, 0U);
+    const CBlockIndex* work = Tip();
+    const auto members = llmq::utils::ComputeQuorumMembersFromWorkBlock(llmq_params.type,
+                                                                        {dmnman, qsnapman, chainman, work}, work, cycle);
+    BOOST_REQUIRE(members.has_value());
+    BOOST_CHECK_EQUAL(CountStoredSnapshots(), before);
+}
+
+namespace {
+// quarter_steps signalled by miners in 20-block windows, locked in at 40 and held until height 80
+struct QuarterStepsSignalSetup : public TestChainSetup {
+    QuarterStepsSignalSetup() :
+        TestChainSetup(18, CBaseChainParams::REGTEST, {"-vbparams=quarter_steps:0:9223372036854775807:80:20:16:16:5:0"})
+    {
+    }
+};
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(quarter_steps_activation_boundary, QuarterStepsSignalSetup)
+{
+    const int activation_height{80};
+    mineBlocks(activation_height + 1 - 18);
+    auto& chainman = *Assert(m_node.chainman);
+    const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip());
+    BOOST_REQUIRE_EQUAL(tip->nHeight, activation_height + 1);
+    const CBlockIndex* before = Assert(tip->GetAncestor(activation_height - 1));
+    const CBlockIndex* at = Assert(tip->GetAncestor(activation_height));
+
+    BOOST_CHECK(!llmq::utils::QuarterStepsActive(*before, chainman));
+    BOOST_CHECK(llmq::utils::QuarterStepsActive(*at, chainman));
+    BOOST_CHECK(DeploymentActiveAfter(before, chainman, Consensus::DEPLOYMENT_QUARTER_STEPS));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

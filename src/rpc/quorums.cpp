@@ -1122,6 +1122,9 @@ static RPCHelpMan quorum_dkginfo()
             {*CHECK_NONFATAL(node.dmnman), *CHECK_NONFATAL(llmq_ctx.qsnapman), chainman, pindexTip},
             pWorkBlockIndex, quorumHeight);
         if (!members.has_value()) {
+            if (llmq_params.useRotation && !llmq::utils::QuarterStepsRuleForPrediction(*pWorkBlockIndex, chainman)) {
+                return Participation{pWorkBlockIndex, std::nullopt, "quarter_steps deployment state at the cycle base is not known yet"};
+            }
             return Participation{pWorkBlockIndex, std::nullopt, "rotated quorum snapshots are not available yet"};
         }
         return Participation{pWorkBlockIndex, std::ranges::any_of(*members, [&](const auto& dmn) {
