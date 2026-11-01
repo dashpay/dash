@@ -2109,8 +2109,8 @@ void SharedMnCreateDialog::refreshTermSheets()
         const CTxDestination dest{DecodeDestination(address.toStdString())};
         return m_wallet_model != nullptr && IsValidDestination(dest) && m_wallet_model->wallet().isSpendable(dest);
     };
-    const QString html{
-        SharedMnTermSheetHtml(m_session, m_my_share, SharedMnDisplayUnit(m_wallet_model), in_this_wallet)};
+    const QString html{SharedMnTermSheetHtml(m_session, m_my_share, SharedMnDisplayUnit(m_wallet_model), in_this_wallet,
+                                             m_wallet_model != nullptr ? std::optional{ownFunding()} : std::nullopt)};
     m_approvals_terms->setText(html);
     m_lock_terms_label->setText(html);
     bool fatal{false};
@@ -3340,6 +3340,32 @@ SharedMnCreateDialog::FundingTotals SharedMnCreateDialog::fundingTotals() const
         }
     }
     return totals;
+}
+
+SharedMnOwnFunding SharedMnCreateDialog::ownFunding() const
+{
+    SharedMnOwnFunding funding;
+    if (m_wallet_model == nullptr) return funding;
+    interfaces::Wallet& wallet{m_wallet_model->wallet()};
+    const MnShareSession::Contribution* const mine{myContribution()};
+    // A coin of this wallet listed under somebody else's contribution is
+    // still paid by this wallet, so every contribution is counted
+    for (const auto& contribution : m_session.contributions()) {
+        if (contribution.hasChange && wallet.isSpendable(DecodeDestination(contribution.changeAddress.toStdString()))) {
+            funding.change += contribution.changeAmount;
+        }
+        for (const auto& input : contribution.inputs) {
+            const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};
+            CTxOut txout{wallet.getCoins({outpoint}).front().txout};
+            if (Coin coin; txout.IsNull() && m_node.getUnspentOutput(outpoint, coin)) txout = coin.out;
+            if (txout.IsNull()) {
+                if (&contribution == mine) ++funding.unvalued;
+                continue;
+            }
+            if (wallet.isSpendable(txout.scriptPubKey)) funding.spent += txout.nValue;
+        }
+    }
+    return funding;
 }
 
 QString SharedMnCreateDialog::fundingCheck(bool& fatal) const

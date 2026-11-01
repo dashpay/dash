@@ -22,6 +22,7 @@
 
 #include <QLabel>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -153,6 +154,40 @@ void SharedMnWidgetTests::statusBoardCells()
     QCOMPARE(board.rowCount(), 2);
     QCOMPARE(int(board.cellState(0, 0)), int(SharedMnStatusBoard::State::Pending));
     QVERIFY(board.rowName(1).contains("(you)"));
+}
+
+void SharedMnWidgetTests::termSheetWarnsWhenWePayMoreThanOurShare()
+{
+    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    const MnShareSession session{TwoShareSession()};
+    const CAmount share{session.shares()[1].amount};
+    const auto sheet = [&](int you, std::optional<SharedMnOwnFunding> funding) {
+        return SharedMnTermSheetHtml(session, you, BitcoinUnits::Unit::DASH, {}, funding);
+    };
+    const auto paying = [&](CAmount paid) {
+        return SharedMnOwnFunding{.spent = paid + 5 * COIN, .change = 5 * COIN, .unvalued = 0};
+    };
+
+    // Without a share of our own, or without the wallet's view, there is
+    // nothing of ours to show
+    QVERIFY(!sheet(1, std::nullopt).contains("Your contribution"));
+    QVERIFY(!sheet(-1, paying(share)).contains("Your contribution"));
+
+    // Up to 1 DASH over the share is only shown; signing still refuses a
+    // participant who would lose more than its share
+    const QString fair{sheet(1, paying(share + COIN))};
+    QVERIFY(fair.contains("Your contribution"));
+    QVERIFY(fair.contains(SharedMnFormatAmount(BitcoinUnits::Unit::DASH, share + COIN)));
+    QVERIFY(!fair.contains("⚠"));
+
+    // Anything more is called out before the reader approves
+    QVERIFY(sheet(1, paying(share + COIN + 1)).contains("⚠"));
+
+    // Coins that cannot be valued yet, or none at all, are no reason to warn,
+    // but the coins that can be valued may already be too much
+    QVERIFY(!sheet(1, SharedMnOwnFunding{.spent = 0, .change = 0, .unvalued = 1}).contains("⚠"));
+    QVERIFY(!sheet(1, SharedMnOwnFunding{}).contains("⚠"));
+    QVERIFY(sheet(1, SharedMnOwnFunding{.spent = share + 2 * COIN, .change = 0, .unvalued = 1}).contains("⚠"));
 }
 
 void SharedMnWidgetTests::termSheetEscapesUntrustedText()

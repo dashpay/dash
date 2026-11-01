@@ -23,6 +23,8 @@
 #include <type_traits>
 #include <vector>
 
+struct SharedMnOwnFunding;
+
 class BitcoinAmountField;
 class OperatorKeyWidget;
 class QValidatedLineEdit;
@@ -305,6 +307,9 @@ private:
         CAmount fee() const { return resolved - GetMnType(MnType::Regular).collat_amount - change; }
     };
     FundingTotals fundingTotals() const;
+    //! What this wallet pays across every recorded contribution: its coins
+    //! among the inputs and the change coming back to it
+    SharedMnOwnFunding ownFunding() const;
     //! One sentence about whether the recorded inputs cover collateral, change
     //! and a positive fee; `fatal` marks funding that could never broadcast
     QString fundingCheck(bool& fatal) const;

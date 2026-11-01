@@ -448,7 +448,8 @@ void SharedMnSizeFromContent(QDialog* dialog, int minimum_width)
 }
 
 QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index, BitcoinUnits::Unit unit,
-                              const std::function<bool(const QString& address)>& in_this_wallet)
+                              const std::function<bool(const QString& address)>& in_this_wallet,
+                              const std::optional<SharedMnOwnFunding>& own_funding)
 {
     const auto& shares{session.shares()};
     const auto& terms{session.terms()};
@@ -555,6 +556,32 @@ QString SharedMnTermSheetHtml(const MnShareSession& session, int you_share_index
         if (contribution.hasChange) change_total += contribution.changeAmount;
     }
     QStringList funding;
+    if (own_funding && you_share_index >= 0 && static_cast<size_t>(you_share_index) < shares.size()) {
+        const CAmount share{shares[you_share_index].amount};
+        const CAmount paid{own_funding->spent - own_funding->change};
+        QString yours;
+        if (own_funding->unvalued > 0) {
+            yours = QCoreApplication::translate("SharedMnWidgets", "cannot be valued on this node yet").toHtmlEscaped();
+        } else if (own_funding->spent == 0) {
+            yours = QCoreApplication::translate("SharedMnWidgets", "no coins reserved yet").toHtmlEscaped();
+        } else {
+            yours = QCoreApplication::translate("SharedMnWidgets", "%1 (%2 in, %3 change back)")
+                        .arg(SharedMnFormatAmount(unit, paid), SharedMnFormatAmount(unit, own_funding->spent),
+                             SharedMnFormatAmount(unit, own_funding->change))
+                        .toHtmlEscaped();
+        }
+        // The coins that can be valued are a lower bound, so they can already
+        // prove too much is being taken while others are still unknown
+        if (paid - share > COIN) {
+            yours += QStringLiteral("<br><b>%1</b>")
+                         .arg(QCoreApplication::translate("SharedMnWidgets",
+                                                          "⚠ That is at least %1 more than your %2 share. Do not "
+                                                          "approve unless you meant to pay it.")
+                                  .arg(SharedMnFormatAmount(unit, paid - share), SharedMnFormatAmount(unit, share))
+                                  .toHtmlEscaped());
+        }
+        funding << LabelledRow(QCoreApplication::translate("SharedMnWidgets", "Your contribution:"), yours);
+    }
     funding << LabelledRow(
         QCoreApplication::translate("SharedMnWidgets", "Contributions:"),
         QCoreApplication::translate("SharedMnWidgets", "%1, %2")
