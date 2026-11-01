@@ -252,10 +252,11 @@ void SyncWallet(interfaces::Node& node, CWallet& wallet)
 
 //! Run one RPC through the node the dialogs use. Returns the error text, or an
 //! empty string on success, with the result in `out`.
-QString RunRpc(interfaces::Node& node, const std::string& method, const UniValue& params, UniValue& out)
+QString RunRpc(interfaces::Node& node, const std::string& method, const UniValue& params, UniValue& out,
+               const std::string& uri = "")
 {
     try {
-        out = node.executeRpc(method, params, /*uri=*/"");
+        out = node.executeRpc(method, params, uri);
     } catch (const UniValue& error) {
         return QString::fromStdString(error.write());
     } catch (const std::exception& error) {
@@ -384,6 +385,20 @@ void SharedMnWalkthroughTests::walkthrough()
                  qPrintable(QStringLiteral("wallet %1 only has %2 duffs")
                                 .arg(QString::fromStdString(wallet->GetName()))
                                 .arg(balance)));
+    }
+
+    // Alice sweeps her coins to herself, so her share can only be funded from
+    // her own unconfirmed change, which the wallet itself would spend
+    {
+        const auto dest{alice_wallet->GetNewDestination("sweep")};
+        QVERIFY(dest);
+        UniValue recipients(UniValue::VARR);
+        recipients.push_back(EncodeDestination(*dest));
+        UniValue params(UniValue::VOBJ);
+        params.pushKV("recipients", recipients);
+        UniValue sent;
+        const QString error{RunRpc(m_node, "sendall", params, sent, "/wallet/alice")};
+        QVERIFY2(error.isEmpty(), qPrintable(QStringLiteral("sendall failed: %1").arg(error)));
     }
 
     MasternodeTestUtil::GuiModels models{m_node};
@@ -587,6 +602,10 @@ void SharedMnWalkthroughTests::walkthrough()
         details_replies << reply;
         Shots().capture(&dialog, who.role, QStringLiteral("14-%1-waiting-for-terms").arg(who.role),
                         who.who + " waiting for the coordinator: what was sent and what comes next");
+    }
+    for (const auto& input : alice.myContribution()->inputs) {
+        const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};
+        QCOMPARE(alice_model.wallet().getCoins({outpoint}).front().depth_in_main_chain, 0);
     }
 
     for (int i = 0; i < details_replies.size(); ++i) {

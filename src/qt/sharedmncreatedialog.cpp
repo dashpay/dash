@@ -3040,10 +3040,13 @@ bool SharedMnCreateDialog::selectCoins(CAmount target, CoinSelection& selection,
         return false;
     }
 
+    // listCoins() already holds back unconfirmed coins the wallet does not
+    // trust, so an InstantSend-locked coin or this wallet's own unconfirmed
+    // change can fund a share, as it can any other payment
     std::vector<std::pair<CAmount, COutPoint>> candidates;
     for (const auto& [dest, coins] : m_wallet_model->wallet().listCoins()) {
         for (const auto& [outpoint, txout] : coins) {
-            if (txout.is_spent || txout.depth_in_main_chain < 1) continue;
+            if (txout.is_spent) continue;
             if (m_wallet_model->wallet().isLockedCoin(outpoint)) continue;
             if (!m_wallet_model->wallet().isSpendable(txout.txout.scriptPubKey)) continue;
             candidates.emplace_back(txout.txout.nValue, outpoint);
