@@ -25,9 +25,12 @@ export JOB_NUMBER=${JOB_NUMBER:-1}
 echo "Fallback to default values in env (if not yet set)"
 # The number of parallel jobs to pass down to make and test_runner.py
 export MAKEJOBS=${MAKEJOBS:--j$(nproc)}
-# A folder for the ci system to put temporary files (ccache, datadirs for tests, ...)
-# This folder only exists on the ci host.
+# A folder for the ci system to put temporary files (build result, datadirs for tests, ...)
+# This folder only exists on the ci guest.
 export BASE_SCRATCH_DIR=${BASE_SCRATCH_DIR:-$BASE_ROOT_DIR/ci/scratch}
+# A folder for the ci system to put executables.
+# This folder only exists on the ci guest.
+export BINS_SCRATCH_DIR="${BASE_SCRATCH_DIR}/bins/"
 # What host to compile for. See also ./depends/README.md
 # Tests that need cross-compilation export the appropriate HOST.
 # Tests that run natively guess the host
@@ -77,11 +80,9 @@ export BASE_BUILD_DIR=${BASE_BUILD_DIR:-$BASE_SCRATCH_DIR/build-ci}
 # The folder for previous release binaries.
 # This folder exists only on the ci guest, and on the ci host as a volume.
 export PREVIOUS_RELEASES_DIR=${PREVIOUS_RELEASES_DIR:-$BASE_ROOT_DIR/releases/$HOST}
-export SDK_URL=${SDK_URL:-https://bitcoincore.org/depends-sources/sdks}
 export DOCKER_PACKAGES=${DOCKER_PACKAGES:-build-essential libtool autotools-dev automake pkg-config bsdmainutils curl ca-certificates ccache python3 rsync git procps}
 export GOAL=${GOAL:-install}
 export DIR_QA_ASSETS=${DIR_QA_ASSETS:-${BASE_SCRATCH_DIR}/qa-assets}
-export PATH=${BASE_ROOT_DIR}/ci/retry:$PATH
 export CI_RETRY_EXE=${CI_RETRY_EXE:-"retry --"}
 # Dash's Docker-specifics
 export BUILDER_IMAGE_NAME="dash-builder-$BUILD_TARGET-$JOB_NUMBER"
