@@ -107,6 +107,10 @@ jobs:
           BACKLOG_THRESHOLD: "10"
           BACKLOG_THRESHOLD_ARM64: "30"
           GH_TOKEN: ${{ github.token }}
+          # Runners used unless the backlog or a blacksmith-ci label moves a
+          # run to RUNNER_AMD64/RUNNER_ARM64. Unset, they are GitHub-hosted.
+          RUNNER_DEFAULT_AMD64_VAR: ${{ vars.RUNNER_DEFAULT_AMD64 }}
+          RUNNER_DEFAULT_ARM64_VAR: ${{ vars.RUNNER_DEFAULT_ARM64 }}
           RUNNER_AMD64_VAR: ${{ vars.RUNNER_AMD64 }}
           RUNNER_ARM64_VAR: ${{ vars.RUNNER_ARM64 }}
           # Self-hosted rung for the pre-lint jobs (lint, cache-sources, the
@@ -175,7 +179,7 @@ jobs:
       runs-on: ${{ needs.check-skip.outputs['runner-prelint'] }}
 
   # Pushes build the trusted-* images that later runs reuse, so they stay on
-  # GitHub's runners; only pull request builds use the pre-lint runners.
+  # the amd64/arm64 runners; only pull request builds use the pre-lint runners.
   container:
     permissions:
       contents: read
@@ -541,7 +545,7 @@ jobs:
       !cancelled() &&
       github.event_name == 'push' &&
       github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ vars.RUNNER_DEFAULT_ARM64 || 'ubuntu-24.04-arm' }}
     permissions:
       actions: write
     steps:

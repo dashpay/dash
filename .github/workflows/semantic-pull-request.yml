@@ -14,7 +14,7 @@ permissions:
 jobs:
   main:
     name: Validate PR title
-    runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_SEMANTIC_PULL_REQUEST || vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: amannn/action-semantic-pull-request@v6
         env:

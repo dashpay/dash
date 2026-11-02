@@ -341,6 +341,8 @@ def select_runners(
     selfhosted_max_queued: int = DEFAULT_SELFHOSTED_MAX_QUEUED,
     runner_selfhosted_fast_var: str = "",
     selfhosted_fast_max_queued: int = DEFAULT_SELFHOSTED_FAST_MAX_QUEUED,
+    runner_default_amd64_var: str = "",
+    runner_default_arm64_var: str = "",
 ) -> Dict[str, str]:
     label_names = [
         label.get("name", "")
@@ -398,8 +400,8 @@ def select_runners(
         measurement_error is None and backlog_count_value > arm64_threshold
     )
 
-    runner_amd64 = DEFAULT_RUNNER_AMD64
-    runner_arm64 = DEFAULT_RUNNER_ARM64
+    runner_amd64 = runner_default_amd64_var or DEFAULT_RUNNER_AMD64
+    runner_arm64 = runner_default_arm64_var or DEFAULT_RUNNER_ARM64
     fallback_parts: List[str] = []
 
     if use_blacksmith_amd64:
@@ -571,6 +573,16 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         help="Queued job threshold for switching arm64 jobs to Blacksmith",
     )
     parser.add_argument(
+        "--runner-default-amd64-var",
+        default=os.environ.get("RUNNER_DEFAULT_AMD64_VAR", ""),
+        help="amd64 runner label used without escalation; empty means {}".format(DEFAULT_RUNNER_AMD64),
+    )
+    parser.add_argument(
+        "--runner-default-arm64-var",
+        default=os.environ.get("RUNNER_DEFAULT_ARM64_VAR", ""),
+        help="arm64 runner label used without escalation; empty means {}".format(DEFAULT_RUNNER_ARM64),
+    )
+    parser.add_argument(
         "--runner-amd64-var",
         default=os.environ.get("RUNNER_AMD64_VAR", ""),
         help="Blacksmith runner label for amd64",
@@ -666,6 +678,8 @@ def main(argv: Sequence[str]) -> int:
         selfhosted_max_queued=args.selfhosted_max_queued,
         runner_selfhosted_fast_var=args.runner_selfhosted_fast_var,
         selfhosted_fast_max_queued=args.selfhosted_fast_max_queued,
+        runner_default_amd64_var=args.runner_default_amd64_var,
+        runner_default_arm64_var=args.runner_default_arm64_var,
     )
 
     write_github_output(os.environ.get("GITHUB_OUTPUT"), outputs)
