@@ -95,5 +95,20 @@ class MutatedBlocksTest(BitcoinTestFramework):
         assert_equal(int(self.nodes[0].getbestblockhash(), 16), block.sha256)
 
 
+        # Check that the mutation check doesn't trigger on a header that doesn't connect to anything
+        assert_equal(len(self.nodes[0].getpeerinfo()), 1)
+        attacker = self.nodes[0].add_p2p_connection(P2PInterface())
+        block_missing_prev = copy.deepcopy(block)
+        block_missing_prev.hashPrevBlock = 123
+        block_missing_prev.solve()
+
+        # Attacker gets a DoS score of 10, not immediately disconnected, so we do it 10 times to get to 100
+        for _ in range(10):
+            assert_equal(len(self.nodes[0].getpeerinfo()), 2)
+            with self.nodes[0].assert_debug_log(expected_msgs=["AcceptBlock FAILED (prev-blk-not-found)"]):
+                attacker.send_message(msg_block(block_missing_prev))
+        attacker.wait_for_disconnect(timeout=5)
+
+
 if __name__ == '__main__':
     MutatedBlocksTest().main()
