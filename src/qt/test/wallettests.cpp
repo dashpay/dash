@@ -29,6 +29,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <wallet/coincontrol.h>
+#include <wallet/receive.h>
 #include <wallet/test/util.h>
 #include <wallet/wallet.h>
 #include <qt/overviewpage.h>
@@ -57,7 +58,9 @@
 using wallet::AddWallet;
 using wallet::CWallet;
 using wallet::CreateMockableWalletDatabase;
+using wallet::GetBalance;
 using wallet::RemoveWallet;
+using wallet::WALLET_FLAG_AVOID_REUSE;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 using wallet::WalletContext;
 using wallet::WalletDescriptor;
@@ -307,6 +310,56 @@ void TestGUI(interfaces::Node& node)
         const auto refused{walletModel.sendCoins(conflict, /*fIsCoinJoin=*/false)};
         QCOMPARE(refused.status, WalletModel::TransactionCommitFailed);
         QVERIFY2(refused.reasonCommitFailed.contains("txn-mempool-conflict"), qPrintable(refused.reasonCommitFailed));
+    }
+
+    // With avoid_reuse, a refused send's input address stays marked as used
+    // after the abandon, as for any abandoned transaction. The balance leaves
+    // out every coin at that address, so a send above what remains fails the
+    // balance check, although the coins are spendable again.
+    {
+        // The wallet follows the chain by now. Let it process the earlier sends'
+        // mempool notifications first, or they would mark their inputs as used.
+        SyncWithValidationInterfaceQueue();
+        wallet->SetWalletFlag(WALLET_FLAG_AVOID_REUSE);
+        std::optional<COutPoint> coin;
+        for (const auto& [dest, coins] : walletModel.wallet().listCoins()) {
+            for (const auto& [outpoint, out] : coins) {
+                if (!coin && out.depth_in_main_chain > 0 &&
+                    out.txout.scriptPubKey == GetScriptForRawPubKey(test.coinbaseKey.GetPubKey())) {
+                    coin = outpoint;
+                }
+            }
+        }
+        QVERIFY(coin);
+        wallet::CCoinControl one_coin;
+        one_coin.Select(*coin);
+        one_coin.m_allow_other_inputs = false;
+        const QList<SendCoinsRecipient> recipients{
+            SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", COIN, ""}};
+        WalletModelTransaction refused{recipients};
+        QCOMPARE(walletModel.prepareTransaction(refused, one_coin).status, WalletModel::OK);
+        const CAmount max_fee{wallet->m_default_max_tx_fee};
+        wallet->m_default_max_tx_fee = 1;
+        QCOMPARE(walletModel.sendCoins(refused, /*fIsCoinJoin=*/false).status, WalletModel::TransactionCommitFailed);
+        wallet->m_default_max_tx_fee = max_fee;
+        const CAmount unused{walletModel.wallet().getBalance()};
+        const CAmount spendable{GetBalance(*wallet, /*min_depth=*/0, /*avoid_reuse=*/false).m_mine_trusted};
+        QVERIFY(unused + COIN < spendable);
+        qApp->processEvents();
+        walletModel.pollBalanceChanged();
+        QCOMPARE(walletModel.getCachedBalance().balance, unused);
+        WalletModelTransaction over_unused{
+            {SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", unused + COIN, ""}}};
+        QCOMPARE(walletModel.prepareTransaction(over_unused, wallet::CCoinControl{}).status, WalletModel::AmountExceedsBalance);
+        // Coin control can still pick the refused send's coin.
+        WalletModelTransaction retried{recipients};
+        QCOMPARE(walletModel.prepareTransaction(retried, one_coin).status, WalletModel::OK);
+        QCOMPARE(walletModel.sendCoins(retried, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+        QVERIFY(node.context()->mempool->exists(retried.getWtx()->GetHash()));
+        // Cached balances were computed under the flag.
+        wallet->UnsetWalletFlag(WALLET_FLAG_AVOID_REUSE);
+        wallet->MarkDirty();
+        qApp->processEvents();
     }
 
     // Check current balance on OverviewPage
