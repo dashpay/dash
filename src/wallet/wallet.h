@@ -847,8 +847,10 @@ public:
      * @param[in] tx The transaction to be broadcast.
      * @param[in] mapValue key-values to be set on the transaction.
      * @param[in] orderForm BIP 70 / BIP 21 order form details to be set on the transaction.
+     * @return an error when the transaction could not be broadcast. It stays committed to
+     *         the wallet either way, so the caller may abandon it to release its inputs.
      */
-    void CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
+    util::Result<void> CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
 
     /** Will SubmitTxMemoryPoolAndRelay() consider wtx if supplied */
     bool CanTxBeResent(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -1101,10 +1103,13 @@ public:
     /** All Platform data records whose key starts with prefix. */
     std::map<std::string, std::vector<unsigned char>> GetPlatformData(const std::string& prefix) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
+    /** Whether Platform keys can be derived, without deriving one (works while locked). */
+    PlatformKeyStatus GetPlatformKeySourceStatus() const;
     PlatformKeyResult<CPubKey> GetPlatformPubKey(const PlatformKeyRequest& request) const;
     PlatformKeyResult<std::vector<unsigned char>> SignPlatformDigest(const PlatformKeyRequest& request,
                                                                      const uint256& digest) const;
     PlatformKeyResult<SecureVector> PlatformECDHSecret(const IdentityAuthKey& key, const CPubKey& counterparty) const;
+    PlatformKeyResult<uint32_t> PlatformAccountReference(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
     PlatformKeyResult<FriendshipXpub> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
 
     /* Returns the time of the first created key or, in case of an import, it could be the time of the first received transaction */

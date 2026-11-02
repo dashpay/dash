@@ -15,6 +15,7 @@
 #include <wallet/coinselection.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
@@ -61,6 +62,9 @@ public:
     FlatSigningProvider m_external_provider;
     //! Controls which types of coins are allowed to be used (default: ALL_COINS)
     CoinType nCoinType = CoinType::ALL_COINS;
+    //! Payload version of the asset lock built for Platform recipients, if not
+    //! set CAssetLockPayload::CURRENT_VERSION
+    std::optional<uint8_t> m_asset_lock_version;
 
     CCoinControl(CoinType coin_type = CoinType::ALL_COINS);
 
