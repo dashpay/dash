@@ -9,8 +9,12 @@
 #include <random.h>
 #include <uint256.h>
 
-#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/indexed_by.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
+#include <boost/multi_index/tag.hpp>
+#include <boost/multi_index_container.hpp>
+#include <boost/tuple/tuple.hpp>
 
 #include <chrono>
 #include <unordered_map>
@@ -66,7 +70,7 @@ struct Announcement {
     const bool m_preferred : 1;
 
     /** What state this announcement is in.
-     *  This is a uint8_t instead of a State to silence a GCC warning in versions prior to 8.4 and 9.3.
+     *  This is a uint8_t instead of a State to silence a GCC warning in versions prior to 9.3.
      *  See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61414 */
     uint8_t m_state : 3 {static_cast<uint8_t>(State::CANDIDATE_DELAYED)};
 

@@ -96,8 +96,8 @@ def main():
     configfile = os.path.abspath(os.path.dirname(__file__)) + "/../config.ini"
     config.read_file(open(configfile, encoding="utf8"))
 
-    if not config["components"].getboolean("ENABLE_FUZZ"):
-        logging.error("Must have fuzz targets built")
+    if not config["components"].getboolean("ENABLE_FUZZ_BINARY"):
+        logging.error("Must have fuzz executable built")
         sys.exit(1)
 
     fuzz_bin=os.getenv("DASHFUZZ", default=os.path.join(config["environment"]["BUILDDIR"], 'src', 'test', 'fuzz', 'fuzz'))
@@ -154,11 +154,12 @@ def main():
             ],
             env=get_fuzz_env(target=test_list_selection[0], source_dir=config['environment']['SRCDIR']),
             timeout=20,
-            check=True,
+            check=False,
             stderr=subprocess.PIPE,
             text=True,
         ).stderr
-        if "libFuzzer" not in help_output:
+        using_libfuzzer = "libFuzzer" in help_output
+        if (args.generate or args.m_dir) and not using_libfuzzer:
             logging.error("Must be built with libFuzzer")
             sys.exit(1)
     except subprocess.TimeoutExpired:
@@ -192,6 +193,7 @@ def main():
             test_list=test_list_selection,
             src_dir=config['environment']['SRCDIR'],
             fuzz_bin=fuzz_bin,
+            using_libfuzzer=using_libfuzzer,
             use_valgrind=args.valgrind,
             empty_min_time=args.empty_min_time,
         )
@@ -324,7 +326,7 @@ def merge_inputs(*, fuzz_pool, corpus, test_list, src_dir, fuzz_bin, merge_dirs)
         future.result()
 
 
-def run_once(*, fuzz_pool, corpus, test_list, src_dir, fuzz_bin, use_valgrind, empty_min_time):
+def run_once(*, fuzz_pool, corpus, test_list, src_dir, fuzz_bin, using_libfuzzer, use_valgrind, empty_min_time):
     jobs = []
     for t in test_list:
         corpus_path = corpus / t
@@ -333,13 +335,16 @@ def run_once(*, fuzz_pool, corpus, test_list, src_dir, fuzz_bin, use_valgrind, e
             fuzz_bin,
         ]
         empty_dir = not any(corpus_path.iterdir())
-        if empty_min_time and empty_dir:
-            args += [f"-max_total_time={empty_min_time}"]
+        if using_libfuzzer:
+            if empty_min_time and empty_dir:
+                args += [f"-max_total_time={empty_min_time}"]
+            else:
+                args += [
+                    "-runs=1",
+                    corpus_path,
+                ]
         else:
-            args += [
-                "-runs=1",
-                corpus_path,
-            ]
+            args += [corpus_path]
         if use_valgrind:
             args = ['valgrind', '--quiet', '--error-exitcode=1'] + args
 

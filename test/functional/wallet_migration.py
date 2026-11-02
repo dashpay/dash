@@ -343,7 +343,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         imports0.importaddress(import_sent_addr)
         received_sent_watchonly_txid = default.sendtoaddress(import_sent_addr, 10)
         received_sent_watchonly_vout = find_vout_for_address(self.nodes[0], received_sent_watchonly_txid, import_sent_addr)
-        send = default.sendall(recipients=[default.getnewaddress()], options={"inputs": [{"txid": received_sent_watchonly_txid, "vout": received_sent_watchonly_vout}]})
+        send = default.sendall(recipients=[default.getnewaddress()], inputs=[{"txid": received_sent_watchonly_txid, "vout": received_sent_watchonly_vout}])
         sent_watchonly_txid = send["txid"]
 
         # Tx that has both a watchonly and spendable output

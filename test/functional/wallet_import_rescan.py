@@ -64,7 +64,7 @@ class Variant(collections.namedtuple("Variant", "call data rescan prune")):
             }
             response = self.node.importmulti(
                 requests=[request],
-                options={"rescan": self.rescan in (Rescan.yes, Rescan.late_timestamp)},
+                rescan=self.rescan in (Rescan.yes, Rescan.late_timestamp),
             )
             assert_equal(response, [{"success": True}])
 
