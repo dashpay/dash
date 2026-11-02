@@ -24,6 +24,7 @@
 #include <node/interface_ui.h>
 #include <test/util/setup_common.h>
 #include <txmempool.h>
+#include <util/error.h>
 #include <util/system.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -236,8 +237,11 @@ void TestGUI(interfaces::Node& node)
         const CAmount balance{walletModel.wallet().getBalance()};
         const CAmount max_fee{wallet->m_default_max_tx_fee};
         wallet->m_default_max_tx_fee = 1;
-        QCOMPARE(walletModel.sendCoins(retried, /*fIsCoinJoin=*/false).status, WalletModel::TransactionCommitFailed);
+        const auto over_max_fee{walletModel.sendCoins(retried, /*fIsCoinJoin=*/false)};
         wallet->m_default_max_tx_fee = max_fee;
+        QCOMPARE(over_max_fee.status, WalletModel::TransactionCommitFailed);
+        QCOMPARE(over_max_fee.reasonCommitFailed,
+                 QString::fromStdString(TransactionErrorString(TransactionError::MAX_FEE_EXCEEDED).original));
         QCOMPARE(walletModel.wallet().getBalance(), balance);
         QCOMPARE(walletModel.sendCoins(retried, /*fIsCoinJoin=*/false).status, WalletModel::OK);
         QVERIFY(node.context()->mempool->exists(retried.getWtx()->GetHash()));

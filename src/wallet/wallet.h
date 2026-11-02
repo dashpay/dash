@@ -854,8 +854,11 @@ public:
 
     /** Will SubmitTxMemoryPoolAndRelay() consider wtx if supplied */
     bool CanTxBeResent(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    /** Pass this transaction to node for mempool insertion and relay to peers if flag set to true */
-    bool SubmitTxMemoryPoolAndRelay(CWalletTx& wtx, bilingual_str& err_string, bool relay) const
+    /**
+     * Pass this transaction to node for mempool insertion and relay to peers if flag set to true.
+     * @return the node's broadcast result, or nullopt if CanTxBeResent() kept wtx from the node.
+     */
+    std::optional<TransactionError> SubmitTxMemoryPoolAndRelay(CWalletTx& wtx, bilingual_str& err_string, bool relay) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     bool DummySignTx(CMutableTransaction &txNew, const std::vector<CTxOut> &txouts, const CCoinControl* coin_control = nullptr) const;
