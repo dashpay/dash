@@ -12,11 +12,13 @@ masternodes that run an outdated protocol or lack a required service.
 
 '''
 
+from test_framework.masternodes import check_banned, check_punished
 from test_framework.simplepose import SimplePoSeMixin
 from test_framework.test_framework import (
     DashTestFramework,
     MasternodeInfo,
 )
+from test_framework.util import assert_equal
 
 
 class LLMQSimplePoSeTest(SimplePoSeMixin, DashTestFramework):
@@ -25,6 +27,8 @@ class LLMQSimplePoSeTest(SimplePoSeMixin, DashTestFramework):
 
     def run_test(self):
         self.set_pose_sporks()
+
+        self.test_cloned_contributions()
 
         if not self.options.disable_spork23:
             # Lets isolate MNs one by one and verify that punishment/banning happens
@@ -56,6 +60,31 @@ class LLMQSimplePoSeTest(SimplePoSeMixin, DashTestFramework):
             self.test_no_banning(self.close_mn_port, 3)
 
         self.repair_masternodes(True)
+
+    def test_cloned_contributions(self):
+        self.log.info("Two members dealing identical contributions are both excluded and the quorum still forms")
+        cloners = self.mninfo[:2]
+        others = self.mninfo[2:]
+        for mn in cloners:
+            mn.get_node(self).quorum('dkgsimerror', 'contribution-clone', 100)
+        qh = self.mine_quorum(mninfos_valid=others)
+        for mn in cloners:
+            mn.get_node(self).quorum('dkgsimerror', 'contribution-clone', 0)
+
+        valid_members = {m['proTxHash'] for m in self.nodes[0].quorum('info', 100, qh)['members'] if m['valid']}
+        assert_equal(valid_members, {mn.proTxHash for mn in others})
+        for mn in cloners:
+            assert check_punished(self.nodes[0], mn)
+            assert not check_banned(self.nodes[0], mn)
+
+        self.log.info("Let the PoSe penalty of the cloners decay without running any DKG")
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
+        self.wait_for_sporks_same()
+        self.generate(self.nodes[0], 66)
+        for mn in self.mninfo:
+            assert not check_punished(self.nodes[0], mn)
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
+        self.wait_for_sporks_same()
 
     def isolate_mn(self, mn: MasternodeInfo):
         mn.get_node(self).setnetworkactive(False)
