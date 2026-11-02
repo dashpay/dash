@@ -115,6 +115,9 @@ above: it is each tier's first step, where untrusted runs stay, and its
 Blacksmith step while `RUNNER_AMD64` is unset.
 `RUNNER_GUIX_BUILD` must resolve to runners of a single architecture, because
 its build jobs run the image its image job builds.
+Jobs without a `container:` run straight on the runner and expect the tools
+GitHub's Ubuntu images ship, such as `gh`, `jq`, `python3` and Docker; ccache
+pruning on `RUNNER_DEFAULT_ARM64`, for example, calls `gh` and `jq`.
 
 The depends `Check cache` jobs run on `RUNNER_CHECK_SKIP`, and a cache hit
 there skips the depends build. Blacksmith runners use their own cache rather
