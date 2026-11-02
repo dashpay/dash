@@ -15,12 +15,6 @@
 #ifndef SRC_BLSPRIVATEKEY_HPP_
 #define SRC_BLSPRIVATEKEY_HPP_
 
-#include "relic_conf.h"
-
-#if defined GMP && ARITH == GMP
-#include <gmp.h>
-#endif
-
 #include "elements.hpp"
 
 namespace bls {
@@ -33,9 +27,6 @@ class PrivateKey {
 
     // Construct a private key from a BIP32 based seed.
     static PrivateKey FromSeedBIP32(const Bytes& seed);
-
-    // Construct a random private key.
-    static PrivateKey RandomPrivateKey();
 
     // Construct a private key from a bytearray.
     static PrivateKey FromBytes(const Bytes& bytes, bool modOrder = false);
@@ -76,13 +67,13 @@ class PrivateKey {
     friend G2Element operator*(const G2Element &a, const PrivateKey &k);
     friend G2Element operator*(const PrivateKey &k, const G2Element &a);
 
-    friend PrivateKey operator*(const PrivateKey& a, const bn_t& k);
-    friend PrivateKey operator*(const bn_t& k, const PrivateKey& a);
+    friend PrivateKey operator*(const PrivateKey& a, const blst_scalar& k);
+    friend PrivateKey operator*(const blst_scalar& k, const PrivateKey& a);
 
     // Serialize the key into bytes
     void Serialize(uint8_t *buffer) const;
-    std::vector<uint8_t> Serialize(bool fLegacy = false) const;
-    std::array<uint8_t, PrivateKey::PRIVATE_KEY_SIZE> SerializeToArray(bool fLegacy = false) const;
+    std::vector<uint8_t> Serialize() const;
+    std::array<uint8_t, PrivateKey::PRIVATE_KEY_SIZE> SerializeToArray() const;
 
     G2Element SignG2(
         const uint8_t *msg,
@@ -105,7 +96,7 @@ class PrivateKey {
     void InvalidateCaches();
 
     // The actual byte data
-    bn_st* keydata{nullptr};
+    blst_scalar* keydata{nullptr};
 
     mutable bool fG1CacheValid{false};
     mutable G1Element g1Cache;

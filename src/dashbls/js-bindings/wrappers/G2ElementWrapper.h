@@ -17,7 +17,6 @@
 
 #include <helpers.h>
 #include "JSWrapper.h"
-#include "BignumWrapper.h"
 
 namespace js_wrappers {
 class G2ElementWrapper : public JSWrapper<G2Element> {
@@ -45,8 +44,6 @@ class G2ElementWrapper : public JSWrapper<G2Element> {
     val Serialize() const;
 
     G2ElementWrapper Add(const G2ElementWrapper &other);
-
-    G2ElementWrapper Mul(const BignumWrapper &other);
 
     bool EqualTo(const G2ElementWrapper &others);
 };

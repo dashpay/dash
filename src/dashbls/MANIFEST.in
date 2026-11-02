@@ -25,11 +25,6 @@ prune depends/relic/preset
 prune depends/relic/test
 prune depends/relic/tools
 
-# Autotools build
-prune build-aux
-prune autom4te.cache
-exclude Makefile.am Makefile.*.include Makefile.in Makefile configure.ac aclocal.m4 autogen.sh
-
 # dot{dir,file}s
 prune .github
 prune .vscode
