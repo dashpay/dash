@@ -11,20 +11,19 @@
 > **This library has not undergone a formal security review.**
 
 `bls-signatures` is a cross-platform library implementing BLS12-381 primitives for Dash built on
-the [`relic`](https://github.com/relic-toolkit/relic) toolkit with bindings available in
+the [`blst library`](https://github.com/supranational/blst.git) toolkit with bindings available in
 [Python](./binds/python), [Rust](./rust-bindings/), [Go](./go-bindings/) and [Javascript](./js-bindings).
 
 ## Dependencies
 
 * A C++17 capable compiler (GCC 9, Clang 7 or higher)
-* CMake 3.18 or higher (or Autoconf 2.71 or higher; with libtool and automake)
-* [`libgmp`](https://gmplib.org/) (for fast arithmetic, **optional**)
+* CMake 3.18 or higher
 
 Additionally, the following dependencies are supplied by the codebase
 
 * [`catch2`](https://github.com/catchorg/Catch2) (for tests)
 * [`mimalloc`](https://github.com/microsoft/mimalloc) (for secure memory operations)
-* [`relic`](https://github.com/relic-toolkit/relic) (for cryptographic operations)
+* [`blst`](https://github.com/supranational/blst.git) (for cryptographic operations)
 
 ## Build library
 
@@ -99,6 +98,11 @@ uv run pytest -v binds/python/test_unit.py
 # Run benchmarks
 uv run pytest -v binds/python/test_bench.py --benchmark-only
 ```
+
+## BLST license
+
+BLST is used with the
+[Apache 2.0 license](https://github.com/supranational/blst/blob/master/LICENSE)
 
 ## License
 

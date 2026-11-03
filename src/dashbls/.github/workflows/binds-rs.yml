@@ -27,14 +27,9 @@ jobs:
       if: startsWith(matrix.os, 'ubuntu')
       run: |
         sudo apt-get update
-        sudo apt-get install -qq --yes valgrind libgmp-dev cmake
+        sudo apt-get install -qq --yes valgrind cmake
         hash -r
         cmake --version
-
-    - name: Prepare build system for macOS
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        brew install gmp
 
     - name: Install Rust
       run: |
@@ -46,4 +41,6 @@ jobs:
     - name: Build and test Rust bindings
       run: |
         cd rust-bindings/bls-dash-sys
+        cargo test
+        cd ../bls-signatures
         cargo test
