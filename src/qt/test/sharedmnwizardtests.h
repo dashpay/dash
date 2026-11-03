@@ -36,6 +36,7 @@ private Q_SLOTS:
     void savingWaitsForTheOperatorKeyBackup();
     void coordinatorCanRetryOwnApproval();
     void participantsPageGating();
+    void serviceAddressInUseIsRefused();
     void statusBoardAbsorbsRepliesInAnyOrder();
     void pastedMessageRouting();
     void copyPutsFingerprintedEnvelopeOnClipboard();

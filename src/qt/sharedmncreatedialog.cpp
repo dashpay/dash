@@ -173,6 +173,22 @@ QString ShareName(const MnShareSession& session, int index)
     }
     return QObject::tr("Share %1 of %2").arg(index + 1).arg(session.shares().size());
 }
+
+//! Why the network would refuse these service addresses because a registered
+//! masternode already uses one of them (empty = none is in use)
+QString ServiceInUseProblem(interfaces::Node& node, const QString& services)
+{
+    interfaces::ProviderNetInfo net_info;
+    for (const QString& entry : MasternodeWidgetUtil::tokenizeEndpointList(services)) {
+        net_info.core_p2p.push_back(entry.toStdString());
+    }
+    const uint16_t version{node.evo().getProviderTxCapabilities().version};
+    const auto in_use{node.evo().findProviderNetInfoInUse(net_info, MnType::Regular, version)};
+    if (!in_use) return {};
+    return SharedMnCreateDialog::tr("%1 is already the service address of a registered masternode. Every service "
+                                    "address must be unique on the network.")
+        .arg(QString::fromStdString(*in_use));
+}
 } // anonymous namespace
 
 //! Keeps the wallet unlocked on the GUI thread while this wallet signs.
@@ -1335,6 +1351,8 @@ bool SharedMnCreateDialog::validatePage(Page page, QString& err)
         if (const auto error{
                 m_node.evo().validateProviderNetInfo(net_info, MnType::Regular, version, /*optional=*/true)}) {
             err = QString::fromStdString(error->message.translated);
+        } else {
+            err = ServiceInUseProblem(m_node, m_service_edit->text());
         }
         break;
     }
@@ -2280,6 +2298,11 @@ void SharedMnCreateDialog::lockTerms()
     syncTermsToSession();
     if (const QStringList problems{m_session.validateShares()}; !problems.isEmpty()) {
         showError(problems.join(QLatin1Char('\n')));
+        return;
+    }
+    // A masternode may have taken the service address since the settings page
+    if (const QString in_use{ServiceInUseProblem(m_node, m_session.terms().coreP2PAddrs)}; !in_use.isEmpty()) {
+        showError(in_use);
         return;
     }
     bool fatal{false};

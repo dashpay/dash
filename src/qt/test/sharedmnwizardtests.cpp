@@ -20,7 +20,9 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <core_io.h>
+#include <evo/deterministicmns.h>
 #include <evo/dmn_types.h>
+#include <evo/netinfo.h>
 #include <evo/providertx.h>
 #include <evo/sharedcollateral.h>
 #include <evo/specialtx.h>
@@ -37,6 +39,7 @@
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <util/translation.h>
+#include <validation.h>
 #include <wallet/context.h>
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
@@ -825,6 +828,70 @@ void SharedMnWizardTests::participantsPageGating()
     dialog.refreshShareTable();
     QVERIFY(!dialog.validatePage(SharedMnCreateDialog::PageParticipants, error));
     QVERIFY(!error.isEmpty());
+}
+
+void SharedMnWizardTests::serviceAddressInUseIsRefused()
+{
+    // DIP3 is active at the tip, so the tip's masternode list is what the
+    // network checks a registration's service address against
+    TestChainSetup test{107, CBaseChainParams::REGTEST, {"-dip3params=109:500"}};
+    test.mineBlocks(2);
+    m_node.setContext(&test.m_node);
+    const CBlockIndex* const tip{WITH_LOCK(::cs_main, return test.m_node.chainman->ActiveChain().Tip())};
+    test.m_node.dmnman->UpdatedBlockTip(tip);
+
+    const QString port{QString::number(Params().GetDefaultPort())};
+    const QString in_use{QStringLiteral("1.2.3.4:") + port};
+    auto state{std::make_shared<CDeterministicMNState>()};
+    state->nVersion = ProTxVersion::BasicBLS;
+    state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+    QCOMPARE(int(state->netInfo->AddEntry(NetInfoPurpose::CORE_P2P, in_use.toStdString())), int(NetInfoStatus::Success));
+    state->keyIDOwner = MasternodeTestUtil::TestKeyID(1);
+    state->keyIDVoting = state->keyIDOwner;
+    auto registered{std::make_shared<CDeterministicMN>(/*_internalId=*/0, MnType::Regular)};
+    registered->proTxHash = uint256::ONE;
+    registered->collateralOutpoint = COutPoint{uint256::ONE, 0};
+    registered->pdmnState = state;
+    CDeterministicMNList mn_list{tip->GetBlockHash(), tip->nHeight, /*_totalRegisteredCount=*/0};
+    mn_list.AddMN(registered);
+    test.m_node.dmnman->SetListForBlockForTesting(mn_list);
+
+    SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
+    dialog.m_role = SharedMnCreateDialog::Role::Coordinator;
+    dialog.m_session = InvitationSession();
+    dialog.m_my_share = 0;
+    dialog.rebuildOrder();
+    dialog.goToPage(SharedMnCreateDialog::PageSettings);
+    dialog.m_voting_edit->setText(dialog.m_session.terms().votingAddress);
+
+    QString error;
+    // No service yet stays allowed: the node is then set up by a later service update
+    dialog.m_service_edit->clear();
+    QVERIFY2(dialog.validatePage(SharedMnCreateDialog::PageSettings, error), qPrintable(error));
+    dialog.m_service_edit->setText(QStringLiteral("1.2.3.5:") + port);
+    QVERIFY2(dialog.validatePage(SharedMnCreateDialog::PageSettings, error), qPrintable(error));
+
+    // The registered masternode's address is refused here, while it is still
+    // free to change, rather than by the network at broadcast
+    dialog.m_service_edit->setText(in_use);
+    dialog.onNext();
+    QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageSettings));
+    QVERIFY2(dialog.m_error_label->text().contains(in_use), qPrintable(dialog.m_error_label->text()));
+
+    // A session that got past the settings page before the address was taken
+    // is refused at Lock, before anyone approves it
+    MnShareSession draft{dialog.m_session};
+    for (int i = 0; i < 3; ++i) {
+        QCOMPARE(int(draft.absorbDraftReply(DraftReply(dialog.m_session, i, FakeTxid('1' + i)), error)),
+                 int(MnShareSession::MergeResult::Merged));
+    }
+    draft.terms().coreP2PAddrs = in_use;
+    dialog.m_session = draft;
+    dialog.pushSessionToWidgets();
+    dialog.goToPage(SharedMnCreateDialog::PageInvite);
+    dialog.lockTerms();
+    QCOMPARE(int(dialog.m_session.stage()), int(MnShareSession::Stage::Draft));
+    QVERIFY2(dialog.m_error_label->text().contains(in_use), qPrintable(dialog.m_error_label->text()));
 }
 
 void SharedMnWizardTests::statusBoardAbsorbsRepliesInAnyOrder()
