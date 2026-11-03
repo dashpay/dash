@@ -1293,10 +1293,16 @@ void SharedMnCreateDialog::enterPage(Page page)
     refreshBoards();
     updateProgress();
     updateButtons();
-    // The exception to the rule above: a funding transaction this wallet must
-    // not sign is about the session, not about the page that happens to be on
-    // screen, and it must be read before anything is signed
-    if (!m_funding_refusal.isEmpty()) showError(m_funding_refusal);
+    // The exceptions to the rule above: a session that can no longer complete,
+    // or a funding transaction this wallet must not sign, is about the session,
+    // not about the page that happens to be on screen. The first is why the
+    // primary button says "Start Over"; the second must be read before
+    // anything is signed.
+    if (!m_dead_reason.isEmpty()) {
+        showError(m_dead_reason);
+    } else if (!m_funding_refusal.isEmpty()) {
+        showError(m_funding_refusal);
+    }
 }
 
 bool SharedMnCreateDialog::validatePage(Page page, QString& err)
@@ -3336,6 +3342,19 @@ void SharedMnCreateDialog::checkSessionLiveness()
 {
     m_dead_reason.clear();
     if (m_wallet_model == nullptr || m_session.stage() == MnShareSession::Stage::Broadcast) return;
+    // Once broadcast, the registration itself is what spends every funding
+    // coin, unless it lost to another spend or was abandoned
+    if (CMutableTransaction funding; m_session.stage() == MnShareSession::Stage::FundingSigned &&
+                                     DecodeHexTx(funding, m_session.protxHex().toStdString())) {
+        interfaces::WalletTxStatus status;
+        interfaces::WalletOrderForm order_form;
+        bool in_mempool{false};
+        int num_blocks{0};
+        const interfaces::WalletTx registration{
+            m_wallet_model->wallet().getWalletTxDetails(CTransaction(funding).GetHash(), status, order_form, in_mempool,
+                                                        num_blocks)};
+        if (registration.tx != nullptr && status.depth_in_main_chain >= 0 && !status.is_abandoned) return;
+    }
     for (const auto& contribution : m_session.contributions()) {
         for (const auto& input : contribution.inputs) {
             const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};

@@ -596,6 +596,40 @@ void SharedMnWizardTests::signedSessionReservation()
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
         wallet_model.wallet().unlockCoin(bob_coin);
     }
+
+    // The registration is broadcast, which spends bob's coin as intended
+    CMutableTransaction registration;
+    QVERIFY(DecodeHexTx(registration, received.protxHex().toStdString()));
+    QVERIFY(wallet->AddToWallet(MakeTransactionRef(registration), wallet::TxStateInactive{}) != nullptr);
+    {
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(received.toJsonString());
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageWaitBroadcast));
+        QCOMPARE(dialog.m_next_button->text(), QStringLiteral("Close"));
+        QVERIFY2(dialog.m_error_label->text().isEmpty(), qPrintable(dialog.m_error_label->text()));
+    }
+
+    {
+        // Another session counting on the same coin can never be broadcast now,
+        // and the page says so next to the "Start Over" it offers instead
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(signed_session(/*coordinated=*/false).toJsonString());
+        QCOMPARE(dialog.m_next_button->text(), QStringLiteral("Start Over"));
+        QVERIFY2(dialog.m_error_label->text().contains(QStringLiteral("was spent")),
+                 qPrintable(dialog.m_error_label->text()));
+    }
+
+    // An abandoned registration spends nothing: once bob spends the coin
+    // elsewhere, the session is as dead as any other
+    QVERIFY(wallet->AbandonTransaction(registration.GetHash()));
+    CMutableTransaction spend;
+    spend.vin.emplace_back(bob_coin);
+    spend.vout.emplace_back(349 * COIN, GetScriptForDestination(PKHash(bob_key.GetPubKey())));
+    QVERIFY(wallet->AddToWallet(MakeTransactionRef(spend), wallet::TxStateInactive{}) != nullptr);
+    SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+    dialog.handleImportedText(received.toJsonString());
+    QCOMPARE(dialog.m_next_button->text(), QStringLiteral("Start Over"));
+    QVERIFY2(dialog.m_error_label->text().contains(QStringLiteral("was spent")), qPrintable(dialog.m_error_label->text()));
 }
 
 void SharedMnWizardTests::unauthorisedSignedInputsAreDetected()
