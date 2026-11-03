@@ -53,6 +53,7 @@ share/qt/Info.plist
 
 src/qt/*.moc
 src/qt/moc_*.cpp
+src/qt/platform/moc_*.cpp
 src/qt/forms/ui_*.h
 
 src/qt/test/moc*.cpp

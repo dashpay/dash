@@ -785,6 +785,14 @@ void BitcoinGUI::createToolBars()
         governanceButton->setStatusTip(tr("View Governance Proposals"));
         tabGroup->addButton(governanceButton);
 
+#ifdef ENABLE_PLATFORM_GUI
+        platformButton = new QToolButton(this);
+        platformButton->setText(tr("&DashPay"));
+        platformButton->setStatusTip(tr("Usernames and contacts on Dash Platform"));
+        tabGroup->addButton(platformButton);
+        connect(platformButton, &QToolButton::clicked, this, &BitcoinGUI::gotoPlatformPage);
+#endif
+
         connect(overviewButton, &QToolButton::clicked, this, &BitcoinGUI::gotoOverviewPage);
         connect(sendCoinsButton, &QToolButton::clicked, [this]{ gotoSendCoinsPage(); });
         connect(coinJoinCoinsButton, &QToolButton::clicked, [this]{ gotoCoinJoinCoinsPage(); });
@@ -1091,6 +1099,9 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
         coinJoinCoinsButton->setEnabled(enabled && clientModel->coinJoinOptions().isEnabled());
         receiveCoinsButton->setEnabled(enabled);
         historyButton->setEnabled(enabled);
+#ifdef ENABLE_PLATFORM_GUI
+        platformButton->setEnabled(enabled);
+#endif
     }
 #endif // ENABLE_WALLET
 
@@ -1340,6 +1351,14 @@ void BitcoinGUI::gotoMasternodePage()
         if (walletFrame) walletFrame->gotoMasternodePage();
     }
 }
+
+#ifdef ENABLE_PLATFORM_GUI
+void BitcoinGUI::gotoPlatformPage()
+{
+    platformButton->setChecked(true);
+    if (walletFrame) walletFrame->gotoPlatformPage();
+}
+#endif
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
