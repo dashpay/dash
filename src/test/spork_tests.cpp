@@ -19,7 +19,7 @@ BOOST_FIXTURE_TEST_SUITE(spork_tests, RegTestingSetup)
 
 BOOST_AUTO_TEST_CASE(extreme_timestamps_are_handled_without_overflow)
 {
-    CSporkManager sporkman;
+    CSporkManager sporkman{m_args.GetDataDirNet()};
     CKey key;
     key.MakeNewKey(/*fCompressed=*/true);
     BOOST_REQUIRE(sporkman.SetSporkAddress(EncodeDestination(PKHash{key.GetPubKey()})));
@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(extreme_timestamps_are_handled_without_overflow)
 
 BOOST_AUTO_TEST_CASE(sporks_signed_by_an_unknown_key_are_rejected)
 {
-    CSporkManager sporkman;
+    CSporkManager sporkman{m_args.GetDataDirNet()};
     CKey spork_key;
     spork_key.MakeNewKey(/*fCompressed=*/true);
     BOOST_REQUIRE(sporkman.SetSporkAddress(EncodeDestination(PKHash{spork_key.GetPubKey()})));
@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(sporks_signed_by_an_unknown_key_are_rejected)
 
 BOOST_AUTO_TEST_CASE(check_and_remove_drops_sporks_not_signed_by_the_spork_key)
 {
-    CSporkManager sporkman;
+    CSporkManager sporkman{m_args.GetDataDirNet()};
     CKey key;
     key.MakeNewKey(/*fCompressed=*/true);
     BOOST_REQUIRE(sporkman.SetSporkAddress(EncodeDestination(PKHash{key.GetPubKey()})));

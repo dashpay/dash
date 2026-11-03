@@ -7,8 +7,8 @@
 #include <netfulfilledman.h>
 #include <shutdown.h>
 
-CNetFulfilledRequestManager::CNetFulfilledRequestManager() :
-    m_db{std::make_unique<db_type>("netfulfilled.dat", "magicFulfilledCache")}
+CNetFulfilledRequestManager::CNetFulfilledRequestManager(const fs::path& data_dir) :
+    m_db{std::make_unique<db_type>(data_dir, "netfulfilled.dat", "magicFulfilledCache")}
 {
 }
 

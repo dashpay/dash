@@ -12,6 +12,7 @@
 #include <threadsafety.h>
 #include <uint256.h>
 #include <unordered_lru_cache.h>
+#include <util/fs.h>
 
 #include <deque>
 #include <map>
@@ -205,7 +206,7 @@ private:
 public:
     CMasternodeMetaMan(const CMasternodeMetaMan&) = delete;
     CMasternodeMetaMan& operator=(const CMasternodeMetaMan&) = delete;
-    CMasternodeMetaMan();
+    explicit CMasternodeMetaMan(const fs::path& data_dir);
     ~CMasternodeMetaMan();
 
     bool LoadCache(bool load_cache);

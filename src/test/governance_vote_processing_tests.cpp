@@ -132,9 +132,9 @@ struct GovernanceVoteSetup : public TestChainSetup {
         }
         BOOST_REQUIRE(m_node.mn_sync->IsSynced());
 
-        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.sbman,
-                                                             *m_node.dmnman, *m_node.mn_sync,
-                                                             m_node.gov_collateral_index.get());
+        m_node.govman = std::make_unique<CGovernanceManager>(m_args.GetDataDirNet(), *m_node.mn_metaman,
+                                                             *m_node.chainman, *m_node.sbman, *m_node.dmnman,
+                                                             *m_node.mn_sync, m_node.gov_collateral_index.get());
         BOOST_REQUIRE(m_node.govman->LoadCache(/*load_cache=*/false));
 
         proposal_time = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());

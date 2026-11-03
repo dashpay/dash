@@ -73,10 +73,11 @@ GovernanceStore::GovernanceStore() :
 {
 }
 
-CGovernanceManager::CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
-                                       governance::SuperblockManager& superblocks, CDeterministicMNManager& dmnman,
-                                       CMasternodeSync& mn_sync, const governance::CollateralSource* collateral) :
-    m_db{std::make_unique<db_type>("governance.dat", "magicGovernanceCache")},
+CGovernanceManager::CGovernanceManager(const fs::path& data_dir, CMasternodeMetaMan& mn_metaman,
+                                       const ChainstateManager& chainman, governance::SuperblockManager& superblocks,
+                                       CDeterministicMNManager& dmnman, CMasternodeSync& mn_sync,
+                                       const governance::CollateralSource* collateral) :
+    m_db{std::make_unique<db_type>(data_dir, "governance.dat", "magicGovernanceCache")},
     m_mn_metaman{mn_metaman},
     m_chainman{chainman},
     m_superblocks{superblocks},

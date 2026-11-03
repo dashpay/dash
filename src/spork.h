@@ -10,6 +10,7 @@
 #include <pubkey.h>
 #include <saltedhasher.h>
 #include <sync.h>
+#include <util/fs.h>
 #include <util/time.h>
 
 #include <array>
@@ -203,7 +204,7 @@ private:
 public:
     CSporkManager(const CSporkManager&) = delete;
     CSporkManager& operator=(const CSporkManager&) = delete;
-    CSporkManager();
+    explicit CSporkManager(const fs::path& data_dir);
     ~CSporkManager();
 
     bool LoadCache();
