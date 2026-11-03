@@ -460,6 +460,11 @@ class TestNode():
             kwargs["expected_ret_code"] = 1 if expect_error else 0  # Whether node shutdown return EXIT_FAILURE or EXIT_SUCCESS
         wait_until_helper(lambda: self.is_node_stopped(**kwargs), timeout=timeout, timeout_factor=self.timeout_factor)
 
+    def kill_process(self):
+        self.process.kill()
+        self.wait_until_stopped(expected_ret_code=1 if platform.system() == "Windows" else -9)
+        assert self.is_node_stopped()
+
     def replace_in_config(self, replacements):
         """
         Perform replacements in the configuration file.
