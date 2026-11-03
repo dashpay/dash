@@ -143,6 +143,9 @@ private:
     QToolButton* historyButton = nullptr;
     QToolButton* masternodeButton = nullptr;
     QToolButton* governanceButton = nullptr;
+#ifdef ENABLE_PLATFORM_GUI
+    QToolButton* platformButton = nullptr;
+#endif
     QAction* appToolBarLogoAction = nullptr;
     QAction* quitAction = nullptr;
     QAction* sendCoinsAction = nullptr;
@@ -356,6 +359,10 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to masternode page */
     void gotoMasternodePage();
+#ifdef ENABLE_PLATFORM_GUI
+    /** Switch to DashPay page */
+    void gotoPlatformPage();
+#endif
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
