@@ -19,6 +19,7 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
+#include <qt/walletview.h>
 #include <key_io.h>
 #include <node/context.h>
 #include <node/interface_ui.h>
@@ -189,6 +190,9 @@ void TestGUI(interfaces::Node& node)
     WalletModel walletModel(interfaces::MakeWallet(context, wallet), clientModel);
     sendCoinsDialog.setModel(&walletModel);
     transactionView.setModel(&walletModel);
+    WalletView walletView(&walletModel, nullptr);
+    walletView.setClientModel(&clientModel);
+    QSignalSpy notified(&walletView, &WalletView::incomingTransaction);
 
     // Update walletModel cached balance which will trigger an update for the 'labelBalance' QLabel.
     walletModel.pollBalanceChanged();
@@ -203,6 +207,7 @@ void TestGUI(interfaces::Node& node)
     // Transaction table model updates on a QueuedConnection, so process events to ensure it's updated.
     qApp->processEvents();
     QCOMPARE(transactionTableModel->rowCount({}), 107);
+    QCOMPARE(notified.count(), 2);
     QVERIFY(FindTx(*transactionTableModel, txid1).isValid());
     QVERIFY(FindTx(*transactionTableModel, txid2).isValid());
 
@@ -224,6 +229,10 @@ void TestGUI(interfaces::Node& node)
         QCOMPARE(messages.first().at(2).toUInt(), static_cast<unsigned int>(CClientUIInterface::MSG_ERROR));
         QVERIFY(!node.context()->mempool->exists(refused));
         QCOMPARE(walletModel.wallet().getBalance(), balance);
+        // Its new row raises no "Sent transaction" notification.
+        qApp->processEvents();
+        QVERIFY(FindTx(*transactionTableModel, refused).isValid());
+        QCOMPARE(notified.count(), 2);
         // The form is kept for a retry.
         QVBoxLayout* entries{sendCoinsDialog.findChild<QVBoxLayout*>("entries")};
         SendCoinsEntry* entry{qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget())};
