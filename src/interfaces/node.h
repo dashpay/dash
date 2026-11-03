@@ -413,6 +413,10 @@ public:
     //! Get proxy.
     virtual bool getProxy(Network net, Proxy& proxy_info) = 0;
 
+    //! Whether outbound connections to this network are allowed (-onlynet,
+    //! -onion, -noonion and the onion proxy the Tor controller configures).
+    virtual bool isReachable(Network net) = 0;
+
     //! Get number of connections.
     virtual size_t getNodeCount(ConnectionDirection flags) = 0;
 

@@ -210,6 +210,15 @@ void WalletFrame::gotoMasternodePage()
         i.value()->gotoMasternodePage();
 }
 
+#ifdef ENABLE_PLATFORM_GUI
+void WalletFrame::gotoPlatformPage()
+{
+    for (WalletView* view : mapWalletViews) {
+        view->gotoPlatformPage();
+    }
+}
+#endif
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<WalletModel*, WalletView*>::const_iterator i;
