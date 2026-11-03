@@ -3010,6 +3010,15 @@ void SharedMnCreateDialog::absorbSession(const MnShareSession& imported)
                           .arg(imported.fingerprint(), m_session.fingerprint()));
             return;
         case MnShareSession::MergeResult::OtherNewer:
+            // A newer copy may change other rows and the funding, but not the
+            // amount or addresses of a share this wallet holds
+            if (const int changed{ownShareChangedIn(imported)}; changed >= 0) {
+                showError(tr("This newer copy changes your share (%1), so it was not loaded. Ask %2 to send a "
+                             "copy with your share unchanged.")
+                              .arg(ShareName(m_session, changed),
+                                   m_role == Role::Coordinator ? tr("whoever sent it") : recipientName()));
+                return;
+            }
             replaceSession(imported);
             return;
         case MnShareSession::MergeResult::Conflict:
@@ -3448,6 +3457,16 @@ void SharedMnCreateDialog::inferMyShare()
         candidate = static_cast<int>(i);
     }
     m_my_share = candidate;
+}
+
+int SharedMnCreateDialog::ownShareChangedIn(const MnShareSession& imported) const
+{
+    const auto& shares{m_session.shares()};
+    for (size_t i = 0; i < shares.size(); ++i) {
+        const bool ours{!shares[i].ownerAddress.isEmpty() && !shareTakenByOther(i)};
+        if (ours && !imported.hasShare(shares[i])) return static_cast<int>(i);
+    }
+    return -1;
 }
 
 bool SharedMnCreateDialog::shareTakenByOther(size_t index) const
