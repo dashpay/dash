@@ -1924,10 +1924,12 @@ void SharedMnCreateDialog::refreshContributionPage()
                     : tr("Uses %1 (%2), with no change left over.").arg(coins, FormatAmount(m_wallet_model, total));
         text += QLatin1Char('\n');
         // The session does not record the fee, so a reopened reservation may pay
-        // more than the field shows. Only the field sets what may be signed.
+        // more than the field shows. Only the field sets what may be signed, and
+        // what the coins pay beyond the share need not all be fee.
         const CAmount paid{total - (mine->hasChange ? mine->changeAmount : 0) - shares[m_my_share].amount};
-        if (coordinator && valued && paid != m_fee_field->value()) {
-            text += tr("These coins pay %1 beyond your share (network fee).").arg(FormatAmount(m_wallet_model, paid));
+        if (coordinator && valued && paid >= 0 && paid != m_fee_field->value()) {
+            text += tr("These coins pay %1 beyond your share, not the %2 Network fee shown below.")
+                        .arg(FormatAmount(m_wallet_model, paid), FormatAmount(m_wallet_model, m_fee_field->value()));
             text += QLatin1Char('\n');
         }
         text += coordinator ? tr("To change your addresses or the network fee, release the coins first.")

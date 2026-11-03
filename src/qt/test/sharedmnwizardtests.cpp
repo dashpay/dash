@@ -1041,7 +1041,21 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
         QVERIFY2(refusal.contains(QStringLiteral("returns only %1").arg(amount(100 * COIN - COIN / 1000 - COIN / 2))),
                  qPrintable(refusal));
         QVERIFY(!dialog.m_next_button->isEnabled());
-        QVERIFY2(dialog.m_coins_label->text().contains(amount(COIN / 2 + COIN / 1000)),
+        // What the coins pay beyond the share is shown next to the field's
+        // value, and is not called the network fee: half of it went to alice
+        const QString coins{dialog.m_coins_label->text()};
+        QVERIFY2(coins.contains(QStringLiteral("These coins pay %1 beyond your share, not the %2 Network fee")
+                                    .arg(amount(COIN / 2 + COIN / 1000), amount(dialog.m_fee_field->value()))),
+                 qPrintable(coins));
+        QVERIFY2(!coins.contains(QStringLiteral("(network fee)")), qPrintable(coins));
+    }
+    // A copy whose recorded change exceeds the coin minus the share pays
+    // nothing beyond the share, so no negative amount is shown
+    {
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(session_with_change(own_address, 101 * COIN, /*coordinated=*/true).toJsonString());
+        QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Coordinator));
+        QVERIFY2(!dialog.m_coins_label->text().contains(QStringLiteral("beyond your share")),
                  qPrintable(dialog.m_coins_label->text()));
     }
     // A file naming a coin this wallet holds with an output index past the end
