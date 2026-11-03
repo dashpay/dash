@@ -1394,6 +1394,16 @@ bool SharedMnCreateDialog::validatePage(Page page, QString& err)
             }
             return false;
         }};
+        for (size_t i = 0; i < shares.size(); ++i) {
+            if (static_cast<int>(i) != m_my_share &&
+                (shares[i].refundAddress == owner || shares[i].rewardAddress == owner)) {
+                err = tr("%1 already pays a refund or reward to this owner address. The owner address must differ from "
+                         "every refund and reward address.")
+                          .arg(ShareName(m_session, static_cast<int>(i)));
+                break;
+            }
+        }
+        if (!err.isEmpty()) break;
         if (is_key_address(refund)) {
             err = tr("The refund address must differ from the voting address and every owner address.");
             break;

@@ -943,6 +943,28 @@ void SharedMnWizardTests::reusedRefundAddressIsRefusedBeforeReserving()
     // A fresh refund address passes, with the reward left to default to it
     dialog.m_refund_edit->setText(FreshP2PKHAddress());
     QVERIFY2(dialog.validatePage(SharedMnCreateDialog::PageContribution, error), qPrintable(error));
+
+    // Lock also refuses an owner address that another share pays its refund or
+    // reward to, so neither Next nor Reserve Coins may get that far
+    for (const bool reward : {false, true}) {
+        MnShareSession paying_owner{claimed};
+        auto& other{paying_owner.shares()[0]};
+        (reward ? other.rewardAddress : other.refundAddress) = owner;
+        SharedMnCreateDialog reused(m_node, &wallet_model, /*parent=*/nullptr);
+        reused.handleImportedText(paying_owner.toJsonString());
+        reused.m_who_am_i_combo->setCurrentIndex(reused.m_who_am_i_combo->findData(1));
+        QCOMPARE(reused.myShareIndex(), 1);
+        reused.m_owner_edit->setText(owner);
+        reused.m_refund_edit->setText(FreshP2PKHAddress());
+        reused.m_reward_edit->clear();
+        QVERIFY(!reused.validatePage(SharedMnCreateDialog::PageContribution, error));
+        QVERIFY2(error.contains(QStringLiteral("owner address")), qPrintable(error));
+        reused.reserveCoins();
+        QVERIFY2(reused.m_error_label->text().contains(QStringLiteral("owner address")),
+                 qPrintable(reused.m_error_label->text()));
+        QVERIFY(reused.myContribution() == nullptr);
+        QVERIFY(reused.m_session.shares()[1].ownerAddress.isEmpty());
+    }
 }
 
 void SharedMnWizardTests::statusBoardAbsorbsRepliesInAnyOrder()
