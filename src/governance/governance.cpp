@@ -246,7 +246,7 @@ bool CGovernanceManager::ProcessObject(const std::string& peer_str, const uint25
     bool fRateCheckBypassed = false;
     if (!MasternodeRateCheck(govobj, true, false, fRateCheckBypassed)) {
         LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- masternode rate check failed - %s - (current block height %d) \n",
-                 strHash, nCachedBlockHeight);
+                 strHash, nCachedBlockHeight.load());
         return true;
     }
 
@@ -262,7 +262,7 @@ bool CGovernanceManager::ProcessObject(const std::string& peer_str, const uint25
         LogPrint(BCLog::GOBJECT, /* Continued */
                  "MNGOVERNANCEOBJECT -- masternode rate check failed (after signature verification) - %s - (current "
                  "block height %d)\n",
-                 strHash, nCachedBlockHeight);
+                 strHash, nCachedBlockHeight.load());
         return true;
     }
 
@@ -1126,7 +1126,7 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex)
     }
 
     nCachedBlockHeight = pindex->nHeight;
-    LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
+    LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight.load());
 
     LOCK2(::cs_main, cs_store);
     if (DeploymentDIP0003Enforced(pindex->nHeight, Params().GetConsensus())) {
