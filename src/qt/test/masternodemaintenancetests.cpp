@@ -43,6 +43,7 @@
 #include <QComboBox>
 #include <QDir>
 #include <QFile>
+#include <QFocusEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -776,6 +777,23 @@ void MasternodeMaintenanceTests::dissolveDialogTabsAndPayouts()
     QVERIFY(preview.payouts[0] < amounts[0]);
     QVERIFY(preview.payouts[1] > amounts[1]);
     QVERIFY(preview.payouts[2] > amounts[2]);
+
+    // A typed fee outside the allowed range is clamped when the field loses
+    // focus, and the preview follows the fee that will actually be sent
+    auto* fee_edit{dialog.m_now_fee->findChild<QLineEdit*>()};
+    QVERIFY(fee_edit != nullptr);
+    for (const auto& [typed, clamped] : {std::pair{"0.5", CProDisTx::MAX_FEE}, std::pair{"0.000005", CAmount{1000}}}) {
+        fee_edit->clear();
+        QTest::keyClicks(fee_edit, typed);
+        QFocusEvent focus_out{QEvent::FocusOut};
+        QApplication::sendEvent(fee_edit, &focus_out);
+        QCOMPARE(dialog.m_now_fee->value(), clamped);
+        const auto clamped_preview{MnShareSession::PenaltyPreviewFor(amounts, /*actor_index=*/0, 5 * COIN,
+                                                                     /*early_period_blocks=*/1000, clamped,
+                                                                     /*at_height=*/100, /*registered_height=*/1)};
+        QCOMPARE(dialog.m_now_table->item(0, 2)->text(),
+                 SharedMnFormatAmount(BitcoinUnits::Unit::DASH, clamped_preview.payouts[0]));
+    }
 }
 
 void MasternodeMaintenanceTests::standbyDissolutionFile()

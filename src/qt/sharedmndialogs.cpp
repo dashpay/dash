@@ -1166,7 +1166,10 @@ QWidget* DissolveDialog::buildNowTab()
 
     m_now_fee = makeFeeField(tab);
     m_now_fee->setToolTip(tr("Transaction fee, paid from your share's refund."));
-    connect(m_now_fee, &BitcoinAmountField::valueChanged, this, &DissolveDialog::updateNowPreview);
+    // Follow the editor's text rather than valueChanged: the field clamps an
+    // out-of-range fee on focus-out without emitting valueChanged, and the
+    // preview must show the fee that is actually sent
+    connect(m_now_fee->findChild<QLineEdit*>(), &QLineEdit::textChanged, this, &DissolveDialog::updateNowPreview);
     form->addRow(tr("Fee:"), m_now_fee);
     layout->addLayout(form);
 
