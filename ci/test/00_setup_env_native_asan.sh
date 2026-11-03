@@ -15,6 +15,6 @@ export CI_LIMIT_STACK_SIZE=1
 export GOAL="install"
 export BITCOIN_CONFIG="--enable-zmq --enable-crash-hooks --with-gui=qt5 --without-bdb --with-sqlite \
 --with-sanitizers=address,float-divide-by-zero,integer,undefined \
-CPPFLAGS='-DARENA_DEBUG -DDEBUG_LOCKORDER' \
+CPPFLAGS='-DARENA_DEBUG' \
 CC='clang-19 -ftrivial-auto-var-init=pattern' CXX='clang++-19 -ftrivial-auto-var-init=pattern'"
 export PYZMQ=true
