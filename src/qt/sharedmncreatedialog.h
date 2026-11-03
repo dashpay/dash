@@ -280,14 +280,16 @@ private:
     //! first: if the coins are then spent, nobody can complete the
     //! registration.
     void releaseReservedCoins();
-    //! True when at least one coin this wallet contributed is still locked in
-    //! it, i.e. there is something for "Release my coins" to do
+    //! True when at least one of this wallet's own coins among the session's
+    //! inputs is still locked in it, i.e. there is something for "Release my
+    //! coins" to do
     bool hasLockedContributedCoins() const;
     //! Lock the coins of a session in progress, or unlock them once it is
     //! broadcast and they are spent
     void refreshContributedCoinLocks();
     void setContributionLocked(const MnShareSession::Contribution& contribution, bool lock);
     void unlockAllContributedCoins();
+    //! Lock the session's unspent inputs that this wallet can spend
     void lockKnownContributedCoins();
     //! Re-check that every funding coin this wallet contributed is still
     //! unspent, and set m_dead_reason when one is gone

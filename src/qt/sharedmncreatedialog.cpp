@@ -3242,7 +3242,11 @@ bool SharedMnCreateDialog::hasLockedContributedCoins() const
     if (m_wallet_model == nullptr) return false;
     for (const auto& contribution : m_session.contributions()) {
         for (const auto& input : contribution.inputs) {
-            if (m_wallet_model->wallet().isLockedCoin(COutPoint(uint256S(input.txid.toStdString()), input.vout))) {
+            const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};
+            if (!m_wallet_model->wallet().isLockedCoin(outpoint)) continue;
+            const auto known{m_wallet_model->wallet().getCoins({outpoint})};
+            if (!known.empty() && known.front().depth_in_main_chain >= 0 && !known.front().is_spent &&
+                m_wallet_model->wallet().isSpendable(known.front().txout.scriptPubKey)) {
                 return true;
             }
         }
@@ -3290,6 +3294,9 @@ void SharedMnCreateDialog::lockKnownContributedCoins()
             const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};
             const auto known{m_wallet_model->wallet().getCoins({outpoint})};
             if (known.empty() || known.front().depth_in_main_chain < 0 || known.front().is_spent) continue;
+            // A transaction this wallet knows can pay other participants too,
+            // and a lock on their coin is one Coin Control cannot release
+            if (!m_wallet_model->wallet().isSpendable(known.front().txout.scriptPubKey)) continue;
             m_wallet_model->wallet().lockCoin(outpoint, /*write_to_db=*/true);
         }
     }

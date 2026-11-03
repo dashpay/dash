@@ -404,6 +404,91 @@ void SharedMnWizardTests::coordinatorResumesFullySignedSession()
     QCOMPARE(int(participant.currentPage()), int(SharedMnCreateDialog::PageWaitBroadcast));
 }
 
+void SharedMnWizardTests::signedSessionReservation()
+{
+    TestingSetup test{CBaseChainParams::REGTEST};
+    m_node.setContext(&test.m_node);
+    WalletContext& context{*m_node.walletLoader().context()};
+
+    // bob's wallet knows a transaction that paid both bob and alice, such as
+    // the change of an earlier shared registration, and each funds their share
+    // in this one with their own output of it
+    CKey bob_key;
+    bob_key.MakeNewKey(/*fCompressed=*/true);
+    const auto wallet{MakeSpendingWallet(m_node, context, "bob", bob_key)};
+    QVERIFY(wallet != nullptr);
+    WalletGuard guard{context, wallet};
+    CKey alice_coin_key;
+    CMutableTransaction earlier;
+    earlier.vin.emplace_back(COutPoint(uint256::ONE, 0));
+    earlier.vout.emplace_back(350 * COIN, GetScriptForDestination(PKHash(bob_key.GetPubKey())));
+    earlier.vout.emplace_back(400 * COIN, GetScriptForDestination(
+                                              DecodeDestination(FreshP2PKHAddress(&alice_coin_key).toStdString())));
+    QVERIFY(wallet->AddToWallet(MakeTransactionRef(earlier), wallet::TxStateInactive{}) != nullptr);
+    const QString earlier_txid{QString::fromStdString(earlier.GetHash().ToString())};
+    const COutPoint bob_coin{earlier.GetHash(), 0};
+    const COutPoint alice_coin{earlier.GetHash(), 1};
+
+    MasternodeTestUtil::GuiModels models{m_node};
+    QVERIFY2(models.ok, qPrintable(QString::fromStdString(models.error.translated)));
+    WalletModel wallet_model(interfaces::MakeWallet(context, wallet), models.client);
+
+    // The session once every share has signed its coins, as bob receives it or,
+    // with `coordinated`, as bob coordinating it saved it
+    const auto signed_session = [&](bool coordinated) {
+        MnShareSession invitation{InvitationSession()};
+        if (coordinated) {
+            invitation.setCoordinatorLabel(QStringLiteral("bob"));
+            invitation.setPrepareWallet(QStringLiteral("bob"));
+        }
+        MnShareSession draft{invitation};
+        std::vector<CKey> owner_keys(3);
+        QString error;
+        for (int i = 0; i < 3; ++i) {
+            draft.absorbDraftReply(DraftReply(invitation, i, FakeTxid('1' + i), &owner_keys[i]), error);
+        }
+        owner_keys[1] = bob_key;
+        draft.shares()[1].ownerAddress = QString::fromStdString(EncodeDestination(PKHash(bob_key.GetPubKey())));
+        for (const auto& [label, vout] : {std::pair{"alice", 1u}, std::pair{"bob", 0u}}) {
+            MnShareSession::Contribution contribution;
+            contribution.label = QString::fromLatin1(label);
+            contribution.inputs = {{.txid = earlier_txid, .vout = vout}};
+            draft.removeContribution(contribution.label, error);
+            draft.addContribution(contribution, error);
+        }
+        MnShareSession session{FrozenSession(draft, owner_keys, /*sign_all=*/true)};
+        session.setCombinedTx(session.protxHex(), error);
+        CMutableTransaction tx;
+        if (!DecodeHexTx(tx, session.protxHex().toStdString())) return session;
+        for (auto& input : tx.vin) {
+            input.scriptSig = CScript() << OP_TRUE;
+        }
+        session.setFundingSignedTx(QString::fromStdString(EncodeHexTx(CTransaction(tx))), error);
+        return session;
+    };
+    const MnShareSession received{signed_session(/*coordinated=*/false)};
+    QCOMPARE(int(received.stage()), int(MnShareSession::Stage::FundingSigned));
+
+    {
+        // Only bob's own coin is reserved: a lock on alice's would be one bob
+        // could neither see nor release in Coin Control
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(received.toJsonString());
+        QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Participant));
+        QCOMPARE(dialog.myShareIndex(), 1);
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageWaitBroadcast));
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        QVERIFY(!wallet_model.wallet().isLockedCoin(alice_coin));
+
+        // A lock left on alice's coin by an earlier version is not one of bob's
+        // to release
+        wallet_model.wallet().unlockCoin(bob_coin);
+        wallet_model.wallet().lockCoin(alice_coin, /*write_to_db=*/false);
+        QVERIFY(!dialog.hasLockedContributedCoins());
+        wallet_model.wallet().unlockCoin(alice_coin);
+    }
+}
+
 void SharedMnWizardTests::unauthorisedSignedInputsAreDetected()
 {
     BasicTestingSetup setup{CBaseChainParams::REGTEST};
