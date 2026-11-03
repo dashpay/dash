@@ -43,3 +43,10 @@ jobs:
       - name: Download sources
         if: steps.cache-check.outputs.cache-hit != 'true'
         run: make -C depends download
+
+      # The linux64_platform_gui depends job runs on x86_64, but this runner
+      # may not: name the build machine, since the Rust toolchain and protoc
+      # archives are chosen by it. download-linux would not pass BUILD on.
+      - name: Download Platform GUI sources for x86_64 Linux
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        run: make -C depends download-one PLATFORM_GUI=1 BUILD=x86_64-pc-linux-gnu HOST=x86_64-unknown-linux-gnu
