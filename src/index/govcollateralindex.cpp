@@ -117,7 +117,12 @@ bool GovCollateralIndex::CustomRewind(const interfaces::BlockKey& current_tip, c
             m_db->EraseCollateral(batch, txid);
         }
     }
-    m_db->WriteBestBlock(batch, GetLocator(new_tip_index));
+    // Like BaseIndex::Commit(), never persist a locator ahead of the chainstate's last flushed block: after an
+    // unclean shutdown the block index might not know it, and the index would refuse to load.
+    const CBlockIndex* last_flushed{WITH_LOCK(::cs_main, return m_chainstate->GetLastFlushedBlock())};
+    if (last_flushed && last_flushed->GetAncestor(new_tip_index->nHeight) == new_tip_index) {
+        m_db->WriteBestBlock(batch, GetLocator(new_tip_index));
+    }
     return m_db->WriteBatch(batch);
 }
 
