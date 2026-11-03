@@ -1384,11 +1384,29 @@ bool SharedMnCreateDialog::validatePage(Page page, QString& err)
             err = tr("Enter a valid reward address (P2PKH or P2SH), or leave it empty.");
             break;
         }
-        if (!reward.isEmpty() &&
-            (reward == m_session.terms().votingAddress || reward == owner ||
-             std::any_of(m_session.shares().begin(), m_session.shares().end(),
-                         [&](const auto& share) { return !share.ownerAddress.isEmpty() &&
-                                                         share.ownerAddress == reward; }))) {
+        // The payout rules Lock enforces, applied to the rows known so far
+        const auto& shares{m_session.shares()};
+        const auto is_key_address{[&](const QString& address) {
+            if (address == m_session.terms().votingAddress || address == owner) return true;
+            for (size_t i = 0; i < shares.size(); ++i) {
+                // This row's owner is the field above; the recorded one may be stale
+                if (static_cast<int>(i) != m_my_share && shares[i].ownerAddress == address) return true;
+            }
+            return false;
+        }};
+        if (is_key_address(refund)) {
+            err = tr("The refund address must differ from the voting address and every owner address.");
+            break;
+        }
+        for (size_t i = 0; i < shares.size(); ++i) {
+            if (static_cast<int>(i) != m_my_share && shares[i].refundAddress == refund) {
+                err = tr("%1 already uses this refund address. Every refund address must be unique.")
+                          .arg(ShareName(m_session, static_cast<int>(i)));
+                break;
+            }
+        }
+        if (!err.isEmpty()) break;
+        if (!reward.isEmpty() && is_key_address(reward)) {
             err = tr("The reward address must differ from the voting address and every owner address.");
             break;
         }
@@ -3183,6 +3201,10 @@ void SharedMnCreateDialog::reserveCoins()
     }
     if (!MasternodeWidgetUtil::isP2PKHorP2SHAddress(refund)) {
         showError(tr("Enter a valid refund address (P2PKH or P2SH)."));
+        return;
+    }
+    if (QString problem; !validatePage(PageContribution, problem)) {
+        showError(problem);
         return;
     }
 

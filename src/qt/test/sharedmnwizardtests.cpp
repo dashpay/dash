@@ -894,6 +894,57 @@ void SharedMnWizardTests::serviceAddressInUseIsRefused()
     QVERIFY2(dialog.m_error_label->text().contains(in_use), qPrintable(dialog.m_error_label->text()));
 }
 
+void SharedMnWizardTests::reusedRefundAddressIsRefusedBeforeReserving()
+{
+    TestingSetup test{CBaseChainParams::REGTEST};
+    m_node.setContext(&test.m_node);
+    WalletContext& context{*m_node.walletLoader().context()};
+
+    CKey my_key;
+    my_key.MakeNewKey(/*fCompressed=*/true);
+    const auto wallet{MakeSpendingWallet(m_node, context, "part", my_key)};
+    QVERIFY(wallet != nullptr);
+    WalletGuard guard{context, wallet};
+    MasternodeTestUtil::GuiModels models{m_node};
+    QVERIFY2(models.ok, qPrintable(QString::fromStdString(models.error.translated)));
+    WalletModel wallet_model(interfaces::MakeWallet(context, wallet), models.client);
+
+    // alice has answered for her row; this wallet takes bob's
+    const MnShareSession invitation{InvitationSession()};
+    MnShareSession claimed{invitation};
+    QString error;
+    QVERIFY(claimed.absorbDraftReply(DraftReply(invitation, 0, FakeTxid('1')), error) ==
+            MnShareSession::MergeResult::Merged);
+    const auto& alice{claimed.shares()[0]};
+    const QString owner{QString::fromStdString(EncodeDestination(PKHash(my_key.GetPubKey())))};
+
+    SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+    dialog.handleImportedText(claimed.toJsonString());
+    QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageContribution));
+    dialog.m_who_am_i_combo->setCurrentIndex(dialog.m_who_am_i_combo->findData(1));
+    QCOMPARE(dialog.myShareIndex(), 1);
+    dialog.m_owner_edit->setText(owner);
+    dialog.m_reward_edit->clear();
+
+    // Lock refuses a refund address that is the voting address, an owner
+    // address, or another share's refund address, so this page does too
+    for (const QString& refund : {owner, claimed.terms().votingAddress, alice.ownerAddress, alice.refundAddress}) {
+        dialog.m_refund_edit->setText(refund);
+        QVERIFY2(!dialog.validatePage(SharedMnCreateDialog::PageContribution, error), qPrintable(refund));
+        QVERIFY2(error.contains(QStringLiteral("refund")), qPrintable(error));
+
+        // The Reserve Coins button reaches the same refusal without Next
+        dialog.reserveCoins();
+        QVERIFY2(dialog.m_error_label->text().contains(QStringLiteral("refund")), qPrintable(dialog.m_error_label->text()));
+        QVERIFY(dialog.myContribution() == nullptr);
+        QVERIFY(dialog.m_session.shares()[1].refundAddress.isEmpty());
+    }
+
+    // A fresh refund address passes, with the reward left to default to it
+    dialog.m_refund_edit->setText(FreshP2PKHAddress());
+    QVERIFY2(dialog.validatePage(SharedMnCreateDialog::PageContribution, error), qPrintable(error));
+}
+
 void SharedMnWizardTests::statusBoardAbsorbsRepliesInAnyOrder()
 {
     TestingSetup test{CBaseChainParams::REGTEST};

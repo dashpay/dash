@@ -37,6 +37,7 @@ private Q_SLOTS:
     void coordinatorCanRetryOwnApproval();
     void participantsPageGating();
     void serviceAddressInUseIsRefused();
+    void reusedRefundAddressIsRefusedBeforeReserving();
     void statusBoardAbsorbsRepliesInAnyOrder();
     void pastedMessageRouting();
     void copyPutsFingerprintedEnvelopeOnClipboard();
