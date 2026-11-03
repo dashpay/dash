@@ -5,6 +5,7 @@
 #include <test/util/setup_common.h>
 
 #include <evo/netinfo.h>
+#include <evo/providertx.h>
 #include <evo/types.h>
 #include <interfaces/node.h>
 #include <util/helpers.h>
@@ -14,6 +15,7 @@
 #include <netbase.h>
 #include <streams.h>
 #include <util/strencodings.h>
+#include <util/string.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -103,19 +105,30 @@ void TestMnNetInfo(const std::vector<TestEntry>& vals)
 
 void TestExtNetInfo(const std::vector<TestEntry>& vals)
 {
+    // Mainnet has fixed rules for the first entry of each purpose (see provider_network_fields_main), so
+    // there the table checks the rules for additional entries, added behind valid primaries
+    const bool add_primaries{IsNodeOnMainnet()};
+    const size_t primaries_count{add_primaries ? 3U : 0U};
     for (const auto& [input, _, expected_ret] : vals) {
         const auto& [purpose, addr] = input;
         ExtNetInfo netInfo;
+        if (add_primaries) {
+            for (const auto& [primary_purpose, primary] : {std::pair{NetInfoPurpose::CORE_P2P, "1.2.3.4:9999"},
+                                                           std::pair{NetInfoPurpose::PLATFORM_P2P, "1.2.3.4:26656"},
+                                                           std::pair{NetInfoPurpose::PLATFORM_HTTPS, "1.2.3.4:443"}}) {
+                BOOST_REQUIRE_EQUAL(netInfo.AddEntry(primary_purpose, primary), NetInfoStatus::Success);
+            }
+        }
         BOOST_CHECK_EQUAL(netInfo.AddEntry(purpose, addr), expected_ret);
         if (expected_ret != NetInfoStatus::Success) {
             // An empty ExtNetInfo is considered malformed
-            BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Malformed);
-            BOOST_CHECK(!netInfo.HasEntries(purpose));
-            BOOST_CHECK(netInfo.GetEntries().empty());
+            BOOST_CHECK_EQUAL(netInfo.Validate(), add_primaries ? NetInfoStatus::Success : NetInfoStatus::Malformed);
+            BOOST_CHECK_EQUAL(netInfo.HasEntries(purpose), add_primaries && IsValidPurpose(purpose));
+            BOOST_CHECK_EQUAL(netInfo.GetEntries().size(), primaries_count);
         } else {
             BOOST_CHECK_EQUAL(netInfo.Validate(), NetInfoStatus::Success);
             BOOST_CHECK(netInfo.HasEntries(purpose));
-            ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/1);
+            ValidateGetEntries(netInfo.GetEntries(), /*expected_size=*/primaries_count + 1);
         }
     }
 }
@@ -195,6 +208,128 @@ BOOST_AUTO_TEST_CASE(provider_network_fields_main)
                                                            /*optional=*/false);
     BOOST_REQUIRE(validation_error);
     BOOST_CHECK(validation_error->message.original.find("unroutable address") != std::string::npos);
+
+    // On mainnet the first entry of every purpose must use that purpose's port (9999, 26656, 443). Additional
+    // entries may use other addresses, ports and network types. Shared masternodes use the same network fields.
+    const std::string a{"1.1.1.1"}, b{"1.1.1.2"}, ipv6{"[2606:4700:4700::1111]"},
+        onion{"pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"},
+        i2p{"udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p:0"}, domain{"platform.example.com"};
+    const auto make = [](std::vector<std::string> core, interfaces::ProviderPlatformEndpoints p2p = {},
+                         interfaces::ProviderPlatformEndpoints https = {}) {
+        return interfaces::ProviderNetInfo{.core_p2p = std::move(core), .platform_p2p = std::move(p2p),
+                                           .platform_https = std::move(https)};
+    };
+    using Strs = std::vector<std::string>;
+    struct Case {
+        MnType type{MnType::Regular};
+        interfaces::ProviderNetInfo net_info;
+        std::string error_field; // Empty if valid
+        std::string error_status{};
+    };
+    const std::vector<Case> primary_vals{
+        // Valid, including additional entries of any type, address and port
+        {MnType::Regular, make({a + ":9999"}), ""},
+        {MnType::Regular, make({a + ":9999", b + ":9998", ipv6 + ":9999", onion + ":9999"}), ""},
+        {MnType::Regular, make({a + ":9999", i2p}), ""},
+        {MnType::Evo, make({a + ":9999"}, Strs{a + ":26656"}, Strs{a + ":443"}), ""},
+        {MnType::Evo,
+         make({a + ":9999", ipv6 + ":9999"}, Strs{a + ":26656", b + ":26657", ipv6 + ":26656", onion + ":26656"},
+              Strs{a + ":443", domain + ":443", ipv6 + ":8443"}),
+         ""},
+        {MnType::Evo, make({a + ":9999"}, Strs{a + ":26656"}, Strs{a + ":443", ipv6 + ":443", onion + ":443"}), ""},
+        // Additional addresses may use the standard ports too, e.g. a second IPv4 address on the same ports
+        {MnType::Regular, make({a + ":9999", b + ":9999"}), ""},
+        {MnType::Regular, make({a + ":9999", b + ":26656"}), ""},
+        {MnType::Evo,
+         make({a + ":9999", b + ":9999"}, Strs{a + ":26656", b + ":26656"}, Strs{a + ":443", b + ":443"}), ""},
+        // A bare Platform port is placed on the first Core P2P address
+        {MnType::Evo, make({a + ":9999"}, uint16_t{26656}, uint16_t{443}), ""},
+        {MnType::Evo, make({a + ":9999"}, uint16_t{26657}, uint16_t{443}), "platformP2PAddrs[0]", "invalid port"},
+        // The first entry of each purpose must use that purpose's port
+        {MnType::Regular, make({a + ":9998"}), "coreP2PAddrs[0]", "invalid port"},
+        {MnType::Regular, make({i2p}), "coreP2PAddrs[0]", "invalid port"},
+        {MnType::Evo, make({a + ":9998"}, Strs{a + ":26656"}, Strs{a + ":443"}), "coreP2PAddrs[0]", "invalid port"},
+        {MnType::Evo, make({a + ":9999"}, Strs{a + ":26657"}, Strs{a + ":443"}), "platformP2PAddrs[0]", "invalid port"},
+        {MnType::Evo, make({a + ":9999"}, Strs{a + ":26656"}, Strs{a + ":8443"}), "platformHTTPSAddrs[0]",
+         "invalid port"},
+        {MnType::Evo, make({a + ":9999"}, Strs{a + ":26656"}, Strs{domain + ":8443", a + ":443"}),
+         "platformHTTPSAddrs[0]", "invalid port"},
+    };
+    for (const auto& [type, case_net_info, error_field, error_status] : primary_vals) {
+        validation_error = node->evo().validateProviderNetInfo(case_net_info, type, ProTxVersion::ExtAddr,
+                                                               /*optional=*/false);
+        BOOST_CHECK_MESSAGE(!validation_error == error_field.empty(),
+                            strprintf("%s: %s", Join(case_net_info.core_p2p, ","),
+                                      validation_error ? validation_error->message.original : "accepted"));
+        if (validation_error && !error_field.empty()) {
+            const auto& message{validation_error->message.original};
+            BOOST_CHECK_MESSAGE(message.find(error_field) != std::string::npos &&
+                                    message.find(strprintf("(%s)", error_status)) != std::string::npos,
+                                message);
+        }
+    }
+}
+
+struct TestNetSetup : public BasicTestingSetup {
+    TestNetSetup() : BasicTestingSetup{CBaseChainParams::TESTNET} {}
+};
+
+BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
+{
+    struct Case {
+        MnType type{MnType::Regular};
+        std::vector<std::pair<NetInfoPurpose, std::string>> entries;
+        bool valid_on_mainnet{false};
+    };
+    const std::string ipv6{"[2606:4700:4700::1111]"};
+    const std::vector<Case> vals{
+        {MnType::Regular, {{NetInfoPurpose::CORE_P2P, "1.1.1.1:19999"}}},
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::PLATFORM_P2P, "1.1.1.1:22000"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:443"}}},
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::PLATFORM_P2P, "1.1.1.1:26656"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:8443"}}},
+        // Satisfies the mainnet port rules, with additional entries on any port, including the standard ones
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::CORE_P2P, ipv6 + ":19999"},
+          {NetInfoPurpose::CORE_P2P, "1.1.1.2:9999"}, {NetInfoPurpose::PLATFORM_P2P, "1.1.1.1:26656"},
+          {NetInfoPurpose::PLATFORM_P2P, "1.1.1.2:22000"}, {NetInfoPurpose::PLATFORM_P2P, "1.1.1.3:26656"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:443"}, {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.2:443"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "platform.example.com:443"}},
+         /*valid_on_mainnet=*/true},
+    };
+    const auto check_fields = [](const std::shared_ptr<ExtNetInfo>& net_info, MnType type, TxValidationState& state) {
+        return CheckProviderNetworkFields(net_info, type, ProTxVersion::ExtAddr, /*platform_node_id=*/nullptr,
+                                          /*platform_p2p_port=*/0, /*platform_http_port=*/0, /*allow_empty=*/false,
+                                          state);
+    };
+
+    // Outside mainnet, these port rules don't apply
+    std::vector<CDataStream> serialized;
+    for (const auto& [type, entries, _] : vals) {
+        ExtNetInfo net_info;
+        for (const auto& [purpose, entry] : entries) {
+            BOOST_CHECK_EQUAL(net_info.AddEntry(purpose, entry), NetInfoStatus::Success);
+        }
+        BOOST_CHECK_EQUAL(net_info.Validate(), NetInfoStatus::Success);
+        TxValidationState state;
+        BOOST_CHECK(check_fields(std::make_shared<ExtNetInfo>(net_info), type, state));
+        serialized.emplace_back(SER_DISK, CLIENT_VERSION) << net_info;
+    }
+
+    // A serialized ProTx carries its entries as-is, so consensus on mainnet must apply the rules to the
+    // same objects even though they never passed through AddEntry() there
+    SelectParams(CBaseChainParams::MAIN);
+    for (size_t idx{0}; idx < vals.size(); ++idx) {
+        const auto& [type, _, valid_on_mainnet] = vals[idx];
+        const auto net_info{std::make_shared<ExtNetInfo>(deserialize, serialized[idx])};
+        BOOST_CHECK_EQUAL(net_info->Validate(), valid_on_mainnet ? NetInfoStatus::Success : NetInfoStatus::BadPort);
+        TxValidationState state;
+        BOOST_CHECK_EQUAL(check_fields(net_info, type, state), valid_on_mainnet);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), valid_on_mainnet ? "" : "bad-protx-netinfo-port");
+    }
+    SelectParams(CBaseChainParams::TESTNET);
 }
 
 static const std::vector<TestEntry> addr_vals_reg{
