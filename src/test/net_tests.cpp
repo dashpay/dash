@@ -7,6 +7,7 @@
 #include <arith_uint256.h>
 #include <chainparams.h>
 #include <clientversion.h>
+#include <common/args.h>
 #include <compat/compat.h>
 #include <key.h>
 #include <net.h>
@@ -24,7 +25,6 @@
 #include <timedata.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <validation.h>
 #include <version.h>
 

@@ -4,6 +4,7 @@
 
 #include <arith_uint256.h>
 #include <chainparams.h>
+#include <common/args.h>
 #include <compressor.h>
 #include <consensus/amount.h>
 #include <consensus/merkle.h>

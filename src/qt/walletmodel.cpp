@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <qt/walletmodel.h>
 
 #include <qt/addresstablemodel.h>
@@ -21,7 +22,6 @@
 #include <node/interface_ui.h>
 #include <primitives/transaction.h>
 #include <psbt.h>
-#include <util/system.h> // for GetBoolArg
 #include <util/translation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h> // for CRecipient

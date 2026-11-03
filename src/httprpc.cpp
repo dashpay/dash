@@ -4,6 +4,7 @@
 
 #include <httprpc.h>
 
+#include <common/args.h>
 #include <crypto/hmac_sha256.h>
 #include <httpserver.h>
 #include <netaddress.h>
@@ -11,7 +12,6 @@
 #include <rpc/server.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <walletinitinterface.h>
 

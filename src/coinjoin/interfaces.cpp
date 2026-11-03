@@ -7,6 +7,7 @@
 #include <coinjoin/client.h>
 #include <coinjoin/options.h>
 #include <coinjoin/walletman.h>
+#include <common/args.h>
 #include <node/context.h>
 #include <util/check.h>
 #include <walletinitinterface.h>

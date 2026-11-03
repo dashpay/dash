@@ -8,6 +8,7 @@
 #include <config/bitcoin-config.h>
 #endif
 
+#include <common/args.h>
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/init.h>

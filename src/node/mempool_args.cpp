@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <node/mempool_args.h>
 
 #include <index/addressindex.h>
@@ -18,7 +19,6 @@
 #include <tinyformat.h>
 #include <util/error.h>
 #include <util/moneystr.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <chrono>

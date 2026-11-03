@@ -7,6 +7,7 @@
 #define BITCOIN_TEST_UTIL_SETUP_COMMON_H
 
 #include <chainparamsbase.h>
+#include <common/args.h>
 #include <key.h>
 #include <net_processing.h>
 #include <node/caches.h>
@@ -14,6 +15,8 @@
 #include <node/context.h> // IWYU pragma: export
 #include <primitives/transaction.h>
 #include <pubkey.h>
+#include <random.h>
+#include <util/chaintype.h>
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/string.h>

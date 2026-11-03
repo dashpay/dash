@@ -6,6 +6,7 @@
 
 #include <chain.h>
 #include <clientversion.h>
+#include <common/args.h>
 #include <consensus/validation.h>
 #include <flatfile.h>
 #include <hash.h>

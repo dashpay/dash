@@ -5,6 +5,7 @@
 #include <coinjoin/client.h>
 
 #include <coinjoin/options.h>
+#include <common/args.h>
 #include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>

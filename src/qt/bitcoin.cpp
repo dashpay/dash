@@ -10,6 +10,7 @@
 #include <qt/bitcoin.h>
 
 #include <chainparams.h>
+#include <common/args.h>
 #include <common/init.h>
 #include <init.h>
 #include <interfaces/handler.h>
@@ -518,7 +519,7 @@ int GuiMain(int argc, char* argv[])
     RegisterPrettySignalHandlers();
 
 #ifdef WIN32
-    util::WinCmdLineArgs winArgs;
+    common::WinCmdLineArgs winArgs;
     std::tie(argc, argv) = winArgs.get();
 #endif
 

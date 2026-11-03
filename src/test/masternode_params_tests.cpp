@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <common/args.h>
 #include <kernel/mempool_options.h>
 #include <node/mempool_args.h>
 #include <util/system.h>

@@ -4,6 +4,7 @@
 
 #include <node/utxo_snapshot.h>
 
+#include <common/args.h>
 #include <logging.h>
 #include <streams.h>
 #include <sync.h>

@@ -17,6 +17,7 @@
 #include <qt/peertablesortproxy.h>
 
 #include <clientversion.h>
+#include <common/args.h>
 #include <governance/object.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>

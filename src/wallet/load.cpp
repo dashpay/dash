@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <wallet/load.h>
 
 #include <coinjoin/client.h>
@@ -14,7 +15,6 @@
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <wallet/context.h>
 #include <wallet/spend.h>

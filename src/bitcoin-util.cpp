@@ -11,6 +11,7 @@
 #include <chainparams.h>
 #include <chainparamsbase.h>
 #include <clientversion.h>
+#include <common/args.h>
 #include <core_io.h>
 #include <streams.h>
 #include <util/exception.h>

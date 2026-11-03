@@ -10,6 +10,7 @@
 #include <blockencodings.h>
 #include <blockfilter.h>
 #include <chainparams.h>
+#include <common/args.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <hash.h>
@@ -41,7 +42,6 @@
 #include <util/check.h>
 #include <util/std23.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/trace.h>
 #include <validation.h>
 

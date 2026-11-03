@@ -7,6 +7,7 @@
 #include <txdb.h>
 
 #include <chain.h>
+#include <common/args.h>
 #include <index/addressindex_types.h>
 #include <index/spentindex_types.h>
 #include <index/timestampindex_types.h>
@@ -17,7 +18,6 @@
 #include <random.h>
 #include <shutdown.h>
 #include <uint256.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <util/vector.h>
 

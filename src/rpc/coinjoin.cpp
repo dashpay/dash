@@ -2,6 +2,10 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <active/context.h>
+#include <coinjoin/server.h>
+#include <coinjoin/walletman.h>
+#include <common/args.h>
 #include <node/context.h>
 #include <rpc/json_help.h>
 #include <rpc/server.h>
@@ -11,10 +15,6 @@
 #include <wallet/receive.h>
 #include <wallet/rpc/util.h>
 #include <walletinitinterface.h>
-
-#include <active/context.h>
-#include <coinjoin/server.h>
-#include <coinjoin/walletman.h>
 
 #ifdef ENABLE_WALLET
 #include <coinjoin/options.h>

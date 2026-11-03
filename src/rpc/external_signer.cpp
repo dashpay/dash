@@ -8,10 +8,12 @@
 
 #include <chainparamsbase.h>
 
+#include <common/args.h>
 #include <external_signer.h>
+#include <rpc/protocol.h>
 #include <rpc/server.h>
 #include <util/strencodings.h>
-#include <rpc/protocol.h>
+#include <util/system.h>
 
 #include <string>
 #include <vector>

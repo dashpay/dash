@@ -23,6 +23,7 @@
 #include <qt/walletmodel.h>
 
 #include <chainparams.h>
+#include <common/args.h>
 #include <interfaces/node.h>
 #include <node/connection_types.h>
 #include <rpc/client.h>

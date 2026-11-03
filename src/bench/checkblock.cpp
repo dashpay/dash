@@ -6,10 +6,10 @@
 #include <bench/data.h>
 
 #include <chainparams.h>
+#include <common/args.h>
 #include <consensus/validation.h>
 #include <stats/client.h>
 #include <streams.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <memory>

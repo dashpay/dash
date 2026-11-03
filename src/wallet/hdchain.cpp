@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 
+#include <common/args.h>
 #include <wallet/hdchain.h>
 
 #include <wallet/bip39.h>

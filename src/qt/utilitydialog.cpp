@@ -14,11 +14,12 @@
 #include <qt/guiutil.h>
 
 #include <clientversion.h>
+#include <common/args.h>
 #include <init.h>
-#include <util/system.h>
 #include <util/strencodings.h>
 
 #include <cstdio>
+#include <util/system.h>
 
 #include <QCloseEvent>
 #include <QLabel>

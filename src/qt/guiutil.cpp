@@ -16,8 +16,10 @@
 
 #include <base58.h>
 #include <chainparams.h>
+#include <common/args.h>
 #include <interfaces/node.h>
 #include <key_io.h>
+#include <logging.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <protocol.h>
@@ -26,7 +28,6 @@
 #include <util/exception.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
-#include <util/system.h>
 #include <util/time.h>
 
 #include <cmath>

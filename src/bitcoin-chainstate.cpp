@@ -18,6 +18,7 @@
 
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
+#include <common/args.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>

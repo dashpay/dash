@@ -10,6 +10,7 @@
 
 #include <chainparamsbase.h>
 #include <clientversion.h>
+#include <common/args.h>
 #include <compat/compat.h>
 #include <compat/stdin.h>
 #include <policy/feerate.h>
@@ -23,6 +24,7 @@
 #include <util/exception.h>
 #include <util/strencodings.h>
 #include <util/system.h>
+#include <util/time.h>
 #include <util/translation.h>
 
 #include <algorithm>
@@ -1254,7 +1256,7 @@ MAIN_FUNCTION
     RegisterPrettySignalHandlers();
 
 #ifdef WIN32
-    util::WinCmdLineArgs winArgs;
+    common::WinCmdLineArgs winArgs;
     std::tie(argc, argv) = winArgs.get();
 #endif
     SetupEnvironment();

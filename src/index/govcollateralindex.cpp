@@ -2,14 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <index/govcollateralindex.h>
-
 #include <chain.h>
 #include <chainparams.h>
+#include <common/args.h>
+#include <index/govcollateralindex.h>
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <primitives/block.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <cassert>

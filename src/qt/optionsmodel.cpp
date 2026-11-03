@@ -13,11 +13,12 @@
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 
+#include <common/args.h>
 #include <interfaces/node.h>
 #include <mapport.h>
 #include <net.h>
 #include <netbase.h>
-#include <txdb.h>       // for -dbcache defaults
+#include <txdb.h> // for -dbcache defaults
 #include <util/string.h>
 #include <util/system.h>
 #include <validation.h> // For DEFAULT_SCRIPTCHECK_THREADS

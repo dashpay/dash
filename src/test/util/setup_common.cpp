@@ -15,6 +15,7 @@
 #include <chainlock/chainlock.h>
 #include <chainlock/handler.h>
 #include <chainparams.h>
+#include <common/args.h>
 #include <consensus/consensus.h>
 #include <consensus/merkle.h>
 #include <consensus/params.h>
@@ -60,6 +61,7 @@
 #include <util/check.h>
 #include <util/strencodings.h>
 #include <util/string.h>
+#include <util/system.h>
 #include <util/thread.h>
 #include <util/threadnames.h>
 #include <util/time.h>

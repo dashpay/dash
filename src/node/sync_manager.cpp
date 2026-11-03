@@ -5,6 +5,7 @@
 #include <node/sync_manager.h>
 
 #include <chainparams.h>
+#include <common/args.h>
 #include <evo/deterministicmns.h>
 #include <governance/governance.h>
 #include <logging.h>
