@@ -31,6 +31,14 @@ struct bilingual_str;
 static const int64_t nDefaultDbCache = 300;
 //! -dbbatchsize default (bytes)
 static const int64_t nDefaultDbBatchSize = 16 << 20;
+
+//! Which legacy synchronous indexes CBlockTreeDB::MigrateOldIndexData() carries over
+struct IndexMigrationOptions {
+    bool address_index{false};
+    bool spent_index{false};
+    bool timestamp_index{false};
+    size_t batch_size{nDefaultDbBatchSize};
+};
 //! max. -dbcache (MiB)
 static const int64_t nMaxDbCache = sizeof(void*) > 4 ? 16384 : 1024;
 //! min. -dbcache (MiB)
@@ -101,7 +109,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /// Migrate old synchronous index data to new async index databases
-    bool MigrateOldIndexData() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool MigrateOldIndexData(const fs::path& data_dir, const IndexMigrationOptions& options) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
 
 #endif // BITCOIN_TXDB_H

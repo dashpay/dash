@@ -2062,6 +2062,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         node::ChainstateLoadOptions options;
         options.chainlocks = Assert(node.chainlocks.get());
         options.data_dir = args.GetDataDirNet();
+        options.index_migration.address_index = args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+        options.index_migration.spent_index = args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+        options.index_migration.timestamp_index = args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+        options.index_migration.batch_size = args.GetIntArg("-dbbatchsize", nDefaultDbBatchSize);
         options.reindex = node::fReindex;
         options.reindex_chainstate = fReindexChainState;
         options.prune = chainman.m_blockman.IsPruneMode();

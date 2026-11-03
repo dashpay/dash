@@ -33,6 +33,7 @@ struct ChainstateLoadOptions {
     llmq::CInstantSendManager* isman{nullptr};
     chainlock::Chainlocks* chainlocks{nullptr};
     fs::path data_dir;
+    IndexMigrationOptions index_migration;
 
     bool block_tree_db_in_memory{false};
     bool coins_db_in_memory{false};

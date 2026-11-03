@@ -23,6 +23,9 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <crypto/sha256.h>
+#include <index/addressindex.h>
+#include <index/spentindex.h>
+#include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <init.h>
 #include <init/common.h>
@@ -323,6 +326,9 @@ node::ChainstateLoadOptions ChainTestingSetup::ChainstateLoadOptionsForTest()
     options.isman = Assert(m_node.isman.get());
     options.chainlocks = Assert(m_node.chainlocks.get());
     options.data_dir = Assert(m_node.args)->GetDataDirNet();
+    options.index_migration.address_index = m_args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+    options.index_migration.spent_index = m_args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+    options.index_migration.timestamp_index = m_args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
     options.block_tree_db_in_memory = m_block_tree_db_in_memory;
     options.coins_db_in_memory = m_coins_db_in_memory;
     options.dash_dbs_in_memory = m_dash_dbs_in_memory;
