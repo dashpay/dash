@@ -711,7 +711,7 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
     };
 
     SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
-    dialog.handleImportedText(frozen.toJsonString());
+    dialog.openSharedMessage(frozen.toJsonString());
     QCOMPARE(dialog.myShareIndex(), 1);
     QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageApprovals));
 
@@ -728,7 +728,7 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
         const MnShareSession edited{relocked(edit)};
         QCOMPARE(int(edited.stage()), int(MnShareSession::Stage::Frozen));
         QVERIFY(edited.revision() > frozen.revision());
-        dialog.handleImportedText(edited.toJsonString());
+        dialog.openSharedMessage(edited.toJsonString());
         QCOMPARE(dialog.m_session.revision(), frozen.revision());
         QVERIFY(dialog.m_session.hasShare(frozen.shares()[1]));
         QVERIFY(dialog.m_error_label->text().contains(QStringLiteral("changes your share")));
@@ -737,7 +737,7 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
     // A newer revision that only changes another participant's row is loaded, as
     // is one where an earlier row was removed and this wallet's share moved up
     const MnShareSession other_row{relocked([](MnShareSession& s) { s.shares()[2].rewardAddress = FreshP2PKHAddress(); })};
-    dialog.handleImportedText(other_row.toJsonString());
+    dialog.openSharedMessage(other_row.toJsonString());
     QVERIFY2(dialog.m_error_label->text().isEmpty(), qPrintable(dialog.m_error_label->text()));
     QCOMPARE(dialog.m_session.revision(), other_row.revision());
     QCOMPARE(dialog.myShareIndex(), 1);
@@ -748,7 +748,7 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
     removed_row.shares().erase(removed_row.shares().begin());
     removed_row = FrozenSession(removed_row, {owner_keys[1], owner_keys[2]}, /*sign_all=*/false);
     QCOMPARE(int(removed_row.stage()), int(MnShareSession::Stage::Frozen));
-    dialog.handleImportedText(removed_row.toJsonString());
+    dialog.openSharedMessage(removed_row.toJsonString());
     QVERIFY2(dialog.m_error_label->text().isEmpty(), qPrintable(dialog.m_error_label->text()));
     QCOMPARE(dialog.m_session.revision(), removed_row.revision());
     QCOMPARE(dialog.myShareIndex(), 0);
