@@ -2911,8 +2911,9 @@ void SharedMnCreateDialog::handleImportedText(const QString& text)
     } else {
         absorbSession(imported);
     }
-    // Both of those land on another page, which clears the message lines
-    if (!warning.isEmpty()) showStatus(warning);
+    // Both of those land on another page, which clears the message lines. A
+    // refused copy leaves its reason up instead, which the warning must not replace.
+    if (!warning.isEmpty() && m_error_label->text().isEmpty()) showStatus(warning);
 }
 
 void SharedMnCreateDialog::replaceSession(const MnShareSession& imported)

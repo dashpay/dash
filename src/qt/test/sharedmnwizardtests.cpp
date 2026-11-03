@@ -732,6 +732,13 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
         QCOMPARE(dialog.m_session.revision(), frozen.revision());
         QVERIFY(dialog.m_session.hasShare(frozen.shares()[1]));
         QVERIFY(dialog.m_error_label->text().contains(QStringLiteral("changes your share")));
+
+        // A fingerprint warning on the same copy does not replace the refusal
+        UniValue mislabeled{edited.toJson()};
+        mislabeled.pushKV("fingerprint", "00000000");
+        dialog.openSharedMessage(QString::fromStdString(mislabeled.write()));
+        QCOMPARE(dialog.m_session.revision(), frozen.revision());
+        QVERIFY(dialog.m_error_label->text().contains(QStringLiteral("changes your share")));
     }
 
     // A newer revision that only changes another participant's row is loaded, as
