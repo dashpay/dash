@@ -188,6 +188,10 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
         return;
 
     QModelIndex index = ttm->index(start, 0, parent);
+    // WalletModel::sendCoins abandons a send whose broadcast was refused
+    // before its row arrives here. It was not sent.
+    if (ttm->data(index, TransactionTableModel::StatusRole).toInt() == TransactionStatus::Abandoned) return;
+
     QSettings settings;
     if (!settings.value("fShowCoinJoinPopups").toBool()) {
         QVariant nType = ttm->data(index, TransactionTableModel::TypeRole);

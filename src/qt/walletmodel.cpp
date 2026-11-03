@@ -324,7 +324,20 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
-void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin)
+namespace {
+bool WasSent(interfaces::Wallet& wallet, const uint256& txid)
+{
+    interfaces::WalletTxStatus status{};
+    interfaces::WalletOrderForm order_form;
+    bool in_mempool{false};
+    int num_blocks{0};
+    wallet.getWalletTxDetails(txid, status, order_form, in_mempool, num_blocks);
+    return status.depth_in_main_chain > 0 ||
+           (status.depth_in_main_chain == 0 && (in_mempool || status.is_islocked));
+}
+} // namespace
+
+WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoin)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -342,7 +355,18 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoi
         }
 
         auto& newTx = transaction.getWtx();
-        wallet().commitTransaction(newTx, /*value_map=*/std::move(mapValue), std::move(vOrderForm));
+        // A refused transaction was never relayed. Abandon it, so the wallet
+        // does not rebroadcast a payment the user is told failed and its inputs
+        // are free for a retry. It cannot be abandoned if a resend got it into
+        // the mempool or a block, or it was InstantSend-locked, meanwhile, and
+        // then it was sent, or if a spend of the same inputs has confirmed, and
+        // then it was not.
+        const auto res{wallet().commitTransaction(newTx, /*value_map=*/std::move(mapValue), std::move(vOrderForm))};
+        if (!res && (wallet().abandonTransaction(newTx->GetHash()) || !WasSent(wallet(), newTx->GetHash()))) {
+            const bilingual_str error{util::ErrorString(res)};
+            return SendCoinsReturn(TransactionCommitFailed,
+                                   QString::fromStdString(error.translated.empty() ? error.original : error.translated));
+        }
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *newTx;
@@ -375,6 +399,7 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoi
     }
 
     checkBalanceChanged(m_wallet->getBalances()); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+    return SendCoinsReturn(OK);
 }
 
 OptionsModel* WalletModel::getOptionsModel() const

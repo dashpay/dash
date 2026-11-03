@@ -7,6 +7,7 @@
 
 #include <blockfilter.h>
 #include <primitives/transaction.h> // For CTransactionRef
+#include <util/error.h>             // For TransactionError
 #include <util/settings.h>          // For util::SettingsValue
 #include <util/result.h>
 
@@ -238,8 +239,9 @@ public:
 
     //! Transaction is added to memory pool, if the transaction fee is below the
     //! amount specified by max_tx_fee, and broadcast to all peers if relay is set to true.
-    //! Return false if the transaction could not be added due to the fee or for another reason.
-    virtual bool broadcastTransaction(const CTransactionRef& tx,
+    //! Return the node's result: OK when it is in the mempool, ALREADY_IN_CHAIN when
+    //! its outputs are already in the chain, or why it could not be added.
+    virtual TransactionError broadcastTransaction(const CTransactionRef& tx,
         const CAmount& max_tx_fee,
         bool relay,
         bilingual_str& err_string) = 0;

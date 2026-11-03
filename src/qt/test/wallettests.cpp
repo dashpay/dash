@@ -19,10 +19,18 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
+#include <qt/walletview.h>
 #include <key_io.h>
+#include <node/context.h>
+#include <node/interface_ui.h>
 #include <test/util/setup_common.h>
+#include <txmempool.h>
+#include <util/error.h>
 #include <util/system.h>
 #include <validation.h>
+#include <validationinterface.h>
+#include <wallet/coincontrol.h>
+#include <wallet/receive.h>
 #include <wallet/test/util.h>
 #include <wallet/wallet.h>
 #include <qt/overviewpage.h>
@@ -31,7 +39,9 @@
 #include <qt/receiverequestdialog.h>
 
 #include <chrono>
+#include <functional>
 #include <memory>
+#include <optional>
 
 #include <QAbstractButton>
 #include <QAction>
@@ -40,6 +50,7 @@
 #include <QDialogButtonBox>
 #include <QListView>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QTableView>
 #include <QTextEdit>
 #include <QTimer>
@@ -48,7 +59,9 @@
 using wallet::AddWallet;
 using wallet::CWallet;
 using wallet::CreateMockableWalletDatabase;
+using wallet::GetBalance;
 using wallet::RemoveWallet;
+using wallet::WALLET_FLAG_AVOID_REUSE;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 using wallet::WalletContext;
 using wallet::WalletDescriptor;
@@ -56,14 +69,16 @@ using wallet::WalletRescanReserver;
 
 namespace
 {
-//! Press "Yes" or "Cancel" buttons in modal send confirmation dialog.
-void ConfirmSend(QString* text = nullptr, bool cancel = false)
+//! Press "Yes" or "Cancel" buttons in modal send confirmation dialog,
+//! after running before_answer.
+void ConfirmSend(QString* text = nullptr, bool cancel = false, std::function<void()> before_answer = {})
 {
-    QTimer::singleShot(0, [text, cancel]() {
+    QTimer::singleShot(0, [text, cancel, before_answer]() {
         for (QWidget* widget : QApplication::topLevelWidgets()) {
             if (widget->inherits("SendConfirmationDialog")) {
                 SendConfirmationDialog* dialog = qobject_cast<SendConfirmationDialog*>(widget);
                 if (text) *text = dialog->text();
+                if (before_answer) before_answer();
                 QAbstractButton* button = dialog->button(cancel ? QMessageBox::Cancel : QMessageBox::Yes);
                 button->setEnabled(true);
                 button->click();
@@ -72,8 +87,10 @@ void ConfirmSend(QString* text = nullptr, bool cancel = false)
     });
 }
 
-//! Send coins to address and return txid.
-uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDestination& address, CAmount amount)
+//! Send coins to address and return txid. before_confirm runs once the
+//! transaction is prepared, before the send is confirmed.
+uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDestination& address, CAmount amount,
+                  std::function<void()> before_confirm = {})
 {
     QVBoxLayout* entries = sendCoinsDialog.findChild<QVBoxLayout*>("entries");
     SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
@@ -83,7 +100,7 @@ uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CTxDe
     boost::signals2::scoped_connection c(wallet.NotifyTransactionChanged.connect([&txid](const uint256& hash, ChangeType status) {
         if (status == CT_NEW) txid = hash;
     }));
-    ConfirmSend();
+    ConfirmSend(/*text=*/nullptr, /*cancel=*/false, std::move(before_confirm));
     bool invoked = QMetaObject::invokeMethod(&sendCoinsDialog, "sendButtonClicked", Q_ARG(bool, false));
     assert(invoked);
     return txid;
@@ -173,6 +190,9 @@ void TestGUI(interfaces::Node& node)
     WalletModel walletModel(interfaces::MakeWallet(context, wallet), clientModel);
     sendCoinsDialog.setModel(&walletModel);
     transactionView.setModel(&walletModel);
+    WalletView walletView(&walletModel, nullptr);
+    walletView.setClientModel(&clientModel);
+    QSignalSpy notified(&walletView, &WalletView::incomingTransaction);
 
     // Update walletModel cached balance which will trigger an update for the 'labelBalance' QLabel.
     walletModel.pollBalanceChanged();
@@ -187,8 +207,169 @@ void TestGUI(interfaces::Node& node)
     // Transaction table model updates on a QueuedConnection, so process events to ensure it's updated.
     qApp->processEvents();
     QCOMPARE(transactionTableModel->rowCount({}), 107);
+    QCOMPARE(notified.count(), 2);
     QVERIFY(FindTx(*transactionTableModel, txid1).isValid());
     QVERIFY(FindTx(*transactionTableModel, txid2).isValid());
+
+    // A send that cannot be broadcast is reported as an error instead of as
+    // sent, and is abandoned so its coins are spendable again. The fee ceiling
+    // is lowered after the transaction is prepared, so only the broadcast
+    // refuses it.
+    {
+        QSignalSpy sent(&sendCoinsDialog, &SendCoinsDialog::coinsSent);
+        QSignalSpy messages(&sendCoinsDialog, &SendCoinsDialog::message);
+        const CAmount balance{walletModel.wallet().getBalance()};
+        const CAmount max_fee{wallet->m_default_max_tx_fee};
+        const uint256 refused{SendCoins(*wallet, sendCoinsDialog, PKHash(), 2 * COIN,
+                                        [&wallet] { wallet->m_default_max_tx_fee = 1; })};
+        wallet->m_default_max_tx_fee = max_fee;
+        QVERIFY(!refused.IsNull());
+        QCOMPARE(sent.count(), 0);
+        QCOMPARE(messages.count(), 1);
+        QCOMPARE(messages.first().at(2).toUInt(), static_cast<unsigned int>(CClientUIInterface::MSG_ERROR));
+        QVERIFY(!node.context()->mempool->exists(refused));
+        QCOMPARE(walletModel.wallet().getBalance(), balance);
+        // Its new row raises no "Sent transaction" notification.
+        qApp->processEvents();
+        QVERIFY(FindTx(*transactionTableModel, refused).isValid());
+        QCOMPARE(notified.count(), 2);
+        // The form is kept for a retry.
+        QVBoxLayout* entries{sendCoinsDialog.findChild<QVBoxLayout*>("entries")};
+        SendCoinsEntry* entry{qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget())};
+        QCOMPARE(entry->findChild<BitcoinAmountField*>("payAmount")->value(), 2 * COIN);
+    }
+
+    // Retrying a refused send can rebuild the identical transaction, which the
+    // wallet holds abandoned: it is committed and sent like a new one.
+    {
+        const QList<SendCoinsRecipient> recipients{
+            SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", 3 * COIN, ""}};
+        WalletModelTransaction retried{recipients};
+        QCOMPARE(walletModel.prepareTransaction(retried, wallet::CCoinControl{}).status, WalletModel::OK);
+        const CAmount balance{walletModel.wallet().getBalance()};
+        const CAmount max_fee{wallet->m_default_max_tx_fee};
+        wallet->m_default_max_tx_fee = 1;
+        const auto over_max_fee{walletModel.sendCoins(retried, /*fIsCoinJoin=*/false)};
+        wallet->m_default_max_tx_fee = max_fee;
+        QCOMPARE(over_max_fee.status, WalletModel::TransactionCommitFailed);
+        QCOMPARE(over_max_fee.reasonCommitFailed,
+                 QString::fromStdString(TransactionErrorString(TransactionError::MAX_FEE_EXCEEDED).original));
+        QCOMPARE(walletModel.wallet().getBalance(), balance);
+        QCOMPARE(walletModel.sendCoins(retried, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+        QVERIFY(node.context()->mempool->exists(retried.getWtx()->GetHash()));
+        QVERIFY(walletModel.wallet().getBalance() < balance);
+
+        // Mined through another path before the wallet processed the block
+        // (this wallet does not follow the chain yet), it was sent.
+        WalletModelTransaction mined{
+            {SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", 4 * COIN, ""}}};
+        QCOMPARE(walletModel.prepareTransaction(mined, wallet::CCoinControl{}).status, WalletModel::OK);
+        test.CreateAndProcessBlock({CMutableTransaction{*mined.getWtx()}}, GetScriptForRawPubKey(test.coinbaseKey.GetPubKey()));
+        QCOMPARE(walletModel.sendCoins(mined, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+
+        // Committed again once mined, it stays confirmed and its inputs spent.
+        // The wallet follows the chain for this, as a loaded wallet does.
+        wallet->m_chain_notifications_handler = node.context()->chain->handleNotifications(wallet);
+        test.CreateAndProcessBlock({CMutableTransaction{*retried.getWtx()}}, GetScriptForRawPubKey(test.coinbaseKey.GetPubKey()));
+        SyncWithValidationInterfaceQueue();
+        const CAmount mined_balance{walletModel.wallet().getBalance()};
+        QCOMPARE(walletModel.sendCoins(retried, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+        interfaces::WalletTxStatus status{};
+        interfaces::WalletOrderForm order_form;
+        bool in_mempool{false};
+        int num_blocks{0};
+        walletModel.wallet().getWalletTxDetails(retried.getWtx()->GetHash(), status, order_form, in_mempool, num_blocks);
+        QCOMPARE(status.depth_in_main_chain, 1);
+        QCOMPARE(walletModel.wallet().getBalance(), mined_balance);
+
+        // Relayed through another path and seen by the wallet first, it still
+        // gets what the send records about it, such as the payment message.
+        WalletModelTransaction relayed{
+            {SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", 1 * COIN, "relayed elsewhere"}}};
+        QCOMPARE(walletModel.prepareTransaction(relayed, wallet::CCoinControl{}).status, WalletModel::OK);
+        bilingual_str relay_error;
+        QCOMPARE(node.broadcastTransaction(relayed.getWtx(), /*max_tx_fee=*/0, relay_error), TransactionError::OK);
+        SyncWithValidationInterfaceQueue();
+        QCOMPARE(walletModel.sendCoins(relayed, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+        walletModel.wallet().getWalletTxDetails(relayed.getWtx()->GetHash(), status, order_form, in_mempool, num_blocks);
+        QVERIFY(in_mempool);
+        QCOMPARE(order_form, (interfaces::WalletOrderForm{{"Message", "relayed elsewhere"}}));
+    }
+
+    // The mempool's reason reaches the caller: of two sends prepared over the
+    // same coin, the second is refused as a conflict of the first.
+    {
+        std::optional<COutPoint> coin;
+        for (const auto& [dest, coins] : walletModel.wallet().listCoins()) {
+            for (const auto& [outpoint, out] : coins) {
+                if (!coin && !out.is_spent && out.depth_in_main_chain > 0) coin = outpoint;
+            }
+        }
+        QVERIFY(coin);
+        wallet::CCoinControl same_coin;
+        same_coin.Select(*coin);
+        same_coin.m_allow_other_inputs = false;
+        const QList<SendCoinsRecipient> recipients{
+            SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", COIN, ""}};
+        WalletModelTransaction first{recipients};
+        WalletModelTransaction conflict{recipients};
+        QCOMPARE(walletModel.prepareTransaction(first, same_coin).status, WalletModel::OK);
+        QCOMPARE(walletModel.prepareTransaction(conflict, same_coin).status, WalletModel::OK);
+        QCOMPARE(walletModel.sendCoins(first, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+        const auto refused{walletModel.sendCoins(conflict, /*fIsCoinJoin=*/false)};
+        QCOMPARE(refused.status, WalletModel::TransactionCommitFailed);
+        QVERIFY2(refused.reasonCommitFailed.contains("txn-mempool-conflict"), qPrintable(refused.reasonCommitFailed));
+    }
+
+    // With avoid_reuse, a refused send's input address stays marked as used
+    // after the abandon, as for any abandoned transaction. The balance leaves
+    // out every coin at that address, so a send above what remains fails the
+    // balance check, although the coins are spendable again.
+    {
+        // The wallet follows the chain by now. Let it process the earlier sends'
+        // mempool notifications first, or they would mark their inputs as used.
+        SyncWithValidationInterfaceQueue();
+        wallet->SetWalletFlag(WALLET_FLAG_AVOID_REUSE);
+        std::optional<COutPoint> coin;
+        for (const auto& [dest, coins] : walletModel.wallet().listCoins()) {
+            for (const auto& [outpoint, out] : coins) {
+                if (!coin && out.depth_in_main_chain > 0 &&
+                    out.txout.scriptPubKey == GetScriptForRawPubKey(test.coinbaseKey.GetPubKey())) {
+                    coin = outpoint;
+                }
+            }
+        }
+        QVERIFY(coin);
+        wallet::CCoinControl one_coin;
+        one_coin.Select(*coin);
+        one_coin.m_allow_other_inputs = false;
+        const QList<SendCoinsRecipient> recipients{
+            SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", COIN, ""}};
+        WalletModelTransaction refused{recipients};
+        QCOMPARE(walletModel.prepareTransaction(refused, one_coin).status, WalletModel::OK);
+        const CAmount max_fee{wallet->m_default_max_tx_fee};
+        wallet->m_default_max_tx_fee = 1;
+        QCOMPARE(walletModel.sendCoins(refused, /*fIsCoinJoin=*/false).status, WalletModel::TransactionCommitFailed);
+        wallet->m_default_max_tx_fee = max_fee;
+        const CAmount unused{walletModel.wallet().getBalance()};
+        const CAmount spendable{GetBalance(*wallet, /*min_depth=*/0, /*avoid_reuse=*/false).m_mine_trusted};
+        QVERIFY(unused + COIN < spendable);
+        qApp->processEvents();
+        walletModel.pollBalanceChanged();
+        QCOMPARE(walletModel.getCachedBalance().balance, unused);
+        WalletModelTransaction over_unused{
+            {SendCoinsRecipient{QString::fromStdString(EncodeDestination(PKHash())), "", unused + COIN, ""}}};
+        QCOMPARE(walletModel.prepareTransaction(over_unused, wallet::CCoinControl{}).status, WalletModel::AmountExceedsBalance);
+        // Coin control can still pick the refused send's coin.
+        WalletModelTransaction retried{recipients};
+        QCOMPARE(walletModel.prepareTransaction(retried, one_coin).status, WalletModel::OK);
+        QCOMPARE(walletModel.sendCoins(retried, /*fIsCoinJoin=*/false).status, WalletModel::OK);
+        QVERIFY(node.context()->mempool->exists(retried.getWtx()->GetHash()));
+        // Cached balances were computed under the flag.
+        wallet->UnsetWalletFlag(WALLET_FLAG_AVOID_REUSE);
+        wallet->MarkDirty();
+        qApp->processEvents();
+    }
 
     // Check current balance on OverviewPage
     OverviewPage overviewPage;
