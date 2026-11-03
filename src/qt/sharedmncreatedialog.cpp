@@ -51,6 +51,7 @@
 #include <QRadioButton>
 #include <QRegularExpression>
 #include <QSet>
+#include <QSignalBlocker>
 #include <QSpacerItem>
 #include <QSpinBox>
 #include <QStackedWidget>
@@ -3018,6 +3019,7 @@ void SharedMnCreateDialog::replaceSession(const MnShareSession& imported)
     }
 
     inferMyShare();
+    loadReservedFee();
     checkSessionLiveness();
     checkOwnFunding();
     if (m_dead_reason.isEmpty()) refreshContributedCoinLocks();
@@ -3053,6 +3055,22 @@ void SharedMnCreateDialog::replaceSession(const MnShareSession& imported)
         goToPage(PageComplete);
         break;
     }
+}
+
+void SharedMnCreateDialog::loadReservedFee()
+{
+    const MnShareSession::Contribution* const mine{myContribution()};
+    if (mine == nullptr || m_role != Role::Coordinator) return;
+    CAmount total{0};
+    for (const auto& input : mine->inputs) {
+        const auto value{resolveInputValue(input)};
+        if (!value) return;
+        total += *value;
+    }
+    const CAmount fee{total - (mine->hasChange ? mine->changeAmount : 0) - m_session.shares()[m_my_share].amount};
+    if (fee < 0) return;
+    const QSignalBlocker blocker{m_fee_field};
+    m_fee_field->setValue(fee);
 }
 
 void SharedMnCreateDialog::absorbSession(const MnShareSession& imported)

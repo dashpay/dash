@@ -1010,14 +1010,15 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
         QVERIFY(!sheet.contains(QStringLiteral("⚠")));
     }
     // Honest coordinator paying a 0.05 DASH fee, above the usual cap, out of its
-    // own coin: what leaves on top of the share is the fee it chose
+    // own coin: what leaves on top of the share is the fee it chose, and the
+    // reopened session shows that fee rather than the default
     {
         SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
-        dialog.m_fee_field->setValue(5 * COIN / 100);
         dialog.handleImportedText(session_with_change(own_address, 100 * COIN - 5 * COIN / 100,
                                                       /*coordinated=*/true)
                                       .toJsonString());
         QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Coordinator));
+        QCOMPARE(dialog.m_fee_field->value(), 5 * COIN / 100);
         QVERIFY2(dialog.m_funding_refusal.isEmpty(), qPrintable(dialog.m_funding_refusal));
     }
     // A file naming a coin this wallet holds with an output index past the end
