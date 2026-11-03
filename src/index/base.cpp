@@ -55,13 +55,16 @@ BaseIndex::DB::DB(const fs::path& path, size_t n_cache_size, bool f_memory, bool
         .options = [] { DBOptions options; node::ReadDatabaseArgs(gArgs, options); return options; }()}}
 {}
 
-bool BaseIndex::DB::ReadBestBlock(CBlockLocator& locator) const
+CBlockLocator BaseIndex::DB::ReadBestBlock() const
 {
+    CBlockLocator locator;
+
     bool success = Read(DB_BEST_BLOCK, locator);
     if (!success) {
         locator.SetNull();
     }
-    return success;
+
+    return locator;
 }
 
 void BaseIndex::DB::WriteBestBlock(CDBBatch& batch, const CBlockLocator& locator)
@@ -80,10 +83,7 @@ BaseIndex::~BaseIndex()
 
 bool BaseIndex::Init()
 {
-    CBlockLocator locator;
-    if (!GetDB().ReadBestBlock(locator)) {
-        locator.SetNull();
-    }
+    const auto locator{GetDB().ReadBestBlock()};
 
     LOCK(cs_main);
     CChain& active_chain = m_chainstate->m_chain;

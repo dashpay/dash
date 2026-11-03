@@ -126,9 +126,9 @@ BaseIndex::DB& GovCollateralIndex::GetDB() const { return *m_db; }
 bool GovCollateralIndex::CanSync(Chainstate& chainstate) const
 {
     AssertLockHeld(::cs_main);
-    CBlockLocator locator;
+    const auto locator{m_db->ReadBestBlock()};
     const CBlockIndex* best_block{nullptr};
-    if (m_db->ReadBestBlock(locator) && !locator.IsNull()) {
+    if (!locator.IsNull()) {
         best_block = chainstate.FindForkInGlobalIndex(locator);
     }
     for (const CBlockIndex* block{chainstate.m_chain.Tip()}; block != best_block; block = block->pprev) {
