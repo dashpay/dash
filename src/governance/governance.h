@@ -13,6 +13,7 @@
 #include <sync.h>
 #include <util/time.h>
 
+#include <atomic>
 #include <limits>
 #include <map>
 #include <memory>
@@ -260,7 +261,7 @@ private:
 
     int64_t nTimeLastDiff{0};
     // keep track of current block height
-    int nCachedBlockHeight{0};
+    std::atomic<int> nCachedBlockHeight{0};
     object_ref_cm_t cmapVoteToObject;
     std::map<uint256, std::shared_ptr<CGovernanceObject>> mapPostponedObjects;
     std::set<uint256> setAdditionalRelayObjects;
