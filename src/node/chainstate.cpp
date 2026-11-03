@@ -174,6 +174,12 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         return {ChainstateLoadStatus::FAILURE, _("Error loading block database")};
     }
 
+    // Migrate old synchronous index data from block index database
+    // to async indexes in separate databases
+    if (!options.reindex && !chainman.m_blockman.m_block_tree_db->MigrateOldIndexData(options.data_dir, options.index_migration)) {
+        return {ChainstateLoadStatus::FAILURE, _("Error loading block database")};
+    }
+
     if (!chainman.BlockIndex().empty() &&
             !chainman.m_blockman.LookupBlockIndex(chainman.GetConsensus().hashGenesisBlock)) {
         // If the loaded chain has a wrong genesis, bail out immediately
