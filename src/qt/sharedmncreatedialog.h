@@ -261,7 +261,9 @@ private:
     //! Who the current message goes to
     QString recipientName() const;
     void copySession(const QString& what);
-    void saveSession();
+    //! False when nothing was saved: the file dialog was cancelled, the file
+    //! could not be written, or the operator key still has to be saved
+    bool saveSession();
     void handleImportedText(const QString& text);
     void absorbSession(const MnShareSession& imported);
     void replaceSession(const MnShareSession& imported);
@@ -492,6 +494,7 @@ private:
     QLabel* m_approvals_terms{nullptr};
     QPushButton* m_copy_terms_button{nullptr};
     QPushButton* m_unlock_button{nullptr};
+    QPushButton* m_approvals_release_button{nullptr};
     QLabel* m_prepare_warning_label{nullptr};
 
     // Signatures / Sign contribution
@@ -501,6 +504,7 @@ private:
     QLabel* m_signatures_unchanged{nullptr};
     QLabel* m_signatures_terms{nullptr};
     QPushButton* m_copy_signing_button{nullptr};
+    QPushButton* m_signatures_release_button{nullptr};
 
     // Waiting pages
     struct WaitingPage {

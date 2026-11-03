@@ -48,7 +48,9 @@
 #include <QButtonGroup>
 #include <QClipboard>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
+#include <QStackedWidget>
 #include <QStandardItemModel>
 #include <QString>
 #include <QTest>
@@ -100,6 +102,26 @@ MnShareSession FrozenSession(const MnShareSession& draft, const std::vector<CKey
         session.addSignature(static_cast<int>(i), QString::fromStdString(EncodeBase64(signature)), error);
     }
     return session;
+}
+
+//! Answer the next message box with its button labelled `answer`, recording
+//! the box's title in `title`, which stays empty if no box opens before the
+//! caller processes events
+void AnswerMessageBox(const QString& answer, QString& title)
+{
+    title.clear();
+    QTimer::singleShot(0, [answer, &title] {
+        auto* const box{qobject_cast<QMessageBox*>(QApplication::activeModalWidget())};
+        if (box == nullptr) return;
+        title = box->windowTitle();
+        for (QAbstractButton* const button : box->buttons()) {
+            if (button->text() == answer) {
+                button->click();
+                return;
+            }
+        }
+        box->reject();
+    });
 }
 } // anonymous namespace
 
@@ -486,6 +508,55 @@ void SharedMnWizardTests::signedSessionReservation()
         wallet_model.wallet().lockCoin(alice_coin, /*write_to_db=*/false);
         QVERIFY(!dialog.hasLockedContributedCoins());
         wallet_model.wallet().unlockCoin(alice_coin);
+    }
+
+    // Whether the page on screen offers "Release my coins"
+    const auto offers_release = [](const SharedMnCreateDialog& dialog) {
+        const auto buttons{dialog.m_pages->currentWidget()->findChildren<QPushButton*>()};
+        return std::any_of(buttons.begin(), buttons.end(), [](const QPushButton* button) {
+            return button->text() == QStringLiteral("Release my coins") && !button->isHidden();
+        });
+    };
+    const QString keep_prompt{QStringLiteral("Keep this session for later?")};
+    QString prompt;
+    {
+        // Nothing was changed since the session was opened, but its coins stay
+        // reserved once the dialog closes, so Close and Cancel both ask first
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(received.toJsonString());
+        dialog.show();
+        QVERIFY(offers_release(dialog));
+        AnswerMessageBox(QStringLiteral("Cancel"), prompt);
+        dialog.onNext();
+        QCoreApplication::processEvents();
+        QCOMPARE(prompt, keep_prompt);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+
+        AnswerMessageBox(QStringLiteral("Discard and Release Coins"), prompt);
+        dialog.reject();
+        QCoreApplication::processEvents();
+        QCOMPARE(prompt, keep_prompt);
+        QVERIFY(!dialog.isVisible());
+        QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
+    }
+    {
+        // The coordinator's copy, opened from its file, offers the same choice
+        // and, having no waiting page, a way to release the coins where a
+        // registration that cannot be broadcast leaves it
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(signed_session(/*coordinated=*/true).toJsonString());
+        QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Coordinator));
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageSignatures));
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        dialog.show();
+        QVERIFY(offers_release(dialog));
+        AnswerMessageBox(QStringLiteral("Cancel"), prompt);
+        dialog.reject();
+        QCoreApplication::processEvents();
+        QCOMPARE(prompt, keep_prompt);
+        QVERIFY(dialog.isVisible());
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
     }
 }
 

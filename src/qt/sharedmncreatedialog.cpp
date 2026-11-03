@@ -922,6 +922,12 @@ QWidget* SharedMnCreateDialog::createApprovalsPage()
     SharedMnMakeSecondary(m_unlock_button);
     connect(m_unlock_button, &QPushButton::clicked, this, &SharedMnCreateDialog::unlockTerms);
     row->addWidget(m_unlock_button);
+    // The coordinator has no waiting page, and a session can stall here or on
+    // the Signatures page for good, e.g. when somebody spends a reserved coin
+    m_approvals_release_button = new QPushButton(tr("Release my coins"), page);
+    m_approvals_release_button->setFlat(true);
+    connect(m_approvals_release_button, &QPushButton::clicked, this, &SharedMnCreateDialog::releaseReservedCoins);
+    row->addWidget(m_approvals_release_button);
     row->addStretch();
     layout->addLayout(row);
     return page;
@@ -958,6 +964,10 @@ QWidget* SharedMnCreateDialog::createSignaturesPage()
     m_copy_signing_button = new QPushButton(tr("Copy Signing Request"), page);
     connect(m_copy_signing_button, &QPushButton::clicked, this, [this] { copySession(tr("Signing Request")); });
     row->addWidget(m_copy_signing_button);
+    m_signatures_release_button = new QPushButton(tr("Release my coins"), page);
+    m_signatures_release_button->setFlat(true);
+    connect(m_signatures_release_button, &QPushButton::clicked, this, &SharedMnCreateDialog::releaseReservedCoins);
+    row->addWidget(m_signatures_release_button);
     row->addStretch();
     layout->addLayout(row);
     return page;
@@ -1640,6 +1650,15 @@ void SharedMnCreateDialog::onNext()
         }
         return;
     case PageWaitBroadcast:
+        // Until the registration appears the coins stay reserved, which is the
+        // user's choice to make, as it is for Cancel
+        if (hasLockedContributedCoins()) {
+            reject();
+            return;
+        }
+        m_finished = true;
+        accept();
+        return;
     case PageComplete:
         m_finished = true;
         accept();
@@ -1924,6 +1943,7 @@ void SharedMnCreateDialog::refreshApprovalsPage()
     m_unlock_button->setVisible(coordinator && m_session.stage() != MnShareSession::Stage::Combined &&
                                 m_session.stage() != MnShareSession::Stage::FundingSigned &&
                                 m_session.stage() != MnShareSession::Stage::Broadcast);
+    m_approvals_release_button->setVisible(hasLockedContributedCoins());
     m_prepare_warning_label->setVisible(!m_prepare_warning.isEmpty());
     m_prepare_warning_label->setText(m_prepare_warning);
     refreshTermSheets();
@@ -1938,6 +1958,7 @@ void SharedMnCreateDialog::refreshSignaturesPage()
                          "in any order.")
                     : tr("Signs the coins you reserved. Your signature only spends them into this registration."));
     m_copy_signing_button->setVisible(coordinator);
+    m_signatures_release_button->setVisible(hasLockedContributedCoins());
 
     const auto signature_map{InputSignatureMap(m_session.protxHex())};
     const auto [signed_inputs, total_inputs]{fundingSignatureCount(m_my_share, signature_map)};
@@ -2815,7 +2836,7 @@ void SharedMnCreateDialog::copySession(const QString& what)
     refreshWaitingPages();
 }
 
-void SharedMnCreateDialog::saveSession()
+bool SharedMnCreateDialog::saveSession()
 {
     if (operatorSecretUnsaved()) {
         // The session file carries only the operator public key, so a file
@@ -2823,21 +2844,22 @@ void SharedMnCreateDialog::saveSession()
         goToPage(PageSecret);
         showError(tr("Save the operator secret key first. It is shown only here, and the session file does not "
                      "carry it: without it the masternode could never be run."));
-        return;
+        return false;
     }
     const QString suggested{QStringLiteral("shared-mn-session-%1.json").arg(m_session.sessionCode())};
     const QString filename{GUIUtil::getSaveFileName(this, tr("Save shared masternode message"), suggested,
                                                     tr("Session files (*.json)"), nullptr)};
-    if (filename.isEmpty()) return;
+    if (filename.isEmpty()) return false;
     QFile file(filename);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         showError(tr("Could not open %1 for writing.").arg(filename));
-        return;
+        return false;
     }
     file.write(m_session.toJsonString().toUtf8());
     file.close();
     m_dirty = false;
     showStatus(tr("Saved · Session %1 · Code %2").arg(m_session.sessionCode(), m_session.fingerprint()));
+    return true;
 }
 
 void SharedMnCreateDialog::onSave()
@@ -3597,7 +3619,9 @@ bool SharedMnCreateDialog::allFundingSigned() const
 void SharedMnCreateDialog::reject()
 {
     if (m_busy) return;
-    if (m_finished || m_role == Role::Undecided || !m_dirty) {
+    // A session opened from a file is unchanged, but the coins it reserves
+    // stay locked after the dialog closes all the same
+    if (m_finished || m_role == Role::Undecided || (!m_dirty && !hasLockedContributedCoins())) {
         QDialog::reject();
         return;
     }
@@ -3626,8 +3650,7 @@ void SharedMnCreateDialog::reject()
             goToPage(PageSecret);
             return;
         }
-        saveSession();
-        if (m_dirty) return; // the save was cancelled
+        if (!saveSession()) return;
     } else if (box.clickedButton() == discard) {
         if (m_session.stage() != MnShareSession::Stage::Broadcast) unlockAllContributedCoins();
     } else {
