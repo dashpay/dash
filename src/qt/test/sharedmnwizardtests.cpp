@@ -456,8 +456,9 @@ void SharedMnWizardTests::signedSessionReservation()
     WalletModel wallet_model(interfaces::MakeWallet(context, wallet), models.client);
 
     // The session once every share has signed its coins, as bob receives it or,
-    // with `coordinated`, as bob coordinating it saved it
-    const auto signed_session = [&](bool coordinated) {
+    // with `coordinated`, as bob coordinating it saved it. Without
+    // `fully_signed` it is the signing request, before anybody signed.
+    const auto signed_session = [&](bool coordinated, bool fully_signed = true) {
         MnShareSession invitation{InvitationSession()};
         if (coordinated) {
             invitation.setCoordinatorLabel(QStringLiteral("bob"));
@@ -481,7 +482,7 @@ void SharedMnWizardTests::signedSessionReservation()
         MnShareSession session{FrozenSession(draft, owner_keys, /*sign_all=*/true)};
         session.setCombinedTx(session.protxHex(), error);
         CMutableTransaction tx;
-        if (!DecodeHexTx(tx, session.protxHex().toStdString())) return session;
+        if (!fully_signed || !DecodeHexTx(tx, session.protxHex().toStdString())) return session;
         for (auto& input : tx.vin) {
             input.scriptSig = CScript() << OP_TRUE;
         }
@@ -557,6 +558,43 @@ void SharedMnWizardTests::signedSessionReservation()
         QCOMPARE(prompt, keep_prompt);
         QVERIFY(dialog.isVisible());
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+    }
+    {
+        // Released coins stay released when another copy of the session
+        // arrives, so the status line saying so stays true
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(received.toJsonString());
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        AnswerMessageBox(QStringLiteral("Release"), prompt);
+        dialog.releaseReservedCoins();
+        QCoreApplication::processEvents();
+        QCOMPARE(prompt, QStringLiteral("Release your coins?"));
+        QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
+        QVERIFY(dialog.m_status_label->text().startsWith(QStringLiteral("Released")));
+
+        dialog.handleImportedText(received.toJsonString());
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageWaitBroadcast));
+        QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
+        QVERIFY(!offers_release(dialog));
+        QVERIFY(dialog.m_status_label->text().startsWith(QStringLiteral("Released")));
+    }
+    {
+        // Signing the coins into the registration reserves them again. This
+        // fixture's coins are not in the chainstate, so the wallet adds no
+        // signature, but the signing step still completes.
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(signed_session(/*coordinated=*/false, /*fully_signed=*/false).toJsonString());
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageSignatures));
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        AnswerMessageBox(QStringLiteral("Release"), prompt);
+        dialog.releaseReservedCoins();
+        QCoreApplication::processEvents();
+        QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
+        bool complete{true};
+        QString sign_error;
+        QVERIFY2(dialog.signOwnFundingInputs(complete, sign_error), qPrintable(sign_error));
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        wallet_model.wallet().unlockCoin(bob_coin);
     }
 }
 

@@ -2258,6 +2258,7 @@ void SharedMnCreateDialog::startSession()
         return;
     }
     unlockAllContributedCoins();
+    m_coins_released = false;
     m_session = MnShareSession();
     m_role = Role::Coordinator;
     m_my_share = 0;
@@ -2634,6 +2635,10 @@ bool SharedMnCreateDialog::signOwnFundingInputs(bool& complete, QString& error)
         error = tr("Signing failed: %1").arg(apply_error);
         return false;
     }
+    // Signing commits these coins to the registration, so they are reserved
+    // again even if they were released before
+    m_coins_released = false;
+    refreshContributedCoinLocks();
     m_dirty = true;
     return true;
 }
@@ -3218,6 +3223,7 @@ void SharedMnCreateDialog::reserveCoins()
         return;
     }
     setContributionLocked(contribution, /*lock=*/true);
+    m_coins_released = false;
     m_dirty = true;
     // The coins card now leads with "Reserved - ..." and the Reserve button has
     // become Release; repeating the same sentence under the page says it twice
@@ -3255,6 +3261,7 @@ void SharedMnCreateDialog::releaseReservedCoins()
     box.exec();
     if (box.clickedButton() != release) return;
     unlockAllContributedCoins();
+    m_coins_released = true;
     refreshAll();
     showStatus(tr("Released — these coins can be spent again."));
 }
@@ -3285,6 +3292,7 @@ void SharedMnCreateDialog::refreshContributedCoinLocks()
         unlockAllContributedCoins();
         return;
     }
+    if (m_coins_released) return;
     lockKnownContributedCoins();
 }
 
