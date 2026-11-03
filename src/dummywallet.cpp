@@ -55,6 +55,7 @@ void DummyWalletInit::AddWalletOptions(ArgsManager& argsman) const
         "-walletbackupsdir=<dir>",
         "-walletbroadcast",
         "-walletdir=<dir>",
+        "-walletmigration",
         "-walletnotify=<cmd>",
         "-discardfee=<amt>",
         "-fallbackfee=<amt>",

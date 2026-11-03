@@ -125,7 +125,9 @@ The restored wallet can also be loaded in the GUI via `File` ->`Open wallet`.
 ## Migrating Legacy Wallets to Descriptor Wallets
 
 Legacy wallets (traditional non-descriptor wallets) can be migrated to become Descriptor wallets
-through the use of the `migratewallet` RPC. Migrated wallets will have all of their addresses and private keys added to
+through the use of the `migratewallet` RPC. Migration is experimental and must be enabled by starting
+the node with `-walletmigration`, which also shows the `File` -> `Migrate Wallet` menu item in the GUI.
+Migrated wallets will have all of their addresses and private keys added to
 a newly created Descriptor wallet that has the same name as the original wallet. Because Descriptor
 wallets do not support having private keys and watch-only scripts, there may be up to two
 additional wallets created after migration. In addition to a descriptor wallet of the same name,

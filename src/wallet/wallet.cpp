@@ -5150,6 +5150,10 @@ bool DoMigration(CWallet& wallet, WalletContext& context, bilingual_str& error, 
 
 util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& wallet_name, const SecureString& passphrase, WalletContext& context)
 {
+    if (!context.args || !context.args->GetBoolArg("-walletmigration", DEFAULT_WALLET_MIGRATION)) {
+        return util::Error{Untranslated("Wallet migration is experimental and disabled by default. Restart with -walletmigration to enable it.")};
+    }
+
     MigrationResult res;
     bilingual_str error;
     std::vector<bilingual_str> warnings;

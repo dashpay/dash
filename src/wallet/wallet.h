@@ -114,6 +114,8 @@ static const unsigned int DEFAULT_TX_CONFIRM_TARGET = 6;
 static const bool DEFAULT_WALLETBROADCAST = true;
 static const bool DEFAULT_DISABLE_WALLET = false;
 static const bool DEFAULT_WALLETCROSSCHAIN = false;
+//! -walletmigration default
+static constexpr bool DEFAULT_WALLET_MIGRATION{false};
 //! -dustprotectionthreshold default (0 = disabled)
 static constexpr CAmount DEFAULT_DUST_PROTECTION_THRESHOLD{0};
 //! -dustprotectionthreshold maximum (matches GUI spinbox cap)

@@ -90,6 +90,25 @@ class WalletMigrationTest(BitcoinTestFramework):
         else:
             assert_equal(addr_info['labels'], []),
 
+    def test_migration_requires_opt_in(self):
+        self.log.info("Test that migration is refused, leaving the wallet untouched, without -walletmigration")
+        wallet = self.create_legacy_wallet("optin")
+        wallet_dir = self.nodes[0].wallets_path / "optin"
+        files_before = sorted(os.listdir(wallet_dir))
+
+        assert_raises_rpc_error(-4, "Wallet migration is experimental and disabled by default", wallet.migratewallet)
+        assert_raises_rpc_error(-4, "Wallet migration is experimental and disabled by default", self.nodes[0].migratewallet, "optin")
+
+        assert "optin" in self.nodes[0].listwallets()
+        info = wallet.getwalletinfo()
+        assert_equal(info["descriptors"], False)
+        assert_equal(info["format"], "bdb")
+        assert_equal(sorted(os.listdir(wallet_dir)), files_before)
+
+        wallet.unloadwallet()
+        self.nodes[0].extra_args = ["-walletmigration"]
+        self.restart_node(0)
+
     def test_basic(self):
         default = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
 
@@ -880,6 +899,7 @@ class WalletMigrationTest(BitcoinTestFramework):
     def run_test(self):
         self.generate(self.nodes[0], 101)
 
+        self.test_migration_requires_opt_in()
         # TODO: Test the actual records in the wallet for these tests too. The behavior may be correct, but the data written may not be what we actually want
         self.test_basic()
         self.test_multisig()

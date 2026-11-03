@@ -41,6 +41,8 @@
 #include <qt/walletframe.h>
 #include <qt/walletmodel.h>
 #include <qt/walletview.h>
+
+#include <wallet/wallet.h>
 #endif // ENABLE_WALLET
 
 #ifdef Q_OS_MACOS
@@ -623,6 +625,7 @@ void BitcoinGUI::createActions()
         connect(m_close_all_wallets_action, &QAction::triggered, [this] {
             m_wallet_controller->closeAllWallets(this);
         });
+        m_migrate_wallet_action->setVisible(gArgs.GetBoolArg("-walletmigration", wallet::DEFAULT_WALLET_MIGRATION));
         connect(m_migrate_wallet_action, &QAction::triggered, [this] {
             auto activity = new MigrateWalletActivity(m_wallet_controller, this);
             connect(activity, &MigrateWalletActivity::migrated, this, &BitcoinGUI::setCurrentWallet);
