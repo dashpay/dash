@@ -741,6 +741,17 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
         QVERIFY(dialog.m_error_label->text().contains(QStringLiteral("changes your share")));
     }
 
+    // So is a newer unlocked draft that changes it
+    MnShareSession draft_edit{frozen};
+    draft_edit.unfreeze();
+    draft_edit.shares()[1].refundAddress = FreshP2PKHAddress();
+    QCOMPARE(int(draft_edit.stage()), int(MnShareSession::Stage::Draft));
+    QVERIFY(draft_edit.revision() > frozen.revision());
+    dialog.openSharedMessage(draft_edit.toJsonString());
+    QCOMPARE(dialog.m_session.revision(), frozen.revision());
+    QVERIFY(dialog.m_session.hasShare(frozen.shares()[1]));
+    QVERIFY(dialog.m_error_label->text().contains(QStringLiteral("changes your share")));
+
     // A newer revision that only changes another participant's row is loaded, as
     // is one where an earlier row was removed and this wallet's share moved up
     const MnShareSession other_row{relocked([](MnShareSession& s) { s.shares()[2].rewardAddress = FreshP2PKHAddress(); })};
