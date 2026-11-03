@@ -748,6 +748,7 @@ QWidget* SharedMnCreateDialog::createContributionPage()
                 }
             });
             row->addWidget(fresh);
+            m_new_address_buttons.push_back(fresh);
             box->addLayout(row);
         };
         address_row(tr("Owner address:"),
@@ -1918,6 +1919,9 @@ void SharedMnCreateDialog::refreshContributionPage()
                           .arg(coins, FormatAmount(m_wallet_model, total),
                                FormatAmount(m_wallet_model, mine->changeAmount))
                     : tr("Uses %1 (%2), with no change left over.").arg(coins, FormatAmount(m_wallet_model, total));
+        text += QLatin1Char('\n');
+        text += coordinator ? tr("To change your addresses or the network fee, release the coins first.")
+                            : tr("To change your addresses, release the coins first.");
         m_coins_label->setText(text);
     } else {
         const CAmount target{contributionTarget()};
@@ -1945,9 +1949,15 @@ void SharedMnCreateDialog::refreshContributionPage()
     m_release_button->setVisible(reserved);
     m_release_button->setEnabled(editable);
     m_who_am_i_combo->setEnabled(editable && !reserved);
+    // The reservation was made for these addresses and this fee, so they stay
+    // as reserved until the coins are released
     for (QValidatedLineEdit* const edit : {m_owner_edit, m_refund_edit, m_reward_edit}) {
         edit->setReadOnly(reserved || !editable);
     }
+    for (QPushButton* const button : m_new_address_buttons) {
+        button->setEnabled(!reserved && editable);
+    }
+    m_fee_field->setEnabled(!reserved && editable);
 }
 
 void SharedMnCreateDialog::refreshInvitePage()

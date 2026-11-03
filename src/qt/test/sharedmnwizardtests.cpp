@@ -48,6 +48,7 @@
 #include <QButtonGroup>
 #include <QClipboard>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QStackedWidget>
@@ -349,10 +350,26 @@ void SharedMnWizardTests::coordinatorResumesSavedSession()
     QVERIFY(!dialog.m_me_group->button(0)->isEnabled());
     QVERIFY(!dialog.m_me_group->button(1)->isEnabled());
 
+    // Nor can the contribution page show addresses or a fee other than the ones
+    // the coins were reserved for
+    auto* const fee_input{dialog.m_fee_field->findChild<QLineEdit*>()};
+    QVERIFY(fee_input != nullptr);
+    QVERIFY(!fee_input->isEnabled());
+    QCOMPARE(dialog.m_new_address_buttons.size(), 3);
+    for (QPushButton* const button : dialog.m_new_address_buttons) {
+        button->click();
+    }
+    QCOMPARE(dialog.m_owner_edit->text(), saved.shares()[0].ownerAddress);
+    QCOMPARE(dialog.m_refund_edit->text(), saved.shares()[0].refundAddress);
+    QVERIFY(dialog.m_reward_edit->text().isEmpty());
+
     // Without the reservation the coordinator's own row is free again, but bob's
     // and carol's still belong to them
     dialog.releaseCoins();
     QVERIFY(dialog.myContribution() == nullptr);
+    QVERIFY(fee_input->isEnabled());
+    dialog.m_new_address_buttons[1]->click();
+    QVERIFY(dialog.m_refund_edit->text() != saved.shares()[0].refundAddress);
     QVERIFY(dialog.m_me_group->button(0)->isEnabled());
     QVERIFY(!dialog.m_me_group->button(1)->isEnabled());
     QVERIFY(!dialog.m_me_group->button(2)->isEnabled());
