@@ -134,6 +134,7 @@ BASE_SCRIPTS = [
     'feature_llmq_simplepose.py --disable-spork23', # NOTE: needs dash_hash to pass
     'feature_llmq_simplepose_capabilities.py --disable-spork23', # NOTE: needs dash_hash to pass
     'feature_llmq_rotation.py', # NOTE: needs dash_hash to pass
+    'feature_llmq_rotation_short_quarters.py', # NOTE: needs dash_hash to pass
     'feature_llmq_evo.py', # NOTE: needs dash_hash to pass
     'feature_llmq_dkgerrors.py', # NOTE: needs dash_hash to pass
     'feature_llmq_dkg_intake.py', # NOTE: needs dash_hash to pass
