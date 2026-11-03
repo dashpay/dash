@@ -79,6 +79,9 @@ CDeterministicMNCPtr MN(uint64_t internal_id, uint8_t hash_suffix, MnType type, 
                         NetInfoStatus::Success);
     if (type == MnType::Evo) {
         state->platformNodeID = H160(address_tag + 40);
+        // Platform on another address, with a domain first for HTTPS, as DEPLOYMENT_IPV4_OPTIONAL allows, on the
+        // standard ports, which mainnet pins. Such states load on every network: the IPv4 rule applies to ProTxs,
+        // at the height they are mined at.
         BOOST_REQUIRE_EQUAL(state->netInfo->AddEntry(NetInfoPurpose::PLATFORM_P2P,
                                                     strprintf("2.2.2.%d:26656", address_tag)),
                             NetInfoStatus::Success);

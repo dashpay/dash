@@ -116,6 +116,7 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Array of addresses in the form \"ADDR:PORT\". Must be unique on the network.\n"
                 "A legacy ProTx can only store a single entry; storing multiple entries\n"
                 "requires upgrading to a version 3 ProTx.\n"
+                "The first entry must be IPv4 where masternodes require IPv4 (mainnet and, by default, regtest).\n"
                 "On mainnet, the first entry must use port 9999.\n"
                 "Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
@@ -128,6 +129,7 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Array of addresses in the form \"ADDR:PORT\". Must be unique on the network.\n"
                 "A legacy ProTx can only store a single entry; storing multiple entries\n"
                 "requires upgrading to a version 3 ProTx.\n"
+                "The first entry must be IPv4 where masternodes require IPv4 (mainnet and, by default, regtest).\n"
                 "On mainnet, the first entry must use port 9999.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
@@ -248,6 +250,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for peer-to-peer connection.\n"
                 "For a legacy ProTx, pass a bare port number instead (e.g. 26656);\n"
                 "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
+                "Where masternodes require IPv4 (mainnet and, by default, regtest), the first entry must use the\n"
+                "first coreP2PAddrs address.\n"
                 "On mainnet, the first entry must use port 26656.\n"
                 "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
@@ -260,6 +264,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for peer-to-peer connection.\n"
                 "For a legacy ProTx, pass a bare port number instead (e.g. 26656);\n"
                 "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
+                "Where masternodes require IPv4 (mainnet and, by default, regtest), the first entry must use the\n"
+                "first coreP2PAddrs address.\n"
                 "On mainnet, the first entry must use port 26656.\n"
                 "Must be unique on the network.",
                 {
@@ -272,6 +278,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for their HTTPS API.\n"
                 "For a legacy ProTx, pass a bare port number instead (e.g. 443);\n"
                 "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
+                "Where masternodes require IPv4 (mainnet and, by default, regtest), the first entry must use the\n"
+                "first coreP2PAddrs address.\n"
                 "On mainnet, the first entry must use port 443.\n"
                 "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
@@ -284,6 +292,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Array of addresses in the form \"ADDR:PORT\" used by Platform for their HTTPS API.\n"
                 "For a legacy ProTx, pass a bare port number instead (e.g. 443);\n"
                 "the \"ADDR:PORT\" / address-array form requires upgrading to a version 3 ProTx.\n"
+                "Where masternodes require IPv4 (mainnet and, by default, regtest), the first entry must use the\n"
+                "first coreP2PAddrs address.\n"
                 "On mainnet, the first entry must use port 443.\n"
                 "Must be unique on the network.",
                 {

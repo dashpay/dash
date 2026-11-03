@@ -11,6 +11,8 @@
 #include <util/helpers.h>
 
 #include <chainparams.h>
+#include <consensus/validation.h>
+#include <deploymentstatus.h>
 #include <clientversion.h>
 #include <netbase.h>
 #include <streams.h>
@@ -177,25 +179,27 @@ BOOST_AUTO_TEST_CASE(provider_network_fields_main)
         .platform_p2p = MainParams().GetDefaultPlatformP2PPort(),
         .platform_https = MainParams().GetDefaultPlatformHTTPPort(),
     };
-    BOOST_CHECK(!node->evo().validateProviderNetInfo(net_info, MnType::Evo, ProTxVersion::BasicBLS, /*optional=*/false));
+    BOOST_CHECK(!node->evo().validateProviderNetInfo(net_info, MnType::Evo, ProTxVersion::BasicBLS,
+                                                     /*ipv4_optional=*/false, /*optional=*/false));
 
     net_info.platform_p2p = static_cast<uint16_t>(MainParams().GetDefaultPlatformP2PPort() + 1);
     auto validation_error{
-        node->evo().validateProviderNetInfo(net_info, MnType::Evo, ProTxVersion::BasicBLS, /*optional=*/false)};
+        node->evo().validateProviderNetInfo(net_info, MnType::Evo, ProTxVersion::BasicBLS,
+                                            /*ipv4_optional=*/false, /*optional=*/false)};
     BOOST_REQUIRE(validation_error);
     BOOST_CHECK_EQUAL(validation_error->reject_reason, "bad-protx-platform-p2p-port");
 
     net_info.platform_p2p = MainParams().GetDefaultPlatformP2PPort();
     net_info.platform_https = static_cast<uint16_t>(MainParams().GetDefaultPlatformHTTPPort() + 1);
     validation_error = node->evo().validateProviderNetInfo(net_info, MnType::Evo, ProTxVersion::BasicBLS,
-                                                           /*optional=*/false);
+                                                           /*ipv4_optional=*/false, /*optional=*/false);
     BOOST_REQUIRE(validation_error);
     BOOST_CHECK_EQUAL(validation_error->reject_reason, "bad-protx-platform-http-port");
 
     net_info.platform_p2p = MainParams().GetDefaultPort();
     net_info.platform_https = MainParams().GetDefaultPlatformHTTPPort();
     validation_error = node->evo().validateProviderNetInfo(net_info, MnType::Evo, ProTxVersion::BasicBLS,
-                                                           /*optional=*/false);
+                                                           /*ipv4_optional=*/false, /*optional=*/false);
     BOOST_REQUIRE(validation_error);
     BOOST_CHECK_EQUAL(validation_error->reject_reason, "bad-protx-platform-p2p-port");
 
@@ -205,12 +209,14 @@ BOOST_AUTO_TEST_CASE(provider_network_fields_main)
         .platform_https = std::vector<std::string>{"server.example.com:443"},
     };
     validation_error = node->evo().validateProviderNetInfo(net_info, MnType::Evo, ProTxVersion::ExtAddr,
-                                                           /*optional=*/false);
+                                                           /*ipv4_optional=*/false, /*optional=*/false);
     BOOST_REQUIRE(validation_error);
     BOOST_CHECK(validation_error->message.original.find("unroutable address") != std::string::npos);
 
-    // On mainnet the first entry of every purpose must use that purpose's port (9999, 26656, 443). Additional
-    // entries may use other addresses, ports and network types. Shared masternodes use the same network fields.
+    // On mainnet the first entry of every purpose must use that purpose's port (9999, 26656, 443) and, as
+    // masternodes may not operate without IPv4 there yet, be IPv4, with the first Platform entries on the first
+    // Core P2P address. Additional entries may use other addresses, ports and network types. Shared masternodes
+    // use the same network fields.
     const std::string a{"1.1.1.1"}, b{"1.1.1.2"}, ipv6{"[2606:4700:4700::1111]"},
         onion{"pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"},
         i2p{"udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p:0"}, domain{"platform.example.com"};
@@ -223,8 +229,9 @@ BOOST_AUTO_TEST_CASE(provider_network_fields_main)
     struct Case {
         MnType type{MnType::Regular};
         interfaces::ProviderNetInfo net_info;
-        std::string error_field; // Empty if valid
+        std::string error_field; // Empty if valid, unless reject_reason is set
         std::string error_status{};
+        std::string reject_reason{}; // Checked instead of the message if set
     };
     const std::vector<Case> primary_vals{
         // Valid, including additional entries of any type, address and port
@@ -254,20 +261,44 @@ BOOST_AUTO_TEST_CASE(provider_network_fields_main)
          "invalid port"},
         {MnType::Evo, make({a + ":9999"}, Strs{a + ":26656"}, Strs{domain + ":8443", a + ":443"}),
          "platformHTTPSAddrs[0]", "invalid port"},
+        // The first entry of each purpose must be IPv4, Platform's on the first Core P2P address
+        {MnType::Regular, make({ipv6 + ":9999"}), "", "", "bad-protx-netinfo-addr-type"},
+        {MnType::Regular, make({onion + ":9999", a + ":9999"}), "", "", "bad-protx-netinfo-addr-type"},
+        {MnType::Evo, make({a + ":9999"}, Strs{b + ":26656"}, Strs{a + ":443"}), "", "", "bad-protx-netinfo-addr"},
+        {MnType::Evo, make({a + ":9999"}, Strs{a + ":26656"}, Strs{b + ":443"}), "", "", "bad-protx-netinfo-addr"},
+        {MnType::Evo, make({a + ":9999", ipv6 + ":9999"}, Strs{ipv6 + ":26656"}, Strs{a + ":443"}), "", "",
+         "bad-protx-netinfo-addr-type"},
+        {MnType::Evo, make({a + ":9999"}, Strs{a + ":26656"}, Strs{domain + ":443"}), "", "",
+         "bad-protx-netinfo-addr-type"},
     };
-    for (const auto& [type, case_net_info, error_field, error_status] : primary_vals) {
+    for (const auto& [type, case_net_info, error_field, error_status, reject_reason] : primary_vals) {
         validation_error = node->evo().validateProviderNetInfo(case_net_info, type, ProTxVersion::ExtAddr,
-                                                               /*optional=*/false);
-        BOOST_CHECK_MESSAGE(!validation_error == error_field.empty(),
+                                                               /*ipv4_optional=*/false, /*optional=*/false);
+        BOOST_CHECK_MESSAGE(!validation_error == (error_field.empty() && reject_reason.empty()),
                             strprintf("%s: %s", Join(case_net_info.core_p2p, ","),
                                       validation_error ? validation_error->message.original : "accepted"));
-        if (validation_error && !error_field.empty()) {
+        if (validation_error && !reject_reason.empty()) {
+            BOOST_CHECK_MESSAGE(validation_error->reject_reason == reject_reason, validation_error->message.original);
+        } else if (validation_error && !error_field.empty()) {
             const auto& message{validation_error->message.original};
             BOOST_CHECK_MESSAGE(message.find(error_field) != std::string::npos &&
                                     message.find(strprintf("(%s)", error_status)) != std::string::npos,
                                 message);
         }
     }
+
+    // Validation needs no chain: the caller supplies whether masternodes may operate without IPv4, which lifts
+    // the IPv4 and same-address rules but not the port pins
+    for (const auto& [type, case_net_info, _field, _status, reject_reason] : primary_vals) {
+        if (reject_reason.empty()) continue;
+        BOOST_CHECK(!node->evo().validateProviderNetInfo(case_net_info, type, ProTxVersion::ExtAddr,
+                                                         /*ipv4_optional=*/true, /*optional=*/false));
+    }
+    validation_error = node->evo().validateProviderNetInfo(make({ipv6 + ":9998"}), MnType::Regular,
+                                                           ProTxVersion::ExtAddr, /*ipv4_optional=*/true,
+                                                           /*optional=*/false);
+    BOOST_REQUIRE(validation_error);
+    BOOST_CHECK(validation_error->message.original.find("(invalid port)") != std::string::npos);
 }
 
 struct TestNetSetup : public BasicTestingSetup {
@@ -302,7 +333,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
     const auto check_fields = [](const std::shared_ptr<ExtNetInfo>& net_info, MnType type, TxValidationState& state) {
         return CheckProviderNetworkFields(net_info, type, ProTxVersion::ExtAddr, /*platform_node_id=*/nullptr,
                                           /*platform_p2p_port=*/0, /*platform_http_port=*/0, /*allow_empty=*/false,
-                                          state);
+                                          /*ipv4_optional=*/false, state);
     };
 
     // Outside mainnet, these port rules don't apply
@@ -328,6 +359,76 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
         TxValidationState state;
         BOOST_CHECK_EQUAL(check_fields(net_info, type, state), valid_on_mainnet);
         BOOST_CHECK_EQUAL(state.GetRejectReason(), valid_on_mainnet ? "" : "bad-protx-netinfo-port");
+    }
+    SelectParams(CBaseChainParams::TESTNET);
+}
+
+BOOST_FIXTURE_TEST_CASE(ipv4_primaries_follow_activation, TestNetSetup)
+{
+    // Masternodes may operate without IPv4 on testnet (and devnets), which already has such registrations, but
+    // not yet on mainnet
+    BOOST_CHECK(DeploymentActiveAfter(nullptr, Params().GetConsensus(), Consensus::DEPLOYMENT_IPV4_OPTIONAL));
+    BOOST_CHECK(!DeploymentEnabled(MainParams().GetConsensus(), Consensus::DEPLOYMENT_IPV4_OPTIONAL));
+
+    struct Case {
+        MnType type{MnType::Regular};
+        std::vector<std::pair<NetInfoPurpose, std::string>> entries;
+        std::string reject_reason{}; // Before activation, empty if valid
+    };
+    const std::string ipv6{"[2606:4700:4700::1111]"};
+    const std::string onion{"pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"};
+    const std::vector<Case> vals{
+        {MnType::Regular, {{NetInfoPurpose::CORE_P2P, ipv6 + ":9999"}, {NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}},
+         "bad-protx-netinfo-addr-type"},
+        {MnType::Regular, {{NetInfoPurpose::CORE_P2P, onion + ":9999"}}, "bad-protx-netinfo-addr-type"},
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::PLATFORM_P2P, "1.1.1.2:26656"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:443"}},
+         "bad-protx-netinfo-addr"},
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::PLATFORM_P2P, "1.1.1.1:26656"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.2:443"}},
+         "bad-protx-netinfo-addr"},
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::CORE_P2P, ipv6 + ":9999"},
+          {NetInfoPurpose::PLATFORM_P2P, ipv6 + ":26656"}, {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:443"}},
+         "bad-protx-netinfo-addr-type"},
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::PLATFORM_P2P, "1.1.1.1:26656"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "platform.example.com:443"}},
+         "bad-protx-netinfo-addr-type"},
+        {MnType::Evo,
+         {{NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"}, {NetInfoPurpose::CORE_P2P, ipv6 + ":9999"},
+          {NetInfoPurpose::PLATFORM_P2P, "1.1.1.1:26656"}, {NetInfoPurpose::PLATFORM_P2P, onion + ":26656"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:443"},
+          {NetInfoPurpose::PLATFORM_HTTPS, "platform.example.com:443"}}},
+    };
+    const auto check = [](const std::shared_ptr<ExtNetInfo>& net_info, const Case& val) {
+        BOOST_CHECK_EQUAL(net_info->Validate(), NetInfoStatus::Success);
+        TxValidationState state;
+        BOOST_CHECK(CheckProviderNetworkFields(net_info, val.type, ProTxVersion::ExtAddr, nullptr, 0, 0,
+                                               /*allow_empty=*/false, /*ipv4_optional=*/true, state));
+        BOOST_CHECK_EQUAL(CheckProviderNetworkFields(net_info, val.type, ProTxVersion::ExtAddr, nullptr, 0, 0,
+                                                     /*allow_empty=*/false, /*ipv4_optional=*/false, state),
+                          val.reject_reason.empty());
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), val.reject_reason);
+    };
+
+    std::vector<CDataStream> serialized;
+    for (const auto& val : vals) {
+        auto net_info{std::make_shared<ExtNetInfo>()};
+        for (const auto& [purpose, entry] : val.entries) {
+            BOOST_CHECK_EQUAL(net_info->AddEntry(purpose, entry), NetInfoStatus::Success);
+        }
+        check(net_info, val);
+        serialized.emplace_back(SER_DISK, CLIENT_VERSION) << *net_info;
+    }
+
+    // The rule depends on the activation, not the network. Validate(), which also checks stored masternode states
+    // without a height, doesn't apply it.
+    SelectParams(CBaseChainParams::MAIN);
+    for (size_t idx{0}; idx < vals.size(); ++idx) {
+        check(std::make_shared<ExtNetInfo>(deserialize, serialized[idx]), vals[idx]);
     }
     SelectParams(CBaseChainParams::TESTNET);
 }
