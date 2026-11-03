@@ -49,7 +49,7 @@ static void MultiAddTimeData(int n, int64_t offset)
     for (int i = 0; i < n; ++i) {
         CNetAddr addr;
         addr.SetInternal(ToString(++cnt));
-        AddTimeData(addr, offset);
+        AddTimeData(addr, offset, DEFAULT_MAX_TIME_ADJUSTMENT);
     }
 }
 
