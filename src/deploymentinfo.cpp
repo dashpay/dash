@@ -57,6 +57,8 @@ std::string DeploymentName(Consensus::BuriedDeployment dep)
         return "mn_rr";
     case Consensus::DEPLOYMENT_WITHDRAWALS:
         return "withdrawals";
+    case Consensus::DEPLOYMENT_IPV4_OPTIONAL:
+        return "ipv4_optional";
     } // no default case, so the compiler can warn about missing cases
     return "";
 }
@@ -87,6 +89,8 @@ std::optional<Consensus::BuriedDeployment> GetBuriedDeployment(const std::string
         return Consensus::BuriedDeployment::DEPLOYMENT_V20;
     } else if (name == "mn_rr") {
         return Consensus::BuriedDeployment::DEPLOYMENT_MN_RR;
+    } else if (name == "ipv4_optional") {
+        return Consensus::BuriedDeployment::DEPLOYMENT_IPV4_OPTIONAL;
     }
     return std::nullopt;
 }
