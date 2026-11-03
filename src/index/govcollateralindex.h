@@ -31,6 +31,8 @@ private:
     bool AllowPrune() const override { return true; }
 
 protected:
+    bool WritesEagerly() const override { return true; }
+
     bool CustomInit(const std::optional<interfaces::BlockKey>& block) override;
 
     bool CustomAppend(const interfaces::BlockInfo& block) override;
