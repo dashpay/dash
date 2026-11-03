@@ -391,10 +391,14 @@ private:
     bool m_updating{false}; //!< guards widget refresh against change signals
     bool m_lock_confirming{false};
     bool m_finished{false};
-    //! The user released this wallet's coins with "Release my coins", and
-    //! a later copy of the session must not lock them again until the user
-    //! reserves or signs them
+    //! The user released this wallet's coins with "Release" or "Release my
+    //! coins", and a later copy of the session must not lock them again until
+    //! the user reserves or signs them
     bool m_coins_released{false};
+    //! Contributions the user withdrew with "Release" on the contribution page,
+    //! less any coins reserved again since. A reply to an earlier invitation
+    //! still carries them, and only Reserve may put them back.
+    std::vector<MnShareSession::Contribution> m_released_contributions;
     Role m_role{Role::Undecided};
     int m_my_share{-1};
     std::optional<Page> m_validation_page;

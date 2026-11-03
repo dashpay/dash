@@ -151,6 +151,16 @@ bool ContributesOutpoint(const std::vector<MnShareSession::Input>& inputs, const
     });
 }
 
+//! True when `contribution` is `released`'s participant spending any of the
+//! coins `released` still stands for
+bool SpendsReleasedCoins(const MnShareSession::Contribution& contribution, const MnShareSession::Contribution& released)
+{
+    return contribution.label == released.label &&
+           std::any_of(contribution.inputs.begin(), contribution.inputs.end(), [&](const MnShareSession::Input& input) {
+               return ContributesOutpoint(released.inputs, COutPoint(uint256S(input.txid.toStdString()), input.vout));
+           });
+}
+
 //! scriptSig presence per input of a serialized transaction, keyed by
 //! lowercase "txid:vout"; an empty map when the hex does not decode
 std::map<QString, bool> InputSignatureMap(const QString& tx_hex)
@@ -2278,6 +2288,7 @@ void SharedMnCreateDialog::startSession()
     }
     unlockAllContributedCoins();
     m_coins_released = false;
+    m_released_contributions.clear();
     m_session = MnShareSession();
     m_role = Role::Coordinator;
     m_my_share = 0;
@@ -3047,6 +3058,24 @@ void SharedMnCreateDialog::absorbSession(const MnShareSession& imported)
             showError(error);
             return;
         }
+        // A reply to an invitation sent before this wallet released its coins
+        // still carries that contribution, which only Reserve may put back
+        for (const auto& released : m_released_contributions) {
+            const auto& merged{m_session.contributions()};
+            const auto back{std::find_if(merged.begin(), merged.end(), [&](const MnShareSession::Contribution& c) {
+                return SpendsReleasedCoins(c, released);
+            })};
+            if (back == merged.end()) continue;
+            const auto& prior{before.contributions()};
+            if (std::any_of(prior.begin(), prior.end(), [&](const auto& c) { return c.label == back->label; })) {
+                continue;
+            }
+            if (const QString label{back->label}; !m_session.removeContribution(label, error)) {
+                m_session = before;
+                showError(error);
+                return;
+            }
+        }
         m_replies_absorbed_revision = m_session.revision();
     } else if (m_session.stage() == MnShareSession::Stage::Draft) {
         absorbed = m_session.adoptLockedTerms(imported, error);
@@ -3252,6 +3281,13 @@ void SharedMnCreateDialog::reserveCoins()
     }
     setContributionLocked(contribution, /*lock=*/true);
     m_coins_released = false;
+    // Coins reserved again are no longer released
+    for (auto& released : m_released_contributions) {
+        std::erase_if(released.inputs, [&](const MnShareSession::Input& input) {
+            return ContributesOutpoint(contribution.inputs, COutPoint(uint256S(input.txid.toStdString()), input.vout));
+        });
+    }
+    std::erase_if(m_released_contributions, [](const auto& released) { return released.inputs.empty(); });
     m_dirty = true;
     // The coins card now leads with "Reserved - ..." and the Reserve button has
     // become Release; repeating the same sentence under the page says it twice
@@ -3270,6 +3306,8 @@ void SharedMnCreateDialog::releaseCoins()
         return;
     }
     setContributionLocked(removed, /*lock=*/false);
+    m_coins_released = true;
+    m_released_contributions.push_back(removed);
     m_dirty = true;
     refreshAll();
 }
