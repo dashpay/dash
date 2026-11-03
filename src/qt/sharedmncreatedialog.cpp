@@ -1466,7 +1466,7 @@ void SharedMnCreateDialog::updateButtons()
             next_text = tr("Approve");
         } else {
             next_visible = allApproved();
-            next_text = tr("Retry");
+            next_text = m_coins_released ? tr("Reserve and Sign") : tr("Retry");
         }
         break;
     case PageSignatures:
@@ -1650,6 +1650,11 @@ void SharedMnCreateDialog::onNext()
                 if (allApproved()) runCombineAndSign();
             });
         } else {
+            // The user asked for this, so coins released earlier are reserved again
+            if (m_coins_released) {
+                m_coins_released = false;
+                refreshContributedCoinLocks();
+            }
             runCombineAndSign();
         }
         return;
@@ -2660,6 +2665,15 @@ bool SharedMnCreateDialog::signOwnFundingInputs(bool& complete, QString& error)
 void SharedMnCreateDialog::runCombineAndSign()
 {
     if (m_busy || m_role != Role::Coordinator || !allApproved()) return;
+    // Coins the user released are signed only once they reserve them again
+    if (m_coins_released) {
+        updateButtons();
+        if (m_error_label->text().isEmpty()) {
+            showStatus(tr("All participants approved. Your coins were released, so nothing was signed. Press "
+                          "\"Reserve and Sign\" to reserve them again and continue."));
+        }
+        return;
+    }
     const auto sign_and_advance = [this] {
         if (m_session.stage() == MnShareSession::Stage::Combined) {
             bool complete{false};

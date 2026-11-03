@@ -456,10 +456,19 @@ void SharedMnWizardTests::signedSessionReservation()
     QVERIFY2(models.ok, qPrintable(QString::fromStdString(models.error.translated)));
     WalletModel wallet_model(interfaces::MakeWallet(context, wallet), models.client);
 
+    // Share `index`'s approval of `session`'s terms, signed with `key`
+    const auto approve = [](MnShareSession& session, int index, const CKey& key) {
+        std::vector<unsigned char> signature;
+        QString error;
+        return CHashSigner::SignHash(uint256S(session.consentHash().toStdString()), key, signature) &&
+               session.addSignature(index, QString::fromStdString(EncodeBase64(signature)), error);
+    };
     // The session once every share has signed its coins, as bob receives it or,
     // with `coordinated`, as bob coordinating it saved it. Without
-    // `fully_signed` it is the signing request, before anybody signed.
-    const auto signed_session = [&](bool coordinated, bool fully_signed = true) {
+    // `fully_signed` it is the signing request, before anybody signed. With
+    // `last_key` it is still collecting approvals: alice and bob have approved,
+    // and `last_key` receives carol's owner key.
+    const auto signed_session = [&](bool coordinated, bool fully_signed = true, CKey* last_key = nullptr) {
         MnShareSession invitation{InvitationSession()};
         if (coordinated) {
             invitation.setCoordinatorLabel(QStringLiteral("bob"));
@@ -479,6 +488,14 @@ void SharedMnWizardTests::signedSessionReservation()
             contribution.inputs = {{.txid = earlier_txid, .vout = vout}};
             draft.removeContribution(contribution.label, error);
             draft.addContribution(contribution, error);
+        }
+        if (last_key != nullptr) {
+            *last_key = owner_keys[2];
+            MnShareSession frozen{FrozenSession(draft, owner_keys, /*sign_all=*/false)};
+            for (const int i : {0, 1}) {
+                approve(frozen, i, owner_keys[i]);
+            }
+            return frozen;
         }
         MnShareSession session{FrozenSession(draft, owner_keys, /*sign_all=*/true)};
         session.setCombinedTx(session.protxHex(), error);
@@ -594,6 +611,46 @@ void SharedMnWizardTests::signedSessionReservation()
         bool complete{true};
         QString sign_error;
         QVERIFY2(dialog.signOwnFundingInputs(complete, sign_error), qPrintable(sign_error));
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        wallet_model.wallet().unlockCoin(bob_coin);
+    }
+    {
+        // bob coordinates and releases his coins while the approvals come in.
+        // The last approval completes the set, but nothing of bob's is
+        // combined, signed or reserved again until bob asks for it.
+        CKey carol_key;
+        const MnShareSession waiting{signed_session(/*coordinated=*/true, /*fully_signed=*/false, &carol_key)};
+        MnShareSession approved{waiting};
+        QVERIFY(approve(approved, 2, carol_key));
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(waiting.toJsonString());
+        QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Coordinator));
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageApprovals));
+        QVERIFY(!dialog.allApproved());
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        AnswerMessageBox(QStringLiteral("Release"), prompt);
+        dialog.releaseReservedCoins();
+        QCoreApplication::processEvents();
+        QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
+
+        dialog.handleImportedText(approved.toJsonString());
+        QVERIFY(dialog.allApproved());
+        QTRY_VERIFY_WITH_TIMEOUT(!dialog.m_busy, 10000);
+        QCOMPARE(int(dialog.m_session.stage()), int(MnShareSession::Stage::Signing));
+        QCOMPARE(dialog.m_session.protxHex(), waiting.protxHex());
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageApprovals));
+        QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
+        QVERIFY2(dialog.m_status_label->text().contains(QStringLiteral("nothing was signed")),
+                 qPrintable(dialog.m_status_label->text()));
+        QCOMPARE(dialog.m_next_button->text(), QStringLiteral("Reserve and Sign"));
+
+        // Pressing it reserves the coins again and combines and signs as usual
+        dialog.onNext();
+        QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
+        QTRY_VERIFY_WITH_TIMEOUT(!dialog.m_busy, 10000);
+        QVERIFY2(dialog.m_error_label->text().isEmpty(), qPrintable(dialog.m_error_label->text()));
+        QCOMPARE(int(dialog.m_session.stage()), int(MnShareSession::Stage::Combined));
+        QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageSignatures));
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
         wallet_model.wallet().unlockCoin(bob_coin);
     }
