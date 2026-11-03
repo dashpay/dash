@@ -117,7 +117,7 @@ bool GovCollateralIndex::CustomRewind(const interfaces::BlockKey& current_tip, c
             m_db->EraseCollateral(batch, txid);
         }
     }
-    m_db->WriteBestBlock(batch, GetLocator(new_tip_index));
+    WriteRewindLocator(batch, new_tip_index);
     return m_db->WriteBatch(batch);
 }
 
