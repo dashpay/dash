@@ -943,9 +943,10 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
     // A combined session in which bob's own contribution spends that coin and
     // sends `change_amount` to `change_address`. Every envelope check passes:
     // the file and the transaction agree with each other. With `coordinated`
-    // the session is bob's own, reopened from a backup.
-    const auto session_with_change = [&](const QString& change_address, CAmount change_amount,
-                                         bool coordinated = false, uint32_t vout = 0) {
+    // the session is bob's own, reopened from a backup. `alice_extra_change` is
+    // added to alice's change.
+    const auto session_with_change = [&](const QString& change_address, CAmount change_amount, bool coordinated = false,
+                                         uint32_t vout = 0, CAmount alice_extra_change = 0) {
         MnShareSession invitation{InvitationSession()};
         if (coordinated) {
             invitation.setCoordinatorLabel(QStringLiteral("bob"));
@@ -959,6 +960,12 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
         }
         owner_keys[1] = victim_key;
         draft.shares()[1].ownerAddress = own_address;
+        if (alice_extra_change != 0) {
+            MnShareSession::Contribution alice{draft.contributions().front()};
+            alice.changeAmount += alice_extra_change;
+            draft.removeContribution(alice.label, error);
+            draft.addContribution(alice, error);
+        }
         draft.removeContribution(QStringLiteral("bob"), error);
         draft.addContribution({.label = QStringLiteral("bob"),
                                .inputs = {{.txid = coin_txid, .vout = vout}},
@@ -1019,6 +1026,37 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
                                       .toJsonString());
         QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Coordinator));
         QVERIFY2(dialog.m_funding_refusal.isEmpty(), qPrintable(dialog.m_funding_refusal));
+    }
+    // A copy of the coordinator's own session that moves 0.5 DASH of its change
+    // to alice's: the transaction fee is still 0.001, so signing stays refused
+    // even though the coins line shows what the coins now pay
+    {
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(session_with_change(own_address, 100 * COIN - COIN / 1000 - COIN / 2,
+                                                      /*coordinated=*/true, /*vout=*/0,
+                                                      /*alice_extra_change=*/COIN / 2)
+                                      .toJsonString());
+        QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Coordinator));
+        const QString refusal{dialog.m_funding_refusal};
+        QVERIFY2(refusal.contains(QStringLiteral("returns only %1").arg(amount(100 * COIN - COIN / 1000 - COIN / 2))),
+                 qPrintable(refusal));
+        QVERIFY(!dialog.m_next_button->isEnabled());
+        // What the coins pay beyond the share is shown next to the field's
+        // value, and is not called the network fee: half of it went to alice
+        const QString coins{dialog.m_coins_label->text()};
+        QVERIFY2(coins.contains(QStringLiteral("These coins pay %1 beyond your share, not the %2 Network fee")
+                                    .arg(amount(COIN / 2 + COIN / 1000), amount(dialog.m_fee_field->value()))),
+                 qPrintable(coins));
+        QVERIFY2(!coins.contains(QStringLiteral("(network fee)")), qPrintable(coins));
+    }
+    // A copy whose recorded change exceeds the coin minus the share pays
+    // nothing beyond the share, so no negative amount is shown
+    {
+        SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
+        dialog.handleImportedText(session_with_change(own_address, 101 * COIN, /*coordinated=*/true).toJsonString());
+        QCOMPARE(int(dialog.m_role), int(SharedMnCreateDialog::Role::Coordinator));
+        QVERIFY2(!dialog.m_coins_label->text().contains(QStringLiteral("beyond your share")),
+                 qPrintable(dialog.m_coins_label->text()));
     }
     // A file naming a coin this wallet holds with an output index past the end
     // of its transaction is not a coin of ours, and must not crash the import
