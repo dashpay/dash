@@ -3016,8 +3016,9 @@ void SharedMnCreateDialog::absorbSession(const MnShareSession& imported)
             // A newer copy may change other rows and the funding, but not the
             // amount or addresses of a share this wallet holds
             if (const int changed{ownShareChangedIn(imported)}; changed >= 0) {
-                showError(tr("This newer copy changes your share (%1), so it was not loaded. Ask %2 to send a "
-                             "copy with your share unchanged.")
+                showError(tr("This newer copy changes your share (%1), so it was not loaded. If you agreed to "
+                             "that change, close this window and open the copy again to review it. Otherwise ask %2 "
+                             "to send a copy with your share unchanged.")
                               .arg(ShareName(m_session, changed),
                                    m_role == Role::Coordinator ? tr("whoever sent it") : recipientName()));
                 return;
