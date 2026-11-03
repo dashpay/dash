@@ -307,13 +307,13 @@ void CMainSignals::NotifyGovernanceObject(const std::shared_ptr<const Governance
     ENQUEUE_AND_LOG_EVENT(event, "%s: notify governance object: %s", __func__, id);
 }
 
-void CMainSignals::NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx) {
-    auto event = [currentTx, previousTx, this] {
-        m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.NotifyInstantSendDoubleSpendAttempt(currentTx, previousTx); });
+void CMainSignals::NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx, const uint256& previous_txid) {
+    auto event = [currentTx, previousTx, previous_txid, this] {
+        m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.NotifyInstantSendDoubleSpendAttempt(currentTx, previousTx, previous_txid); });
     };
     ENQUEUE_AND_LOG_EVENT(event, "%s: notify instant doublespendattempt currenttxid=%s previoustxid=%s", __func__,
             currentTx->GetHash().ToString(),
-            previousTx->GetHash().ToString());
+            previous_txid.ToString());
 }
 
 void CMainSignals::NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig, const std::string& id, bool proactive_relay) {

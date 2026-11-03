@@ -65,6 +65,7 @@
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
+#include <node/transaction.h>
 #include <node/sync_manager.h>
 #include <node/validation_cache_args.h>
 #include <policy/feerate.h>
@@ -1951,6 +1952,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         [&chainman = node.chainman](CBlock& block, const CBlockIndex& index) {
             assert(chainman);
             return chainman->m_blockman.ReadBlockFromDisk(block, index);
+        },
+        [&chainman = node.chainman, &mempool = node.mempool](const uint256& txid) {
+            assert(chainman);
+            uint256 block_hash;
+            return node::GetTransaction(/*block_index=*/nullptr, mempool.get(), txid, block_hash, chainman->m_blockman);
         });
 
     if (g_zmq_notification_interface) {

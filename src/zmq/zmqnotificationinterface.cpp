@@ -40,7 +40,8 @@ std::list<const CZMQAbstractNotifier*> CZMQNotificationInterface::GetActiveNotif
     return result;
 }
 
-std::unique_ptr<CZMQNotificationInterface> CZMQNotificationInterface::Create(std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index)
+std::unique_ptr<CZMQNotificationInterface> CZMQNotificationInterface::Create(std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index,
+                                                                             std::function<CTransactionRef(const uint256&)> get_transaction)
 {
     std::map<std::string, CZMQNotifierFactory> factories;
     factories["pubhashblock"] = CZMQAbstractNotifier::Create<CZMQPublishHashBlockNotifier>;
@@ -92,6 +93,7 @@ std::unique_ptr<CZMQNotificationInterface> CZMQNotificationInterface::Create(std
     {
         std::unique_ptr<CZMQNotificationInterface> notificationInterface(new CZMQNotificationInterface());
         notificationInterface->notifiers = std::move(notifiers);
+        notificationInterface->m_get_transaction = std::move(get_transaction);
 
         if (notificationInterface->Initialize()) {
             return notificationInterface;
@@ -250,10 +252,12 @@ void CZMQNotificationInterface::NotifyGovernanceObject(const std::shared_ptr<con
     });
 }
 
-void CZMQNotificationInterface::NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx)
+void CZMQNotificationInterface::NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx, const uint256& previous_txid)
 {
-    TryForEachAndRemoveFailed(notifiers, [&currentTx, &previousTx](CZMQAbstractNotifier* notifier) {
-        return notifier->NotifyInstantSendDoubleSpendAttempt(currentTx, previousTx);
+    const CTransactionRef conflictTx{previousTx ? previousTx : m_get_transaction(previous_txid)};
+    if (!conflictTx) return;
+    TryForEachAndRemoveFailed(notifiers, [&currentTx, &conflictTx](CZMQAbstractNotifier* notifier) {
+        return notifier->NotifyInstantSendDoubleSpendAttempt(currentTx, conflictTx);
     });
 }
 
