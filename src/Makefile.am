@@ -1300,7 +1300,6 @@ libdashkernel_la_SOURCES = \
   common/bloom.cpp \
   common/config.cpp \
   common/settings.cpp \
-  common/system.cpp \
   compressor.cpp \
   consensus/merkle.cpp \
   consensus/tx_check.cpp \

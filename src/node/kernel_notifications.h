@@ -11,6 +11,7 @@
 #include <string>
 
 class CBlockIndex;
+class CDeterministicMNList;
 enum class SynchronizationState;
 struct bilingual_str;
 
@@ -25,6 +26,8 @@ public:
     void progress(const bilingual_str& title, int progress_percent, bool resume_possible) override;
 
     void warning(const bilingual_str& warning) override;
+
+    void masternodeListChanged(const CDeterministicMNList& list, const CBlockIndex* index) override;
 };
 } // namespace node
 

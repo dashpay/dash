@@ -35,7 +35,6 @@
 #include <logging.h>
 #include <logging/timer.h>
 #include <node/blockstorage.h>
-#include <node/interface_ui.h>
 #include <node/utxo_snapshot.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
@@ -2378,7 +2377,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
 
     if (this == &m_chainman.ActiveChainstate() && mnlist_updates.diff.HasChanges()) {
         GetMainSignals().NotifyMasternodeListChanged(true, mnlist_updates.old_list, mnlist_updates.diff);
-        uiInterface.NotifyMasternodeListChanged(mnlist_updates.new_list, pindex->pprev);
+        m_chainman.GetNotifications().masternodeListChanged(mnlist_updates.new_list, pindex->pprev);
     }
 
     auto finish = Now<SteadyMilliseconds>();
@@ -3107,7 +3106,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     if (this == &m_chainman.ActiveChainstate() && mnlist_updates.diff.HasChanges()) {
         GetMainSignals().NotifyMasternodeListChanged(false, mnlist_updates.old_list, mnlist_updates.diff);
-        uiInterface.NotifyMasternodeListChanged(mnlist_updates.new_list, pindex);
+        m_chainman.GetNotifications().masternodeListChanged(mnlist_updates.new_list, pindex);
     }
 
     ::g_stats_client->timing("ConnectBlock_ms", Ticks<std::chrono::milliseconds>(time_8 - time_start), 1.0f);
