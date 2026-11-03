@@ -362,6 +362,13 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
                                MutableTransactionSignatureChecker(&modified_proposal, first_index, amount,
                                                                   MissingDataBehavior::ASSERT_FAIL)));
     check_rejected(0, modified_proposal.vin[first_index]);
+    // A signature that only passes consensus rules would keep the final transaction out of the mempool.
+    CTxIn padded{signed_inputs[0]};
+    padded.scriptSig.insert(padded.scriptSig.begin(), OP_1);
+    BOOST_REQUIRE(VerifyScript(padded.scriptSig, previous_scripts[0], SCRIPT_VERIFY_P2SH,
+                               MutableTransactionSignatureChecker(&final, first_index, amount,
+                                                                  MissingDataBehavior::ASSERT_FAIL)));
+    check_rejected(0, padded);
 
     submit(0, signed_inputs[0]);
     BOOST_CHECK(!rejected(*peers[0]));
