@@ -4249,7 +4249,7 @@ void PeerManagerImpl::ProcessMessage(
         if (!pfrom.IsInboundConn()) {
             // Don't use timedata samples from inbound peers to make it
             // harder for others to tamper with our adjusted time.
-            AddTimeData(pfrom.addr, nTimeOffset);
+            AddTimeData(pfrom.addr, nTimeOffset, m_opts.max_time_adjustment);
         }
 
         // Feeler connections exist only to verify if address is online.
