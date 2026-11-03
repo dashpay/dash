@@ -60,8 +60,9 @@ struct GovernanceInvSetup : public TestingSetup {
         // Note: mn_metaman is left unloaded. Reaching CGovernanceObject::ProcessVote asserts
         // metaman.IsValid(), so a test that delivers a vote whose parent object exists must
         // load it first (see invalid_vote_is_scored_alike_with_and_without_a_parent_object).
-        m_node.govman = std::make_unique<CGovernanceManager>(*m_node.mn_metaman, *m_node.chainman, *m_node.sbman,
-                                                             *m_node.dmnman, *m_node.mn_sync, &m_collateral);
+        m_node.govman = std::make_unique<CGovernanceManager>(m_args.GetDataDirNet(), *m_node.mn_metaman,
+                                                             *m_node.chainman, *m_node.sbman, *m_node.dmnman,
+                                                             *m_node.mn_sync, &m_collateral);
         // Match runtime preconditions: NetGovernance::AlreadyHave claims we
         // already have the inv when governance isn't loaded (e.g.
         // -disablegovernance), so ConfirmInventoryRequest would never run.

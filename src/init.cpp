@@ -1710,15 +1710,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     assert(!node.mn_metaman);
-    node.mn_metaman = std::make_unique<CMasternodeMetaMan>();
+    node.mn_metaman = std::make_unique<CMasternodeMetaMan>(args.GetDataDirNet());
 
     assert(!node.netfulfilledman);
-    node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
+    node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>(args.GetDataDirNet());
 
     bool is_governance_enabled{!args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)};
 
     assert(!node.sporkman);
-    node.sporkman = std::make_unique<CSporkManager>();
+    node.sporkman = std::make_unique<CSporkManager>(args.GetDataDirNet());
     node.chainlocks = std::make_unique<chainlock::Chainlocks>(*node.sporkman);
     node.sbman = std::make_unique<governance::SuperblockManager>();
 
@@ -2173,8 +2173,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     assert(!node.govman);
-    node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.chainman, *node.sbman, *node.dmnman,
-                                                       *node.mn_sync, node.gov_collateral_index.get());
+    node.govman = std::make_unique<CGovernanceManager>(args.GetDataDirNet(), *node.mn_metaman, *node.chainman,
+                                                       *node.sbman, *node.dmnman, *node.mn_sync,
+                                                       node.gov_collateral_index.get());
 
     // ********************************************************* Step 7c: Setup masternode mode or watch-only mode
     assert(!node.active_ctx);

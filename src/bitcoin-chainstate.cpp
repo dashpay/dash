@@ -128,10 +128,10 @@ int main(int argc, char* argv[])
     };
     ChainstateManager chainman{chainman_opts, blockman_opts};
 
-    CMasternodeMetaMan metaman;
+    CMasternodeMetaMan metaman{abs_datadir};
     CEvoDB evodb{util::DbWrapperParams{.path = abs_datadir, .memory = false, .wipe = false}};
     CDeterministicMNManager dmnman{evodb, metaman};
-    CSporkManager sporkman;
+    CSporkManager sporkman{abs_datadir};
     chainlock::Chainlocks chainlocks(sporkman);
 
     auto llmq_ctx = WITH_LOCK(::cs_main, return std::make_unique<LLMQContext>(dmnman, evodb, chainman,
