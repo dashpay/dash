@@ -8,6 +8,10 @@
 #include <functional>
 #include <string>
 
+namespace ctpl {
+class thread_pool;
+} // namespace ctpl
+
 namespace util {
 /**
  * A wrapper for do-something-once thread functions.
@@ -15,5 +19,8 @@ namespace util {
 void TraceThread(std::string_view thread_name, std::function<void()> thread_func);
 
 } // namespace util
+
+/** Give every thread of the pool the name "<baseName>-<n>". */
+void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName);
 
 #endif // BITCOIN_UTIL_THREAD_H
