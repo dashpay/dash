@@ -967,6 +967,15 @@ void SharedMnWizardTests::statusBoardAbsorbsRepliesInAnyOrder()
     dialog.handleImportedText(DraftReply(invitation, 1, FakeTxid('4')).toJsonString());
     QVERIFY(dialog.m_error_label->text().contains(QStringLiteral("bob")));
     QCOMPARE(dialog.m_session.revision(), revision);
+
+    // A copy accepted after that refusal shows its own edit warning, not the
+    // earlier refusal
+    UniValue edited{bob.toJson()};
+    edited.pushKV("fingerprint", "0000-0000");
+    dialog.handleImportedText(QString::fromStdString(edited.write()));
+    QVERIFY2(dialog.m_error_label->text().isEmpty(), qPrintable(dialog.m_error_label->text()));
+    QVERIFY2(dialog.m_status_label->text().contains(QStringLiteral("edited after it was copied")),
+             qPrintable(dialog.m_status_label->text()));
 }
 
 void SharedMnWizardTests::pastedMessageRouting()

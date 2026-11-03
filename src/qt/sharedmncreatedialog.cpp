@@ -2906,6 +2906,8 @@ void SharedMnCreateDialog::handleImportedText(const QString& text)
         return;
     }
     const QString warning{imported.importWarning()};
+    // An error left by an earlier message no longer applies; one set below is this copy's refusal
+    showError(QString());
     if (m_role == Role::Undecided) {
         replaceSession(imported);
     } else {
