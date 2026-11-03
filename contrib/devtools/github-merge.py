@@ -9,7 +9,7 @@
 # The following temporary branches are created/overwritten and deleted:
 # * pull/$PULL/base (the current master we're merging onto)
 # * pull/$PULL/head (the current state of the remote pull request)
-# * pull/$PULL/merge (github's merge)
+# * pull/$PULL/merge (github's merge, fetched only when githubmerge.testcmd is set)
 # * pull/$PULL/local-merge (our merge)
 
 # In case of a clean merge that is accepted by the user, the local branch with
@@ -24,6 +24,7 @@ import sys
 import json
 import codecs
 import unicodedata
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
@@ -144,6 +145,14 @@ def retrieve_json(req_url, ghtoken, use_pagination=False):
 def retrieve_pr_info(repo,pull,ghtoken):
     req_url = "https://api.github.com/repos/"+repo+"/pulls/"+pull
     return retrieve_json(req_url,ghtoken)
+
+def retrieve_branch_sha(repo,branch,ghtoken):
+    req_url = "https://api.github.com/repos/"+repo+"/git/ref/heads/"+quote(branch)
+    try:
+        ref = json.load(codecs.getreader('utf-8')(get_response(req_url,ghtoken)))['object']
+        return ref['sha'] if ref['type'] == 'commit' else None
+    except Exception: # any failure falls back to fetching the branch by name
+        return None
 
 def retrieve_pr_comments(repo,pull,ghtoken):
     req_url = "https://api.github.com/repos/"+repo+"/issues/"+pull+"/comments"
@@ -364,12 +373,21 @@ def main():
     except subprocess.CalledProcessError:
         print(f"ERROR: Cannot check out branch {branch}.", file=stderr)
         sys.exit(3)
-    try:
-        subprocess.check_call([GIT,'fetch','-q',host_repo_from,'+refs/pull/'+pull+'/*:refs/heads/pull/'+pull+'/*',
-                                                          '+refs/heads/'+branch+':refs/heads/'+base_branch])
-    except subprocess.CalledProcessError:
-        print(f"ERROR: Cannot find pull request {pull_reference} or branch {branch} on {host_repo_from}.", file=stderr)
-        sys.exit(3)
+    # Fetching the exact commits named by the API skips listing the remote's
+    # refs, and skips the network entirely when the commits are already local.
+    # GitHub's test merge is only needed to compare against after testcmd.
+    pull_shas = {head_branch: info['head']['sha'], base_branch: retrieve_branch_sha(repo_from,branch,ghtoken)}
+    if testcmd:
+        pull_shas[merge_branch] = info.get('merge_commit_sha')
+    fetched = all(pull_shas.values()) and subprocess.call([GIT,'fetch','-q','--no-tags',host_repo_from] +
+            [f'+{sha}:refs/heads/{ref}' for ref,sha in pull_shas.items()], stderr=devnull) == 0
+    if not fetched:
+        try:
+            subprocess.check_call([GIT,'fetch','-q',host_repo_from,'+refs/pull/'+pull+'/*:refs/heads/pull/'+pull+'/*',
+                                                              '+refs/heads/'+branch+':refs/heads/'+base_branch])
+        except subprocess.CalledProcessError:
+            print(f"ERROR: Cannot find pull request {pull_reference} or branch {branch} on {host_repo_from}.", file=stderr)
+            sys.exit(3)
 
     # Ask the user if they want to rebase the branch
     rebase_reply = ask_prompt("Would you like to rebase the branch? Type 'yes' to rebase or anything else to continue without rebasing.").lower()
@@ -427,11 +445,12 @@ def main():
     except subprocess.CalledProcessError:
         print(f"ERROR: Cannot find head of pull request {pull_reference} on {host_repo_from}.", file=stderr)
         sys.exit(3)
-    try:
-        subprocess.check_call([GIT,'--no-pager','log','-q','-1','refs/heads/'+merge_branch], stdout=devnull, stderr=stdout)
-    except subprocess.CalledProcessError:
-        print(f"ERROR: Cannot find merge of pull request {pull_reference} on {host_repo_from}.", file=stderr)
-        sys.exit(3)
+    if testcmd:
+        try:
+            subprocess.check_call([GIT,'--no-pager','log','-q','-1','refs/heads/'+merge_branch], stdout=devnull, stderr=stdout)
+        except subprocess.CalledProcessError:
+            print(f"ERROR: Cannot find merge of pull request {pull_reference} on {host_repo_from}.", file=stderr)
+            sys.exit(3)
     subprocess.check_call([GIT,'checkout','-q',base_branch])
     subprocess.call([GIT,'branch','-q','-D',local_merge_branch], stderr=devnull)
     subprocess.check_call([GIT,'checkout','-q','-b',local_merge_branch])
