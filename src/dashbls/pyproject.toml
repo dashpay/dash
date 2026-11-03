@@ -47,12 +47,8 @@ test-requires = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all = "dnf -y install gmp-devel"
 manylinux-aarch64-image = "manylinux_2_28"
 manylinux-x86_64-image = "manylinux_2_28"
-
-[tool.cibuildwheel.macos]
-environment = { CMAKE_ARGS = "-DARITH=easy" }
 
 [tool.pytest.ini_options]
 testpaths = ["binds/python"]

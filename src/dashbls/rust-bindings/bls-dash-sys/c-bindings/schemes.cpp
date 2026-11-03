@@ -324,8 +324,13 @@ G2Element LegacySchemeMPLSign(
 {
     bls::LegacySchemeMPL* schemePtr = (bls::LegacySchemeMPL*)scheme;
     const bls::PrivateKey* skPtr = (bls::PrivateKey*)sk;
-    return new bls::G2Element(
-        schemePtr->Sign(*skPtr, bls::Bytes((uint8_t*)msg, msgLen)));
+    try {
+        return new bls::G2Element(
+            schemePtr->Sign(*skPtr, bls::Bytes((uint8_t*)msg, msgLen)));
+    } catch (const std::exception& ex) {
+        gErrMsg = ex.what();
+        return nullptr;
+    }
 }
 
 bool LegacySchemeMPLVerify(
