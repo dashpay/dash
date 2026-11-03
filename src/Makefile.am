@@ -1327,9 +1327,6 @@ libdashkernel_la_SOURCES = \
   gsl/assert.cpp \
   hash.cpp \
   index/addressindex_util.cpp \
-  index/base.cpp \
-  index/txindex.cpp \
-  init/common.cpp \
   instantsend/db.cpp \
   instantsend/instantsend.cpp \
   instantsend/lock.cpp \
@@ -1362,9 +1359,7 @@ libdashkernel_la_SOURCES = \
   netbase.cpp \
   node/blockstorage.cpp \
   node/chainstate.cpp \
-  node/database_args.cpp \
   node/interface_ui.cpp \
-  node/transaction.cpp \
   node/utxo_snapshot.cpp \
   policy/feerate.cpp \
   policy/fees.cpp \
