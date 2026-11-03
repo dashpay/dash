@@ -36,9 +36,9 @@ jobs:
       run-build-tests: ${{ steps.classify-changes.outputs.run-build-tests }}
       runner-amd64: ${{ steps.select-runner.outputs.runner_amd64 }}
       runner-arm64: ${{ steps.select-runner.outputs.runner_arm64 }}
-      runner-prelint: ${{ steps.select-runner.outputs.runner_prelint }}
       runner-prelint-arm64: ${{ steps.select-runner.outputs.runner_prelint_arm64 }}
       runner-fast: ${{ steps.select-runner.outputs.runner_fast }}
+      runner-build: ${{ steps.select-runner.outputs.runner_build }}
       use-blacksmith: ${{ steps.select-runner.outputs.use_blacksmith }}
       use-blacksmith-amd64: ${{ steps.select-runner.outputs.use_blacksmith_amd64 }}
       use-blacksmith-arm64: ${{ steps.select-runner.outputs.use_blacksmith_arm64 }}
@@ -109,24 +109,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUNNER_AMD64_VAR: ${{ vars.RUNNER_AMD64 }}
           RUNNER_ARM64_VAR: ${{ vars.RUNNER_ARM64 }}
-          # Self-hosted rung for the pre-lint jobs (lint, cache-sources, the
-          # container builds and manifests). All but the manifest run pull
-          # request head code, so all of them are offered our own hardware only
-          # for the logins in SELFHOSTED_LINT_AUTHORS. Unset RUNNER_SELFHOSTED
-          # or RUNNER_SELFHOSTED_ARM64 to send that arch back to the
-          # hosted/Blacksmith ladder; the long builds and tests never use it.
-          RUNNER_SELFHOSTED_VAR: ${{ vars.RUNNER_SELFHOSTED }}
+          # Self-hosted rung for the arm64 pull request container builds. They
+          # run pull request head code, so they are offered our own hardware
+          # only for the logins in SELFHOSTED_LINT_AUTHORS.
           RUNNER_SELFHOSTED_ARM64_VAR: ${{ vars.RUNNER_SELFHOSTED_ARM64 }}
           SELFHOSTED_LINT_AUTHORS: ${{ vars.SELFHOSTED_LINT_AUTHORS }}
-          # Fall back to hosted once more jobs than this wait for a self-hosted label
           SELFHOSTED_MAX_QUEUED: "6"
-          # Fast path for the linux64 depends, build and functional test jobs,
-          # which replace their hosted runs rather than add to them. Same
-          # allowlist as the pre-lint rung, plus every push to develop or
-          # master. Unset RUNNER_SELFHOSTED_FAST to keep them on the hosted
-          # ladder; see ci/README.md.
+          # The amd64 jobs run in two tiers, each GitHub-hosted, then its own
+          # self-hosted label, then RUNNER_AMD64. Only trusted runs (the
+          # allowlist above, plus any push to develop or master) leave
+          # GitHub-hosted. Unset a tier's label to skip its self-hosted step;
+          # see ci/README.md.
           RUNNER_SELFHOSTED_FAST_VAR: ${{ vars.RUNNER_SELFHOSTED_FAST }}
-          SELFHOSTED_FAST_MAX_QUEUED: "2"
+          FAST_SELFHOSTED_QUEUE_LIMIT: "16"
+          RUNNER_SELFHOSTED_BUILD_VAR: ${{ vars.RUNNER_SELFHOSTED_BUILD }}
+          BUILD_HOSTED_QUEUE_LIMIT: "20"
+          BUILD_SELFHOSTED_QUEUE_LIMIT: "24"
         run: |
           python3 .github/workflows/select_dynamic_runner.py
 
@@ -172,10 +170,10 @@ jobs:
       needs.check-skip.outputs.run-build-tests == 'true'
     uses: ./.github/workflows/cache-depends-sources.yml
     with:
-      runs-on: ${{ needs.check-skip.outputs['runner-prelint'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-fast'] }}
 
   # Pushes build the trusted-* images that later runs reuse, so they stay on
-  # GitHub's runners; only pull request builds use the pre-lint runners.
+  # GitHub's runners; only pull request builds use the fast tier.
   container:
     permissions:
       contents: read
@@ -190,9 +188,9 @@ jobs:
       context: ./contrib/containers/ci
       file: ./contrib/containers/ci/ci.Dockerfile
       name: dashcore-ci-runner
-      runs-on-amd64: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-amd64'] || needs.check-skip.outputs['runner-prelint'] }}
+      runs-on-amd64: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-amd64'] || needs.check-skip.outputs['runner-fast'] }}
       runs-on-arm64: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-arm64'] || needs.check-skip.outputs['runner-prelint-arm64'] }}
-      runs-on-manifest: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-arm64'] || needs.check-skip.outputs['runner-prelint'] }}
+      runs-on-manifest: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-arm64'] || needs.check-skip.outputs['runner-fast'] }}
       existing-image: ${{ needs.check-skip.outputs['existing-runner-image'] }}
       runs-on-existing: ${{ needs.check-skip.outputs['runner-check-skip'] }}
       context-tag: ${{ needs.check-skip.outputs['ci-context-tag'] }}
@@ -209,9 +207,9 @@ jobs:
       context: ./contrib/containers/ci
       file: ./contrib/containers/ci/ci-slim.Dockerfile
       name: dashcore-ci-slim
-      runs-on-amd64: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-amd64'] || needs.check-skip.outputs['runner-prelint'] }}
+      runs-on-amd64: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-amd64'] || needs.check-skip.outputs['runner-fast'] }}
       runs-on-arm64: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-arm64'] || needs.check-skip.outputs['runner-prelint-arm64'] }}
-      runs-on-manifest: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-arm64'] || needs.check-skip.outputs['runner-prelint'] }}
+      runs-on-manifest: ${{ github.event_name == 'push' && needs.check-skip.outputs['runner-arm64'] || needs.check-skip.outputs['runner-fast'] }}
       existing-image: ${{ needs.check-skip.outputs['existing-slim-image'] }}
       runs-on-existing: ${{ needs.check-skip.outputs['runner-check-skip'] }}
       context-tag: ${{ needs.check-skip.outputs['ci-context-tag'] }}
@@ -226,6 +224,7 @@ jobs:
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
       runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
 
   depends-linux64:
@@ -270,6 +269,7 @@ jobs:
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
       runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
 
   depends-mac:
@@ -282,6 +282,7 @@ jobs:
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
       runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
 
   depends-win64:
@@ -294,6 +295,7 @@ jobs:
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
       runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
 
   lint:
@@ -302,7 +304,7 @@ jobs:
     needs: [check-skip, container-slim]
     with:
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-prelint'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-fast'] }}
 
   # Slow and nothing waits for it: tests gate on lint alone.
   cppcheck:
@@ -311,7 +313,7 @@ jobs:
     needs: [check-skip, container-slim]
     with:
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-prelint'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-fast'] }}
 
   src-aarch64-linux:
     name: aarch64-linux-build
@@ -324,7 +326,7 @@ jobs:
       depends-host: ${{ needs.depends-aarch64-linux.outputs.host }}
       depends-dep-opts: ${{ needs.depends-aarch64-linux.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-aarch64-linux.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: &remote-ccache-auth
       CCACHE_REMOTE_AUTH: ${{ needs.check-skip.outputs.cache-write == 'true' && secrets.CCACHE_REMOTE_AUTH || '' }}
 
@@ -355,7 +357,7 @@ jobs:
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
   src-linux64_fuzz:
@@ -370,7 +372,7 @@ jobs:
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
   src-linux64_multiprocess:
@@ -399,7 +401,7 @@ jobs:
       depends-host: ${{ needs.depends-linux64_nowallet.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_nowallet.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-linux64_nowallet.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
   src-linux64_sqlite:
@@ -414,7 +416,7 @@ jobs:
       depends-host: ${{ needs.depends-linux64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
   src-linux64_tsan:
@@ -443,7 +445,7 @@ jobs:
       depends-host: ${{ needs.depends-mac.outputs.host }}
       depends-dep-opts: ${{ needs.depends-mac.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-mac.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
   src-win64:
@@ -457,7 +459,7 @@ jobs:
       depends-host: ${{ needs.depends-win64.outputs.host }}
       depends-dep-opts: ${{ needs.depends-win64.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-win64.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
   test-linux64:
@@ -481,7 +483,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_asan.outputs.key }}
       build-target: linux64_asan
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
       cancel-stale: ${{ needs.src-linux64_asan.outputs.freshness == 'current' && needs.lint.outputs.freshness == 'current' }}
 
   test-linux64_multiprocess:
@@ -505,7 +507,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_nowallet.outputs.key }}
       build-target: linux64_nowallet
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
       cancel-stale: ${{ needs.src-linux64_nowallet.outputs.freshness == 'current' && needs.lint.outputs.freshness == 'current' }}
 
   test-linux64_sqlite:
@@ -517,7 +519,7 @@ jobs:
       bundle-key: ${{ needs.src-linux64_sqlite.outputs.key }}
       build-target: linux64_sqlite
       container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
+      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
       cancel-stale: ${{ needs.src-linux64_sqlite.outputs.freshness == 'current' && needs.lint.outputs.freshness == 'current' }}
 
   test-linux64_tsan:
