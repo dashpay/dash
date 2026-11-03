@@ -262,7 +262,7 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         self.assertEqual(outputs["runner_arm64"], "blacksmith-arm64")
         self.assertIn("amd64-github-fallback", outputs["decision_reason"])
 
-    # --- pre-lint runner selection (self-hosted rung) -----------------------
+    # --- amd64 tiers ---------------------------------------------------------
 
     def _select(self, **overrides):
         kwargs = dict(
@@ -273,142 +273,200 @@ class SelectDynamicRunnerTest(unittest.TestCase):
             runner_amd64_var="blacksmith-amd64",
             runner_arm64_var="blacksmith-arm64",
             repos=[REPO],
-            runner_selfhosted_var="ubuntu-core",
             selfhosted_authors=ALLOWED,
             actor="PastaPastaPasta",
+            runner_selfhosted_fast_var="dash-x64-fast",
+            runner_selfhosted_build_var="dash-x64-build",
         )
         queued_jobs = overrides.pop("queued_jobs", 3)
+        selfhosted_queued = overrides.pop("selfhosted_queued", {})
         kwargs.update(overrides)
         if "fetch_json" not in kwargs:
             responses = backlog_responses(queued_jobs)
+            for label, count in selfhosted_queued.items():
+                add_queued_jobs(responses, label, count)
             kwargs["fetch_json"] = lambda url: responses[url]
         return MODULE.select_runners(**kwargs)
 
-    def test_lint_uses_selfhosted_when_backlog_and_author_allowed(self):
-        outputs = self._select()
+    def test_fast_tier_is_hosted_only_while_nothing_is_queued(self):
+        for queued, expected, reason in (
+            (0, MODULE.DEFAULT_RUNNER_AMD64, "hosted:queued:0"),
+            (1, "dash-x64-fast", "selfhosted:queued:0<16"),
+        ):
+            with self.subTest(queued=queued):
+                outputs = self._select(queued_jobs=queued)
+                self.assertEqual(outputs["runner_fast"], expected)
+                self.assertEqual(outputs["fast_decision_reason"], reason)
 
-        self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
-        self.assertEqual(
-            outputs["prelint_decision_reason"], "selfhosted:backlog:3>0;queued:0<=6"
+    def test_build_tier_is_hosted_until_twenty_queued(self):
+        for queued, expected, reason in (
+            (19, MODULE.DEFAULT_RUNNER_AMD64, "hosted:queued:19<20"),
+            (20, "dash-x64-build", "selfhosted:queued:0<24"),
+        ):
+            with self.subTest(queued=queued):
+                outputs = self._select(queued_jobs=queued)
+                self.assertEqual(outputs["runner_build"], expected)
+                self.assertEqual(outputs["build_decision_reason"], reason)
+
+    def test_each_tier_saturates_on_its_own_label(self):
+        outputs = self._select(
+            queued_jobs=20,
+            selfhosted_queued={"dash-x64-fast": 16, "dash-x64-build": 23},
         )
-        # The rest of the ladder is untouched.
+
+        # Jobs waiting for our own runners are not hosted backlog.
+        self.assertEqual(outputs["backlog_count"], "20")
+        self.assertEqual(outputs["runner_fast"], "blacksmith-amd64")
+        self.assertEqual(outputs["fast_decision_reason"], "selfhosted-saturated:queued:16>=16")
+        self.assertEqual(outputs["runner_build"], "dash-x64-build")
+        self.assertEqual(outputs["build_decision_reason"], "selfhosted:queued:23<24")
+
+        outputs = self._select(
+            queued_jobs=20,
+            selfhosted_queued={"dash-x64-fast": 15, "dash-x64-build": 24},
+        )
+
+        self.assertEqual(outputs["runner_fast"], "dash-x64-fast")
+        self.assertEqual(outputs["runner_build"], "blacksmith-amd64")
+        self.assertEqual(
+            outputs["build_decision_reason"], "selfhosted-saturated:queued:24>=24"
+        )
+
+    def test_tiers_sharing_a_label_share_its_queue(self):
+        outputs = self._select(
+            queued_jobs=20,
+            runner_selfhosted_fast_var="dash-x64-build",
+            selfhosted_queued={"dash-x64-build": 20},
+        )
+
+        self.assertEqual(outputs["runner_fast"], "blacksmith-amd64")
+        self.assertEqual(outputs["runner_build"], "dash-x64-build")
+
+    def test_unset_tier_label_skips_only_that_tier(self):
+        outputs = self._select(queued_jobs=20, runner_selfhosted_build_var="")
+
+        self.assertEqual(outputs["runner_fast"], "dash-x64-fast")
+        self.assertEqual(outputs["runner_build"], "blacksmith-amd64")
+        self.assertEqual(outputs["build_decision_reason"], "selfhosted-build-disabled")
+
+        outputs = self._select(queued_jobs=20, runner_selfhosted_fast_var="")
+
+        self.assertEqual(outputs["runner_fast"], "blacksmith-amd64")
+        self.assertEqual(outputs["fast_decision_reason"], "selfhosted-fast-disabled")
+        self.assertEqual(outputs["runner_build"], "dash-x64-build")
+
+    def test_blacksmith_step_is_runner_amd64_below_the_hosted_ladder_threshold(self):
+        # One queued hosted job keeps the hosted ladder on GitHub-hosted, but a
+        # trusted fast tier past its self-hosted step still goes to Blacksmith.
+        outputs = self._select(queued_jobs=1, selfhosted_queued={"dash-x64-fast": 16})
+
         self.assertEqual(outputs["runner_amd64"], MODULE.DEFAULT_RUNNER_AMD64)
-        # No arm64 label configured: arm64 pre-lint jobs stay on runner_arm64.
-        self.assertEqual(outputs["runner_prelint_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
-        self.assertEqual(
-            outputs["prelint_arm64_decision_reason"], "selfhosted-arm64-disabled"
+        self.assertEqual(outputs["runner_fast"], "blacksmith-amd64")
+
+        outputs = self._select(queued_jobs=1, runner_selfhosted_fast_var="")
+        self.assertEqual(outputs["runner_fast"], "blacksmith-amd64")
+
+    def test_blacksmith_steps_are_github_hosted_when_runner_amd64_is_unset(self):
+        outputs = self._select(
+            queued_jobs=20,
+            runner_amd64_var="",
+            runner_selfhosted_build_var="",
+            selfhosted_queued={"dash-x64-fast": 16},
         )
 
-    def test_prelint_arm64_uses_its_own_label(self):
-        outputs = self._select(runner_selfhosted_arm64_var="ubuntu-core-arm64")
+        self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
+        self.assertEqual(outputs["runner_build"], MODULE.DEFAULT_RUNNER_AMD64)
 
-        self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
-        self.assertEqual(outputs["runner_prelint_arm64"], "ubuntu-core-arm64")
+    def test_untrusted_runs_stay_github_hosted(self):
+        for author, actor, head_owner in (
+            ("mallory", "PastaPastaPasta", "mallory"),
+            ("PastaPastaPasta", "mallory", "PastaPastaPasta"),
+            ("PastaPastaPasta", "PastaPastaPasta", "mallory"),
+            ("knstfoo", "knstfoo", "knstfoo"),
+        ):
+            with self.subTest(author=author, actor=actor, head_owner=head_owner):
+                outputs = self._select(
+                    queued_jobs=40,
+                    event=pull_request_event(author, head_owner=head_owner),
+                    actor=actor,
+                )
+                for tier in ("fast", "build"):
+                    self.assertEqual(outputs["runner_" + tier], MODULE.DEFAULT_RUNNER_AMD64)
+                    self.assertEqual(
+                        outputs[tier + "_decision_reason"], "actor-not-allowed"
+                    )
+                # The hosted ladder itself is unchanged.
+                self.assertEqual(outputs["runner_amd64"], "blacksmith-amd64")
 
-    def test_prelint_arm64_follows_the_same_allowlist(self):
+                # Even with both tiers' labels unset, they never reach Blacksmith.
+                outputs = self._select(
+                    queued_jobs=40,
+                    event=pull_request_event(author, head_owner=head_owner),
+                    actor=actor,
+                    runner_selfhosted_fast_var="",
+                    runner_selfhosted_build_var="",
+                )
+                self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
+                self.assertEqual(outputs["runner_build"], MODULE.DEFAULT_RUNNER_AMD64)
+
+    def test_untrusted_events_and_heads(self):
+        missing_head = pull_request_event("PastaPastaPasta")
+        del missing_head["pull_request"]["head"]
+        missing_both = pull_request_event("PastaPastaPasta")
+        del missing_both["pull_request"]["head"]
+        del missing_both["pull_request"]["base"]
+
+        for name, overrides in (
+            ("empty allowlist", dict(selfhosted_authors="")),
+            ("unknown event", dict(event_name="workflow_dispatch", event={})),
+            ("missing head repo", dict(event=missing_head)),
+            ("missing head and base", dict(event=missing_both)),
+            ("feature push by unlisted actor",
+             dict(event_name="push", event={"ref": "refs/heads/feature"}, actor="mallory")),
+        ):
+            with self.subTest(name):
+                outputs = self._select(queued_jobs=20, **overrides)
+                self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
+                self.assertEqual(outputs["runner_build"], MODULE.DEFAULT_RUNNER_AMD64)
+
+    def test_trusted_runs_use_selfhosted(self):
+        for name, overrides in (
+            ("allowlisted fork", {}),
+            ("same-repo head", dict(event=pull_request_event("PastaPastaPasta", head_owner="dashpay"))),
+            ("case-insensitive allowlist", dict(
+                event=pull_request_event("pastapastapasta"),
+                actor="PASTAPASTAPASTA",
+                selfhosted_authors="pastapastapasta, KWVG , udjinm6",
+            )),
+            ("feature push by listed actor",
+             dict(event_name="push", event={"ref": "refs/heads/feature"}, actor="knst")),
+            ("develop push by anyone",
+             dict(event_name="push", event={"ref": "refs/heads/develop"}, actor="mallory")),
+            ("master push by anyone",
+             dict(event_name="push", event={"ref": "refs/heads/master"}, actor="mallory")),
+        ):
+            with self.subTest(name):
+                outputs = self._select(queued_jobs=20, **overrides)
+                self.assertEqual(outputs["runner_fast"], "dash-x64-fast")
+                self.assertEqual(outputs["runner_build"], "dash-x64-build")
+
+    def test_tiers_yield_to_label_and_measurement_errors(self):
         outputs = self._select(
-            runner_selfhosted_arm64_var="ubuntu-core-arm64",
-            event=pull_request_event("mallory"),
+            queued_jobs=0,
+            event=pull_request_event("mallory", labels=["blacksmith-ci"]),
             actor="mallory",
         )
+        for tier in ("fast", "build"):
+            self.assertEqual(outputs["runner_" + tier], "blacksmith-amd64")
+            self.assertEqual(outputs[tier + "_decision_reason"], "label:blacksmith-ci")
 
-        self.assertEqual(outputs["runner_prelint_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
-        self.assertEqual(outputs["prelint_arm64_decision_reason"], "actor-not-allowed")
-
-    def test_lint_allowlist_is_case_insensitive(self):
-        outputs = self._select(
-            event=pull_request_event("pastapastapasta"),
-            actor="PASTAPASTAPASTA",
-            selfhosted_authors="pastapastapasta, KWVG , udjinm6",
-        )
-
-        self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
-
-    def test_lint_falls_back_when_author_not_allowed(self):
-        # An allowlisted maintainer may not lend our hardware to a fork PR
-        # opened by someone who is not on the list.
-        outputs = self._select(
-            event=pull_request_event("mallory"),
-            actor="PastaPastaPasta",
-        )
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
-
-    def test_lint_falls_back_when_actor_not_allowed_even_if_author_is(self):
-        # A fork branch can be pushed to by someone other than the PR author.
-        outputs = self._select(
-            event=pull_request_event("PastaPastaPasta"),
-            actor="mallory",
-        )
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
-
-    def test_lint_falls_back_without_backlog(self):
-        outputs = self._select(queued_jobs=0)
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "backlog:0<=0")
-
-    def test_lint_falls_back_when_selfhosted_label_unset(self):
-        outputs = self._select(runner_selfhosted_var="")
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "selfhosted-disabled")
-
-    def test_lint_falls_back_when_allowlist_empty(self):
-        outputs = self._select(selfhosted_authors="")
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
-
-    def test_lint_falls_back_on_measurement_error(self):
         def fetch_json(_url):
             raise RuntimeError("boom")
 
         outputs = self._select(fetch_json=fetch_json)
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "metric-unavailable")
-
-    def test_lint_uses_selfhosted_on_push_from_allowed_actor(self):
-        outputs = self._select(event_name="push", event={}, actor="knst")
-
-        self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
-
-    def test_lint_ignores_unknown_event_types(self):
-        outputs = self._select(event_name="workflow_dispatch", event={})
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
-
-    def test_lint_falls_back_for_cross_fork_head(self):
-        # A pull request may be opened from any readable fork, so an allowlisted
-        # author is not proof that the executing tree is allowlisted.
-        outputs = self._select(
-            event=pull_request_event("PastaPastaPasta", head_owner="mallory"),
-        )
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
-
-    def test_lint_allows_same_repo_head(self):
-        outputs = self._select(
-            event=pull_request_event("PastaPastaPasta", head_owner="dashpay"),
-        )
-
-        self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
-
-    def test_lint_requires_an_exact_login_match(self):
-        # "knstfoo" must not be accepted on the strength of "knst" being listed.
-        outputs = self._select(
-            event=pull_request_event("knstfoo"),
-            actor="knstfoo",
-        )
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
+        for tier in ("fast", "build"):
+            self.assertEqual(outputs["runner_" + tier], MODULE.DEFAULT_RUNNER_AMD64)
+            self.assertEqual(outputs[tier + "_decision_reason"], "metric-unavailable")
 
     def test_each_identity_is_matched_exactly(self):
         # Author, actor and head repository owner are three separate gates;
@@ -439,195 +497,71 @@ class SelectDynamicRunnerTest(unittest.TestCase):
             )
         )
 
-    def test_lint_falls_back_when_head_and_base_are_both_missing(self):
-        # Neither side identifies a repository, so the tree cannot be attributed
-        # to anyone; that must refuse rather than fall through as "same repo".
-        event = pull_request_event("PastaPastaPasta")
-        del event["pull_request"]["head"]
-        del event["pull_request"]["base"]
-
-        outputs = self._select(event=event)
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
-
-    def test_lint_falls_back_when_head_repo_missing(self):
-        event = pull_request_event("PastaPastaPasta")
-        del event["pull_request"]["head"]
-
-        outputs = self._select(event=event)
-
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["prelint_decision_reason"], "actor-not-allowed")
-
-    def test_lint_yields_to_an_explicit_blacksmith_label(self):
-        outputs = self._select(
-            event=pull_request_event("PastaPastaPasta", labels=["blacksmith-ci"]),
-        )
-
-        self.assertEqual(outputs["runner_prelint"], "blacksmith-amd64")
-        self.assertEqual(outputs["prelint_decision_reason"], "label:blacksmith-ci")
-
     def test_selfhosted_jobs_do_not_count_as_hosted_backlog(self):
-        # Queued lint jobs on our own hardware must not inflate the figure that
-        # decides whether to escalate the rest of the matrix to Blacksmith.
-        job = {"status": "queued", "labels": ["ubuntu-core"]}
+        job = {"status": "queued", "labels": ["dash-x64-build"]}
 
         self.assertTrue(MODULE.targets_github_hosted_runner(job))
-        self.assertFalse(MODULE.targets_github_hosted_runner(job, ["ubuntu-core"]))
-        self.assertFalse(MODULE.targets_github_hosted_runner(job, ["UBUNTU-CORE"]))
+        self.assertFalse(MODULE.targets_github_hosted_runner(job, ["dash-x64-build"]))
+        self.assertFalse(MODULE.targets_github_hosted_runner(job, ["DASH-X64-BUILD"]))
         self.assertTrue(MODULE.targets_github_hosted_runner(job, [""]))
 
-    def test_backlog_excludes_queued_selfhosted_jobs(self):
-        responses = add_queued_jobs(backlog_responses(3), "ubuntu-core", 9)
+    # --- arm64 pre-lint rung -------------------------------------------------
 
-        outputs = self._select(fetch_json=lambda url: responses[url])
+    def test_prelint_arm64_is_off_until_its_label_is_set(self):
+        outputs = self._select()
 
-        # 12 queued jobs, but only the 3 hosted ones count - so the amd64
-        # threshold of 10 is not crossed and Blacksmith is not paid for.
-        self.assertEqual(outputs["backlog_count"], "3")
-        self.assertEqual(outputs["runner_amd64"], MODULE.DEFAULT_RUNNER_AMD64)
-        # The 9 waiting for our own runners exceed the cap of 6, so pre-lint
-        # goes back to the hosted ladder rather than queue behind them.
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
+        self.assertEqual(outputs["runner_prelint_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
         self.assertEqual(
-            outputs["prelint_decision_reason"], "selfhosted-saturated:queued:9>6"
+            outputs["prelint_arm64_decision_reason"], "selfhosted-arm64-disabled"
         )
 
-    def test_saturation_is_counted_per_label(self):
-        responses = add_queued_jobs(backlog_responses(3), "ubuntu-core-arm64", 7)
-        add_queued_jobs(responses, "ubuntu-core", 6)
+    def test_prelint_arm64_uses_its_label_for_allowlisted_runs(self):
+        outputs = self._select(runner_selfhosted_arm64_var="ubuntu-core-arm64")
+        self.assertEqual(outputs["runner_prelint_arm64"], "ubuntu-core-arm64")
+        self.assertEqual(
+            outputs["prelint_arm64_decision_reason"], "selfhosted:backlog:3>0;queued:0<=6"
+        )
 
         outputs = self._select(
             runner_selfhosted_arm64_var="ubuntu-core-arm64",
-            fetch_json=lambda url: responses[url],
-        )
-
-        self.assertEqual(outputs["backlog_count"], "3")
-        # Exactly at the cap is still allowed.
-        self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
-        self.assertEqual(outputs["runner_prelint_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
-        self.assertEqual(
-            outputs["prelint_arm64_decision_reason"], "selfhosted-saturated:queued:7>6"
-        )
-
-    def test_lint_inherits_blacksmith_when_rung_unavailable(self):
-        # Declining self-hosted must leave lint on whatever amd64 decided,
-        # which above the threshold is Blacksmith rather than GitHub-hosted.
-        outputs = self._select(
-            queued_jobs=11,
             event=pull_request_event("mallory"),
             actor="mallory",
         )
+        self.assertEqual(outputs["runner_prelint_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
+        self.assertEqual(outputs["prelint_arm64_decision_reason"], "actor-not-allowed")
 
-        self.assertEqual(outputs["runner_amd64"], "blacksmith-amd64")
-        self.assertEqual(outputs["runner_prelint"], "blacksmith-amd64")
+    def test_prelint_arm64_stays_hosted_without_backlog(self):
+        outputs = self._select(queued_jobs=0, runner_selfhosted_arm64_var="ubuntu-core-arm64")
 
-    # --- linux64 build and test fast path ------------------------------------
+        self.assertEqual(outputs["runner_prelint_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
+        self.assertEqual(outputs["prelint_arm64_decision_reason"], "backlog:0<=0")
 
-    def _select_fast(self, **overrides):
-        overrides.setdefault("runner_selfhosted_fast_var", "dash-x64-build")
-        return self._select(**overrides)
-
-    def test_fast_path_is_off_until_its_label_is_set(self):
-        outputs = self._select()
-
-        self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["fast_decision_reason"], "selfhosted-fast-disabled")
-
-    def test_fast_path_for_trusted_pull_requests(self):
-        outputs = self._select_fast()
-
-        self.assertEqual(outputs["runner_fast"], "dash-x64-build")
-        self.assertEqual(
-            outputs["fast_decision_reason"], "selfhosted:backlog:3>0;queued:0<=2"
+    def test_prelint_arm64_yields_to_label_and_measurement_errors(self):
+        outputs = self._select(
+            runner_selfhosted_arm64_var="ubuntu-core-arm64",
+            event=pull_request_event("PastaPastaPasta", labels=["blacksmith-ci"]),
         )
-        # Independent of the pre-lint rung's label.
-        self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
+        self.assertEqual(outputs["runner_prelint_arm64"], "blacksmith-arm64")
+        self.assertEqual(outputs["prelint_arm64_decision_reason"], "label:blacksmith-ci")
 
-    def test_fast_path_falls_back_for_untrusted_pull_requests(self):
-        for author, actor, head_owner in (
-            ("mallory", "PastaPastaPasta", "mallory"),
-            ("PastaPastaPasta", "mallory", "PastaPastaPasta"),
-            ("PastaPastaPasta", "PastaPastaPasta", "mallory"),
-        ):
-            with self.subTest(author=author, actor=actor, head_owner=head_owner):
-                outputs = self._select_fast(
-                    event=pull_request_event(author, head_owner=head_owner),
-                    actor=actor,
-                )
-                self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
-                self.assertEqual(outputs["fast_decision_reason"], "actor-not-allowed")
-
-    def test_fast_path_for_develop_and_master_pushes_by_anyone(self):
-        for ref in ("refs/heads/develop", "refs/heads/master"):
-            with self.subTest(ref=ref):
-                outputs = self._select_fast(
-                    event_name="push", event={"ref": ref}, actor="mallory"
-                )
-                self.assertEqual(outputs["runner_fast"], "dash-x64-build")
-
-    def test_fast_path_for_other_pushes_needs_the_allowlist(self):
-        for ref in ("refs/heads/feature", "refs/tags/v24.0.0", "refs/heads/developer"):
-            with self.subTest(ref=ref):
-                outputs = self._select_fast(
-                    event_name="push", event={"ref": ref}, actor="mallory"
-                )
-                self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
-                self.assertEqual(outputs["fast_decision_reason"], "actor-not-allowed")
-
-                outputs = self._select_fast(
-                    event_name="push", event={"ref": ref}, actor="knst"
-                )
-                self.assertEqual(outputs["runner_fast"], "dash-x64-build")
-
-    def test_fast_path_falls_back_without_backlog(self):
-        outputs = self._select_fast(
-            event_name="push", event={"ref": "refs/heads/develop"}, queued_jobs=0
-        )
-
-        self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["fast_decision_reason"], "backlog:0<=0")
-
-    def test_fast_path_falls_back_on_measurement_error(self):
         def fetch_json(_url):
             raise RuntimeError("boom")
 
-        outputs = self._select_fast(fetch_json=fetch_json)
+        outputs = self._select(
+            runner_selfhosted_arm64_var="ubuntu-core-arm64", fetch_json=fetch_json
+        )
+        self.assertEqual(outputs["runner_prelint_arm64"], MODULE.DEFAULT_RUNNER_ARM64)
+        self.assertEqual(outputs["prelint_arm64_decision_reason"], "metric-unavailable")
 
-        self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
-        self.assertEqual(outputs["fast_decision_reason"], "metric-unavailable")
-
-    def test_fast_path_has_its_own_saturation_cap(self):
-        for queued, expected in ((2, "dash-x64-build"), (3, MODULE.DEFAULT_RUNNER_AMD64)):
+    def test_prelint_arm64_saturates_above_six_queued(self):
+        for queued, expected in ((6, "ubuntu-core-arm64"), (7, MODULE.DEFAULT_RUNNER_ARM64)):
             with self.subTest(queued=queued):
-                responses = add_queued_jobs(backlog_responses(3), "dash-x64-build", queued)
-
-                outputs = self._select_fast(fetch_json=lambda url: responses[url])
-
-                # Jobs waiting for our own runners are not hosted backlog.
+                outputs = self._select(
+                    runner_selfhosted_arm64_var="ubuntu-core-arm64",
+                    selfhosted_queued={"ubuntu-core-arm64": queued},
+                )
                 self.assertEqual(outputs["backlog_count"], "3")
-                self.assertEqual(outputs["runner_fast"], expected)
-                # The pre-lint rung keeps its own, larger cap.
-                self.assertEqual(outputs["runner_prelint"], "ubuntu-core")
-                if queued > 2:
-                    self.assertEqual(
-                        outputs["fast_decision_reason"], "selfhosted-saturated:queued:3>2"
-                    )
-
-    def test_fast_path_inherits_the_amd64_decision_when_unavailable(self):
-        outputs = self._select_fast(
-            event=pull_request_event("PastaPastaPasta", labels=["blacksmith-ci"]),
-        )
-        self.assertEqual(outputs["runner_fast"], "blacksmith-amd64")
-        self.assertEqual(outputs["fast_decision_reason"], "label:blacksmith-ci")
-
-        outputs = self._select_fast(
-            queued_jobs=11,
-            event=pull_request_event("mallory"),
-            actor="mallory",
-        )
-        self.assertEqual(outputs["runner_fast"], "blacksmith-amd64")
+                self.assertEqual(outputs["runner_prelint_arm64"], expected)
 
     # --- remote ccache write gate --------------------------------------------
 
@@ -660,11 +594,11 @@ class SelectDynamicRunnerTest(unittest.TestCase):
                 )
                 self.assertEqual(outputs["cache_write"], "false")
 
-    def test_cache_write_does_not_depend_on_the_prelint_rung(self):
+    def test_cache_write_does_not_depend_on_the_tiers(self):
         # The write gate shares the allowlist, not the self-hosted decision.
-        outputs = self._select(runner_selfhosted_var="", queued_jobs=0)
+        outputs = self._select(queued_jobs=0)
 
-        self.assertEqual(outputs["runner_prelint"], MODULE.DEFAULT_RUNNER_AMD64)
+        self.assertEqual(outputs["runner_fast"], MODULE.DEFAULT_RUNNER_AMD64)
         self.assertEqual(outputs["cache_write"], "true")
 
     def test_no_cache_write_for_other_events(self):

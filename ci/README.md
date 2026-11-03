@@ -25,38 +25,56 @@ In order to avoid rebuilding all dependencies for each build, the binaries are
 cached and reused when possible. Changes in the dependency-generator will
 trigger cache-invalidation and rebuilds as necessary.
 
-### Self-hosted fast path
+### amd64 runner tiers
 
-When the repository variable `RUNNER_SELFHOSTED_FAST` names a runner label,
-`.github/workflows/select_dynamic_runner.py` may move three jobs of the
-`linux64` target from the hosted runner ladder (GitHub-hosted or Blacksmith)
-to that label: the depends build (only on a depends cache miss),
-`linux64-build` and `linux64-test`. They keep their names and steps, so
-required checks are unchanged, and the depends cache key still names the
-hosted runner, so the entry they save is the one the other linux64 builds
-restore. Every other job stays where it was.
+`.github/workflows/select_dynamic_runner.py` places the amd64 jobs in two
+tiers, each with its own self-hosted runner label. The jobs keep their names
+and steps, so required checks are unchanged.
 
-The decision is made once per run, by the `Check skip conditions` job. A run
-takes the fast path only when all of these hold:
+| Tier | Jobs | Label variable |
+| --- | --- | --- |
+| fast | lint, cppcheck, cache-sources, the amd64 pull request container builds and manifests, and the `linux64` depends, build and test | `RUNNER_SELFHOSTED_FAST` |
+| build | every other amd64 depends, build and test job (`aarch64-linux`, `linux64_asan`, `linux64_fuzz`, `linux64_nowallet`, `linux64_sqlite`, `mac`, `win64`) | `RUNNER_SELFHOSTED_BUILD` |
 
-- it is a push to `develop` or `master`, or an event the pre-lint rung trusts:
-  a push whose actor is listed in `SELFHOSTED_LINT_AUTHORS`, or a pull request
-  whose author and actor are listed and whose head repository is this one or
-  is owned by a listed login. Everything else, including fork pull requests
-  from other contributors, stays on the hosted ladder;
-- some GitHub-hosted job is queued (otherwise hosted starts at once);
-- no `blacksmith-ci` label overrides the choice;
-- at most `SELFHOSTED_FAST_MAX_QUEUED` (2, set in `build.yml`) jobs are queued
-  for the label at that moment. Jobs already running there, or due to queue
-  later in runs that already chose it, are not counted, so a burst of runs
-  started together can still overfill a small pool.
+Each tier picks the first of these that applies:
 
-Leaving the variable unset turns the fast path off. Jobs already queued for
-the label must be cancelled and re-run after unsetting it.
+| | fast tier | build tier |
+| --- | --- | --- |
+| GitHub-hosted | no hosted job queued | fewer than `BUILD_HOSTED_QUEUE_LIMIT` (20) hosted jobs queued |
+| its self-hosted label | fewer than `FAST_SELFHOSTED_QUEUE_LIMIT` (16) jobs queued for it | fewer than `BUILD_SELFHOSTED_QUEUE_LIMIT` (24) jobs queued for it |
+| `RUNNER_AMD64` (Blacksmith) | otherwise | otherwise |
 
-Runners registered for the label must provide x86_64 Linux with a Docker
+The limits are set in `build.yml`. The hosted count covers every job queued
+for GitHub-hosted runners across the repositories the selector scans.
+The queue counts are a snapshot taken once per run, by the `Check skip
+conditions` job: jobs a run will queue later are not counted, so one run can
+still add a dozen or more jobs to a label at once. Two tiers that name the same
+label share its queue.
+
+- Only trusted runs may use a self-hosted label: a push to `develop` or
+  `master`, a push whose actor is listed in `SELFHOSTED_LINT_AUTHORS`, or a pull
+  request whose author and actor are listed and whose head repository is this
+  one or is owned by a listed login. Every other run stays GitHub-hosted in
+  both tiers unless it has the `blacksmith-ci` label.
+- A `blacksmith-ci` label sends both tiers to `RUNNER_AMD64`. Otherwise a
+  failed backlog measurement keeps both GitHub-hosted.
+- With `RUNNER_AMD64` unset, the Blacksmith step is GitHub-hosted.
+- Unsetting a tier's label variable skips only that tier's self-hosted step,
+  for example to keep the build tier off a busy pool while the fast tier keeps
+  using it. Jobs already queued for the label must be cancelled and re-run.
+- The depends jobs build on the tier's runner, but their cache key still names
+  the hosted ladder's runner, so every consumer restores the same entry.
+- Container builds on push, and every arm64 job, keep the hosted ladder:
+  GitHub-hosted, then `RUNNER_AMD64`/`RUNNER_ARM64` once more than
+  `BACKLOG_THRESHOLD` (10) or `BACKLOG_THRESHOLD_ARM64` (30) hosted jobs are
+  queued. The arm64 pull request container builds may use
+  `RUNNER_SELFHOSTED_ARM64` for allowlisted runs.
+
+Runners registered for either label must provide x86_64 Linux with a Docker
 daemon (the jobs run in the CI container with `--cap-add SYS_PTRACE`), about 8
 CPUs and 16 GiB of memory or more, roughly 40 GiB of free disk, and access to
-GitHub's cache service and the remote ccache (`CCACHE_REMOTE_URL`). These runs
+GitHub's cache service and the remote ccache (`CCACHE_REMOTE_URL`). The fast
+tier's label also runs Docker Buildx for the container builds, which push to
+GHCR, and `make -C depends download` directly on the host for cache-sources. These runs
 execute pull request code with access to that Docker daemon, so give each job
 a fresh, single-use machine.
