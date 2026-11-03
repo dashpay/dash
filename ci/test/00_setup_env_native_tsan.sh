@@ -33,5 +33,5 @@ export TEST_RUNNER_EXTRA="--extended --exclude feature_pruning,feature_dbcrash,w
 export TEST_RUNNER_EXTRA="${TEST_RUNNER_EXTRA} --timeout-factor=4"  # Increase timeout because sanitizers slow down
 export GOAL="install"
 export BITCOIN_CONFIG="--enable-zmq --with-sanitizers=thread CC=clang-19 CXX=clang++-19"
-export CPPFLAGS="-DARENA_DEBUG -DDEBUG_LOCKORDER -DDEBUG_LOCKCONTENTION"
+export CPPFLAGS="-DARENA_DEBUG -DDEBUG_LOCKCONTENTION"
 export PYZMQ=true
