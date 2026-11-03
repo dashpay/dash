@@ -53,6 +53,7 @@
 #include <QStackedWidget>
 #include <QStandardItemModel>
 #include <QString>
+#include <QTableWidget>
 #include <QTest>
 #include <QTimer>
 #include <QWidget>
@@ -1053,6 +1054,37 @@ void SharedMnWizardTests::participantsPageGating()
     dialog.refreshShareTable();
     QVERIFY(!dialog.validatePage(SharedMnCreateDialog::PageParticipants, error));
     QVERIFY(!error.isEmpty());
+
+    // Coins reserved for this wallet's row were sized for its amount and are
+    // recorded under its name, so that row stays fixed until they are released;
+    // the other rows are still the coordinator's to edit
+    const auto name_cell = [&](int row) {
+        return qobject_cast<QLineEdit*>(dialog.m_share_table->cellWidget(row, SharedMnCreateDialog::SHARE_COL_NAME));
+    };
+    // BitcoinAmountField::setEnabled() reaches only the editor inside it
+    const auto amount_editable = [&](int row) {
+        return dialog.m_share_table->cellWidget(row, SharedMnCreateDialog::SHARE_COL_AMOUNT)->findChild<QLineEdit*>()->isEnabled();
+    };
+    MnShareSession::Contribution mine;
+    mine.label = dialog.m_session.shares()[0].label;
+    mine.inputs.push_back({.txid = FakeTxid('1')});
+    QVERIFY2(dialog.m_session.addContribution(mine, error), qPrintable(error));
+    dialog.refreshShareTable();
+    QVERIFY(!amount_editable(0));
+    QVERIFY(name_cell(0)->isReadOnly());
+    QVERIFY(amount_editable(1));
+    QVERIFY(!name_cell(1)->isReadOnly());
+    // Nor can the row be removed from under the reservation
+    dialog.m_share_table->setCurrentCell(0, SharedMnCreateDialog::SHARE_COL_NAME);
+    dialog.m_remove_share_button->click();
+    QCOMPARE(dialog.m_session.shares().size(), size_t{3});
+    QVERIFY(dialog.myContribution() != nullptr);
+    QVERIFY(!dialog.m_error_label->text().isEmpty());
+
+    dialog.releaseCoins();
+    QVERIFY(dialog.myContribution() == nullptr);
+    QVERIFY(amount_editable(0));
+    QVERIFY(!name_cell(0)->isReadOnly());
 }
 
 void SharedMnWizardTests::statusBoardAbsorbsRepliesInAnyOrder()

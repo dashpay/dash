@@ -460,6 +460,11 @@ QWidget* SharedMnCreateDialog::createParticipantsPage()
         if (selected < 0 || static_cast<size_t>(selected) >= shares.size() || shares.size() <= CProRegTx::MIN_SHARES) {
             return;
         }
+        if (selected == m_my_share && myContribution() != nullptr) {
+            showError(tr("Your coins are reserved for this row. Release them on the contribution page before "
+                         "removing it."));
+            return;
+        }
         shares.erase(shares.begin() + selected);
         if (m_my_share == selected) {
             m_my_share = -1;
@@ -1748,13 +1753,16 @@ void SharedMnCreateDialog::refreshShareTable()
         m_share_table->resizeRowsToContents();
     }
     for (int row = 0; row < rows; ++row) {
+        // The coins reserved for this wallet's row pay its amount, sized when
+        // they were reserved, and are recorded under its name
+        const bool held{reserved && row == m_my_share};
         if (auto* name = qobject_cast<QLineEdit*>(m_share_table->cellWidget(row, SHARE_COL_NAME))) {
             if (name->text() != shares[row].label) name->setText(shares[row].label);
-            name->setReadOnly(!editable);
+            name->setReadOnly(!editable || held);
         }
         if (auto* amount = qobject_cast<BitcoinAmountField*>(m_share_table->cellWidget(row, SHARE_COL_AMOUNT))) {
             if (amount->value() != shares[row].amount) amount->setValue(shares[row].amount);
-            amount->setEnabled(editable);
+            amount->setEnabled(editable && !held);
         }
         if (auto* me = qobject_cast<QRadioButton*>(m_me_group->button(row))) {
             me->setChecked(row == m_my_share);
