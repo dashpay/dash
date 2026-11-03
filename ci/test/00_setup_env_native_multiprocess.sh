@@ -35,6 +35,6 @@ export TEST_RUNNER_EXTRA="--v2transport"
 export BITCOIN_CONFIG="--enable-debug CC=clang-19 CXX=clang++-19" # Use clang to avoid OOM
 # Additional flags for RUN_TIDY
 export BITCOIN_CONFIG="${BITCOIN_CONFIG} --disable-hardening CFLAGS='-O0 -g0' CXXFLAGS='-O0 -g0 -Wno-error=documentation'"
-# --enable-debug turns on the lock-order tracking, which costs a third of dashd CPU on this -O0 build
-export BITCOIN_CONFIG="${BITCOIN_CONFIG} CPPFLAGS='-UDEBUG_LOCKORDER'"
+# --enable-debug turns on the lock-order and lock-contention tracking; they cost a third and ~3% of dashd CPU on this -O0 build
+export BITCOIN_CONFIG="${BITCOIN_CONFIG} CPPFLAGS='-UDEBUG_LOCKORDER -UDEBUG_LOCKCONTENTION'"
 export BITCOIND=dash-node  # Used in functional tests
