@@ -8,6 +8,7 @@
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
+#include <validationinterface.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -153,6 +154,54 @@ BOOST_AUTO_TEST_CASE(getcoinscachesizestate)
     BOOST_CHECK_EQUAL(
         chainstate.GetCoinsCacheSizeState(MAX_COINS_CACHE_BYTES, 0),
         CoinsCacheSizeState::OK);
+}
+
+namespace {
+struct FlushOrderSubscriber final : public CValidationInterface {
+    std::set<uint256> m_connected;
+    bool m_new_block_connected{false};
+    int m_flushes_before_connect{0};
+    bool m_flushed_unconnected{false};
+
+    void BlockConnected(const std::shared_ptr<const CBlock>&, const CBlockIndex* pindex) override
+    {
+        if (m_connected.insert(pindex->GetBlockHash()).second) m_new_block_connected = true;
+    }
+    void ChainStateFlushed(const CBlockLocator& locator) override
+    {
+        if (!m_new_block_connected) ++m_flushes_before_connect;
+        if (!m_connected.count(locator.vHave.front())) m_flushed_unconnected = true;
+    }
+};
+
+struct CriticalCacheSetup : public TestChainSetup {
+    CriticalCacheSetup() :
+        TestChainSetup{100, CBaseChainParams::REGTEST, {"-maxmempool=0"}}
+    {
+    }
+};
+} // namespace
+
+//! A flush inside ConnectTip() must not announce the block being connected before its BlockConnected
+//! notification, since the wallet stores the announced locator as the point it has scanned up to.
+BOOST_FIXTURE_TEST_CASE(chainstate_flushed_after_block_connected, CriticalCacheSetup)
+{
+    Chainstate& chainstate{m_node.chainman->ActiveChainstate()};
+    auto sub{std::make_shared<FlushOrderSubscriber>()};
+    WITH_LOCK(::cs_main, for (const CBlockIndex* pindex{chainstate.m_chain.Tip()}; pindex; pindex = pindex->pprev) {
+        sub->m_connected.insert(pindex->GetBlockHash());
+    });
+    RegisterSharedValidationInterface(sub);
+    // With no coins cache budget and no mempool allowance, every ConnectTip() flushes.
+    WITH_LOCK(::cs_main, chainstate.m_coinstip_cache_size_bytes = 0);
+
+    CreateAndProcessBlock({}, CScript() << OP_TRUE);
+    SyncWithValidationInterfaceQueue();
+    UnregisterSharedValidationInterface(sub);
+
+    // ConnectTip() flushed before the new block's BlockConnected was delivered.
+    BOOST_CHECK_GT(sub->m_flushes_before_connect, 0);
+    BOOST_CHECK(!sub->m_flushed_unconnected);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

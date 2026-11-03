@@ -3337,7 +3337,12 @@ bool Chainstate::FlushStateToDisk(
     }
     if (full_flush_completed && this == &m_chainman.ActiveChainstate()) {
         // TODO(assumeutxo): upstream tags this notification with ChainstateRole instead of suppressing; adopt when backporting index/wallet assumeutxo support.
-        GetMainSignals().ChainStateFlushed(GetLocator(m_last_flushed_block));
+        // Dash's wallet still persists this locator as its best block (bitcoin#30221 removed that upstream).
+        // ConnectTip() can flush before the new block is part of m_chain, so announce the last flushed
+        // block that is.
+        if (const CBlockIndex* flushed_in_chain{m_chain.FindFork(m_last_flushed_block)}) {
+            GetMainSignals().ChainStateFlushed(GetLocator(flushed_in_chain));
+        }
     }
     } catch (const std::runtime_error& e) {
         return AbortNode(state, std::string("System error while flushing: ") + e.what());
