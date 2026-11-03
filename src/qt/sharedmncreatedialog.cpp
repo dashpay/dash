@@ -51,7 +51,6 @@
 #include <QRadioButton>
 #include <QRegularExpression>
 #include <QSet>
-#include <QSignalBlocker>
 #include <QSpacerItem>
 #include <QSpinBox>
 #include <QStackedWidget>
@@ -1909,8 +1908,11 @@ void SharedMnCreateDialog::refreshContributionPage()
     const bool reserved{mine != nullptr};
     if (reserved) {
         CAmount total{0};
+        bool valued{true};
         for (const auto& input : mine->inputs) {
-            if (const auto value{resolveInputValue(input)}) total += *value;
+            const auto value{resolveInputValue(input)};
+            valued = valued && value.has_value();
+            total += value.value_or(0);
         }
         QString text{tr("Reserved — these coins cannot be spent until the session ends or you release them.")};
         text += QLatin1Char('\n');
@@ -1921,6 +1923,13 @@ void SharedMnCreateDialog::refreshContributionPage()
                                FormatAmount(m_wallet_model, mine->changeAmount))
                     : tr("Uses %1 (%2), with no change left over.").arg(coins, FormatAmount(m_wallet_model, total));
         text += QLatin1Char('\n');
+        // The session does not record the fee, so a reopened reservation may pay
+        // more than the field shows. Only the field sets what may be signed.
+        const CAmount paid{total - (mine->hasChange ? mine->changeAmount : 0) - shares[m_my_share].amount};
+        if (coordinator && valued && paid != m_fee_field->value()) {
+            text += tr("These coins pay %1 beyond your share (network fee).").arg(FormatAmount(m_wallet_model, paid));
+            text += QLatin1Char('\n');
+        }
         text += coordinator ? tr("To change your addresses or the network fee, release the coins first.")
                             : tr("To change your addresses, release the coins first.");
         m_coins_label->setText(text);
@@ -3019,7 +3028,6 @@ void SharedMnCreateDialog::replaceSession(const MnShareSession& imported)
     }
 
     inferMyShare();
-    loadReservedFee();
     checkSessionLiveness();
     checkOwnFunding();
     if (m_dead_reason.isEmpty()) refreshContributedCoinLocks();
@@ -3055,22 +3063,6 @@ void SharedMnCreateDialog::replaceSession(const MnShareSession& imported)
         goToPage(PageComplete);
         break;
     }
-}
-
-void SharedMnCreateDialog::loadReservedFee()
-{
-    const MnShareSession::Contribution* const mine{myContribution()};
-    if (mine == nullptr || m_role != Role::Coordinator) return;
-    CAmount total{0};
-    for (const auto& input : mine->inputs) {
-        const auto value{resolveInputValue(input)};
-        if (!value) return;
-        total += *value;
-    }
-    const CAmount fee{total - (mine->hasChange ? mine->changeAmount : 0) - m_session.shares()[m_my_share].amount};
-    if (fee < 0) return;
-    const QSignalBlocker blocker{m_fee_field};
-    m_fee_field->setValue(fee);
 }
 
 void SharedMnCreateDialog::absorbSession(const MnShareSession& imported)

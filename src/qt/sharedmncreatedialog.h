@@ -331,9 +331,6 @@ private:
     //! Put the addresses recorded for the share this wallet holds into the
     //! contribution page, replacing any left over from another share
     void loadMyShareAddresses();
-    //! Show the network fee a reopened reservation of this coordinator pays,
-    //! which the session does not record, when its coins can be valued
-    void loadReservedFee();
     //! Give the empty owner and refund edits fresh addresses from this wallet
     void fillEmptyAddressEdits();
     //! True when `session` is this wallet's own coordinated session, reopened
