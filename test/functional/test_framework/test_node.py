@@ -456,8 +456,9 @@ class TestNode():
         return True
 
     def wait_until_stopped(self, *, timeout=BITCOIND_PROC_WAIT_TIMEOUT, expect_error=False, **kwargs):
-        expected_ret_code = 1 if expect_error else 0  # Whether node shutdown return EXIT_FAILURE or EXIT_SUCCESS
-        wait_until_helper(lambda: self.is_node_stopped(expected_ret_code=expected_ret_code, **kwargs), timeout=timeout, timeout_factor=self.timeout_factor)
+        if "expected_ret_code" not in kwargs:
+            kwargs["expected_ret_code"] = 1 if expect_error else 0  # Whether node shutdown return EXIT_FAILURE or EXIT_SUCCESS
+        wait_until_helper(lambda: self.is_node_stopped(**kwargs), timeout=timeout, timeout_factor=self.timeout_factor)
 
     def replace_in_config(self, replacements):
         """
