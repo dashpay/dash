@@ -5,7 +5,6 @@
 #include <evo/netinfo.h>
 
 #include <chainparams.h>
-#include <common/system.h>
 #include <evo/types.h>
 #include <netbase.h>
 #include <span.h>
@@ -91,7 +90,7 @@ bool IsNodeOnMainnet() { return Params().GetChainType() == ChainType::MAIN; }
 
 const CChainParams& MainParams()
 {
-    std::call_once(g_main_params_flag, [&]() { g_main_params = CreateChainParams(::gArgs, ChainType::MAIN); });
+    std::call_once(g_main_params_flag, [&]() { g_main_params = CChainParams::Main(); });
     return *Assert(g_main_params);
 }
 
