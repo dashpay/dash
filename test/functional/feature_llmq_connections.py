@@ -14,7 +14,6 @@ import time
 
 from test_framework.test_framework import (
     DashTestFramework,
-    MasternodeInfo,
 )
 from test_framework.util import assert_greater_than_or_equal, force_finish_mnsync
 
@@ -86,7 +85,7 @@ class LLMQConnections(DashTestFramework):
 
         self.log.info("check that old masternode connections are dropped")
         removed = False
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             if len(mn.get_node(self).quorum("memberof", mn.proTxHash)) > 0:
                 try:
                     with mn.get_node(self).assert_debug_log(['removing masternodes quorum connections']):
@@ -102,7 +101,7 @@ class LLMQConnections(DashTestFramework):
 
         self.log.info("check that inter-quorum masternode connections are added")
         added = False
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             if len(mn.get_node(self).quorum("memberof", mn.proTxHash)) > 0:
                 try:
                     with mn.get_node(self).assert_debug_log(['adding mn inter-quorum connections']):
@@ -199,11 +198,11 @@ class LLMQConnections(DashTestFramework):
 
     def check_reconnects(self, expected_connection_count):
         self.log.info("disable and re-enable networking on all masternodes")
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             mn.get_node(self).setnetworkactive(False)
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             self.wait_until(lambda: len(mn.get_node(self).getpeerinfo()) == 0)
-        for mn in self.mninfo: # type: MasternodeInfo
+        for mn in self.mninfo:
             mn.get_node(self).setnetworkactive(True)
         self.bump_mocktime(60)
 

@@ -34,7 +34,7 @@ class ResendWalletTransactionsTest(BitcoinTestFramework):
         self.log.info("Create a new transaction and wait until it's broadcast")
         parent_utxo, indep_utxo = node.listunspent()[:2]
         addr = node.getnewaddress()
-        txid = node.send(outputs=[{addr: 1}], options={"inputs": [parent_utxo]})["txid"]
+        txid = node.send(outputs=[{addr: 1}], inputs=[parent_utxo])["txid"]
 
         # Can take a few seconds due to transaction trickling
         def wait_p2p():
@@ -87,7 +87,7 @@ class ResendWalletTransactionsTest(BitcoinTestFramework):
         # ordering of mapWallet is. mapWallet hashes txids with a salt drawn at random every time
         # the wallet is loaded, so reloading the wallet reshuffles its iteration order while
         # leaving the transactions themselves untouched. Reload until the child comes first.
-        child_txid = node.send(outputs=[{addr: 0.5}], options={"inputs": [{"txid":txid, "vout":0}]})["txid"]
+        child_txid = node.send(outputs=[{addr: 0.5}], inputs=[{"txid":txid, "vout":0}])["txid"]
         while True:
             txids = node.listreceivedbyaddress(minconf=0, address_filter=addr)[0]["txids"]
             if txids == [child_txid, txid]:
@@ -111,7 +111,7 @@ class ResendWalletTransactionsTest(BitcoinTestFramework):
             node.mockscheduler(60)
 
         # Evict these txs from the mempool
-        indep_send = node.send(outputs=[{node.getnewaddress(): 1}], options={"inputs": [indep_utxo]})
+        indep_send = node.send(outputs=[{node.getnewaddress(): 1}], inputs=[indep_utxo])
         node.getmempoolentry(indep_send["txid"])
         assert_raises_rpc_error(-5, "Transaction not in mempool", node.getmempoolentry, txid)
         assert_raises_rpc_error(-5, "Transaction not in mempool", node.getmempoolentry, child_txid)
