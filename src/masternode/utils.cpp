@@ -10,6 +10,7 @@
 
 #include <net.h>
 #include <shutdown.h>
+#include <util/check.h>
 
 #include <algorithm>
 
@@ -22,6 +23,7 @@ void CMasternodeUtils::DoMaintenance(CConnman& connman, CDeterministicMNManager&
     // Don't disconnect masternode connections when we have less then the desired amount of outbound nodes
     int nonMasternodeCount = 0;
     connman.ForEachNode(CConnman::AllNodes, [&](const CNode* pnode) {
+        Assume(!pnode->m_masternode_probe_connection || !pnode->IsInboundConn());
         if ((!pnode->IsInboundConn() &&
             !pnode->IsFeelerConn() &&
             !pnode->IsManualConn() &&
@@ -39,8 +41,8 @@ void CMasternodeUtils::DoMaintenance(CConnman& connman, CDeterministicMNManager&
 
     auto mixing_masternodes = cj_walletman ? cj_walletman->getMixingMasternodes() : std::vector<CDeterministicMNCPtr>{};
     connman.ForEachNode(CConnman::AllNodes, [&](CNode* pnode) {
-        if (pnode->m_masternode_probe_connection) {
-            // we're not disconnecting masternode probes for at least PROBE_WAIT_INTERVAL seconds
+        if (pnode->m_masternode_probe_connection || pnode->m_masternode_duplicate_inbound) {
+            // we're not disconnecting masternode probes or duplicates for at least PROBE_WAIT_INTERVAL seconds
             if (GetTime<std::chrono::seconds>() - pnode->m_connected < PROBE_WAIT_INTERVAL) return;
         } else {
             // we're only disconnecting m_masternode_connection connections
