@@ -302,7 +302,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
     }
     const uint256 signHash = ann.buildSignHash().Get();
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
-    timeSeenForSessions.try_emplace(signHash, GetTime<std::chrono::seconds>().count());
+    m_session_table.OnAnnounced(signHash, GetTime<std::chrono::seconds>().count());
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.getSessionId());
     session.recvSessionId = ann.getSessionId();
@@ -678,8 +678,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::ProcessSigShare(const CSigShar
             sigSharesQueuedToAnnounce.Add(sigShare.GetKey(), true);
         }
 
-        // Update the time we've seen the last sigShare
-        timeSeenForSessions[sigShare.GetSignHash()] = GetTime<std::chrono::seconds>().count();
+        m_session_table.OnShareAdded(sigShare.GetSignHash(), GetTime<std::chrono::seconds>().count());
 
         // don't announce and wait for other nodes to request this share and directly send it to them
         // there is no way the other nodes know about this share as this is the one created on this node
@@ -891,12 +890,7 @@ bool CSigSharesManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const ui
         // Signing again is activity on this session, but a re-created share only duplicates ours and does not
         // refresh it. Restart the timeout so Cleanup does not drop the shares we hold before they are re-announced.
         const uint256 signHash{SignHash(llmqType, quorum->qc->quorumHash, id, msgHash).Get()};
-        {
-            LOCK(cs);
-            if (auto it = timeSeenForSessions.find(signHash); it != timeSeenForSessions.end()) {
-                it->second = GetTime<std::chrono::seconds>().count();
-            }
-        }
+        WITH_LOCK(cs, m_session_table.OnReSigned(signHash, GetTime<std::chrono::seconds>().count()));
         // make us re-announce all known shares (other nodes might have run into a timeout)
         ForceReAnnouncement(*quorum, llmqType, id, msgHash);
     }
@@ -1068,7 +1062,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
     auto curTime = GetTime<std::chrono::milliseconds>().count();
     const uint256 myProTxHash{m_mn_activeman.GetProTxHash()};
 
-    for (auto& [_, signedSession] : signedSessions) {
+    for (auto& signedSession : m_session_table.OwnShares()) {
         const auto& quorum = *signedSession.quorum;
         if (!IsAllMembersConnectedEnabled(quorum.params.type, m_sporkman)) {
             continue;
@@ -1398,16 +1392,8 @@ void CSigSharesManager::Cleanup()
 
         // Remove sessions which were successfully recovered
         Uint256HashSet doneSessions;
-        sigShares.ForEach([&doneSessions, this](const SigShareKey&, const CSigShare& sigShare) {
-            if (doneSessions.count(sigShare.GetSignHash()) != 0) {
-                return;
-            }
-            if (sigman.HasRecoveredSigForSession(sigShare.GetSignHash())) {
-                doneSessions.emplace(sigShare.GetSignHash());
-            }
-        });
-        for (const auto& [signHash, _] : timeSeenForSessions) {
-            if (doneSessions.count(signHash) == 0 && sigman.HasRecoveredSigForSession(signHash)) {
+        for (const auto& signHash : m_session_table.SignHashes()) {
+            if (sigman.HasRecoveredSigForSession(signHash)) {
                 doneSessions.emplace(signHash);
             }
         }
@@ -1416,14 +1402,8 @@ void CSigSharesManager::Cleanup()
         }
 
         // Remove sessions which timed out
-        Uint256HashSet timeoutSessions;
-        int64_t now = GetTime<std::chrono::seconds>().count();
-        for (const auto& [signHash, lastSeenTime] : timeSeenForSessions) {
-            if (now - lastSeenTime >= SESSION_NEW_SHARES_TIMEOUT) {
-                timeoutSessions.emplace(signHash);
-            }
-        }
-        for (const auto& signHash : timeoutSessions) {
+        const int64_t now = GetTime<std::chrono::seconds>().count();
+        for (const auto& signHash : m_session_table.CollectTimedOut(now, SESSION_NEW_SHARES_TIMEOUT)) {
 
             if (const size_t count = sigShares.CountForSignHash(signHash); count > 0) {
                 const auto* m = sigShares.GetAllForSignHash(signHash);
@@ -1497,8 +1477,7 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
     sigSharesRequested.EraseAllForSignHash(signHash);
     sigSharesQueuedToAnnounce.EraseAllForSignHash(signHash);
     sigShares.EraseAllForSignHash(signHash);
-    signedSessions.erase(signHash);
-    timeSeenForSessions.erase(signHash);
+    m_session_table.Erase(signHash);
 }
 
 void CSigSharesManager::RemoveNodesIf(std::function<bool(NodeId)> predicate)
@@ -1567,7 +1546,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::SignAndProcessSingleShare(Pend
         if (IsAllMembersConnectedEnabled(work.quorum->params.type, m_sporkman)) {
             const uint256 signHash{sigShare.GetSignHash()};
             LOCK(cs);
-            signedSessions[signHash] = CSignedSession{std::move(sigShare), work.quorum};
+            m_session_table.SetOwnShare(signHash, CSignedSession{std::move(sigShare), work.quorum});
         }
         return rs;
     }
