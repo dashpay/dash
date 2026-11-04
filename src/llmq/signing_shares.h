@@ -455,9 +455,13 @@ public:
     {
         if (auto it = m_last_activity.find(signHash); it != m_last_activity.end()) it->second = now;
     }
-    /** Stores (or restarts) the push state of our own share for a session. Returns whether it was stored. */
-    bool SetOwnShare(const uint256& signHash, CSignedSession ownShare)
+    /**
+     * Stores (or restarts) the push state of our own share for a tracked session. Refuses an untracked one, since
+     * nothing would ever reap it. Returns whether it was stored.
+     */
+    [[nodiscard]] bool SetOwnShare(const uint256& signHash, CSignedSession ownShare)
     {
+        if (!m_last_activity.contains(signHash)) return false;
         m_own_shares.insert_or_assign(signHash, std::move(ownShare));
         return true;
     }
