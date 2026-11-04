@@ -1,7 +1,7 @@
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../include/dashbls/*.hpp)
 source_group("SrcHeaders" FILES ${HEADERS})
 
-add_library(dashbls
+add_library(dashbls STATIC
   ${HEADERS}
   ${CMAKE_CURRENT_SOURCE_DIR}/privatekey.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bls.cpp
@@ -17,6 +17,7 @@ target_include_directories(dashbls
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     $<$<BOOL:${GMP_FOUND}>:${GMP_INCLUDES}>
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/dashbls
     ${CMAKE_CURRENT_SOURCE_DIR}/../depends/mimalloc/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../depends/relic/include
