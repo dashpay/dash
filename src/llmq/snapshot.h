@@ -32,7 +32,8 @@ enum class SnapshotSkipMode : int {
     MODE_NO_SKIPPING = 0,
     MODE_SKIPPING_ENTRIES = 1,
     MODE_NO_SKIPPING_ENTRIES = 2,
-    MODE_ALL_SKIPPED = 3
+    MODE_ALL_SKIPPED = 3,
+    MODE_SHORT_QUARTERS = 4, // Some quarter is short or empty; the list holds the walk steps at which a candidate was skipped
 };
 template<> struct is_serializable_enum<SnapshotSkipMode> : std::true_type {};
 

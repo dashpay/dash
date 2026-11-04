@@ -76,9 +76,14 @@ std::vector<std::vector<size_t>> ReplayLegacyQuarters(size_t list_size, size_t q
 //! true if the candidate joins that index and must record the addition. nullopt if a delta doesn't fit in int.
 std::optional<QuarterWalkResult> WalkNewQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
                                                  const std::function<bool(size_t, size_t)>& can_add);
-//! Inverse of WalkNewQuarters; nullopt if skip_list is malformed or not fully consumed.
+//! Inverse of WalkNewQuarters; nullopt if skip_list is malformed, not fully consumed or would repeat a
+//! position within a quarter.
 std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_size, size_t quorum_count,
                                                                   size_t quarter_size, Span<const int> skip_list);
+//! The skip list WalkLegacyQuarters stores for the same walk, given a WalkNewQuarters result whose quarters are
+//! all full. ReplayLegacyQuarters doesn't always rebuild such a walk exactly once it wraps around the list, but
+//! that is how legacy snapshots have always been rebuilt.
+std::vector<int> LegacySkipListForWalk(size_t list_size, const QuarterWalkResult& walk);
 
 struct BlsCheck {
     CBLSSignature m_sig;

@@ -805,6 +805,11 @@ BOOST_AUTO_TEST_CASE(quarter_walk_replay_rejects_malformed)
     auto extended = walk->skip_list;
     extended.push_back(1000); // a skip step the walk never reaches
     BOOST_CHECK(!llmq::utils::ReplayNewQuarters(4, 2, 2, extended).has_value());
+
+    // wrapping around within one quarter would repeat a position, which the walk never does
+    BOOST_CHECK(!llmq::utils::ReplayNewQuarters(2, 1, 3, {}).has_value());
+    BOOST_CHECK(!llmq::utils::ReplayNewQuarters(3, 1, 3, std::vector<int>{1}).has_value());
+    BOOST_CHECK(llmq::utils::ReplayNewQuarters(2, 1, 2, {}) == (Positions{{0, 1}}));
 }
 
 BOOST_AUTO_TEST_CASE(quarter_walk_snapshot_roundtrip)
@@ -813,13 +818,13 @@ BOOST_AUTO_TEST_CASE(quarter_walk_snapshot_roundtrip)
         const auto walk = fx.Walk(list_size, quorums, quarter);
         BOOST_REQUIRE(walk.has_value());
         BOOST_REQUIRE(!walk->skip_list.empty());
-        llmq::CQuorumSnapshot snapshot{std::vector<bool>(list_size, true), SnapshotSkipMode::MODE_SKIPPING_ENTRIES,
+        llmq::CQuorumSnapshot snapshot{std::vector<bool>(list_size, true), SnapshotSkipMode::MODE_SHORT_QUARTERS,
                                        walk->skip_list};
         DataStream ss{};
         ss << snapshot;
         llmq::CQuorumSnapshot decoded;
         ss >> decoded;
-        BOOST_CHECK(decoded.mnSkipListMode == SnapshotSkipMode::MODE_SKIPPING_ENTRIES);
+        BOOST_CHECK(decoded.mnSkipListMode == SnapshotSkipMode::MODE_SHORT_QUARTERS);
         const auto replayed = llmq::utils::ReplayNewQuarters(list_size, quorums, quarter, decoded.mnSkipList);
         BOOST_REQUIRE(replayed.has_value());
         BOOST_CHECK(*replayed == walk->quarters);
@@ -832,6 +837,54 @@ BOOST_AUTO_TEST_CASE(quarter_walk_snapshot_roundtrip)
     StepWalkFixture failure(5, 1);
     failure.failing_for_index0 = {1, 2, 3};
     check(failure, 5, 1, 3);
+}
+
+BOOST_AUTO_TEST_CASE(quarter_walk_legacy_skip_list)
+{
+    // Wherever the legacy walk fills every quarter, the step walk selects the same positions and
+    // LegacySkipListForWalk gives the skip list the legacy walk stores, including after wrapping around the
+    // list, where the legacy replay can rebuild something else
+    size_t full{0};
+    size_t lossy{0};
+    for (size_t list_size = 1; list_size <= 5; ++list_size) {
+        for (size_t quorums = 1; quorums <= 3; ++quorums) {
+            for (size_t quarter = 1; quarter <= 2; ++quarter) {
+                for (size_t used_mask = 0; used_mask < (size_t{1} << (list_size * quorums)); ++used_mask) {
+                    StepWalkFixture fx(list_size, quorums);
+                    std::vector<size_t> used_counts(quorums, 0);
+                    for (size_t i = 0; i < quorums; ++i) {
+                        for (size_t p = 0; p < list_size; ++p) {
+                            fx.used[i][p] = (used_mask >> (i * list_size + p)) & 1;
+                            used_counts[i] += fx.used[i][p];
+                        }
+                    }
+                    StepWalkFixture legacy_fx{fx};
+                    const auto legacy = llmq::utils::WalkLegacyQuarters(list_size, quorums, quarter, used_counts,
+                                                                        [&](size_t i, size_t pos) { return legacy_fx.CanAdd(i, pos); });
+                    if (!legacy || std::ranges::any_of(legacy->quarters, [&](const auto& q) { return q.size() < quarter; })) continue;
+                    ++full;
+                    const auto walk = fx.Walk(list_size, quorums, quarter);
+                    BOOST_REQUIRE(walk.has_value());
+                    BOOST_CHECK(walk->quarters == legacy->quarters);
+                    BOOST_CHECK(llmq::utils::LegacySkipListForWalk(list_size, *walk) == legacy->skip_list);
+                    if (llmq::utils::ReplayLegacyQuarters(list_size, quorums, quarter, legacy->skip_list) != legacy->quarters) ++lossy;
+                }
+            }
+        }
+    }
+    BOOST_CHECK_GT(full, 0U);
+    BOOST_CHECK_GT(lossy, 0U);
+
+    // the smallest lossy case: the only skip is position 0 on the second pass, which the legacy replay
+    // consumes on the first
+    StepWalkFixture fx(3, 2);
+    fx.used[1][0] = true;
+    const auto walk = fx.Walk(3, 2, 2);
+    BOOST_REQUIRE(walk.has_value());
+    BOOST_CHECK(walk->quarters == (Positions{{0, 1}, {2, 1}}));
+    const auto legacy_list = llmq::utils::LegacySkipListForWalk(3, *walk);
+    BOOST_CHECK(legacy_list == std::vector<int>{0});
+    BOOST_CHECK(llmq::utils::ReplayLegacyQuarters(3, 2, 2, legacy_list) == (Positions{{1, 2}, {0, 1}}));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

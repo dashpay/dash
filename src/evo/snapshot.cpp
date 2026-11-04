@@ -305,7 +305,7 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
                 !cycle_hashes.insert(entry.cycle_base_block_hash).second ||
                 !historical_hashes.contains(entry.work_block_hash) ||
                 entry.snapshot.mnSkipListMode < SnapshotSkipMode::MODE_NO_SKIPPING ||
-                entry.snapshot.mnSkipListMode > SnapshotSkipMode::MODE_ALL_SKIPPED ||
+                entry.snapshot.mnSkipListMode > SnapshotSkipMode::MODE_SHORT_QUARTERS ||
                 entry.snapshot.activeQuorumMembers.size() > EVO_SNAPSHOT_MAX_MNS ||
                 entry.snapshot.mnSkipList.size() > EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES ||
                 // Only the first entry is an absolute index; later entries are

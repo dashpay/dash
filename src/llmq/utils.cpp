@@ -190,16 +190,18 @@ QuorumMembers CalculateQuorum(List&& mn_list, const uint256& modifier, size_t ma
     return result;
 }
 
-std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LLMQParams& llmqParams,
-                                                             CDeterministicMNManager& dmnman,
-                                                             const Consensus::Params& consensus_params,
-                                                             const node::BlockManager& blockman,
-                                                             const CBlockIndex* pCycleQuorumBaseBlockIndex,
-                                                             const llmq::CQuorumSnapshot& snapshot, int nHeight)
+// nullopt if the snapshot's skip list is malformed
+std::optional<std::vector<QuorumMembers>> GetQuorumQuarterMembersBySnapshot(const Consensus::LLMQParams& llmqParams,
+                                                                            CDeterministicMNManager& dmnman,
+                                                                            const Consensus::Params& consensus_params,
+                                                                            const node::BlockManager& blockman,
+                                                                            const CBlockIndex* pCycleQuorumBaseBlockIndex,
+                                                                            const llmq::CQuorumSnapshot& snapshot,
+                                                                            int nHeight)
 {
     if (!llmqParams.useRotation || pCycleQuorumBaseBlockIndex->nHeight % llmqParams.dkgInterval != 0) {
         ASSERT_IF_DEBUG(false);
-        return {};
+        return std::vector<QuorumMembers>{};
     }
 
     std::vector<CDeterministicMNCPtr> sortedCombinedMns;
@@ -239,7 +241,9 @@ std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LL
 
     std::vector<QuorumMembers> quarterQuorumMembers(numQuorums);
 
-    if (sortedCombinedMns.empty()) {
+    const bool legacy_mode{snapshot.mnSkipListMode == SnapshotSkipMode::MODE_NO_SKIPPING ||
+                           snapshot.mnSkipListMode == SnapshotSkipMode::MODE_SKIPPING_ENTRIES};
+    if (legacy_mode && sortedCombinedMns.empty()) {
         return quarterQuorumMembers;
     }
 
@@ -258,6 +262,16 @@ std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LL
     case SnapshotSkipMode::MODE_SKIPPING_ENTRIES: // List holds entries to be skipped
         return map_positions(llmq::utils::ReplayLegacyQuarters(sortedCombinedMns.size(), numQuorums, quarterSize,
                                                                snapshot.mnSkipList));
+    case SnapshotSkipMode::MODE_SHORT_QUARTERS: {
+        const auto positions = llmq::utils::ReplayNewQuarters(sortedCombinedMns.size(), numQuorums, quarterSize,
+                                                              snapshot.mnSkipList);
+        if (!positions) {
+            LogPrintf("GetQuorumQuarterMembersBySnapshot -- malformed skip list in snapshot, llmqType[%d] h[%d] from[%d]\n",
+                      std23::to_underlying(llmqParams.type), pCycleQuorumBaseBlockIndex->nHeight, nHeight);
+            return std::nullopt;
+        }
+        return map_positions(*positions);
+    }
     case SnapshotSkipMode::MODE_NO_SKIPPING_ENTRIES: // List holds entries to be kept
     case SnapshotSkipMode::MODE_ALL_SKIPPED:         // Every node was skipped. Returning empty quarterQuorumMembers
     default:
@@ -464,12 +478,13 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
             // assert(false);
             break;
         }
-        prev_cycles[idx]->m_members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman,
-                                                                        util_params.m_chainman.GetConsensus(),
-                                                                        util_params.m_chainman.m_blockman,
-                                                                        prev_cycles[idx]->m_cycle_index,
-                                                                        prev_cycles[idx]->m_snap,
-                                                                        cycleBaseHeight);
+        auto members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman,
+                                                         util_params.m_chainman.GetConsensus(),
+                                                         util_params.m_chainman.m_blockman,
+                                                         prev_cycles[idx]->m_cycle_index, prev_cycles[idx]->m_snap,
+                                                         cycleBaseHeight);
+        if (!members) return {};
+        prev_cycles[idx]->m_members = std::move(*members);
     }
 
     auto newQuarterMembers = BuildNewQuorumQuarterMembers(llmqParams, util_params, allMns, previousQuarters, modifier,
@@ -695,12 +710,16 @@ std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_si
     size_t next_skip{0};
     for (const size_t i : util::irange(quorum_count)) {
         size_t consecutive_skips{0};
+        std::vector<bool> in_quarter(list_size, false);
         while (list_size > 0 && quarters[i].size() < quarter_size && consecutive_skips < list_size) {
             if (next_skip < skip_steps.size() && skip_steps[next_skip] == step) {
                 ++next_skip;
                 ++consecutive_skips;
             } else {
-                quarters[i].push_back(step % list_size);
+                const size_t pos = step % list_size;
+                if (in_quarter[pos]) return std::nullopt;
+                in_quarter[pos] = true;
+                quarters[i].push_back(pos);
                 consecutive_skips = 0;
             }
             ++step;
@@ -708,6 +727,26 @@ std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_si
     }
     if (next_skip != skip_steps.size()) return std::nullopt;
     return quarters;
+}
+
+std::vector<int> LegacySkipListForWalk(size_t list_size, const QuarterWalkResult& walk)
+{
+    // Same encoding as WalkLegacyQuarters: the first skipped position, then positions relative to it
+    std::vector<int> legacy;
+    legacy.reserve(walk.skip_list.size());
+    size_t first_skipped{0};
+    size_t step{0};
+    for (size_t k{0}; k < walk.skip_list.size(); ++k) {
+        step = k == 0 ? static_cast<size_t>(walk.skip_list[k]) : step + static_cast<size_t>(walk.skip_list[k]);
+        const size_t pos{step % list_size};
+        if (first_skipped == 0) {
+            first_skipped = pos;
+            legacy.push_back(static_cast<int>(pos));
+        } else {
+            legacy.push_back(static_cast<int>(static_cast<int64_t>(pos) - static_cast<int64_t>(first_skipped)));
+        }
+    }
+    return legacy;
 }
 
 BlsCheck::BlsCheck() = default;
@@ -869,6 +908,9 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
         auto q = ComputeQuorumMembersByQuarterRotation(llmq_params, util_params.replace_index(pCycleQuorumBaseBlockIndex),
                                                        pWorkBlockIndex, cycleQuorumBaseHeight, modifier,
                                                        /*predicting=*/false);
+        if (q.empty()) {
+            return {};
+        }
         quorumMembers = q[quorumIndex];
 
         LOCK(cs_indexed_members);
