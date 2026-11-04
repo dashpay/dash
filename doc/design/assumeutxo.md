@@ -21,7 +21,7 @@ minimum and uses at least 1100 MiB.
 
 As the background sync continues there will be temporarily two chainstate
 directories, each multiple gigabytes in size (likely growing larger than the
-the downloaded snapshot).
+downloaded snapshot).
 
 ### Indexes
 
