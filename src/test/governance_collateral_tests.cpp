@@ -232,6 +232,42 @@ BOOST_FIXTURE_TEST_CASE(sync_check_needs_only_blocks_above_the_resume_point, Tes
     BOOST_CHECK(can_sync_without_data_at(50));
     BOOST_CHECK(!can_sync_without_data_at(102));
 
+    // After an unclean stop the uncommitted tip can be missing from the block index, or have only its header. A
+    // collateral only confirms while its block is on the active chain, so the index then resumes from the locator,
+    // or keeps the entries of the blocks a reorg rewinds that it can't read, instead of failing.
+    const auto write_uncommitted_tip = [&](const uint256& block_hash) {
+        CDBWrapper db{DBParams{.path = m_args.GetDataDirNet() / "indexes" / "govcollateralindex", .cache_bytes = 1 << 20}};
+        CDBBatch batch{db};
+        batch.Write(uint8_t{'U'}, block_hash);
+        BOOST_REQUIRE(db.WriteBatch(batch));
+    };
+    write_uncommitted_tip(uint256::ONE);
+    BOOST_CHECK(!can_sync_without_data_at(50));
+    {
+        GovCollateralIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
+        BOOST_REQUIRE(index.Start());
+        IndexWaitSynced(index);
+        BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 103);
+        index.Stop();
+    }
+    const CBlock header_only{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), chainstate)};
+    BlockValidationState state;
+    BOOST_REQUIRE(m_node.chainman->ProcessNewBlockHeaders({header_only}, state));
+    write_uncommitted_tip(header_only.GetHash());
+    BOOST_CHECK(can_sync_without_data_at(50));
+    {
+        GovCollateralIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
+        BOOST_REQUIRE(index.Start());
+        IndexWaitSynced(index);
+        BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 104);
+        BOOST_REQUIRE(chainstate.InvalidateBlock(state, WITH_LOCK(::cs_main, return chainstate.m_chain.Tip())));
+        const CBlock replacement{CreateAndProcessBlock({}, CScript() << OP_TRUE)};
+        SyncWithValidationInterfaceQueue();
+        BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return chainstate.m_chain.Tip()->GetBlockHash()), replacement.GetHash());
+        BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 103);
+        index.Stop();
+    }
+
     // Startup fails when the block index lacks the locator's block, so the sync check must not rely on the
     // uncommitted tip then
     {
