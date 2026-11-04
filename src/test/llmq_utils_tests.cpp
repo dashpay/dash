@@ -409,6 +409,24 @@ BOOST_AUTO_TEST_CASE(pending_sig_shares_session_removal_updates_count)
     BOOST_CHECK_EQUAL(node_state.pendingIncomingSigShares.Size(), 1U);
 }
 
+BOOST_AUTO_TEST_CASE(signing_session_activity_refreshes_only_on_new_shares)
+{
+    SigningSessionTable table;
+    const uint256 sign_hash{MakeSigShare(1).GetSignHash()};
+
+    table.OnAnnounced(sign_hash, 100);
+    table.OnAnnounced(sign_hash, 150);
+    BOOST_CHECK(table.CollectTimedOut(159, 60).empty());
+    BOOST_CHECK(table.CollectTimedOut(160, 60) == std::vector{sign_hash});
+
+    table.OnShareAdded(sign_hash, 150);
+    BOOST_CHECK(table.CollectTimedOut(160, 60).empty());
+    BOOST_CHECK(table.CollectTimedOut(210, 60) == std::vector{sign_hash});
+
+    table.Erase(sign_hash);
+    BOOST_CHECK(table.CollectTimedOut(210, 60).empty());
+}
+
 BOOST_AUTO_TEST_CASE(sig_share_batch_verifier_judges_each_sender_by_its_own_share)
 {
     const bool legacy_scheme{bls::bls_legacy_scheme.load()};
