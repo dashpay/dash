@@ -869,12 +869,11 @@ std::optional<CInv> CQuorumBlockProcessor::AddMineableCommitment(const CFinalCom
             minableCommitments.try_emplace(commitmentHash, fqc);
             return true;
         } else {
-            auto& insertedQuorumHash = itInserted->second;
-            const auto& oldFqc = minableCommitments.at(insertedQuorumHash);
-            if (fqc.CountSigners() > oldFqc.CountSigners()) {
+            auto& knownCommitmentHash = itInserted->second;
+            if (fqc.CountSigners() > minableCommitments.at(knownCommitmentHash).CountSigners()) {
                 // new commitment has more signers, so override the known one
-                insertedQuorumHash = commitmentHash;
-                minableCommitments.erase(insertedQuorumHash);
+                minableCommitments.erase(knownCommitmentHash);
+                knownCommitmentHash = commitmentHash;
                 minableCommitments.try_emplace(commitmentHash, fqc);
                 return true;
             }
