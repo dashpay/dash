@@ -127,7 +127,7 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
         return ret;
     }
 
-    const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
+    const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(qc.llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- invalid commitment type %d from peer=%d\n", __func__,
                  std23::to_underlying(qc.llmqType), peer.GetId());
@@ -328,7 +328,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
 {
     AssertLockHeld(::cs_main);
 
-    const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
+    const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(qc.llmqType);
     if (!llmq_params_opt.has_value()) {
         LogPrint(BCLog::LLMQ, "%s -- invalid commitment type %d\n", __func__, std23::to_underlying(qc.llmqType));
         return false;
@@ -481,11 +481,11 @@ std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::Get
     m_qc_hashes_cached.clear();
     m_qc_indexed_hashes_cached.clear();
     if (!m_qc_hashes_lru.IsInitialized()) {
-        m_qc_hashes_lru.Init(Params().GetConsensus());
+        m_qc_hashes_lru.Init(m_chainman.GetConsensus());
     }
 
     for (const auto& [llmqType, vecBlockIndexes] : quorums) {
-        const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+        const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(llmqType);
         assert(llmq_params_opt.has_value());
         bool rotation_enabled = IsQuorumRotationEnabled(llmq_params_opt.value(), pindexPrev);
         auto& vec_hashes = m_qc_hashes_cached[llmqType];
@@ -537,7 +537,7 @@ bool CQuorumBlockProcessor::UndoBlock(const Chainstate& chainstate, const CBlock
             LogPrint(BCLog::LLMQ, "%s -- retaining commitment for block %s used by another chainstate\n",
                      __func__, pindex->GetBlockHash().ToString());
         } else {
-            const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
+            const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(qc.llmqType);
             assert(llmq_params_opt.has_value());
 
             if (IsQuorumRotationEnabled(llmq_params_opt.value(), pindex)) {
@@ -584,7 +584,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, gsl::no
 {
     AssertLockHeld(::cs_main);
 
-    const auto& consensus = Params().GetConsensus();
+    const auto& consensus = m_chainman.GetConsensus();
 
     ret.clear();
 
@@ -598,7 +598,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, gsl::no
             }
             const auto& qc = *opt_qc;
 
-            const auto& llmq_params_opt = Params().GetLLMQ(qc.commitment.llmqType);
+            const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(qc.commitment.llmqType);
             if (!llmq_params_opt.has_value()) {
                 // should not happen as it was verified before processing the block
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-commitment-type");
@@ -798,7 +798,7 @@ std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitments
 std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitmentsPerQuorumIndexUntilBlock(
     Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t cycle) const
 {
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+    const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
     std::vector<const CBlockIndex*> ret;
 
@@ -838,7 +838,7 @@ std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> CQuorumBlockProce
 {
     std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> ret;
 
-    for (const auto& params : Params().GetConsensus().llmqs) {
+    for (const auto& params : m_chainman.GetConsensus().llmqs) {
         auto& commitments = ret[params.type];
         if (IsQuorumRotationEnabled(params, pindex)) {
             commitments = GetLastMinedCommitmentsPerQuorumIndexUntilBlock(params.type, pindex, 0);
