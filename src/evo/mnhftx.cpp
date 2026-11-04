@@ -75,7 +75,7 @@ CMNHFManager::Signals CMNHFManager::GetSignalsStage(const CBlockIndex* const pin
         assert(signal_pindex != nullptr);
         const int64_t signal_time = signal_pindex->GetMedianTimePast();
         for (int index = 0; index < Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++index) {
-            const auto& deployment = Params().GetConsensus().vDeployments[index];
+            const auto& deployment = m_consensus_params.vDeployments[index];
             if (deployment.bit != signal.first) continue;
             if (signal_time < deployment.nStartTime) {
                 // new deployment is using the same bit as the old one
