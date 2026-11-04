@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/validation.h>
+#include <dbwrapper.h>
 #include <governance/collateral.h>
 #include <governance/object.h>
 #include <index/govcollateralindex.h>
@@ -202,6 +203,44 @@ BOOST_FIXTURE_TEST_CASE(proposal_collateral_is_checked_against_the_index, Collat
     BOOST_CHECK_MESSAGE(IsCollateralValid(proposal, error), error);
     BOOST_CHECK(!IsCollateralValid(wrong_burn, error));
     BOOST_CHECK(error.find("Couldn't find opReturn") == 0);
+}
+
+// Startup resumes from the tip a skipped commit recorded, so the sync check must only need the blocks above it
+BOOST_FIXTURE_TEST_CASE(sync_check_needs_only_blocks_above_the_resume_point, TestChain100Setup)
+{
+    Chainstate& chainstate{Assert(m_node.chainman)->ActiveChainstate()};
+    // Nothing has been flushed, so the end-of-sync commit is skipped and only the uncommitted tip (100) is recorded
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return !chainstate.GetLastFlushedBlock()));
+    {
+        GovCollateralIndex synced_index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
+        BOOST_REQUIRE(synced_index.Start());
+        IndexWaitSynced(synced_index);
+        synced_index.Stop();
+    }
+    for (int i = 0; i < 3; ++i) {
+        CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    }
+    const auto can_sync_without_data_at = [&](int height) {
+        GovCollateralIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
+        LOCK(::cs_main);
+        CBlockIndex* pruned{chainstate.m_chain[height]};
+        pruned->nStatus &= ~BLOCK_HAVE_DATA;
+        const bool can_sync{index.CanSync(chainstate)};
+        pruned->nStatus |= BLOCK_HAVE_DATA;
+        return can_sync;
+    };
+    BOOST_CHECK(can_sync_without_data_at(50));
+    BOOST_CHECK(!can_sync_without_data_at(102));
+
+    // Startup fails when the block index lacks the locator's block, so the sync check must not rely on the
+    // uncommitted tip then
+    {
+        CDBWrapper db{DBParams{.path = m_args.GetDataDirNet() / "indexes" / "govcollateralindex", .cache_bytes = 1 << 20}};
+        CDBBatch batch{db};
+        batch.Write(uint8_t{'B'}, CBlockLocator{{uint256::ONE}});
+        BOOST_REQUIRE(db.WriteBatch(batch));
+    }
+    BOOST_CHECK(!can_sync_without_data_at(50));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

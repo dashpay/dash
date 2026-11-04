@@ -128,8 +128,16 @@ bool GovCollateralIndex::CanSync(Chainstate& chainstate) const
     AssertLockHeld(::cs_main);
     const auto locator{m_db->ReadBestBlock()};
     const CBlockIndex* best_block{nullptr};
+    const CBlockIndex* locator_block{nullptr};
     if (!locator.IsNull()) {
         best_block = chainstate.FindForkInGlobalIndex(locator);
+        locator_block = chainstate.m_blockman.LookupBlockIndex(locator.vHave.front());
+    }
+    // Startup resumes from the uncommitted tip instead when there is one, and only needs the blocks above it. It
+    // fails without the locator's block, so the uncommitted tip can't stand in for that.
+    if (locator.IsNull() || locator_block) {
+        const CBlockIndex* resume_block{ResumeBlock(chainstate.m_blockman, locator_block)};
+        if (resume_block != locator_block) best_block = chainstate.m_chain.FindFork(resume_block);
     }
     for (const CBlockIndex* block{chainstate.m_chain.Tip()}; block != best_block; block = block->pprev) {
         if (!(block->nStatus & BLOCK_HAVE_DATA)) return false;
