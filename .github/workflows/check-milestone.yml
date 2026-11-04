@@ -16,7 +16,7 @@ permissions: {}
 jobs:
   main:
     name: Require a milestone
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ github.repository == 'dashpay/dash' && !github.event.pull_request.draft }}
     runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Check that a milestone is set
