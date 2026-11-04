@@ -1294,7 +1294,9 @@ class RawTransactionsTest(BitcoinTestFramework):
             assert signed_tx["complete"]
             decoded_tx = tester.decoderawtransaction(signed_tx["hex"])
             assert_equal(len(decoded_tx["vin"]), 3)
-            assert tester.testmempoolaccept([signed_tx["hex"]])[0]["allowed"]
+            # The fee pays -minrelaytxfee, which equals the default maxfeerate, on the size the wallet estimates.
+            # An ECDSA signature can be a byte shorter than estimated, which would exceed maxfeerate.
+            assert tester.testmempoolaccept([signed_tx["hex"]], maxfeerate=0)[0]["allowed"]
 
         # We want to choose more value than is available in 2 inputs when considering the fee,
         # but not enough to need 3 inputs when not considering the fee.
