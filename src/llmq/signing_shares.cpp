@@ -1522,7 +1522,11 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::SignAndProcessSingleShare(Pend
         if (IsAllMembersConnectedEnabled(work.quorum->params.type, m_sporkman)) {
             const uint256 signHash{sigShare.GetSignHash()};
             LOCK(cs);
-            m_session_table.SetOwnShare(signHash, CSignedSession{std::move(sigShare), work.quorum});
+            if (!m_session_table.SetOwnShare(signHash, CSignedSession{std::move(sigShare), work.quorum})) {
+                LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                         "CSigSharesManager::%s -- signing session ended, not pushing own sigShare. signHash=%s\n",
+                         __func__, signHash.ToString());
+            }
         }
         return rs;
     }
