@@ -73,7 +73,6 @@ class CMakeBuild(build_ext):
             "-DBUILD_BLS_BENCHMARKS=OFF",
             "-DBUILD_BLS_TESTS=OFF",
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + extdir,
-            "-DMULTI=",
             "-DPYBIND11_FINDPYTHON=ON",
             "-DPython_EXECUTABLE=" + sys.executable,
             "-DVERSION_INFO=" + self.distribution.get_version(),
