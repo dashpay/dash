@@ -375,6 +375,9 @@ if test "$enable_debug" = "yes"; then
   AX_CHECK_PREPROC_FLAG([-DABORT_ON_FAILED_ASSUME], [DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DABORT_ON_FAILED_ASSUME"], [], [$CXXFLAG_WERROR])
   AX_CHECK_COMPILE_FLAG([-ftrapv], [DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -ftrapv"], [], [$CXXFLAG_WERROR])
 else
+  dnl If not debugging, enable more aggressive optimizations for sphlib sources
+  AX_CHECK_COMPILE_FLAG([-O3], [SPHLIB_FLAGS="$SPHLIB_FLAGS -O3"], [], [$CXXFLAG_WERROR])
+
     # We always enable at at least -g1 debug info to support proper stacktraces in crash infos
     # Stacktraces will be suboptimal due to optimization, but better than nothing. Also, -fno-omit-frame-pointer
     # mitigates this a little bit
@@ -386,10 +389,6 @@ else
         DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -g1 -fno-omit-frame-pointer"
     fi
 fi
-
-dnl Optimize sphlib even in debug builds: X11 hashes every block header, and
-dnl an unoptimized X11 slows down tests without making Dash code easier to debug
-AX_CHECK_COMPILE_FLAG([-O3], [SPHLIB_FLAGS="$SPHLIB_FLAGS -O3"], [], [$CXXFLAG_WERROR])
 
 # Needed for MinGW targets when debug symbols are enabled as compiled objects get very large
 AX_CHECK_COMPILE_FLAG([-Wa,-mbig-obj], [DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -Wa,-mbig-obj"],,,)
