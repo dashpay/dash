@@ -196,6 +196,14 @@ jobs:
             /cache/ccache
           key: ccache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
 
+      - name: Run unit tests
+        env:
+          BUILD_TARGET: ${{ inputs.build-target }}
+        run: |
+          source ./ci/dash/matrix.sh
+          ./ci/dash/test_unittests.sh
+        shell: bash
+
       - name: Restore ctcache cache
         if: inputs.build-target == 'linux64_multiprocess'
         uses: actions/cache/restore@v5
@@ -226,14 +234,6 @@ jobs:
           path: |
             /cache/ctcache
           key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
-
-      - name: Run unit tests
-        env:
-          BUILD_TARGET: ${{ inputs.build-target }}
-        run: |
-          source ./ci/dash/matrix.sh
-          ./ci/dash/test_unittests.sh
-        shell: bash
 
       - name: Bundle artifacts
         id: bundle
