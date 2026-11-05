@@ -93,7 +93,7 @@ RUN set -ex; \
     git clone --depth=1 "https://github.com/include-what-you-use/include-what-you-use" -b "clang_${LLVM_VERSION}" /opt/iwyu; \
     cd /opt/iwyu; \
     mkdir build && cd build; \
-    cmake -G 'Unix Makefiles' -DCMAKE_PREFIX_PATH=/usr/lib/llvm-${LLVM_VERSION} ..; \
+    cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/lib/llvm-${LLVM_VERSION} ..; \
     make install -j "$(( $(nproc) - 1 ))"; \
     cd /opt && rm -rf /opt/iwyu;
 
