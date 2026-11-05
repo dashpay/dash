@@ -192,7 +192,7 @@ public:
     CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker,
             CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, Span<CDeterministicMNCPtr> _members);
 
-    ~CQuorum() = default;
+    ~CQuorum();
 
     bool SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecIn) EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare);
     void SetVerificationVector(BLSVerificationVectorPtr vvec_in) EXCLUSIVE_LOCKS_REQUIRED(!cs_vvec_shShare)
