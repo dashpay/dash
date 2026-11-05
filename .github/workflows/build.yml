@@ -462,6 +462,92 @@ jobs:
       runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
+  lint-multiprocess:
+    name: linux64_multiprocess-lint
+    needs: [check-skip, container, depends-linux64_multiprocess, src-linux64_multiprocess]
+    runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
+    container:
+      image: ${{ needs.container.outputs.path }} # zizmor: ignore[unpinned-images] built earlier in this run
+      options: --user root
+    env:
+      BUILD_TARGET: linux64_multiprocess
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Restore depends cache
+        id: depends-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: depends/built/${{ needs.depends-linux64_multiprocess.outputs.host }}
+          key: ${{ needs.depends-linux64_multiprocess.outputs.key }}
+
+      - name: Download built depends
+        if: steps.depends-cache.outputs.cache-hit != 'true' && needs.depends-linux64_multiprocess.outputs.built-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.depends-linux64_multiprocess.outputs.built-artifact }}
+          path: depends/built/${{ needs.depends-linux64_multiprocess.outputs.host }}
+
+      - name: Check built depends are present
+        if: steps.depends-cache.outputs.cache-hit != 'true' && needs.depends-linux64_multiprocess.outputs.built-artifact == ''
+        run: |
+          echo "::error::Depends cache restore missed and no built depends artifact was provided"
+          exit 1
+        shell: bash
+
+      - name: Rebuild depends prefix
+        env:
+          DEPENDS_HOST: ${{ needs.depends-linux64_multiprocess.outputs.host }}
+          DEP_OPTS: ${{ needs.depends-linux64_multiprocess.outputs.dep-opts }}
+        run: |
+          eval "DEP_OPTS_ARGS=(${DEP_OPTS})"
+          make -j"$(nproc)" -C depends HOST="${DEPENDS_HOST}" "${DEP_OPTS_ARGS[@]}"
+        shell: bash
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.src-linux64_multiprocess.outputs.key }}
+
+      - name: Extract lint inputs
+        env:
+          BUNDLE_KEY: ${{ needs.src-linux64_multiprocess.outputs.key }}
+        run: |
+          git config --global --add safe.directory "$PWD"
+          ./ci/dash/bundle-artifacts.sh extract
+          test -s "build-ci/dashcore-${BUILD_TARGET}/compile_commands.json"
+        shell: bash
+
+      - name: Restore ctcache cache
+        uses: actions/cache/restore@v5
+        with:
+          path: /cache/ctcache
+          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
+          restore-keys: |
+            ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-linux64_multiprocess-
+
+      - name: Run linters
+        run: |
+          CACHE_DIR="/cache"
+          source ./ci/dash/matrix.sh
+          ./ci/dash/lint-tidy.sh
+        shell: bash
+
+      - name: Save ctcache cache
+        if: |
+          github.event_name == 'push' &&
+          github.ref_name == github.event.repository.default_branch
+        uses: actions/cache/save@v5
+        with:
+          path: /cache/ctcache
+          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
+
   test-linux64:
     name: linux64-test
     uses: ./.github/workflows/test-src.yml
@@ -538,7 +624,7 @@ jobs:
     name: Prune old ccache generations
     # Each develop push saves a new ccache/ctcache entry per target; keep only
     # the newest so the 10 GB repository cache stops evicting fresh ones.
-    needs: [src-aarch64-linux, src-linux64, src-linux64_asan, src-linux64_fuzz, src-linux64_multiprocess, src-linux64_nowallet, src-linux64_sqlite, src-linux64_tsan, src-mac, src-win64]
+    needs: [src-aarch64-linux, src-linux64, src-linux64_asan, src-linux64_fuzz, src-linux64_multiprocess, src-linux64_nowallet, src-linux64_sqlite, src-linux64_tsan, src-mac, src-win64, lint-multiprocess]
     if: |
       !cancelled() &&
       github.event_name == 'push' &&

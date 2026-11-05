@@ -114,6 +114,8 @@ CQuorum::CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker,
     assert(m_quorum_base_block_index != nullptr);
 }
 
+CQuorum::~CQuorum() = default;
+
 bool CQuorum::SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecIn)
 {
     const auto quorumVecInSerialized = ::SerializeHash(quorumVecIn);
