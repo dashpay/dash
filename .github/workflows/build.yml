@@ -234,8 +234,7 @@ jobs:
     if: |
       vars.SKIP_LINUX64 == '' ||
       vars.SKIP_LINUX64_ASAN == '' ||
-      vars.SKIP_LINUX64_FUZZ == '' ||
-      vars.SKIP_LINUX64_SQLITE == ''
+      vars.SKIP_LINUX64_FUZZ == ''
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
@@ -401,21 +400,6 @@ jobs:
       depends-host: ${{ needs.depends-linux64_nowallet.outputs.host }}
       depends-dep-opts: ${{ needs.depends-linux64_nowallet.outputs.dep-opts }}
       depends-artifact: ${{ needs.depends-linux64_nowallet.outputs.built-artifact }}
-      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
-    secrets: *remote-ccache-auth
-
-  src-linux64_sqlite:
-    name: linux64_sqlite-build
-    uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-linux64]
-    if: ${{ vars.SKIP_LINUX64_SQLITE == '' }}
-    with:
-      build-target: linux64_sqlite
-      container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-linux64.outputs.key }}
-      depends-host: ${{ needs.depends-linux64.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
@@ -596,18 +580,6 @@ jobs:
       runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
       cancel-stale: ${{ needs.src-linux64_nowallet.outputs.freshness == 'current' && needs.lint.outputs.freshness == 'current' }}
 
-  test-linux64_sqlite:
-    name: linux64_sqlite-test
-    uses: ./.github/workflows/test-src.yml
-    needs: [check-skip, container-slim, src-linux64_sqlite, lint]
-    if: needs.src-linux64_sqlite.outputs.freshness != 'superseded' && needs.lint.outputs.freshness != 'superseded'
-    with:
-      bundle-key: ${{ needs.src-linux64_sqlite.outputs.key }}
-      build-target: linux64_sqlite
-      container-path: ${{ needs.container-slim.outputs.path }}
-      runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
-      cancel-stale: ${{ needs.src-linux64_sqlite.outputs.freshness == 'current' && needs.lint.outputs.freshness == 'current' }}
-
   test-linux64_tsan:
     name: linux64_tsan-test
     uses: ./.github/workflows/test-src.yml
@@ -624,7 +596,7 @@ jobs:
     name: Prune old ccache generations
     # Each develop push saves a new ccache/ctcache entry per target; keep only
     # the newest so the 10 GB repository cache stops evicting fresh ones.
-    needs: [src-aarch64-linux, src-linux64, src-linux64_asan, src-linux64_fuzz, src-linux64_multiprocess, src-linux64_nowallet, src-linux64_sqlite, src-linux64_tsan, src-mac, src-win64, lint-multiprocess]
+    needs: [src-aarch64-linux, src-linux64, src-linux64_asan, src-linux64_fuzz, src-linux64_multiprocess, src-linux64_nowallet, src-linux64_tsan, src-mac, src-win64, lint-multiprocess]
     if: |
       !cancelled() &&
       github.event_name == 'push' &&

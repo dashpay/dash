@@ -11,7 +11,7 @@ export HOST=aarch64-linux-gnu
 # If the host is arm64 and wants to run the tests natively, it can set QEMU_USER_CMD to the empty string.
 if [ -z ${QEMU_USER_CMD+x} ]; then export QEMU_USER_CMD="${QEMU_USER_CMD:-"qemu-aarch64 -L /usr/aarch64-linux-gnu/"}"; fi
 export DPKG_ADD_ARCH="arm64"
-export PACKAGES="python3-zmq g++-aarch64-linux-gnu busybox libc6:arm64 libstdc++6:arm64 libfontconfig1:arm64 libxcb1:arm64"
+export PACKAGES="python3-zmq g++-11-aarch64-linux-gnu busybox libc6:arm64 libstdc++6:arm64 libfontconfig1:arm64 libxcb1:arm64"
 if [ -n "$QEMU_USER_CMD" ]; then
   # Likely cross-compiling, so install the needed gcc and qemu-user
   export PACKAGES="$PACKAGES qemu-user"
@@ -23,4 +23,5 @@ export USE_BUSY_BOX=true
 export RUN_UNIT_TESTS=false
 export RUN_FUNCTIONAL_TESTS=false
 export GOAL="install"
-export BITCOIN_CONFIG="--enable-reduce-exports"
+export DEP_OPTS="CC=aarch64-linux-gnu-gcc-11 CXX=aarch64-linux-gnu-g++-11"
+export BITCOIN_CONFIG="--enable-reduce-exports CC=aarch64-linux-gnu-gcc-11 CXX=aarch64-linux-gnu-g++-11"

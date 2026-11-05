@@ -15,5 +15,5 @@ export RUN_UNIT_TESTS_SEQUENTIAL="true"
 export RUN_UNIT_TESTS="false"
 export GOAL="install"
 export DOWNLOAD_PREVIOUS_RELEASES="true"
-export BITCOIN_CONFIG="--enable-zmq --with-libs=no --enable-reduce-exports CPPFLAGS='-DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE -DDEBUG_LOCKORDER -DDEBUG_LOCKCONTENTION' LDFLAGS=-static-libstdc++"
+export BITCOIN_CONFIG="--enable-zmq --with-libs=no --enable-reduce-exports CPPFLAGS='-DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE -DDEBUG_LOCKORDER -DDEBUG_LOCKCONTENTION' LDFLAGS=-static-libstdc++ CC=gcc-14 CXX=g++-14"
 export RUN_STDLIB_PATH_CHECK=true

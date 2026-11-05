@@ -31,6 +31,14 @@ RUN set -ex; \
     zip \
     && rm -rf /var/lib/apt/lists/*
 
+# Native g++-11 already provides aarch64-linux-gnu-g++-11 on arm64, where noble
+# has no g++-11-aarch64-linux-gnu cross package
+RUN set -ex; \
+    if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+        apt-get update && apt-get install ${APT_ARGS} g++-11-aarch64-linux-gnu \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # ccache from upstream rather than apt: remote storage over HTTPS needs a
 # storage helper, which ccache supports from 4.13 (noble ships 4.9.1).
 ARG TARGETARCH

@@ -34,7 +34,7 @@ and steps, so required checks are unchanged.
 | Tier | Jobs | Label variable |
 | --- | --- | --- |
 | fast | lint, cppcheck, cache-sources, the amd64 pull request container builds and manifests, and the `linux64` depends, build and test | `RUNNER_SELFHOSTED_FAST` |
-| build | every other amd64 depends, build and test job (`aarch64-linux`, `linux64_asan`, `linux64_fuzz`, `linux64_nowallet`, `linux64_sqlite`, `mac`, `win64`) | `RUNNER_SELFHOSTED_BUILD` |
+| build | every other amd64 depends, build and test job (`aarch64-linux`, `linux64_asan`, `linux64_fuzz`, `linux64_nowallet`, `mac`, `win64`) | `RUNNER_SELFHOSTED_BUILD` |
 
 Each tier picks the first of these that applies:
 
