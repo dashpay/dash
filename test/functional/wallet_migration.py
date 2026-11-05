@@ -21,7 +21,6 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_raises_rpc_error,
-    find_vout_for_address,
     sha256sum_file,
 )
 from test_framework.wallet_util import (
@@ -350,9 +349,9 @@ class WalletMigrationTest(BitcoinTestFramework):
         # Received watchonly tx that is then spent
         import_sent_addr = default.getnewaddress()
         imports0.importaddress(import_sent_addr)
-        received_sent_watchonly_txid = default.sendtoaddress(import_sent_addr, 10)
-        received_sent_watchonly_vout = find_vout_for_address(self.nodes[0], received_sent_watchonly_txid, import_sent_addr)
-        send = default.sendall(recipients=[default.getnewaddress()], inputs=[{"txid": received_sent_watchonly_txid, "vout": received_sent_watchonly_vout}])
+        received_sent_watchonly_utxo = self.create_outpoints(node=default, outputs=[{import_sent_addr: 10}])[0]
+
+        send = default.sendall(recipients=[default.getnewaddress()], inputs=[received_sent_watchonly_utxo])
         sent_watchonly_txid = send["txid"]
 
         # Tx that has both a watchonly and spendable output
@@ -360,7 +359,7 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         self.generate(self.nodes[0], 2)
         received_watchonly_tx_info = imports0.gettransaction(received_watchonly_txid, True)
-        received_sent_watchonly_tx_info = imports0.gettransaction(received_sent_watchonly_txid, True)
+        received_sent_watchonly_tx_info = imports0.gettransaction(received_sent_watchonly_utxo["txid"], True)
 
         balances = imports0.getbalances()
         spendable_bal = balances["mine"]["trusted"]
@@ -375,7 +374,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         assert_equal(imports0.getwalletinfo()["descriptors"], True)
         self.assert_is_sqlite("imports0")
         assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, received_watchonly_txid)
-        assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, received_sent_watchonly_txid)
+        assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, received_sent_watchonly_utxo['txid'])
         assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, sent_watchonly_txid)
         assert_equal(len(imports0.listtransactions(include_watchonly=True)), 2)
         imports0.gettransaction(received_txid)
@@ -391,7 +390,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         received_migrated_watchonly_tx_info = watchonly.gettransaction(received_watchonly_txid)
         assert_equal(received_watchonly_tx_info["time"], received_migrated_watchonly_tx_info["time"])
         assert_equal(received_watchonly_tx_info["timereceived"], received_migrated_watchonly_tx_info["timereceived"])
-        received_sent_migrated_watchonly_tx_info = watchonly.gettransaction(received_sent_watchonly_txid)
+        received_sent_migrated_watchonly_tx_info = watchonly.gettransaction(received_sent_watchonly_utxo["txid"])
         assert_equal(received_sent_watchonly_tx_info["time"], received_sent_migrated_watchonly_tx_info["time"])
         assert_equal(received_sent_watchonly_tx_info["timereceived"], received_sent_migrated_watchonly_tx_info["timereceived"])
         watchonly.gettransaction(sent_watchonly_txid)
