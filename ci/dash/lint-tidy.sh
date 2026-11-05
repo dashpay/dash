@@ -103,12 +103,17 @@ cleanup_ctcache "${CTCACHE_DIR}" "${CTCACHE_MAXSIZE_MB}"
 echo "=========================="
 
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}"
-iwyu_tool.py \
+if ! iwyu_tool.py \
   -p . "${MAKEJOBS}" \
   -- -Xiwyu --cxx17ns -Xiwyu --mapping_file="${BASE_ROOT_DIR}/contrib/devtools/iwyu/bitcoin.core.imp" \
   -Xiwyu --max_line_length=160 \
-  2>&1 | tee "/tmp/iwyu_ci.out"
+  > "/tmp/iwyu_ci.out" 2>&1; then
+  grep -E -C5 "error: |Traceback" /tmp/iwyu_ci.out || tail -n 50 /tmp/iwyu_ci.out
+  echo "^^^ ⚠️ Failure generated from IWYU"
+  false
+fi
 
-cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}/src"
+# Fix the tracked sources rather than the untracked build copy, so that git diff shows the result
+cd "${BASE_ROOT_DIR}/src"
 fix_includes.py --nosafe_headers < /tmp/iwyu_ci.out
 git --no-pager diff
