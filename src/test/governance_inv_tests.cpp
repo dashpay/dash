@@ -423,6 +423,7 @@ BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
     // The peer's transaction announcements take up all the announcements it may have pending
     // (MAX_PEER_OBJECT_ANNOUNCEMENTS)
     std::vector<CInv> tx_invs;
+    tx_invs.reserve(2 * MAX_INV_SZ);
     for (uint64_t i = 0; i < 2 * MAX_INV_SZ; ++i) {
         tx_invs.emplace_back(MSG_TX, ArithToUint256(arith_uint256{i}));
     }

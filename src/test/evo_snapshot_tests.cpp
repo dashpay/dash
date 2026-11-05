@@ -193,7 +193,7 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
                                                      list.GetTotalRegisteredCount(), evo::CanonicalMNListHash(list),
                                                      previous.BuildDiff(list)});
         previous_hash = work_hash;
-        previous = std::move(list);
+        previous = list;
     }
     for (const auto& [type, work_hash] : modifier_keys) {
         snapshot.quorum_modifiers.push_back({type, work_hash, H(static_cast<uint8_t>(150 + snapshot.quorum_modifiers.size()))});

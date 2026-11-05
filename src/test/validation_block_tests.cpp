@@ -278,16 +278,14 @@ BOOST_AUTO_TEST_CASE(mempool_locks_reorg)
         std::vector<CTransactionRef> txs;
         for (int num_txs = 22; num_txs > 0; --num_txs) {
             CMutableTransaction mtx;
-            mtx.vin.push_back(
-                CTxIn(COutPoint(last_mined->vtx[0]->GetHash(), 1),
-                      CScript() << ToByteVector(CScript() << OP_TRUE)));
+            mtx.vin.emplace_back(COutPoint(last_mined->vtx[0]->GetHash(), 1),
+                                 CScript() << ToByteVector(CScript() << OP_TRUE));
             // Two outputs to make sure the transaction is larger than 100 bytes
             for (int i = 1; i < 3; ++i) {
-                mtx.vout.emplace_back(
-                    CTxOut(50000,
-                           CScript() << OP_DUP << OP_HASH160
-                                     << ToByteVector(CScriptID(CScript() << i))
-                                     << OP_EQUALVERIFY << OP_CHECKSIG));
+                mtx.vout.emplace_back(50000,
+                                      CScript() << OP_DUP << OP_HASH160
+                                                << ToByteVector(CScriptID(CScript() << i))
+                                                << OP_EQUALVERIFY << OP_CHECKSIG);
             }
             txs.push_back(MakeTransactionRef(mtx));
 
