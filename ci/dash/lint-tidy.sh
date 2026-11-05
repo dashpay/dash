@@ -66,6 +66,14 @@ python3 "${CLANG_TIDY_CACHE_PY}" --zero-stats 2>&1 || true
 
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}/src"
 
+# Filter out files by regex here, because regex may not be
+# accepted in src/.bear-tidy-config
+# Filter out:
+# * qt qrc and moc generated files
+# * secp256k1
+jq 'map(select(.file | test("src/qt/qrc_.*\\.cpp$|/moc_.*\\.cpp$|src/secp256k1/src/") | not))' ../compile_commands.json > tmp.json
+mv tmp.json ../compile_commands.json
+
 CAST_LINT_DB="${PWD}/../cstyle-cast-compile-db"
 python3 "${BASE_ROOT_DIR}/ci/dash/lint-cstyle-casts.py" prepare \
   --input "${PWD}/../compile_commands.json" \
@@ -93,14 +101,6 @@ python3 "${CLANG_TIDY_CACHE_PY}" --show-stats 2>&1 || true
 # Limit cache size (ctcache has no built-in size management)
 cleanup_ctcache "${CTCACHE_DIR}" "${CTCACHE_MAXSIZE_MB}"
 echo "=========================="
-
-# Filter out files by regex here, because regex may not be
-# accepted in src/.bear-tidy-config
-# Filter out:
-# * qt qrc and moc generated files
-# * secp256k1
-jq 'map(select(.file | test("src/qt/qrc_.*\\.cpp$|/moc_.*\\.cpp$|src/secp256k1/src/") | not))' ../compile_commands.json > tmp.json
-mv tmp.json ../compile_commands.json
 
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}"
 iwyu_tool.py \
