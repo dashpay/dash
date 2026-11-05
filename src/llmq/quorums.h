@@ -56,9 +56,9 @@ struct CQuorumDataRequestKey
     uint256 quorumHash;
     Consensus::LLMQType llmqType;
 
-    CQuorumDataRequestKey(const uint256& proRegTxIn, const bool _m_we_requested, const uint256& quorumHashIn, const Consensus::LLMQType llmqTypeIn) :
+    CQuorumDataRequestKey(const uint256& proRegTxIn, const bool we_requested, const uint256& quorumHashIn, const Consensus::LLMQType llmqTypeIn) :
         proRegTx(proRegTxIn),
-        m_we_requested(_m_we_requested),
+        m_we_requested(we_requested),
         quorumHash(quorumHashIn),
         llmqType(llmqTypeIn)
         {}
