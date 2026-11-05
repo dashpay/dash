@@ -154,7 +154,7 @@ static void ReadRegTestBudgetArgs(const ArgsManager& args, CChainParams::RegTest
 
 static void ReadRegTestLLMQTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& options, const Consensus::LLMQType llmqType)
 {
-    assert(llmqType == Consensus::LLMQType::LLMQ_TEST || llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND || llmqType == Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+    assert(llmqType == Consensus::LLMQType::LLMQ_TEST || llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND || llmqType == Consensus::LLMQType::LLMQ_TEST_PLATFORM || llmqType == Consensus::LLMQType::LLMQ_TEST_DIP0024);
 
     std::string cmd_param{"-llmqtestparams"}, llmq_name{"LLMQ_TEST"};
     if (llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND) {
@@ -164,6 +164,10 @@ static void ReadRegTestLLMQTestArgs(const ArgsManager& args, CChainParams::RegTe
     if (llmqType == Consensus::LLMQType::LLMQ_TEST_PLATFORM) {
         cmd_param = "-llmqtestplatformparams";
         llmq_name = "LLMQ_TEST_PLATFORM";
+    }
+    if (llmqType == Consensus::LLMQType::LLMQ_TEST_DIP0024) {
+        cmd_param = "-llmqtestdip0024params";
+        llmq_name = "LLMQ_TEST_DIP0024";
     }
 
     if (!args.IsArgSet(cmd_param)) return;
@@ -183,6 +187,9 @@ static void ReadRegTestLLMQTestArgs(const ArgsManager& args, CChainParams::RegTe
     if (size > Consensus::MAX_LLMQ_SIZE) {
         throw std::runtime_error(strprintf("Invalid %s size (%d), must not exceed the maximum supported quorum size (%d)",
                                            llmq_name, size, Consensus::MAX_LLMQ_SIZE));
+    }
+    if (llmqType == Consensus::LLMQType::LLMQ_TEST_DIP0024 && (size <= 0 || size % 4 != 0)) {
+        throw std::runtime_error(strprintf("Invalid %s size (%d), must be a positive multiple of 4", llmq_name, size));
     }
     LogPrintf("Setting %s parameters to size=%ld, threshold=%ld\n", llmq_name, size, threshold);
     options.llmq_test_parameters[llmqType] = CChainParams::LLMQParameters{size, threshold};
@@ -205,6 +212,7 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
     ReadRegTestLLMQTestArgs(args, options, Consensus::LLMQType::LLMQ_TEST);
     ReadRegTestLLMQTestArgs(args, options, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
     ReadRegTestLLMQTestArgs(args, options, Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+    ReadRegTestLLMQTestArgs(args, options, Consensus::LLMQType::LLMQ_TEST_DIP0024);
     ReadRegTestLLMQInstantSendDIP0024Args(args, options);
 }
 
@@ -335,6 +343,7 @@ void SetupChainParamsOptions(ArgsManager& argsman)
     argsman.AddArg("-llmqtestinstantsenddip0024=<quorum name>", "Override the default LLMQ type used for InstantSendDIP0024. Used mainly to test Platform. (default: llmq_test_dip0024, regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-llmqtestinstantsendparams=<size>:<threshold>", "Override the default LLMQ size for the LLMQ_TEST_INSTANTSEND quorums (default: 3:2, regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-llmqtestparams=<size>:<threshold>", "Override the default LLMQ size for the LLMQ_TEST quorum (default: 3:2, regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
+    argsman.AddArg("-llmqtestdip0024params=<size>:<threshold>", "Override the default LLMQ size for the LLMQ_TEST_DIP0024 quorum and set its minSize to <threshold> (default: size 4, threshold 3, minSize 4, regtest-only; size must be a positive multiple of 4)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-llmqtestplatformparams=<size>:<threshold>", "Override the default LLMQ size for the LLMQ_TEST_PLATFORM quorum (default: 3:2, regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-minimumdifficultyblocks=<n>", "The number of blocks that can be mined with the minimum difficulty at the start of a chain (default: 0, devnet-only)", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-powtargetspacing=<n>", "Override the default PowTargetSpacing value in seconds (default: 2.5 minutes, devnet-only)", ArgsManager::ALLOW_ANY | ArgsManager::DISALLOW_NEGATION, OptionsCategory::CHAINPARAMS);

@@ -1542,11 +1542,14 @@ class DashTestFramework(BitcoinTestFramework):
                 mn2.get_node(self).setmnthreadactive(True)
 
     def append_dip3_config(self, datadir):
-        append_config(datadir, [
+        config = [
             "dip3params=2:2",
             f"testactivationheight=v20@{self.v20_height}",
             f"testactivationheight=mn_rr@{self.mn_rr_height}",
-        ])
+        ]
+        if self.quarter_steps_always_active:
+            config.append("vbparams=quarter_steps:-1:999999999999")
+        append_config(datadir, config)
 
     def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, evo_count=0):
         self.mn_count = masterodes_count
@@ -1556,6 +1559,8 @@ class DashTestFramework(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.v20_height = 100
         self.mn_rr_height = 100
+        # quarter_steps (rotating quorum quarters recorded as steps) is active from genesis by default
+        self.quarter_steps_always_active = True
         # additional args
         if extra_args is None:
             extra_args = [[]] * num_nodes
@@ -1569,6 +1574,8 @@ class DashTestFramework(BitcoinTestFramework):
         self.llmq_size = 3
         self.llmq_threshold = 2
         self.llmq_size_dip0024 = 4
+        # minimum number of distinct members for a rotating DKG to run
+        self.llmq_min_size_dip0024 = self.llmq_size_dip0024
 
         # This is nRequestTimeout in dash-q-recovery thread
         self.quorum_data_thread_request_timeout_seconds = 10
@@ -2238,7 +2245,7 @@ class DashTestFramework(BitcoinTestFramework):
                 # one that enters late has missed the messages sent so far, so every member has to be
                 # in before the DKG moves on. A DKG with fewer members than the type's minimum size
                 # never starts.
-                min_size = {"llmq_test_dip0024": self.llmq_size_dip0024, "llmq_test_v17": 2}.get(llmq_type, self.llmq_threshold)
+                min_size = {"llmq_test_dip0024": self.llmq_min_size_dip0024, "llmq_test_v17": 2}.get(llmq_type, self.llmq_threshold)
                 if len(type_members) >= min_size and len(statuses.get(llmq_type, [])) < len(type_members & online):
                     return False
             if check_received_messages is not None:
@@ -2351,12 +2358,14 @@ class DashTestFramework(BitcoinTestFramework):
                                if d["llmqType"] == llmq_type]
                 for mn in self.mninfo}
 
-    def verify_upcoming_dkg_predictions(self, predictions, quorum_info):
+    def verify_upcoming_dkg_predictions(self, predictions, quorum_info, require_known=False):
         # 'quorum info' lists members in member-index order
         members = [m["proTxHash"] for m in quorum_info["members"]]
         work_height = quorum_info["height"] - quorum_info["quorumIndex"] - 8
         for proTxHash, entries in predictions.items():
             [entry] = [d for d in entries if d["quorumHeight"] == quorum_info["height"]]
+            if require_known:
+                assert entry["known"], entry
             if not entry["known"]:
                 # no prediction was possible (e.g. pre-v20); the RPC must tell why
                 assert "reason" in entry
@@ -2365,7 +2374,7 @@ class DashTestFramework(BitcoinTestFramework):
             assert_equal(entry["workBlockHash"], self.nodes[0].getblockhash(work_height))
             assert_equal(entry["isMember"], proTxHash in members)
 
-    def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False):
+    def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None, skip_maturity=False, require_known_predictions=False):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
@@ -2459,7 +2468,7 @@ class DashTestFramework(BitcoinTestFramework):
         assert_equal(q, new_quorum)
         quorum_info = self.nodes[0].quorum("info", llmq_type, new_quorum)
         if predictions is not None:
-            self.verify_upcoming_dkg_predictions(predictions, quorum_info)
+            self.verify_upcoming_dkg_predictions(predictions, quorum_info, require_known_predictions)
 
         if not skip_maturity:
             self.wait_for_offset_quorum_commitments(q, mninfos_online)
@@ -2535,7 +2544,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         return (set(new_quorums_list) - set(quorums)).pop()
 
-    def mine_cycle_quorum(self):
+    def mine_cycle_quorum(self, require_known_predictions=False):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
@@ -2664,9 +2673,9 @@ class DashTestFramework(BitcoinTestFramework):
         quorum_info_0 = self.nodes[0].quorum("info", llmq_type, q_0)
         quorum_info_1 = self.nodes[0].quorum("info", llmq_type, q_1)
         if predictions is not None:
-            self.verify_upcoming_dkg_predictions(predictions, quorum_info_0)
-            self.verify_upcoming_dkg_predictions(predictions, quorum_info_1)
-        self.verify_upcoming_dkg_predictions(predictions_mid_cycle, quorum_info_1)
+            self.verify_upcoming_dkg_predictions(predictions, quorum_info_0, require_known_predictions)
+            self.verify_upcoming_dkg_predictions(predictions, quorum_info_1, require_known_predictions)
+        self.verify_upcoming_dkg_predictions(predictions_mid_cycle, quorum_info_1, require_known_predictions)
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
 

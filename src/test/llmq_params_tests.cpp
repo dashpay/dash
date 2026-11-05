@@ -228,6 +228,27 @@ BOOST_AUTO_TEST_CASE(llmq_params_size_override_bounds_test)
                           std::runtime_error);
     }
 
+    // LLMQ_TEST_DIP0024 rotates in quarters, so its size must be a positive multiple of 4
+    {
+        const auto params = ChainParamsWithLLMQOverride(CBaseChainParams::REGTEST, "-llmqtestdip0024params", 8, 2);
+        const auto& llmqs = params->GetConsensus().llmqs;
+        const auto it = std::ranges::find_if(llmqs, [](const auto& llmq) { return llmq.type == LLMQType::LLMQ_TEST_DIP0024; });
+        BOOST_REQUIRE(it != llmqs.end());
+        BOOST_CHECK_EQUAL(it->size, 8);
+        BOOST_CHECK_EQUAL(it->minSize, 2);
+        BOOST_CHECK_EQUAL(it->threshold, 2);
+        BOOST_CHECK_EQUAL(it->dkgBadVotesThreshold, 2);
+
+        ArgsManager malformed;
+        malformed.ForceSetArg("-llmqtestdip0024params", "8");
+        BOOST_CHECK_THROW(CreateChainParams(malformed, CBaseChainParams::REGTEST), std::runtime_error);
+
+        for (const int bad_size : {0, -4, 6, kMax + 4}) {
+            BOOST_CHECK_THROW(ChainParamsWithLLMQOverride(CBaseChainParams::REGTEST, "-llmqtestdip0024params", bad_size, 1),
+                              std::runtime_error);
+        }
+    }
+
     // Same bounds for the devnet override
     const auto devnet_small = ChainParamsWithLLMQOverride(CBaseChainParams::DEVNET, "-llmqdevnetparams", 12, 6);
     BOOST_CHECK_EQUAL(LLMQSize(*devnet_small, LLMQType::LLMQ_DEVNET), 12);

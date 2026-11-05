@@ -21,6 +21,10 @@ const struct VBDeploymentInfo VersionBitsDeploymentInfo[Consensus::MAX_VERSION_B
         /*.name =*/"evo_shares",
         /*.gbt_force =*/true,
     },
+    {
+        /*.name =*/"quarter_steps",
+        /*.gbt_force =*/true,
+    },
 };
 
 std::string DeploymentName(Consensus::BuriedDeployment dep)
