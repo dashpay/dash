@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
 
     // Right prevout but wrong sequence -> rejected (guards against malleated nSequence).
     {
-        CTxIn badseq_in(op1, scriptSig0, /*nSequence=*/seq1 ^ 0xffU);
+        CTxIn badseq_in(op1, scriptSig0, /*nSequenceIn=*/seq1 ^ 0xffU);
         BOOST_CHECK(!entry.AddScriptSig(badseq_in));
         BOOST_CHECK(!entry.vecTxDSIn[1].fHasSig);
         BOOST_CHECK(entry.vecTxDSIn[1].scriptSig.empty());

@@ -28,7 +28,7 @@ CGovernanceVote MakeSignedVote(const CBLSSecretKey& sk, const COutPoint& outpoin
 {
     CGovernanceVote vote{outpoint, parent, signal, VOTE_OUTCOME_YES};
     vote.SetTime(time);
-    vote.SetSignature(sk.Sign(vote.GetSignatureHash(), /*legacy_scheme=*/false).ToByteVector(/*legacy=*/false));
+    vote.SetSignature(sk.Sign(vote.GetSignatureHash(), /*specificLegacyScheme=*/false).ToByteVector(/*specificLegacyScheme=*/false));
     return vote;
 }
 } // namespace
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(vote_signature_verification_is_cached)
     sk.MakeNewKey();
     const CBLSPublicKey pk{sk.GetPublicKey()};
 
-    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("01"), /*n=*/0}, uint256S("02"), VOTE_SIGNAL_VALID,
+    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("01"), /*nIn=*/0}, uint256S("02"), VOTE_SIGNAL_VALID,
                                         1'700'000'000)};
 
     // Nothing memoised yet, so the first check has to run the pairing.
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(stored_vote_file_reuses_signature_cache)
     sk.MakeNewKey();
     const CBLSPublicKey pk{sk.GetPublicKey()};
 
-    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("11"), /*n=*/1}, uint256S("22"), VOTE_SIGNAL_DELETE,
+    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("11"), /*nIn=*/1}, uint256S("22"), VOTE_SIGNAL_DELETE,
                                         1'700'000'100)};
 
     CGovernanceObjectVoteFile file;
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE(copy_assigned_vote_file_indexes_its_own_votes)
     CBLSSecretKey sk;
     sk.MakeNewKey();
     const CGovernanceVote vote{
-        MakeSignedVote(sk, COutPoint{uint256S("11"), /*n=*/1}, uint256S("22"), VOTE_SIGNAL_FUNDING, 1'700'000'100)};
+        MakeSignedVote(sk, COutPoint{uint256S("11"), /*nIn=*/1}, uint256S("22"), VOTE_SIGNAL_FUNDING, 1'700'000'100)};
 
     CGovernanceObjectVoteFile copy;
     {
@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(signature_cache_invalidated_by_signed_field_mutation)
     sk.MakeNewKey();
     const CBLSPublicKey pk{sk.GetPublicKey()};
 
-    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("33"), /*n=*/2}, uint256S("44"), VOTE_SIGNAL_FUNDING,
+    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("33"), /*nIn=*/2}, uint256S("44"), VOTE_SIGNAL_FUNDING,
                                         1'700'000'200)};
 
     BOOST_REQUIRE(vote.CheckSignature(pk));
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(signature_cache_does_not_confuse_key_types)
     sk.MakeNewKey();
     const CBLSPublicKey pk{sk.GetPublicKey()};
 
-    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("55"), /*n=*/3}, uint256S("66"), VOTE_SIGNAL_VALID,
+    CGovernanceVote vote{MakeSignedVote(sk, COutPoint{uint256S("55"), /*nIn=*/3}, uint256S("66"), VOTE_SIGNAL_VALID,
                                         1'700'000'300)};
 
     // Warm the memo with a *valid* BLS verdict.
@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE(signature_cache_does_not_confuse_key_types)
     // signature for any CKeyID, so this must re-verify and reject rather than
     // inherit the cached "valid".
     CKey ecdsa_key;
-    ecdsa_key.MakeNewKey(/*fCompressedIn=*/true);
+    ecdsa_key.MakeNewKey(/*fCompressed=*/true);
     const CKeyID keyid{ecdsa_key.GetPubKey().GetID()};
 
     BOOST_CHECK_MESSAGE(!vote.GetMemoisedVerdict(keyid).has_value(),

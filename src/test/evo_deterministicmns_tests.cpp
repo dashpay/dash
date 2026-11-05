@@ -462,7 +462,7 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     CProUpRegTx proTxLegacy;
     proTxLegacy.nVersion = ProTxVersion::LegacyBLS;
     proTxLegacy.proTxHash = proTxHash;
-    proTxLegacy.pubKeyOperator.Set(operator_key_legacy.GetPublicKey(), /*legacy=*/true);
+    proTxLegacy.pubKeyOperator.Set(operator_key_legacy.GetPublicKey(), /*specificLegacyScheme=*/true);
     proTxLegacy.keyIDVoting = owner_key.GetPubKey().GetID();
     proTxLegacy.scriptPayout = payoutScript3;
 
