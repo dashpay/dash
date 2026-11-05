@@ -21,7 +21,6 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_raises_rpc_error,
-    find_vout_for_address,
     sha256sum_file,
 )
 from test_framework.wallet_util import (
@@ -350,9 +349,9 @@ class WalletMigrationTest(BitcoinTestFramework):
         # Received watchonly tx that is then spent
         import_sent_addr = default.getnewaddress()
         imports0.importaddress(import_sent_addr)
-        received_sent_watchonly_txid = default.sendtoaddress(import_sent_addr, 10)
-        received_sent_watchonly_vout = find_vout_for_address(self.nodes[0], received_sent_watchonly_txid, import_sent_addr)
-        send = default.sendall(recipients=[default.getnewaddress()], inputs=[{"txid": received_sent_watchonly_txid, "vout": received_sent_watchonly_vout}])
+        received_sent_watchonly_utxo = self.create_outpoints(node=default, outputs=[{import_sent_addr: 10}])[0]
+
+        send = default.sendall(recipients=[default.getnewaddress()], inputs=[received_sent_watchonly_utxo])
         sent_watchonly_txid = send["txid"]
 
         # Tx that has both a watchonly and spendable output
@@ -360,7 +359,7 @@ class WalletMigrationTest(BitcoinTestFramework):
 
         self.generate(self.nodes[0], 2)
         received_watchonly_tx_info = imports0.gettransaction(received_watchonly_txid, True)
-        received_sent_watchonly_tx_info = imports0.gettransaction(received_sent_watchonly_txid, True)
+        received_sent_watchonly_tx_info = imports0.gettransaction(received_sent_watchonly_utxo["txid"], True)
 
         balances = imports0.getbalances()
         spendable_bal = balances["mine"]["trusted"]
@@ -375,7 +374,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         assert_equal(imports0.getwalletinfo()["descriptors"], True)
         self.assert_is_sqlite("imports0")
         assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, received_watchonly_txid)
-        assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, received_sent_watchonly_txid)
+        assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, received_sent_watchonly_utxo['txid'])
         assert_raises_rpc_error(-5, "Invalid or non-wallet transaction id", imports0.gettransaction, sent_watchonly_txid)
         assert_equal(len(imports0.listtransactions(include_watchonly=True)), 2)
         imports0.gettransaction(received_txid)
@@ -391,7 +390,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         received_migrated_watchonly_tx_info = watchonly.gettransaction(received_watchonly_txid)
         assert_equal(received_watchonly_tx_info["time"], received_migrated_watchonly_tx_info["time"])
         assert_equal(received_watchonly_tx_info["timereceived"], received_migrated_watchonly_tx_info["timereceived"])
-        received_sent_migrated_watchonly_tx_info = watchonly.gettransaction(received_sent_watchonly_txid)
+        received_sent_migrated_watchonly_tx_info = watchonly.gettransaction(received_sent_watchonly_utxo["txid"])
         assert_equal(received_sent_watchonly_tx_info["time"], received_sent_migrated_watchonly_tx_info["time"])
         assert_equal(received_sent_watchonly_tx_info["timereceived"], received_sent_migrated_watchonly_tx_info["timereceived"])
         watchonly.gettransaction(sent_watchonly_txid)
@@ -1059,6 +1058,61 @@ class WalletMigrationTest(BitcoinTestFramework):
         backup_path = self.nodes[0].wallets_path / f"default_wallet_{mocked_time}.legacy.bak"
         assert backup_path.exists()
 
+    def test_avoidreuse(self):
+        self.log.info("Test that avoidreuse persists after migration")
+        def_wallet = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
+
+        wallet = self.create_legacy_wallet("avoidreuse")
+        wallet.setwalletflag("avoid_reuse", True)
+
+        # Import a pubkey to the test wallet and send some funds to it
+        reused_imported_addr = def_wallet.getnewaddress()
+        wallet.importpubkey(def_wallet.getaddressinfo(reused_imported_addr)["pubkey"])
+        imported_utxos = self.create_outpoints(def_wallet, outputs=[{reused_imported_addr: 2}])
+        def_wallet.lockunspent(False, imported_utxos)
+
+        # Send funds to the test wallet
+        reused_addr = wallet.getnewaddress()
+        def_wallet.sendtoaddress(reused_addr, 2)
+
+        self.generate(self.nodes[0], 1)
+
+        # Send funds from the test wallet with both its own and the imported
+        wallet.sendall([def_wallet.getnewaddress()])
+        def_wallet.sendall(recipients=[def_wallet.getnewaddress()], inputs=imported_utxos)
+        self.generate(self.nodes[0], 1)
+        balances = wallet.getbalances()
+        assert_equal(balances["mine"]["trusted"], 0)
+        assert_equal(balances["watchonly"]["trusted"], 0)
+
+        # Reuse the addresses
+        def_wallet.sendtoaddress(reused_addr, 1)
+        def_wallet.sendtoaddress(reused_imported_addr, 1)
+        self.generate(self.nodes[0], 1)
+        balances = wallet.getbalances()
+        assert_equal(balances["mine"]["used"], 1)
+        # Reused watchonly will not show up in balances
+        assert_equal(balances["watchonly"]["trusted"], 0)
+        assert_equal(balances["watchonly"]["untrusted_pending"], 0)
+        assert_equal(balances["watchonly"]["immature"], 0)
+
+        utxos = wallet.listunspent()
+        assert_equal(len(utxos), 2)
+        for utxo in utxos:
+            assert_equal(utxo["reused"], True)
+
+        # Migrate
+        migrate_res = wallet.migratewallet()
+        watchonly_wallet = self.nodes[0].get_wallet_rpc(migrate_res["watchonly_name"])
+
+        # One utxo in each wallet, marked used
+        utxos = wallet.listunspent()
+        assert_equal(len(utxos), 1)
+        assert_equal(utxos[0]["reused"], True)
+        watchonly_utxos = watchonly_wallet.listunspent()
+        assert_equal(len(watchonly_utxos), 1)
+        assert_equal(watchonly_utxos[0]["reused"], True)
+
     def run_test(self):
         self.generate(self.nodes[0], 101)
 
@@ -1090,6 +1144,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         self.test_conflict_txs()
         self.test_addressbook()
         self.test_failed_migration_cleanup()
+        self.test_avoidreuse()
 
         # Note: After this test the first block file of 'nodes[0]' is pruned
         self.unsynced_wallet_on_pruned_node_fails()

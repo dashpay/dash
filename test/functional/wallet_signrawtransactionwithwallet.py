@@ -6,7 +6,7 @@
 
 from test_framework.address import script_to_p2sh
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error, find_vout_for_address
+from test_framework.util import assert_equal, assert_raises_rpc_error
 from test_framework.script import CScript, OP_CHECKSEQUENCEVERIFY, OP_CHECKLOCKTIMEVERIFY, OP_DROP, OP_TRUE
 
 from decimal import Decimal, getcontext
@@ -146,13 +146,12 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         address = script_to_p2sh(script)
 
         # Fund that address and make the spend
-        txid = self.nodes[0].sendtoaddress(address, 1)
-        vout = find_vout_for_address(self.nodes[0], txid, address)
+        utxo1 = self.create_outpoints(self.nodes[0], outputs=[{address: 1}])[0]
         self.generate(self.nodes[0], 1)
-        utxo = self.nodes[0].listunspent()[0]
-        amt = Decimal(1) + utxo["amount"] - Decimal(0.00001)
+        utxo2 = self.nodes[0].listunspent()[0]
+        amt = Decimal(1) + utxo2["amount"] - Decimal(0.00001)
         tx = self.nodes[0].createrawtransaction(
-            [{"txid": txid, "vout": vout, "sequence": 1},{"txid": utxo["txid"], "vout": utxo["vout"]}],
+            [{**utxo1, "sequence": 1},{"txid": utxo2["txid"], "vout": utxo2["vout"]}],
             [{self.nodes[0].getnewaddress(): amt}],
             self.nodes[0].getblockcount()
         )
@@ -176,13 +175,12 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         address = script_to_p2sh(script)
 
         # Fund that address and make the spend
-        txid = self.nodes[0].sendtoaddress(address, 1)
-        vout = find_vout_for_address(self.nodes[0], txid, address)
+        utxo1 = self.create_outpoints(self.nodes[0], outputs=[{address: 1}])[0]
         self.generate(self.nodes[0], 1)
-        utxo = self.nodes[0].listunspent()[0]
-        amt = Decimal(1) + utxo["amount"] - Decimal(0.00001)
+        utxo2 = self.nodes[0].listunspent()[0]
+        amt = Decimal(1) + utxo2["amount"] - Decimal(0.00001)
         tx = self.nodes[0].createrawtransaction(
-            [{"txid": txid, "vout": vout},{"txid": utxo["txid"], "vout": utxo["vout"]}],
+            [utxo1, {"txid": utxo2["txid"], "vout": utxo2["vout"]}],
             [{self.nodes[0].getnewaddress(): amt}],
             self.nodes[0].getblockcount()
         )
