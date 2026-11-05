@@ -42,15 +42,18 @@ if [ "${VERB}" = "create" ]; then
     "*.o"
     ".deps"
     ".libs"
-    # Test binaries and generated sources that only the unit tests, run
-    # before bundling, need
+    # Test binaries that only the unit tests, run before bundling, need
     "src/bench/bench_dash"
-    "src/qt/qrc_bitcoin.cpp"
-    "src/qt/qrc_dash_locale.cpp"
     "src/qt/test/test_dash-qt"
     "src/test/fuzz/fuzz"
     "src/test/test_dash"
   )
+  if [ "${BUILD_TARGET}" != "linux64_multiprocess" ]; then
+    EXCLUSIONS+=("src/qt/qrc_bitcoin.cpp" "src/qt/qrc_dash_locale.cpp")
+  else
+    # The lint job consumes the compilation database and generated sources.
+    test -s "build-ci/dashcore-${BUILD_TARGET}/compile_commands.json"
+  fi
   EXCLUSIONS_ARG=""
   for excl in "${EXCLUSIONS[@]}"
   do

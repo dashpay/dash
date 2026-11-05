@@ -204,37 +204,6 @@ jobs:
           ./ci/dash/test_unittests.sh
         shell: bash
 
-      - name: Restore ctcache cache
-        if: inputs.build-target == 'linux64_multiprocess'
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            /cache/ctcache
-          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
-          restore-keys: |
-            ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-
-
-      - name: Run linters
-        if: inputs.build-target == 'linux64_multiprocess'
-        env:
-          BUILD_TARGET: ${{ inputs.build-target }}
-        run: |
-          CACHE_DIR="/cache"
-          source ./ci/dash/matrix.sh
-          ./ci/dash/lint-tidy.sh
-        shell: bash
-
-      - name: Save ctcache cache
-        if: |
-          inputs.build-target == 'linux64_multiprocess' &&
-          github.event_name == 'push' &&
-          github.ref_name == github.event.repository.default_branch
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            /cache/ctcache
-          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-${{ inputs.build-target }}-${{ github.sha }}
-
       - name: Bundle artifacts
         id: bundle
         env:
