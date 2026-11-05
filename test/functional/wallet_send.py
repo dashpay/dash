@@ -530,9 +530,14 @@ class WalletSendTest(BitcoinTestFramework):
         psbt_in = dec["inputs"][input_idx]
         # Calculate the input weight
         # prevout + sequence + length of scriptSig + scriptsig
+        # Note that occasionally this size estimate may be slightly larger or smaller than the real size
+        # as sometimes ECDSA signatures are one byte shorter than expected with a probability of 1/128
         len_scriptsig = len(psbt_in["final_scriptSig"]["hex"]) // 2 if "final_scriptSig" in psbt_in else 0
         len_scriptsig += len(ser_compact_size(len_scriptsig))
-        input_weight = 40 + len_scriptsig
+        len_prevout_txid = 32
+        len_prevout_index = 4
+        len_sequence = 4
+        input_weight = len_prevout_txid + len_prevout_index + len_sequence + len_scriptsig
 
         # Input weight error conditions
         assert_raises_rpc_error(
@@ -543,6 +548,7 @@ class WalletSendTest(BitcoinTestFramework):
             options={"inputs": [ext_utxo], "input_sizes": [{"txid": ext_utxo["txid"], "vout": ext_utxo["vout"], "size": 1000}]}
         )
 
+        target_fee_rate_sat_vb = 10
         # Funding should also work when input weights are provided
         res = self.test_send(
             from_wallet=ext_wallet,
@@ -552,14 +558,17 @@ class WalletSendTest(BitcoinTestFramework):
             add_inputs=True,
             psbt=True,
             include_watching=True,
-            fee_rate=10
+            fee_rate=target_fee_rate_sat_vb
         )
         signed = ext_wallet.walletprocesspsbt(res["psbt"])
         signed = ext_fund.walletprocesspsbt(res["psbt"])
         assert signed["complete"]
         testres = self.nodes[0].testmempoolaccept([signed["hex"]])[0]
         assert_equal(testres["allowed"], True)
-        assert_fee_amount(testres["fees"]["base"], testres["vsize"], Decimal(0.0001))
+        actual_fee_rate_sat_vb = Decimal(testres["fees"]["base"]) * Decimal(1e8) / Decimal(testres["vsize"])
+        # Due to ECDSA signatures not always being the same length, the actual fee rate may be slightly different
+        # but rounded to nearest integer, it should be the same as the target fee rate
+        assert_equal(round(actual_fee_rate_sat_vb), target_fee_rate_sat_vb)
 
 if __name__ == '__main__':
     WalletSendTest().main()

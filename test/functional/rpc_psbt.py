@@ -645,9 +645,14 @@ class PSBTTest(BitcoinTestFramework):
         psbt_in = dec["inputs"][input_idx]
         # Calculate the input weight
         # prevout + sequence + length of scriptSig + scriptsig
+        # Note that occasionally this size estimate may be slightly larger or smaller than the real size
+        # as sometimes ECDSA signatures are one byte shorter than expected with a probability of 1/128
         len_scriptsig = len(psbt_in["final_scriptSig"]["hex"]) // 2 if "final_scriptSig" in psbt_in else 0
         len_scriptsig += len(ser_compact_size(len_scriptsig))
-        input_weight = 40 + len_scriptsig
+        len_prevout_txid = 32
+        len_prevout_index = 4
+        len_sequence = 4
+        input_weight = len_prevout_txid + len_prevout_index + len_sequence + len_scriptsig
         low_input_weight = input_weight // 2
         high_input_weight = input_weight * 2
 
