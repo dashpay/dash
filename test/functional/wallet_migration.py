@@ -1035,6 +1035,34 @@ class WalletMigrationTest(BitcoinTestFramework):
             _, _, magic = struct.unpack("QII", data)
             assert_equal(magic, BTREE_MAGIC)
 
+    def test_preserve_tx_extra_info(self):
+        self.log.info("Test that tx extra data is preserved after migration")
+        def_wallet = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
+
+        # Create and fund wallet
+        wallet = self.create_legacy_wallet("persist_comments")
+        def_wallet.sendtoaddress(wallet.getnewaddress(), 2)
+
+        self.generate(self.nodes[0], 6)
+
+        # Create tx and store an extra comment within it.
+        extra_comment = "don't discard me"
+        original_tx_id = wallet.sendtoaddress(address=wallet.getnewaddress(), amount=1, comment=extra_comment)
+
+        def check_comments():
+            for record in wallet.listtransactions():
+                if record["txid"] == original_tx_id:
+                    assert_equal(record['comment'], extra_comment)
+
+        # Pre-migration verification
+        check_comments()
+        # Migrate
+        wallet.migratewallet()
+        # Post-migration verification
+        check_comments()
+
+        wallet.unloadwallet()
+
     def unsynced_wallet_on_pruned_node_fails(self):
         self.log.info("Test migration of an unsynced wallet on a pruned node fails gracefully")
         shutil.rmtree(self.nodes[0].wallets_path / "database", ignore_errors=True)
@@ -1145,6 +1173,7 @@ class WalletMigrationTest(BitcoinTestFramework):
         self.test_addressbook()
         self.test_failed_migration_cleanup()
         self.test_avoidreuse()
+        self.test_preserve_tx_extra_info()
 
         # Note: After this test the first block file of 'nodes[0]' is pruned
         self.unsynced_wallet_on_pruned_node_fails()
