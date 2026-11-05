@@ -3,31 +3,32 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <qt/networkstyle.h>
 
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <tinyformat.h>
-#include <util/system.h>
 
-#include <chainparamsbase.h>
+#include <util/chaintype.h>
 
 #include <QApplication>
 
 static const struct {
-    const char *networkId;
+    const ChainType networkId;
     const char *appName;
     const int iconColorHueShift;
     const int iconColorSaturationReduction;
     const char *macIconPath;
     const std::string titleAddText;
 } network_styles[] = {
-    {"main",    QAPP_APP_NAME_DEFAULT, 0,   0,  ":/icons/dash_macos_mainnet",  ""},
-    {"test",    QAPP_APP_NAME_TESTNET, 190, 20, ":/icons/dash_macos_testnet",  ""},
-    {"devnet",  QAPP_APP_NAME_DEVNET,  35,  15, ":/icons/dash_macos_devnet",   "[devnet: %s]"},
-    {"regtest", QAPP_APP_NAME_REGTEST, 160, 30, ":/icons/dash_macos_regtest",  ""},
+    {ChainType::MAIN,    QAPP_APP_NAME_DEFAULT, 0,   0,  ":/icons/dash_macos_mainnet",  ""},
+    {ChainType::TESTNET, QAPP_APP_NAME_TESTNET, 190, 20, ":/icons/dash_macos_testnet",  ""},
+    {ChainType::DEVNET,  QAPP_APP_NAME_DEVNET,  35,  15, ":/icons/dash_macos_devnet",   "[devnet: %s]"},
+    {ChainType::REGTEST, QAPP_APP_NAME_REGTEST, 160, 30, ":/icons/dash_macos_regtest",  ""},
 };
 
 void NetworkStyle::rotateColor(QColor& col, const int iconColorHueShift, const int iconColorSaturationReduction)
@@ -98,9 +99,9 @@ NetworkStyle::NetworkStyle(const QString &_appName, const int iconColorHueShift,
 #endif // Q_OS_MACOS
 }
 
-const NetworkStyle* NetworkStyle::instantiate(const std::string& networkId)
+const NetworkStyle* NetworkStyle::instantiate(const ChainType networkId)
 {
-    std::string titleAddText = networkId == CBaseChainParams::MAIN ? "" : strprintf("[%s]", networkId);
+    std::string titleAddText = networkId == ChainType::MAIN ? "" : strprintf("[%s]", ChainTypeToString(networkId));
     for (const auto& network_style : network_styles)
     {
         if (networkId == network_style.networkId)
@@ -108,7 +109,7 @@ const NetworkStyle* NetworkStyle::instantiate(const std::string& networkId)
             std::string appName = network_style.appName;
             std::string titleAddText = network_style.titleAddText;
 
-            if (networkId == CBaseChainParams::DEVNET.c_str()) {
+            if (networkId == ChainType::DEVNET) {
                 appName = strprintf(appName, gArgs.GetDevNetName());
                 titleAddText = strprintf(titleAddText, gArgs.GetDevNetName());
             }

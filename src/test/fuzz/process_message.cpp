@@ -15,6 +15,7 @@
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
+#include <util/chaintype.h>
 #include <validationinterface.h>
 #include <version.h>
 
@@ -38,7 +39,7 @@ void initialize_process_message()
     }
 
     static const auto testing_setup = MakeNoLogFileContext<const TestingSetup>(
-            /*chain_name=*/CBaseChainParams::REGTEST,
+            /*chain_type=*/ChainType::REGTEST,
             /*extra_args=*/{"-txreconciliation"});
     g_setup = testing_setup.get();
     for (int i = 0; i < 2 * COINBASE_MATURITY; i++) {

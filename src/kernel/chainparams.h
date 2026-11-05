@@ -13,6 +13,7 @@
 #include <primitives/block.h>
 #include <protocol.h>
 #include <uint256.h>
+#include <util/chaintype.h>
 #include <util/hash_type.h>
 
 #include <cstdint>
@@ -116,7 +117,7 @@ public:
     /** If this chain allows time to be mocked */
     bool IsMockableChain() const { return m_is_mockable_chain; }
     /** If this chain is exclusively used for testing */
-    bool IsTestChain() const { return m_is_test_chain; }
+    bool IsTestChain() const { return m_chain_type != ChainType::MAIN; }
     uint64_t PruneAfterHeight() const { return nPruneAfterHeight; }
     /** Block files containing a block-height within MinBlocksToKeep() of ActiveChain().Tip() will not be pruned. */
     int MinBlocksToKeep() const { return m_min_blocks_to_keep; }
@@ -130,8 +131,10 @@ public:
     bool AllowMultipleAddressesFromGroup() const { return fAllowMultipleAddressesFromGroup; }
     /** How long to wait until we allow retrying of a LLMQ connection  */
     int LLMQConnectionRetryTimeout() const { return nLLMQConnectionRetryTimeout; }
-    /** Return the network string */
-    std::string NetworkIDString() const { return strNetworkID; }
+    /** Return the chain type string */
+    std::string GetChainTypeString() const { return ChainTypeToString(m_chain_type); }
+    /** Return the chain type */
+    ChainType GetChainType() const { return m_chain_type; }
     /** Return the list of hostnames to look up for DNS seeds */
     const std::vector<std::string>& DNSSeeds() const { return vSeeds; }
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
@@ -265,13 +268,12 @@ protected:
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
     std::string bech32_platform_hrp;
     int nExtCoinType;
-    std::string strNetworkID;
+    ChainType m_chain_type;
     CBlock genesis;
     CBlock devnetGenesis;
     std::vector<uint8_t> vFixedSeeds;
     bool fDefaultConsistencyChecks;
     bool fRequireRoutableExternalIP;
-    bool m_is_test_chain;
     bool fAllowMultipleAddressesFromGroup;
     bool m_is_mockable_chain;
     int nLLMQConnectionRetryTimeout;

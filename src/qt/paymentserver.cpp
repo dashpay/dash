@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <qt/paymentserver.h>
 
 #include <qt/bitcoinunits.h>
@@ -11,11 +12,11 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
+#include <common/system.h>
 #include <interfaces/node.h>
 #include <key_io.h>
 #include <node/interface_ui.h>
 #include <policy/policy.h>
-#include <util/system.h>
 
 #include <cstdlib>
 #include <memory>

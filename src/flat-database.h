@@ -7,10 +7,12 @@
 
 #include <clientversion.h>
 #include <chainparams.h>
+#include <common/args.h>
+#include <common/system.h>
 #include <hash.h>
+#include <logging.h>
 #include <streams.h>
 #include <util/fs.h>
-#include <util/system.h>
 
 /**
 *   Generic Dumping and Loading

@@ -3,11 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <rpc/blockchain.h>
 
 #include <kernel/mempool_persist.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <core_io.h>
 #include <instantsend/instantsend.h>
 #include <kernel/mempool_entry.h>
@@ -24,7 +26,6 @@
 #include <util/helpers.h>
 #include <util/moneystr.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <validation.h>
 
@@ -804,7 +805,7 @@ static RPCHelpMan submitpackage()
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
         {
-            if (!Params().IsMockableChain()) {
+            if (Params().GetChainType() != ChainType::REGTEST) {
                 throw std::runtime_error("submitpackage is for regression testing (-regtest mode) only");
             }
             const UniValue raw_transactions = request.params[0].get_array();

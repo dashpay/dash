@@ -19,7 +19,7 @@
 #include <vector>
 
 struct SuperblockRegtestSetup : public BasicTestingSetup {
-    SuperblockRegtestSetup() : BasicTestingSetup(CBaseChainParams::REGTEST) {}
+    SuperblockRegtestSetup() : BasicTestingSetup(ChainType::REGTEST) {}
 };
 
 BOOST_FIXTURE_TEST_SUITE(governance_superblock_tests, SuperblockRegtestSetup)

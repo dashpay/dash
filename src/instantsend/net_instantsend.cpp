@@ -25,8 +25,9 @@
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
+class BlockManager;
 CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool,
-                               const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
+                               const uint256& hash, uint256& hashBlock, const BlockManager& blockman);
 } // namespace node
 
 using node::GetTransaction;
@@ -368,7 +369,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     if (!m_is_manager.PreVerifyIsLock(hash, islock, from)) return;
 
     uint256 hashBlock{};
-    auto tx = GetTransaction(nullptr, &m_mempool, islock->txid, Params().GetConsensus(), hashBlock);
+    auto tx = GetTransaction(nullptr, &m_mempool, islock->txid, hashBlock, m_chainman.m_blockman);
     const bool found_transaction{tx != nullptr};
     if (found_transaction && islock->inputs != instantsend::GetLockInputs(*tx)) {
         // A lock must pin exactly the transaction's lock inputs. For an asset unlock that is

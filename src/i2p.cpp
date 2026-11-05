@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <common/args.h>
 #include <compat/compat.h>
 #include <compat/endian.h>
 #include <crypto/sha256.h>
@@ -18,7 +19,6 @@
 #include <util/sock.h>
 #include <util/spanparsing.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/threadinterrupt.h>
 
 #include <chrono>
@@ -362,7 +362,7 @@ void Session::GenerateAndSavePrivateKey(const Sock& sock)
 {
     DestGenerate(sock);
 
-    // umask is set to 0077 in util/system.cpp, which is ok.
+    // umask is set to 0077 in common/system.cpp, which is ok.
     if (!WriteBinaryFile(m_private_key_file,
                          std::string(m_private_key.begin(), m_private_key.end()))) {
         throw std::runtime_error(

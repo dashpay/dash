@@ -2,10 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <qt/test/masternodetestutil.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <core_io.h>
 #include <evo/dmn_types.h>
 #include <evo/netinfo.h>
@@ -18,7 +20,6 @@
 #include <script/standard.h>
 #include <sync.h>
 #include <test/util/setup_common.h>
-#include <util/system.h>
 #include <validation.h>
 #include <wallet/context.h>
 #include <wallet/test/util.h>

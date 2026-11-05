@@ -7,6 +7,7 @@
 #include <qt/test/util.h>
 
 #include <chainparams.h>
+#include <common/system.h>
 #include <interfaces/chain.h>
 #include <interfaces/node.h>
 #include <qt/bitcoinamountfield.h>
@@ -26,7 +27,6 @@
 #include <test/util/setup_common.h>
 #include <txmempool.h>
 #include <util/error.h>
-#include <util/system.h>
 #include <validation.h>
 #include <validationinterface.h>
 #include <wallet/coincontrol.h>

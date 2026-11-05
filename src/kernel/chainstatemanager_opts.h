@@ -5,6 +5,8 @@
 #ifndef BITCOIN_KERNEL_CHAINSTATEMANAGER_OPTS_H
 #define BITCOIN_KERNEL_CHAINSTATEMANAGER_OPTS_H
 
+#include <kernel/notifications_interface.h>
+
 #include <arith_uint256.h>
 #include <dbwrapper.h>
 #include <txdb.h>
@@ -22,6 +24,7 @@ struct SuperblockStatus;
 
 static constexpr bool DEFAULT_CHECKPOINTS_ENABLED{true};
 static constexpr auto DEFAULT_MAX_TIP_AGE{6h}; // ~144 blocks behind -> 2 x fork detection time, was 24h in bitcoin
+static constexpr int DEFAULT_STOPATHEIGHT{0};
 
 namespace kernel {
 
@@ -50,6 +53,8 @@ struct ChainstateManagerOpts {
     DBOptions block_tree_db{};
     DBOptions coins_db{};
     CoinsViewOptions coins_view{};
+    Notifications& notifications;
+    int stop_at_height{DEFAULT_STOPATHEIGHT};
 };
 
 } // namespace kernel

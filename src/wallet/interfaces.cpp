@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <interfaces/wallet.h>
 
 #include <chain.h>
@@ -18,7 +19,6 @@
 #include <sync.h>
 #include <uint256.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <util/ui_change_type.h>
 #include <validation.h>

@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <interfaces/node.h>
 
 #include <addrdb.h>
@@ -11,6 +12,7 @@
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <coinjoin/common.h>
+#include <common/system.h>
 #include <deploymentstatus.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
@@ -64,7 +66,6 @@
 #include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
-#include <util/system.h>
 #include <util/result.h>
 #include <util/translation.h>
 #include <validation.h>
@@ -943,17 +944,17 @@ public:
     bool isSettingIgnored(const std::string& name) override
     {
         bool ignored = false;
-        args().LockSettings([&](util::Settings& settings) {
-            if (auto* options = util::FindKey(settings.command_line_options, name)) {
+        args().LockSettings([&](common::Settings& settings) {
+            if (auto* options = common::FindKey(settings.command_line_options, name)) {
                 ignored = !options->empty();
             }
         });
         return ignored;
     }
-    util::SettingsValue getPersistentSetting(const std::string& name) override { return args().GetPersistentSetting(name); }
-    void updateRwSetting(const std::string& name, const util::SettingsValue& value) override
+    common::SettingsValue getPersistentSetting(const std::string& name) override { return args().GetPersistentSetting(name); }
+    void updateRwSetting(const std::string& name, const common::SettingsValue& value) override
     {
-        args().LockSettings([&](util::Settings& settings) {
+        args().LockSettings([&](common::Settings& settings) {
             if (value.isNull()) {
                 settings.rw_settings.erase(name);
             } else {
@@ -962,9 +963,9 @@ public:
         });
         args().WriteSettingsFile();
     }
-    void forceSetting(const std::string& name, const util::SettingsValue& value) override
+    void forceSetting(const std::string& name, const common::SettingsValue& value) override
     {
-        args().LockSettings([&](util::Settings& settings) {
+        args().LockSettings([&](common::Settings& settings) {
             if (value.isNull()) {
                 settings.forced_settings.erase(name);
             } else {
@@ -975,7 +976,7 @@ public:
     void resetSettings() override
     {
         args().WriteSettingsFile(/*errors=*/nullptr, /*backup=*/true);
-        args().LockSettings([&](util::Settings& settings) {
+        args().LockSettings([&](common::Settings& settings) {
             settings.rw_settings.clear();
         });
         args().WriteSettingsFile();
@@ -1057,7 +1058,7 @@ public:
         std::vector<ExternalSigner> signers = {};
         const std::string command = args().GetArg("-signer", "");
         if (command == "") return {};
-        ExternalSigner::Enumerate(command, signers, Params().NetworkIDString());
+        ExternalSigner::Enumerate(command, signers, Params().GetChainTypeString());
         std::vector<std::unique_ptr<interfaces::ExternalSigner>> result;
         result.reserve(signers.size());
         for (auto& signer : signers) {
@@ -1277,7 +1278,7 @@ public:
     NodeContext* m_context{nullptr};
 };
 
-bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<RecursiveMutex>& lock, const CChain& active)
+bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<RecursiveMutex>& lock, const CChain& active, const BlockManager& blockman)
 {
     if (!index) return false;
     if (block.m_hash) *block.m_hash = index->GetBlockHash();
@@ -1287,10 +1288,10 @@ bool FillBlock(const CBlockIndex* index, const FoundBlock& block, UniqueLock<Rec
     if (block.m_mtp_time) *block.m_mtp_time = index->GetMedianTimePast();
     if (block.m_in_active_chain) *block.m_in_active_chain = active[index->nHeight] == index;
     if (block.m_locator) { *block.m_locator = GetLocator(index); }
-    if (block.m_next_block) FillBlock(active[index->nHeight] == index ? active[index->nHeight + 1] : nullptr, *block.m_next_block, lock, active);
+    if (block.m_next_block) FillBlock(active[index->nHeight] == index ? active[index->nHeight + 1] : nullptr, *block.m_next_block, lock, active, blockman);
     if (block.m_data) {
         REVERSE_LOCK(lock);
-        if (!ReadBlockFromDisk(*block.m_data, index, Params().GetConsensus())) block.m_data->SetNull();
+        if (!blockman.ReadBlockFromDisk(*block.m_data, *index)) block.m_data->SetNull();
     }
     block.found = true;
     return true;
@@ -1493,13 +1494,13 @@ public:
     bool findBlock(const uint256& hash, const FoundBlock& block) override
     {
         WAIT_LOCK(cs_main, lock);
-        return FillBlock(chainman().m_blockman.LookupBlockIndex(hash), block, lock, chainman().ActiveChain());
+        return FillBlock(chainman().m_blockman.LookupBlockIndex(hash), block, lock, chainman().ActiveChain(), chainman().m_blockman);
     }
     bool findFirstBlockWithTimeAndHeight(int64_t min_time, int min_height, const FoundBlock& block) override
     {
         WAIT_LOCK(cs_main, lock);
         const CChain& active = chainman().ActiveChain();
-        return FillBlock(active.FindEarliestAtLeast(min_time, min_height), block, lock, active);
+        return FillBlock(active.FindEarliestAtLeast(min_time, min_height), block, lock, active, chainman().m_blockman);
     }
     bool findAncestorByHeight(const uint256& block_hash, int ancestor_height, const FoundBlock& ancestor_out) override
     {
@@ -1507,10 +1508,10 @@ public:
         const CChain& active = chainman().ActiveChain();
         if (const CBlockIndex* block = chainman().m_blockman.LookupBlockIndex(block_hash)) {
             if (const CBlockIndex* ancestor = block->GetAncestor(ancestor_height)) {
-                return FillBlock(ancestor, ancestor_out, lock, active);
+                return FillBlock(ancestor, ancestor_out, lock, active, chainman().m_blockman);
             }
         }
-        return FillBlock(nullptr, ancestor_out, lock, active);
+        return FillBlock(nullptr, ancestor_out, lock, active, chainman().m_blockman);
     }
     bool findAncestorByHash(const uint256& block_hash, const uint256& ancestor_hash, const FoundBlock& ancestor_out) override
     {
@@ -1518,7 +1519,7 @@ public:
         const CBlockIndex* block = chainman().m_blockman.LookupBlockIndex(block_hash);
         const CBlockIndex* ancestor = chainman().m_blockman.LookupBlockIndex(ancestor_hash);
         if (block && ancestor && block->GetAncestor(ancestor->nHeight) != ancestor) ancestor = nullptr;
-        return FillBlock(ancestor, ancestor_out, lock, chainman().ActiveChain());
+        return FillBlock(ancestor, ancestor_out, lock, chainman().ActiveChain(), chainman().m_blockman);
     }
     bool findCommonAncestor(const uint256& block_hash1, const uint256& block_hash2, const FoundBlock& ancestor_out, const FoundBlock& block1_out, const FoundBlock& block2_out) override
     {
@@ -1530,9 +1531,9 @@ public:
         // Using & instead of && below to avoid short circuiting and leaving
         // output uninitialized. Cast bool to int to avoid -Wbitwise-instead-of-logical
         // compiler warnings.
-        return int{FillBlock(ancestor, ancestor_out, lock, active)} &
-               int{FillBlock(block1, block1_out, lock, active)} &
-               int{FillBlock(block2, block2_out, lock, active)};
+        return int{FillBlock(ancestor, ancestor_out, lock, active, chainman().m_blockman)} &
+               int{FillBlock(block1, block1_out, lock, active, chainman().m_blockman)} &
+               int{FillBlock(block2, block2_out, lock, active, chainman().m_blockman)};
     }
     void findCoins(std::map<COutPoint, Coin>& coins) override { return FindCoins(m_node, coins); }
     double guessVerificationProgress(const uint256& block_hash) override
@@ -1678,27 +1679,27 @@ public:
     {
         RPCRunLater(name, std::move(fn), seconds);
     }
-    util::SettingsValue getSetting(const std::string& name) override
+    common::SettingsValue getSetting(const std::string& name) override
     {
         return args().GetSetting(name);
     }
-    std::vector<util::SettingsValue> getSettingsList(const std::string& name) override
+    std::vector<common::SettingsValue> getSettingsList(const std::string& name) override
     {
         return args().GetSettingsList(name);
     }
-    util::SettingsValue getRwSetting(const std::string& name) override
+    common::SettingsValue getRwSetting(const std::string& name) override
     {
-        util::SettingsValue result;
-        args().LockSettings([&](const util::Settings& settings) {
-            if (const util::SettingsValue* value = util::FindKey(settings.rw_settings, name)) {
+        common::SettingsValue result;
+        args().LockSettings([&](const common::Settings& settings) {
+            if (const common::SettingsValue* value = common::FindKey(settings.rw_settings, name)) {
                 result = *value;
             }
         });
         return result;
     }
-    bool updateRwSetting(const std::string& name, const util::SettingsValue& value, bool write) override
+    bool updateRwSetting(const std::string& name, const common::SettingsValue& value, bool write) override
     {
-        args().LockSettings([&](util::Settings& settings) {
+        args().LockSettings([&](common::Settings& settings) {
             if (value.isNull()) {
                 settings.rw_settings.erase(name);
             } else {

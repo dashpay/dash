@@ -5,6 +5,7 @@
 #include <node/sync_manager.h>
 
 #include <chainparams.h>
+#include <common/args.h>
 #include <evo/deterministicmns.h>
 #include <governance/governance.h>
 #include <logging.h>
@@ -73,7 +74,7 @@ int SyncManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesC
     // On mainnet nMaxObjRequestsPerNode is always set to 1.
     int nMaxObjRequestsPerNode = 1;
     size_t nProjectedVotes = 2000;
-    if (Params().NetworkIDString() != CBaseChainParams::MAIN) {
+    if (Params().GetChainType() != ChainType::MAIN) {
         nMaxObjRequestsPerNode =
             std::max(1, int(nProjectedVotes /
                             std::max(1, (int)m_gov_manager.GetMNManager().GetListAtChainTip().GetCounts().enabled())));

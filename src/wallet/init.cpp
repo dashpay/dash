@@ -8,6 +8,8 @@
 #include <config/bitcoin-config.h>
 #endif
 
+#include <common/args.h>
+#include <common/system.h>
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/init.h>
@@ -18,7 +20,6 @@
 #include <univalue.h>
 #include <util/check.h>
 #include <util/error.h>
-#include <util/system.h>
 #include <util/moneystr.h>
 #include <util/translation.h>
 #include <validation.h>

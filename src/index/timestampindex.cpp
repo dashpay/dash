@@ -2,12 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <index/timestampindex.h>
 
 #include <chain.h>
+#include <common/system.h>
 #include <logging.h>
 #include <tinyformat.h>
-#include <util/system.h>
 #include <validation.h>
 
 constexpr uint8_t DB_TIMESTAMPINDEX{'s'};

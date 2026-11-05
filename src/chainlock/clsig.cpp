@@ -144,10 +144,10 @@ std::array<uint8_t, CBLSSignature::SerSize> RawChainLockSignature(const std::vec
 }
 
 /** Reads and validates one carrier coinbase. Throws on missing or invalid data. */
-CarrierEntry LoadCarrier(const CBlockIndex* carrier, int carrier_height)
+CarrierEntry LoadCarrier(const node::BlockManager& blockman, const CBlockIndex* carrier, int carrier_height)
 {
     CBlock block;
-    if (!node::ReadBlockFromDisk(block, carrier, Params().GetConsensus()) || block.vtx.empty()) {
+    if (!blockman.ReadBlockFromDisk(block, *carrier) || block.vtx.empty()) {
         throw std::runtime_error("Historical ChainLock block data unavailable");
     }
     // ReadBlockFromDisk checks the header only. The result below is kept for the
@@ -184,7 +184,7 @@ std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Read(int carrier_heigh
     const uint256 carrier_hash = carrier->GetBlockHash();
     CarrierEntry entry;
     if (!GetCarrierCache().Get(carrier_hash, entry)) {
-        entry = LoadCarrier(carrier, carrier_height);
+        entry = LoadCarrier(m_blockman, carrier, carrier_height);
         GetCarrierCache().Insert(carrier_hash, entry);
     }
     if (!entry.has_chainlock) {

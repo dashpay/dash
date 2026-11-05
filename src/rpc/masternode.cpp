@@ -35,7 +35,6 @@
 
 using node::GetTransaction;
 using node::NodeContext;
-using node::ReadBlockFromDisk;
 #ifdef ENABLE_WALLET
 using wallet::CCoinControl;
 using wallet::CoinType;
@@ -418,7 +417,7 @@ static RPCHelpMan masternode_payments()
     // Payees are selected from the previous block's list, so the genesis block has none
     while (vecPayments.size() < uint64_t(std::abs(nCount)) && pindex != nullptr && pindex->pprev != nullptr) {
         CBlock block;
-        if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        if (!chainman.m_blockman.ReadBlockFromDisk(block, *pindex)) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
         }
 
@@ -440,7 +439,7 @@ static RPCHelpMan masternode_payments()
             CAmount nValueIn{0};
             for (const auto& txin : tx->vin) {
                 uint256 blockHashTmp;
-                CTransactionRef txPrev = GetTransaction(/* block_index */ nullptr, &mempool, txin.prevout.hash, Params().GetConsensus(), blockHashTmp);
+                CTransactionRef txPrev = GetTransaction(/* block_index */ nullptr, &mempool, txin.prevout.hash, blockHashTmp, chainman.m_blockman);
                 if (!txPrev) {
                     throw JSONRPCError(RPC_MISC_ERROR, "Unable to calculate block fees: previous transaction not "
                                                        "found. Use -txindex to enable historical transaction queries");

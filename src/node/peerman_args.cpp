@@ -1,7 +1,7 @@
 #include <node/peerman_args.h>
 
 #include <net_processing.h>
-#include <util/system.h>
+#include <common/args.h>
 
 #include <algorithm>
 #include <limits>

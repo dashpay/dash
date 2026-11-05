@@ -5,9 +5,9 @@
 #include <instantsend/db.h>
 
 #include <chain.h>
+#include <common/system.h>
 #include <dbwrapper.h>
 #include <primitives/block.h>
-#include <util/system.h>
 
 static constexpr std::string_view DB_ARCHIVED_BY_HASH{"is_a2"};
 static constexpr std::string_view DB_ARCHIVED_BY_HEIGHT_AND_HASH{"is_a1"};

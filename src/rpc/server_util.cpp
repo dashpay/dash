@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <rpc/server_util.h>
 
 #include <banman.h>
@@ -11,7 +12,7 @@
 #include <rpc/protocol.h>
 #include <rpc/request.h>
 #include <txmempool.h>
-#include <util/system.h>
+#include <util/any.h>
 #include <validation.h>
 
 #ifdef ENABLE_WALLET

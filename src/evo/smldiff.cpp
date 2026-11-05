@@ -19,10 +19,9 @@
 #include <univalue.h>
 #include <validation.h>
 
-using node::ReadBlockFromDisk;
 
 // Forward declaration
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const node::BlockManager& blockman, const CBlockIndex* pindex);
 
 CSimplifiedMNListDiff::CSimplifiedMNListDiff() = default;
 
@@ -66,7 +65,7 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
     return true;
 }
 
-bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex)
+bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const node::BlockManager& blockman, const CBlockIndex* blockIndex)
 {
     // Group quorums (indexes corresponding to entries of newQuorums) per CBlockIndex containing the expected CL
     // signature in CbTx. We want to avoid to load CbTx now, as more than one quorum will target the same block: hence
@@ -95,7 +94,7 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const llmq::CQuorumManager&
     for (auto it = workBaseBlockIndexMap.begin(); it != workBaseBlockIndexMap.end();) {
         // Process each key (CBlockIndex containing the expected CL signature in CbTx) of the std::multimap once
         const CBlockIndex* pWorkBaseBlockIndex = it->first;
-        const auto cbcl = GetNonNullCoinbaseChainlock(pWorkBaseBlockIndex);
+        const auto cbcl = GetNonNullCoinbaseChainlock(blockman, pWorkBaseBlockIndex);
         CBLSSignature sig;
         if (cbcl.has_value()) {
             sig = cbcl.value().first;
@@ -219,7 +218,7 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
     }
 
     if (DeploymentActiveAfter(blockIndex, chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) {
-        if (!mnListDiffRet.BuildQuorumChainlockInfo(qman, blockIndex)) {
+        if (!mnListDiffRet.BuildQuorumChainlockInfo(qman, chainman.m_blockman, blockIndex)) {
             errorRet = strprintf("failed to build quorum chainlock info");
             return false;
         }
@@ -227,7 +226,7 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
 
     // TODO store coinbase TX in CBlockIndex
     CBlock block;
-    if (!ReadBlockFromDisk(block, blockIndex, chainman.GetConsensus())) {
+    if (!chainman.m_blockman.ReadBlockFromDisk(block, *blockIndex)) {
         errorRet = strprintf("failed to read block %s from disk", blockHash.ToString());
         return false;
     }

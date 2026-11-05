@@ -655,7 +655,7 @@ UniValue SharedSigCollector::envelopeJson() const
     UniValue json(UniValue::VOBJ);
     json.pushKV("type", SIG_ENVELOPE_TYPE);
     json.pushKV("version", SIG_ENVELOPE_VERSION);
-    json.pushKV("network", Params().NetworkIDString());
+    json.pushKV("network", Params().GetChainTypeString());
     json.pushKV("kind", m_kind == Kind::Dissolve ? "dissolve" : "registrar");
     json.pushKV("proTxHash", m_protx_hash.toStdString());
     json.pushKV("tx", m_tx_hex.toStdString());
@@ -695,7 +695,7 @@ bool SharedSigCollector::importEnvelopeChecked(const UniValue& json, QString& er
     }
     QString fingerprint_warning;
     shared_mn::CheckFingerprint(json, fingerprint_warning);
-    const std::string our_network{Params().NetworkIDString()};
+    const std::string our_network{Params().GetChainTypeString()};
     const std::string their_network{json.exists("network") ? json.find_value("network").get_str() : std::string{}};
     if (their_network != our_network) {
         error = tr("This message is for the %1 network; this wallet runs on %2.")

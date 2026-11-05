@@ -4,9 +4,10 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <common/args.h>
+#include <common/system.h>
 #include <noui.h>
 #include <test/util/logging.h>
-#include <util/system.h>
 #include <wallet/test/init_test_fixture.h>
 
 namespace wallet {

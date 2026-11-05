@@ -12,6 +12,7 @@
 #include <script/script.h>
 #include <test/util/json.h>
 #include <test/util/setup_common.h>
+#include <util/chaintype.h>
 #include <util/strencodings.h>
 
 #include <boost/test/unit_test.hpp>
@@ -26,7 +27,7 @@ BOOST_AUTO_TEST_CASE(key_io_valid_parse)
     UniValue tests = read_json(std::string(json_tests::key_io_valid, json_tests::key_io_valid + sizeof(json_tests::key_io_valid)));
     CKey privkey;
     CTxDestination destination;
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         const UniValue& test = tests[idx];
@@ -39,7 +40,7 @@ BOOST_AUTO_TEST_CASE(key_io_valid_parse)
         const std::vector<std::byte> exp_payload{ParseHex<std::byte>(test[1].get_str())};
         const UniValue &metadata = test[2].get_obj();
         bool isPrivkey = metadata.find_value("isPrivkey").get_bool();
-        SelectParams(metadata.find_value("chain").get_str());
+        SelectParams(ChainTypeFromString(metadata.find_value("chain").get_str()).value());
         bool try_case_flip = metadata.find_value("tryCaseFlip").isNull() ? false : metadata.find_value("tryCaseFlip").get_bool();
         if (isPrivkey) {
             bool isCompressed = metadata.find_value("isCompressed").get_bool();
@@ -98,7 +99,7 @@ BOOST_AUTO_TEST_CASE(key_io_valid_gen)
         std::vector<unsigned char> exp_payload = ParseHex(test[1].get_str());
         const UniValue &metadata = test[2].get_obj();
         bool isPrivkey = metadata.find_value("isPrivkey").get_bool();
-        SelectParams(metadata.find_value("chain").get_str());
+        SelectParams(ChainTypeFromString(metadata.find_value("chain").get_str()).value());
         if (isPrivkey) {
             bool isCompressed = metadata.find_value("isCompressed").get_bool();
             CKey key;
@@ -115,7 +116,7 @@ BOOST_AUTO_TEST_CASE(key_io_valid_gen)
         }
     }
 
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
 }
 
 
@@ -137,7 +138,7 @@ BOOST_AUTO_TEST_CASE(key_io_invalid)
         std::string exp_base58string = test[0].get_str();
 
         // must be invalid as public and as private key
-        for (const auto& chain : { CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::REGTEST }) {
+        for (const auto& chain : {ChainType::MAIN, ChainType::TESTNET, ChainType::REGTEST}) {
             SelectParams(chain);
             destination = DecodeDestination(exp_base58string);
             BOOST_CHECK_MESSAGE(!IsValidDestination(destination), "IsValid pubkey in mainnet:" + strTest);
@@ -153,19 +154,19 @@ BOOST_AUTO_TEST_CASE(dip18_platform_roundtrip)
     struct Sample {
         std::string hash_hex;
         std::string address;
-        std::string chain;
+        ChainType chain;
         bool is_p2sh;
     };
     // Samples from DIP-0018 (Test Vectors section).
     const Sample samples[] = {
-        {"f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525", "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs",  CBaseChainParams::MAIN, false},
-        {"a5ff0046217fd1c7d238e3e146cc5bfd90832a7e", "dash1kzjl7qzxy9lar37j8r37z3kvt07epqe20ckxfezw",  CBaseChainParams::MAIN, false},
-        {"6d92674fd64472a3dfcfc3ebcfed7382bf699d7b", "dash1kpkeye606ez89g7lelp7hnldwwpt76va0v3j6x28",  CBaseChainParams::MAIN, false},
-        {"f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525", "tdash1krma5z3ttj75la4m93xcndna9ullamq9y5fzq2j7", CBaseChainParams::TESTNET, false},
-        {"a5ff0046217fd1c7d238e3e146cc5bfd90832a7e", "tdash1kzjl7qzxy9lar37j8r37z3kvt07epqe20cxp68nq", CBaseChainParams::TESTNET, false},
-        {"6d92674fd64472a3dfcfc3ebcfed7382bf699d7b", "tdash1kpkeye606ez89g7lelp7hnldwwpt76va0vp4fcmf", CBaseChainParams::TESTNET, false},
-        {"43fa183cf3fb6e9e7dc62b692aeb4fc8d8045636", "dash1sppl5xpu70aka8nacc4kj2htflydspzkxch4cad6",  CBaseChainParams::MAIN, true},
-        {"43fa183cf3fb6e9e7dc62b692aeb4fc8d8045636", "tdash1sppl5xpu70aka8nacc4kj2htflydspzkxc8jtru5", CBaseChainParams::TESTNET, true},
+        {"f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525", "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs",  ChainType::MAIN, false},
+        {"a5ff0046217fd1c7d238e3e146cc5bfd90832a7e", "dash1kzjl7qzxy9lar37j8r37z3kvt07epqe20ckxfezw",  ChainType::MAIN, false},
+        {"6d92674fd64472a3dfcfc3ebcfed7382bf699d7b", "dash1kpkeye606ez89g7lelp7hnldwwpt76va0v3j6x28",  ChainType::MAIN, false},
+        {"f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525", "tdash1krma5z3ttj75la4m93xcndna9ullamq9y5fzq2j7", ChainType::TESTNET, false},
+        {"a5ff0046217fd1c7d238e3e146cc5bfd90832a7e", "tdash1kzjl7qzxy9lar37j8r37z3kvt07epqe20cxp68nq", ChainType::TESTNET, false},
+        {"6d92674fd64472a3dfcfc3ebcfed7382bf699d7b", "tdash1kpkeye606ez89g7lelp7hnldwwpt76va0vp4fcmf", ChainType::TESTNET, false},
+        {"43fa183cf3fb6e9e7dc62b692aeb4fc8d8045636", "dash1sppl5xpu70aka8nacc4kj2htflydspzkxch4cad6",  ChainType::MAIN, true},
+        {"43fa183cf3fb6e9e7dc62b692aeb4fc8d8045636", "tdash1sppl5xpu70aka8nacc4kj2htflydspzkxc8jtru5", ChainType::TESTNET, true},
     };
     for (const auto& s : samples) {
         SelectParams(s.chain);
@@ -186,12 +187,12 @@ BOOST_AUTO_TEST_CASE(dip18_platform_roundtrip)
         BOOST_CHECK_EQUAL(HexStr(got_hash), std::string(s.hash_hex));
         BOOST_CHECK_EQUAL(EncodePlatformDestination(dest), std::string(s.address));
     }
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
 }
 
 BOOST_AUTO_TEST_CASE(dip18_platform_invalid)
 {
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
     std::string err;
 
     // Wrong HRP for the selected network (testnet string on mainnet).
@@ -238,11 +239,11 @@ BOOST_AUTO_TEST_CASE(dip18_platform_invalid)
     BOOST_CHECK(!IsValidPlatformDestination(DecodePlatformDestination("not-an-address", err)));
 
     // Mainnet address on testnet must fail.
-    SelectParams(CBaseChainParams::TESTNET);
+    SelectParams(ChainType::TESTNET);
     BOOST_CHECK(!IsValidPlatformDestination(
         DecodePlatformDestination("dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs", err)));
 
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

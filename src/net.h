@@ -9,6 +9,7 @@
 #include <bip324.h>
 #include <chainparams.h>
 #include <common/bloom.h>
+#include <common/system.h>
 #include <compat/compat.h>
 #include <consensus/amount.h>
 #include <consensus/params.h>
@@ -31,7 +32,6 @@
 #include <util/check.h>
 #include <util/edge.h>
 #include <util/sock.h>
-#include <util/system.h>
 #include <util/threadinterrupt.h>
 #include <util/wpipe.h>
 

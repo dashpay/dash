@@ -21,7 +21,10 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <common/args.h>
+#include <common/system.h>
 #include <context.h>
+#include <chainparamsbase.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
 #include <hash.h>
@@ -57,6 +60,7 @@
 #include <node/context.h>
 #include <node/database_args.h>
 #include <node/interface_ui.h>
+#include <node/kernel_notifications.h>
 #include <node/mempool_args.h>
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
@@ -83,6 +87,8 @@
 #include <txmempool.h>
 #include <util/asmap.h>
 #include <util/error.h>
+#include <util/chaintype.h>
+#include <util/check.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/moneystr.h>
@@ -90,7 +96,6 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/syserror.h>
-#include <util/system.h>
 #include <util/thread.h>
 #include <util/threadnames.h>
 #include <util/time.h>
@@ -164,20 +169,22 @@
 #endif
 
 using kernel::CoinStatsHashType;
+using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
 using kernel::DumpMempool;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
+using node::BlockManager;
 using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
-using node::DEFAULT_STOPAFTERBLOCKIMPORT;
 using node::g_indexes_ready_to_sync;
+using node::KernelNotifications;
 using node::LoadChainstate;
 using node::MempoolPath;
-using node::ShouldPersistMempool;
 using node::NodeContext;
+using node::ShouldPersistMempool;
 using node::ThreadImport;
 using node::VerifyLoadedChainstate;
 using node::fReindex;
@@ -585,14 +592,14 @@ void SetupServerArgs(ArgsManager& argsman)
 
     init::AddLoggingArgs(argsman);
 
-    const auto defaultBaseParams = CreateBaseChainParams(CBaseChainParams::MAIN);
-    const auto testnetBaseParams = CreateBaseChainParams(CBaseChainParams::TESTNET);
-    const auto devnetBaseParams = CreateBaseChainParams(CBaseChainParams::DEVNET);
-    const auto regtestBaseParams = CreateBaseChainParams(CBaseChainParams::REGTEST);
-    const auto defaultChainParams = CreateChainParams(argsman, CBaseChainParams::MAIN);
-    const auto testnetChainParams = CreateChainParams(argsman, CBaseChainParams::TESTNET);
-    const auto devnetChainParams = CreateChainParams(argsman, CBaseChainParams::DEVNET);
-    const auto regtestChainParams = CreateChainParams(argsman, CBaseChainParams::REGTEST);
+    const auto defaultBaseParams = CreateBaseChainParams(ChainType::MAIN);
+    const auto testnetBaseParams = CreateBaseChainParams(ChainType::TESTNET);
+    const auto devnetBaseParams = CreateBaseChainParams(ChainType::DEVNET);
+    const auto regtestBaseParams = CreateBaseChainParams(ChainType::REGTEST);
+    const auto defaultChainParams = CreateChainParams(argsman, ChainType::MAIN);
+    const auto testnetChainParams = CreateChainParams(argsman, ChainType::TESTNET);
+    const auto devnetChainParams = CreateChainParams(argsman, ChainType::DEVNET);
+    const auto regtestChainParams = CreateChainParams(argsman, ChainType::REGTEST);
 
     // Hidden Options
     std::vector<std::string> hidden_args = {"-dbcrashratio", "-forcecompactdb", "-printcrashinfo",
@@ -1200,11 +1207,11 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 
     // Error if network-specific options (-addnode, -connect, etc) are
     // specified in default section of config file, but not overridden
-    // on the command line or in this network's section of the config file.
-    std::string network = args.GetChainName();
+    // on the command line or in this chain's section of the config file.
+    ChainType chain = args.GetChainType();
     bilingual_str errors;
     for (const auto& arg : args.GetUnsuitableSectionOnlyArgs()) {
-        errors += strprintf(_("Config setting for %s only applied on %s network when in [%s] section.") + Untranslated("\n"), arg, network, network);
+        errors += strprintf(_("Config setting for %s only applied on %s network when in [%s] section.") + Untranslated("\n"), arg, ChainTypeToString(chain), ChainTypeToString(chain));
     }
 
     if (!errors.empty()) {
@@ -1402,7 +1409,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         // mempool inconsistencies (see feature_llmq_is_retroactive.py).
         auto stricter{GetStricterThanDefaultRelayPolicy(mempool_opts)};
         if (nBytesPerSigOp > DEFAULT_BYTES_PER_SIGOP) stricter.emplace_back("-bytespersigop");
-        if (!stricter.empty() && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) {
+        if (!stricter.empty() && chainparams.GetChainType() != ChainType::REGTEST) {
             return InitError(
                 strprintf(Untranslated("Masternode must not use a stricter transaction relay policy than the default, "
                                        "which would make it skip InstantSend signing. Remove or restore: %s"),
@@ -1416,15 +1423,18 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 
     // Also report errors from parsing before daemonization
     {
+        KernelNotifications notifications{};
         ChainstateManager::Options chainman_opts_dummy{
             .chainparams = chainparams,
             .datadir = args.GetDataDirNet(),
+            .notifications = notifications,
         };
         if (const auto error{ApplyArgsManOptions(args, chainman_opts_dummy)}) {
             return InitError(*error);
         }
-        node::BlockManager::Options blockman_opts_dummy{
+        BlockManager::Options blockman_opts_dummy{
             .chainparams = chainparams,
+            .blocks_dir = args.GetBlocksDirPath(),
         };
         if (const auto error{ApplyArgsManOptions(args, blockman_opts_dummy)}) {
             return InitError(*error);
@@ -1689,8 +1699,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // as they would never get updated.
     if (!ignores_incoming_txs) {
         bool read_stale_estimates = args.GetBoolArg("-acceptstalefeeestimates", DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
-        if (read_stale_estimates && (chainparams.NetworkIDString() != CBaseChainParams::REGTEST)) {
-            return InitError(strprintf(_("acceptstalefeeestimates is not supported on %s chain."), chainparams.NetworkIDString()));
+        if (read_stale_estimates && (chainparams.GetChainType() != ChainType::REGTEST)) {
+            return InitError(strprintf(_("acceptstalefeeestimates is not supported on %s chain."), chainparams.GetChainTypeString()));
         }
         node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(args), read_stale_estimates);
 
@@ -1807,7 +1817,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // sanitize comments per BIP-0014, format user agent and check total size
     std::vector<std::string> uacomments;
 
-    if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
+    if (chainparams.GetChainType() == ChainType::DEVNET) {
         // Add devnet name to user agent. This allows to disconnect nodes immediately if they don't belong to our own devnet
         uacomments.push_back(strprintf("devnet.%s", args.GetDevNetName()));
     }
@@ -1937,7 +1947,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
 #if ENABLE_ZMQ
-    g_zmq_notification_interface = CZMQNotificationInterface::Create();
+    g_zmq_notification_interface = CZMQNotificationInterface::Create(
+        [&chainman = node.chainman](CBlock& block, const CBlockIndex& index) {
+            assert(chainman);
+            return chainman->m_blockman.ReadBlockFromDisk(block, index);
+        });
 
     if (g_zmq_notification_interface) {
         RegisterValidationInterface(g_zmq_notification_interface.get());
@@ -1953,6 +1967,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7b: load block chain
 
+    node.notifications = std::make_unique<KernelNotifications>();
     fReindex = args.GetBoolArg("-reindex", false);
     bool fReindexChainState = args.GetBoolArg("-reindex-chainstate", false);
     ChainstateManager::Options chainman_opts{
@@ -1960,13 +1975,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         .datadir = args.GetDataDirNet(),
         .superblock_status = [&sbman = *node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
         .mn_sync = node.mn_sync.get(),
+        .notifications = *node.notifications,
     };
     Assert(!ApplyArgsManOptions(args, chainman_opts)); // no error can happen, already checked in AppInitParameterInteraction
     DBOptions dash_db_options;
     node::ReadDatabaseArgs(args, dash_db_options);
 
-    node::BlockManager::Options blockman_opts{
+    BlockManager::Options blockman_opts{
         .chainparams = chainparams,
+        .blocks_dir = args.GetBlocksDirPath(),
     };
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
@@ -2472,7 +2489,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     chainman.m_load_block = std::thread(&util::TraceThread, "loadblk", [=, &args, &chainman, &node] {
         // ThreadImport can switch fReindex from true to false, fetch its original state here to use later
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
-        ThreadImport(chainman, vImportFiles, args, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{});
+        ThreadImport(chainman, vImportFiles, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{});
 
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
@@ -2537,7 +2554,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                     return node.special_tx->RebuildListFromBlock(block, pindexPrev, is_v24_active, prevList,
                                                                                view, debugLogs, state, mnListRet);
                 };
-                auto result = node.dmnman->RecalculateAndRepairDiffs(start_index, stop_index, build_list_func, true);
+                auto result = node.dmnman->RecalculateAndRepairDiffs(chainman.m_blockman, start_index, stop_index, build_list_func, true);
 
                 if (!result.verification_errors.empty()) {
                     LogPrintf("WARNING: Verification errors:\n%s\n", Join(result.verification_errors, "\n"));

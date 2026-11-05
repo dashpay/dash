@@ -23,7 +23,6 @@
 #include <string>
 #include <vector>
 
-using node::ReadBlockFromDisk;
 
 static const std::string MNEHF_REQUESTID_PREFIX = "mnhf";
 static const std::string DB_SIGNALS = "mnhf_s";
@@ -44,8 +43,9 @@ CMutableTransaction MNHFTxPayload::PrepareTx() const
     return tx;
 }
 
-CMNHFManager::CMNHFManager(CEvoDB& evoDb, const Consensus::Params& consensus_params) :
+CMNHFManager::CMNHFManager(CEvoDB& evoDb, const node::BlockManager& blockman, const Consensus::Params& consensus_params) :
     m_evoDb(evoDb),
+    m_blockman{blockman},
     m_consensus_params{consensus_params}
 {
     assert(globalInstance == nullptr);
@@ -300,7 +300,7 @@ CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
             LogPrintf("re-index EHF signals at block %d\n", pindex_top->nHeight);
         }
         CBlock block;
-        if (!ReadBlockFromDisk(block, pindex_top, m_consensus_params)) {
+        if (!m_blockman.ReadBlockFromDisk(block, *pindex_top)) {
             throw std::runtime_error("failed-getehfforblock-read");
         }
         BlockValidationState state;

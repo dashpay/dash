@@ -9,7 +9,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 
+class CBlock;
 class CBlockIndex;
 class CDeterministicMNList;
 class CGovernanceVote;
@@ -89,19 +91,34 @@ public:
 
 class CZMQPublishRawBlockNotifier : public CZMQAbstractPublishNotifier
 {
+private:
+    const std::function<bool(CBlock&, const CBlockIndex&)> m_get_block_by_index;
+
 public:
+    CZMQPublishRawBlockNotifier(std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index)
+        : m_get_block_by_index{std::move(get_block_by_index)} {}
     bool NotifyBlock(const CBlockIndex *pindex) override;
 };
 
 class CZMQPublishRawChainLockNotifier : public CZMQAbstractPublishNotifier
 {
+private:
+    const std::function<bool(CBlock&, const CBlockIndex&)> m_get_block_by_index;
+
 public:
+    CZMQPublishRawChainLockNotifier(std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index)
+        : m_get_block_by_index{std::move(get_block_by_index)} {}
     bool NotifyChainLock(const CBlockIndex *pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) override;
 };
 
 class CZMQPublishRawChainLockSigNotifier : public CZMQAbstractPublishNotifier
 {
+private:
+    const std::function<bool(CBlock&, const CBlockIndex&)> m_get_block_by_index;
+
 public:
+    CZMQPublishRawChainLockSigNotifier(std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index)
+        : m_get_block_by_index{std::move(get_block_by_index)} {}
     bool NotifyChainLock(const CBlockIndex *pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) override;
 };
 

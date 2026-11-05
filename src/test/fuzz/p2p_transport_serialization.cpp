@@ -11,6 +11,7 @@
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
 #include <test/util/xoroshiro128plusplus.h>
+#include <util/chaintype.h>
 
 #include <cassert>
 #include <cstdint>
@@ -23,7 +24,7 @@ std::vector<std::string> g_all_messages;
 void initialize_p2p_transport_serialization()
 {
     ECC_Start();
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(ChainType::REGTEST);
     g_all_messages = getAllNetMessageTypes();
     std::sort(g_all_messages.begin(), g_all_messages.end());
 }

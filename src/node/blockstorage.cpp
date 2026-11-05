@@ -15,9 +15,9 @@
 #include <shutdown.h>
 #include <streams.h>
 #include <undo.h>
+#include <util/batchpriority.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
-#include <util/system.h>
 #include <validation.h>
 #include <walletinitinterface.h>
 
@@ -53,10 +53,6 @@ bool CBlockIndexHeightOnlyComparator::operator()(const CBlockIndex* pa, const CB
 {
     return pa->nHeight < pb->nHeight;
 }
-
-static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false);
-static FlatFileSeq BlockFileSeq();
-static FlatFileSeq UndoFileSeq();
 
 std::vector<CBlockIndex*> BlockManager::GetAllBlockIndices()
 {
@@ -464,7 +460,7 @@ const CBlockIndex* BlockManager::GetFirstStoredBlock(const CBlockIndex& start_bl
 // rev files since they'll be rewritten by the reindex anyway.  This ensures that m_blockfile_info
 // is in sync with what's actually on disk by the time we start downloading, so that pruning
 // works correctly.
-void CleanupBlockRevFiles()
+void BlockManager::CleanupBlockRevFiles() const
 {
     std::map<std::string, fs::path> mapBlockFiles;
 
@@ -472,8 +468,7 @@ void CleanupBlockRevFiles()
     // Remove the rev files immediately and insert the blk file paths into an
     // ordered map keyed by block file index.
     LogPrintf("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune\n");
-    const fs::path& blocksdir = gArgs.GetBlocksDirPath();
-    for (fs::directory_iterator it(blocksdir); it != fs::directory_iterator(); it++) {
+    for (fs::directory_iterator it(m_opts.blocks_dir); it != fs::directory_iterator(); it++) {
         const std::string path = fs::PathToString(it->path().filename());
         if (fs::is_regular_file(*it) &&
             path.length() == 12 &&
@@ -508,7 +503,7 @@ CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
     return &m_blockfile_info.at(n);
 }
 
-static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart)
+bool BlockManager::UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const
 {
     // Open history file to append
     AutoFile fileout{OpenUndoFile(pos)};
@@ -539,9 +534,9 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     return true;
 }
 
-bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
+bool BlockManager::UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex& index) const
 {
-    const FlatFilePos pos{WITH_LOCK(::cs_main, return pindex->GetUndoPos())};
+    const FlatFilePos pos{WITH_LOCK(::cs_main, return index.GetUndoPos())};
 
     if (pos.IsNull()) {
         LogError("%s: no undo data available\n", __func__);
@@ -559,7 +554,7 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
     uint256 hashChecksum;
     HashVerifier verifier{filein}; // Use HashVerifier as reserializing may lose data, c.f. commit d342424301013ec47dc146a4beb49d5c9319d80a
     try {
-        verifier << pindex->pprev->GetBlockHash();
+        verifier << index.pprev->GetBlockHash();
         verifier >> blockundo;
         filein >> hashChecksum;
     } catch (const std::exception& e) {
@@ -626,7 +621,7 @@ uint64_t BlockManager::CalculateCurrentUsage()
     return retval;
 }
 
-void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune)
+void BlockManager::UnlinkPrunedFiles(const std::set<int>& setFilesToPrune) const
 {
     std::error_code ec;
     for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
@@ -639,30 +634,30 @@ void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune)
     }
 }
 
-static FlatFileSeq BlockFileSeq()
+FlatFileSeq BlockManager::BlockFileSeq() const
 {
-    return FlatFileSeq(gArgs.GetBlocksDirPath(), "blk",
-                       gArgs.GetBoolArg("-fastprune", false) ? 0x4000 /* 16kb */ :
-                        (gArgs.GetBoolArg("-tinyblk", false) ? 0x10000 /* 64kb */ : BLOCKFILE_CHUNK_SIZE));
+    return FlatFileSeq(m_opts.blocks_dir, "blk",
+                       m_opts.fast_prune ? 0x4000 /* 16kb */ :
+                        (m_opts.tiny_blk ? 0x10000 /* 64kb */ : BLOCKFILE_CHUNK_SIZE));
 }
 
-static FlatFileSeq UndoFileSeq()
+FlatFileSeq BlockManager::UndoFileSeq() const
 {
-    return FlatFileSeq(gArgs.GetBlocksDirPath(), "rev", gArgs.GetBoolArg("-tinyblk", false) ? 0x10000 /* 64kb */ : UNDOFILE_CHUNK_SIZE);
+    return FlatFileSeq(m_opts.blocks_dir, "rev", m_opts.tiny_blk ? 0x10000 /* 64kb */ : UNDOFILE_CHUNK_SIZE);
 }
 
-FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly)
+FILE* BlockManager::OpenBlockFile(const FlatFilePos& pos, bool fReadOnly) const
 {
     return BlockFileSeq().Open(pos, fReadOnly);
 }
 
 /** Open an undo file (rev?????.dat) */
-static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly)
+FILE* BlockManager::OpenUndoFile(const FlatFilePos& pos, bool fReadOnly) const
 {
     return UndoFileSeq().Open(pos, fReadOnly);
 }
 
-fs::path GetBlockPosFilename(const FlatFilePos& pos)
+fs::path BlockManager::GetBlockPosFilename(const FlatFilePos& pos) const
 {
     return BlockFileSeq().FileName(pos);
 }
@@ -681,7 +676,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
         unsigned int max_blockfile_size{MAX_BLOCKFILE_SIZE};
         // Use smaller blockfiles in test-only -fastprune mode - but avoid
         // the possibility of having a block not fit into the block file.
-        if (gArgs.GetBoolArg("-fastprune", false)) {
+        if (m_opts.fast_prune) {
             max_blockfile_size = 0x10000; // 64kiB
             if (nAddSize >= max_blockfile_size) {
                 // dynamically adjust the blockfile size to be larger than the added size
@@ -768,7 +763,7 @@ bool BlockManager::FindUndoPos(BlockValidationState& state, int nFile, FlatFileP
     return true;
 }
 
-static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
+bool BlockManager::WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const
 {
     // Open history file to append
     AutoFile fileout{OpenBlockFile(pos)};
@@ -832,7 +827,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
-std::optional<uint256> ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
+std::optional<uint256> BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) const
 {
     block.SetNull();
 
@@ -853,7 +848,7 @@ std::optional<uint256> ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, 
 
     // Check the header
     const uint256 hash{block.GetHash()};
-    if (!CheckProofOfWork(hash, block.nBits, consensusParams)) {
+    if (!CheckProofOfWork(hash, block.nBits, GetConsensus())) {
         LogError("ReadBlockFromDisk: Errors in block header at %s\n", pos.ToString());
         return std::nullopt;
     }
@@ -861,17 +856,17 @@ std::optional<uint256> ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, 
     return hash;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
+bool BlockManager::ReadBlockFromDisk(CBlock& block, const CBlockIndex& index) const
 {
-    const FlatFilePos block_pos{WITH_LOCK(cs_main, return pindex->GetBlockPos())};
+    const FlatFilePos block_pos{WITH_LOCK(cs_main, return index.GetBlockPos())};
 
-    const auto hash{ReadBlockFromDisk(block, block_pos, consensusParams)};
+    const auto hash{ReadBlockFromDisk(block, block_pos)};
     if (!hash) {
         return false;
     }
-    if (*hash != pindex->GetBlockHash()) {
+    if (*hash != index.GetBlockHash()) {
         LogError("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s\n",
-                     pindex->ToString(), block_pos.ToString());
+                     index.ToString(), block_pos.ToString());
         return false;
     }
     return true;
@@ -920,7 +915,7 @@ public:
     }
 };
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const ArgsManager& args, const fs::path& mempool_path)
+void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles, const fs::path& mempool_path)
 {
     ScheduleBatchPriority();
 
@@ -935,10 +930,10 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             std::multimap<uint256, FlatFilePos> blocks_with_unknown_parent;
             while (true) {
                 FlatFilePos pos(nFile, 0);
-                if (!fs::exists(GetBlockPosFilename(pos))) {
+                if (!fs::exists(chainman.m_blockman.GetBlockPosFilename(pos))) {
                     break; // No block files left to reindex
                 }
-                FILE* file = OpenBlockFile(pos, true);
+                FILE* file = chainman.m_blockman.OpenBlockFile(pos, true);
                 if (!file) {
                     break; // This error is logged in OpenBlockFile
                 }
@@ -985,7 +980,7 @@ void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFile
             }
         }
 
-        if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+        if (chainman.m_blockman.StopAfterBlockImport()) {
             LogPrintf("Stopping after block import\n");
             StartShutdown();
             return;

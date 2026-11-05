@@ -10,15 +10,16 @@
 #include <chainparams.h>
 #include <qt/intro.h>
 #include <qt/forms/ui_intro.h>
+#include <util/chaintype.h>
 #include <util/fs.h>
 
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 
+#include <common/args.h>
 #include <interfaces/node.h>
 #include <util/fs_helpers.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <QFileDialog>
@@ -224,7 +225,7 @@ bool Intro::showIfNeeded(bool& did_show_intro, int64_t& prune_MiB)
     {
         /* Use selectParams here to guarantee Params() can be used by node interface */
         try {
-            SelectParams(gArgs.GetChainName());
+            SelectParams(gArgs.GetChainType());
         } catch (const std::exception&) {
             return false;
         }

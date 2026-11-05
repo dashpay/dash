@@ -8,6 +8,7 @@
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
+#include <logging.h>
 #include <net.h>
 #include <netbase.h>
 #include <protocol.h>

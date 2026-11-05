@@ -245,7 +245,7 @@ bool CSuperblock::IsExpired(int heightToTest) const
         return true;
     }
 
-    if (Params().NetworkIDString() != CBaseChainParams::MAIN) {
+    if (Params().GetChainType() != ChainType::MAIN) {
         // NOTE: this can happen on testnet/devnets due to reorgs, should never happen on mainnet
         if (heightToTest + Params().GetConsensus().nSuperblockCycle * 2 < nBlockHeight) {
             LogPrint(BCLog::GOBJECT, "CSuperblock::IsExpired -- Trigger is too far into the future\n");

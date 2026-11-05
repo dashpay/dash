@@ -9,6 +9,9 @@
 #include <httpserver.h>
 
 #include <chainparamsbase.h>
+#include <common/args.h>
+#include <common/system.h>
+#include <logging.h>
 #include <netbase.h>
 #include <node/interface_ui.h>
 #include <rpc/protocol.h> // For HTTP status codes
@@ -16,7 +19,6 @@
 #include <sync.h>
 #include <util/check.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/threadnames.h>
 #include <util/translation.h>
 

@@ -4,7 +4,8 @@
 
 #include <coinjoin/options.h>
 
-#include <util/system.h>
+#include <common/args.h>
+#include <common/system.h>
 #include <univalue.h>
 
 #include <cassert>

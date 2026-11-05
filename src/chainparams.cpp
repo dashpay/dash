@@ -10,10 +10,14 @@
 #include <util/std23.h>
 
 #include <arith_uint256.h>
+#include <chainparamsbase.h>
 #include <chainparamsseeds.h>
+#include <common/args.h>
+#include <common/system.h>
 #include <consensus/merkle.h>
 #include <deploymentinfo.h>
-#include <util/system.h>
+#include <logging.h>
+#include <util/chaintype.h>
 #include <versionbits.h>
 
 #include <cassert>
@@ -295,28 +299,31 @@ const CChainParams &Params() {
     return *globalChainParams;
 }
 
-std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string& chain)
+std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const ChainType chain)
 {
-    if (chain == CBaseChainParams::MAIN) {
+    switch (chain) {
+    case ChainType::MAIN:
         return CChainParams::Main();
-    } else if (chain == CBaseChainParams::TESTNET) {
+    case ChainType::TESTNET:
         return CChainParams::TestNet();
-    } else if (chain == CBaseChainParams::DEVNET) {
+    case ChainType::DEVNET: {
         auto opts = CChainParams::DevNetOptions{};
         ReadDevNetArgs(args, opts);
         return CChainParams::DevNet(opts);
-    } else if (chain == CBaseChainParams::REGTEST) {
+    }
+    case ChainType::REGTEST: {
         auto opts = CChainParams::RegTestOptions{};
         ReadRegTestArgs(args, opts);
         return CChainParams::RegTest(opts);
     }
-    throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
+    }
+    assert(false);
 }
 
-void SelectParams(const std::string& network)
+void SelectParams(const ChainType chain)
 {
-    SelectBaseParams(network);
-    globalChainParams = CreateChainParams(gArgs, network);
+    SelectBaseParams(chain);
+    globalChainParams = CreateChainParams(gArgs, chain);
 }
 
 void SetupChainParamsOptions(ArgsManager& argsman)

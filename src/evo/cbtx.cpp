@@ -20,7 +20,6 @@
 #include <node/blockstorage.h>
 #include <util/time.h>
 
-using node::ReadBlockFromDisk;
 
 bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_active, TxValidationState& state)
 {
@@ -195,7 +194,7 @@ std::string CCbTx::ToString() const
         creditPoolBalance / COIN, creditPoolBalance % COIN, merkleRootAssetUnlocks.ToString());
 }
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const node::BlockManager& blockman, const CBlockIndex* pindex)
 {
     if (pindex == nullptr) {
         return std::nullopt;
@@ -207,7 +206,7 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
     }
 
     CBlock block;
-    if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+    if (!blockman.ReadBlockFromDisk(block, *pindex)) {
         return std::nullopt;
     }
 

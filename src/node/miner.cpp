@@ -4,6 +4,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <node/miner.h>
 
 #include <chain.h>
@@ -22,7 +23,6 @@
 #include <primitives/transaction.h>
 #include <timedata.h>
 #include <util/moneystr.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <chainlock/chainlock.h>
@@ -114,7 +114,7 @@ void BlockAssembler::resetBlock()
 }
 
 // Helper to calculate best chainlock
-static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
+static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const node::BlockManager& blockman, const CBlockIndex* pindexPrev,
                                   uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
 {
     auto best_clsig = chainlocks.GetBestChainLock();
@@ -129,7 +129,7 @@ static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const
         return true;
     }
 
-    auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
+    auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(blockman, pindexPrev);
     if (prevBlockCoinbaseChainlock.has_value()) {
         // Previous block Coinbase contains a non-null CL: We must insert the same sig or a better (newest) one
         if (best_clsig.IsNull()) {
@@ -254,7 +254,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->nVersion = m_chainstate.m_chainman.m_versionbitscache.ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
     // Non-mainnet only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
-    if (chainparams.NetworkIDString() != CBaseChainParams::MAIN) {
+    if (chainparams.GetChainType() != ChainType::MAIN) {
         pblock->nVersion = gArgs.GetIntArg("-blockversion", pblock->nVersion);
     }
 
@@ -355,7 +355,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             }
             if (fV20Active_context) {
                 CBLSSignature best_cl_sig;
-                const bool has_best_cl{CalcCbTxBestChainlock(m_chainlocks, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig)};
+                const bool has_best_cl{CalcCbTxBestChainlock(m_chainlocks, m_chainstate.m_blockman, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig)};
                 cbTx.bestCLSignature.Set(best_cl_sig, bls::bls_legacy_scheme.load());
                 if (has_best_cl) {
                     LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());

@@ -1,62 +1,33 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
-// Copyright (c) 2014-2025 The Dash Core developers
+// Copyright (c) 2023 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-/**
- * Server/client environment: argument handling, config file parsing,
- * thread wrappers, startup time
- */
-#ifndef BITCOIN_UTIL_SYSTEM_H
-#define BITCOIN_UTIL_SYSTEM_H
+#ifndef BITCOIN_COMMON_ARGS_H
+#define BITCOIN_COMMON_ARGS_H
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
-#include <compat/assumptions.h>
+#include <common/settings.h>
 #include <compat/compat.h>
-#include <consensus/amount.h>
-#include <logging.h>
 #include <sync.h>
+#include <util/chaintype.h>
 #include <util/fs.h>
-#include <util/settings.h>
-#include <util/time.h>
 
+#include <iosfwd>
+#include <list>
 #include <map>
 #include <optional>
 #include <set>
 #include <stdint.h>
 #include <string>
-#include <utility>
+#include <variant>
 #include <vector>
 
-//Dash only features
-
-extern int nWalletBackups;
-extern const std::string gCoinJoinName;
-
 class ArgsManager;
-class UniValue;
-
-// Application startup time (used for uptime calculation)
-int64_t GetStartupTime();
 
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_SETTINGS_FILENAME;
 
-void SetupEnvironment();
-[[nodiscard]] bool SetupNetworking();
-
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption(const ArgsManager& args);
-#ifndef WIN32
-std::string ShellEscape(const std::string& arg);
-#endif
-#if HAVE_SYSTEM
-void runCommand(const std::string& strCommand);
-#endif
 
 /**
  * Most paths passed as configuration arguments are treated as relative to
@@ -102,21 +73,31 @@ enum class OptionsCategory {
     HIDDEN // Always the last option to avoid printing these in the help
 };
 
-struct SectionInfo
-{
+struct KeyInfo {
+    std::string name;
+    std::string section;
+    bool negated{false};
+};
+
+KeyInfo InterpretKey(std::string key);
+
+std::optional<common::SettingsValue> InterpretValue(const KeyInfo& key, const std::string* value,
+                                                         unsigned int flags, std::string& error);
+
+struct SectionInfo {
     std::string m_name;
     std::string m_file;
     int m_line;
 };
 
-std::string SettingToString(const util::SettingsValue&, const std::string&);
-std::optional<std::string> SettingToString(const util::SettingsValue&);
+std::string SettingToString(const common::SettingsValue&, const std::string&);
+std::optional<std::string> SettingToString(const common::SettingsValue&);
 
-int64_t SettingToInt(const util::SettingsValue&, int64_t);
-std::optional<int64_t> SettingToInt(const util::SettingsValue&);
+int64_t SettingToInt(const common::SettingsValue&, int64_t);
+std::optional<int64_t> SettingToInt(const common::SettingsValue&);
 
-bool SettingToBool(const util::SettingsValue&, bool);
-std::optional<bool> SettingToBool(const util::SettingsValue&);
+bool SettingToBool(const common::SettingsValue&, bool);
+std::optional<bool> SettingToBool(const common::SettingsValue&);
 
 class ArgsManager
 {
@@ -155,7 +136,7 @@ protected:
     };
 
     mutable RecursiveMutex cs_args;
-    util::Settings m_settings GUARDED_BY(cs_args);
+    common::Settings m_settings GUARDED_BY(cs_args);
     std::vector<std::string> m_command GUARDED_BY(cs_args);
     std::string m_network GUARDED_BY(cs_args);
     std::set<std::string> m_network_only_args GUARDED_BY(cs_args);
@@ -184,12 +165,12 @@ protected:
      * false if "-nosetting" argument was passed, and a string if a "-setting=value"
      * argument was passed.
      */
-    util::SettingsValue GetSetting(const std::string& arg) const;
+    common::SettingsValue GetSetting(const std::string& arg) const;
 
     /**
      * Get list of setting values.
      */
-    std::vector<util::SettingsValue> GetSettingsList(const std::string& arg) const;
+    std::vector<common::SettingsValue> GetSettingsList(const std::string& arg) const;
 
     ArgsManager();
     ~ArgsManager();
@@ -237,7 +218,7 @@ protected:
     /**
      * Return the map of all the args passed via the command line
      */
-    std::map<std::string, std::vector<util::SettingsValue>> GetCommandLineArgs() const;
+    std::map<std::string, std::vector<common::SettingsValue>> GetCommandLineArgs() const;
 
     /**
      * Get blocks directory path
@@ -358,10 +339,18 @@ protected:
     void ForceRemoveArg(const std::string& strArg);
 
     /**
-     * Returns the appropriate chain name from the program arguments.
-     * @return CBaseChainParams::MAIN by default; raises runtime error if an invalid combination is given.
+     * Returns the appropriate chain type from the program arguments.
+     * @return ChainType::MAIN by default; raises runtime error if an invalid
+     * combination, or unknown chain is given.
      */
-    std::string GetChainName() const;
+    ChainType GetChainType() const;
+
+    /**
+     * Returns the appropriate chain type string from the program arguments.
+     * @return ChainType::MAIN string by default; raises runtime error if an
+     * invalid combination is given.
+     */
+    std::string GetChainTypeString() const;
 
     /**
      * Looks for -devnet and returns either "devnet-<name>" or simply "devnet" if no name was specified.
@@ -426,7 +415,7 @@ protected:
      * Get current setting from config file or read/write settings file,
      * ignoring nonpersistent command line or forced settings values.
      */
-    util::SettingsValue GetPersistentSetting(const std::string& name) const;
+    common::SettingsValue GetPersistentSetting(const std::string& name) const;
 
     /**
      * Access settings with lock held.
@@ -453,11 +442,19 @@ private:
      */
     fs::path GetDataDir(bool net_specific) const;
 
+    /**
+     * Return -regtest/-signet/-testnet/-chain= setting as a ChainType enum if a
+     * recognized chain type was set, or as a string if an unrecognized chain
+     * name was set. Raise an exception if an invalid combination of flags was
+     * provided.
+     */
+    std::variant<ChainType, std::string> GetChainArg() const;
+
     // Helper function for LogArgs().
     void logArgsPrefix(
         const std::string& prefix,
         const std::string& section,
-        const std::map<std::string, std::vector<util::SettingsValue>>& args) const;
+        const std::map<std::string, std::vector<common::SettingsValue>>& args) const;
 };
 
 extern ArgsManager gArgs;
@@ -487,36 +484,7 @@ std::string HelpMessageGroup(const std::string& message);
  */
 std::string HelpMessageOpt(const std::string& option, const std::string& message);
 
-/**
- * Return the number of cores available on the current system.
- * @note This does count virtual cores, such as those provided by HyperThreading.
- */
-int GetNumCores();
-
-namespace ctpl {
-    class thread_pool;
-}
-void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName);
-
-/**
- * On platforms that support it, tell the kernel the calling thread is
- * CPU-intensive and non-interactive. See SCHED_BATCH in sched(7) for details.
- *
- */
-void ScheduleBatchPriority();
-
-namespace util {
-
-//! Simplification of std insertion
-template <typename Tdst, typename Tsrc>
-inline void insert(Tdst& dst, const Tsrc& src) {
-    dst.insert(dst.begin(), src.begin(), src.end());
-}
-template <typename TsetT, typename Tsrc>
-inline void insert(std::set<TsetT>& dst, const Tsrc& src) {
-    dst.insert(src.begin(), src.end());
-}
-
+namespace common {
 #ifdef WIN32
 class WinCmdLineArgs
 {
@@ -531,7 +499,6 @@ private:
     std::vector<std::string> args;
 };
 #endif
+} // namespace common
 
-} // namespace util
-
-#endif // BITCOIN_UTIL_SYSTEM_H
+#endif // BITCOIN_COMMON_ARGS_H

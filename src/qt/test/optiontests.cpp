@@ -6,12 +6,12 @@
 #include <config/bitcoin-config.h>
 #endif
 
+#include <common/args.h>
 #include <init.h>
 #include <qt/bitcoin.h>
 #include <qt/guiutil.h>
 #include <qt/test/optiontests.h>
 #include <test/util/setup_common.h>
-#include <util/system.h>
 
 #include <QApplication>
 #include <QFont>
@@ -26,13 +26,13 @@
 
 OptionTests::OptionTests(interfaces::Node& node) : m_node(node)
 {
-    gArgs.LockSettings([&](util::Settings& s) { m_previous_settings = s; });
+    gArgs.LockSettings([&](common::Settings& s) { m_previous_settings = s; });
 }
 
 void OptionTests::init()
 {
     // reset args
-    gArgs.LockSettings([&](util::Settings& s) { s = m_previous_settings; });
+    gArgs.LockSettings([&](common::Settings& s) { s = m_previous_settings; });
     gArgs.ClearPathCache();
 }
 
@@ -88,14 +88,14 @@ void OptionTests::integerGetArgBug()
     // Test regression https://github.com/bitcoin/bitcoin/issues/24457. Ensure
     // that setting integer prune value doesn't cause an exception to be thrown
     // in the OptionsModel constructor
-    gArgs.LockSettings([&](util::Settings& settings) {
+    gArgs.LockSettings([&](common::Settings& settings) {
         settings.forced_settings.erase("prune");
         settings.rw_settings["prune"] = 3814;
     });
     gArgs.WriteSettingsFile();
     bilingual_str error;
     QVERIFY(OptionsModel{m_node}.Init(error));
-    gArgs.LockSettings([&](util::Settings& settings) {
+    gArgs.LockSettings([&](common::Settings& settings) {
         settings.rw_settings.erase("prune");
     });
     gArgs.WriteSettingsFile();
@@ -112,14 +112,14 @@ void OptionTests::invalidFontSetting()
              "GUIUtil::loadFonts() must succeed in AppTests::appTests() before OptionTests run.");
 
     for (const std::string setting : {"font-family", "font-scale", "font-weight-normal", "font-weight-bold"}) {
-        gArgs.LockSettings([&](util::Settings& settings) {
+        gArgs.LockSettings([&](common::Settings& settings) {
             settings.rw_settings[setting] = UniValue{UniValue::VARR};
         });
         bilingual_str error;
         QVERIFY(!OptionsModel{m_node}.Init(error));
         QCOMPARE(QString::fromStdString(error.original),
                  QString::fromStdString(strprintf("Could not read setting \"%s\", JSON value of type array is not of expected type string.", setting)));
-        gArgs.LockSettings([&](util::Settings& settings) {
+        gArgs.LockSettings([&](common::Settings& settings) {
             settings.rw_settings.erase(setting);
         });
     }
@@ -127,7 +127,7 @@ void OptionTests::invalidFontSetting()
     // With -font-family on the command line the stored weights are not used, but
     // dash-qt still reads them through gArgs later, so they must be reported too.
     for (const std::string setting : {"font-weight-normal", "font-weight-bold"}) {
-        gArgs.LockSettings([&](util::Settings& settings) {
+        gArgs.LockSettings([&](common::Settings& settings) {
             settings.command_line_options["font-family"] = {UniValue{GUIUtil::defaultFontFamily().toStdString()}};
             settings.rw_settings[setting] = UniValue{UniValue::VARR};
         });
@@ -135,7 +135,7 @@ void OptionTests::invalidFontSetting()
         QVERIFY(!OptionsModel{m_node}.Init(error));
         QCOMPARE(QString::fromStdString(error.original),
                  QString::fromStdString(strprintf("Could not read setting \"%s\", JSON value of type array is not of expected type string.", setting)));
-        gArgs.LockSettings([&](util::Settings& settings) {
+        gArgs.LockSettings([&](common::Settings& settings) {
             settings.command_line_options.erase("font-family");
             settings.rw_settings.erase(setting);
         });
@@ -147,7 +147,7 @@ void OptionTests::invalidLangSetting()
     // A "lang" value with an unexpected type in settings.json must be reported
     // through the error string like other settings instead of throwing out of
     // OptionsModel::Init.
-    gArgs.LockSettings([&](util::Settings& settings) {
+    gArgs.LockSettings([&](common::Settings& settings) {
         settings.rw_settings["lang"] = UniValue{UniValue::VOBJ};
     });
     bilingual_str error;
@@ -162,7 +162,7 @@ void OptionTests::parametersInteraction()
     // It was fixed via https://github.com/bitcoin-core/gui/pull/568.
     // With fListen=false in ~/.config/Bitcoin/Bitcoin-Qt.conf and all else left as default,
     // bitcoin-qt should set both -listen and -listenonion to false and start successfully.
-    gArgs.LockSettings([&](util::Settings& s) {
+    gArgs.LockSettings([&](common::Settings& s) {
         s.forced_settings.erase("listen");
         s.forced_settings.erase("listenonion");
     });

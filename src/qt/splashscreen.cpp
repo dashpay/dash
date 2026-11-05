@@ -12,13 +12,13 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
+#include <common/system.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <qt/guiutil.h>
 #include <qt/networkstyle.h>
 #include <qt/walletmodel.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <cmath>

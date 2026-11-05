@@ -2,12 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <common/init.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <logging.h>
 #include <util/fs.h>
 #include <tinyformat.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <algorithm>
@@ -40,7 +41,7 @@ std::optional<ConfigError> InitConfig(ArgsManager& args, SettingsAbortFn setting
         }
 
         // Check for chain settings (Params() calls are only valid after this clause)
-        SelectParams(args.GetChainName());
+        SelectParams(args.GetChainType());
 
         // Create datadir if it does not exist.
         const auto base_path{args.GetDataDirBase()};

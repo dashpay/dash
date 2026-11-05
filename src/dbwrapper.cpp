@@ -5,6 +5,7 @@
 #include <dbwrapper.h>
 
 #include <clientversion.h>
+#include <common/system.h>
 #include <logging.h>
 #include <random.h>
 #include <serialize.h>
@@ -13,7 +14,6 @@
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 
 #include <algorithm>
 #include <cassert>

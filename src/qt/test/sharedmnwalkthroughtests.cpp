@@ -9,6 +9,7 @@
 #include <bls/bls.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <consensus/amount.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
@@ -35,7 +36,6 @@
 #include <test/util/setup_common.h>
 #include <univalue.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>

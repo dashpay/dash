@@ -7,6 +7,7 @@
 #include <config/bitcoin-config.h>
 #endif
 #include <clientversion.h>
+#include <common/args.h>
 #include <core_io.h>
 #include <consensus/amount.h>
 #include <script/interpreter.h>
@@ -22,7 +23,6 @@
 #include <util/std23.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 const std::string UNIX_EPOCH_TIME = "UNIX epoch time";

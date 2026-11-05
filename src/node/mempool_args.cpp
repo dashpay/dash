@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <node/mempool_args.h>
 
 #include <index/addressindex.h>
@@ -18,7 +19,6 @@
 #include <tinyformat.h>
 #include <util/error.h>
 #include <util/moneystr.h>
-#include <util/system.h>
 #include <util/translation.h>
 
 #include <chrono>
@@ -90,7 +90,7 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& argsman, con
 
     mempool_opts.require_standard = !argsman.GetBoolArg("-acceptnonstdtxn", DEFAULT_ACCEPT_NON_STD_TXN);
     if (!chainparams.IsTestChain() && !mempool_opts.require_standard) {
-        return strprintf(Untranslated("acceptnonstdtxn is not currently supported for %s chain"), chainparams.NetworkIDString());
+        return strprintf(Untranslated("acceptnonstdtxn is not currently supported for %s chain"), chainparams.GetChainTypeString());
     }
 
     ApplyArgsManOptions(argsman, mempool_opts.limits);

@@ -21,6 +21,10 @@ namespace Consensus {
 struct Params;
 } // namespace Consensus
 
+namespace node {
+class BlockManager;
+} // namespace node
+
 namespace llmq {
 class CQuorumManager;
 enum class VerifyRecSigStatus : uint8_t;
@@ -48,10 +52,11 @@ struct CoinbaseChainLock {
 class CoinbaseChainLockReader
 {
     const CBlockIndex* m_tip;
+    const node::BlockManager& m_blockman;
     std::map<int, std::optional<CoinbaseChainLock>> m_cache;
 
 public:
-    explicit CoinbaseChainLockReader(const CBlockIndex* tip) : m_tip(tip) {}
+    CoinbaseChainLockReader(const CBlockIndex* tip, const node::BlockManager& blockman) : m_tip(tip), m_blockman(blockman) {}
     std::optional<CoinbaseChainLock> Read(int carrier_height);
     /** First certificate at or above minimum_height, limited by maximum_height. */
     std::optional<CoinbaseChainLock> Find(int minimum_height, int maximum_height);

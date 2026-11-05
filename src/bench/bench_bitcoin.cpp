@@ -6,11 +6,11 @@
 
 #include <bls/bls.h>
 #include <clientversion.h>
+#include <common/args.h>
 #include <crypto/sha256.h>
 #include <crypto/x11/dispatch.h>
 #include <util/fs.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 
 #include <chrono>
 #include <cstdint>

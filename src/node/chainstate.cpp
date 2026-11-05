@@ -159,7 +159,7 @@ static ChainstateLoadResult CompleteChainstateInitialization(ChainstateManager& 
         pblocktree->WriteReindexing(true);
         //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
         if (options.prune) {
-            CleanupBlockRevFiles();
+            chainman.m_blockman.CleanupBlockRevFiles();
         }
     }
 
@@ -324,7 +324,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     // persisted snapshot chainstate can no longer be revived. Discard it here
     // rather than letting startup fail with advice ("reindex") the user has
     // just followed, which would never recover.
-    if ((options.reindex || options.reindex_chainstate) && !DeleteSnapshotChainstateFromDisk()) {
+    if ((options.reindex || options.reindex_chainstate) && !DeleteSnapshotChainstateFromDisk(chainman.m_options.datadir)) {
         return {ChainstateLoadStatus::FAILURE,
                 _("Failed to remove the snapshot chainstate directory. Remove it manually before restarting.")};
     }
@@ -417,7 +417,7 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
                 if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());
             }
 
-            VerifyDBResult result = CVerifyDB().VerifyDB(
+            VerifyDBResult result = CVerifyDB(chainman.GetNotifications()).VerifyDB(
                 *chainstate, chainman.GetConsensus(), chainstate->CoinsDB(),
                 evodb,
                 options.check_level,

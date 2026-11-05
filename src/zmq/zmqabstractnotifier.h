@@ -6,6 +6,7 @@
 #define BITCOIN_ZMQ_ZMQABSTRACTNOTIFIER_H
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -28,7 +29,7 @@ class CRecoveredSig;
 } // namespace llmq
 
 using CTransactionRef = std::shared_ptr<const CTransaction>;
-using CZMQNotifierFactory = std::unique_ptr<CZMQAbstractNotifier> (*)();
+using CZMQNotifierFactory = std::function<std::unique_ptr<CZMQAbstractNotifier>()>;
 
 class CZMQAbstractNotifier
 {

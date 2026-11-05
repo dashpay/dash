@@ -12,6 +12,8 @@
 #include <masternode/sync.h>
 
 #include <chainparams.h>
+#include <common/args.h>
+#include <logging.h>
 #include <net.h>
 #include <netmessagemaker.h>
 #include <util/time.h>
@@ -34,7 +36,7 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternode
     //   node1 -> Eve -> node2
     // This is ok as we only use MNAUTH as a DoS protection and not for sensitive stuff
     int nOurNodeVersion{PROTOCOL_VERSION};
-    if (Params().NetworkIDString() != CBaseChainParams::MAIN && gArgs.IsArgSet("-pushversion")) {
+    if (Params().GetChainType() != ChainType::MAIN && gArgs.IsArgSet("-pushversion")) {
         nOurNodeVersion = gArgs.GetIntArg("-pushversion", PROTOCOL_VERSION);
     }
     const uint256 signHash{::SerializeHash(std::make_tuple(mn_activeman.GetPubKey(), receivedMNAuthChallenge, peer.IsInboundConn(), nOurNodeVersion))};

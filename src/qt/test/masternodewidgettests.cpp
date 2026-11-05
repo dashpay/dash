@@ -2,12 +2,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <qt/test/masternodewidgettests.h>
 
 #include <qt/test/masternodetestutil.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <evo/types.h>
@@ -29,7 +31,6 @@
 #include <script/script.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <wallet/test/util.h>
@@ -368,7 +369,7 @@ void MasternodeWidgetTests::providerNetInfoValidation_data()
 
 void MasternodeWidgetTests::providerNetInfoValidation()
 {
-    BasicTestingSetup test{CBaseChainParams::MAIN};
+    BasicTestingSetup test{ChainType::MAIN};
     m_node.setContext(&test.m_node);
     QFETCH(int, mn_type);
     QFETCH(int, version);

@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <common/args.h>
+#include <common/system.h>
 #include <index/base.h>
 #include <interfaces/chain.h>
 #include <kernel/chain.h>
@@ -13,7 +15,6 @@
 #include <node/interface_ui.h>
 #include <shutdown.h>
 #include <tinyformat.h>
-#include <util/system.h>
 #include <util/thread.h>
 #include <util/translation.h>
 #include <validation.h>
@@ -23,7 +24,6 @@
 #include <utility>
 
 using node::PruneLockInfo;
-using node::ReadBlockFromDisk;
 using node::g_indexes_ready_to_sync;
 
 constexpr uint8_t DB_BEST_BLOCK{'B'};
@@ -212,8 +212,6 @@ void BaseIndex::ThreadSync()
 
     const CBlockIndex* pindex = m_best_block_index.load();
     if (!m_synced) {
-        auto& consensus_params = Params().GetConsensus();
-
         auto last_log_time{NodeClock::now()};
         auto last_locator_write_time{last_log_time};
         while (true) {
@@ -246,7 +244,7 @@ void BaseIndex::ThreadSync()
 
             CBlock block;
             interfaces::BlockInfo block_info = kernel::MakeBlockInfo(pindex);
-            if (!ReadBlockFromDisk(block, pindex, consensus_params)) {
+            if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, *pindex)) {
                 FatalError("%s: Failed to read block %s from disk",
                            __func__, pindex->GetBlockHash().ToString());
                 return;

@@ -4,11 +4,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <wallet/wallet.h>
 
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <crypto/common.h>
@@ -37,7 +39,6 @@
 #include <util/moneystr.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <util/system.h>
 #include <util/time.h>
 #include <util/translation.h>
 #ifdef USE_BDB
@@ -76,9 +77,9 @@ static isminetype InputIsMine(const CWallet& wallet, const CTxIn& txin) EXCLUSIV
 
 bool AddWalletSetting(interfaces::Chain& chain, const std::string& wallet_name)
 {
-    util::SettingsValue setting_value = chain.getRwSetting("wallet");
+    common::SettingsValue setting_value = chain.getRwSetting("wallet");
     if (!setting_value.isArray()) setting_value.setArray();
-    for (const util::SettingsValue& value : setting_value.getValues()) {
+    for (const common::SettingsValue& value : setting_value.getValues()) {
         if (value.isStr() && value.get_str() == wallet_name) return true;
     }
     setting_value.push_back(wallet_name);
@@ -87,10 +88,10 @@ bool AddWalletSetting(interfaces::Chain& chain, const std::string& wallet_name)
 
 bool RemoveWalletSetting(interfaces::Chain& chain, const std::string& wallet_name)
 {
-    util::SettingsValue setting_value = chain.getRwSetting("wallet");
+    common::SettingsValue setting_value = chain.getRwSetting("wallet");
     if (!setting_value.isArray()) return true;
-    util::SettingsValue new_value(util::SettingsValue::VARR);
-    for (const util::SettingsValue& value : setting_value.getValues()) {
+    common::SettingsValue new_value(common::SettingsValue::VARR);
+    for (const common::SettingsValue& value : setting_value.getValues()) {
         if (!value.isStr() || value.get_str() != wallet_name) new_value.push_back(value);
     }
     if (new_value.size() == setting_value.size()) return true;
@@ -2517,7 +2518,7 @@ bool CWallet::SignSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std
 bool CWallet::SignGovernanceVote(const CKeyID& keyID, CGovernanceVote& vote) const
 {
     // Special implementation for testnet (Harden Spork6 that has not been deployed to other networks)
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+    if (Params().GetChainType() == ChainType::TESTNET) {
         std::vector<unsigned char> signature;
         if (!SignSpecialTxPayload(vote.GetSignatureHash(), keyID, signature)) {
             LogPrintf("SignGovernanceVote -- SignHash() failed\n");
@@ -3277,7 +3278,7 @@ bool CWallet::SetAddressPreviouslySpent(WalletBatch& batch, const CTxDestination
         return false;
 
     if (!used) {
-        if (auto* data{util::FindKey(m_address_book, dest)}) data->previously_spent = false;
+        if (auto* data{common::FindKey(m_address_book, dest)}) data->previously_spent = false;
         return batch.WriteAddressPreviouslySpent(dest, false);
     }
 
@@ -3297,7 +3298,7 @@ void CWallet::LoadAddressReceiveRequest(const CTxDestination& dest, const std::s
 
 bool CWallet::IsAddressPreviouslySpent(const CTxDestination& dest) const
 {
-    if (auto* data{util::FindKey(m_address_book, dest)}) return data->previously_spent;
+    if (auto* data{common::FindKey(m_address_book, dest)}) return data->previously_spent;
     return false;
 }
 

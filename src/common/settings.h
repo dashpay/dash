@@ -2,18 +2,19 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_UTIL_SETTINGS_H
-#define BITCOIN_UTIL_SETTINGS_H
+#ifndef BITCOIN_COMMON_SETTINGS_H
+#define BITCOIN_COMMON_SETTINGS_H
 
 #include <util/fs.h>
 
+#include <cstddef>
 #include <map>
 #include <string>
 #include <vector>
 
 class UniValue;
 
-namespace util {
+namespace common {
 
 //! Settings value type (string/integer/boolean/null variant).
 //!
@@ -60,14 +61,14 @@ bool WriteSettings(const fs::path& path,
 //!                               command line). Only return settings in the
 //!                               read-only config and read-write settings
 //!                               files.
-//! @param get_chain_name - enable special backwards compatible behavior
-//!                         for GetChainName
+//! @param get_chain_type - enable special backwards compatible behavior
+//!                         for GetChainType
 SettingsValue GetSetting(const Settings& settings,
     const std::string& section,
     const std::string& name,
     bool ignore_default_section_config,
     bool ignore_nonpersistent,
-    bool get_chain_name);
+    bool get_chain_type);
 
 //! Get combined setting value similar to GetSetting(), except if setting was
 //! specified multiple times, return a list of all the values specified.
@@ -109,6 +110,6 @@ auto FindKey(Map&& map, Key&& key) -> decltype(&map.at(key))
     return it == map.end() ? nullptr : &it->second;
 }
 
-} // namespace util
+} // namespace common
 
-#endif // BITCOIN_UTIL_SETTINGS_H
+#endif // BITCOIN_COMMON_SETTINGS_H

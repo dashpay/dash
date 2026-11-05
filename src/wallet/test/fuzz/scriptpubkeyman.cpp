@@ -24,7 +24,7 @@ void initialize_spkm()
 {
     static const auto testing_setup{MakeNoLogFileContext<const TestingSetup>()};
     g_setup = testing_setup.get();
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
     MOCKED_DESC_CONVERTER.Init();
 }
 

@@ -10,6 +10,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <coins.h>
+#include <common/args.h>
 #include <consensus/amount.h>
 #include <core_io.h>
 #include <consensus/params.h>
@@ -43,7 +44,6 @@
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -72,9 +72,7 @@ using kernel::CoinStatsHashType;
 
 using node::BlockManager;
 using node::NodeContext;
-using node::ReadBlockFromDisk;
 using node::SnapshotMetadata;
-using node::UndoReadFromDisk;
 
 struct CUpdatedBlock
 {
@@ -183,7 +181,7 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
         case TxVerbosity::SHOW_DETAILS_AND_PREVOUT:
             CBlockUndo blockUndo;
             const bool is_not_pruned{WITH_LOCK(::cs_main, return !blockman.IsBlockPruned(blockindex))};
-            const bool have_undo{is_not_pruned && UndoReadFromDisk(blockUndo, blockindex)};
+            const bool have_undo{is_not_pruned && blockman.UndoReadFromDisk(blockUndo, *blockindex)};
 
             for (size_t i = 0; i < block.vtx.size(); ++i) {
                 const CTransactionRef& tx = block.vtx.at(i);
@@ -795,7 +793,7 @@ static CBlock GetBlockChecked(BlockManager& blockman, const CBlockIndex* pblocki
         }
     }
 
-    if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
+    if (!blockman.ReadBlockFromDisk(block, *pblockindex)) {
         // Block not found on disk. This could be because we have the block
         // header in our index but not yet have the block or did not accept the
         // block. Or if the block was pruned right after we released the lock above.
@@ -819,7 +817,7 @@ static CBlockUndo GetUndoChecked(BlockManager& blockman, const CBlockIndex* pblo
         }
     }
 
-    if (!UndoReadFromDisk(blockUndo, pblockindex)) {
+    if (!blockman.UndoReadFromDisk(blockUndo, *pblockindex)) {
         throw JSONRPCError(RPC_MISC_ERROR, "Can't read undo data from disk");
     }
 
@@ -908,7 +906,7 @@ static RPCHelpMan getmerkleblocks()
             break;
         }
 
-        if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
+        if (!chainman.m_blockman.ReadBlockFromDisk(block, *pblockindex)) {
             // this shouldn't happen, we already checked pruning case earlier
             throw JSONRPCError(RPC_MISC_ERROR, "Block not found on disk");
         }
@@ -1438,7 +1436,7 @@ static RPCHelpMan verifychain()
     LOCK(cs_main);
 
     Chainstate& active_chainstate = chainman.ActiveChainstate();
-    return CVerifyDB().VerifyDB(
+    return CVerifyDB(chainman.GetNotifications()).VerifyDB(
                active_chainstate, chainman.GetParams().GetConsensus(), active_chainstate.CoinsTip(), *CHECK_NONFATAL(node.evodb), check_level, check_depth) == VerifyDBResult::SUCCESS;
 },
     };
@@ -1599,7 +1597,7 @@ RPCHelpMan getblockchaininfo()
     if (args.IsArgSet("-devnet")) {
         obj.pushKV("chain", args.GetDevNetName());
     } else {
-        obj.pushKV("chain", chainman.GetParams().NetworkIDString());
+        obj.pushKV("chain", chainman.GetParams().GetChainTypeString());
     }
     obj.pushKV("blocks", height);
     obj.pushKV("headers", chainman.m_best_header ? chainman.m_best_header->nHeight : -1);
@@ -1807,7 +1805,7 @@ static RPCHelpMan getcreditpoolinfo()
     const CCreditPool pool{cpoolman.GetCreditPool(pindex)};
     // The same read the consensus rule makes for the window start
     const CAmount window_start_balance{
-        pindex_window_start ? CCreditPoolManager::GetBalanceAt(pindex_window_start, chainman.GetConsensus()) : CAmount{0}};
+        pindex_window_start ? CCreditPoolManager::GetBalanceAt(pindex_window_start, chainman.m_blockman, chainman.GetConsensus()) : CAmount{0}};
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("height", pindex->nHeight);

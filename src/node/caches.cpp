@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <node/caches.h>
 
 #include <index/addressindex.h>
@@ -9,7 +10,6 @@
 #include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <txdb.h>
-#include <util/system.h>
 
 namespace node {
 CacheSizes CalculateCacheSizes(const ArgsManager& args, size_t n_indexes)

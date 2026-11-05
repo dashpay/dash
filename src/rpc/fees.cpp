@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/system.h>
 #include <core_io.h>
 #include <node/context.h>
 #include <policy/feerate.h>
@@ -16,7 +17,6 @@
 #include <txmempool.h>
 #include <univalue.h>
 #include <util/fees.h>
-#include <util/system.h>
 
 #include <algorithm>
 #include <array>

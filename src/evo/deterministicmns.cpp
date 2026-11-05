@@ -1182,7 +1182,7 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
 }
 
 CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateAndRepairDiffs(
-    const CBlockIndex* start_index, const CBlockIndex* stop_index, BuildListFromBlockFunc build_list_func, bool repair)
+    const node::BlockManager& blockman, const CBlockIndex* start_index, const CBlockIndex* stop_index, BuildListFromBlockFunc build_list_func, bool repair)
 {
     RecalcDiffsResult result;
     result.start_height = start_index->nHeight;
@@ -1273,7 +1273,7 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
 
         // If repair mode is enabled and verification failed, recalculate diffs from blockchain
         if (repair && !is_snapshot_pair_valid) {
-            auto temp_diffs = RepairSnapshotPair(from_index, to_index, from_snapshot, to_snapshot, build_list_func, result);
+            auto temp_diffs = RepairSnapshotPair(blockman, from_index, to_index, from_snapshot, to_snapshot, build_list_func, result);
             if (temp_diffs.empty()) {
                 // RepairSnapshotPair failed - this is a critical error, cannot continue
                 return result;
@@ -1402,7 +1402,7 @@ bool CDeterministicMNManager::VerifySnapshotPair(
 }
 
 std::vector<std::pair<uint256, CDeterministicMNListDiff>> CDeterministicMNManager::RepairSnapshotPair(
-    const CBlockIndex* from_index, const CBlockIndex* to_index, const CDeterministicMNList& from_snapshot,
+    const node::BlockManager& blockman, const CBlockIndex* from_index, const CBlockIndex* to_index, const CDeterministicMNList& from_snapshot,
     const CDeterministicMNList& to_snapshot, BuildListFromBlockFunc build_list_func, RecalcDiffsResult& result)
 {
     CDeterministicMNList current_list = from_snapshot;
@@ -1419,7 +1419,7 @@ std::vector<std::pair<uint256, CDeterministicMNListDiff>> CDeterministicMNManage
 
             // Read the actual block from disk
             CBlock block;
-            if (!node::ReadBlockFromDisk(block, pIndex, Params().GetConsensus())) {
+            if (!blockman.ReadBlockFromDisk(block, *pIndex)) {
                 result.repair_errors.push_back(strprintf("CRITICAL: Failed to read block at height %d. "
                     "Cannot repair - full reindex required.", nHeight));
                 return {}; // Critical error - cannot continue repair

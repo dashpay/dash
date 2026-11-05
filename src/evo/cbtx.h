@@ -21,6 +21,10 @@ class CDeterministicMNList;
 class TxValidationState;
 struct RPCResult;
 
+namespace node {
+class BlockManager;
+} // namespace node
+
 namespace llmq {
 class CQuorumBlockProcessor;
 }// namespace llmq
@@ -83,7 +87,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                                BlockValidationState& state);
 uint256 CalcCbTxMerkleRootAssetUnlocks(const CBlock& block);
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const node::BlockManager& blockman, const CBlockIndex* pindex);
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, int32_t height);
 
 #endif // BITCOIN_EVO_CBTX_H

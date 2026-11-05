@@ -4,6 +4,7 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <common/args.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <deploymentstatus.h>
@@ -1605,7 +1606,7 @@ static UniValue BuildDMNListEntry(const CWallet* const pwallet, const CDetermini
             confirmations -= WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()) - pindex->nHeight;
         } else {
             uint256 minedBlockHash;
-            collateralTx = GetTransaction(/* pindex */ nullptr, /* mempool */ nullptr, dmn.collateralOutpoint.hash, Params().GetConsensus(), minedBlockHash);
+            collateralTx = GetTransaction(/* pindex */ nullptr, /* mempool */ nullptr, dmn.collateralOutpoint.hash, minedBlockHash, chainman.m_blockman);
             const CBlockIndex* const pindexMined = WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(minedBlockHash));
             CHECK_NONFATAL(pindexMined != nullptr);
             CHECK_NONFATAL(pindex->GetAncestor(pindexMined->nHeight) == pindexMined);
@@ -2066,7 +2067,7 @@ static UniValue evodb_verify_or_repair_impl(const JSONRPCRequest& request, bool 
     };
 
     // Call the dmnman method to do the work
-    auto recalc_result = dmnman.RecalculateAndRepairDiffs(start_index, stop_index, build_list_func, repair);
+    auto recalc_result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, start_index, stop_index, build_list_func, repair);
 
     // Convert result to UniValue
     UniValue result(UniValue::VOBJ);

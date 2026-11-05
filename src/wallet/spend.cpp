@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <coinjoin/common.h>
 #include <coinjoin/options.h>
+#include <common/args.h>
+#include <common/system.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <evo/assetlocktx.h>

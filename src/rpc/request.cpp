@@ -8,11 +8,12 @@
 
 #include <util/fs.h>
 
+#include <common/args.h>
+#include <logging.h>
 #include <random.h>
 #include <rpc/protocol.h>
 #include <util/fs_helpers.h>
 #include <util/strencodings.h>
-#include <util/system.h>
 
 #include <fstream>
 #include <stdexcept>
@@ -90,7 +91,7 @@ bool GenerateAuthCookie(std::string *cookie_out)
     std::string cookie = COOKIEAUTH_USER + ":" + HexStr(rand_pwd);
 
     /** the umask determines what permissions are used to create this file -
-     * these are set to 0077 in util/system.cpp.
+     * these are set to 0077 in common/system.cpp.
      */
     std::ofstream file;
     fs::path filepath_tmp = GetAuthCookieFile(true);

@@ -107,7 +107,7 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
         }
         chain.SetTip(index);
     }
-    chainlock::CoinbaseChainLockReader reader(chain.Tip());
+    chainlock::CoinbaseChainLockReader reader(chain.Tip(), m_node.chainman->m_blockman);
     BOOST_CHECK(!reader.Read(activation + 2));
     BOOST_CHECK(!reader.Find(-1, activation + 128));
     BOOST_CHECK(!reader.Find(activation + 128, activation + 128));
@@ -132,14 +132,14 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
     }
     // A repeated certificate spanning more than the request's disk-read budget
     // must still allow finding the next certificate (or reporting its absence).
-    chainlock::CoinbaseChainLockReader long_gap(chain.Tip());
+    chainlock::CoinbaseChainLockReader long_gap(chain.Tip(), m_node.chainman->m_blockman);
     const auto late = long_gap.Find(activation + 100, activation + 16999);
     BOOST_REQUIRE(late);
     BOOST_CHECK_EQUAL(late->carrier->nHeight, activation + 17000);
     BOOST_CHECK_EQUAL(late->height, activation + 16999);
     BOOST_CHECK(!long_gap.Find(activation + 100, activation + 16998));
     // A new request on a shorter chain must not reuse the old request's cache.
-    chainlock::CoinbaseChainLockReader after_disconnect(chain[activation + 66]);
+    chainlock::CoinbaseChainLockReader after_disconnect(chain[activation + 66], m_node.chainman->m_blockman);
     BOOST_CHECK(!after_disconnect.Find(activation + 65, activation + 65));
     BOOST_REQUIRE(after_disconnect.Find(activation + 1, activation + 1));
 
@@ -148,27 +148,27 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
     chainlock::ClearCoinbaseChainLockCacheForTesting();
     const bool scheme = bls::bls_legacy_scheme.load();
     bls::bls_legacy_scheme.store(!scheme);
-    const auto under_other = chainlock::CoinbaseChainLockReader(chain.Tip()).Read(activation + 40);
+    const auto under_other = chainlock::CoinbaseChainLockReader(chain.Tip(), m_node.chainman->m_blockman).Read(activation + 40);
     bls::bls_legacy_scheme.store(scheme);
     BOOST_REQUIRE(under_other);
     BOOST_CHECK_EQUAL(under_other->height, activation + 1);
-    const auto after = chainlock::CoinbaseChainLockReader(chain.Tip()).Read(activation + 40);
+    const auto after = chainlock::CoinbaseChainLockReader(chain.Tip(), m_node.chainman->m_blockman).Read(activation + 40);
     BOOST_REQUIRE(after);
     BOOST_CHECK(after->Signed().getSig() == signature);
     BOOST_CHECK_EQUAL(after->height, activation + 1);
 
     // A carrier's certificate is a fact about its block hash, so once read it is
     // served from the process-wide memo even if the block data goes away...
-    BOOST_REQUIRE(chainlock::CoinbaseChainLockReader(chain.Tip()).Read(activation + 30));
+    BOOST_REQUIRE(chainlock::CoinbaseChainLockReader(chain.Tip(), m_node.chainman->m_blockman).Read(activation + 30));
     WITH_LOCK(cs_main, indexes[activation + 30].nStatus &= ~BLOCK_HAVE_DATA);
-    const auto memoized = chainlock::CoinbaseChainLockReader(chain.Tip()).Read(activation + 30);
+    const auto memoized = chainlock::CoinbaseChainLockReader(chain.Tip(), m_node.chainman->m_blockman).Read(activation + 30);
     BOOST_REQUIRE(memoized);
     BOOST_CHECK(memoized->Signed().getSig() == signature);
 
     // ...while unavailable block data that was never read is an error, distinct
     // from an absent certificate.
     chainlock::ClearCoinbaseChainLockCacheForTesting();
-    chainlock::CoinbaseChainLockReader unavailable(chain.Tip());
+    chainlock::CoinbaseChainLockReader unavailable(chain.Tip(), m_node.chainman->m_blockman);
     BOOST_CHECK_THROW(unavailable.Read(activation + 30), std::runtime_error);
 }
 

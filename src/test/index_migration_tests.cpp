@@ -3,12 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <coins.h>
+#include <common/system.h>
 #include <index/timestampindex.h>
 #include <interfaces/chain.h>
 #include <node/blockstorage.h>
 #include <test/util/setup_common.h>
 #include <txdb.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>
@@ -16,7 +16,7 @@
 namespace {
 struct IndexMigrationSetup : public TestChainSetup {
     IndexMigrationSetup() :
-        TestChainSetup{100, CBaseChainParams::REGTEST, {"-timestampindex=1"}}
+        TestChainSetup{100, ChainType::REGTEST, {"-timestampindex=1"}}
     {
     }
 

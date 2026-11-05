@@ -62,7 +62,7 @@ void InformationWidget::setClientModel(ClientModel* model)
 
         ui->clientUserAgent->setText(model->formatSubVersion());
         ui->clientVersion->setText(model->formatFullVersion());
-        ui->networkName->setText(QString::fromStdString(Params().NetworkIDString()));
+        ui->networkName->setText(QString::fromStdString(Params().GetChainTypeString()));
         ui->startupTime->setText(model->formatClientStartupTime());
     }
 }

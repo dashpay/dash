@@ -2,10 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <index/spentindex.h>
 
 #include <chain.h>
 #include <chainparams.h>
+#include <common/system.h>
 #include <index/addressindex_util.h>
 #include <logging.h>
 #include <node/blockstorage.h>
@@ -14,7 +16,6 @@
 #include <script/script.h>
 #include <tinyformat.h>
 #include <undo.h>
-#include <util/system.h>
 #include <validation.h>
 
 constexpr uint8_t DB_SPENTINDEX{'p'};
@@ -71,7 +72,7 @@ bool SpentIndex::CustomAppend(const interfaces::BlockInfo& block)
 
     // Read undo data for this block to get information about spent outputs
     CBlockUndo blockundo;
-    if (!node::UndoReadFromDisk(blockundo, pindex)) {
+    if (!m_chainstate->m_blockman.UndoReadFromDisk(blockundo, *pindex)) {
         LogError("%s: Failed to read undo data for block %s at height %d\n", __func__,
                  block.hash.ToString(), block.height);
         return false;
@@ -131,7 +132,7 @@ bool SpentIndex::CustomRewind(const interfaces::BlockKey& current_tip, const int
 
         // Read block to get transactions
         CBlock block;
-        if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, *pindex)) {
             LogError("%s: Failed to read block %s from disk during rewind\n", "CustomRewind",
                      pindex->GetBlockHash().ToString());
             return false;

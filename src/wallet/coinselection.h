@@ -11,8 +11,8 @@
 #include <primitives/transaction.h>
 #include <random.h>
 #include <util/check.h>
+#include <util/insert.h>
 #include <util/result.h>
-#include <util/system.h>
 
 #include <cstdint>
 #include <optional>

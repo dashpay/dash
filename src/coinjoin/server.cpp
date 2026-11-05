@@ -10,6 +10,7 @@
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 
+#include <common/system.h>
 #include <core_io.h>
 #include <net.h>
 #include <net_processing.h>
@@ -21,7 +22,6 @@
 #include <streams.h>
 #include <txmempool.h>
 #include <util/moneystr.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <univalue.h>

@@ -1,82 +1,40 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2022 The Bitcoin Core developers
-// Copyright (c) 2014-2025 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
-#include <util/system.h>
-
-#include <support/allocators/secure.h>
+#include <common/args.h>
 
 #include <chainparamsbase.h>
-#include <ctpl_stl.h>
+#include <common/settings.h>
+#include <logging.h>
 #include <sync.h>
+#include <tinyformat.h>
+#include <univalue.h>
+#include <util/chaintype.h>
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 #include <util/strencodings.h>
-#include <util/string.h>
-#include <util/syserror.h>
-#include <util/threadnames.h>
-#include <util/translation.h>
 
-#include <tinyformat.h>
-
-#if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
-#include <pthread.h>
-#include <pthread_np.h>
+#ifdef WIN32
+#include <codecvt>    /* for codecvt_utf8_utf16 */
+#include <shellapi.h> /* for CommandLineToArgvW */
+#include <shlobj.h>   /* for CSIDL_APPDATA */
 #endif
 
-#ifndef WIN32
 #include <algorithm>
-#include <atomic>
 #include <cassert>
-#include <fcntl.h>
-#include <sched.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
-
-#else
-
-#include <codecvt>
-
-#include <shellapi.h>
-#include <shlobj.h>
-#endif
-
-#ifdef HAVE_MALLOPT_ARENA_MAX
-#include <malloc.h>
-#endif
-
-#include <univalue.h>
-
-#include <fstream>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
 #include <map>
-#include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
-#include <system_error>
-#include <thread>
-#include <typeinfo>
-
-// Application startup time (used for uptime calculation)
-const int64_t nStartupTime = GetTime();
-
-//Dash only features
-const std::string gCoinJoinName = "CoinJoin";
-
-/**
-    nWalletBackups:
-        1..10   - number of automatic backups to keep
-        0       - disabled by command-line
-        -1      - disabled because of some error during run-time
-        -2      - disabled because wallet was locked and we were not able to replenish keypool
-*/
-int nWalletBackups = 10;
+#include <utility>
+#include <variant>
 
 const char * const BITCOIN_CONF_FILENAME = "dash.conf";
 const char * const BITCOIN_SETTINGS_FILENAME = "settings.json";
@@ -109,12 +67,6 @@ static std::string SettingName(const std::string& arg)
 {
     return arg.size() > 0 && arg[0] == '-' ? arg.substr(1) : arg;
 }
-
-struct KeyInfo {
-    std::string name;
-    std::string section;
-    bool negated{false};
-};
 
 /**
  * Parse "name", "section.name", "noname", "section.noname" settings keys.
@@ -152,8 +104,8 @@ KeyInfo InterpretKey(std::string key)
  * @return parsed settings value if it is valid, otherwise nullopt accompanied
  * by a descriptive error string
  */
-static std::optional<util::SettingsValue> InterpretValue(const KeyInfo& key, const std::string* value,
-                                                         unsigned int flags, std::string& error)
+std::optional<common::SettingsValue> InterpretValue(const KeyInfo& key, const std::string* value,
+                                                  unsigned int flags, std::string& error)
 {
     // Return negated settings as false values.
     if (key.negated) {
@@ -191,7 +143,7 @@ std::set<std::string> ArgsManager::GetUnsuitableSectionOnlyArgs() const
     if (m_network.empty()) return std::set<std::string> {};
 
     // if it's okay to use the default section for this network, don't worry
-    if (m_network == CBaseChainParams::MAIN) return std::set<std::string> {};
+    if (m_network == ChainTypeToString(ChainType::MAIN)) return std::set<std::string> {};
 
     for (const auto& arg : m_network_only_args) {
         if (OnlyHasDefaultSectionSetting(m_settings, m_network, SettingName(arg))) {
@@ -205,10 +157,10 @@ std::list<SectionInfo> ArgsManager::GetUnrecognizedSections() const
 {
     // Section names to be recognized in the config file.
     static const std::set<std::string> available_sections{
-        CBaseChainParams::REGTEST,
-        CBaseChainParams::DEVNET,
-        CBaseChainParams::TESTNET,
-        CBaseChainParams::MAIN,
+        ChainTypeToString(ChainType::REGTEST),
+        ChainTypeToString(ChainType::DEVNET),
+        ChainTypeToString(ChainType::TESTNET),
+        ChainTypeToString(ChainType::MAIN),
     };
 
     LOCK(cs_args);
@@ -217,7 +169,7 @@ std::list<SectionInfo> ArgsManager::GetUnrecognizedSections() const
     return unrecognized;
 }
 
-std::map<std::string, std::vector<util::SettingsValue>> ArgsManager::GetCommandLineArgs() const {
+std::map<std::string, std::vector<common::SettingsValue>> ArgsManager::GetCommandLineArgs() const {
     LOCK(cs_args);
     return m_settings.command_line_options;
 }
@@ -291,15 +243,15 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
             return false;
         }
 
-        std::optional<util::SettingsValue> value = InterpretValue(keyinfo, val ? &*val : nullptr, *flags, error);
+        std::optional<common::SettingsValue> value = InterpretValue(keyinfo, val ? &*val : nullptr, *flags, error);
         if (!value) return false;
 
         m_settings.command_line_options[keyinfo.name].push_back(*value);
     }
 
     // we do not allow -includeconf from command line, only -noincludeconf
-    if (auto* includes = util::FindKey(m_settings.command_line_options, "includeconf")) {
-        const util::SettingsSpan values{*includes};
+    if (auto* includes = common::FindKey(m_settings.command_line_options, "includeconf")) {
+        const common::SettingsSpan values{*includes};
         // Range may be empty if -noincludeconf was passed
         if (!values.empty()) {
             error = "-includeconf cannot be used from commandline; -includeconf=" + values.begin()->write();
@@ -421,7 +373,7 @@ std::optional<const ArgsManager::Command> ArgsManager::GetCommand() const
 std::vector<std::string> ArgsManager::GetArgs(const std::string& strArg) const
 {
     std::vector<std::string> result;
-    for (const util::SettingsValue& value : GetSettingsList(strArg)) {
+    for (const common::SettingsValue& value : GetSettingsList(strArg)) {
         result.push_back(value.isFalse() ? "0" : value.isTrue() ? "1" : value.get_str());
     }
     return result;
@@ -468,7 +420,7 @@ bool ArgsManager::ReadSettingsFile(std::vector<std::string>* errors)
     LOCK(cs_args);
     m_settings.rw_settings.clear();
     std::vector<std::string> read_errors;
-    if (!util::ReadSettings(path, m_settings.rw_settings, read_errors)) {
+    if (!common::ReadSettings(path, m_settings.rw_settings, read_errors)) {
         SaveErrors(read_errors, errors);
         return false;
     }
@@ -490,7 +442,7 @@ bool ArgsManager::WriteSettingsFile(std::vector<std::string>* errors, bool backu
 
     LOCK(cs_args);
     std::vector<std::string> write_errors;
-    if (!util::WriteSettings(path_tmp, m_settings.rw_settings, write_errors)) {
+    if (!common::WriteSettings(path_tmp, m_settings.rw_settings, write_errors)) {
         SaveErrors(write_errors, errors);
         return false;
     }
@@ -501,11 +453,11 @@ bool ArgsManager::WriteSettingsFile(std::vector<std::string>* errors, bool backu
     return true;
 }
 
-util::SettingsValue ArgsManager::GetPersistentSetting(const std::string& name) const
+common::SettingsValue ArgsManager::GetPersistentSetting(const std::string& name) const
 {
     LOCK(cs_args);
-    return util::GetSetting(m_settings, m_network, name, !UseDefaultSection("-" + name),
-        /*ignore_nonpersistent=*/true, /*get_chain_name=*/false);
+    return common::GetSetting(m_settings, m_network, name, !UseDefaultSection("-" + name),
+        /*ignore_nonpersistent=*/true, /*get_chain_type=*/false);
 }
 
 bool ArgsManager::IsArgNegated(const std::string& strArg) const
@@ -520,11 +472,11 @@ std::string ArgsManager::GetArg(const std::string& strArg, const std::string& st
 
 std::optional<std::string> ArgsManager::GetArg(const std::string& strArg) const
 {
-    const util::SettingsValue value = GetSetting(strArg);
+    const common::SettingsValue value = GetSetting(strArg);
     return SettingToString(value);
 }
 
-std::optional<std::string> SettingToString(const util::SettingsValue& value)
+std::optional<std::string> SettingToString(const common::SettingsValue& value)
 {
     if (value.isNull()) return std::nullopt;
     if (value.isFalse()) return "0";
@@ -533,7 +485,7 @@ std::optional<std::string> SettingToString(const util::SettingsValue& value)
     return value.get_str();
 }
 
-std::string SettingToString(const util::SettingsValue& value, const std::string& strDefault)
+std::string SettingToString(const common::SettingsValue& value, const std::string& strDefault)
 {
     return SettingToString(value).value_or(strDefault);
 }
@@ -545,11 +497,11 @@ int64_t ArgsManager::GetIntArg(const std::string& strArg, int64_t nDefault) cons
 
 std::optional<int64_t> ArgsManager::GetIntArg(const std::string& strArg) const
 {
-    const util::SettingsValue value = GetSetting(strArg);
+    const common::SettingsValue value = GetSetting(strArg);
     return SettingToInt(value);
 }
 
-std::optional<int64_t> SettingToInt(const util::SettingsValue& value)
+std::optional<int64_t> SettingToInt(const common::SettingsValue& value)
 {
     if (value.isNull()) return std::nullopt;
     if (value.isFalse()) return 0;
@@ -558,7 +510,7 @@ std::optional<int64_t> SettingToInt(const util::SettingsValue& value)
     return LocaleIndependentAtoi<int64_t>(value.get_str());
 }
 
-int64_t SettingToInt(const util::SettingsValue& value, int64_t nDefault)
+int64_t SettingToInt(const common::SettingsValue& value, int64_t nDefault)
 {
     return SettingToInt(value).value_or(nDefault);
 }
@@ -570,18 +522,18 @@ bool ArgsManager::GetBoolArg(const std::string& strArg, bool fDefault) const
 
 std::optional<bool> ArgsManager::GetBoolArg(const std::string& strArg) const
 {
-    const util::SettingsValue value = GetSetting(strArg);
+    const common::SettingsValue value = GetSetting(strArg);
     return SettingToBool(value);
 }
 
-std::optional<bool> SettingToBool(const util::SettingsValue& value)
+std::optional<bool> SettingToBool(const common::SettingsValue& value)
 {
     if (value.isNull()) return std::nullopt;
     if (value.isBool()) return value.get_bool();
     return InterpretBool(value.get_str());
 }
 
-bool SettingToBool(const util::SettingsValue& value, bool fDefault)
+bool SettingToBool(const common::SettingsValue& value, bool fDefault)
 {
     return SettingToBool(value).value_or(fDefault);
 }
@@ -743,9 +695,9 @@ void ArgsManager::ForceRemoveArg(const std::string& strArg)
         m_settings.forced_settings.erase(ov);
     }
 
-    for (const auto& network : { CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::REGTEST, CBaseChainParams::DEVNET }) {
-        if (auto* section = util::FindKey(m_settings.ro_config, network)) {
-            if (util::FindKey(*section, strArg)) {
+    for (const auto& network : { ChainType::MAIN, ChainType::TESTNET, ChainType::REGTEST, ChainType::DEVNET }) {
+        if (auto* section = common::FindKey(m_settings.ro_config, ChainTypeToString(network))) {
+            if (common::FindKey(*section, strArg)) {
                 section->erase(strArg);
             }
         }
@@ -814,222 +766,54 @@ bool CheckDataDirOption(const ArgsManager& args)
     return datadir.empty() || fs::is_directory(fs::absolute(datadir));
 }
 
-static bool GetConfigOptions(std::istream& stream, const std::string& filepath, std::string& error, std::vector<std::pair<std::string, std::string>>& options, std::list<SectionInfo>& sections)
-{
-    std::string str, prefix;
-    std::string::size_type pos;
-    int linenr = 1;
-    while (std::getline(stream, str)) {
-        bool used_hash = false;
-        if ((pos = str.find('#')) != std::string::npos) {
-            str = str.substr(0, pos);
-            used_hash = true;
-        }
-        const static std::string pattern = " \t\r\n";
-        str = TrimString(str, pattern);
-        if (!str.empty()) {
-            if (*str.begin() == '[' && *str.rbegin() == ']') {
-                const std::string section = str.substr(1, str.size() - 2);
-                sections.emplace_back(SectionInfo{section, filepath, linenr});
-                prefix = section + '.';
-            } else if (*str.begin() == '-') {
-                error = strprintf("parse error on line %i: %s, options in configuration file must be specified without leading -", linenr, str);
-                return false;
-            } else if ((pos = str.find('=')) != std::string::npos) {
-                std::string name = prefix + TrimString(std::string_view{str}.substr(0, pos), pattern);
-                std::string_view value = TrimStringView(std::string_view{str}.substr(pos + 1), pattern);
-                if (used_hash && name.find("rpcpassword") != std::string::npos) {
-                    error = strprintf("parse error on line %i, using # in rpcpassword can be ambiguous and should be avoided", linenr);
-                    return false;
-                }
-                options.emplace_back(name, value);
-                if ((pos = name.rfind('.')) != std::string::npos && prefix.length() <= pos) {
-                    sections.emplace_back(SectionInfo{name.substr(0, pos), filepath, linenr});
-                }
-            } else {
-                error = strprintf("parse error on line %i: %s", linenr, str);
-                if (str.size() >= 2 && str.substr(0, 2) == "no") {
-                    error += strprintf(", if you intended to specify a negated option, use %s=1 instead", str);
-                }
-                return false;
-            }
-        }
-        ++linenr;
-    }
-    return true;
-}
-
-bool IsConfSupported(KeyInfo& key, std::string& error) {
-    if (key.name == "conf") {
-        error = "conf cannot be set in the configuration file; use includeconf= if you want to include additional config files";
-        return false;
-    }
-    if (key.name == "reindex") {
-        // reindex can be set in a config file but it is strongly discouraged as this will cause the node to reindex on
-        // every restart. Allow the config but throw a warning
-        LogPrintf("Warning: reindex=1 is set in the configuration file, which will significantly slow down startup. Consider removing or commenting out this option for better performance, unless there is currently a condition which makes rebuilding the indexes necessary\n");
-        return true;
-    }
-    return true;
-}
-
-bool ArgsManager::ReadConfigStream(std::istream& stream, const std::string& filepath, std::string& error, bool ignore_invalid_keys)
-{
-    LOCK(cs_args);
-    std::vector<std::pair<std::string, std::string>> options;
-    if (!GetConfigOptions(stream, filepath, error, options, m_config_sections)) {
-        return false;
-    }
-    for (const std::pair<std::string, std::string>& option : options) {
-        KeyInfo key = InterpretKey(option.first);
-        std::optional<unsigned int> flags = GetArgFlags('-' + key.name);
-        if (!IsConfSupported(key, error)) return false;
-        if (flags) {
-            std::optional<util::SettingsValue> value = InterpretValue(key, &option.second, *flags, error);
-            if (!value) {
-                return false;
-            }
-            m_settings.ro_config[key.section][key.name].push_back(*value);
-        } else {
-            if (ignore_invalid_keys) {
-                LogPrintf("Ignoring unknown configuration value %s\n", option.first);
-            } else {
-                error = strprintf("Invalid configuration value %s", option.first);
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 fs::path ArgsManager::GetConfigFilePath() const
 {
     LOCK(cs_args);
     return *Assert(m_config_path);
 }
 
-bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
+ChainType ArgsManager::GetChainType() const
 {
-    {
-        LOCK(cs_args);
-        m_settings.ro_config.clear();
-        m_config_sections.clear();
-        m_config_path = AbsPathForConfigVal(*this, GetPathArg("-conf", BITCOIN_CONF_FILENAME), /*net_specific=*/false);
-    }
-
-    const auto conf_path{GetConfigFilePath()};
-    std::ifstream stream{conf_path};
-
-    // not ok to have a config file specified that cannot be opened
-    if (IsArgSet("-conf") && !stream.good()) {
-        error = strprintf("specified config file \"%s\" could not be opened.", fs::PathToString(conf_path));
-        return false;
-    }
-    // ok to not have a config file
-    if (stream.good()) {
-        if (!ReadConfigStream(stream, fs::PathToString(conf_path), error, ignore_invalid_keys)) {
-            return false;
-        }
-        // `-includeconf` cannot be included in the command line arguments except
-        // as `-noincludeconf` (which indicates that no included conf file should be used).
-        bool use_conf_file{true};
-        {
-            LOCK(cs_args);
-            if (auto* includes = util::FindKey(m_settings.command_line_options, "includeconf")) {
-                // ParseParameters() fails if a non-negated -includeconf is passed on the command-line
-                assert(util::SettingsSpan(*includes).last_negated());
-                use_conf_file = false;
-            }
-        }
-        if (use_conf_file) {
-            std::string chain_id = GetChainName();
-            std::vector<std::string> conf_file_names;
-
-            auto add_includes = [&](const std::string& network, size_t skip = 0) {
-                size_t num_values = 0;
-                LOCK(cs_args);
-                if (auto* section = util::FindKey(m_settings.ro_config, network)) {
-                    if (auto* values = util::FindKey(*section, "includeconf")) {
-                        for (size_t i = std::max(skip, util::SettingsSpan(*values).negated()); i < values->size(); ++i) {
-                            conf_file_names.push_back((*values)[i].get_str());
-                        }
-                        num_values = values->size();
-                    }
-                }
-                return num_values;
-            };
-
-            // We haven't set m_network yet (that happens in SelectParams()), so manually check
-            // for network.includeconf args.
-            const size_t chain_includes = add_includes(chain_id);
-            const size_t default_includes = add_includes({});
-
-            for (const std::string& conf_file_name : conf_file_names) {
-                std::ifstream conf_file_stream{AbsPathForConfigVal(*this, fs::PathFromString(conf_file_name), /*net_specific=*/false)};
-                if (conf_file_stream.good()) {
-                    if (!ReadConfigStream(conf_file_stream, conf_file_name, error, ignore_invalid_keys)) {
-                        return false;
-                    }
-                    LogPrintf("Included configuration file %s\n", conf_file_name);
-                } else {
-                    error = "Failed to include configuration file " + conf_file_name;
-                    return false;
-                }
-            }
-
-            // Warn about recursive -includeconf
-            conf_file_names.clear();
-            add_includes(chain_id, /* skip= */ chain_includes);
-            add_includes({}, /* skip= */ default_includes);
-            std::string chain_id_final = GetChainName();
-            if (chain_id_final != chain_id) {
-                // Also warn about recursive includeconf for the chain that was specified in one of the includeconfs
-                add_includes(chain_id_final);
-            }
-            for (const std::string& conf_file_name : conf_file_names) {
-                tfm::format(std::cerr, "warning: -includeconf cannot be used from included files; ignoring -includeconf=%s\n", conf_file_name);
-            }
-        }
-    }
-
-    // If datadir is changed in .conf file:
-    ClearPathCache();
-    if (!CheckDataDirOption(*this)) {
-        error = strprintf("specified data directory \"%s\" does not exist.", GetArg("-datadir", ""));
-        return false;
-    }
-    return true;
+    std::variant<ChainType, std::string> arg = GetChainArg();
+    if (auto* parsed = std::get_if<ChainType>(&arg)) return *parsed;
+    throw std::runtime_error(strprintf("Unknown chain %s.", std::get<std::string>(arg)));
 }
 
-std::string ArgsManager::GetChainName() const
+std::string ArgsManager::GetChainTypeString() const
+{
+    auto arg = GetChainArg();
+    if (auto* parsed = std::get_if<ChainType>(&arg)) return ChainTypeToString(*parsed);
+    return std::get<std::string>(arg);
+}
+
+std::variant<ChainType, std::string> ArgsManager::GetChainArg() const
 {
     auto get_net = [&](const std::string& arg, bool interpret_bool = true) {
         LOCK(cs_args);
-        util::SettingsValue value = util::GetSetting(m_settings, /* section= */ "", SettingName(arg),
+        common::SettingsValue value = common::GetSetting(m_settings, /* section= */ "", SettingName(arg),
             /* ignore_default_section_config= */ false,
             /*ignore_nonpersistent=*/false,
-            /* get_chain_name= */ true);
+            /* get_chain_type= */ true);
         return value.isNull() ? false : value.isBool() ? value.get_bool() : (!interpret_bool || InterpretBool(value.get_str()));
     };
 
     const bool fRegTest = get_net("-regtest");
     const bool fDevNet = get_net("-devnet", false);
     const bool fTestNet = get_net("-testnet");
-    const bool is_chain_arg_set = IsArgSet("-chain");
+    const auto chain_arg = GetArg("-chain");
 
-    int nameParamsCount = (fRegTest ? 1 : 0) + (fDevNet ? 1 : 0) + (fTestNet ? 1 : 0) + (is_chain_arg_set ? 1 : 0);
-    if (nameParamsCount > 1)
+    if ((int)chain_arg.has_value() + (int)fRegTest + (int)fDevNet + (int)fTestNet > 1) {
         throw std::runtime_error("Only one of -regtest, -testnet, -devnet or -chain can be used.");
-
-    if (fRegTest)
-        return CBaseChainParams::REGTEST;
-    if (fDevNet) {
-        return CBaseChainParams::DEVNET;
     }
-    if (fTestNet)
-        return CBaseChainParams::TESTNET;
-
-    return GetArg("-chain", CBaseChainParams::MAIN);
+    if (chain_arg) {
+        if (auto parsed = ChainTypeFromString(*chain_arg)) return *parsed;
+        // Not a known string, so return original string
+        return *chain_arg;
+    }
+    if (fRegTest) return ChainType::REGTEST;
+    if (fDevNet) return ChainType::DEVNET;
+    if (fTestNet) return ChainType::TESTNET;
+    return ChainType::MAIN;
 }
 
 std::string ArgsManager::GetDevNetName() const
@@ -1042,7 +826,7 @@ std::string ArgsManager::GetDevNetName() const
 void ArgsManager::logArgsPrefix(
     const std::string& prefix,
     const std::string& section,
-    const std::map<std::string, std::vector<util::SettingsValue>>& args) const
+    const std::map<std::string, std::vector<common::SettingsValue>>& args) const
 {
     std::string section_str = section.empty() ? "" : "[" + section + "] ";
     for (const auto& arg : args) {
@@ -1070,159 +854,24 @@ void ArgsManager::LogArgs() const
 
 bool ArgsManager::UseDefaultSection(const std::string& arg) const
 {
-    return m_network == CBaseChainParams::MAIN || m_network_only_args.count(arg) == 0;
+    return m_network == ChainTypeToString(ChainType::MAIN) || m_network_only_args.count(arg) == 0;
 }
 
-util::SettingsValue ArgsManager::GetSetting(const std::string& arg) const
+common::SettingsValue ArgsManager::GetSetting(const std::string& arg) const
 {
     LOCK(cs_args);
-    return util::GetSetting(
+    return common::GetSetting(
         m_settings, m_network, SettingName(arg), !UseDefaultSection(arg),
-        /*ignore_nonpersistent=*/false, /*get_chain_name=*/false);
+        /*ignore_nonpersistent=*/false, /*get_chain_type=*/false);
 }
 
-std::vector<util::SettingsValue> ArgsManager::GetSettingsList(const std::string& arg) const
+std::vector<common::SettingsValue> ArgsManager::GetSettingsList(const std::string& arg) const
 {
     LOCK(cs_args);
-    return util::GetSettingsList(m_settings, m_network, SettingName(arg), !UseDefaultSection(arg));
+    return common::GetSettingsList(m_settings, m_network, SettingName(arg), !UseDefaultSection(arg));
 }
 
-#ifndef WIN32
-std::string ShellEscape(const std::string& arg)
-{
-    std::string escaped = arg;
-    ReplaceAll(escaped, "'", "'\"'\"'");
-    return "'" + escaped + "'";
-}
-#endif
-
-#if HAVE_SYSTEM
-void runCommand(const std::string& strCommand)
-{
-    if (strCommand.empty()) return;
-#ifndef WIN32
-    int nErr = ::system(strCommand.c_str());
-#else
-    int nErr = ::_wsystem(std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>,wchar_t>().from_bytes(strCommand).c_str());
-#endif
-    if (nErr)
-        LogPrintf("runCommand error: system(%s) returned %d\n", strCommand, nErr);
-}
-#endif
-
-void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName)
-{
-    auto cond = std::make_shared<std::condition_variable>();
-    auto mutex = std::make_shared<std::mutex>();
-    std::atomic<int> doneCnt(0);
-    std::map<int, std::future<void> > futures;
-
-    for (int i = 0; i < tp.size(); i++) {
-        futures[i] = tp.push([baseName, i, cond, mutex, &doneCnt](int threadId) {
-            util::ThreadRename(strprintf("%s-%d", baseName, i));
-            std::unique_lock<std::mutex> l(*mutex);
-            doneCnt++;
-            cond->wait(l);
-        });
-    }
-
-    do {
-        // Always sleep to let all threads acquire locks
-        UninterruptibleSleep(std::chrono::milliseconds{10});
-        // `doneCnt` should be at least `futures.size()` if tp size was increased (for whatever reason),
-        // or at least `tp.size()` if tp size was decreased and queue was cleared
-        // (which can happen on `stop()` if we were not fast enough to get all jobs to their threads).
-    } while (uint64_t(doneCnt) < futures.size() && doneCnt < tp.size());
-
-    cond->notify_all();
-
-    // Make sure no one is left behind, just in case
-    for (auto& pair : futures) {
-        auto& f = pair.second;
-        if (f.valid() && f.wait_for(std::chrono::milliseconds(2000)) == std::future_status::timeout) {
-            LogPrintf("%s: %s-%d timed out\n", __func__, baseName, pair.first);
-            // Notify everyone again
-            cond->notify_all();
-            break;
-        }
-    }
-}
-
-void SetupEnvironment()
-{
-#ifdef HAVE_MALLOPT_ARENA_MAX
-    // glibc-specific: On 32-bit systems set the number of arenas to 1.
-    // By default, since glibc 2.10, the C library will create up to two heap
-    // arenas per core. This is known to cause excessive virtual address space
-    // usage in our usage. Work around it by setting the maximum number of
-    // arenas to 1.
-    if (sizeof(void*) == 4) {
-        mallopt(M_ARENA_MAX, 1);
-    }
-#endif
-    // On most POSIX systems (e.g. Linux, but not BSD) the environment's locale
-    // may be invalid, in which case the "C.UTF-8" locale is used as fallback.
-#if !defined(WIN32) && !defined(MAC_OSX) && !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
-    try {
-        std::locale(""); // Raises a runtime error if current locale is invalid
-    } catch (const std::runtime_error&) {
-        setenv("LC_ALL", "C.UTF-8", 1);
-    }
-#elif defined(WIN32)
-    // Set the default input/output charset is utf-8
-    SetConsoleCP(CP_UTF8);
-    SetConsoleOutputCP(CP_UTF8);
-#endif
-
-#ifndef WIN32
-    constexpr mode_t private_umask = 0077;
-    umask(private_umask);
-#endif
-}
-
-bool SetupNetworking()
-{
-#ifdef WIN32
-    // Initialize Windows Sockets
-    WSADATA wsadata;
-    int ret = WSAStartup(MAKEWORD(2,2), &wsadata);
-    if (ret != NO_ERROR || LOBYTE(wsadata.wVersion ) != 2 || HIBYTE(wsadata.wVersion) != 2)
-        return false;
-#endif
-    return true;
-}
-
-int GetNumCores()
-{
-    return std::thread::hardware_concurrency();
-}
-
-// Obtain the application startup time (used for uptime calculation)
-int64_t GetStartupTime()
-{
-    return nStartupTime;
-}
-
-fs::path AbsPathForConfigVal(const ArgsManager& args, const fs::path& path, bool net_specific)
-{
-    if (path.is_absolute()) {
-        return path;
-    }
-    return fsbridge::AbsPathJoin(net_specific ? args.GetDataDirNet() : args.GetDataDirBase(), path);
-}
-
-void ScheduleBatchPriority()
-{
-#ifdef SCHED_BATCH
-    const static sched_param param{};
-    const int rc = pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
-    if (rc != 0) {
-        LogPrintf("Failed to pthread_setschedparam: %s\n", SysErrorString(rc));
-    }
-#endif
-}
-
-namespace util {
+namespace common {
 #ifdef WIN32
 WinCmdLineArgs::WinCmdLineArgs()
 {
@@ -1247,4 +896,4 @@ std::pair<int, char**> WinCmdLineArgs::get()
     return std::make_pair(argc, argv);
 }
 #endif
-} // namespace util
+} // namespace common

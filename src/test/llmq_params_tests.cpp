@@ -2,14 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <common/args.h>
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
 #include <chainparams.h>
 #include <chainparamsbase.h>
+#include <common/system.h>
 #include <consensus/params.h>
 #include <llmq/params.h>
-#include <util/system.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -184,7 +185,7 @@ BOOST_AUTO_TEST_CASE(llmq_params_calculations_overflow_test)
 }
 
 //! Build chain params for `chain` with a single LLMQ size/threshold override applied.
-static std::unique_ptr<const CChainParams> ChainParamsWithLLMQOverride(const std::string& chain,
+static std::unique_ptr<const CChainParams> ChainParamsWithLLMQOverride(const ChainType chain,
                                                                        const std::string& arg,
                                                                        int size, int threshold)
 {
@@ -216,26 +217,26 @@ BOOST_AUTO_TEST_CASE(llmq_params_size_override_bounds_test)
 
     for (const auto& [arg, type] : regtest_overrides) {
         // Normal custom values keep working
-        const auto small = ChainParamsWithLLMQOverride(CBaseChainParams::REGTEST, arg, 5, 3);
+        const auto small = ChainParamsWithLLMQOverride(ChainType::REGTEST, arg, 5, 3);
         BOOST_CHECK_EQUAL(LLMQSize(*small, type), 5);
 
         // Exactly the maximum is accepted
-        const auto at_max = ChainParamsWithLLMQOverride(CBaseChainParams::REGTEST, arg, kMax, kMax * 2 / 3);
+        const auto at_max = ChainParamsWithLLMQOverride(ChainType::REGTEST, arg, kMax, kMax * 2 / 3);
         BOOST_CHECK_EQUAL(LLMQSize(*at_max, type), kMax);
 
         // One above the maximum is rejected
-        BOOST_CHECK_THROW(ChainParamsWithLLMQOverride(CBaseChainParams::REGTEST, arg, kMax + 1, kMax * 2 / 3),
+        BOOST_CHECK_THROW(ChainParamsWithLLMQOverride(ChainType::REGTEST, arg, kMax + 1, kMax * 2 / 3),
                           std::runtime_error);
     }
 
     // Same bounds for the devnet override
-    const auto devnet_small = ChainParamsWithLLMQOverride(CBaseChainParams::DEVNET, "-llmqdevnetparams", 12, 6);
+    const auto devnet_small = ChainParamsWithLLMQOverride(ChainType::DEVNET, "-llmqdevnetparams", 12, 6);
     BOOST_CHECK_EQUAL(LLMQSize(*devnet_small, LLMQType::LLMQ_DEVNET), 12);
 
-    const auto devnet_at_max = ChainParamsWithLLMQOverride(CBaseChainParams::DEVNET, "-llmqdevnetparams", kMax, kMax / 2);
+    const auto devnet_at_max = ChainParamsWithLLMQOverride(ChainType::DEVNET, "-llmqdevnetparams", kMax, kMax / 2);
     BOOST_CHECK_EQUAL(LLMQSize(*devnet_at_max, LLMQType::LLMQ_DEVNET), kMax);
 
-    BOOST_CHECK_THROW(ChainParamsWithLLMQOverride(CBaseChainParams::DEVNET, "-llmqdevnetparams", kMax + 1, kMax / 2),
+    BOOST_CHECK_THROW(ChainParamsWithLLMQOverride(ChainType::DEVNET, "-llmqdevnetparams", kMax + 1, kMax / 2),
                       std::runtime_error);
 }
 

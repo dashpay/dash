@@ -18,7 +18,9 @@
 #include <qt/walletmodel.h>
 
 #include <coinjoin/options.h>
+#include <common/args.h>
 #include <interfaces/coinjoin.h>
+#include <logging.h>
 
 #include <algorithm>
 #include <limits>

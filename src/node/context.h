@@ -67,6 +67,8 @@ struct ObserverContext;
 } // namespace llmq
 
 namespace node {
+class KernelNotifications;
+
 //! NodeContext struct containing references to chain state and connection
 //! state.
 //!
@@ -101,6 +103,7 @@ struct NodeContext {
     std::unique_ptr<CScheduler> scheduler;
     std::function<void()> rpc_interruption_point = [] {};
     std::atomic<int> exit_status{EXIT_SUCCESS};
+    std::unique_ptr<KernelNotifications> notifications;
     //! Dash managers
     std::unique_ptr<CJWalletManager> cj_walletman;
     std::unique_ptr<CDSTXManager> dstxman;

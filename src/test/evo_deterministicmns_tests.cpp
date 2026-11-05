@@ -2384,7 +2384,7 @@ void FuncVerifyDB(TestChainSetup& setup)
 
     // Verify db consistency
     LOCK(cs_main);
-    BOOST_REQUIRE(CVerifyDB().VerifyDB(chainman.ActiveChainstate(), Params().GetConsensus(),
+    BOOST_REQUIRE(CVerifyDB(chainman.GetNotifications()).VerifyDB(chainman.ActiveChainstate(), Params().GetConsensus(),
                                        chainman.ActiveChainstate().CoinsTip(), *(setup.m_node.evodb), 4, 2) == VerifyDBResult::SUCCESS);
 }
 
@@ -2509,7 +2509,7 @@ BOOST_AUTO_TEST_CASE(deterministic_mn_list_diff_serialization_is_canonical)
 
 struct TestChainDIP3BeforeActivationSetup : public TestChainSetup {
     TestChainDIP3BeforeActivationSetup() :
-        TestChainSetup(DIP3_ACTIVATION_HEIGHT - 2, CBaseChainParams::REGTEST, {"-dip3params=109:500"},
+        TestChainSetup(DIP3_ACTIVATION_HEIGHT - 2, ChainType::REGTEST, {"-dip3params=109:500"},
                        /*coins_db_in_memory=*/true, /*block_tree_db_in_memory=*/true)
     {
     }
@@ -2525,7 +2525,7 @@ struct TestChainDIP3Setup : public TestChainDIP3BeforeActivationSetup {
 
 struct TestMNChainSetup : public TestChainSetup {
     TestMNChainSetup(int num_blocks, const std::vector<const char*>& extra_args) :
-        TestChainSetup(num_blocks, CBaseChainParams::REGTEST, extra_args,
+        TestChainSetup(num_blocks, ChainType::REGTEST, extra_args,
                        /*coins_db_in_memory=*/true, /*block_tree_db_in_memory=*/true),
         chainman(*Assert(m_node.chainman)),
         dmnman(*Assert(m_node.dmnman)),
@@ -4675,7 +4675,7 @@ BOOST_AUTO_TEST_CASE(evodb_repair_missing_snapshot_is_repair_error)
                                     const CCoinsViewCache&, bool, BlockValidationState&,
                                     CDeterministicMNList&) { return false; };
 
-    auto result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/true);
+    auto result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, dip3_index, second_index, build_list_func, /*repair=*/true);
     BOOST_CHECK(result.verification_errors.empty());
     BOOST_CHECK(result.repair_errors.empty());
     BOOST_CHECK_EQUAL(result.snapshots_verified, 2);
@@ -4691,19 +4691,19 @@ BOOST_AUTO_TEST_CASE(evodb_repair_missing_snapshot_is_repair_error)
     const std::string missing_msg{strprintf("Snapshot missing at height %d", snapshot_period)};
 
     // Snapshot missing as the end of a pair
-    result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/true);
+    result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, dip3_index, second_index, build_list_func, /*repair=*/true);
     BOOST_CHECK(result.verification_errors.empty());
     BOOST_REQUIRE_EQUAL(result.repair_errors.size(), 1U);
     BOOST_CHECK(result.repair_errors[0].find(missing_msg) != std::string::npos);
 
     // Snapshot missing as the start of a pair
-    result = dmnman.RecalculateAndRepairDiffs(first_index, second_index, build_list_func, /*repair=*/true);
+    result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, first_index, second_index, build_list_func, /*repair=*/true);
     BOOST_CHECK(result.verification_errors.empty());
     BOOST_REQUIRE_EQUAL(result.repair_errors.size(), 1U);
     BOOST_CHECK(result.repair_errors[0].find(missing_msg) != std::string::npos);
 
     // Verify-only mode has no repair errors to report
-    result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/false);
+    result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, dip3_index, second_index, build_list_func, /*repair=*/false);
     BOOST_CHECK(result.repair_errors.empty());
     BOOST_REQUIRE_EQUAL(result.verification_errors.size(), 1U);
     BOOST_CHECK(result.verification_errors[0].find(missing_msg) != std::string::npos);

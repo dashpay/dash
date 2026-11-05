@@ -2,14 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <index/govcollateralindex.h>
-
 #include <chain.h>
 #include <chainparams.h>
+#include <common/args.h>
+#include <index/govcollateralindex.h>
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <primitives/block.h>
-#include <util/system.h>
 #include <validation.h>
 
 #include <cassert>
@@ -109,7 +108,7 @@ bool GovCollateralIndex::CustomRewind(const interfaces::BlockKey& current_tip, c
     for (const CBlockIndex* pindex{WITH_LOCK(::cs_main, return m_chainstate->m_blockman.LookupBlockIndex(current_tip.hash))};
          pindex != new_tip_index; pindex = pindex->pprev) {
         CBlock block;
-        if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, *pindex)) {
             LogError("%s: Failed to read block %s from disk\n", __func__, pindex->GetBlockHash().ToString());
             return false;
         }

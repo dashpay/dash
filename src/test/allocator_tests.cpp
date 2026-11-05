@@ -5,6 +5,7 @@
 #include <support/allocators/mt_pooled_secure.h>
 #include <support/lockedpool.h>
 
+#include <common/system.h>
 #include <limits>
 #include <memory>
 #include <stdexcept>

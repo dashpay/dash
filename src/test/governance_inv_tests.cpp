@@ -48,7 +48,7 @@ struct EmptyCollateralSource final : public governance::CollateralSource {
 struct GovernanceInvSetup : public TestingSetup {
     EmptyCollateralSource m_collateral;
 
-    GovernanceInvSetup() : TestingSetup{CBaseChainParams::MAIN}
+    GovernanceInvSetup() : TestingSetup{ChainType::MAIN}
     {
         // ConfirmInventoryRequest and the NetGovernance object/vote handlers
         // short-circuit on !IsBlockchainSynced().

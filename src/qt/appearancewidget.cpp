@@ -12,7 +12,7 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 
-#include <util/system.h>
+#include <common/system.h>
 
 #include <QComboBox>
 #include <QDataWidgetMapper>

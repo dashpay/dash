@@ -12,10 +12,10 @@
 #include <qt/transactionrecord.h>
 #include <qt/walletmodel.h>
 
+#include <common/system.h>
 #include <core_io.h>
 #include <interfaces/handler.h>
 #include <uint256.h>
-#include <util/system.h>
 
 #include <algorithm>
 #include <functional>

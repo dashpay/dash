@@ -2,10 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
+#include <common/args.h>
 #include <test/util/setup_common.h>
 #include <test/util/txmempool.h>
 
@@ -14,11 +11,11 @@
 #include <coinjoin/walletman.h>
 #include <coinjoin/options.h>
 #include <coinjoin/util.h>
+#include <common/system.h>
 #include <consensus/amount.h>
 #include <interfaces/coinjoin.h>
 #include <masternode/sync.h>
 #include <node/context.h>
-#include <util/system.h>
 #include <util/translation.h>
 #include <util/time.h>
 #include <validation.h>

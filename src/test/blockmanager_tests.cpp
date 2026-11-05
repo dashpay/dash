@@ -6,6 +6,7 @@
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <streams.h>
+#include <util/chaintype.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>
@@ -14,16 +15,16 @@
 using node::BlockManager;
 using node::BLOCK_SERIALIZATION_HEADER_SIZE;
 using node::MAX_BLOCKFILE_SIZE;
-using node::OpenBlockFile;
 
 // use BasicTestingSetup here for the data directory configuration, setup, and cleanup
 BOOST_FIXTURE_TEST_SUITE(blockmanager_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
 {
-    const auto params {CreateChainParams(ArgsManager{}, CBaseChainParams::MAIN)};
-    node::BlockManager::Options blockman_opts{
+    const auto params {CreateChainParams(ArgsManager{}, ChainType::MAIN)};
+    const BlockManager::Options blockman_opts{
         .chainparams = *params,
+        .blocks_dir = m_args.GetBlocksDirPath(),
     };
     BlockManager blockman{blockman_opts};
     // simulate adding a genesis block normally
@@ -66,13 +67,13 @@ BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain
     // Check that the file is not unlinked after ScanAndUnlinkAlreadyPrunedFiles
     // if m_have_pruned is not yet set
     WITH_LOCK(chainman.GetMutex(), blockman.ScanAndUnlinkAlreadyPrunedFiles());
-    BOOST_CHECK(!CAutoFile(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull());
+    BOOST_CHECK(!CAutoFile(blockman.OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull());
 
     // Check that the file is unlinked after ScanAndUnlinkAlreadyPrunedFiles
     // once m_have_pruned is set
     blockman.m_have_pruned = true;
     WITH_LOCK(chainman.GetMutex(), blockman.ScanAndUnlinkAlreadyPrunedFiles());
-    BOOST_CHECK(CAutoFile(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull());
+    BOOST_CHECK(CAutoFile(blockman.OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull());
 
     // Check that calling with already pruned files doesn't cause an error
     WITH_LOCK(chainman.GetMutex(), blockman.ScanAndUnlinkAlreadyPrunedFiles());
@@ -82,7 +83,7 @@ BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain
     BOOST_CHECK_NE(old_tip, new_tip);
     const int new_file_number{WITH_LOCK(chainman.GetMutex(), return new_tip->GetBlockPos().nFile)};
     const FlatFilePos new_pos(new_file_number, 0);
-    BOOST_CHECK(!CAutoFile(OpenBlockFile(new_pos, true), SER_DISK, CLIENT_VERSION).IsNull());
+    BOOST_CHECK(!CAutoFile(blockman.OpenBlockFile(new_pos, true), SER_DISK, CLIENT_VERSION).IsNull());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
