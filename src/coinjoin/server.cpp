@@ -1436,10 +1436,20 @@ void CCoinJoinServer::GetJsonInfo(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
-    obj.pushKV("queue_size",    m_queueman.GetQueueSize());
-    obj.pushKV("denomination",  ValueFromAmount(CoinJoin::DenominationToAmount(nSessionDenom)));
-    obj.pushKV("state",         GetStateString());
-    obj.pushKV("entries_count", GetEntriesCount());
+    std::string state;
+    int entries_count;
+    size_t collaterals_count;
+    {
+        LOCK(cs_coinjoin);
+        state = GetStateString();
+        entries_count = GetEntriesCountLocked();
+        collaterals_count = m_session_collaterals.size();
+    }
+    obj.pushKV("queue_size", m_queueman.GetQueueSize());
+    obj.pushKV("denomination", ValueFromAmount(CoinJoin::DenominationToAmount(nSessionDenom)));
+    obj.pushKV("state", state);
+    obj.pushKV("entries_count", entries_count);
+    obj.pushKV("collaterals_count", collaterals_count);
 }
 
 bool CCoinJoinServer::AlreadyHave(const CInv& inv)
