@@ -52,6 +52,7 @@ fi
 # The git worktree should not be dirty
 ################
 
+git update-index -q --refresh
 if ! git diff-index --quiet HEAD -- && [ -z "$FORCE_DIRTY_WORKTREE" ]; then
 cat << EOF
 ERR: The current git worktree is dirty, which may lead to broken builds.
