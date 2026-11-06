@@ -11,7 +11,6 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/dkgsessionmgr.h>
-#include <llmq/options.h>
 #include <llmq/params.h>
 #include <llmq/signhash.h>
 #include <llmq/utils.h>
@@ -77,7 +76,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     }
     assert(qc.quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+    const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
     auto members = utils::GetAllQuorumMembers(qc.llmqType, {m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex});
 
@@ -199,7 +198,7 @@ std::vector<T> CQuorumManager::ScanMined(Consensus::LLMQType llmqType, gsl::not_
     }
 
     gsl::not_null<const CBlockIndex*> pindexStore{pindexStart};
-    const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
+    const auto& llmq_params_opt = m_chainman.GetParams().GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
 
     // Quorum sets can only change during the mining phase of DKG.
@@ -233,7 +232,7 @@ std::vector<T> CQuorumManager::ScanMined(Consensus::LLMQType llmqType, gsl::not_
             // And we only do this for max_cycles() of the most recent quorums
             // because signing by old quorums requires the exact quorum hash to be specified
             // and quorum scanning isn't needed there.
-            cache.Init(Params().GetConsensus(), [](const Consensus::LLMQParams& llmq) {
+            cache.Init(m_chainman.GetConsensus(), [](const Consensus::LLMQParams& llmq) {
                 return llmq.max_cycles(llmq.keepOldConnections) * (llmq.dkgMiningWindowEnd - llmq.dkgMiningWindowStart);
             });
         }

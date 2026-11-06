@@ -21,6 +21,8 @@ void ApplyArgsManOptions(const ArgsManager& argsman, PeerManager::Options& optio
     }
 
     if (auto value{argsman.GetBoolArg("-capturemessages")}) options.capture_messages = *value;
+
+    if (auto value{argsman.GetIntArg("-maxtimeadjustment")}) options.max_time_adjustment = *value;
 }
 
 } // namespace node

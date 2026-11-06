@@ -7,7 +7,6 @@
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
-#include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 #include <util/std23.h>

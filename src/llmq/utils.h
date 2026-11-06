@@ -16,6 +16,7 @@
 
 #include <gsl/pointers.h>
 
+#include <functional>
 #include <optional>
 #include <unordered_set>
 #include <vector>
@@ -41,6 +42,16 @@ public:
         return {m_dmnman, m_qsnapman, m_chainman, base_index};
     }
 };
+
+bool IsAllMembersConnectedEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman);
+bool IsQuorumDKGEnabled(const CSporkManager& sporkman);
+bool IsQuorumPoseEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman);
+bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pindex);
+
+std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const ChainstateManager& chainman,
+                                                       gsl::not_null<const CBlockIndex*> pindex);
+std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(
+    const ChainstateManager& chainman, gsl::not_null<const CBlockIndex*> pindex);
 
 namespace utils {
 struct BlsCheck {

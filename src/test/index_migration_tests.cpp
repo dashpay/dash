@@ -57,7 +57,8 @@ BOOST_FIXTURE_TEST_CASE(empty_index_is_not_adopted_as_migrated, IndexMigrationSe
     CBlockTreeDB& block_tree_db{*WITH_LOCK(cs_main, return m_node.chainman->m_blockman.m_block_tree_db.get())};
     BOOST_REQUIRE(block_tree_db.WriteFlag("timestampindex", true));
 
-    BOOST_REQUIRE(WITH_LOCK(cs_main, return block_tree_db.MigrateOldIndexData()));
+    BOOST_REQUIRE(
+        WITH_LOCK(cs_main, return block_tree_db.MigrateOldIndexData(gArgs.GetDataDirNet(), {.timestamp_index = true})));
 
     BOOST_CHECK_EQUAL(LoadedTimestampIndexHeight(), 0);
     // The legacy entries are gone, so older versions must not trust their synchronous index either.

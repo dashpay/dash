@@ -7,7 +7,6 @@
 #include <txdb.h>
 
 #include <chain.h>
-#include <common/args.h>
 #include <index/addressindex_types.h>
 #include <index/spentindex_types.h>
 #include <index/timestampindex_types.h>
@@ -488,18 +487,17 @@ static bool TargetNeedsLocator(CDBWrapper& target_db)
     return !target_db.IsEmpty();
 }
 
-bool CBlockTreeDB::MigrateOldIndexData()
+bool CBlockTreeDB::MigrateOldIndexData(const fs::path& data_dir, const IndexMigrationOptions& options)
 {
     // Migrate old synchronous index data that was stored in the block index database
     // to new async indexes in separate databases under indexes/{timestampindex,spentindex,addressindex}/
     // This preserves existing index data so users don't need to rebuild.
     // Indexes are migrated independently since they can be enabled individually.
 
-    // Only migrate indexes that are actually enabled via command-line flags
-    // NOTE: not using DEFAULT_* constants here to avoid circular dependencies
-    const bool fTimestampIndex = gArgs.GetBoolArg("-timestampindex", false);
-    const bool fSpentIndex = gArgs.GetBoolArg("-spentindex", false);
-    const bool fAddressIndex = gArgs.GetBoolArg("-addressindex", false);
+    // Only migrate indexes that are actually enabled
+    const bool fTimestampIndex = options.timestamp_index;
+    const bool fSpentIndex = options.spent_index;
+    const bool fAddressIndex = options.address_index;
 
     // The flags read below say whether the legacy rows still cover the chain tip. Nothing
     // maintains those rows any more, so a disabled index falls behind from this run on:
@@ -532,15 +530,15 @@ bool CBlockTreeDB::MigrateOldIndexData()
     const bool spentindex_was_current     = ReadFlag("spentindex",     legacy_flag) && legacy_flag;
     const bool timestampindex_was_current = ReadFlag("timestampindex", legacy_flag) && legacy_flag;
 
-    size_t batch_size = (size_t)gArgs.GetIntArg("-dbbatchsize", nDefaultDbBatchSize);
+    const size_t batch_size = options.batch_size;
     size_t total_count = 0;
-    const fs::path indexes_path = gArgs.GetDataDirNet() / "indexes";
+    const fs::path indexes_path = data_dir / "indexes";
 
     // Read the best block hash from coins database to set as best block for migrated indexes
     // Old synchronous indexes were updated during ConnectBlock, so they're synced to the active chain tip
     uint256 best_block_hash;
     {
-        fs::path chainstate_path = gArgs.GetDataDirNet() / "chainstate";
+        fs::path chainstate_path = data_dir / "chainstate";
         CDBWrapper coins_db{DBParams{.path = chainstate_path, .cache_bytes = 0}};
         if (!coins_db.Read(DB_BEST_BLOCK, best_block_hash)) {
             // If we can't read the best block, the indexes will resync from scratch

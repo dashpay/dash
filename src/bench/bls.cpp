@@ -5,7 +5,7 @@
 #include <bench/bench.h>
 
 #include <bls/bls_worker.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 
 #include <random.h>
 #include <util/time.h>

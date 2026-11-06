@@ -37,8 +37,8 @@ void SporkStore::Clear()
     // we should not alter them here.
 }
 
-CSporkManager::CSporkManager() :
-    m_db{std::make_unique<db_type>("sporks.dat", "magicSporkCache")}
+CSporkManager::CSporkManager(const fs::path& data_dir) :
+    m_db{std::make_unique<db_type>(data_dir, "sporks.dat", "magicSporkCache")}
 {
 }
 

@@ -36,11 +36,6 @@ std::string ShellEscape(const std::string& arg);
 void runCommand(const std::string& strCommand);
 #endif
 
-namespace ctpl {
-    class thread_pool;
-}
-void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName);
-
 /**
  * Return the number of cores available on the current system.
  * @note This does count virtual cores, such as those provided by HyperThreading.

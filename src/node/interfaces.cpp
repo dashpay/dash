@@ -36,9 +36,9 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
-#include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
+#include <llmq/utils.h>
 #include <logging.h>
 #include <mapport.h>
 #include <masternode/sync.h>

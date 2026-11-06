@@ -7,7 +7,6 @@
 
 #include <clientversion.h>
 #include <chainparams.h>
-#include <common/args.h>
 #include <common/system.h>
 #include <hash.h>
 #include <logging.h>
@@ -178,8 +177,8 @@ private:
     }
 
 public:
-    CFlatDB(std::string&& strFilenameIn, std::string&& strMagicMessageIn) :
-        pathDB{gArgs.GetDataDirNet() / fs::u8path(strFilenameIn)},
+    CFlatDB(const fs::path& data_dir, std::string&& strFilenameIn, std::string&& strMagicMessageIn) :
+        pathDB{data_dir / fs::u8path(strFilenameIn)},
         strFilename{strFilenameIn},
         strMagicMessage{strMagicMessageIn}
     {

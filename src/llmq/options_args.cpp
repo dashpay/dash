@@ -1,0 +1,66 @@
+// Copyright (c) 2014-2025 The Dash Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include <llmq/options_args.h>
+
+#include <chainparams.h>
+#include <common/args.h>
+#include <consensus/params.h>
+#include <tinyformat.h>
+#include <util/helpers.h>
+#include <util/strencodings.h>
+
+#include <sstream>
+#include <stdexcept>
+#include <string>
+
+namespace llmq {
+QvvecSyncModeMap GetEnabledQuorumVvecSyncEntries(const ArgsManager& args)
+{
+    QvvecSyncModeMap mapQuorumVvecSyncEntries;
+    for (const auto& strEntry : args.GetArgs("-llmq-qvvec-sync")) {
+        Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
+        QvvecSyncMode mode{QvvecSyncMode::Invalid};
+        std::istringstream ssEntry(strEntry);
+        std::string strLLMQType, strMode, strTest;
+        const bool fLLMQTypePresent = std::getline(ssEntry, strLLMQType, ':') && strLLMQType != "";
+        const bool fModePresent = std::getline(ssEntry, strMode, ':') && strMode != "";
+        const bool fTooManyEntries = static_cast<bool>(std::getline(ssEntry, strTest, ':'));
+        if (!fLLMQTypePresent || !fModePresent || fTooManyEntries) {
+            throw std::invalid_argument(strprintf("Invalid format in -llmq-qvvec-sync: %s", strEntry));
+        }
+
+        if (auto optLLMQParams = util::find_if_opt(Params().GetConsensus().llmqs, [&strLLMQType](const auto& params) {
+                return params.name == strLLMQType;
+            })) {
+            llmqType = optLLMQParams->type;
+        } else {
+            throw std::invalid_argument(strprintf("Invalid llmqType in -llmq-qvvec-sync: %s", strEntry));
+        }
+        if (mapQuorumVvecSyncEntries.count(llmqType) > 0) {
+            throw std::invalid_argument(strprintf("Duplicated llmqType in -llmq-qvvec-sync: %s", strEntry));
+        }
+
+        int32_t nMode;
+        if (ParseInt32(strMode, &nMode)) {
+            switch (nMode) {
+            case static_cast<int32_t>(QvvecSyncMode::Always):
+                mode = QvvecSyncMode::Always;
+                break;
+            case static_cast<int32_t>(QvvecSyncMode::OnlyIfTypeMember):
+                mode = QvvecSyncMode::OnlyIfTypeMember;
+                break;
+            default:
+                mode = QvvecSyncMode::Invalid;
+                break;
+            }
+        }
+        if (mode == QvvecSyncMode::Invalid) {
+            throw std::invalid_argument(strprintf("Invalid mode in -llmq-qvvec-sync: %s", strEntry));
+        }
+        mapQuorumVvecSyncEntries.emplace(llmqType, mode);
+    }
+    return mapQuorumVvecSyncEntries;
+}
+} // namespace llmq

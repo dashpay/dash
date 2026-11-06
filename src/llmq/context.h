@@ -5,8 +5,7 @@
 #ifndef BITCOIN_LLMQ_CONTEXT_H
 #define BITCOIN_LLMQ_CONTEXT_H
 
-#include <llmq/options.h>
-
+#include <cstdint>
 #include <memory>
 
 class CBLSWorker;

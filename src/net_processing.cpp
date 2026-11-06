@@ -57,7 +57,6 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
-#include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
@@ -4249,7 +4248,7 @@ void PeerManagerImpl::ProcessMessage(
         if (!pfrom.IsInboundConn()) {
             // Don't use timedata samples from inbound peers to make it
             // harder for others to tamper with our adjusted time.
-            AddTimeData(pfrom.addr, nTimeOffset);
+            AddTimeData(pfrom.addr, nTimeOffset, m_opts.max_time_adjustment);
         }
 
         // Feeler connections exist only to verify if address is online.

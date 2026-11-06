@@ -8,7 +8,7 @@
 #include <random.h>
 
 #include <logging.h>
-#include <common/system.h>
+#include <util/thread.h>
 
 #include <algorithm>
 #include <map>

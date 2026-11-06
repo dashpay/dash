@@ -15,7 +15,6 @@
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionhandler.h>
 #include <llmq/observer.h>
-#include <llmq/options.h>
 #include <llmq/quorumproofs.h>
 #include <evo/simplifiedmns.h>
 #include <clientversion.h>
