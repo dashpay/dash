@@ -942,7 +942,8 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
             }
         }
     } else {
-        if(trayIconMenu)
+        // Shutdown requested, disable menus
+        if (trayIconMenu)
         {
             // Disable context menu on tray icon
             trayIconMenu->clear();
@@ -964,6 +965,8 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
             dockIconMenu->clear();
         }
 #endif
+        // Disable top bar menu actions
+        appMenuBar->clear();
     }
 
     updateCoinJoinVisibility();
