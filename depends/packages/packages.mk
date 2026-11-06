@@ -1,4 +1,4 @@
-packages:=gmp backtrace
+packages:=gmp backtrace blst
 
 boost_packages = boost
 

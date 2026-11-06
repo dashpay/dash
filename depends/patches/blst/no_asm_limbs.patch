@@ -1,0 +1,7 @@
+--- a/src/vect.h
++++ b/src/vect.h
+@@ -10,3 +10,3 @@
+ 
+-#if defined(__x86_64__) || defined(__aarch64__)
++#if (defined(__x86_64__) || defined(__aarch64__)) && !defined(__BLST_NO_ASM__)
+ /* These are available even in ILP32 flavours, but even then they are
