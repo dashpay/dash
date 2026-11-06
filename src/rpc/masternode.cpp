@@ -74,7 +74,8 @@ static RPCHelpMan masternode_connect()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Error: Adding v2transport connections requires -v2transport init flag to be set.");
     }
 
-    connman.OpenMasternodeConnection(CAddress(addr.value(), NODE_NETWORK), use_v2transport);
+    connman.OpenMasternodeConnection(CAddress(addr.value(), NODE_NETWORK), use_v2transport,
+                                     CConnman::MasternodeProbeConn::IsNotConnection);
     if (!connman.IsConnected(CAddress(addr.value(), NODE_NETWORK), CConnman::AllNodes)) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to masternode %s", strAddress));
     }

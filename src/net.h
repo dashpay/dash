@@ -804,13 +804,17 @@ public:
     std::atomic<SteadyClock::time_point> nDisconnectLingerTime{SteadyClock::time_point{}};
     std::atomic_bool fSocketShutdown{false};
     std::atomic_bool fOtherSideDisconnected { false };
-    // If 'true' this node will be disconnected on CMasternodeMan::ProcessMasternodeConnections()
+    // Outbound: we opened it as a masternode connection. Inbound: the peer set the (unauthenticated)
+    // masternode flag in its VERSION message.
     std::atomic<bool> m_masternode_connection{false};
     /**
-     * If 'true' this node will be disconnected after MNAUTH (outbound only) or
-     * after PROBE_WAIT_INTERVAL seconds since m_connected
+     * Outbound only: a reachability probe. We send no MNAUTH on it and disconnect it once the peer's
+     * MNAUTH arrives; CMasternodeUtils::DoMaintenance may drop it after PROBE_WAIT_INTERVAL since m_connected
      */
     std::atomic<bool> m_masternode_probe_connection{false};
+    // Inbound only: CMNAuth kept another verified connection to the same masternode instead of this one,
+    // so CMasternodeUtils::DoMaintenance may drop it
+    std::atomic<bool> m_masternode_duplicate_inbound{false};
     // If 'true', we identified it as an intra-quorum relay connection
     std::atomic<bool> m_masternode_iqr_connection{false};
     // Whether the peer asked for transaction relay in its VERSION message (fRelay)
@@ -1343,7 +1347,7 @@ public:
                                MasternodeConn masternode_connection = MasternodeConn::IsNotConnection,
                                MasternodeProbeConn masternode_probe_connection = MasternodeProbeConn::IsNotConnection)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
-    void OpenMasternodeConnection(const CAddress& addrConnect, bool use_v2transport, MasternodeProbeConn probe = MasternodeProbeConn::IsConnection)
+    void OpenMasternodeConnection(const CAddress& addrConnect, bool use_v2transport, MasternodeProbeConn probe)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
     bool CheckIncomingNonce(uint64_t nonce) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     void ASMapHealthCheck();
