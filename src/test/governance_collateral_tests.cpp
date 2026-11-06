@@ -98,7 +98,7 @@ struct CollateralSetup : public TestChain100Setup {
         const std::string data{
             R"({"type":1,"name":"proposal","start_epoch":1700000000,"end_epoch":1700100000,"payment_amount":1.0,"payment_address":")" +
             payment_address + R"(","url":"https://dash.org"})"};
-        return CGovernanceObject{uint256{}, /*revision=*/1, /*nTime=*/1700000000, collateral_hash, HexStr(data)};
+        return CGovernanceObject{uint256{}, /*nRevisionIn=*/1, /*nTime=*/1700000000, collateral_hash, HexStr(data)};
     }
 
     bool IsCollateralValid(const CGovernanceObject& govobj, std::string& error) const

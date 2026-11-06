@@ -40,6 +40,7 @@ FUZZ_TARGET(txorphan, .init = initialize_orphanage)
 
     TxOrphanage orphanage;
     std::vector<COutPoint> outpoints;
+    outpoints.reserve(200'000);
     // initial outpoints used to construct transactions later
     for (uint8_t i = 0; i < 4; i++) {
         outpoints.emplace_back(uint256{i}, 0);
@@ -55,6 +56,7 @@ FUZZ_TARGET(txorphan, .init = initialize_orphanage)
             const auto num_in = fuzzed_data_provider.ConsumeIntegralInRange<uint32_t>(1, outpoints.size());
             const auto num_out = fuzzed_data_provider.ConsumeIntegralInRange<uint32_t>(1, outpoints.size());
             // pick unique outpoints from outpoints as input
+            tx_mut.vin.reserve(num_in);
             for (uint32_t i = 0; i < num_in; i++) {
                 auto& prevout = PickValue(fuzzed_data_provider, outpoints);
                 tx_mut.vin.emplace_back(prevout);

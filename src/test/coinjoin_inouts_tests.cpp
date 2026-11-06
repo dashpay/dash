@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
 
     // Right prevout but wrong sequence -> rejected (guards against malleated nSequence).
     {
-        CTxIn badseq_in(op1, scriptSig0, /*nSequence=*/seq1 ^ 0xffU);
+        CTxIn badseq_in(op1, scriptSig0, /*nSequenceIn=*/seq1 ^ 0xffU);
         BOOST_CHECK(!entry.AddScriptSig(badseq_in));
         BOOST_CHECK(!entry.vecTxDSIn[1].fHasSig);
         BOOST_CHECK(entry.vecTxDSIn[1].scriptSig.empty());
@@ -639,6 +639,7 @@ BOOST_AUTO_TEST_CASE(validate_promotion_entry_valid)
     BOOST_CHECK(CoinJoin::IsValidDenomination(nLargerDenom));
 
     // Create 10 inputs of smaller denomination
+    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -661,6 +662,7 @@ BOOST_AUTO_TEST_CASE(validate_promotion_entry_wrong_input_count)
     const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
 
     // Create only 9 inputs
+    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO - 1);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO - 1; ++i) {
         vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -681,6 +683,7 @@ BOOST_AUTO_TEST_CASE(validate_promotion_entry_wrong_output_count)
     const int nLargerDenom = 1 << 1;
     const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
 
+    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -703,6 +706,7 @@ BOOST_AUTO_TEST_CASE(validate_promotion_entry_non_adjacent_denoms)
     const int nLargerDenom = 1 << 1;   // 1.0 DASH (not adjacent to 0.01)
     const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
 
+    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -731,6 +735,7 @@ BOOST_AUTO_TEST_CASE(validate_demotion_entry_valid)
     vecTxIn.push_back(MakeDenomInput(0));
 
     // 10 outputs of smaller denomination
+    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         vecTxOut.push_back(MakeDenomOutput(nSmallerAmount, static_cast<uint8_t>(i)));
     }
@@ -752,6 +757,7 @@ BOOST_AUTO_TEST_CASE(validate_demotion_entry_wrong_input_count)
     vecTxIn.push_back(MakeDenomInput(0));
     vecTxIn.push_back(MakeDenomInput(1));
 
+    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         vecTxOut.push_back(MakeDenomOutput(nSmallerAmount, static_cast<uint8_t>(i)));
     }
@@ -772,6 +778,7 @@ BOOST_AUTO_TEST_CASE(validate_demotion_entry_wrong_output_count)
     vecTxIn.push_back(MakeDenomInput(0));
 
     // Only 9 outputs
+    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO - 1);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO - 1; ++i) {
         vecTxOut.push_back(MakeDenomOutput(nSmallerAmount, static_cast<uint8_t>(i)));
     }
@@ -792,6 +799,7 @@ BOOST_AUTO_TEST_CASE(validate_demotion_entry_largest_denom_has_no_source)
 
     vecTxIn.push_back(MakeDenomInput(0));
 
+    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         vecTxOut.push_back(MakeDenomOutput(nLargestAmount, static_cast<uint8_t>(i)));
     }
@@ -1007,7 +1015,7 @@ BOOST_AUTO_TEST_CASE(output_limit_postfork)
             mtx.vin.push_back(in);
         }
         for (size_t i = 0; i < nOutputs; ++i) {
-            mtx.vout.push_back(CTxOut{nSmallestDenom, P2PKHScript(static_cast<uint8_t>(i % 256))});
+            mtx.vout.emplace_back(nSmallestDenom, P2PKHScript(static_cast<uint8_t>(i % 256)));
         }
         dstx.tx = MakeTransactionRef(mtx);
         dstx.m_protxHash = uint256::ONE;
@@ -1111,7 +1119,7 @@ BOOST_AUTO_TEST_CASE(isvalidstructure_mixed_session_postfork)
             CTxIn in;
             in.prevout = COutPoint(uint256::ONE, static_cast<uint32_t>(i));
             mtx.vin.push_back(in);
-            mtx.vout.push_back(CTxOut{nSmallestDenom, P2PKHScript(static_cast<uint8_t>(i))});
+            mtx.vout.emplace_back(nSmallestDenom, P2PKHScript(static_cast<uint8_t>(i)));
         }
 
         // Promotion participant (10 inputs -> 1 output)
@@ -1121,7 +1129,7 @@ BOOST_AUTO_TEST_CASE(isvalidstructure_mixed_session_postfork)
             mtx.vin.push_back(in);
         }
         // One output for the promotion (larger denom)
-        mtx.vout.push_back(CTxOut{nSecondSmallest, P2PKHScript(0x0D)});
+        mtx.vout.emplace_back(nSecondSmallest, P2PKHScript(0x0D));
 
         mixed.tx = MakeTransactionRef(mtx);
         mixed.m_protxHash = uint256::ONE;
@@ -1191,6 +1199,7 @@ BOOST_AUTO_TEST_CASE(validate_entry_session_denom_consistency)
     // Create a valid promotion entry structure
     std::vector<CTxIn> promoVin;
     std::vector<CTxOut> promoVout;
+    promoVin.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         promoVin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -1209,6 +1218,7 @@ BOOST_AUTO_TEST_CASE(validate_entry_session_denom_consistency)
     std::vector<CTxIn> demoVin;
     std::vector<CTxOut> demoVout;
     demoVin.push_back(MakeDenomInput(0));
+    demoVout.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         demoVout.push_back(MakeDenomOutput(CoinJoin::DenominationToAmount(nSessionDenom), static_cast<uint8_t>(i)));
     }
@@ -1561,6 +1571,7 @@ BOOST_AUTO_TEST_CASE(validate_promotion_entry_edge_cases)
     // Valid case: exactly 10 inputs, 1 output of correct larger denom
     std::vector<CTxIn> validVin;
     std::vector<CTxOut> validVout;
+    validVin.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         validVin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -1571,6 +1582,7 @@ BOOST_AUTO_TEST_CASE(validate_promotion_entry_edge_cases)
 
     // Invalid: 9 inputs (wrong count)
     std::vector<CTxIn> wrongCountVin;
+    wrongCountVin.reserve(9);
     for (int i = 0; i < 9; ++i) {
         wrongCountVin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -1579,6 +1591,7 @@ BOOST_AUTO_TEST_CASE(validate_promotion_entry_edge_cases)
 
     // Invalid: 11 inputs (wrong count)
     std::vector<CTxIn> tooManyVin;
+    tooManyVin.reserve(11);
     for (int i = 0; i < 11; ++i) {
         tooManyVin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
     }
@@ -1614,6 +1627,7 @@ BOOST_AUTO_TEST_CASE(validate_demotion_entry_edge_cases)
     validVin.push_back(MakeDenomInput(0));
 
     std::vector<CTxOut> validVout;
+    validVout.reserve(CoinJoin::PROMOTION_RATIO);
     for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
         validVout.push_back(MakeDenomOutput(nSessionAmount, static_cast<uint8_t>(i)));
     }
@@ -1630,6 +1644,7 @@ BOOST_AUTO_TEST_CASE(validate_demotion_entry_edge_cases)
 
     // Invalid: 9 outputs (wrong count)
     std::vector<CTxOut> nineOutputs;
+    nineOutputs.reserve(9);
     for (int i = 0; i < 9; ++i) {
         nineOutputs.push_back(MakeDenomOutput(nSessionAmount, static_cast<uint8_t>(i)));
     }

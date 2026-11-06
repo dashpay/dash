@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(queue_hashes_and_equality)
 {
     const auto a{MakeQueue(CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination()),
                            GetAdjustedTime(), /*fReady=*/true, COutPoint{uint256S("bb"), 2})};
-    const auto b{a};
+    const auto b{a}; // NOLINT(performance-unnecessary-copy-initialization): the copy is under test
 
     BOOST_CHECK(a == b);
     BOOST_CHECK(a.GetHash() == b.GetHash());

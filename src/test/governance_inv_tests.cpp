@@ -166,7 +166,7 @@ CGovernanceObject MakeGovernanceObject(int64_t creation_time, const uint256& col
 {
     const std::string data{
         R"({"type":1,"name":"proposal","start_epoch":1700000000,"end_epoch":1700100000,"payment_amount":1.0,"payment_address":"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwV","url":"https://dash.org"})"};
-    return CGovernanceObject{uint256{}, /*revision=*/1, creation_time, collateral_hash, HexStr(data)};
+    return CGovernanceObject{uint256{}, /*nRevisionIn=*/1, creation_time, collateral_hash, HexStr(data)};
 }
 
 void ProcessGovernanceObject(NetGovernance& net_gov, CNode& peer, const CGovernanceObject& govobj)
@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(per_object_vote_sync_is_fulfilled_request_limited)
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 0);
 
     const CBloomFilter vote_filter{1, 0.001, 0, BLOOM_UPDATE_NONE};
-    CGovernanceObject postponed_object{uint256(), /*revision=*/1, GetTime(), uint256::ONE, /*data=*/{}};
+    CGovernanceObject postponed_object{uint256(), /*nRevisionIn=*/1, GetTime(), uint256::ONE, /*strDataHexIn=*/{}};
     m_node.govman->AddPostponedObject(postponed_object);
 
     const uint256 postponed_object_hash{postponed_object.GetHash()};
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(per_object_vote_sync_is_fulfilled_request_limited)
 
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 0);
 
-    CGovernanceObject syncable_object{uint256(), /*revision=*/1, GetTime() + 1, uint256S("02"), /*data=*/{}};
+    CGovernanceObject syncable_object{uint256(), /*nRevisionIn=*/1, GetTime() + 1, uint256S("02"), /*strDataHexIn=*/{}};
     m_node.govman->AddGovernanceObjectForTesting(syncable_object);
 
     const uint256 syncable_object_hash{syncable_object.GetHash()};
@@ -275,7 +275,7 @@ BOOST_AUTO_TEST_CASE(per_object_vote_sync_is_fulfilled_request_limited)
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 20);
 
     connman.FlushSendBuffer(*peer);
-    CGovernanceObject empty_filter_object{uint256(), /*revision=*/1, GetTime() + 2, uint256S("03"), /*data=*/{}};
+    CGovernanceObject empty_filter_object{uint256(), /*nRevisionIn=*/1, GetTime() + 2, uint256S("03"), /*strDataHexIn=*/{}};
     m_node.govman->AddPostponedObject(empty_filter_object);
     const uint256 empty_filter_object_hash{empty_filter_object.GetHash()};
     const std::string empty_filter_vote_request{strprintf("%s-votes-%s", NetMsgType::MNGOVERNANCESYNC,
@@ -423,6 +423,7 @@ BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
     // The peer's transaction announcements take up all the announcements it may have pending
     // (MAX_PEER_OBJECT_ANNOUNCEMENTS)
     std::vector<CInv> tx_invs;
+    tx_invs.reserve(2 * MAX_INV_SZ);
     for (uint64_t i = 0; i < 2 * MAX_INV_SZ; ++i) {
         tx_invs.emplace_back(MSG_TX, ArithToUint256(arith_uint256{i}));
     }

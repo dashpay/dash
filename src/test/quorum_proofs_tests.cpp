@@ -396,6 +396,7 @@ BOOST_FIXTURE_TEST_CASE(rotating_commitment_scan_resumes_below_cached_cycles, Qu
     const auto* start = chain[checkpoint_height];
     const auto hashes = [](const std::vector<llmq::CFinalCommitment>& scanned) {
         std::vector<uint256> result;
+        result.reserve(scanned.size());
         for (const auto& qc : scanned)
             result.push_back(qc.quorumHash);
         return result;
@@ -447,6 +448,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     // hash to the block's own quorum root.
     const auto active = builder.ActiveCommitments(checkpoint);
     std::vector<uint256> active_leaves;
+    active_leaves.reserve(active.size());
     for (const auto& commitment : active)
         active_leaves.push_back(::SerializeHash(commitment));
     BOOST_CHECK(std::is_sorted(active_leaves.begin(), active_leaves.end()));
@@ -457,6 +459,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     const auto target_set = builder.ActiveCommitments(chain[state.height]);
     BOOST_REQUIRE(!target_set.empty());
     std::vector<uint256> leaves;
+    leaves.reserve(target_set.size());
     for (const auto& commitment : target_set)
         leaves.push_back(::SerializeHash(commitment));
     CDataStream raw(SER_NETWORK, PROTOCOL_VERSION);
@@ -588,6 +591,7 @@ BOOST_AUTO_TEST_CASE(v20_checkpoint_height_is_supported)
 BOOST_AUTO_TEST_CASE(concurrent_proof_cache_requests)
 {
     std::vector<std::future<bool>> requests;
+    requests.reserve(8);
     for (int i = 0; i < 8; ++i) {
         requests.push_back(std::async(std::launch::async, [] {
             // Each request owns its BLS objects; only the caches are shared.

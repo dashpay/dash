@@ -516,7 +516,7 @@ BOOST_AUTO_TEST_CASE(check_dup_param_names)
     auto make_rpc = [](std::vector<std::tuple<std::string, ParamType>> param_names) {
         std::vector<RPCArg> params;
         std::vector<RPCArg> options;
-        auto push_options = [&] { if (!options.empty()) params.emplace_back(RPCArg{strprintf("options%i", params.size()), RPCArg::Type::OBJ_NAMED_PARAMS, RPCArg::Optional::OMITTED, "", std::move(options)}); };
+        auto push_options = [&] { if (!options.empty()) params.emplace_back(strprintf("options%i", params.size()), RPCArg::Type::OBJ_NAMED_PARAMS, RPCArg::Optional::OMITTED, "", std::move(options)); };
         for (auto& [param_name, param_type] : param_names) {
             if (param_type == POSITIONAL) {
                 push_options();

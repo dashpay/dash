@@ -104,6 +104,7 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_large_data_test)
 
     // Create large skip list
     std::vector<int> largeSkipList;
+    largeSkipList.reserve(100);
     for (int i = 0; i < 100; i++) {
         largeSkipList.push_back(i * 4);
     }

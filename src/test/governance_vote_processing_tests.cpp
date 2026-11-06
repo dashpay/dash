@@ -66,7 +66,7 @@ CGovernanceObject MakeFailedTrigger(const COutPoint& mn_collateral, const CBLSSe
                                     int64_t creation_time, int salt)
 {
     const std::string data{strprintf(R"({"type":2,"salt":%d})", salt)};
-    CGovernanceObject govobj{uint256{}, /*revision=*/1, creation_time, uint256{}, HexStr(data)};
+    CGovernanceObject govobj{uint256{}, /*nRevisionIn=*/1, creation_time, uint256{}, HexStr(data)};
     BOOST_REQUIRE(govobj.GetObjectType() == GovernanceObject::TRIGGER);
     govobj.SetMasternodeOutpoint(mn_collateral);
     govobj.SetSignature(operator_key.Sign(govobj.GetSignatureHash(), /*specificLegacyScheme=*/false)
@@ -188,7 +188,7 @@ struct GovernanceVoteSetup : public TestChainSetup {
         const std::string data{
             strprintf("{\"type\":1,\"name\":\"test-proposal\",\"start_epoch\":%d,\"end_epoch\":%d,\"payment_amount\":1.0,\"payment_address\":\"%s\",\"url\":\"https://dash.org\"}",
                       proposal_time, proposal_time + 100000, proposal_payment_address)};
-        return CGovernanceObject{uint256{}, /*revision=*/1, proposal_time, collateral_hash, HexStr(data)};
+        return CGovernanceObject{uint256{}, /*nRevisionIn=*/1, proposal_time, collateral_hash, HexStr(data)};
     }
 
     //! Burns the proposal fee to an OP_RETURN committing to the object hash, the way
