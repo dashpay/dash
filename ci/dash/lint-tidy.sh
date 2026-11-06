@@ -113,7 +113,8 @@ if ! iwyu_tool.py \
   false
 fi
 
-# Fix the tracked sources rather than the untracked build copy, so that git diff shows the result
+# Fix the tracked sources rather than the untracked build copy, so that git diff shows the result.
+# The generated capnp files exist only in the build directory.
 cd "${BASE_ROOT_DIR}/src"
-fix_includes.py --nosafe_headers < /tmp/iwyu_ci.out
+fix_includes.py --nosafe_headers --ignore_re='\.capnp\.' < /tmp/iwyu_ci.out
 git --no-pager diff
