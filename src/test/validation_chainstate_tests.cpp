@@ -5,6 +5,8 @@
 #include <bls/bls.h>
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
+#include <coins.h>
+#include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <evo/evodb.h>
 #include <evo/deterministicmns.h>
@@ -12,6 +14,7 @@
 #include <node/interface_ui.h>
 #include <random.h>
 #include <rpc/blockchain.h>
+#include <script/script.h>
 #include <sync.h>
 #include <test/util/chainstate.h>
 #include <test/util/coins.h>
@@ -19,6 +22,7 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/check.h>
+#include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
 
@@ -232,6 +236,15 @@ struct V19AboveSnapshotSetup : public TestChain100Setup {
     }
 };
 
+//! The reverse: the snapshot base is past V19, and the background
+//! chainstate's genesis tip is not.
+struct V19BelowSnapshotSetup : public TestChain100Setup {
+    V19BelowSnapshotSetup() :
+        TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=v19@50"}}
+    {
+    }
+};
+
 //! bls::bls_legacy_scheme is process-wide but its correct value is per-block, and
 //! ProcessSpecialTxsInBlock only ever switches legacy -> basic. ConnectBlock must
 //! therefore establish the scheme its parent left behind instead of inheriting
@@ -252,8 +265,10 @@ BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetu
     // Reach the assumeutxo height and take a snapshot, then take the snapshot
     // chainstate past V19 so the process-wide flag is basic again.
     mineBlocks(9);
+    bls::bls_legacy_scheme.store(false);
     BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this, NoMalleation, /*reset_chainstate=*/true));
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return chainman.IsSnapshotActive()));
+    BOOST_CHECK_MESSAGE(bls::bls_legacy_scheme.load(), "activating a pre-V19 snapshot must establish the legacy scheme");
 
     // The background chainstate was reset to genesis before activation, so
     // the base MN list was not derivable and no lifecycle marker may have
@@ -309,6 +324,48 @@ BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetu
     BOOST_CHECK_MESSAGE(!bls::bls_legacy_scheme.load(),
                         "a background connect must not leave the active chain on the legacy scheme");
     BOOST_CHECK(!bls::ScopedLegacySchemeOverride::Active());
+}
+
+//! An invalid snapshot hands the active role back to the pre-V19 background
+//! chainstate from inside its ConnectTip, under that thread's override. Other
+//! threads must get the legacy scheme immediately.
+BOOST_FIXTURE_TEST_CASE(invalid_snapshot_fallback_establishes_bls_scheme, V19AboveSnapshotSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    mineBlocks(10);
+    Chainstate& background_cs{chainman.ActiveChainstate()};
+    BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this));
+    mineBlocks(V19_HEIGHT - WITH_LOCK(::cs_main, return chainman.ActiveHeight()));
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+
+    bool shut_down{false};
+    {
+        LOCK(::cs_main);
+        Coin extra_coin;
+        extra_coin.out.nValue = 1 * COIN;
+        extra_coin.out.scriptPubKey = CScript{} << OP_TRUE;
+        extra_coin.nHeight = 1;
+        background_cs.CoinsTip().AddCoin(COutPoint{InsecureRand256(), 0}, std::move(extra_coin), /*possible_overwrite=*/false);
+        const bls::ScopedLegacySchemeOverride background_connect_tip{/*legacy=*/true};
+        BOOST_REQUIRE(chainman.MaybeCompleteSnapshotValidation([&](bilingual_str) { shut_down = true; }) ==
+                      SnapshotCompletionResult::HASH_MISMATCH);
+        BOOST_REQUIRE(&chainman.ActiveChainstate() == &background_cs);
+    }
+    BOOST_REQUIRE(shut_down);
+    BOOST_CHECK(bls::bls_legacy_scheme.load());
+    BOOST_CHECK(AnotherThreadAccepts(/*legacy=*/true));
+}
+
+//! Activating a post-V19 snapshot on a node still on the legacy scheme must
+//! switch other threads to basic immediately.
+BOOST_FIXTURE_TEST_CASE(snapshot_activation_establishes_bls_scheme, V19BelowSnapshotSetup)
+{
+    mineBlocks(10);
+    bls::bls_legacy_scheme.store(true);
+    BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this, NoMalleation, /*reset_chainstate=*/true));
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return m_node.chainman->IsSnapshotActive()));
+    BOOST_CHECK(!bls::bls_legacy_scheme.load());
+    BOOST_CHECK(AnotherThreadAccepts(/*legacy=*/false));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -177,6 +177,18 @@ private:
     bool m_committed{false};
 };
 
+//! Sets the process-wide BLS scheme from the active chainstate's tip; call it
+//! whenever a different chainstate becomes active. Writes the global directly:
+//! the switch can happen inside a background chainstate's ConnectTip, where
+//! SetEffectiveLegacyScheme() would only change that thread's override.
+void EstablishActiveBLSScheme(const ChainstateManager& chainman) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    const bool legacy{!DeploymentActiveAfter(chainman.ActiveTip(), chainman, Consensus::DEPLOYMENT_V19)};
+    if (bls::bls_legacy_scheme.exchange(legacy) != legacy) {
+        LogPrintf("%s: bls_legacy_scheme=%d\n", __func__, legacy);
+    }
+}
+
 } // namespace
 
 const CBlockIndex* Chainstate::FindForkInGlobalIndex(const CBlockLocator& locator) const
@@ -6373,6 +6385,7 @@ bool ChainstateManager::ActivateSnapshot(
         assert(chaintip_loaded);
 
         m_active_chainstate = m_snapshot_chainstate.get();
+        EstablishActiveBLSScheme(*this);
         m_snapshot_chainstate->m_evoDb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
 
         // Move the mempool to the snapshot chainstate: only the active
@@ -6750,6 +6763,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         LogPrintf("[snapshot] deleting snapshot, reverting to validated chain, and stopping node\n");
 
         m_active_chainstate = m_ibd_chainstate.get();
+        EstablishActiveBLSScheme(*this);
         // Hand the mempool back so the again-active background chainstate owns
         // it for the remainder of this (shutting-down) run.
         m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
