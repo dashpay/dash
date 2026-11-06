@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying file COPYING.
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
+#include <bls/bls_batchverifier.h>
 #include <chainlock/clsig.h>
 #include <chainparamsbase.h>
 #include <consensus/merkle.h>
@@ -22,6 +23,7 @@
 #include <set>
 #include <streams.h>
 #include <test/util/setup_common.h>
+#include <thread>
 #include <validation.h>
 
 // Actual testnet archive proof, heights 1548500 -> 1549547. Independently
@@ -473,6 +475,65 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     BOOST_CHECK_THROW(llmq::EncodeBootstrap(*proof, wrong, {record}), std::runtime_error);
     BOOST_CHECK(state.blockHash == proof->target.header.GetHash());
 }
+BOOST_FIXTURE_TEST_CASE(chainlock_verification_ignores_another_threads_scheme, QuorumProofGenerationSetup)
+{
+    // A background chainstate validating history across V19 holds its own BLS
+    // scheme while other threads verify ChainLocks and recovered signatures for
+    // the active chain.
+    CreateHistory();
+    const auto& consensus = Params().GetConsensus();
+    const auto params = *Params().GetLLMQ(consensus.llmqTypeChainLocks);
+    const auto& qman = *m_node.llmq_ctx->qman;
+    const auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
+    const auto* locked = WITH_LOCK(cs_main, return chain.Tip());
+    const auto* start = WITH_LOCK(cs_main, return llmq::SelectQuorumForSigningStartBlock(chain, locked->nHeight));
+    const uint256 request_id{chainlock::GenSigRequestId(locked->nHeight)};
+    const auto signer = llmq::SelectCommitmentForSigning(params, qman, request_id, start);
+    BOOST_REQUIRE(signer);
+    const auto match = std::find_if(commitments.begin(), commitments.end(),
+                                    [&](const auto& qc) { return qc.quorumHash == signer->quorumHash; });
+    BOOST_REQUIRE(match != commitments.end());
+    const CBLSSecretKey& key{keys[match - commitments.begin()]};
+    const uint256 sign_hash{llmq::SignHash{params.type, signer->quorumHash, request_id, locked->GetBlockHash()}.Get()};
+    const auto make_clsig = [&](bool legacy) {
+        return chainlock::ChainLockSig{locked->nHeight, locked->GetBlockHash(), key.Sign(sign_hash, legacy)};
+    };
+    const auto verify = [&](const chainlock::ChainLockSig& clsig) {
+        return chainlock::VerifyChainLock(consensus, qman, clsig, start);
+    };
+    const auto batch_clean = [&](const chainlock::ChainLockSig& clsig) {
+        CBLSBatchVerifier<int, uint256> batch_verifier(/*_secureVerification=*/false, /*_perMessageFallback=*/false);
+        batch_verifier.PushMessage(/*sourceId=*/0, ::SerializeHash(clsig), sign_hash, clsig.getSig(),
+                                   signer->quorumPublicKey);
+        batch_verifier.Verify();
+        return batch_verifier.badSources.empty();
+    };
+
+    const bool saved_scheme{bls::bls_legacy_scheme.load()};
+    for (const bool background_legacy : {true, false}) {
+        bls::bls_legacy_scheme.store(!background_legacy);
+        const auto active_clsig{make_clsig(!background_legacy)};
+        llmq::VerifyRecSigStatus background_own{llmq::VerifyRecSigStatus::NoQuorum};
+        llmq::VerifyRecSigStatus background_active{llmq::VerifyRecSigStatus::NoQuorum};
+        llmq::VerifyRecSigStatus other_thread{llmq::VerifyRecSigStatus::NoQuorum};
+        bool other_thread_batch_clean{false};
+        {
+            const bls::ScopedLegacySchemeOverride scheme{background_legacy};
+            background_own = verify(make_clsig(background_legacy));
+            background_active = verify(active_clsig);
+            std::thread{[&] {
+                other_thread = verify(active_clsig);
+                other_thread_batch_clean = batch_clean(active_clsig);
+            }}.join();
+        }
+        BOOST_CHECK(background_own == llmq::VerifyRecSigStatus::Valid);
+        BOOST_CHECK(background_active == llmq::VerifyRecSigStatus::Invalid);
+        BOOST_CHECK(other_thread == llmq::VerifyRecSigStatus::Valid);
+        BOOST_CHECK(other_thread_batch_clean);
+    }
+    bls::bls_legacy_scheme.store(saved_scheme);
+}
+
 BOOST_AUTO_TEST_CASE(real_testnet_wire_and_crypto) {
     auto bytes = ParseHex(TESTNET_PROOF);
     auto proof = llmq::QuorumProofChain::Decode(bytes);
