@@ -27,6 +27,7 @@ private Q_SLOTS:
     void extractFilter();
     void effectivePointSize();
     void updateFontsWithPixelSizedWidget();
+    void fontScaleSources();
 
 private:
     interfaces::Node& m_node;
