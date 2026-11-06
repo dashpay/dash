@@ -86,9 +86,9 @@ public:
     CBLSSignature Decode(const std::array<uint8_t, CBLSSignature::SerSize>& bytes) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {
         // Decode exactly as the coinbase payload was always decoded: under the
-        // process-wide scheme flag, including its opposite-scheme rejection. The
-        // flag is part of the key so a transient value cannot leak into later calls.
-        const bool legacy = bls::bls_legacy_scheme.load();
+        // effective scheme, including its opposite-scheme rejection. The scheme is
+        // part of the key so another context's value cannot leak into later calls.
+        const bool legacy = bls::EffectiveLegacyScheme();
         const uint256 key = (CHashWriter(SER_GETHASH, 0) << Span{bytes} << legacy).GetHash();
         CBLSSignature sig;
         {

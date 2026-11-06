@@ -361,7 +361,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             if (fV20Active_context) {
                 CBLSSignature best_cl_sig;
                 const bool has_best_cl{CalcCbTxBestChainlock(m_chainlocks, m_chainstate.m_blockman, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig)};
-                cbTx.bestCLSignature.Set(best_cl_sig, bls::bls_legacy_scheme.load());
+                cbTx.bestCLSignature.Set(best_cl_sig, bls::EffectiveLegacyScheme());
                 if (has_best_cl) {
                     LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());
                 } else {

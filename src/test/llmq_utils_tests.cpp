@@ -7,6 +7,7 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <checkqueue.h>
 #include <consensus/params.h>
 #include <dbwrapper.h>
 #include <llmq/context.h>
@@ -457,6 +458,53 @@ BOOST_AUTO_TEST_CASE(sig_share_batch_verifier_judges_each_sender_by_its_own_shar
         verifier.Verify();
         BOOST_CHECK(verifier.badSources == expected_bad_sources);
     }
+}
+
+BOOST_AUTO_TEST_CASE(bls_check_keeps_the_scheme_it_was_built_under)
+{
+    // ConnectBlock builds commitment checks under its chainstate's scheme, which
+    // may be a thread-local one, and CCheckQueue runs them on other threads.
+    CCheckQueue<utils::BlsCheck> queue{/*nBatchSizeIn=*/1};
+    queue.StartWorkerThreads(/*threads_num=*/2);
+    const bool saved_scheme{bls::bls_legacy_scheme.load()};
+    const uint256 msg_hash{GetRandHash()};
+    std::vector<CBLSSecretKey> sks(3);
+    std::vector<CBLSPublicKey> pks;
+    for (auto& sk : sks) {
+        sk.MakeNewKey();
+        pks.push_back(sk.GetPublicKey());
+    }
+    for (const bool legacy : {true, false}) {
+        bls::bls_legacy_scheme.store(!legacy);
+        std::vector<CBLSSignature> sigs;
+        sigs.reserve(sks.size());
+        for (const auto& sk : sks) {
+            sigs.push_back(sk.Sign(msg_hash, legacy));
+        }
+        const CBLSSignature members_sig{[&] {
+            const bls::ScopedLegacySchemeOverride signer_scheme{legacy};
+            return CBLSSignature::AggregateSecure(sigs, pks, msg_hash);
+        }()};
+        const auto build = [&](bool scheme) {
+            const bls::ScopedLegacySchemeOverride override{scheme};
+            std::vector<utils::BlsCheck> checks;
+            checks.emplace_back(sigs[0], std::vector<CBLSPublicKey>{pks[0]}, msg_hash, "quorum sig");
+            checks.emplace_back(members_sig, pks, msg_hash, "members sig");
+            return checks;
+        };
+        const auto run = [&](std::vector<utils::BlsCheck> checks) {
+            CCheckQueueControl<utils::BlsCheck> control{&queue};
+            control.Add(std::move(checks));
+            return control.Wait();
+        };
+        BOOST_CHECK(run(build(legacy)));
+        // One at a time, so neither check's rejection masks the other's
+        for (const auto& check : build(!legacy)) {
+            BOOST_CHECK(!run({check}));
+        }
+    }
+    bls::bls_legacy_scheme.store(saved_scheme);
+    queue.StopWorkerThreads();
 }
 
 BOOST_AUTO_TEST_CASE(batched_sig_shares_rejects_oversized_inner_vector)

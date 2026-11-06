@@ -19,12 +19,48 @@
 #include <array>
 #include <atomic>
 #include <mutex>
+#include <optional>
 #include <ranges>
 #include <type_traits>
 
 namespace bls {
-    extern std::atomic<bool> bls_legacy_scheme;
-}
+//! Process-wide default scheme of BLS operations that are not given one. It
+//! follows the active chainstate's tip only: other threads read it outside
+//! cs_main, so work for any other chain context (a background chainstate, a dry
+//! run) sets a ScopedLegacySchemeOverride instead.
+extern std::atomic<bool> bls_legacy_scheme;
+
+//! The scheme of BLS operations on this thread that are not given one: the
+//! innermost ScopedLegacySchemeOverride if one is set, else bls_legacy_scheme.
+bool EffectiveLegacyScheme();
+
+//! Switches EffectiveLegacyScheme(): this thread's override if one is set,
+//! else bls_legacy_scheme.
+void SetEffectiveLegacyScheme(bool legacy);
+
+//! Sets EffectiveLegacyScheme() on this thread only, for the object's lifetime.
+//! Work handed to another thread does not see it and must capture the scheme.
+class ScopedLegacySchemeOverride
+{
+public:
+    explicit ScopedLegacySchemeOverride(bool legacy) noexcept;
+    ~ScopedLegacySchemeOverride() noexcept;
+
+    ScopedLegacySchemeOverride(const ScopedLegacySchemeOverride&) = delete;
+    ScopedLegacySchemeOverride& operator=(const ScopedLegacySchemeOverride&) = delete;
+
+    //! Leaves the scheme in force at scope exit to the enclosing override. The
+    //! outermost override always ends with its scope.
+    void Commit() noexcept { m_committed = true; }
+
+    //! Whether an override is set on this thread.
+    static bool Active() noexcept;
+
+private:
+    const std::optional<bool> m_saved;
+    bool m_committed{false};
+};
+} // namespace bls
 
 // reversed BLS12-381
 constexpr int BLS_CURVE_ID_SIZE{32};
@@ -181,7 +217,7 @@ public:
     template <typename Stream>
     inline void Serialize(Stream& s) const
     {
-        Serialize(s, bls::bls_legacy_scheme.load());
+        Serialize(s, bls::EffectiveLegacyScheme());
     }
 
     template <typename Stream>
@@ -209,7 +245,7 @@ public:
     template <typename Stream>
     inline void Unserialize(Stream& s)
     {
-        Unserialize(s, bls::bls_legacy_scheme.load());
+        Unserialize(s, bls::EffectiveLegacyScheme());
     }
 
     inline bool CheckMalleable(Span<uint8_t> vecBytes, const bool specificLegacyScheme) const
@@ -232,7 +268,7 @@ public:
 
     inline std::string ToString() const
     {
-        return ToString(bls::bls_legacy_scheme.load());
+        return ToString(bls::EffectiveLegacyScheme());
     }
 };
 
@@ -371,6 +407,8 @@ public:
     [[nodiscard]] bool VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash) const;
     [[nodiscard]] bool VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<uint256> hashes) const;
 
+    [[nodiscard]] bool VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash,
+                                              const bool specificLegacyScheme) const;
     [[nodiscard]] bool VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash) const;
 
     bool Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids);
@@ -414,7 +452,7 @@ private:
 
 public:
     CBLSLazyWrapper() :
-        bufLegacyScheme(bls::bls_legacy_scheme.load())
+        bufLegacyScheme(bls::EffectiveLegacyScheme())
     {}
 
     explicit CBLSLazyWrapper(const CBLSLazyWrapper& r)
