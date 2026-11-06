@@ -27,7 +27,7 @@ case "${DEPENDS_ARCH:-$(uname -m)}" in
     fi
     ;;
 esac
-export PACKAGES="cmake python3 llvm clang"
+export PACKAGES="cmake llvm clang"
 export DEP_OPTS="MULTIPROCESS=1 CC=clang-19 CXX=clang++-19"
 export RUN_TIDY=true
 export GOAL="install"

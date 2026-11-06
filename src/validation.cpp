@@ -579,8 +579,7 @@ public:
         m_viewmempool(&active_chainstate.CoinsTip(), m_pool),
         m_active_chainstate(active_chainstate),
         m_special_tx(active_chainstate.m_special_tx),
-        m_isman(active_chainstate.m_isman),
-        m_limits{m_pool.m_limits}
+        m_isman(active_chainstate.m_isman)
     {
     }
 
@@ -811,7 +810,6 @@ private:
     CSpecialTxProcessor& m_special_tx;
     llmq::CInstantSendManager* const m_isman;
 
-    CTxMemPool::Limits m_limits;
 };
 
 bool MemPoolAccept::CheckSpecialTxForMempool(const CTransaction& tx, SpecialTxRules rules, TxValidationState& state)
@@ -1081,7 +1079,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     }
 
     // Calculate in-mempool ancestors, up to a limit.
-    auto ancestors{m_pool.CalculateMemPoolAncestors(*entry, m_limits)};
+    auto ancestors{m_pool.CalculateMemPoolAncestors(*entry, m_pool.m_limits)};
     if (!ancestors) {
         // If CalculateMemPoolAncestors fails second time, we want the original error string.
         std::string dummy_err_string;
@@ -1097,9 +1095,9 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         // this, see https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2018-November/016518.html
         CTxMemPool::Limits cpfp_carve_out_limits{
             .ancestor_count = 2,
-            .ancestor_size_vbytes = m_limits.ancestor_size_vbytes,
-            .descendant_count = m_limits.descendant_count + 1,
-            .descendant_size_vbytes = m_limits.descendant_size_vbytes + EXTRA_DESCENDANT_TX_SIZE_LIMIT,
+            .ancestor_size_vbytes = m_pool.m_limits.ancestor_size_vbytes,
+            .descendant_count = m_pool.m_limits.descendant_count + 1,
+            .descendant_size_vbytes = m_pool.m_limits.descendant_size_vbytes + EXTRA_DESCENDANT_TX_SIZE_LIMIT,
         };
         const auto error_message{util::ErrorString(ancestors).original};
         if (ws.m_vsize > EXTRA_DESCENDANT_TX_SIZE_LIMIT) {
@@ -1152,7 +1150,7 @@ bool MemPoolAccept::PackageMempoolChecks(const std::vector<CTransactionRef>& txn
     assert(std::all_of(txns.cbegin(), txns.cend(), [this](const auto& tx)
                        { return !m_pool.exists(tx->GetHash());}));
 
-    auto result = m_pool.CheckPackageLimits(txns, m_limits);
+    auto result = m_pool.CheckPackageLimits(txns);
     if (!result) {
         // This is a package-wide error, separate from an individual transaction error.
         return package_state.Invalid(PackageValidationResult::PCKG_POLICY, "package-mempool-limits", util::ErrorString(result).original);
@@ -1321,7 +1319,7 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
         // Re-calculate mempool ancestors to call addUnchecked(). They may have changed since the
         // last calculation done in PreChecks, since package ancestors have already been submitted.
         {
-            auto ancestors{m_pool.CalculateMemPoolAncestors(*ws.m_entry, m_limits)};
+            auto ancestors{m_pool.CalculateMemPoolAncestors(*ws.m_entry, m_pool.m_limits)};
             if(!ancestors) {
                 results.emplace(ws.m_ptx->GetHash(), MempoolAcceptResult::Failure(ws.m_state));
                 // Since PreChecks() and PackageMempoolChecks() both enforce limits, this should never fail.
@@ -5639,8 +5637,8 @@ void ChainstateManager::LoadExternalBlockFile(
     int nLoaded = 0;
     try {
         unsigned int nMaxBlockSize = MaxBlockSize();
-        // This takes over fileIn and calls fclose() on it in the CBufferedFile destructor
-        CBufferedFile blkdat(fileIn, 2*nMaxBlockSize, nMaxBlockSize+8, SER_DISK, CLIENT_VERSION);
+        // This takes over fileIn and calls fclose() on it in the BufferedFile destructor
+        BufferedFile blkdat{fileIn, 2 * nMaxBlockSize, nMaxBlockSize + 8, CLIENT_VERSION};
         // nRewind indicates where to resume scanning in case something goes wrong,
         // such as a block fails to deserialize.
         uint64_t nRewind = blkdat.GetPos();

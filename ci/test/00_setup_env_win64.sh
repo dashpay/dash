@@ -9,7 +9,7 @@ export LC_ALL=C.UTF-8
 export CONTAINER_NAME=ci_win64
 export HOST=x86_64-w64-mingw32
 export DPKG_ADD_ARCH="i386"
-export PACKAGES="python3 nsis g++-mingw-w64-x86-64-posix wine-binfmt wine64 wine32 file"
+export PACKAGES="nsis g++-mingw-w64-x86-64-posix wine-binfmt wine64 wine32 file"
 export RUN_FUNCTIONAL_TESTS=false
 export GOAL="deploy"
 # Prior to 11.0.0, the mingw-w64 headers were missing noreturn attributes, causing warnings when
