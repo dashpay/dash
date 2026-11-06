@@ -149,7 +149,7 @@ private:
     /// As a client, check and sign the final transaction
     bool SignFinalTransaction(CNode& peer, Chainstate& active_chainstate, CConnman& connman, const CTxMemPool& mempool, const CTransaction& finalTransactionNew) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
 
-    void RelayIn(const CCoinJoinEntry& entry, CConnman& connman) const;
+    bool RelayIn(const CCoinJoinEntry& entry, CConnman& connman) const;
 
     void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
