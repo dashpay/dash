@@ -20,13 +20,19 @@
 #include <test/util/setup_common.h>
 #include <timedata.h>
 #include <uint256.h>
+#include <util/time.h>
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <active/dkgsessionhandler.h>
+#include <active/masternode.h>
+#include <bls/bls.h>
 #include <evo/evodb.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <llmq/debug.h>
+#include <llmq/dkgsessionmgr.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
@@ -34,6 +40,9 @@
 
 #include <tinyformat.h>
 
+#include <chrono>
+#include <future>
+#include <optional>
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
@@ -52,6 +61,38 @@ void SeedSnapshotMarker(CEvoDB& evodb, const uint256& hash)
     tx->Commit();
     BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
 }
+
+CBLSSecretKey MakeOperatorKey()
+{
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    return sk;
+}
+
+//! A DKG phase handler that no phase thread or block tip drives, so its phase stays Idle
+struct TestDKGHandler {
+    CActiveMasternodeManager mn_activeman;
+    llmq::CDKGDebugManager dkgdbgman;
+    llmq::CDKGSessionManager qdkgsman;
+    llmq::ActiveDKGSessionHandler handler;
+
+    TestDKGHandler(node::NodeContext& node, ChainstateManager& chainman, const fs::path& datadir) :
+        mn_activeman{*node.connman, *node.dmnman, MakeOperatorKey()},
+        dkgdbgman{*node.dmnman, *node.llmq_ctx->qsnapman, chainman},
+        qdkgsman{*node.dmnman, *node.llmq_ctx->qsnapman, chainman, *node.sporkman,
+                 util::DbWrapperParams{.path = datadir, .memory = true, .wipe = true}},
+        handler(*node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman, dkgdbgman, qdkgsman,
+                *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman, mn_activeman, chainman,
+                *node.sporkman, Params().GetConsensus().llmqs.front(), /*quorums_watch=*/false, /*quorums_idx=*/0)
+    {
+    }
+
+    //! The wait a phase thread makes at the start of every round
+    std::future<void> StartRoundWait(llmq::QuorumPhase next_phase)
+    {
+        return std::async(std::launch::async, [this, next_phase] { handler.WaitForNextPhase(std::nullopt, next_phase); });
+    }
+};
 
 } // namespace
 
@@ -128,6 +169,19 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     BOOST_CHECK(WITH_LOCK(::cs_main, return !manager.IsSnapshotValidated()));
     BOOST_CHECK(manager.IsSnapshotActiveAndUnvalidated());
     BOOST_CHECK(!llmq::CSigSharesManager::IsQuorumSigningAllowed(manager));
+    {
+        TestDKGHandler dkg{m_node, manager, m_args.GetDataDirNet()};
+        // A round in progress is abandoned
+        BOOST_CHECK_THROW(dkg.handler.WaitForNextPhase(llmq::QuorumPhase::Initialized, llmq::QuorumPhase::Contribute),
+                          llmq::AbortPhaseException);
+        // A new round cannot start, so the phase thread waits instead of aborting in a loop
+        auto round_start = dkg.StartRoundWait(llmq::QuorumPhase::Initialized);
+        BOOST_CHECK(round_start.wait_for(200ms) == std::future_status::timeout);
+        // Shutdown still ends that wait
+        dkg.handler.RequestStop();
+        BOOST_REQUIRE(round_start.wait_for(10s) == std::future_status::ready);
+        BOOST_CHECK_THROW(round_start.get(), llmq::AbortPhaseException);
+    }
     BOOST_CHECK_EQUAL(&c2, &manager.ActiveChainstate());
     BOOST_CHECK(&c1 != &manager.ActiveChainstate());
     auto all2 = manager.GetAll();
@@ -934,9 +988,20 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
     const uint256 snapshot_tip_hash = WITH_LOCK(chainman.GetMutex(),
         return chainman.ActiveTip()->GetBlockHash());
 
-    res = WITH_LOCK(::cs_main,
-        return chainman.MaybeCompleteSnapshotValidation(mock_shutdown));
-    BOOST_CHECK_EQUAL(res, SnapshotCompletionResult::SUCCESS);
+    {
+        TestDKGHandler dkg{m_node, chainman, m_args.GetDataDirNet()};
+        auto round_start = dkg.StartRoundWait(llmq::QuorumPhase::Idle);
+        BOOST_CHECK(round_start.wait_for(200ms) == std::future_status::timeout);
+
+        res = WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation(mock_shutdown));
+        BOOST_CHECK_EQUAL(res, SnapshotCompletionResult::SUCCESS);
+
+        // The DKG phase thread resumes once background validation completes
+        const bool resumed{round_start.wait_for(10s) == std::future_status::ready};
+        BOOST_CHECK(resumed);
+        if (!resumed) dkg.handler.RequestStop(); // so a failure doesn't hang in the future's destructor
+        BOOST_CHECK_NO_THROW(round_start.get());
+    }
 
     WITH_LOCK(::cs_main, BOOST_CHECK(chainman.IsSnapshotValidated()));
     BOOST_CHECK(chainman.IsSnapshotActive());

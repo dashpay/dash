@@ -16,6 +16,8 @@
 #include <util/time.h>
 #include <validation.h>
 
+#include <utility>
+
 namespace llmq {
 ActiveDKGSessionHandler::ActiveDKGSessionHandler(
     CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
@@ -113,8 +115,18 @@ void ActiveDKGSessionHandler::WaitForNextPhase(std::optional<QuorumPhase> curPha
 {
     LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, curPhase.has_value() ? std23::to_underlying(*curPhase) : -1, std23::to_underlying(nextPhase));
 
+    bool logged_snapshot_wait{false};
     while (true) {
         if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+            if (!curPhase.has_value() && !stopRequested) {
+                // No round can start before background validation completes, so there is nothing to abort
+                if (!std::exchange(logged_snapshot_wait, true)) {
+                    LogPrint(BCLog::LLMQ_DKG, "%s -- %s qi[%d] - waiting for snapshot background validation\n",
+                             __func__, params.name, quorumIndex);
+                }
+                UninterruptibleSleep(std::chrono::milliseconds{100});
+                continue;
+            }
             LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting because snapshot background validation is incomplete\n", __func__, params.name, quorumIndex);
             throw AbortPhaseException();
         }
