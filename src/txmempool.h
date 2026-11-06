@@ -662,9 +662,11 @@ public:
      * @param[in]       package                 Transaction package being evaluated for acceptance
      *                                          to mempool. The transactions need not be direct
      *                                          ancestors/descendants of each other.
+     * @param[in]       total_vsize             Sum of virtual sizes for all transactions in package.
      * @returns {} or the error reason if a limit is hit.
      */
-    util::Result<void> CheckPackageLimits(const Package& package) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    util::Result<void> CheckPackageLimits(const Package& package,
+                                          int64_t total_vsize) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Populate setDescendants with all in-mempool descendants of hash.
      *  Assumes that setDescendants includes all in-mempool descendants of anything

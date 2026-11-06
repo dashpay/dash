@@ -204,12 +204,24 @@ util::Result<CTxMemPool::setEntries> CTxMemPool::CalculateAncestorsAndCheckLimit
     return ancestors;
 }
 
-util::Result<void> CTxMemPool::CheckPackageLimits(const Package& package) const
+util::Result<void> CTxMemPool::CheckPackageLimits(const Package& package,
+                                                  const int64_t total_vsize) const
 {
+    size_t pack_count = package.size();
+
+    // Package itself is busting mempool limits; should be rejected even if no staged_ancestors exist
+    if (pack_count > static_cast<uint64_t>(m_limits.ancestor_count)) {
+        return util::Error{Untranslated(strprintf("package count %u exceeds ancestor count limit [limit: %u]", pack_count, m_limits.ancestor_count))};
+    } else if (pack_count > static_cast<uint64_t>(m_limits.descendant_count)) {
+        return util::Error{Untranslated(strprintf("package count %u exceeds descendant count limit [limit: %u]", pack_count, m_limits.descendant_count))};
+    } else if (total_vsize > m_limits.ancestor_size_vbytes) {
+        return util::Error{Untranslated(strprintf("package size %u exceeds ancestor size limit [limit: %u]", total_vsize, m_limits.ancestor_size_vbytes))};
+    } else if (total_vsize > m_limits.descendant_size_vbytes) {
+        return util::Error{Untranslated(strprintf("package size %u exceeds descendant size limit [limit: %u]", total_vsize, m_limits.descendant_size_vbytes))};
+    }
+
     CTxMemPoolEntry::Parents staged_ancestors;
-    int64_t total_size = 0;
     for (const auto& tx : package) {
-        total_size += GetVirtualTransactionSize(*tx);
         for (const auto& input : tx->vin) {
             std::optional<txiter> piter = GetIter(input.prevout.hash);
             if (piter) {
@@ -223,7 +235,7 @@ util::Result<void> CTxMemPool::CheckPackageLimits(const Package& package) const
     // When multiple transactions are passed in, the ancestors and descendants of all transactions
     // considered together must be within limits even if they are not interdependent. This may be
     // stricter than the limits for each individual transaction.
-    const auto ancestors{CalculateAncestorsAndCheckLimits(total_size, package.size(),
+    const auto ancestors{CalculateAncestorsAndCheckLimits(total_vsize, package.size(),
                                                           staged_ancestors, m_limits)};
     // It's possible to overestimate the ancestor/descendant totals.
     if (!ancestors.has_value()) return util::Error{Untranslated("possibly " + util::ErrorString(ancestors).original)};

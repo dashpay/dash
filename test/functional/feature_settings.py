@@ -6,7 +6,6 @@
 
 import json
 
-from pathlib import Path
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import ErrorMatch
@@ -21,8 +20,8 @@ class SettingsTest(BitcoinTestFramework):
 
     def run_test(self):
         node, = self.nodes
-        settings = Path(node.chain_path, "settings.json")
-        conf = Path(node.datadir, "dash.conf")
+        settings = node.chain_path / "settings.json"
+        conf = node.datadir_path / "dash.conf"
 
         # Assert default settings file was created
         self.stop_node(0)
@@ -80,7 +79,7 @@ class SettingsTest(BitcoinTestFramework):
             self.stop_node(0)
 
         # Test alternate settings path
-        altsettings = Path(node.datadir, "altsettings.json")
+        altsettings = node.datadir_path / "altsettings.json"
         with altsettings.open("w") as fp:
             fp.write('{"key": "value"}')
         with node.assert_debug_log(expected_msgs=['Setting file arg: key = "value"']):
