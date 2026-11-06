@@ -6,13 +6,17 @@
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
 
+#include <chain.h>
 #include <chainparams.h>
 #include <consensus/params.h>
+#include <evo/evodb.h>
 #include <hash.h>
 #include <masternode/meta.h>
 #include <net.h>
 #include <net_processing.h>
 #include <streams.h>
+#include <util/fs.h>
+#include <util/std23.h>
 #include <util/time.h>
 #include <validation.h>
 #include <version.h>
@@ -24,6 +28,8 @@
 #include <protocol.h>
 
 #include <boost/test/unit_test.hpp>
+
+#include <vector>
 
 using namespace llmq;
 using namespace llmq::testutils;
@@ -133,6 +139,179 @@ BOOST_FIXTURE_TEST_CASE(unrequested_qfcommit_is_dropped_and_scored, TestChain100
     m_node.peerman->FinalizeNode(*unsolicited_peer);
     m_node.peerman->FinalizeNode(*announcing_peer);
     SetMockTime(0s);
+}
+
+namespace {
+std::vector<int> BaseHeights(const MinedCommitmentScan& scan)
+{
+    std::vector<int> heights;
+    for (const auto* base : scan.bases)
+        heights.push_back(base->nHeight);
+    return heights;
+}
+} // namespace
+
+// A scan of mined commitments may only be read as "nothing older exists" when it filled the requested
+// window or walked off the end of the type's index. Entries are installed directly in EvoDB.
+BOOST_FIXTURE_TEST_CASE(scan_mined_commitments_reports_coverage, TestChain100Setup)
+{
+    const auto& qbp = *m_node.llmq_ctx->quorum_block_processor;
+    constexpr auto type = Consensus::LLMQType::LLMQ_TEST;
+    LOCK(::cs_main);
+    const CChain& active = m_node.chainman->ActiveChain();
+    {
+        auto db_tx = m_node.evodb->BeginTransaction();
+        for (const int base : {10, 20, 30, 40, 50}) {
+            WriteMinedCommitment(*m_node.evodb, CreateValidCommitment(GetLLMQParams(type), active[base]->GetBlockHash()),
+                                 active[base + 1]->GetBlockHash(), /*mined_height=*/base + 1, /*quorum_height=*/base);
+        }
+        db_tx->Commit();
+    }
+    // The key right after this type's range is no index key at all and holds no height. The walk must
+    // end at the prefix without parsing it.
+    const auto next_type = static_cast<Consensus::LLMQType>(std23::to_underlying(type) + 1);
+    BOOST_REQUIRE(
+        m_node.evodb->GetRawDB().Write(std::make_pair(DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT, next_type), uint8_t{0}));
+
+    auto scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({50, 40, 30, 20}));
+    BOOST_CHECK(scan.complete);
+    BOOST_CHECK(scan.bases == qbp.GetMinedCommitmentsUntilBlock(type, active.Tip(), 4));
+
+    // Young chain: fewer entries than requested, and complete because the walk left the type's range.
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active[25], 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({20, 10}));
+    BOOST_CHECK(scan.complete);
+
+    // An index value that does not deserialize, at mined height 35.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(BuildInversedHeightKey(type, 35), uint8_t{0}));
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({50, 40}));
+    BOOST_CHECK(!scan.complete);
+    // A window filled before the corrupt entry, or a walk starting below it, never reads it.
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 2);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({50, 40}));
+    BOOST_CHECK(scan.complete);
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active[34], 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({30, 20, 10}));
+    BOOST_CHECK(scan.complete);
+
+    // An entry whose quorum base is not below the block that mined it.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(BuildInversedHeightKey(type, 15), 15));
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active[34], 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({30, 20}));
+    BOOST_CHECK(!scan.complete);
+
+    // A commitment is mined within its own quorum's DKG interval, so the quorum bases strictly
+    // decrease along the index. A second entry for base 50, or an entry for an older base above
+    // base 50's, contradicts the next one, and either of the two may be the wrong one.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(BuildInversedHeightKey(type, 55), 50));
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 2);
+    BOOST_CHECK(BaseHeights(scan).empty());
+    BOOST_CHECK(!scan.complete);
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(BuildInversedHeightKey(type, 55), 45));
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 2);
+    BOOST_CHECK(BaseHeights(scan).empty());
+    BOOST_CHECK(!scan.complete);
+    // An entry before the contradicting pair is kept.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(BuildInversedHeightKey(type, 58), 52));
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 3);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({52}));
+    BOOST_CHECK(!scan.complete);
+}
+
+// LevelDB steps over a table block that fails its checksum and keeps iterating. The entries after
+// such a block are not the next newest ones, and the window is not complete. The EvoDB here is on
+// disk, closed, corrupted and reopened.
+BOOST_FIXTURE_TEST_CASE(scan_mined_commitments_stops_at_corrupt_block, TestChain100Setup)
+{
+    constexpr auto type = Consensus::LLMQType::LLMQ_TEST;
+    const fs::path path{m_args.GetDataDirNet() / "corrupt_index"};
+    {
+        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+        for (const int base : {20, 30, 40, 50}) {
+            BOOST_REQUIRE(db.GetRawDB().Write(BuildInversedHeightKey(type, base + 1), PaddedIndexValue(base)));
+        }
+        db.GetRawDB().CompactFull();
+    }
+    // Each padded entry ends its table block, so base 40's entry has a block of its own.
+    BOOST_REQUIRE(CorruptTableBlock(path / "evodb", std::vector<uint8_t>(64, 40)));
+
+    CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+    const CQuorumBlockProcessor qbp{*m_node.chainman, *m_node.dmnman, db, *m_node.llmq_ctx->qsnapman,
+                                    /*bls_threads=*/0};
+    LOCK(::cs_main);
+    const CChain& active = m_node.chainman->ActiveChain();
+    auto scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({50}));
+    BOOST_CHECK(!scan.complete);
+    // A window filled before the corrupt block does not depend on it, and a walk starting below it
+    // never reaches it.
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active.Tip(), 1);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({50}));
+    BOOST_CHECK(scan.complete);
+    scan = qbp.ScanMinedCommitmentsUntilBlock(type, active[35], 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({30, 20}));
+    BOOST_CHECK(scan.complete);
+}
+
+// Rotation-enabled types are read cycle by cycle, quorum index by quorum index, as
+// GetMinedCommitmentsIndexedUntilBlock does.
+BOOST_FIXTURE_TEST_CASE(scan_mined_commitments_indexed_reports_coverage, TestChain100Setup)
+{
+    const auto& qbp = *m_node.llmq_ctx->quorum_block_processor;
+    constexpr auto type = Consensus::LLMQType::LLMQ_TEST_DIP0024;
+    BOOST_REQUIRE(Params().GetLLMQ(type).has_value());
+    BOOST_REQUIRE_EQUAL(GetLLMQParams(type).signingActiveQuorumCount, 2);
+    LOCK(::cs_main);
+    const CChain& active = m_node.chainman->ActiveChain();
+    {
+        // Cycles at 24, 48 and 72: quorum index i has its base at cycle + i and is mined at cycle + 12 + i.
+        auto db_tx = m_node.evodb->BeginTransaction();
+        for (const int cycle : {24, 48, 72}) {
+            for (const int quorum_index : {0, 1}) {
+                m_node.evodb->Write(BuildInversedHeightKeyIndexed(type, cycle + 12 + quorum_index, quorum_index),
+                                    cycle + quorum_index);
+            }
+        }
+        db_tx->Commit();
+    }
+
+    auto scan = qbp.ScanMinedCommitmentsIndexedUntilBlock(type, active.Tip(), 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({72, 73, 48, 49}));
+    BOOST_CHECK(scan.complete);
+    BOOST_CHECK(scan.bases == qbp.GetMinedCommitmentsIndexedUntilBlock(type, active.Tip(), 4));
+
+    scan = qbp.ScanMinedCommitmentsIndexedUntilBlock(type, active.Tip(), 10);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({72, 73, 48, 49, 24, 25}));
+    BOOST_CHECK(scan.complete);
+    scan = qbp.ScanMinedCommitmentsIndexedUntilBlock(type, active[40], 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({24, 25}));
+    BOOST_CHECK(scan.complete);
+
+    // Quorum index 0's newest entry names base 40, older than its next entry's base 48. The first
+    // cycle takes base 40; the second meets the contradiction and drops it again.
+    m_node.evodb->Write(BuildInversedHeightKeyIndexed(type, 84, 0), 40);
+    scan = qbp.ScanMinedCommitmentsIndexedUntilBlock(type, active.Tip(), 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({73}));
+    BOOST_CHECK(!scan.complete);
+    m_node.evodb->Write(BuildInversedHeightKeyIndexed(type, 84, 0), 72);
+
+    // Quorum index 1 has an unreadable entry at mined height 62, met in the second cycle.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(BuildInversedHeightKeyIndexed(type, 62, 1), uint8_t{0}));
+    scan = qbp.ScanMinedCommitmentsIndexedUntilBlock(type, active.Tip(), 4);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({72, 73, 48}));
+    BOOST_CHECK(!scan.complete);
+    scan = qbp.ScanMinedCommitmentsIndexedUntilBlock(type, active.Tip(), 2);
+    BOOST_CHECK(BaseHeights(scan) == std::vector<int>({72, 73}));
+    BOOST_CHECK(scan.complete);
+
+    // Quorum indexes never share a base: quorum index 1's newest entry names index 0's base 72, and
+    // neither entry is kept.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(BuildInversedHeightKeyIndexed(type, 86, 1), 72));
+    scan = qbp.ScanMinedCommitmentsIndexedUntilBlock(type, active.Tip(), 2);
+    BOOST_CHECK(BaseHeights(scan).empty());
+    BOOST_CHECK(!scan.complete);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

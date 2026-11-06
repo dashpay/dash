@@ -23,6 +23,11 @@
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 
+#include <util/fs.h>
+
+#include <algorithm>
+#include <fstream>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <tuple>
@@ -119,12 +124,52 @@ inline uint256 GetTestBlockHash(uint32_t n) { return ArithToUint256(arith_uint25
 // mined-commitment state without a full DKG/mining path.
 inline const std::string DB_MINED_COMMITMENT = "q_mc";
 inline const std::string DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT = "q_mcih";
+inline const std::string DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED = "q_mcihi";
 
 inline std::tuple<std::string, Consensus::LLMQType, uint32_t> BuildInversedHeightKey(Consensus::LLMQType llmqType,
                                                                                     int nMinedHeight)
 {
     return std::make_tuple(DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT, llmqType,
                            htobe32_internal(std::numeric_limits<uint32_t>::max() - nMinedHeight));
+}
+
+inline std::tuple<std::string, Consensus::LLMQType, int, uint32_t> BuildInversedHeightKeyIndexed(Consensus::LLMQType llmqType,
+                                                                                                 int nMinedHeight,
+                                                                                                 int quorumIndex)
+{
+    return std::make_tuple(DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED, llmqType, quorumIndex,
+                           htobe32_internal(std::numeric_limits<uint32_t>::max() - nMinedHeight));
+}
+
+// An inversed-height index value padded past LevelDB's 4 KiB table block size, so that the entry
+// ends the table block it is written to. The padding repeats the quorum height's low byte for
+// CorruptTableBlock to find; readers deserialize only the leading quorum height.
+inline std::pair<int, std::vector<uint8_t>> PaddedIndexValue(int quorum_height)
+{
+    return {quorum_height, std::vector<uint8_t>(8192, static_cast<uint8_t>(quorum_height))};
+}
+
+// Flips a byte of the first occurrence of `needle` in a table file of the closed LevelDB at
+// `db_dir`, so that the table block holding it fails its checksum.
+inline bool CorruptTableBlock(const fs::path& db_dir, const std::vector<uint8_t>& needle)
+{
+    for (const auto& entry : fs::directory_iterator(db_dir)) {
+        if (entry.path().extension() != ".ldb") continue;
+        std::vector<char> bytes;
+        {
+            std::ifstream in{entry.path(), std::ios::binary};
+            bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        }
+        const auto pos{std::search(bytes.begin(), bytes.end(), needle.begin(), needle.end(),
+                                   [](char a, uint8_t b) { return static_cast<uint8_t>(a) == b; })};
+        if (pos == bytes.end()) continue;
+        *pos ^= 1;
+        std::ofstream out{entry.path(), std::ios::binary | std::ios::trunc};
+        out.write(bytes.data(), bytes.size());
+        out.close();
+        return !out.fail();
+    }
+    return false;
 }
 
 // Store a mined commitment as if it was mined at `mined_height` for the quorum whose base block

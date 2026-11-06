@@ -22,6 +22,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <vector>
 
 class BlockValidationState;
 class CBlock;
@@ -46,6 +47,17 @@ class CQuorumSnapshotManager;
 using QcHashMap = std::map<Consensus::LLMQType, std::vector<uint256>>;
 //! As above, but keyed by quorumIndex, for rotation-enabled types.
 using QcIndexedHashMap = std::map<Consensus::LLMQType, std::map<int16_t, uint256>>;
+
+struct MinedCommitmentScan {
+    //! Quorum base blocks of mined commitments. Non-indexed scans return them newest first. Indexed
+    //! scans return them by cycle rank, newest rank first, and by quorum index within each rank.
+    std::vector<const CBlockIndex*> bases;
+    //! True if `bases` holds the requested number of entries or every older entry was read; false
+    //! if an index entry could not be read or contradicts another, so an absent quorum may still
+    //! have been mined. Entries a contradiction implicates are left out. A wrong entry that fits
+    //! the index's order is not detected.
+    bool complete{false};
+};
 
 /** Erase a mined commitment unless another chainstate still contains its block. */
 bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chainstate,
@@ -155,6 +167,16 @@ public:
                                                                                     const CBlockIndex* pindex,
                                                                                     size_t cycle) const;
     std::optional<const CBlockIndex*> GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const;
+
+    //! GetMinedCommitmentsUntilBlock, stopping at an entry it cannot read or trust and reporting
+    //! whether the walk read every entry it needed.
+    MinedCommitmentScan ScanMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType,
+                                                       gsl::not_null<const CBlockIndex*> pindex, size_t max_count) const;
+    //! GetMinedCommitmentsIndexedUntilBlock for rotation-enabled types, reporting the same way.
+    MinedCommitmentScan ScanMinedCommitmentsIndexedUntilBlock(Consensus::LLMQType llmqType,
+                                                              gsl::not_null<const CBlockIndex*> pindex,
+                                                              size_t max_count) const;
+
 private:
     //! Called from every site that writes or erases mined commitment state.
     void DropQcHashesCache() EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);

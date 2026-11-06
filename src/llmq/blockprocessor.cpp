@@ -17,6 +17,8 @@
 #include <checkqueue.h>
 #include <consensus/params.h>
 #include <consensus/validation.h>
+#include <crypto/common.h>
+#include <dbwrapper.h>
 #include <deploymentstatus.h>
 #include <net.h>
 #include <primitives/block.h>
@@ -831,6 +833,111 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsIndexe
     }
 
     return ret;
+}
+
+// Appends quorum bases from one inversed-height index, newest first, until `bases` holds
+// `max_count` entries. Returns false if an entry inside `prefix` could not be read or contradicts
+// the index, keeping the entries before it that the contradiction does not implicate; a key outside
+// `prefix` ends the walk because no older entry exists.
+static bool ReadMinedCommitmentIndex(CEvoDB& evo_db, const DataStream& prefix, const CBlockIndex& pindex,
+                                     size_t max_count, std::vector<const CBlockIndex*>& bases)
+{
+    AssertLockNotHeld(evo_db.cs);
+    LOCK(evo_db.cs);
+
+    const auto unreadable{[&](const char* reason) {
+        LogPrint(BCLog::LLMQ, "Mined commitment index below height %d unreadable after %d entries: %s\n",
+                 pindex.nHeight, bases.size(), reason);
+        return false;
+    }};
+
+    DataStream first_key{prefix};
+    first_key << htobe32_internal(std::numeric_limits<uint32_t>::max() - pindex.nHeight);
+
+    auto it{evo_db.GetCurTransaction().NewIteratorUniquePtr()};
+    try {
+        for (it->Seek(first_key); bases.size() < max_count; it->Next()) {
+            // The iterator steps over a block it cannot read, so later entries are not the next newest.
+            if (it->HasError()) return unreadable("read error");
+            if (!it->Valid()) break;
+            const DataStream key{it->GetKey()};
+            if (key.size() < prefix.size() || !std::equal(prefix.begin(), prefix.end(), key.begin())) {
+                break;
+            }
+            int base_height{-1};
+            if (key.size() != prefix.size() + sizeof(uint32_t) || !it->GetValue(base_height)) {
+                return unreadable("malformed entry");
+            }
+            const int64_t mined_height{std::numeric_limits<uint32_t>::max() -
+                                       be32toh_internal(ReadLE32(UCharCast(key.data() + prefix.size())))};
+            const CBlockIndex* base{pindex.GetAncestor(base_height)};
+            if (!base || base_height >= mined_height) return unreadable("inconsistent entry");
+            // A commitment is mined within its own quorum's DKG interval, so along one index the
+            // quorum bases strictly decrease. Either of the two entries may be the wrong one.
+            if (!bases.empty() && base_height >= bases.back()->nHeight) {
+                bases.pop_back();
+                return unreadable("out-of-order entry");
+            }
+            bases.push_back(base);
+        }
+    } catch (const dbwrapper_error& e) {
+        return unreadable(e.what());
+    }
+    return true;
+}
+
+MinedCommitmentScan CQuorumBlockProcessor::ScanMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType,
+                                                                          gsl::not_null<const CBlockIndex*> pindex,
+                                                                          size_t max_count) const
+{
+    DataStream prefix{};
+    prefix << DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT << llmqType;
+    MinedCommitmentScan scan;
+    scan.complete = ReadMinedCommitmentIndex(m_evoDb, prefix, *pindex, max_count, scan.bases);
+    return scan;
+}
+
+MinedCommitmentScan CQuorumBlockProcessor::ScanMinedCommitmentsIndexedUntilBlock(Consensus::LLMQType llmqType,
+                                                                                 gsl::not_null<const CBlockIndex*> pindex,
+                                                                                 size_t max_count) const
+{
+    MinedCommitmentScan scan;
+    const auto llmq_params{Params().GetLLMQ(llmqType)};
+    if (!Assume(llmq_params.has_value())) {
+        return scan;
+    }
+    // Cycle by cycle, the cycle-th newest commitment of every quorum index in index order.
+    std::vector<std::vector<const CBlockIndex*>> taken(llmq_params->signingActiveQuorumCount);
+    for (size_t cycle{0}; scan.bases.size() < max_count; ++cycle) {
+        const size_t found_before{scan.bases.size()};
+        for (const int quorum_index : util::irange(llmq_params->signingActiveQuorumCount)) {
+            if (scan.bases.size() == max_count) break;
+            DataStream prefix{};
+            prefix << DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED << llmqType << quorum_index;
+            std::vector<const CBlockIndex*> index_bases;
+            if (!ReadMinedCommitmentIndex(m_evoDb, prefix, *pindex, cycle + 1, index_bases)) {
+                // Earlier cycles took this index's newer entries; drop any the failed read no longer keeps.
+                for (size_t rank{index_bases.size()}; rank < taken[quorum_index].size(); ++rank) {
+                    std::erase(scan.bases, taken[quorum_index][rank]);
+                }
+                return scan;
+            }
+            if (index_bases.size() > cycle) {
+                // Quorums of different quorum indexes have different base blocks, so either entry may
+                // be the wrong one.
+                if (std::erase(scan.bases, index_bases[cycle]) > 0) {
+                    LogPrint(BCLog::LLMQ, "Mined commitment index of quorum index %d repeats base height %d\n",
+                             quorum_index, index_bases[cycle]->nHeight);
+                    return scan;
+                }
+                scan.bases.push_back(index_bases[cycle]);
+            }
+            taken[quorum_index] = std::move(index_bases);
+        }
+        if (scan.bases.size() == found_before) break;
+    }
+    scan.complete = true;
+    return scan;
 }
 
 // The returned quorums are in reversed order, so the most recent one is at index 0
