@@ -317,10 +317,14 @@ public:
         // fast rescanning via block filters is only supported by descriptor wallets right now
         assert(!m_wallet.IsLegacy());
 
+        // Descriptors are added and rebuilt under cs_wallet while a rescan
+        // runs, so each one is read whole.
+        LOCK(m_wallet.cs_wallet);
         // create initial filter with scripts from all ScriptPubKeyMans
         for (auto spkm : m_wallet.GetAllScriptPubKeyMans()) {
             auto desc_spkm{dynamic_cast<DescriptorScriptPubKeyMan*>(spkm)};
             assert(desc_spkm != nullptr);
+            LOCK(desc_spkm->cs_desc_man);
             AddScriptPubKeys(desc_spkm);
             // save each range descriptor's end for possible future filter updates
             if (desc_spkm->IsHDEnabled()) {
@@ -332,9 +336,11 @@ public:
     void UpdateIfNeeded()
     {
         // repopulate filter with new scripts if top-up has happened since last iteration
+        LOCK(m_wallet.cs_wallet);
         for (const auto& [desc_spkm_id, last_range_end] : m_last_range_ends) {
             auto desc_spkm{dynamic_cast<DescriptorScriptPubKeyMan*>(m_wallet.GetScriptPubKeyMan(desc_spkm_id))};
             assert(desc_spkm != nullptr);
+            LOCK(desc_spkm->cs_desc_man);
             int32_t current_range_end{desc_spkm->GetEndRange()};
             if (current_range_end > last_range_end) {
                 AddScriptPubKeys(desc_spkm, last_range_end);
@@ -2217,10 +2223,10 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
         WITH_LOCK(cs_wallet, chain().requestMempoolTransactions(*this));
     }
     ShowProgress(strprintf("%s " + _("Rescanning…").translated, GetDisplayName()), 100); // hide progress dialog in GUI
-    if (block_height && fAbortRescan) {
+    if (fAbortRescan) {
         WalletLogPrintf("Rescan aborted at block %d. Progress=%f\n", block_height, progress_current);
         result.status = ScanResult::USER_ABORT;
-    } else if (block_height && chain().shutdownRequested()) {
+    } else if (chain().shutdownRequested()) {
         WalletLogPrintf("Rescan interrupted by shutdown request at block %d. Progress=%f\n", block_height, progress_current);
         result.status = ScanResult::USER_ABORT;
     } else {
@@ -4208,48 +4214,171 @@ PlatformKeyResult<uint32_t> CWallet::PlatformAccountReference(const IdentityAuth
     return result;
 }
 
-PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
+PlatformKeyStatus CWallet::DeriveFriendshipReceivingChain(const FriendshipKeychainRequest& request,
+                                                          platformkeys::ExtKey256& key,
+                                                          std::unique_ptr<Descriptor>& descriptor) const
 {
-    LOCK(cs_wallet);
-    PlatformKeyResult<FriendshipXpub> result;
-    const auto path{platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
-                                                 Span{request.local_id.begin(), uint256::size()},
-                                                 Span{request.remote_id.begin(), uint256::size()})};
-    platformkeys::ExtKey256 key;
-    result.status = DerivePlatformKey(path, key);
-    if (result.status != PlatformKeyStatus::SUCCESS) return result;
+    AssertLockHeld(cs_wallet);
+    const auto status{
+        DerivePlatformKey(platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
+                                                       Span{request.local_id.begin(), uint256::size()},
+                                                       Span{request.remote_id.begin(), uint256::size()}),
+                          key)};
+    if (status != PlatformKeyStatus::SUCCESS) return status;
 
     CExtKey xprv{};
     xprv.chaincode = key.chaincode;
     xprv.key = key.key;
-    const CExtPubKey xpub{xprv.Neuter()};
-    FlatSigningProvider provider;
-    provider.keys.emplace(xpub.pubkey.GetID(), xprv.key);
+    FlatSigningProvider unused;
     std::string parse_error;
-    auto parsed{Parse("pkh(" + EncodeExtPubKey(xpub) + "/*)", provider, parse_error, /*require_checksum=*/false)};
-    if (!parsed) {
-        result.status = PlatformKeyStatus::DERIVATION_ERROR;
-        return result;
-    }
+    descriptor = Parse("pkh(" + EncodeExtPubKey(xprv.Neuter()) + "/*)", unused, parse_error, /*require_checksum=*/false);
+    return descriptor ? PlatformKeyStatus::SUCCESS : PlatformKeyStatus::DERIVATION_ERROR;
+}
 
+PlatformKeyResult<FriendshipReceivingChain> CWallet::GetFriendshipReceivingXpub(const FriendshipKeychainRequest& request) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<FriendshipReceivingChain> result;
+    platformkeys::ExtKey256 key;
+    std::unique_ptr<Descriptor> parsed;
+    result.status = DeriveFriendshipReceivingChain(request, key, parsed);
+    if (result.status != PlatformKeyStatus::SUCCESS) return result;
+
+    result.value.xpub = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+    const WalletDescriptor descriptor(std::move(parsed), /*creation_time=*/0, /*range_start=*/0, /*range_end=*/0,
+                                      /*next_index=*/0);
+    if (const auto* held = GetDescriptorScriptPubKeyMan(descriptor)) {
+        result.value.birth_time = held->GetTimeFirstKey();
+    }
+    return result;
+}
+
+PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<FriendshipXpub> result;
+    platformkeys::ExtKey256 key;
+    std::unique_ptr<Descriptor> parsed;
+    result.status = DeriveFriendshipReceivingChain(request, key, parsed);
+    if (result.status != PlatformKeyStatus::SUCCESS) return result;
+
+    const FriendshipXpub xpub{key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     const int64_t birth_time{std::max<int64_t>(request.birth_time, 0)};
     WalletDescriptor descriptor(std::move(parsed), birth_time, /*range_start=*/0,
                                 /*range_end=*/DEFAULT_KEYPOOL_SIZE, /*next_index=*/0);
-    if (auto* existing = GetDescriptorScriptPubKeyMan(descriptor)) {
+    // The wallet may have scanned blocks paying the chain without it when the
+    // chain is new, born earlier than the one held, or held without all its
+    // scripts, as after an import that failed part way.
+    auto* existing{GetDescriptorScriptPubKeyMan(descriptor)};
+    if (existing) {
         LOCK(existing->cs_desc_man);
         const WalletDescriptor current{existing->GetWalletDescriptor()};
         descriptor.range_start = current.range_start;
         descriptor.range_end = std::max(descriptor.range_end, current.range_end);
         descriptor.next_index = current.next_index;
+        if (!m_unfinished_imports.contains(descriptor.id) && descriptor.creation_time >= current.creation_time &&
+            existing->GetEndRange() >= descriptor.range_end && existing->HavePrivateKeys()) {
+            result.value = xpub;
+            return result;
+        }
         descriptor.creation_time = std::min(descriptor.creation_time, current.creation_time);
     }
-    if (!AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false)) {
+    // Recorded before the chain changes: a crash in between costs a needless
+    // rescan rather than missed payments.
+    if (!AddOwedRescan(descriptor.creation_time)) {
         result.status = PlatformKeyStatus::IMPORT_ERROR;
         return result;
     }
+    // No rescan settles that one until the import completes (see m_unfinished_imports).
+    m_unfinished_imports[descriptor.id] = GetOwedRescanSequence();
 
-    result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+    // AddWalletDescriptor() saves a chain's key and scripts before the chain,
+    // and a wallet does not load them without it. So a chain the wallet does
+    // not hold is saved first, without scripts: an import that stops part way
+    // leaves one that loads, and the next import completes it.
+    const auto save_without_scripts{[&] {
+        WalletDescriptor saved{descriptor};
+        saved.range_end = saved.range_start;
+        return WalletBatch{GetDatabase()}.WriteDescriptor(saved.id, saved);
+    }};
+    FlatSigningProvider provider;
+    provider.keys.emplace(key.key.GetPubKey().GetID(), key.key);
+    bool imported{false};
+    try {
+        imported = (existing || save_without_scripts()) &&
+                   AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false) != nullptr;
+    } catch (const std::runtime_error& e) {
+        WalletLogPrintf("%s: %s\n", __func__, e.what());
+    }
+    if (!imported) {
+        // The chain may hold scripts expanded from a cache the import could
+        // not save, and a payment to one would top it up and save it without
+        // that cache, which no wallet loads. So it is left without scripts.
+        if (auto* chain{GetDescriptorScriptPubKeyMan(descriptor)}) {
+            LOCK(chain->cs_desc_man);
+            WalletDescriptor unbuilt{chain->GetWalletDescriptor()};
+            unbuilt.cache = DescriptorCache{};
+            chain->UpdateWalletDescriptor(unbuilt);
+        }
+        result.status = PlatformKeyStatus::IMPORT_ERROR;
+        return result;
+    }
+    m_unfinished_imports.erase(descriptor.id);
+    MaybeUpdateBirthTime(descriptor.creation_time);
+
+    result.value = xpub;
     return result;
+}
+
+void CWallet::LoadOwedRescan(uint64_t sequence, int64_t from_time)
+{
+    AssertLockHeld(cs_wallet);
+    m_owed_rescans[sequence] = std::max<int64_t>(from_time, 0);
+    m_next_owed_rescan = std::max(m_next_owed_rescan, sequence + 1);
+}
+
+bool CWallet::AddOwedRescan(int64_t from_time)
+{
+    AssertLockHeld(cs_wallet);
+    from_time = std::max<int64_t>(from_time, 0);
+    if (!WalletBatch{GetDatabase()}.WriteOwedRescan(m_next_owed_rescan, from_time)) return false;
+    m_owed_rescans.emplace(m_next_owed_rescan++, from_time);
+    return true;
+}
+
+bool CWallet::OwedByUnfinishedImport(uint64_t sequence) const
+{
+    AssertLockHeld(cs_wallet);
+    return std::any_of(m_unfinished_imports.begin(), m_unfinished_imports.end(),
+                       [&](const auto& unfinished) { return unfinished.second == sequence; });
+}
+
+std::optional<int64_t> CWallet::GetOwedRescanFrom() const
+{
+    AssertLockHeld(cs_wallet);
+    std::optional<int64_t> from;
+    for (const auto& [sequence, from_time] : m_owed_rescans) {
+        if (OwedByUnfinishedImport(sequence)) continue;
+        if (!from || from_time < *from) from = from_time;
+    }
+    return from;
+}
+
+void CWallet::SettleOwedRescans(uint64_t sequence, int64_t covered_from)
+{
+    AssertLockHeld(cs_wallet);
+    WalletBatch batch{GetDatabase()};
+    for (auto it{m_owed_rescans.begin()}; it != m_owed_rescans.end() && it->first <= sequence;) {
+        if (it->second < covered_from || OwedByUnfinishedImport(it->first)) {
+            ++it;
+            continue;
+        }
+        // The rescan is done: a record that stays behind only repeats it after a restart.
+        if (!batch.EraseOwedRescan(it->first)) {
+            WalletLogPrintf("%s: could not erase owed rescan %d from the wallet database\n", __func__, it->first);
+        }
+        it = m_owed_rescans.erase(it);
+    }
 }
 
 std::vector<const Governance::Object*> CWallet::GetGovernanceObjects()

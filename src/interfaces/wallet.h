@@ -113,12 +113,39 @@ public:
     //! Initiate a rescan. Returns status indicating success, failure, abort, or already rescanning.
     virtual wallet::RescanStatus startRescan(bool from_genesis) = 0;
 
+    //! Rescan, on the calling thread, the blocks a key born at from_time
+    //! (UNIX time in seconds) may be paid in, as importdescriptors does.
+    //! Returns as startRescan() does. Only a completed rescanFromTime() or
+    //! startRescan() settles owed rescans: those it covers, except those
+    //! recorded after it started and those of an import that failed (see
+    //! ensureFriendshipReceivingKeychain()). Other rescans, such as
+    //! rescanblockchain's or one at wallet load, settle none.
+    //! FAILURE settles nothing and has two causes: a block it had to read has
+    //! no data (rescanUnavailableFrom() names the first block without data,
+    //! and the blocks this node has were scanned), or the chain changed
+    //! during the scan (rescanUnavailableFrom() is nullopt; run it again).
+    //! With a block filter index, a block whose filter does not match the
+    //! wallet is not read, so a rescan can complete and settle even while
+    //! rescanUnavailableFrom() names a height.
+    virtual wallet::RescanStatus rescanFromTime(int64_t from_time) = 0;
+
     //! Abort a rescan.
     virtual void abortRescan() = 0;
 
-    //! The height startRescan(false) starts at, when this node has pruned
-    //! blocks it would read; nullopt when it has them all.
-    virtual std::optional<int> rescanPrunedFrom() = 0;
+    //! The first height, up to the chain's tip, of the blocks
+    //! rescanFromTime(from_time) scans that this node has no block data
+    //! for, as on a pruned node or below an assumeutxo snapshot; nullopt
+    //! when it has them all. Such a rescan reads the blocks it has and
+    //! fails, unless block filters show none of the others pays the wallet.
+    virtual std::optional<int> rescanUnavailableFrom(int64_t from_time) = 0;
+
+    //! The time, in seconds, the rescan this wallet owes starts from, for
+    //! receiving chains it was given after it had scanned past their birth;
+    //! nullopt when it owes none. Run it with rescanFromTime(). It stays
+    //! owed while that rescan fails for want of the blocks
+    //! rescanUnavailableFrom() names. The rescan an import that failed owes
+    //! is left out until the chain is imported again or the wallet reloaded.
+    virtual std::optional<int64_t> owedRescanFrom() = 0;
 
     //! Lock masternode collaterals
     virtual void autoLockMasternodeCollaterals() = 0;
@@ -171,9 +198,23 @@ public:
     virtual wallet::PlatformKeyResult<uint32_t> platformAccountReference(const wallet::IdentityAuthKey& key,
                                                                          const wallet::CompactXpub& compact_xpub) = 0;
 
+    //! Our DIP-15 receiving chain, as ensureFriendshipReceivingKeychain()
+    //! returns it, without importing it, and the birth of the one the wallet
+    //! holds. request.birth_time is not used.
+    virtual wallet::PlatformKeyResult<wallet::FriendshipReceivingChain> getFriendshipReceivingXpub(
+        const wallet::FriendshipKeychainRequest& request) = 0;
+
     //! Ensure our private DIP-15 receiving chain is imported as a ranged
-    //! descriptor and return the corresponding public chain. Derivation,
-    //! descriptor update and result publication are one wallet-locked action.
+    //! descriptor born no later than request.birth_time (in seconds) and
+    //! return the corresponding public chain. Derivation, descriptor update
+    //! and result publication are one wallet-locked action. A chain the
+    //! wallet holds whole, born no later, is left as it is. Importing the
+    //! chain, or moving its birth earlier, first records a rescan owed from
+    //! that birth (see owedRescanFrom()). If the import then fails
+    //! (IMPORT_ERROR), the chain may lack some of its scripts until it is
+    //! imported again, which owes a new rescan; until then no rescan settles
+    //! the one recorded, so a reload still owes it. The failed birth may not
+    //! have been saved: ask again with that birth or an earlier one.
     virtual wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) = 0;
 

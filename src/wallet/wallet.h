@@ -505,6 +505,23 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     PlatformKeyStatus DerivePlatformKey(const platformkeys::Path& path, platformkeys::ExtKey256& out) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    PlatformKeyStatus DeriveFriendshipReceivingChain(const FriendshipKeychainRequest& request,
+                                                     platformkeys::ExtKey256& key,
+                                                     std::unique_ptr<Descriptor>& descriptor) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+
+    //! Rescans owed from a birth time, by the sequence number they were
+    //! recorded under (persisted as DBKeys::OWED_RESCAN).
+    std::map<uint64_t, int64_t> m_owed_rescans GUARDED_BY(cs_wallet);
+    uint64_t m_next_owed_rescan GUARDED_BY(cs_wallet){1};
+    //! The rescan owed by the import of each receiving chain, by descriptor
+    //! id, while that import has not completed. Until the chain is imported
+    //! again it has no scripts, so no rescan settles that one and it is not
+    //! reported. A reload loads the chain as saved: whole, or without scripts
+    //! if a first import stopped before saving it whole. The rescan is owed
+    //! as usual.
+    std::map<uint256, uint64_t> m_unfinished_imports GUARDED_BY(cs_wallet);
+    bool OwedByUnfinishedImport(uint64_t sequence) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
 public:
     /**
@@ -1115,7 +1132,19 @@ public:
                                                                      const uint256& digest) const;
     PlatformKeyResult<SecureVector> PlatformECDHSecret(const IdentityAuthKey& key, const CPubKey& counterparty) const;
     PlatformKeyResult<uint32_t> PlatformAccountReference(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
+    PlatformKeyResult<FriendshipReceivingChain> GetFriendshipReceivingXpub(const FriendshipKeychainRequest& request) const;
     PlatformKeyResult<FriendshipXpub> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
+
+    /** Load an owed rescan record (wallet load). */
+    void LoadOwedRescan(uint64_t sequence, int64_t from_time) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Record that the blocks a key born at from_time may be paid in must be rescanned. */
+    bool AddOwedRescan(int64_t from_time) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** The earliest time an owed rescan starts from; nullopt when none is owed. */
+    std::optional<int64_t> GetOwedRescanFrom() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** The sequence number of the last owed rescan recorded, for SettleOwedRescans(). */
+    uint64_t GetOwedRescanSequence() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) { return m_next_owed_rescan - 1; }
+    /** Settle the owed rescans recorded up to sequence that a completed rescan from covered_from read. */
+    void SettleOwedRescans(uint64_t sequence, int64_t covered_from) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /* Returns the time of the first created key or, in case of an import, it could be the time of the first received transaction */
     int64_t GetBirthTime() const { return m_birth_time; }

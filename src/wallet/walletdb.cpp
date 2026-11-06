@@ -59,6 +59,7 @@ const std::string MINVERSION{"minversion"};
 const std::string NAME{"name"};
 const std::string OLD_KEY{"wkey"};
 const std::string ORDERPOSNEXT{"orderposnext"};
+const std::string OWED_RESCAN{"owed_rescan"};
 const std::string PLATFORM_DATA{"platform_data"};
 const std::string POOL{"pool"};
 const std::string PURPOSE{"purpose"};
@@ -260,6 +261,16 @@ bool WalletBatch::WritePlatformData(const std::string& key, const std::vector<un
 bool WalletBatch::ErasePlatformData(const std::string& key)
 {
     return EraseIC(std::make_pair(DBKeys::PLATFORM_DATA, key));
+}
+
+bool WalletBatch::WriteOwedRescan(uint64_t sequence, int64_t from_time)
+{
+    return WriteIC(std::make_pair(DBKeys::OWED_RESCAN, sequence), from_time);
+}
+
+bool WalletBatch::EraseOwedRescan(uint64_t sequence)
+{
+    return EraseIC(std::make_pair(DBKeys::OWED_RESCAN, sequence));
 }
 
 bool WalletBatch::WriteActiveScriptPubKeyMan(const uint256& id, bool internal)
@@ -678,6 +689,16 @@ ReadKeyValue(CWallet* pwallet, DataStream& ssKey, CDataStream& ssValue,
             ssKey >> strKey;
             ssValue >> vchValue;
             pwallet->LoadPlatformData(strKey, vchValue);
+        } else if (strType == DBKeys::OWED_RESCAN) {
+            uint64_t sequence;
+            ssKey >> sequence;
+            int64_t from_time{0};
+            if (ssValue.size() == sizeof(from_time)) {
+                ssValue >> from_time;
+            } else {
+                strErr = strprintf("Owed rescan %d could not be read; it is owed from genesis", sequence);
+            }
+            pwallet->LoadOwedRescan(sequence, from_time);
         } else if (strType == DBKeys::OLD_KEY) {
             strErr = "Found unsupported 'wkey' record, try loading with version 0.17";
             return false;

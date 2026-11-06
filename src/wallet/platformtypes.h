@@ -13,6 +13,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <variant>
 
 namespace wallet {
@@ -63,7 +64,9 @@ struct FriendshipKeychainRequest {
     uint32_t account{0};
     uint256 local_id;
     uint256 remote_id;
-    int64_t birth_time{0}; //!< 0 means unknown/genesis.
+    //! UNIX time in seconds, as a descriptor's creation time (Platform's
+    //! $createdAt is in milliseconds); 0 means unknown, i.e. genesis.
+    int64_t birth_time{0};
 };
 
 struct FriendshipXpub {
@@ -71,6 +74,14 @@ struct FriendshipXpub {
     ChainCode chaincode;
     //! BIP32 fingerprint (Hash160 prefix) of the parent key, m/9'/coin'/15'/account'/<user_a>.
     std::array<uint8_t, 4> parent_fingerprint{};
+};
+
+//! Our DIP-15 receiving chain for one friendship.
+struct FriendshipReceivingChain {
+    FriendshipXpub xpub;
+    //! Birth of the chain the wallet holds, in seconds; nullopt when it does
+    //! not hold it.
+    std::optional<int64_t> birth_time;
 };
 
 //! DIP-15 compact xpub: parentFingerprint(4) || chainCode(32) || pubKey(33).
