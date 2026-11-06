@@ -3,15 +3,22 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
+#include <kernel/coinstats.h>
 #include <net.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <script/script.h>
+#include <txdb.h>
 #include <uint256.h>
+#include <util/check.h>
 #include <util/chaintype.h>
 #include <validation.h>
 #include <version.h>
+
+#include <set>
 
 #include <test/util/setup_common.h>
 
@@ -40,6 +47,35 @@ BOOST_AUTO_TEST_CASE(test_assumeutxo)
     const auto out210 = *ExpectedAssumeutxo(200, *params);
     BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b");
     BOOST_CHECK_EQUAL(out210.nChainTx, 200U);
+}
+
+BOOST_AUTO_TEST_CASE(utxo_set_hash_commits_coin_height_and_coinbase)
+{
+    const uint256 best_block{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()->GetBlockHash())};
+    const uint256 txid{uint256S("0x1111111111111111111111111111111111111111111111111111111111111111")};
+    const CTxOut txout{COIN, CScript{} << OP_TRUE};
+
+    const auto utxo_set_hash = [&](kernel::CoinStatsHashType hash_type, uint32_t mutated_n, int height, bool coinbase) {
+        CCoinsViewDB db{{.path = "utxo_set_hash", .cache_bytes = 1 << 20, .memory_only = true}, {}};
+        CCoinsViewCache cache{&db};
+        for (uint32_t n : {0, 1}) {
+            const bool mutated{n == mutated_n};
+            cache.AddCoin(COutPoint{txid, n}, Coin{txout, mutated ? height : 10, mutated && coinbase}, /*possible_overwrite=*/false);
+        }
+        cache.SetBestBlock(best_block);
+        BOOST_REQUIRE(cache.Flush());
+        return Assert(kernel::ComputeUTXOStats(hash_type, &db, m_node.chainman->m_blockman))->hashSerialized;
+    };
+
+    for (const auto hash_type : {kernel::CoinStatsHashType::HASH_SERIALIZED, kernel::CoinStatsHashType::MUHASH}) {
+        const uint256 original{utxo_set_hash(hash_type, /*mutated_n=*/0, /*height=*/10, /*coinbase=*/false)};
+        std::set<uint256> hashes{original};
+        for (uint32_t n : {0, 1}) {
+            BOOST_CHECK(hashes.insert(utxo_set_hash(hash_type, n, /*height=*/11, /*coinbase=*/false)).second);
+            BOOST_CHECK(hashes.insert(utxo_set_hash(hash_type, n, /*height=*/10, /*coinbase=*/true)).second);
+        }
+        BOOST_CHECK_EQUAL(utxo_set_hash(hash_type, /*mutated_n=*/1, /*height=*/10, /*coinbase=*/false), original);
+    }
 }
 
 //! Test the Dash (non-witness) IsBlockMutated() predicate directly.
