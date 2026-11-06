@@ -7,10 +7,10 @@
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
 #include <llmq/cache.h>
-#include <llmq/options.h>
 #include <llmq/snapshot.h>
 #include <llmq/types.h>
 #include <masternode/meta.h>
+#include <spork.h>
 #include <util/helpers.h>
 #include <util/std23.h>
 
@@ -20,7 +20,9 @@
 #include <util/time.h>
 #include <validation.h>
 
+#include <algorithm>
 #include <atomic>
+#include <iterator>
 #include <map>
 #include <optional>
 
@@ -547,6 +549,70 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
 } // anonymous namespace
 
 namespace llmq {
+static bool EvalSpork(const Consensus::LLMQType llmqType, const int64_t spork_value)
+{
+    if (spork_value == 0) {
+        return true;
+    }
+    if (spork_value == 1 && llmqType != Consensus::LLMQType::LLMQ_100_67 &&
+        llmqType != Consensus::LLMQType::LLMQ_400_60 && llmqType != Consensus::LLMQType::LLMQ_400_85) {
+        return true;
+    }
+    return false;
+}
+
+bool IsAllMembersConnectedEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman)
+{
+    return EvalSpork(llmqType, sporkman.GetSporkValue(SPORK_21_QUORUM_ALL_CONNECTED));
+}
+
+bool IsQuorumDKGEnabled(const CSporkManager& sporkman) { return sporkman.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED); }
+
+bool IsQuorumPoseEnabled(const Consensus::LLMQType llmqType, const CSporkManager& sporkman)
+{
+    return EvalSpork(llmqType, sporkman.GetSporkValue(SPORK_23_QUORUM_POSE));
+}
+
+bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_null<const CBlockIndex*> pindex)
+{
+    if (!llmqParams.useRotation) {
+        return false;
+    }
+
+    int cycleQuorumBaseHeight = pindex->nHeight - (pindex->nHeight % llmqParams.dkgInterval);
+    if (cycleQuorumBaseHeight < 1) {
+        return false;
+    }
+    // It should activate at least 1 block prior to the cycle start
+    return DeploymentActiveAfter(pindex->GetAncestor(cycleQuorumBaseHeight - 1), Params().GetConsensus(),
+                                 Consensus::DEPLOYMENT_DIP0024);
+}
+
+std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const ChainstateManager& chainman,
+                                                       gsl::not_null<const CBlockIndex*> pindex)
+{
+    std::vector<Consensus::LLMQType> ret;
+    ret.reserve(Params().GetConsensus().llmqs.size());
+    for (const auto& params : Params().GetConsensus().llmqs) {
+        if (chainman.IsQuorumTypeEnabled(params.type, pindex)) {
+            ret.push_back(params.type);
+        }
+    }
+    return ret;
+}
+
+std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(
+    const ChainstateManager& chainman, gsl::not_null<const CBlockIndex*> pindex)
+{
+    std::vector<std::reference_wrapper<const Consensus::LLMQParams>> ret;
+    ret.reserve(Params().GetConsensus().llmqs.size());
+
+    std::copy_if(Params().GetConsensus().llmqs.begin(), Params().GetConsensus().llmqs.end(), std::back_inserter(ret),
+                 [&pindex, &chainman](const auto& params) { return chainman.IsQuorumTypeEnabled(params.type, pindex); });
+
+    return ret;
+}
+
 namespace utils {
 BlsCheck::BlsCheck() = default;
 

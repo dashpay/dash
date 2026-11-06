@@ -11,7 +11,6 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/dkgsessionmgr.h>
-#include <llmq/options.h>
 #include <llmq/params.h>
 #include <llmq/signhash.h>
 #include <llmq/utils.h>

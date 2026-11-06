@@ -330,7 +330,7 @@ BITCOIN_CORE_H = \
   llmq/net_quorum.h \
   llmq/net_signing.h \
   llmq/observer.h \
-  llmq/options.h \
+  llmq/options_args.h \
   llmq/params.h \
   llmq/quorumproofdata.h \
   llmq/quorumproofs.h \
@@ -630,7 +630,7 @@ libbitcoin_node_a_SOURCES = \
   llmq/net_quorum.cpp \
   llmq/net_signing.cpp \
   llmq/observer.cpp \
-  llmq/options.cpp \
+  llmq/options_args.cpp \
   llmq/quorumproofs.cpp \
   llmq/quorums.cpp \
   llmq/quorumsman.cpp \
@@ -1348,7 +1348,6 @@ libdashkernel_la_SOURCES = \
   llmq/commitment.cpp \
   llmq/context.cpp \
   llmq/dkgsessionmgr.cpp \
-  llmq/options.cpp \
   llmq/quorums.cpp \
   llmq/quorumsman.cpp \
   llmq/signhash.cpp \

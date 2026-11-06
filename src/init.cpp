@@ -128,7 +128,7 @@
 #include <llmq/net_quorum.h>
 #include <llmq/net_signing.h>
 #include <llmq/observer.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <masternode/utils.h>

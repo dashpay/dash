@@ -9,6 +9,7 @@
 #include <llmq/debug.h>
 #include <llmq/dkgsession.h>
 #include <llmq/net_quorum.h>
+#include <llmq/utils.h>
 
 #include <chainparams.h>
 #include <deploymentstatus.h>

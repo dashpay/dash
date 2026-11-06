@@ -8,11 +8,11 @@
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
-#include <llmq/options.h>
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <llmq/utils.h>
 #include <netmessagemaker.h>
 #include <util/helpers.h>
 #include <util/std23.h>
