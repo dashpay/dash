@@ -15,8 +15,8 @@ using namespace std::literals;
 static void InventoryBatch(benchmark::Bench& bench, uint32_t count)
 {
     const auto setup = MakeNoLogFileContext<TestingSetup>(ChainType::REGTEST);
-    auto& chainstate = *static_cast<TestChainState*>(&setup->m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*setup->m_node.chainman);
+    chainman.JumpOutOfIbd();
     auto& peerman = *setup->m_node.peerman;
     const auto& connman = *static_cast<ConnmanTestMsg*>(setup->m_node.connman.get());
     auto peer{MakeTestPeer(/*id=*/0)};
@@ -44,7 +44,7 @@ static void InventoryBatch(benchmark::Bench& bench, uint32_t count)
     });
 
     peerman.FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 

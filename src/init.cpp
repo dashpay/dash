@@ -171,6 +171,7 @@
 using kernel::CoinStatsHashType;
 using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
 using kernel::DumpMempool;
+using kernel::LoadMempool;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
@@ -2489,11 +2490,17 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     chainman.m_load_block = std::thread(&util::TraceThread, "loadblk", [=, &args, &chainman, &node] {
         // ThreadImport can switch fReindex from true to false, fetch its original state here to use later
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
-        ThreadImport(chainman, vImportFiles, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{});
+        ThreadImport(chainman, vImportFiles);
+
+        // Load mempool from disk
+        if (auto* pool{chainman.ActiveChainstate().GetMempool()}) {
+            kernel::LoadMempool(*pool, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{}, chainman.ActiveChainstate(), {});
+            pool->SetLoadTried(!ShutdownRequested());
+        }
 
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
-            const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
+            const bool ibd = chainman.IsInitialBlockDownload();
             if (node.active_ctx) {
                 // On masternodes, defer the full broadcast until after
                 // nodeman->Init() so that GetProTxHash() is available
@@ -2584,7 +2591,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             // directly because the full broadcast (NetQuorum,
             // ActiveContext) depends on a valid proTxHash.
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
-            const bool ibd = chainman.ActiveChainstate().IsInitialBlockDownload();
+            const bool ibd = chainman.IsInitialBlockDownload();
             GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
         }
     });

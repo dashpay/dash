@@ -15,12 +15,17 @@
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <logging.h>
 #include <policy/feerate.h>
+#include <primitives/transaction.h>
 #include <psbt.h>
 #include <saltedhasher.h>
+#include <script/interpreter.h>
+#include <script/script.h>
+#include <support/allocators/secure.h>
+#include <sync.h>
 #include <tinyformat.h>
+#include <uint256.h>
 #include <util/fs.h>
 #include <util/hasher.h>
-#include <util/message.h>
 #include <util/result.h>
 #include <util/string.h>
 #include <util/time.h>
@@ -28,34 +33,59 @@
 #include <validationinterface.h>
 #include <wallet/coincontrol.h>
 #include <wallet/crypter.h>
+#include <wallet/db.h>
 #include <wallet/coinselection.h>
 #include <external_signer.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/transaction.h>
-#include <wallet/walletdb.h>
+#include <wallet/types.h>
 #include <wallet/walletutil.h>
 
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
-#include <stdexcept>
-#include <stdint.h>
 #include <string>
 #include <unordered_set>
-#include <utility>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <boost/signals2/signal.hpp>
 
 class CKey;
+class CKeyID;
+class CPubKey;
 class CScript;
 class CTxDSIn;
+class Coin;
+class SigningProvider;
 enum class FeeEstimateMode;
+enum class MemPoolRemovalReason;
+enum class SigningResult;
+enum class TransactionError;
+namespace interfaces {
+class Wallet;
+}
+namespace wallet {
+class CWallet;
+class WalletBatch;
+enum class DBErrors : int;
+} // namespace wallet
+struct CBlockLocator;
+struct CExtKey;
+struct FlatSigningProvider;
+struct KeyOriginInfo;
+struct PartiallySignedTransaction;
+struct SignatureData;
 struct bilingual_str;
 
 using LoadWalletFn = std::function<void(std::unique_ptr<interfaces::Wallet> wallet)>;
@@ -130,8 +160,6 @@ static constexpr size_t DUMMY_NESTED_P2PKH_INPUT_SIZE = 113;
 static const bool DEFAULT_USE_HD_WALLET = true;
 
 class CCoinControl;
-class CWalletTx;
-class ReserveDestination;
 
 /** (client) version numbers for particular wallet features */
 struct CompactTallyItem
@@ -1155,9 +1183,10 @@ public:
     };
 
     /** Prepends the wallet name in logging output to ease debugging in multi-wallet use cases */
-    template<typename... Params>
-    void WalletLogPrintf(std::string fmt, Params... parameters) const {
-        LogPrintf(("%s " + fmt).c_str(), GetDisplayName(), parameters...);
+    template <typename... Params>
+    void WalletLogPrintf(const char* fmt, Params... parameters) const
+    {
+        LogPrintf(("%s " + std::string{fmt}).c_str(), GetDisplayName(), parameters...);
     };
 
     /** Upgrade the wallet */

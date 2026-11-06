@@ -21,7 +21,7 @@ BOOST_FIXTURE_TEST_SUITE(bip39_tests, BasicTestingSetup)
 // https://github.com/trezor/python-mnemonic/blob/b502451a33a440783926e04428115e0bed87d01f/vectors.json
 BOOST_AUTO_TEST_CASE(bip39_vectors)
 {
-    UniValue tests = read_json(std::string(json_tests::bip39_vectors, json_tests::bip39_vectors + sizeof(json_tests::bip39_vectors)));
+    UniValue tests = read_json(json_tests::bip39_vectors);
 
     for (unsigned int i = 0; i < tests.size(); i++) {
         // printf("%d\n", i);

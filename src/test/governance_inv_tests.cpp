@@ -334,9 +334,8 @@ BOOST_AUTO_TEST_CASE(governance_objects_require_peer_announcement_or_request)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
                           *m_node.netfulfilledman, *m_node.connman);
@@ -385,7 +384,7 @@ BOOST_AUTO_TEST_CASE(governance_objects_require_peer_announcement_or_request)
     m_node.peerman->FinalizeNode(*announcing_peer);
     m_node.peerman->FinalizeNode(*second_announcing_peer);
     m_node.peerman->FinalizeNode(*unsolicited_peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
 }
 
 BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
@@ -481,9 +480,8 @@ BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
                           *m_node.netfulfilledman, *m_node.connman);
@@ -527,7 +525,7 @@ BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
     m_node.peerman->FinalizeNode(*announcing_peer);
     m_node.peerman->FinalizeNode(*second_announcing_peer);
     m_node.peerman->FinalizeNode(*unsolicited_peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
 }
 
 // A message received while not blockchain-synced is dropped, but the per-peer authorization must
@@ -536,9 +534,8 @@ BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     NetGovernance net_gov(m_node.peerman.get(), *m_node.govman, *m_node.mn_sync,
                           *m_node.netfulfilledman, *m_node.connman);
@@ -570,7 +567,7 @@ BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 20);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
 }
 
 // A vote whose parent object is unknown must prove masternode authorship before it is cached.
@@ -578,9 +575,8 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     // Penalties are applied only once fully synced.
     m_node.mn_sync->SwitchToNextAsset();
@@ -606,7 +602,7 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 20);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
 }
 
 // The same unauthenticated vote must cost the sender the same whether or not its parent object
@@ -615,9 +611,8 @@ BOOST_AUTO_TEST_CASE(invalid_vote_is_scored_alike_with_and_without_a_parent_obje
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     m_node.mn_sync->SwitchToNextAsset();
     BOOST_REQUIRE(m_node.mn_sync->IsSynced());
@@ -647,7 +642,7 @@ BOOST_AUTO_TEST_CASE(invalid_vote_is_scored_alike_with_and_without_a_parent_obje
 
     m_node.peerman->FinalizeNode(*orphan_peer);
     m_node.peerman->FinalizeNode(*known_parent_peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
 }
 
 // Every orphan parent hash is re-requested from every peer on each governance tick, and one

@@ -11,6 +11,7 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <validation.h>
+#include <validationinterface.h>
 #include <wallet/context.h>
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>

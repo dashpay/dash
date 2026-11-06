@@ -13,17 +13,17 @@
 typedef std::vector<unsigned char> valtype;
 
 CScriptID::CScriptID(const CScript& in) : BaseHash(Hash160(in)) {}
-CScriptID::CScriptID(const ScriptHash& in) : BaseHash(static_cast<uint160>(in)) {}
+CScriptID::CScriptID(const ScriptHash& in) : BaseHash{in} {}
 
 ScriptHash::ScriptHash(const CScript& in) : BaseHash(Hash160(in)) {}
-ScriptHash::ScriptHash(const CScriptID& in) : BaseHash(static_cast<uint160>(in)) {}
+ScriptHash::ScriptHash(const CScriptID& in) : BaseHash{in} {}
 
 PKHash::PKHash(const CPubKey& pubkey) : BaseHash(pubkey.GetID()) {}
 PKHash::PKHash(const CKeyID& pubkey_id) : BaseHash(pubkey_id) {}
 
 CKeyID ToKeyID(const PKHash& key_hash)
 {
-    return CKeyID{static_cast<uint160>(key_hash)};
+    return CKeyID{uint160{key_hash}};
 }
 
 std::string GetTxnOutputType(TxoutType t)
