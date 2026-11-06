@@ -273,16 +273,21 @@ public:
         int32_t m_expiry_height{0};
     };
     virtual std::vector<QuorumInfo> getQuorumStats() = 0;
-    struct PlatformQuorum {
-        uint256 m_quorum_hash{};
-        std::vector<uint8_t> m_pubkey{}; //!< serialized BLS public key (basic scheme)
-        int32_t m_height{0};
+    enum class PlatformQuorumStatus { FOUND, INVALID, UNAVAILABLE };
+    struct PlatformQuorumResult {
+        PlatformQuorumStatus status{PlatformQuorumStatus::UNAVAILABLE};
+        std::vector<uint8_t> public_key; //!< 48-byte basic-scheme key for FOUND; empty otherwise
     };
-    //! Locally retained quorums of the given LLMQ type with their public
-    //! keys. Used by the GUI Platform client to verify Platform state-root
-    //! quorum signatures against locally synced quorum data. This includes
-    //! retained signing quorums that are no longer in the active signing set.
-    virtual std::vector<PlatformQuorum> getPlatformQuorums(uint8_t llmq_type) = 0;
+    //! Whether `quorum_hash` (Core internal byte order) could sign Platform state whose signed metadata
+    //! carries `core_chain_locked_height`, judged from this node's active chain. FOUND means it is among
+    //! the quorums eligible at that height. INVALID means the local chain proves it could not: the
+    //! height is stale against a ChainLock this node knows, or the hash is no block of the active chain
+    //! below that height, so no quorum with it was mined by then, which counts only if the active
+    //! chain's block at that height is, or is an ancestor of, the block of the best ChainLock whose
+    //! block this node knows. UNAVAILABLE means this node proves neither, as for an older quorum, which
+    //! may still sign the one Platform block that first carries a height after a jump.
+    virtual PlatformQuorumResult getPlatformQuorum(uint8_t llmq_type, const uint256& quorum_hash,
+                                                   uint32_t core_chain_locked_height) = 0;
     //! Serialized InstantSend lock for the given txid, or empty if the
     //! transaction has no islock (used to build asset lock proofs).
     virtual std::vector<uint8_t> getInstantSendLock(const uint256& txid) = 0;

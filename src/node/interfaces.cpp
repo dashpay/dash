@@ -13,6 +13,7 @@
 #include <chainparams.h>
 #include <coinjoin/common.h>
 #include <common/system.h>
+#include <dbwrapper.h>
 #include <deploymentstatus.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
@@ -37,6 +38,7 @@
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/options.h>
+#include <llmq/params.h>
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
 #include <logging.h>
@@ -86,6 +88,7 @@
 #include <boost/signals2/signal.hpp>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -684,44 +687,79 @@ public:
         }
         return stats;
     }
-    std::vector<PlatformQuorum> getPlatformQuorums(uint8_t llmq_type) override
+    PlatformQuorumResult getPlatformQuorum(uint8_t llmq_type, const uint256& quorum_hash,
+                                           uint32_t core_chain_locked_height) override
     {
-        std::vector<PlatformQuorum> ret;
-        if (!context().llmq_ctx || !context().llmq_ctx->quorum_block_processor || !context().chainman) {
-            return ret;
-        }
-        const auto* pindex{WITH_LOCK(::cs_main, return context().chainman->ActiveChain().Tip())};
-        if (!pindex) {
-            return ret;
-        }
+        PlatformQuorumResult invalid{PlatformQuorumStatus::INVALID, {}};
         const auto type{static_cast<Consensus::LLMQType>(llmq_type)};
         const auto llmq_params{Params().GetLLMQ(type)};
-        if (!llmq_params.has_value()) {
-            return ret;
+        if (type != Params().GetConsensus().llmqTypePlatform || !llmq_params.has_value()) {
+            return invalid;
         }
-        // Drive proofs may be signed by an older Platform quorum while they
-        // are still consensus-valid and retained locally. Export the full
-        // retained-key window, not only the current signing-active set.
-        const auto quorum_count{static_cast<size_t>(std::max(llmq_params->signingActiveQuorumCount,
-                                                             llmq_params->keepOldKeys))};
-        // Read mined final commitments directly: they already carry the quorum
-        // hash and public key, so there is no need to materialize full CQuorum
-        // objects (member lists, vvec/contribution reads, quorum cache inserts)
-        // via ScanQuorums. Newest-first, matching ScanQuorums' ordering.
+        if (core_chain_locked_height > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+            return invalid;
+        }
+        const int signed_height{static_cast<int>(core_chain_locked_height)};
+        if (!context().llmq_ctx || !context().llmq_ctx->quorum_block_processor || !context().chainman) {
+            return {};
+        }
+        // Only a ChainLock whose block is known can lock part of the active chain; the best height may
+        // belong to a block this node has not seen.
+        const CBlockIndex* chainlocked_block{nullptr};
+        int32_t best_cl_height{-1};
+        if (const auto& chainlocks{context().chainlocks}) {
+            chainlocked_block = chainlocks->GetBestChainlockWithPindex().second;
+            best_cl_height = chainlocks->GetBestChainLockHeight();
+        }
+
+        LOCK(::cs_main);
+        const CChain& active{context().chainman->ActiveChain()};
+        const CBlockIndex* tip{active.Tip()};
+        if (!tip || signed_height > tip->nHeight) {
+            return {};
+        }
+        // A ChainLock can arrive before its block. Without one the tip still proves a height fresh,
+        // but not stale: Platform may carry a ChainLock this node has not learned yet.
+        const int cl_height{best_cl_height >= 0 ? std::min(best_cl_height, tip->nHeight) : tip->nHeight};
+        if (signed_height < llmq::PlatformQuorumMinSignedHeight(*llmq_params, cl_height)) {
+            return best_cl_height >= 0 ? invalid : PlatformQuorumResult{};
+        }
+
         const auto& qbp{*context().llmq_ctx->quorum_block_processor};
-        const auto quorum_base_block_indexes{llmq_params->useRotation
-            ? qbp.GetMinedCommitmentsIndexedUntilBlock(type, pindex, quorum_count)
-            : qbp.GetMinedCommitmentsUntilBlock(type, pindex, quorum_count)};
-        for (const auto* pQuorumBaseBlockIndex : quorum_base_block_indexes) {
-            const auto qc{qbp.GetMinedCommitment(type, pQuorumBaseBlockIndex->GetBlockHash()).first};
-            if (!qc.quorumPublicKey.IsValid()) continue;
-            ret.emplace_back(PlatformQuorum{
-                .m_quorum_hash = qc.quorumHash,
-                .m_pubkey = qc.quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false),
-                .m_height = pQuorumBaseBlockIndex->nHeight,
-            });
+        const CBlockIndex* signed_block{active[signed_height]};
+        const auto window{static_cast<size_t>(llmq::PlatformEligibleQuorumCount(*llmq_params))};
+        const auto scan{llmq_params->useRotation ? qbp.ScanMinedCommitmentsIndexedUntilBlock(type, signed_block, window)
+                                                 : qbp.ScanMinedCommitmentsUntilBlock(type, signed_block, window)};
+        if (std::ranges::none_of(scan.bases, [&](const CBlockIndex* base) { return base->GetBlockHash() == quorum_hash; })) {
+            // Platform verifies a block against its last committed validator set, so the block that
+            // first carries a height may be signed by a quorum no longer in the window at that height.
+            // A quorum mined at or below the height has its base block on the active chain below it;
+            // any other hash could never have signed.
+            const CBlockIndex* base{context().chainman->m_blockman.LookupBlockIndex(quorum_hash)};
+            const bool never_mined{!base || base->nHeight >= signed_height || !active.Contains(base)};
+            // That is final only on the part of the active chain a ChainLock locks; beyond it the
+            // active chain may be a competing branch. Unlike Chainlocks::HasChainLock, this keeps the
+            // lock while spork 19 is off. A node whose quorum index reads as corrupt may have bad storage
+            // elsewhere too, so it rejects nothing until the window reads cleanly.
+            const bool chainlocked{chainlocked_block && chainlocked_block->GetAncestor(signed_height) == signed_block};
+            return never_mined && chainlocked && scan.complete ? invalid : PlatformQuorumResult{};
         }
-        return ret;
+
+        // Mined commitments passed consensus validation, so an unreadable or inconsistent record is
+        // local corruption, not evidence against the quorum.
+        std::pair<llmq::CFinalCommitment, uint256> record;
+        try {
+            record = qbp.GetMinedCommitment(type, quorum_hash);
+        } catch (const dbwrapper_error&) {
+            return {};
+        }
+        const auto& [qc, mined_block_hash]{record};
+        const CBlockIndex* mined_block{context().chainman->m_blockman.LookupBlockIndex(mined_block_hash)};
+        if (qc.llmqType != type || qc.quorumHash != quorum_hash || !mined_block || !active.Contains(mined_block) ||
+            mined_block->nHeight > signed_height || !qc.quorumPublicKey.IsValid()) {
+            return {};
+        }
+        return {PlatformQuorumStatus::FOUND, qc.quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false)};
     }
     std::vector<uint8_t> getInstantSendLock(const uint256& txid) override
     {

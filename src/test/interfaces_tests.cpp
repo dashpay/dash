@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bls/bls.h>
+#include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <evo/evodb.h>
@@ -13,21 +14,30 @@
 #include <interfaces/node.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <llmq/options.h>
+#include <llmq/params.h>
 #include <script/standard.h>
 #include <spork.h>
 #include <streams.h>
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
+#include <tinyformat.h>
+#include <util/fs.h>
 #include <util/std23.h>
 #include <util/strencodings.h>
 #include <validation.h>
 #include <version.h>
 
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <future>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include <boost/test/unit_test.hpp>
 
@@ -339,75 +349,374 @@ BOOST_AUTO_TEST_CASE(hasBlocks)
     BOOST_CHECK(!chain->hasBlocks(active.Tip()->GetBlockHash(), 6, 50));
 }
 
-// getPlatformQuorums exports the retained-key window of mined commitments with basic-scheme
-// serialized public keys, newest-first. Mined commitments are installed directly in EvoDB (the
-// same shortcut evo_cbtx_tests uses) since a real DKG cannot run in a unit test.
-BOOST_AUTO_TEST_CASE(getPlatformQuorums)
+namespace {
+using PlatformQuorumStatus = interfaces::LLMQ::PlatformQuorumStatus;
+
+const char* StatusName(PlatformQuorumStatus status)
+{
+    switch (status) {
+    case PlatformQuorumStatus::FOUND: return "FOUND";
+    case PlatformQuorumStatus::INVALID: return "INVALID";
+    case PlatformQuorumStatus::UNAVAILABLE: return "UNAVAILABLE";
+    }
+    return "?";
+}
+
+interfaces::LLMQ::PlatformQuorumResult CheckPlatformQuorum(interfaces::LLMQ& llmq, std::string_view label,
+                                                           uint8_t llmq_type, const uint256& quorum_hash,
+                                                           uint32_t height, PlatformQuorumStatus expected)
+{
+    auto result{llmq.getPlatformQuorum(llmq_type, quorum_hash, height)};
+    BOOST_CHECK_MESSAGE(result.status == expected, strprintf("%s (height %u): got %s, expected %s", label, height,
+                                                             StatusName(result.status), StatusName(expected)));
+    BOOST_CHECK_MESSAGE(result.public_key.empty() == (result.status != PlatformQuorumStatus::FOUND),
+                        strprintf("%s: only FOUND carries a key", label));
+    return result;
+}
+
+// Records a ChainLock at `height` on `block`, or on a block this node does not know if null.
+void RecordChainLock(chainlock::Chainlocks& chainlocks, int height, const CBlockIndex* block)
+{
+    const auto clsig{llmq::testutils::CreateChainLock(height, block ? block->GetBlockHash() : InsecureRand256())};
+    BOOST_REQUIRE(chainlocks.UpdateBestChainlock(::SerializeHash(clsig), clsig, block));
+}
+
+// Adds a header-only block on `prev`, unique and otherwise copied from `like`.
+const CBlockIndex* AddHeader(ChainstateManager& chainman, const CBlockIndex& prev, const CBlockIndex& like)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    CBlockHeader header{like.GetBlockHeader()};
+    header.hashPrevBlock = prev.GetBlockHash();
+    ++header.nNonce;
+    return chainman.m_blockman.AddToBlockIndex(header, header.GetHash(), chainman.m_best_header);
+}
+} // namespace
+
+// getPlatformQuorum answers whether a quorum could have signed Platform state carrying a given Core
+// chain-locked height. Mined commitments are installed directly in EvoDB (the same shortcut
+// evo_cbtx_tests uses) since a real DKG cannot run in a unit test. After the first checks a
+// ChainLock on the tip covers the whole active chain, and the staleness bound equals the tip's.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum)
 {
     auto node{interfaces::MakeNode(m_node)};
-    constexpr auto llmq_type{Consensus::LLMQType::LLMQ_TEST};
-    const auto llmq_params{Params().GetLLMQ(llmq_type)};
-    BOOST_REQUIRE(llmq_params.has_value());
+    auto& llmq{node->llmq()};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    BOOST_REQUIRE(platform_type == Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    // Four commitments are eligible at any height (signingActiveQuorumCount plus a slack of two) and
+    // state older than 4 * 24 = 96 blocks below the ChainLock is stale.
+    BOOST_REQUIRE_EQUAL(params.signingActiveQuorumCount, 2);
+    BOOST_REQUIRE_EQUAL(params.dkgInterval, 24);
+    const int tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Height())};
+    BOOST_REQUIRE_EQUAL(tip, 100);
+    BOOST_REQUIRE_EQUAL(llmq::PlatformQuorumMinSignedHeight(params, tip), 4);
 
-    // The exported window is the retained-key window, which on LLMQ_TEST is strictly larger than
-    // the active signing set: older quorums may still have signed consensus-valid Platform state
-    // roots, so exporting only the active set would be a regression.
-    const auto window{static_cast<size_t>(std::max(llmq_params->signingActiveQuorumCount, llmq_params->keepOldKeys))};
-    BOOST_REQUIRE_EQUAL(window, 4U);
-    BOOST_REQUIRE(window > static_cast<size_t>(llmq_params->signingActiveQuorumCount));
-
-    // No commitments yet.
-    BOOST_CHECK(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)).empty());
-    // Unconfigured LLMQ type.
-    BOOST_CHECK(node->llmq().getPlatformQuorums(0xEE).empty());
-
-    // One more valid commitment than the window can hold, quorum bases at heights 10..50.
-    constexpr std::array<int, 5> base_heights{10, 20, 30, 40, 50};
-    std::vector<llmq::CFinalCommitment> qcs;
+    // Quorum bases mined one block later: 2 (mined at 3), 10, 20, 30, 40, 50 (mined at 51).
+    std::map<int, llmq::CFinalCommitment> qcs;
+    llmq::CFinalCommitment other_type_qc;
     {
-        LOCK(Assert(m_node.chainman)->GetMutex());
+        LOCK(::cs_main);
         const CChain& active{m_node.chainman->ActiveChain()};
         auto db_tx{m_node.evodb->BeginTransaction()};
-        for (const int base : base_heights) {
-            auto qc{llmq::testutils::CreateValidCommitment(*llmq_params, active[base]->GetBlockHash())};
+        for (const int base : {2, 10, 20, 30, 40, 50}) {
+            auto qc{llmq::testutils::CreateValidCommitment(params, active[base]->GetBlockHash())};
             llmq::testutils::WriteMinedCommitment(*m_node.evodb, qc, active[base + 1]->GetBlockHash(),
                                                   /*mined_height=*/base + 1, /*quorum_height=*/base);
-            qcs.push_back(qc);
+            qcs.emplace(base, qc);
         }
-        db_tx->Commit();
-    }
-
-    const auto check_quorums = [&](const std::vector<interfaces::LLMQ::PlatformQuorum>& quorums,
-                                   const std::vector<size_t>& expected_qc_indexes) {
-        BOOST_REQUIRE_EQUAL(quorums.size(), expected_qc_indexes.size());
-        for (size_t i{0}; i < quorums.size(); ++i) {
-            const auto& qc{qcs[expected_qc_indexes[i]]};
-            BOOST_CHECK_EQUAL(quorums[i].m_quorum_hash, qc.quorumHash);
-            BOOST_CHECK_EQUAL(quorums[i].m_height, base_heights[expected_qc_indexes[i]]);
-            // Exact basic-scheme serialization, regardless of the active global BLS scheme.
-            BOOST_CHECK(quorums[i].m_pubkey == qc.quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false));
-            CBLSPublicKey roundtrip;
-            roundtrip.SetBytes(quorums[i].m_pubkey, /*specificLegacyScheme=*/false);
-            BOOST_CHECK(roundtrip.IsValid());
-            BOOST_CHECK(roundtrip == qc.quorumPublicKey);
-        }
-    };
-
-    // Newest-first and truncated to the window: bases 50, 40, 30, 20; base 10 falls out.
-    check_quorums(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)), {4, 3, 2, 1});
-
-    // A commitment whose public key is invalid consumes its window slot but exports nothing.
-    {
-        LOCK(Assert(m_node.chainman)->GetMutex());
-        const CChain& active{m_node.chainman->ActiveChain()};
-        auto qc{llmq::testutils::CreateValidCommitment(*llmq_params, active[60]->GetBlockHash())};
-        qc.quorumPublicKey = CBLSPublicKey{};
-        auto db_tx{m_node.evodb->BeginTransaction()};
-        llmq::testutils::WriteMinedCommitment(*m_node.evodb, qc, active[61]->GetBlockHash(),
+        other_type_qc = llmq::testutils::CreateValidCommitment(llmq::testutils::GetLLMQParams(Consensus::LLMQType::LLMQ_TEST),
+                                                               active[60]->GetBlockHash());
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb, other_type_qc, active[61]->GetBlockHash(),
                                               /*mined_height=*/61, /*quorum_height=*/60);
         db_tx->Commit();
     }
-    check_quorums(node->llmq().getPlatformQuorums(std23::to_underlying(llmq_type)), {4, 3, 2});
+    const auto check = [&](std::string_view label, uint8_t llmq_type, const uint256& hash, uint32_t height,
+                           PlatformQuorumStatus expected) {
+        return CheckPlatformQuorum(llmq, label, llmq_type, hash, height, expected);
+    };
+    using enum PlatformQuorumStatus;
+
+    // The newest quorum, with the commitment's 48-byte basic-scheme key. The hash is in Core's
+    // internal byte order.
+    const auto found{check("newest", type, qcs.at(50).quorumHash, tip, FOUND)};
+    BOOST_CHECK(found.public_key == qcs.at(50).quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false));
+    BOOST_CHECK_EQUAL(found.public_key.size(), 48U);
+    CBLSPublicKey roundtrip;
+    roundtrip.SetBytes(found.public_key, /*specificLegacyScheme=*/false);
+    BOOST_CHECK(roundtrip.IsValid());
+    BOOST_CHECK(roundtrip == qcs.at(50).quorumPublicKey);
+    // Without a ChainLock this node's chain is not final, so a missing quorum is not evidence yet.
+    check("unknown quorum, no ChainLock", type, InsecureRand256(), tip, UNAVAILABLE);
+
+    // Base 2 is eligible at heights 3 and 4; only 4 is within the staleness bound the tip gives. With
+    // no ChainLock known, as after a restart during a ChainLock stall, the tip does not prove 3 stale:
+    // Platform may carry the stalled ChainLock (see "stalled ChainLock learned").
+    check("at the staleness bound", type, qcs.at(2).quorumHash, 4, FOUND);
+    check("below the tip's staleness bound, no ChainLock", type, qcs.at(2).quorumHash, 3, UNAVAILABLE);
+
+    const auto* tip_block{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+    RecordChainLock(*m_node.chainlocks, tip, tip_block);
+    check("below the staleness bound", type, qcs.at(2).quorumHash, 3, INVALID);
+
+    uint256 reversed{qcs.at(50).quorumHash};
+    std::reverse(reversed.begin(), reversed.end());
+    check("byte-reversed hash", type, reversed, tip, INVALID);
+
+    // Window edges at the tip, newest first: 50, 40, 30, 20 are eligible and 10 is fifth.
+    check("position 3", type, qcs.at(30).quorumHash, tip, FOUND);
+    check("position 4", type, qcs.at(20).quorumHash, tip, FOUND);
+    // Base 10 is fourth at height 50. When Platform's Core height jumps from 50 to the tip, its
+    // validator set signs the first block carrying the tip's height, so fifth proves nothing.
+    check("position 4 before a Core-height jump", type, qcs.at(10).quorumHash, 50, FOUND);
+    check("position 5 after a Core-height jump", type, qcs.at(10).quorumHash, tip, UNAVAILABLE);
+
+    // A quorum stays valid for state signed while it was in the window.
+    check("historical", type, qcs.at(10).quorumHash, 15, FOUND);
+    // Only bases 10 and 2 were mined by height 15, and nothing older exists.
+    check("unknown quorum, window shorter than four", type, InsecureRand256(), 15, INVALID);
+
+    check("height above the tip", type, qcs.at(50).quorumHash, tip + 1, UNAVAILABLE);
+    check("height beyond int32", type, qcs.at(50).quorumHash, uint32_t{1} << 31, INVALID);
+    check("non-Platform type", std23::to_underlying(Consensus::LLMQType::LLMQ_TEST), other_type_qc.quorumHash, tip,
+          INVALID);
+    check("unknown type", 0xEE, qcs.at(50).quorumHash, tip, INVALID);
+    check("unknown quorum", type, InsecureRand256(), tip, INVALID);
+    check("mined above the height", type, qcs.at(50).quorumHash, 50, INVALID);
+    // A quorum that could sign at a height has its base block on the active chain below it.
+    uint256 block_45, block_70, off_chain;
+    {
+        LOCK(::cs_main);
+        const CChain& active{m_node.chainman->ActiveChain()};
+        block_45 = active[45]->GetBlockHash();
+        block_70 = active[70]->GetBlockHash();
+        off_chain = AddHeader(*m_node.chainman, *active[50], *active[51])->GetBlockHash();
+    }
+    check("block above the height", type, block_70, 50, INVALID);
+    check("block off the active chain", type, off_chain, tip, INVALID);
+    check("block below the height, outside the window", type, block_45, tip, UNAVAILABLE);
+
+    // ChainLocks stalled at 50 while the tip reached 100: the staleness bound follows the ChainLock.
+    // Height 3, unproven without a ChainLock above, is fresh once this node learns the stalled one.
+    m_node.chainlocks->ResetChainlock();
+    const auto* block_50{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain()[50])};
+    RecordChainLock(*m_node.chainlocks, 50, block_50);
+    check("stalled ChainLock learned", type, qcs.at(2).quorumHash, 3, FOUND);
+    // Above the ChainLock the active chain may be a competing branch that lacks the newest
+    // commitment, so only a quorum found there is decisive.
+    check("unknown quorum at the ChainLock", type, InsecureRand256(), 50, INVALID);
+    check("unknown quorum above the ChainLock", type, InsecureRand256(), 51, UNAVAILABLE);
+    check("unknown quorum far above the ChainLock", type, InsecureRand256(), 86, UNAVAILABLE);
+    check("above the ChainLock", type, qcs.at(50).quorumHash, 86, FOUND);
+    // A higher ChainLock on a block this node does not know covers nothing yet.
+    RecordChainLock(*m_node.chainlocks, 88, nullptr);
+    check("unknown quorum below a ChainLock on an unknown block", type, InsecureRand256(), 86, UNAVAILABLE);
+    // One on a branch forking from the active chain after block 83 covers the active chain to 83.
+    const CBlockIndex* branch_tip;
+    {
+        LOCK(::cs_main);
+        const CChain& active{m_node.chainman->ActiveChain()};
+        branch_tip = active[83];
+        for (int height{84}; height <= 90; ++height) {
+            branch_tip = AddHeader(*m_node.chainman, *branch_tip, *active[height]);
+        }
+        BOOST_REQUIRE(!active.Contains(branch_tip));
+    }
+    RecordChainLock(*m_node.chainlocks, 90, branch_tip);
+    check("unknown quorum above a competing ChainLock's fork", type, InsecureRand256(), 86, UNAVAILABLE);
+    check("unknown quorum below a competing ChainLock's fork", type, InsecureRand256(), 83, INVALID);
+    // One on a header built on the tip covers the whole active chain before its block arrives.
+    const auto* next_header{WITH_LOCK(::cs_main, return AddHeader(*m_node.chainman, *tip_block, *tip_block))};
+    RecordChainLock(*m_node.chainlocks, tip + 1, next_header);
+    check("unknown quorum below a ChainLock beyond the tip", type, InsecureRand256(), tip, INVALID);
+
+    // A ChainLock on a block not known yet still raises the staleness bound, but only up to the tip.
+    m_node.chainlocks->ResetChainlock();
+    RecordChainLock(*m_node.chainlocks, 50, block_50);
+    RecordChainLock(*m_node.chainlocks, 1000, nullptr);
+    check("ChainLock ahead of the tip, at the bound", type, qcs.at(2).quorumHash, 4, FOUND);
+    check("ChainLock ahead of the tip, below the bound", type, qcs.at(2).quorumHash, 3, INVALID);
+}
+
+// A window entry this node cannot read or trust is a local fault. Mined commitments passed consensus
+// validation, so the answer is UNAVAILABLE, never INVALID. A ChainLock on the tip makes a missing
+// quorum INVALID unless a fault is in the way.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_local_faults)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+
+    std::vector<uint256> hashes;
+    {
+        LOCK(::cs_main);
+        const CChain& active{m_node.chainman->ActiveChain()};
+        RecordChainLock(*m_node.chainlocks, active.Height(), active.Tip());
+        for (int height{0}; height <= active.Height(); ++height) {
+            hashes.push_back(active[height]->GetBlockHash());
+        }
+        auto db_tx{m_node.evodb->BeginTransaction()};
+        for (const int base : {10, 20, 30, 40}) {
+            llmq::testutils::WriteMinedCommitment(*m_node.evodb,
+                                                  llmq::testutils::CreateValidCommitment(params, hashes.at(base)),
+                                                  hashes.at(base + 1), /*mined_height=*/base + 1, /*quorum_height=*/base);
+        }
+        // Base 50: an index entry (mined at 51) without its commitment record.
+        m_node.evodb->Write(llmq::testutils::BuildInversedHeightKey(platform_type, 51), 50);
+        // Base 60: a commitment whose public key is invalid.
+        auto bad_key_qc{llmq::testutils::CreateValidCommitment(params, hashes.at(60))};
+        bad_key_qc.quorumPublicKey = CBLSPublicKey{};
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb, bad_key_qc, hashes.at(61), /*mined_height=*/61,
+                                              /*quorum_height=*/60);
+        // Base 70: indexed as mined at 71, but its record names block 90.
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb,
+                                              llmq::testutils::CreateValidCommitment(params, hashes.at(70)),
+                                              hashes.at(90), /*mined_height=*/71, /*quorum_height=*/70);
+        // Base 80: the record stored under its hash is another quorum's commitment.
+        m_node.evodb->Write(std::make_pair(llmq::testutils::DB_MINED_COMMITMENT, std::make_pair(platform_type, hashes.at(80))),
+                            std::make_pair(llmq::testutils::CreateValidCommitment(params, hashes.at(79)), hashes.at(81)));
+        m_node.evodb->Write(llmq::testutils::BuildInversedHeightKey(platform_type, 81), 80);
+        // Base 75: indexed as mined at 76, but its record names a sibling of block 51, which is not on
+        // the active chain.
+        const CBlockIndex* off_chain{AddHeader(*m_node.chainman, *active[50], *active[51])};
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb,
+                                              llmq::testutils::CreateValidCommitment(params, hashes.at(75)),
+                                              off_chain->GetBlockHash(), /*mined_height=*/76, /*quorum_height=*/75);
+        // Base 85: the record stored under its hash is a commitment of another LLMQ type.
+        const auto& other_params{llmq::testutils::GetLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
+        m_node.evodb->Write(std::make_pair(llmq::testutils::DB_MINED_COMMITMENT, std::make_pair(platform_type, hashes.at(85))),
+                            std::make_pair(llmq::testutils::CreateValidCommitment(other_params, hashes.at(85)), hashes.at(86)));
+        m_node.evodb->Write(llmq::testutils::BuildInversedHeightKey(platform_type, 86), 85);
+        db_tx->Commit();
+    }
+    const auto check = [&](std::string_view label, const uint256& hash, uint32_t height,
+                           PlatformQuorumStatus expected) {
+        return CheckPlatformQuorum(llmq, label, type, hash, height, expected);
+    };
+    using enum PlatformQuorumStatus;
+
+    check("healthy neighbour", hashes.at(40), 50, FOUND);
+    check("unknown quorum, healthy window", InsecureRand256(), 44, INVALID);
+    check("record missing", hashes.at(50), 60, UNAVAILABLE);
+    check("invalid key", hashes.at(60), 70, UNAVAILABLE);
+    check("record mined above the height", hashes.at(70), 85, UNAVAILABLE);
+    check("record mined off the active chain", hashes.at(75), 80, UNAVAILABLE);
+    check("record for another quorum", hashes.at(80), 100, UNAVAILABLE);
+    check("record of another type", hashes.at(85), 100, UNAVAILABLE);
+
+    // An entry for base 10 where base 40's belongs, at mined height 41, contradicts base 30's next
+    // entry. Either of the two may be wrong, so base 10 is not taken from it, valid record or not.
+    m_node.evodb->Write(llmq::testutils::BuildInversedHeightKey(platform_type, 41), 10);
+    check("base implicated by a contradiction", hashes.at(10), 44, UNAVAILABLE);
+    m_node.evodb->Write(llmq::testutils::BuildInversedHeightKey(platform_type, 41), 40);
+    check("contradiction removed", hashes.at(10), 44, FOUND);
+
+    // A second index entry for base 30, mined at 43, would take a window slot from base 10 at height 44.
+    // Along one index the quorum bases strictly decrease, so the scan stops at base 40's entry and the
+    // window does not read cleanly.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(llmq::testutils::BuildInversedHeightKey(platform_type, 43), 30));
+    check("unknown quorum, duplicate index entry", InsecureRand256(), 44, UNAVAILABLE);
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Erase(llmq::testutils::BuildInversedHeightKey(platform_type, 43)));
+    check("duplicate index entry removed", hashes.at(10), 44, FOUND);
+
+    // An index value that does not deserialize, at mined height 45 inside the type's range.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(llmq::testutils::BuildInversedHeightKey(platform_type, 45), uint8_t{0}));
+    check("window read below the corrupt entry", hashes.at(40), 44, FOUND);
+    check("window entry unreadable", hashes.at(40), 50, UNAVAILABLE);
+    check("unknown quorum, window unreadable", InsecureRand256(), 50, UNAVAILABLE);
+
+    // Another one at mined height 25: at height 44 the walk reads bases 40 and 30 before it.
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Write(llmq::testutils::BuildInversedHeightKey(platform_type, 25), uint8_t{0}));
+    check("found ahead of an unreadable entry", hashes.at(40), 44, FOUND);
+    check("behind an unreadable entry", hashes.at(20), 44, UNAVAILABLE);
+}
+
+namespace {
+// Points the node's LLMQ context, and with it the LLMQ interface, at another EvoDB until destroyed.
+class ScopedLLMQContext
+{
+    node::NodeContext& m_node;
+    std::unique_ptr<LLMQContext> m_saved;
+
+public:
+    ScopedLLMQContext(node::NodeContext& node, CEvoDB& evo_db) :
+        m_node{node}
+    {
+        LOCK(::cs_main);
+        auto replacement{std::make_unique<LLMQContext>(*m_node.dmnman, evo_db, *m_node.chainman,
+                                                       util::DbWrapperParams{.memory = true, .wipe = true},
+                                                       /*bls_threads=*/0, /*worker_count=*/1,
+                                                       llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE)};
+        m_saved = std::exchange(m_node.llmq_ctx, std::move(replacement));
+    }
+    ~ScopedLLMQContext() { m_node.llmq_ctx = std::move(m_saved); }
+};
+} // namespace
+
+// A LevelDB read error is a local fault too: a table block that fails its checksum answers
+// UNAVAILABLE, whether it holds window entries or the selected commitment record. Each EvoDB here
+// is on disk, closed, corrupted and reopened. The tip is chain-locked, as above.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_disk_faults)
+{
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    const auto* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+    RecordChainLock(*m_node.chainlocks, tip->nHeight, tip);
+    std::map<int, uint256> hashes;
+    // Bases 20, 30, 40 and 50, each mined one block later. The filler ends the table block holding
+    // the commitment records.
+    const auto write_db = [&](const fs::path& path) {
+        LOCK(::cs_main);
+        const CChain& active{m_node.chainman->ActiveChain()};
+        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+        auto& raw{db.GetRawDB()};
+        for (const int base : {20, 30, 40, 50}) {
+            hashes[base] = active[base]->GetBlockHash();
+            BOOST_REQUIRE(raw.Write(std::make_pair(llmq::testutils::DB_MINED_COMMITMENT,
+                                                   std::make_pair(platform_type, hashes[base])),
+                                    std::make_pair(llmq::testutils::CreateValidCommitment(params, hashes[base]),
+                                                   active[base + 1]->GetBlockHash())));
+            BOOST_REQUIRE(raw.Write(llmq::testutils::BuildInversedHeightKey(platform_type, base + 1),
+                                    llmq::testutils::PaddedIndexValue(base)));
+        }
+        BOOST_REQUIRE(raw.Write(std::string{"filler"}, std::vector<uint8_t>(8192, 0)));
+        raw.CompactFull();
+    };
+    using enum PlatformQuorumStatus;
+
+    const fs::path index_path{m_args.GetDataDirNet() / "corrupt_index"};
+    write_db(index_path);
+    BOOST_REQUIRE(llmq::testutils::CorruptTableBlock(index_path / "evodb", std::vector<uint8_t>(64, 40)));
+    {
+        CEvoDB db{util::DbWrapperParams{.path = index_path, .memory = false, .wipe = false}};
+        const ScopedLLMQContext scoped_llmq{m_node, db};
+        auto node{interfaces::MakeNode(m_node)};
+        auto& llmq{node->llmq()};
+        CheckPlatformQuorum(llmq, "read ahead of a corrupt index block", type, hashes.at(50), 100, FOUND);
+        CheckPlatformQuorum(llmq, "in a corrupt index block", type, hashes.at(40), 100, UNAVAILABLE);
+        CheckPlatformQuorum(llmq, "behind a corrupt index block", type, hashes.at(20), 100, UNAVAILABLE);
+        CheckPlatformQuorum(llmq, "window below a corrupt index block", type, hashes.at(30), 35, FOUND);
+        CheckPlatformQuorum(llmq, "unknown quorum, window below a corrupt index block", type, InsecureRand256(), 35,
+                            INVALID);
+    }
+
+    const fs::path record_path{m_args.GetDataDirNet() / "corrupt_record"};
+    write_db(record_path);
+    // Base 50's mined block hash appears only in its commitment record.
+    const uint256 base_50_mined_block{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain()[51]->GetBlockHash())};
+    BOOST_REQUIRE(
+        llmq::testutils::CorruptTableBlock(record_path / "evodb",
+                                           std::vector<uint8_t>(base_50_mined_block.begin(), base_50_mined_block.end())));
+    {
+        CEvoDB db{util::DbWrapperParams{.path = record_path, .memory = false, .wipe = false}};
+        const ScopedLLMQContext scoped_llmq{m_node, db};
+        auto node{interfaces::MakeNode(m_node)};
+        auto& llmq{node->llmq()};
+        CheckPlatformQuorum(llmq, "commitment record unreadable", type, hashes.at(50), 100, UNAVAILABLE);
+    }
 }
 
 // getInstantSendLock returns the network-serialized islock for a locked txid, and an empty vector
