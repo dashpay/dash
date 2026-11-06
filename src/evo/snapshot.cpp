@@ -13,7 +13,6 @@
 #include <evo/mnhftx.h>
 #include <evo/simplifiedmns.h>
 #include <hash.h>
-#include <llmq/options.h>
 #include <streams.h>
 #include <tinyformat.h>
 #include <util/check.h>

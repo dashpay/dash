@@ -90,7 +90,7 @@
 #include <governance/superblock.h>
 #include <instantsend/instantsend.h>
 #include <llmq/context.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <llmq/signing.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>

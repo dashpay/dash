@@ -10,7 +10,6 @@
 #include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
-#include <llmq/options.h>
 #include <llmq/utils.h>
 #include <masternode/meta.h>
 #include <util/helpers.h>

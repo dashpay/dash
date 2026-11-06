@@ -8,7 +8,7 @@
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 #include <logging.h>

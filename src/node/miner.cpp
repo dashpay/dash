@@ -38,8 +38,8 @@
 #include <instantsend/instantsend.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
-#include <llmq/options.h>
 #include <llmq/snapshot.h>
+#include <llmq/utils.h>
 #include <masternode/payments.h>
 
 #include <algorithm>

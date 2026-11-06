@@ -15,7 +15,6 @@
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/net_quorum.h>
-#include <llmq/options.h>
 #include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 #include <masternode/meta.h>

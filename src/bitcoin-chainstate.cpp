@@ -28,7 +28,7 @@
 #include <evo/specialtxman.h>
 #include <init/common.h>
 #include <llmq/context.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <masternode/meta.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
