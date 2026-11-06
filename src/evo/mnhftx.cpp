@@ -387,10 +387,10 @@ bool CMNHFManager::ForceSignalDBUpdate(const CBlockIndex* tip)
     // force ehf signals db update
     auto dbTx = m_evoDb.BeginTransaction();
 
-    const bool last_legacy = bls::bls_legacy_scheme.load();
-    bls::bls_legacy_scheme.store(false);
-    GetSignalsStage(tip);
-    bls::bls_legacy_scheme.store(last_legacy);
+    {
+        const bls::ScopedLegacySchemeOverride basic_scheme{/*legacy=*/false};
+        GetSignalsStage(tip);
+    }
 
     dbTx->Commit();
     // flush it to disk

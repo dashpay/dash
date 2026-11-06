@@ -1100,11 +1100,11 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
         LogPrint(BCLog::BENCHMARK, "      - m_mnhfman->ProcessBlock: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime8 - nTime7),
                  Ticks<SecondsDouble>(nTimeMnehf));
 
-        if (DeploymentActiveAfter(pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && bls::bls_legacy_scheme.load()) {
+        if (DeploymentActiveAfter(pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && bls::EffectiveLegacyScheme()) {
             // NOTE: The block next to the activation is the one that is using new rules.
             // V19 activated just activated, so we must switch to the new rules here.
-            bls::bls_legacy_scheme.store(false);
-            LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
+            bls::SetEffectiveLegacyScheme(false);
+            LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::EffectiveLegacyScheme());
         }
     } catch (const EvoDbInconsistencyError& e) {
         // Local EvoDB corruption detected below (the node is already
@@ -1122,14 +1122,14 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, co
 {
     AssertLockHeld(::cs_main);
 
-    auto bls_legacy_scheme = bls::bls_legacy_scheme.load();
+    const bool bls_legacy_scheme{bls::EffectiveLegacyScheme()};
 
     try {
         if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && !bls_legacy_scheme) {
             // NOTE: The block next to the activation is the one that is using new rules.
             // Removing the activation block here, so we must switch back to the old rules.
-            bls::bls_legacy_scheme.store(true);
-            LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
+            bls::SetEffectiveLegacyScheme(true);
+            LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::EffectiveLegacyScheme());
         }
 
         if (!m_mnhfman->UndoBlock(block, pindex)) {
@@ -1144,8 +1144,8 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, co
             return false;
         }
     } catch (const std::exception& e) {
-        bls::bls_legacy_scheme.store(bls_legacy_scheme);
-        LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
+        bls::SetEffectiveLegacyScheme(bls_legacy_scheme);
+        LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::EffectiveLegacyScheme());
         LogError("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return false;
     }
