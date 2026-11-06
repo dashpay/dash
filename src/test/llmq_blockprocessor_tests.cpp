@@ -135,4 +135,45 @@ BOOST_FIXTURE_TEST_CASE(unrequested_qfcommit_is_dropped_and_scored, TestChain100
     SetMockTime(0s);
 }
 
+// net_processing answers AlreadyHave for QFCOMMITMENT invs with HasMineableCommitment and GETDATA
+// with GetMineableCommitmentByHash, so a superseded commitment that either lookup still finds is one
+// this node keeps serving to peers.
+BOOST_FIXTURE_TEST_CASE(superseded_mineable_commitment_is_dropped, RegTestingSetup)
+{
+    auto& blockprocessor = *m_node.llmq_ctx->quorum_block_processor;
+    const auto& llmq_params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST);
+    const uint256 quorum_hash = GetTestQuorumHash(1);
+
+    auto worse = CreateValidCommitment(llmq_params, quorum_hash);
+    worse.signers = CreateBitVector(llmq_params.size, {0, 1});
+    auto better = CreateValidCommitment(llmq_params, quorum_hash);
+    auto tied = better;
+    tied.quorumVvecHash = InsecureRand256();
+    const uint256 worse_hash = ::SerializeHash(worse);
+    const uint256 better_hash = ::SerializeHash(better);
+    const uint256 tied_hash = ::SerializeHash(tied);
+
+    const auto worse_inv = blockprocessor.AddMineableCommitment(worse);
+    BOOST_REQUIRE(worse_inv.has_value());
+    BOOST_CHECK(worse_inv->hash == worse_hash);
+    BOOST_CHECK(blockprocessor.HasMineableCommitment(worse_hash));
+
+    const auto better_inv = blockprocessor.AddMineableCommitment(better);
+    BOOST_REQUIRE(better_inv.has_value());
+    BOOST_CHECK(better_inv->hash == better_hash);
+
+    CFinalCommitment found;
+    BOOST_CHECK(blockprocessor.GetMineableCommitmentByHash(better_hash, found));
+    BOOST_CHECK(::SerializeHash(found) == better_hash);
+    BOOST_CHECK(!blockprocessor.HasMineableCommitment(worse_hash));
+    BOOST_CHECK(!blockprocessor.GetMineableCommitmentByHash(worse_hash, found));
+
+    // Neither a worse nor an equally good commitment displaces the kept one, and neither is stored.
+    BOOST_CHECK(!blockprocessor.AddMineableCommitment(worse).has_value());
+    BOOST_CHECK(!blockprocessor.AddMineableCommitment(tied).has_value());
+    BOOST_CHECK(blockprocessor.HasMineableCommitment(better_hash));
+    BOOST_CHECK(!blockprocessor.HasMineableCommitment(worse_hash));
+    BOOST_CHECK(!blockprocessor.HasMineableCommitment(tied_hash));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
