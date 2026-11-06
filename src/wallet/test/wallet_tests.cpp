@@ -894,6 +894,71 @@ BOOST_FIXTURE_TEST_CASE(create_asset_lock_transaction, AssetLockTestingSetup)
     BOOST_CHECK(!m_node.mempool->exists((*conflicting)->GetHash()));
     BOOST_CHECK(iface->abandonTransaction((*conflicting)->GetHash()));
 
+    // The asset locks the wallet holds are its funding inventory: each
+    // credit output paying a requested key, whatever happened to it since.
+    const std::vector<AssetLockFundingKey> funding_keys{registration_key, topup_key, TopupFundingKey{1}};
+    const auto list_fundings{[&](interfaces::Wallet& w) {
+        const auto fundings{w.listAssetLockFundings(funding_keys)};
+        BOOST_REQUIRE(fundings);
+        std::map<uint256, AssetLockFunding> by_txid;
+        for (const auto& funding : fundings.value) by_txid.emplace(funding.txid, funding);
+        BOOST_CHECK_EQUAL(by_txid.size(), fundings.value.size());
+        return by_txid;
+    }};
+    // The top-up lock was never committed. The abandoned conflict stays listed.
+    auto fundings{list_fundings(*iface)};
+    BOOST_REQUIRE_EQUAL(fundings.size(), 2U);
+    const AssetLockFunding& registration{fundings.at(tx->GetHash())};
+    BOOST_CHECK(std::holds_alternative<RegistrationFundingKey>(registration.key));
+    BOOST_CHECK_EQUAL(registration.credit_index, 0U);
+    BOOST_CHECK_EQUAL(registration.amount, credit_amount);
+    BOOST_CHECK(registration.status == AssetLockFundingStatus::ACTIVE);
+    BOOST_CHECK(fundings.at((*conflicting)->GetHash()).status == AssetLockFundingStatus::INACTIVE);
+    const auto not_requested{iface->listAssetLockFundings({topup_key})};
+    BOOST_CHECK(not_requested && not_requested.value.empty());
+
+    // Mined, the lock stays active and the abandoned conflict is conflicted.
+    {
+        const auto notifications{m_node.chain->handleNotifications(wallet_ref)};
+        CreateAndProcessBlock({CMutableTransaction{*tx}}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        SyncWithValidationInterfaceQueue();
+    }
+    fundings = list_fundings(*iface);
+    BOOST_REQUIRE_EQUAL(fundings.size(), 2U);
+    BOOST_CHECK(fundings.at(tx->GetHash()).status == AssetLockFundingStatus::ACTIVE);
+    BOOST_CHECK(fundings.at((*conflicting)->GetHash()).status == AssetLockFundingStatus::CONFLICTED);
+
+    // A wallet restored from the seed and the funding coins' keys finds the
+    // mined lock again in the chain.
+    {
+        SecureString mnemonic, mnemonic_passphrase;
+        {
+            LOCK(wallet->cs_wallet);
+            for (auto* spk_man : wallet->GetActiveScriptPubKeyMans()) {
+                auto* desc_spk_man{dynamic_cast<DescriptorScriptPubKeyMan*>(spk_man)};
+                if (desc_spk_man && desc_spk_man->GetMnemonicString(mnemonic, mnemonic_passphrase)) break;
+            }
+        }
+        BOOST_REQUIRE(!mnemonic.empty());
+        const auto restored{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase())};
+        BOOST_REQUIRE_EQUAL(restored->LoadWallet(), DBErrors::LOAD_OK);
+        {
+            LOCK(restored->cs_wallet);
+            restored->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+            restored->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
+            const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+            restored->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
+        }
+        AddKey(*restored, coinbaseKey);
+        const auto restored_iface{interfaces::MakeWallet(context, restored)};
+        BOOST_CHECK(list_fundings(*restored_iface).empty());
+        BOOST_REQUIRE(restored_iface->startRescan(/*from_genesis=*/true) == RescanStatus::SUCCESS);
+        const auto restored_fundings{list_fundings(*restored_iface)};
+        BOOST_REQUIRE_EQUAL(restored_fundings.size(), 1U);
+        BOOST_CHECK(restored_fundings.at(tx->GetHash()).status == AssetLockFundingStatus::ACTIVE);
+        BOOST_CHECK_EQUAL(restored_fundings.at(tx->GetHash()).amount, credit_amount);
+    }
+
     // An encrypted wallet builds asset locks only when fully unlocked: not
     // while locked, and not while unlocked for mixing only.
     const SecureString passphrase{"asset lock"};
@@ -902,6 +967,7 @@ BOOST_FIXTURE_TEST_CASE(create_asset_lock_transaction, AssetLockTestingSetup)
     BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee));
     // A locked wallet can still tell whether it is able to fund an identity.
     BOOST_CHECK(iface->getPlatformPubKey(registration_key).status == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(iface->listAssetLockFundings(funding_keys).status == PlatformKeyStatus::WALLET_LOCKED);
     BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::SUCCESS);
     BOOST_REQUIRE(wallet->Unlock(passphrase, /*fForMixingOnly=*/true));
     BOOST_REQUIRE(wallet->IsLocked() && !wallet->IsLocked(/*fForMixing=*/true));

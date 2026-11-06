@@ -351,6 +351,11 @@ public:
     {
         return m_wallet->EnsureFriendshipReceivingKeychain(request);
     }
+    wallet::PlatformKeyResult<std::vector<wallet::AssetLockFunding>> listAssetLockFundings(
+        const std::vector<wallet::AssetLockFundingKey>& keys) override
+    {
+        return m_wallet->ListAssetLockFundings(keys);
+    }
     bool isSpendable(const CScript& script) override
     {
         LOCK(m_wallet->cs_wallet);

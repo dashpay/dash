@@ -5,6 +5,7 @@
 #ifndef BITCOIN_WALLET_PLATFORMTYPES_H
 #define BITCOIN_WALLET_PLATFORMTYPES_H
 
+#include <consensus/amount.h>
 #include <pubkey.h>
 #include <script/standard.h>
 #include <support/allocators/secure.h>
@@ -59,6 +60,22 @@ using PlatformKeyRequest = std::variant<IdentityAuthKey, RegistrationFundingKey,
 //! The keys an asset lock's credit output may pay: every one is derived from
 //! the wallet's seed, so the credits it funds can be recovered.
 using AssetLockFundingKey = std::variant<RegistrationFundingKey, TopupFundingKey, InvitationFundingKey>;
+
+enum class AssetLockFundingStatus : uint8_t {
+    ACTIVE,     //!< Not abandoned, and no conflicting transaction is mined.
+    INACTIVE,   //!< Abandoned and not mined. It can still be mined, so it stays resumable.
+    CONFLICTED, //!< A transaction spending the same coins is mined.
+};
+
+//! A credit output of a wallet asset lock that pays one of the wallet's
+//! funding keys.
+struct AssetLockFunding {
+    uint256 txid;
+    uint32_t credit_index{0}; //!< Index into the payload's credit outputs.
+    AssetLockFundingKey key;
+    CAmount amount{0};
+    AssetLockFundingStatus status{AssetLockFundingStatus::ACTIVE};
+};
 
 struct FriendshipKeychainRequest {
     uint32_t account{0};

@@ -218,6 +218,12 @@ public:
     virtual wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) = 0;
 
+    //! Every credit output of this wallet's asset lock transactions that pays
+    //! one of keys, derived from the transactions the wallet holds. Deriving
+    //! the keys needs an unlocked wallet.
+    virtual wallet::PlatformKeyResult<std::vector<wallet::AssetLockFunding>> listAssetLockFundings(
+        const std::vector<wallet::AssetLockFundingKey>& keys) = 0;
+
     //! Return whether wallet has private key.
     virtual bool isSpendable(const CScript& script) = 0;
     virtual bool isSpendable(const CTxDestination& dest) = 0;

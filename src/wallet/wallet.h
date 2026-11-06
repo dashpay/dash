@@ -1134,6 +1134,7 @@ public:
     PlatformKeyResult<uint32_t> PlatformAccountReference(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
     PlatformKeyResult<FriendshipReceivingChain> GetFriendshipReceivingXpub(const FriendshipKeychainRequest& request) const;
     PlatformKeyResult<FriendshipXpub> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
+    PlatformKeyResult<std::vector<AssetLockFunding>> ListAssetLockFundings(const std::vector<AssetLockFundingKey>& keys) const;
 
     /** Load an owed rescan record (wallet load). */
     void LoadOwedRescan(uint64_t sequence, int64_t from_time) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
