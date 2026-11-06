@@ -84,7 +84,7 @@ FUZZ_TARGET(p2p_transport_serialization, .init = initialize_p2p_transport_serial
             assert(msg.m_time == m_time);
 
             std::vector<unsigned char> header;
-            auto msg2 = CNetMsgMaker{msg.m_recv.GetVersion()}.Make(msg.m_type, MakeUCharSpan(msg.m_recv));
+            auto msg2 = CNetMsgMaker{msg.m_recv.GetVersion()}.Make(msg.m_type, Span{msg.m_recv});
             bool queued = send_transport.SetMessageToSend(msg2);
             assert(queued);
             std::optional<bool> known_more;

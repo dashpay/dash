@@ -48,6 +48,7 @@ class P2PLeakTxTest(BitcoinTestFramework):
 
     def test_notfound_on_unannounced_tx(self):
         self.log.info("Check that we don't leak txs to inbound peers that we haven't yet announced to")
+        self.gen_node.disconnect_p2ps()
         inbound_peer = self.gen_node.add_p2p_connection(P2PNode())  # An "attacking" inbound peer
 
         MAX_REPEATS = 100
