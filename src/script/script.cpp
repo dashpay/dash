@@ -151,7 +151,7 @@ std::string GetOpName(opcodetype opcode)
     }
 }
 
-unsigned int CScript::GetSigOpCount(bool fAccurate) const
+unsigned int CScript::GetSigOpCount(bool fAccurate, bool count_data_sigs) const
 {
     unsigned int n = 0;
     const_iterator pc = begin();
@@ -162,6 +162,8 @@ unsigned int CScript::GetSigOpCount(bool fAccurate) const
         if (!GetOp(pc, opcode))
             break;
         if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY)
+            n++;
+        else if (count_data_sigs && (opcode == OP_CHECKDATASIG || opcode == OP_CHECKDATASIGVERIFY))
             n++;
         else if (opcode == OP_CHECKMULTISIG || opcode == OP_CHECKMULTISIGVERIFY)
         {
@@ -175,10 +177,10 @@ unsigned int CScript::GetSigOpCount(bool fAccurate) const
     return n;
 }
 
-unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
+unsigned int CScript::GetSigOpCount(const CScript& scriptSig, bool count_data_sigs) const
 {
     if (!IsPayToScriptHash())
-        return GetSigOpCount(true);
+        return GetSigOpCount(true, count_data_sigs);
 
     // This is a pay-to-script-hash scriptPubKey;
     // get the last item that the scriptSig
@@ -196,7 +198,7 @@ unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
 
     /// ... and return its opcount:
     CScript subscript(vData.begin(), vData.end());
-    return subscript.GetSigOpCount(true);
+    return subscript.GetSigOpCount(true, count_data_sigs);
 }
 
 bool CScript::IsPayToPublicKeyHash() const
