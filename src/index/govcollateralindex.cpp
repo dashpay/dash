@@ -107,6 +107,9 @@ bool GovCollateralIndex::CustomRewind(const interfaces::BlockKey& current_tip, c
     const CBlockIndex* new_tip_index{WITH_LOCK(::cs_main, return m_chainstate->m_blockman.LookupBlockIndex(new_tip.hash))};
     for (const CBlockIndex* pindex{WITH_LOCK(::cs_main, return m_chainstate->m_blockman.LookupBlockIndex(current_tip.hash))};
          pindex != new_tip_index; pindex = pindex->pprev) {
+        // A block without data, like one an unclean stop left with only its header, keeps its collaterals: they
+        // only confirm while it is on the active chain
+        if (!WITH_LOCK(::cs_main, return pindex->nStatus & BLOCK_HAVE_DATA)) continue;
         CBlock block;
         if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, *pindex)) {
             LogError("%s: Failed to read block %s from disk\n", __func__, pindex->GetBlockHash().ToString());
