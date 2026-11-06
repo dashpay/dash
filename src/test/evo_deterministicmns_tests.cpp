@@ -1644,8 +1644,11 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
     auto tx_reg_replace = CreateProRegTxExternalCollateral(chainman, utxos, /*port=*/3, collateralOutpoint, scriptPayout2,
                                                             ownerKey2, operatorKey2, collateralKey, setup.coinbaseKey);
 
-    // Same-block-style update for the MN that the replacement would delete.
+    // Same-block-style updates for the MN that the replacement would delete.
     auto tx_up_serv = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/2, CScript(), setup.coinbaseKey);
+    auto tx_up_reg = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey.GetPublicKey(),
+                                      ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
+    auto tx_up_rev = CreateProUpRevTx(chainman, utxos, proTxHash, operatorKey, setup.coinbaseKey);
 
     // Prove the in-block hazard itself: replacement first, then update of the deleted proTxHash.
     {
@@ -1688,15 +1691,44 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
                                                MakeTransactionRef(tx_reg_replace)};
         testPool.removeForBlock(connected, tip_height() + 1);
         BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+        // ProUpReg and ProUpRev for the replaced MN conflict with a pending replacement too.
+        testPool.addUnchecked(entry.FromTx(tx_reg_replace));
+        BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_up_reg)));
+        BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_up_rev)));
+        testPool.removeRecursive(CTransaction(tx_reg_replace), MemPoolRemovalReason::MANUAL);
+        BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+        // The MN's own ProRegTx is not a replacement. While a reorg is being processed the
+        // tip list can still contain the MN whose registration is being resubmitted; if
+        // either direction were treated as a conflict, the resubmitted registration (or its
+        // updates) would be dropped even though the pair is mineable together.
+        testPool.addUnchecked(entry.FromTx(tx_up_serv));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_reg)));
+        testPool.removeRecursive(CTransaction(tx_up_serv), MemPoolRemovalReason::MANUAL);
+
+        testPool.addUnchecked(entry.FromTx(tx_reg));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_up_serv)));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_up_reg)));
+        BOOST_CHECK(!testPool.existsProviderTxConflict(CTransaction(tx_up_rev)));
+        testPool.removeRecursive(CTransaction(tx_reg), MemPoolRemovalReason::MANUAL);
+        BOOST_CHECK_EQUAL(testPool.size(), 0U);
+
+        // Likewise, a block connecting the MN's own ProRegTx while the tip list still contains
+        // the MN (the new branch of a reorg re-mining it) must not evict the MN's updates.
+        testPool.addUnchecked(entry.FromTx(tx_up_serv));
+        std::vector<CTransactionRef> reconnected{MakeTransactionRef(CMutableTransaction()),
+                                                 MakeTransactionRef(tx_reg)};
+        testPool.removeForBlock(reconnected, tip_height() + 1);
+        BOOST_CHECK(testPool.exists(tx_up_serv.GetHash()));
+        testPool.removeRecursive(CTransaction(tx_up_serv), MemPoolRemovalReason::MANUAL);
+        BOOST_CHECK_EQUAL(testPool.size(), 0U);
     }
 
     // The replacement is not the only confirmed transaction that can leave updates of the MN
     // unmineable: so does a ProUpReg changing the operator key, and a spend of the collateral.
-    auto tx_up_reg = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey.GetPublicKey(),
-                                      ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
     auto tx_up_reg_new_key = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey2.GetPublicKey(),
                                               ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey);
-    auto tx_up_rev = CreateProUpRevTx(chainman, utxos, proTxHash, operatorKey, setup.coinbaseKey);
 
     CMutableTransaction tx_spend_other;
     tx_spend_other.vin.emplace_back(COutPoint(tx_collateral.GetHash(), collateralOutpoint.n + 1));
