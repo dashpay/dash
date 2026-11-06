@@ -1491,7 +1491,7 @@ class AssetLocksTest(DashTestFramework):
         with node_wallet.assert_debug_log([f"Rolling forward {block}" for block in replayed_blocks]):
             self.start_node(0, extra_args=self.extra_args[0] + ["-connect=0"])
         assert_equal(node_wallet.getbestblockhash(), tip)
-        assert_equal(node_wallet.gettxoutsetinfo()["hash_serialized_2"], node.gettxoutsetinfo()["hash_serialized_2"])
+        assert_equal(node_wallet.gettxoutsetinfo()["hash_serialized_3"], node.gettxoutsetinfo()["hash_serialized_3"])
 
 
 if __name__ == '__main__':
