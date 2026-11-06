@@ -437,13 +437,6 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
                 break;
             } // no default case, so the compiler can warn about missing cases
 
-            // VerifyDB() disconnects blocks which might result in us switching back to legacy.
-            // Make sure we use the right scheme.
-            if (v19active && bls::bls_legacy_scheme.load()) {
-                bls::bls_legacy_scheme.store(false);
-                if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());
-            }
-
             if (options.check_level >= 3) {
                 chainstate->ResetBlockFailureFlags(nullptr);
             }

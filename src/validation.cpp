@@ -136,46 +136,49 @@ using node::GetTransaction;
 
 namespace {
 
-//! Restores bls::bls_legacy_scheme on scope exit unless Commit() is called.
-//! ConnectBlock switches the scheme while validating a block across the V19
-//! boundary; this keeps a failed or dry-run validation from leaking that
-//! change into the process-wide flag.
-//!
-//! `enter` establishes the scheme for the scope. The flag is process-wide but
-//! the correct value is per-chainstate, so a background chainstate validating
-//! pre-V19 blocks under an active post-V19 snapshot must set it on entry
-//! (ProcessSpecialTxsInBlock only ever switches legacy->basic) and must not
-//! commit it back to the active chainstate's consumers.
+//! Establishes the BLS scheme for one chain operation (`enter`; std::nullopt
+//! keeps the current one) and restores it on scope exit unless Commit() is
+//! called, so a failed or dry-run validation across the V19 boundary leaks
+//! nothing. Other threads read bls::bls_legacy_scheme outside cs_main to verify
+//! for the active chain, so only a scope that may commit the active
+//! chainstate's tip (`process_wide`) writes it; every other scope, and any
+//! scope nested in a thread-local one, sets the scheme for this thread only.
 class ScopedBLSLegacyScheme
 {
 public:
-    ScopedBLSLegacyScheme() noexcept :
-        m_saved(bls::bls_legacy_scheme.load())
+    ScopedBLSLegacyScheme(bool process_wide, std::optional<bool> enter) noexcept
     {
-    }
-    explicit ScopedBLSLegacyScheme(bool enter) noexcept :
-        m_saved(bls::bls_legacy_scheme.load())
-    {
-        if (enter != m_saved) {
-            bls::bls_legacy_scheme.store(enter);
-            LogPrintf("ScopedBLSLegacyScheme: entered bls_legacy_scheme=%d\n", enter);
+        if (!process_wide || bls::ScopedLegacySchemeOverride::Active()) {
+            m_thread_scheme.emplace(enter.value_or(bls::EffectiveLegacyScheme()));
+            return;
+        }
+        m_saved = bls::bls_legacy_scheme.load();
+        if (enter && *enter != *m_saved) {
+            bls::bls_legacy_scheme.store(*enter);
+            LogPrintf("ScopedBLSLegacyScheme: entered bls_legacy_scheme=%d\n", *enter);
         }
     }
     ~ScopedBLSLegacyScheme() noexcept
     {
-        if (!m_committed && m_saved != bls::bls_legacy_scheme.load()) {
-            bls::bls_legacy_scheme.store(m_saved);
-            LogPrintf("ScopedBLSLegacyScheme: reverted bls_legacy_scheme=%d\n", m_saved);
+        if (m_saved && !m_committed && *m_saved != bls::bls_legacy_scheme.load()) {
+            bls::bls_legacy_scheme.store(*m_saved);
+            LogPrintf("ScopedBLSLegacyScheme: reverted bls_legacy_scheme=%d\n", *m_saved);
         }
     }
 
     ScopedBLSLegacyScheme(const ScopedBLSLegacyScheme&) = delete;
     ScopedBLSLegacyScheme& operator=(const ScopedBLSLegacyScheme&) = delete;
 
-    void Commit() noexcept { m_committed = true; }
+    void Commit() noexcept
+    {
+        m_committed = true;
+        if (m_thread_scheme) m_thread_scheme->Commit();
+    }
 
 private:
-    const bool m_saved;
+    //! Process-wide scope: the scheme to restore.
+    std::optional<bool> m_saved;
+    std::optional<bls::ScopedLegacySchemeOverride> m_thread_scheme;
     bool m_committed{false};
 };
 
@@ -2696,7 +2699,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // chainstate has already moved the process-wide flag to basic. Rolled back
     // below unless we fully connect the block.
     ScopedBLSLegacyScheme bls_scheme_guard{
-        !DeploymentActiveAt(*pindex, params.GetConsensus(), Consensus::DEPLOYMENT_V19)};
+        /*process_wide=*/!fJustCheck && this == &m_chainman.ActiveChainstate(),
+        /*enter=*/!DeploymentActiveAt(*pindex, params.GetConsensus(), Consensus::DEPLOYMENT_V19)};
 
     // Check it again in case a previous version let a bad block in
     // NOTE: We don't currently (re-)invoke ContextualCheckBlock() or
@@ -3463,9 +3467,12 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     // Establish that scheme here for the same reason ConnectBlock does, so the
     // invariant holds in both directions instead of depending on the caller. Also
     // restores it if disconnect post-processing fails before m_chain.SetTip()
-    // moves the tip backward.
+    // moves the tip backward. The active tip's scheme must reach the
+    // process-wide flag, so no thread-local scope may enclose this.
+    Assume(this != &m_chainman.ActiveChainstate() || !bls::ScopedLegacySchemeOverride::Active());
     ScopedBLSLegacyScheme bls_scheme_guard{
-        !DeploymentActiveAt(*pindexDelete, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
+        /*process_wide=*/this == &m_chainman.ActiveChainstate(),
+        /*enter=*/!DeploymentActiveAt(*pindexDelete, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
     // Apply the block atomically to the chain state.
     const auto time_start{SteadyClock::now()};
     {
@@ -3596,8 +3603,10 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     // ConnectBlock commits its BLS-scheme switch on success, but the tip isn't
     // advanced until m_chain.SetTip() below. If a step in between (e.g.
     // FlushStateToDisk) fails, restore the scheme so it stays in sync with the
-    // unchanged tip.
-    ScopedBLSLegacyScheme bls_scheme_guard;
+    // unchanged tip. As in DisconnectTip, no thread-local scope may enclose the
+    // active tip's move.
+    Assume(this != &m_chainman.ActiveChainstate() || !bls::ScopedLegacySchemeOverride::Active());
+    ScopedBLSLegacyScheme bls_scheme_guard{/*process_wide=*/this == &m_chainman.ActiveChainstate(), /*enter=*/std::nullopt};
     // Read block from disk.
     const auto time_1{SteadyClock::now()};
     std::shared_ptr<const CBlock> pthisBlock;
@@ -5236,8 +5245,9 @@ VerifyDBResult CVerifyDB::VerifyDB(
         return VerifyDBResult::SUCCESS;
     }
 
-    // ConnectBlock below switches the scheme but the tip isn't advanced here; restore it on return.
-    ScopedBLSLegacyScheme bls_scheme_guard;
+    // ConnectBlock below switches the scheme but the tip isn't advanced here, so
+    // keep it to this thread and restore it on return.
+    ScopedBLSLegacyScheme bls_scheme_guard{/*process_wide=*/false, /*enter=*/std::nullopt};
 
     // begin tx and let it rollback
     auto dbTx = evoDb.BeginTransaction(chainstate.EvoDbIdentity());
@@ -5336,7 +5346,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
 
     // check level 4: try reconnecting blocks
     if (nCheckLevel >= 4 && !skipped_l3_checks) {
-        // Each successful ConnectBlock leaves the effective scheme set globally so
+        // Each successful ConnectBlock leaves its scheme set on this thread so
         // subsequent iterations see it. The outer bls_scheme_guard restores the
         // original scheme when VerifyDB returns (the chain tip isn't advanced here).
         while (pindex != chainstate.m_chain.Tip()) {
@@ -5390,7 +5400,8 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
     MNListUpdates mnlist_updates;
     // Use the scheme ConnectBlock used for this block instead of whatever replay inherited
     ScopedBLSLegacyScheme bls_scheme_guard{
-        !DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
+        /*process_wide=*/false,
+        /*enter=*/!DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
     if (!m_special_tx.ProcessSpecialTxsInBlock(*this, m_chain, block, pindex,
                                                               GetSpecialTxRules(pindex->pprev, m_chainman), inputs,
                                                               blockSubsidy, /*fJustCheck=*/false,

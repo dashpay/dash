@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 #include <bls/bls.h>
+#include <bls/bls_batchverifier.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <evo/evodb.h>
@@ -21,6 +22,9 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <functional>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include <boost/signals2/connection.hpp>
@@ -40,6 +44,19 @@ public:
     void UpdatedBlockTip(const CBlockIndex*, const CBlockIndex*, bool) override { ++updated_tip; }
     void NotifyMasternodeListChanged(bool, const CDeterministicMNList&, const CDeterministicMNListDiff&) override { ++mn_list_changed; }
     void ChainStateFlushed(const CBlockLocator&) override { ++chainstate_flushed; }
+};
+
+//! Runs a probe once, from inside the first ConnectTip that checks a block:
+//! after ConnectBlock committed it and before the tip moves.
+class BlockCheckedProbe final : public CValidationInterface
+{
+public:
+    std::function<void()> probe;
+
+    void BlockChecked(const CBlock&, const BlockValidationState& state) override
+    {
+        if (probe && state.IsValid()) std::exchange(probe, nullptr)();
+    }
 };
 
 } // namespace
@@ -236,23 +253,54 @@ BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetu
     }()};
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return background_cs.m_chain.Height()) < V19_HEIGHT - 1);
 
-    std::vector<CMutableTransaction> noTxns;
-    CScript scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
-    auto pblock = std::make_shared<const CBlock>(this->CreateBlock(noTxns, scriptPubKey, background_cs));
-    BlockValidationState state;
+    // Give the background chainstate the next (pre-V19) block towards the
+    // snapshot base, as if downloaded again: the snapshot setup only dropped its
+    // HAVE_DATA flag, not the data.
+    const int background_height{WITH_LOCK(::cs_main, return background_cs.m_chain.Height())};
     {
         LOCK(::cs_main);
-        CBlockIndex* pindex = nullptr;
-        bool newblock = false;
-        BOOST_REQUIRE(CheckBlock(*pblock, state, Params().GetConsensus()));
-        BOOST_REQUIRE(m_node.chainman->AcceptBlock(pblock, state, &pindex, true, nullptr, &newblock));
+        CBlockIndex* next{chainman.ActiveChain()[background_height + 1]};
+        next->nStatus |= BLOCK_HAVE_DATA;
+        background_cs.TryAddBlockIndexCandidate(next);
     }
-    BOOST_REQUIRE(background_cs.ActivateBestChain(state, pblock));
+    BlockValidationState state;
+
+    // Other threads verify ChainLocks and recovered signatures for the active
+    // chain without cs_main while the background chainstate connects a block.
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    const CBLSPublicKey pk{sk.GetPublicKey()};
+    const uint256 msg_hash{InsecureRand256()};
+    const CBLSSignature basic_sig{sk.Sign(msg_hash, /*specificLegacyScheme=*/false)};
+    bool probed{false}, background_legacy{false}, other_thread_valid{false}, other_thread_batch_clean{false};
+    auto probe{std::make_shared<BlockCheckedProbe>()};
+    probe->probe = [&] {
+        probed = true;
+        background_legacy = bls::EffectiveLegacyScheme();
+        std::thread{[&] {
+            other_thread_valid = basic_sig.VerifyInsecure(pk, msg_hash);
+            CBLSBatchVerifier<int, uint256> batch_verifier(/*_secureVerification=*/false, /*_perMessageFallback=*/false);
+            batch_verifier.PushMessage(/*sourceId=*/0, msg_hash, msg_hash, basic_sig, pk);
+            batch_verifier.Verify();
+            other_thread_batch_clean = batch_verifier.badSources.empty();
+        }}.join();
+    };
+    RegisterSharedValidationInterface(probe);
+    const bool activated{background_cs.ActivateBestChain(state, nullptr)};
+    UnregisterSharedValidationInterface(probe);
+    BOOST_REQUIRE(activated);
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return background_cs.m_chain.Height()), background_height + 1);
+
+    BOOST_REQUIRE(probed);
+    BOOST_CHECK_MESSAGE(background_legacy, "the background chainstate must connect a pre-V19 block under legacy");
+    BOOST_CHECK_MESSAGE(other_thread_valid, "a background connect must not change another thread's scheme");
+    BOOST_CHECK_MESSAGE(other_thread_batch_clean, "a background connect must not make another thread ban a source");
 
     // The background chainstate validated a pre-V19 block, but only the active
     // chainstate's tip may define the scheme its consumers see.
     BOOST_CHECK_MESSAGE(!bls::bls_legacy_scheme.load(),
                         "a background connect must not leave the active chain on the legacy scheme");
+    BOOST_CHECK(!bls::ScopedLegacySchemeOverride::Active());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

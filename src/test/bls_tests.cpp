@@ -10,6 +10,7 @@
 #include <consensus/validation.h>
 #include <crypto/common.h>
 #include <deploymentstatus.h>
+#include <kernel/notifications_interface.h>
 #include <random.h>
 #include <script/standard.h>
 #include <streams.h>
@@ -17,6 +18,7 @@
 #include <timedata.h>
 #include <util/helpers.h>
 #include <util/strencodings.h>
+#include <util/translation.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>
@@ -1100,6 +1102,33 @@ BOOST_AUTO_TEST_CASE(v19_boundary_validation_failure_restores_bls_scheme)
     (void)chainman.ProcessNewBlock(std::make_shared<const CBlock>(connect_block), /*force_processing=*/true, /*new_block=*/nullptr);
     BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveChain().Height()), height_before_invalid_block);
     BOOST_CHECK(bls::bls_legacy_scheme.load());
+
+    // `verifychain 4` disconnects and reconnects blocks across V19 under
+    // cs_main while other threads keep verifying for the active chain.
+    // progress() runs before every block VerifyDB checks or reconnects.
+    setup.mineBlocks(2);
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+    struct SchemeProbe : kernel::Notifications {
+        bool saw_legacy{false};
+        bool global_stayed_basic{true};
+        void progress(const bilingual_str&, int, bool) override
+        {
+            saw_legacy |= bls::EffectiveLegacyScheme();
+            global_stayed_basic &= !bls::bls_legacy_scheme.load();
+        }
+    } probe;
+    {
+        LOCK(::cs_main);
+        Chainstate& chainstate{chainman.ActiveChainstate()};
+        const int last_legacy_height{chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19) - 1};
+        BOOST_CHECK(CVerifyDB{probe}.VerifyDB(chainstate, chainman.GetConsensus(), chainstate.CoinsTip(), *Assert(setup.m_node.evodb),
+                                              /*nCheckLevel=*/4, /*nCheckDepth=*/chainstate.m_chain.Height() - last_legacy_height + 1) ==
+                    VerifyDBResult::SUCCESS);
+    }
+    BOOST_CHECK_MESSAGE(probe.saw_legacy, "VerifyDB must cross V19 on its own thread");
+    BOOST_CHECK_MESSAGE(probe.global_stayed_basic, "VerifyDB must not switch the running node to the legacy scheme");
+    BOOST_CHECK(!bls::bls_legacy_scheme.load());
+    BOOST_CHECK(!bls::ScopedLegacySchemeOverride::Active());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
