@@ -48,6 +48,8 @@ struct BlsCheck {
     std::vector<CBLSPublicKey> m_pubkeys;
     uint256 m_msg_hash;
     std::string m_id_string;
+    //! The building thread's scheme; CCheckQueue runs the check on another thread
+    bool m_legacy_scheme{bls::EffectiveLegacyScheme()};
 
 public:
     BlsCheck();

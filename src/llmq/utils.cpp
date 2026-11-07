@@ -563,12 +563,12 @@ BlsCheck::~BlsCheck() = default;
 bool BlsCheck::operator()()
 {
     if (m_pubkeys.size() > 1) {
-        if (!m_sig.VerifySecureAggregated(m_pubkeys, m_msg_hash)) {
+        if (!m_sig.VerifySecureAggregated(m_pubkeys, m_msg_hash, m_legacy_scheme)) {
             LogPrint(BCLog::LLMQ, "%s\n", m_id_string);
             return false;
         }
     } else if (m_pubkeys.size() == 1) {
-        if (!m_sig.VerifyInsecure(m_pubkeys.back(), m_msg_hash)) {
+        if (!m_sig.VerifyInsecure(m_pubkeys.back(), m_msg_hash, m_legacy_scheme)) {
             LogPrint(BCLog::LLMQ, "%s\n", m_id_string);
             return false;
         }
@@ -586,6 +586,7 @@ void BlsCheck::swap(BlsCheck& obj) noexcept
     std::swap(m_pubkeys, obj.m_pubkeys);
     std::swap(m_msg_hash, obj.m_msg_hash);
     std::swap(m_id_string, obj.m_id_string);
+    std::swap(m_legacy_scheme, obj.m_legacy_scheme);
 }
 
 std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlock(

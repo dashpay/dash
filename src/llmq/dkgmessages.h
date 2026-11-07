@@ -55,7 +55,7 @@ public:
         s >> quorumHash;
         s >> proTxHash;
         // Decode the whole vvec under one scheme, so that vvecLegacyScheme describes every point in it
-        vvecLegacyScheme = bls::bls_legacy_scheme.load();
+        vvecLegacyScheme = bls::EffectiveLegacyScheme();
         for (uint64_t i = 0, size = ReadCompactSize(s); i < size; i++) {
             s >> CBLSPublicKeyVersionWrapper(tmp1.emplace_back(), vvecLegacyScheme);
         }

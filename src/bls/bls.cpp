@@ -15,8 +15,39 @@
 #include <cstring>
 
 namespace bls {
-    std::atomic<bool> bls_legacy_scheme = std::atomic<bool>(true);
+std::atomic<bool> bls_legacy_scheme = std::atomic<bool>(true);
+
+namespace {
+//! Trivially destructible, like util/threadnames.cpp's thread-local name.
+thread_local std::optional<bool> g_thread_legacy_scheme;
+} // namespace
+
+bool EffectiveLegacyScheme() { return g_thread_legacy_scheme ? *g_thread_legacy_scheme : bls_legacy_scheme.load(); }
+
+void SetEffectiveLegacyScheme(bool legacy)
+{
+    if (g_thread_legacy_scheme) {
+        g_thread_legacy_scheme = legacy;
+    } else {
+        bls_legacy_scheme.store(legacy);
+    }
 }
+
+ScopedLegacySchemeOverride::ScopedLegacySchemeOverride(bool legacy) noexcept :
+    m_saved{g_thread_legacy_scheme}
+{
+    g_thread_legacy_scheme = legacy;
+}
+
+ScopedLegacySchemeOverride::~ScopedLegacySchemeOverride() noexcept
+{
+    if (!m_committed || !m_saved) {
+        g_thread_legacy_scheme = m_saved;
+    }
+}
+
+bool ScopedLegacySchemeOverride::Active() noexcept { return g_thread_legacy_scheme.has_value(); }
+} // namespace bls
 
 static const std::unique_ptr<bls::CoreMPL> pSchemeLegacy{std::make_unique<bls::LegacySchemeMPL>()};
 static const std::unique_ptr<bls::CoreMPL> pScheme(std::make_unique<bls::BasicSchemeMPL>());
@@ -145,7 +176,7 @@ void CBLSPublicKey::AggregateInsecure(const CBLSPublicKey& o)
 {
     assert(IsValid() && o.IsValid());
     try {
-        impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate({impl, o.impl});
+        impl = Scheme(bls::EffectiveLegacyScheme())->Aggregate({impl, o.impl});
     } catch (...) {
         fValid = false;
     }
@@ -166,7 +197,7 @@ CBLSPublicKey CBLSPublicKey::AggregateInsecure(Span<CBLSPublicKey> pks)
 
     CBLSPublicKey ret;
     try {
-        ret.impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate(vecPublicKeys);
+        ret.impl = Scheme(bls::EffectiveLegacyScheme())->Aggregate(vecPublicKeys);
         ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
@@ -230,7 +261,7 @@ void CBLSSignature::AggregateInsecure(const CBLSSignature& o)
 {
     assert(IsValid() && o.IsValid());
     try {
-        impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate({impl, o.impl});
+        impl = Scheme(bls::EffectiveLegacyScheme())->Aggregate({impl, o.impl});
     } catch (...) {
         fValid = false;
     }
@@ -251,7 +282,7 @@ CBLSSignature CBLSSignature::AggregateInsecure(Span<CBLSSignature> sigs)
 
     CBLSSignature ret;
     try {
-        ret.impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate(v);
+        ret.impl = Scheme(bls::EffectiveLegacyScheme())->Aggregate(v);
         ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
@@ -283,7 +314,7 @@ CBLSSignature CBLSSignature::AggregateSecure(Span<CBLSSignature> sigs,
 
     CBLSSignature ret;
     try {
-        ret.impl = Scheme(bls::bls_legacy_scheme.load())->AggregateSecure(vecPublicKeys, vecSignatures, bls::Bytes(hash.begin(), hash.size()));
+        ret.impl = Scheme(bls::EffectiveLegacyScheme())->AggregateSecure(vecPublicKeys, vecSignatures, bls::Bytes(hash.begin(), hash.size()));
         ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
@@ -322,10 +353,16 @@ bool CBLSSignature::VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& h
 
 bool CBLSSignature::VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash) const
 {
-    return VerifyInsecure(pubKey, hash, bls::bls_legacy_scheme.load());
+    return VerifyInsecure(pubKey, hash, bls::EffectiveLegacyScheme());
 }
 
 bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<uint256> hashes) const
+{
+    return VerifyInsecureAggregated(pubKeys, hashes, bls::EffectiveLegacyScheme());
+}
+
+bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<uint256> hashes,
+                                             const bool specificLegacyScheme) const
 {
     if (!IsValid()) {
         return false;
@@ -346,13 +383,18 @@ bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<u
     }
 
     try {
-        return Scheme(bls::bls_legacy_scheme.load())->AggregateVerify(pubKeyVec, hashes2, impl);
+        return Scheme(specificLegacyScheme)->AggregateVerify(pubKeyVec, hashes2, impl);
     } catch (...) {
         return false;
     }
 }
 
 bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash) const
+{
+    return VerifySecureAggregated(pks, hash, bls::EffectiveLegacyScheme());
+}
+
+bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash, const bool specificLegacyScheme) const
 {
     if (pks.empty()) {
         return false;
@@ -365,7 +407,7 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     }
 
     try {
-        return Scheme(bls::bls_legacy_scheme.load())->VerifySecure(vecPublicKeys, impl, bls::Bytes(hash.begin(), hash.size()));
+        return Scheme(specificLegacyScheme)->VerifySecure(vecPublicKeys, impl, bls::Bytes(hash.begin(), hash.size()));
     } catch (...) {
         return false;
     }

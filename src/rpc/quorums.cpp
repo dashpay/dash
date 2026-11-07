@@ -702,7 +702,7 @@ static RPCHelpMan quorum_verify()
     const uint256 id(ParseHashV(request.params[1], "id"));
     const uint256 msgHash(ParseHashV(request.params[2], "msgHash"));
 
-    const bool use_bls_legacy = bls::bls_legacy_scheme.load();
+    const bool use_bls_legacy = bls::EffectiveLegacyScheme();
     CBLSSignature sig;
     if (!sig.SetHexStr(request.params[3].get_str(), use_bls_legacy)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");

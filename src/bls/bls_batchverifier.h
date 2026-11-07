@@ -47,6 +47,8 @@ private:
     bool secureVerification;
     bool perMessageFallback;
     size_t subBatchSize;
+    //! Taken from the constructing thread, so a batch verifies under one scheme wherever Verify() runs
+    const bool legacyScheme;
 
     MessageMap messages;
     MessagesBySourceMap messagesBySource;
@@ -61,7 +63,8 @@ public:
     CBLSBatchVerifier(bool _secureVerification, bool _perMessageFallback, size_t _subBatchSize = 0) :
             secureVerification(_secureVerification),
             perMessageFallback(_perMessageFallback),
-            subBatchSize(_subBatchSize)
+            subBatchSize(_subBatchSize),
+            legacyScheme(bls::EffectiveLegacyScheme())
     {
     }
 
@@ -135,7 +138,7 @@ public:
                             }
 
                             const auto& msg = msgIt->second;
-                            if (!msg.sig.VerifyInsecure(msg.pubKey, msg.msgHash)) {
+                            if (!msg.sig.VerifyInsecure(msg.pubKey, msg.msgHash, legacyScheme)) {
                                 badMessages.emplace(msg.msgId);
                             }
                         }
@@ -201,7 +204,7 @@ private:
         }
 
         CBLSSignature aggSig = CBLSSignature::AggregateInsecure(sigsToAggregate);
-        return aggSig.VerifyInsecureAggregated(pubKeys, msgHashes);
+        return aggSig.VerifyInsecureAggregated(pubKeys, msgHashes, legacyScheme);
     }
 
     bool VerifyBatchSecure(std::map<uint256, std::vector<MessageMapIterator>>& byMessageHash)
@@ -251,7 +254,7 @@ private:
         assert(!msgHashes.empty());
 
         CBLSSignature aggSig = CBLSSignature::AggregateInsecure(sigsToAggregate);
-        return aggSig.VerifyInsecureAggregated(pubKeys, msgHashes);
+        return aggSig.VerifyInsecureAggregated(pubKeys, msgHashes, legacyScheme);
     }
 };
 

@@ -35,12 +35,16 @@ private:
         CBLSSignature sig;
         CBLSPublicKey pubKey;
         uint256 msgHash;
-        SigVerifyJob(SigVerifyDoneCallback&& _doneCallback, CancelCond&& _cancelCond, const CBLSSignature& _sig, CBLSPublicKey _pubKey, const uint256& _msgHash) :
+        //! The submitting thread's scheme; the job runs on a worker thread
+        bool legacyScheme;
+        SigVerifyJob(SigVerifyDoneCallback&& _doneCallback, CancelCond&& _cancelCond, const CBLSSignature& _sig,
+                     CBLSPublicKey _pubKey, const uint256& _msgHash, bool _legacyScheme) :
             doneCallback(_doneCallback),
             cancelCond(_cancelCond),
             sig(_sig),
             pubKey(std::move(_pubKey)),
-            msgHash(_msgHash)
+            msgHash(_msgHash),
+            legacyScheme(_legacyScheme)
         {
         }
     };

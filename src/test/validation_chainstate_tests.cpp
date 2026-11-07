@@ -3,7 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 #include <bls/bls.h>
+#include <bls/bls_batchverifier.h>
 #include <chainparams.h>
+#include <coins.h>
+#include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <evo/evodb.h>
 #include <evo/deterministicmns.h>
@@ -11,6 +14,7 @@
 #include <node/interface_ui.h>
 #include <random.h>
 #include <rpc/blockchain.h>
+#include <script/script.h>
 #include <sync.h>
 #include <test/util/chainstate.h>
 #include <test/util/coins.h>
@@ -18,9 +22,13 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/check.h>
+#include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <functional>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include <boost/signals2/connection.hpp>
@@ -41,6 +49,39 @@ public:
     void NotifyMasternodeListChanged(bool, const CDeterministicMNList&, const CDeterministicMNListDiff&) override { ++mn_list_changed; }
     void ChainStateFlushed(const CBlockLocator&) override { ++chainstate_flushed; }
 };
+
+//! Runs a probe once, from inside the first ConnectTip that checks a block:
+//! after ConnectBlock committed it and before the tip moves.
+class BlockCheckedProbe final : public CValidationInterface
+{
+public:
+    std::function<void()> probe;
+
+    void BlockChecked(const CBlock&, const BlockValidationState& state) override
+    {
+        if (probe && state.IsValid()) std::exchange(probe, nullptr)();
+    }
+};
+
+//! Whether a thread with no scheme override accepts a fresh signature made
+//! under `legacy`, alone and batched.
+bool AnotherThreadAccepts(bool legacy)
+{
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    const CBLSPublicKey pk{sk.GetPublicKey()};
+    const uint256 msg_hash{InsecureRand256()};
+    const CBLSSignature sig{sk.Sign(msg_hash, legacy)};
+    bool valid{false}, batch_clean{false};
+    std::thread{[&] {
+        valid = sig.VerifyInsecure(pk, msg_hash);
+        CBLSBatchVerifier<int, uint256> batch_verifier(/*_secureVerification=*/false, /*_perMessageFallback=*/false);
+        batch_verifier.PushMessage(/*sourceId=*/0, msg_hash, msg_hash, sig, pk);
+        batch_verifier.Verify();
+        batch_clean = batch_verifier.badSources.empty();
+    }}.join();
+    return valid && batch_clean;
+}
 
 } // namespace
 
@@ -195,6 +236,15 @@ struct V19AboveSnapshotSetup : public TestChain100Setup {
     }
 };
 
+//! The reverse: the snapshot base is past V19, and the background
+//! chainstate's genesis tip is not.
+struct V19BelowSnapshotSetup : public TestChain100Setup {
+    V19BelowSnapshotSetup() :
+        TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=v19@50"}}
+    {
+    }
+};
+
 //! bls::bls_legacy_scheme is process-wide but its correct value is per-block, and
 //! ProcessSpecialTxsInBlock only ever switches legacy -> basic. ConnectBlock must
 //! therefore establish the scheme its parent left behind instead of inheriting
@@ -215,8 +265,10 @@ BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetu
     // Reach the assumeutxo height and take a snapshot, then take the snapshot
     // chainstate past V19 so the process-wide flag is basic again.
     mineBlocks(9);
+    bls::bls_legacy_scheme.store(false);
     BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this, NoMalleation, /*reset_chainstate=*/true));
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return chainman.IsSnapshotActive()));
+    BOOST_CHECK_MESSAGE(bls::bls_legacy_scheme.load(), "activating a pre-V19 snapshot must establish the legacy scheme");
 
     // The background chainstate was reset to genesis before activation, so
     // the base MN list was not derivable and no lifecycle marker may have
@@ -236,23 +288,96 @@ BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetu
     }()};
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return background_cs.m_chain.Height()) < V19_HEIGHT - 1);
 
-    std::vector<CMutableTransaction> noTxns;
-    CScript scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
-    auto pblock = std::make_shared<const CBlock>(this->CreateBlock(noTxns, scriptPubKey, background_cs));
-    BlockValidationState state;
+    // Give the background chainstate the next (pre-V19) block towards the
+    // snapshot base, as if downloaded again: the snapshot setup only dropped its
+    // HAVE_DATA flag, not the data.
+    const int background_height{WITH_LOCK(::cs_main, return background_cs.m_chain.Height())};
     {
         LOCK(::cs_main);
-        CBlockIndex* pindex = nullptr;
-        bool newblock = false;
-        BOOST_REQUIRE(CheckBlock(*pblock, state, Params().GetConsensus()));
-        BOOST_REQUIRE(m_node.chainman->AcceptBlock(pblock, state, &pindex, true, nullptr, &newblock));
+        CBlockIndex* next{chainman.ActiveChain()[background_height + 1]};
+        next->nStatus |= BLOCK_HAVE_DATA;
+        background_cs.TryAddBlockIndexCandidate(next);
     }
-    BOOST_REQUIRE(background_cs.ActivateBestChain(state, pblock));
+    BlockValidationState state;
+
+    // Other threads verify ChainLocks and recovered signatures for the active
+    // chain without cs_main while the background chainstate connects a block.
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    const CBLSPublicKey pk{sk.GetPublicKey()};
+    const uint256 msg_hash{InsecureRand256()};
+    const CBLSSignature basic_sig{sk.Sign(msg_hash, /*specificLegacyScheme=*/false)};
+    bool probed{false}, background_legacy{false}, other_thread_valid{false}, other_thread_batch_clean{false};
+    auto probe{std::make_shared<BlockCheckedProbe>()};
+    probe->probe = [&] {
+        probed = true;
+        background_legacy = bls::EffectiveLegacyScheme();
+        std::thread{[&] {
+            other_thread_valid = basic_sig.VerifyInsecure(pk, msg_hash);
+            CBLSBatchVerifier<int, uint256> batch_verifier(/*_secureVerification=*/false, /*_perMessageFallback=*/false);
+            batch_verifier.PushMessage(/*sourceId=*/0, msg_hash, msg_hash, basic_sig, pk);
+            batch_verifier.Verify();
+            other_thread_batch_clean = batch_verifier.badSources.empty();
+        }}.join();
+    };
+    RegisterSharedValidationInterface(probe);
+    const bool activated{background_cs.ActivateBestChain(state, nullptr)};
+    UnregisterSharedValidationInterface(probe);
+    BOOST_REQUIRE(activated);
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return background_cs.m_chain.Height()), background_height + 1);
+
+    BOOST_REQUIRE(probed);
+    BOOST_CHECK_MESSAGE(background_legacy, "the background chainstate must connect a pre-V19 block under legacy");
+    BOOST_CHECK_MESSAGE(other_thread_valid, "a background connect must not change another thread's scheme");
+    BOOST_CHECK_MESSAGE(other_thread_batch_clean, "a background connect must not make another thread ban a source");
 
     // The background chainstate validated a pre-V19 block, but only the active
     // chainstate's tip may define the scheme its consumers see.
     BOOST_CHECK_MESSAGE(!bls::bls_legacy_scheme.load(),
                         "a background connect must not leave the active chain on the legacy scheme");
+    BOOST_CHECK(!bls::ScopedLegacySchemeOverride::Active());
+}
+
+//! An invalid snapshot hands the active role back to the pre-V19 background
+//! chainstate from inside its ConnectTip, under that thread's override. Other
+//! threads must get the legacy scheme immediately.
+BOOST_FIXTURE_TEST_CASE(invalid_snapshot_fallback_establishes_bls_scheme, V19AboveSnapshotSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    mineBlocks(10);
+    Chainstate& background_cs{chainman.ActiveChainstate()};
+    BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this));
+    mineBlocks(V19_HEIGHT - WITH_LOCK(::cs_main, return chainman.ActiveHeight()));
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+
+    bool shut_down{false};
+    {
+        LOCK(::cs_main);
+        Coin extra_coin;
+        extra_coin.out.nValue = 1 * COIN;
+        extra_coin.out.scriptPubKey = CScript{} << OP_TRUE;
+        extra_coin.nHeight = 1;
+        background_cs.CoinsTip().AddCoin(COutPoint{InsecureRand256(), 0}, std::move(extra_coin), /*possible_overwrite=*/false);
+        const bls::ScopedLegacySchemeOverride background_connect_tip{/*legacy=*/true};
+        BOOST_REQUIRE(chainman.MaybeCompleteSnapshotValidation([&](bilingual_str) { shut_down = true; }) ==
+                      SnapshotCompletionResult::HASH_MISMATCH);
+        BOOST_REQUIRE(&chainman.ActiveChainstate() == &background_cs);
+    }
+    BOOST_REQUIRE(shut_down);
+    BOOST_CHECK(bls::bls_legacy_scheme.load());
+    BOOST_CHECK(AnotherThreadAccepts(/*legacy=*/true));
+}
+
+//! Activating a post-V19 snapshot on a node still on the legacy scheme must
+//! switch other threads to basic immediately.
+BOOST_FIXTURE_TEST_CASE(snapshot_activation_establishes_bls_scheme, V19BelowSnapshotSetup)
+{
+    mineBlocks(10);
+    bls::bls_legacy_scheme.store(true);
+    BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this, NoMalleation, /*reset_chainstate=*/true));
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return m_node.chainman->IsSnapshotActive()));
+    BOOST_CHECK(!bls::bls_legacy_scheme.load());
+    BOOST_CHECK(AnotherThreadAccepts(/*legacy=*/false));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
