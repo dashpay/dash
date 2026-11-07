@@ -2497,14 +2497,19 @@ bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const
             return false;
         }
 
-        m_map_crypted_keys[pubkey.GetID()] = make_pair(pubkey, crypted_secret);
+        if (!batch.WriteCryptedDescriptorKey(GetID(), pubkey, crypted_secret, crypted_mnemonic, crypted_mnemonic_passphrase)) {
+            return false;
+        }
+        m_map_crypted_keys[pubkey.GetID()] = make_pair(pubkey, std::move(crypted_secret));
         m_crypted_mnemonics[pubkey.GetID()] = make_pair(crypted_mnemonic, crypted_mnemonic_passphrase);
-        return batch.WriteCryptedDescriptorKey(GetID(), pubkey, crypted_secret, crypted_mnemonic, crypted_mnemonic_passphrase);
     } else {
+        if (!batch.WriteDescriptorKey(GetID(), pubkey, key.GetPrivKey(), mnemonic, mnemonic_passphrase)) {
+            return false;
+        }
         m_map_keys[pubkey.GetID()] = key;
         m_mnemonics[pubkey.GetID()] = make_pair(mnemonic, mnemonic_passphrase);
-        return batch.WriteDescriptorKey(GetID(), pubkey, key.GetPrivKey(), mnemonic, mnemonic_passphrase);
     }
+    return true;
 }
 
 bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type)
