@@ -186,24 +186,47 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         }
     }
 
-    // Where a rescan from the birth of a wallet holding a genesis-era key
-    // would need blocks this node no longer has.
-    const auto rescan_pruned_from{[&] {
+    // A wallet holding a genesis-era key that has scanned to last_scanned,
+    // by default the tip.
+    WalletContext context;
+    const auto make_wallet{[&](const CBlockIndex* last_scanned = nullptr) {
+        if (!last_scanned) last_scanned = newTip;
         const auto wallet{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase())};
         {
             LOCK(wallet->cs_wallet);
             wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
-            wallet->SetLastBlockProcessed(newTip->nHeight, newTip->GetBlockHash());
+            wallet->SetLastBlockProcessed(last_scanned->nHeight, last_scanned->GetBlockHash());
         }
         AddKey(*wallet, coinbaseKey);
-        WalletContext context;
-        return interfaces::MakeWallet(context, wallet)->rescanPrunedFrom();
+        return interfaces::MakeWallet(context, wallet);
     }};
-    BOOST_CHECK(!rescan_pruned_from());
+    // The first block a rescan from from_time needs that this node has no data for.
+    const auto rescan_unavailable_from{[&](int64_t from_time) { return make_wallet()->rescanUnavailableFrom(from_time); }};
+    // A key born at born_at(height) is first paid in that block.
+    const auto born_at{[&](int height) { return oldTip->GetAncestor(height)->GetBlockTimeMax() + TIMESTAMP_WINDOW; }};
+    BOOST_CHECK(!rescan_unavailable_from(0));
+
+    // A node that never pruned but has no data for some blocks, as below an
+    // assumeutxo snapshot whose chain is still being validated.
+    const auto set_have_data{[&](bool have_data) {
+        LOCK(::cs_main);
+        for (int height{50}; height <= 80; ++height) {
+            CBlockIndex* index{oldTip->GetAncestor(height)};
+            index->nStatus = have_data ? index->nStatus | BLOCK_HAVE_DATA : index->nStatus & ~BLOCK_HAVE_DATA;
+        }
+    }};
+    set_have_data(false);
+    BOOST_CHECK(rescan_unavailable_from(0) == std::optional<int>{50});
+    BOOST_CHECK(rescan_unavailable_from(born_at(60)) == std::optional<int>{60});
+    BOOST_CHECK(!rescan_unavailable_from(born_at(81)));
+    // The rescan reads up to the chain's tip, past the wallet's.
+    BOOST_CHECK(make_wallet(oldTip->GetAncestor(49))->rescanUnavailableFrom(0) == std::optional<int>{50});
+    set_have_data(true);
+
     // A pruning node that still has every block the rescan reads. The flag is
     // set as Chainstate::FlushStateToDisk does once it prunes.
     WITH_LOCK(::cs_main, m_node.chainman->m_blockman.m_have_pruned = true);
-    BOOST_CHECK(!rescan_pruned_from());
+    BOOST_CHECK(!rescan_unavailable_from(0));
 
     // Prune the older block file.
     int file_number;
@@ -213,7 +236,30 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         Assert(m_node.chainman)->m_blockman.PruneOneBlockFile(file_number);
     }
     m_node.chainman->m_blockman.UnlinkPrunedFiles({file_number});
-    BOOST_CHECK(rescan_pruned_from() == std::optional<int>{0});
+    BOOST_CHECK(rescan_unavailable_from(0) == std::optional<int>{0});
+    BOOST_CHECK(rescan_unavailable_from(born_at(oldTip->nHeight)) == std::optional<int>{oldTip->nHeight});
+    // Born after the pruned blocks: the rescan reads only the new block file.
+    BOOST_CHECK(!rescan_unavailable_from(newTip->GetBlockTimeMax() + TIMESTAMP_WINDOW));
+
+    // A rescan that could not read every block it needs scans the rest, and
+    // the rescan owed from before the pruned blocks stays owed; one owed
+    // from after them is settled.
+    {
+        const auto wallet{make_wallet()};
+        CWallet& cwallet{*Assert(wallet->wallet())};
+        WITH_LOCK(cwallet.cs_wallet, BOOST_REQUIRE(cwallet.AddOwedRescan(0)));
+        const uint64_t before_pruned{WITH_LOCK(cwallet.cs_wallet, return cwallet.GetOwedRescanSequence())};
+        BOOST_CHECK(wallet->rescanFromTime(0) == RescanStatus::FAILURE);
+        BOOST_CHECK(wallet->owedRescanFrom() == std::optional<int64_t>{0});
+        BOOST_CHECK_EQUAL(GetBalance(cwallet).m_mine_immature, 500 * COIN);
+
+        const int64_t after_pruned{newTip->GetBlockTimeMax() + TIMESTAMP_WINDOW};
+        WITH_LOCK(cwallet.cs_wallet, BOOST_REQUIRE(cwallet.AddOwedRescan(after_pruned)));
+        BOOST_CHECK(wallet->rescanFromTime(after_pruned) == RescanStatus::SUCCESS);
+        BOOST_CHECK(wallet->owedRescanFrom() == std::optional<int64_t>{0});
+        WITH_LOCK(cwallet.cs_wallet, cwallet.SettleOwedRescans(before_pruned, 0));
+        BOOST_CHECK(!wallet->owedRescanFrom());
+    }
 
     // Verify ScanForWalletTransactions only picks transactions in the new block
     // file.
@@ -848,6 +894,71 @@ BOOST_FIXTURE_TEST_CASE(create_asset_lock_transaction, AssetLockTestingSetup)
     BOOST_CHECK(!m_node.mempool->exists((*conflicting)->GetHash()));
     BOOST_CHECK(iface->abandonTransaction((*conflicting)->GetHash()));
 
+    // The asset locks the wallet holds are its funding inventory: each
+    // credit output paying a requested key, whatever happened to it since.
+    const std::vector<AssetLockFundingKey> funding_keys{registration_key, topup_key, TopupFundingKey{1}};
+    const auto list_fundings{[&](interfaces::Wallet& w) {
+        const auto fundings{w.listAssetLockFundings(funding_keys)};
+        BOOST_REQUIRE(fundings);
+        std::map<uint256, AssetLockFunding> by_txid;
+        for (const auto& funding : fundings.value) by_txid.emplace(funding.txid, funding);
+        BOOST_CHECK_EQUAL(by_txid.size(), fundings.value.size());
+        return by_txid;
+    }};
+    // The top-up lock was never committed. The abandoned conflict stays listed.
+    auto fundings{list_fundings(*iface)};
+    BOOST_REQUIRE_EQUAL(fundings.size(), 2U);
+    const AssetLockFunding& registration{fundings.at(tx->GetHash())};
+    BOOST_CHECK(std::holds_alternative<RegistrationFundingKey>(registration.key));
+    BOOST_CHECK_EQUAL(registration.credit_index, 0U);
+    BOOST_CHECK_EQUAL(registration.amount, credit_amount);
+    BOOST_CHECK(registration.status == AssetLockFundingStatus::ACTIVE);
+    BOOST_CHECK(fundings.at((*conflicting)->GetHash()).status == AssetLockFundingStatus::INACTIVE);
+    const auto not_requested{iface->listAssetLockFundings({topup_key})};
+    BOOST_CHECK(not_requested && not_requested.value.empty());
+
+    // Mined, the lock stays active and the abandoned conflict is conflicted.
+    {
+        const auto notifications{m_node.chain->handleNotifications(wallet_ref)};
+        CreateAndProcessBlock({CMutableTransaction{*tx}}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        SyncWithValidationInterfaceQueue();
+    }
+    fundings = list_fundings(*iface);
+    BOOST_REQUIRE_EQUAL(fundings.size(), 2U);
+    BOOST_CHECK(fundings.at(tx->GetHash()).status == AssetLockFundingStatus::ACTIVE);
+    BOOST_CHECK(fundings.at((*conflicting)->GetHash()).status == AssetLockFundingStatus::CONFLICTED);
+
+    // A wallet restored from the seed and the funding coins' keys finds the
+    // mined lock again in the chain.
+    {
+        SecureString mnemonic, mnemonic_passphrase;
+        {
+            LOCK(wallet->cs_wallet);
+            for (auto* spk_man : wallet->GetActiveScriptPubKeyMans()) {
+                auto* desc_spk_man{dynamic_cast<DescriptorScriptPubKeyMan*>(spk_man)};
+                if (desc_spk_man && desc_spk_man->GetMnemonicString(mnemonic, mnemonic_passphrase)) break;
+            }
+        }
+        BOOST_REQUIRE(!mnemonic.empty());
+        const auto restored{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase())};
+        BOOST_REQUIRE_EQUAL(restored->LoadWallet(), DBErrors::LOAD_OK);
+        {
+            LOCK(restored->cs_wallet);
+            restored->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+            restored->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
+            const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+            restored->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
+        }
+        AddKey(*restored, coinbaseKey);
+        const auto restored_iface{interfaces::MakeWallet(context, restored)};
+        BOOST_CHECK(list_fundings(*restored_iface).empty());
+        BOOST_REQUIRE(restored_iface->startRescan(/*from_genesis=*/true) == RescanStatus::SUCCESS);
+        const auto restored_fundings{list_fundings(*restored_iface)};
+        BOOST_REQUIRE_EQUAL(restored_fundings.size(), 1U);
+        BOOST_CHECK(restored_fundings.at(tx->GetHash()).status == AssetLockFundingStatus::ACTIVE);
+        BOOST_CHECK_EQUAL(restored_fundings.at(tx->GetHash()).amount, credit_amount);
+    }
+
     // An encrypted wallet builds asset locks only when fully unlocked: not
     // while locked, and not while unlocked for mixing only.
     const SecureString passphrase{"asset lock"};
@@ -856,6 +967,7 @@ BOOST_FIXTURE_TEST_CASE(create_asset_lock_transaction, AssetLockTestingSetup)
     BOOST_CHECK(!iface->createAssetLockTransaction(credit_amount, registration_key, coin_control, fee));
     // A locked wallet can still tell whether it is able to fund an identity.
     BOOST_CHECK(iface->getPlatformPubKey(registration_key).status == PlatformKeyStatus::WALLET_LOCKED);
+    BOOST_CHECK(iface->listAssetLockFundings(funding_keys).status == PlatformKeyStatus::WALLET_LOCKED);
     BOOST_CHECK(iface->platformKeySourceStatus() == PlatformKeyStatus::SUCCESS);
     BOOST_REQUIRE(wallet->Unlock(passphrase, /*fForMixingOnly=*/true));
     BOOST_REQUIRE(wallet->IsLocked() && !wallet->IsLocked(/*fForMixing=*/true));

@@ -5,6 +5,7 @@
 #ifndef BITCOIN_WALLET_PLATFORMTYPES_H
 #define BITCOIN_WALLET_PLATFORMTYPES_H
 
+#include <consensus/amount.h>
 #include <pubkey.h>
 #include <script/standard.h>
 #include <support/allocators/secure.h>
@@ -13,6 +14,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <variant>
 
 namespace wallet {
@@ -59,11 +61,29 @@ using PlatformKeyRequest = std::variant<IdentityAuthKey, RegistrationFundingKey,
 //! the wallet's seed, so the credits it funds can be recovered.
 using AssetLockFundingKey = std::variant<RegistrationFundingKey, TopupFundingKey, InvitationFundingKey>;
 
+enum class AssetLockFundingStatus : uint8_t {
+    ACTIVE,     //!< Not abandoned, and no conflicting transaction is mined.
+    INACTIVE,   //!< Abandoned and not mined. It can still be mined, so it stays resumable.
+    CONFLICTED, //!< A transaction spending the same coins is mined.
+};
+
+//! A credit output of a wallet asset lock that pays one of the wallet's
+//! funding keys.
+struct AssetLockFunding {
+    uint256 txid;
+    uint32_t credit_index{0}; //!< Index into the payload's credit outputs.
+    AssetLockFundingKey key;
+    CAmount amount{0};
+    AssetLockFundingStatus status{AssetLockFundingStatus::ACTIVE};
+};
+
 struct FriendshipKeychainRequest {
     uint32_t account{0};
     uint256 local_id;
     uint256 remote_id;
-    int64_t birth_time{0}; //!< 0 means unknown/genesis.
+    //! UNIX time in seconds, as a descriptor's creation time (Platform's
+    //! $createdAt is in milliseconds); 0 means unknown, i.e. genesis.
+    int64_t birth_time{0};
 };
 
 struct FriendshipXpub {
@@ -71,6 +91,14 @@ struct FriendshipXpub {
     ChainCode chaincode;
     //! BIP32 fingerprint (Hash160 prefix) of the parent key, m/9'/coin'/15'/account'/<user_a>.
     std::array<uint8_t, 4> parent_fingerprint{};
+};
+
+//! Our DIP-15 receiving chain for one friendship.
+struct FriendshipReceivingChain {
+    FriendshipXpub xpub;
+    //! Birth of the chain the wallet holds, in seconds; nullopt when it does
+    //! not hold it.
+    std::optional<int64_t> birth_time;
 };
 
 //! DIP-15 compact xpub: parentFingerprint(4) || chainCode(32) || pubKey(33).
