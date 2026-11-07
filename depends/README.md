@@ -89,6 +89,11 @@ The following can be set when running make: `make FOO=bar`
 - `NO_NATPMP`: Don't download/build/cache packages needed for enabling NAT-PMP
 - `NO_USDT`: Don't download/build/cache packages needed for enabling USDT tracepoints
 - `MULTIPROCESS`: build libmultiprocess (experimental, requires cmake)
+- `PLATFORM_GUI`: build the Rust toolchain and `dash-sdk-cxx` (the Dash Platform SDK's C++ binding) needed for
+  `--enable-platform-gui` (which config.site then enables); cannot be combined with `NO_QT`
+  or `NO_WALLET`. Not supported in Guix or release builds (the build refuses `GUIX_ENVIRONMENT`); CI builds and
+  tests it on x86_64 Linux only. Uses a pinned prebuilt Rust toolchain and protoc. Not available for
+  `powerpc64-linux-gnu`, or for hosts `packages/rust_stdlib.mk` has no entry for, such as `powerpc64le-linux-gnu`.
 - `DEBUG`: Disable some optimizations and enable more runtime checking
 - `HOST_ID_SALT`: Optional salt to use when generating host package ids
 - `BUILD_ID_SALT`: Optional salt to use when generating build package ids

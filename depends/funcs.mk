@@ -71,7 +71,7 @@ $(1)_build_log:=$(BASEDIR)/$(1)-$($(1)_version)-$($(1)_build_id).log
 $(1)_all_sources=$($(1)_file_name) $($(1)_extra_sources)
 
 #stamps
-$(1)_fetched=$(SOURCES_PATH)/download-stamps/.stamp_fetched-$(1)-$($(1)_version)-$($(1)_sha256_hash).hash
+$(1)_fetched=$(SOURCES_PATH)/download-stamps/.stamp_fetched-$(1)-$($(1)_version)-$($(1)_sha256_hash)$(if $($(1)_fetched_id),-$($(1)_fetched_id)).hash
 $(1)_extracted=$$($(1)_extract_dir)/.stamp_extracted
 $(1)_preprocessed=$$($(1)_extract_dir)/.stamp_preprocessed
 $(1)_cleaned=$$($(1)_extract_dir)/.stamp_cleaned
