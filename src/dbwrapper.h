@@ -163,6 +163,8 @@ public:
     ~CDBIterator();
 
     bool Valid() const;
+    //! True once a read failed, e.g. on a corrupt block. Entries may then have been skipped.
+    bool HasError() const;
 
     void SeekToFirst();
 
@@ -421,6 +423,10 @@ public:
 
     bool Valid() {
         return transactionIt != transaction.writes.end() || parentIt->Valid();
+    }
+
+    bool HasError() const {
+        return parentIt->HasError();
     }
 
     void Next() {
