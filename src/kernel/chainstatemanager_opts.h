@@ -53,6 +53,12 @@ struct ChainstateManagerOpts {
     DBOptions coins_db{};
     CoinsViewOptions coins_view{};
     Notifications& notifications;
+    //! Dash: the node runs as a masternode. It does not load UTXO snapshots.
+    bool masternode{false};
+    //! Dash: the node keeps the -addressindex, -spentindex or -timestampindex
+    //! index, which is not supported with a snapshot chainstate. It does not
+    //! load UTXO snapshots.
+    bool legacy_indexes{false};
 };
 
 } // namespace kernel
