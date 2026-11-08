@@ -188,8 +188,12 @@ void ChainLockSigner::BlockDisconnected(const std::shared_ptr<const CBlock>& blo
 }
 
 
-void ChainLockSigner::BlockConnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex)
+void ChainLockSigner::BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex)
 {
+    // Only the active chainstate's blocks concern this subscriber.
+    if (role == ChainstateRole::BACKGROUND) {
+        return;
+    }
     if (!m_mn_sync.IsBlockchainSynced()) {
         return;
     }

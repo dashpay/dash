@@ -8,6 +8,7 @@
 #include <evo/evodb.h>
 #include <evo/snapshot_types.h>
 #include <init.h>
+#include <kernel/chain.h>
 #include <node/context.h>
 #include <primitives/block.h>
 #include <scheduler.h>
@@ -70,7 +71,7 @@ public:
     {
         if (m_on_call) m_on_call();
     }
-    void ChainStateFlushed(const CBlockLocator&) override
+    void ChainStateFlushed(ChainstateRole role, const CBlockLocator&) override
     {
         if (m_on_call) m_on_call();
     }
@@ -119,7 +120,7 @@ BOOST_AUTO_TEST_CASE(local_evo_error_in_subscriber)
     RegisterSharedValidationInterface(failing);
     RegisterSharedValidationInterface(other);
     const auto queued{[] {
-        GetMainSignals().ChainStateFlushed(CBlockLocator{});
+        GetMainSignals().ChainStateFlushed(ChainstateRole::NORMAL, CBlockLocator{});
         SyncWithValidationInterfaceQueue();
     }};
 
@@ -153,7 +154,7 @@ BOOST_AUTO_TEST_CASE(load_retry_runs_queued_events_first)
     m_node.scheduler->scheduleFromNow([queue_released] { queue_released.wait(); }, std::chrono::milliseconds{0});
     {
         const EvoViewScope bound{node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
-        GetMainSignals().ChainStateFlushed(CBlockLocator{});
+        GetMainSignals().ChainStateFlushed(ChainstateRole::NORMAL, CBlockLocator{});
     }
     auto retry{std::async(std::launch::async, [&] { ReleaseChainstateLoadAttempt(node); })};
     retry.wait_for(std::chrono::milliseconds{200});

@@ -8,6 +8,7 @@
 #include <consensus/validation.h>
 #include <index/coinstatsindex.h>
 #include <interfaces/chain.h>
+#include <kernel/chain.h>
 #include <node/blockstorage.h>
 #include <pow.h>
 #include <script/script.h>
@@ -181,7 +182,7 @@ BOOST_FIXTURE_TEST_CASE(late_genesis_notification_keeps_index, TestChain100Setup
     BOOST_REQUIRE(index.StartBackgroundSync());
     IndexWaitSynced(index);
 
-    GetMainSignals().BlockConnected(std::make_shared<const CBlock>(Params().GenesisBlock()), AtHeight(chainman, 0));
+    GetMainSignals().BlockConnected(ChainstateRole::NORMAL, std::make_shared<const CBlock>(Params().GenesisBlock()), AtHeight(chainman, 0));
     SyncWithValidationInterfaceQueue();
     BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 100);
     for (int height{0}; height <= 100; ++height) {

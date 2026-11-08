@@ -10,6 +10,7 @@
 #include <arith_uint256.h>
 #include <attributes.h>
 #include <chain.h>
+#include <kernel/chain.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
 #include <evo/types.h>
@@ -590,6 +591,12 @@ public:
     //! A chainstate that goes away takes the warning of its stalls along.
     ~Chainstate();
 
+    //! Return the current role of the chainstate. See `ChainstateManager`
+    //! documentation for a description of the different types of chainstates.
+    //!
+    //! @sa ChainstateRole
+    ChainstateRole GetRole() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
     //! Return the stable EvoDB identity corresponding to this chainstate's coins DB.
     ::EvoDbIdentity EvoDbIdentity() const;
     //! The Evo view this chainstate reads and writes. Every Chainstate method
@@ -1101,6 +1108,8 @@ private:
     //! it cannot: the conditions activation relies on, checked again at the
     //! switch since the active chainstate kept running while it prepared.
     std::optional<std::string> SnapshotSwitchRefusal(const CBlockIndex& base) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Whether a snapshot based on `base` would be ahead of the active chain at `active_tip`.
+    static bool SnapshotHasMoreWork(const CBlockIndex& active_tip, const CBlockIndex& base);
 
     //! The base of a snapshot being activated, from the moment its evo state
     //! starts being recorded until the switch: the active chainstate records
@@ -1119,13 +1128,6 @@ private:
     friend Chainstate;
 
     EvoViewCache<std::array<ThresholdConditionCache, VERSIONBITS_NUM_BITS>> m_warningcache GUARDED_BY(::cs_main);
-
-    //! Returns nullptr if no snapshot has been loaded.
-    const CBlockIndex* GetSnapshotBaseBlock() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
-    //! Return the height of the base block of the snapshot in use, if one exists, else
-    //! nullopt.
-    std::optional<int> GetSnapshotBaseHeight() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Return true if a chainstate is considered usable.
     //!
@@ -1161,6 +1163,10 @@ public:
     using Options = kernel::ChainstateManagerOpts;
 
     explicit ChainstateManager(const util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options);
+
+    //! Function to restart active indexes; set dynamically to avoid a circular
+    //! dependency on `base/index.cpp`.
+    std::function<void()> restart_indexes = std::function<void()>();
 
     const CChainParams& GetParams() const { return m_options.chainparams; }
     const Consensus::Params& GetConsensus() const { return m_options.chainparams.GetConsensus(); }
@@ -1342,6 +1348,9 @@ public:
      * is still in use cannot be rejected. Returns whether it was rejected. */
     bool RejectSnapshotOrStop(const std::string& reason) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    //! Returns nullptr if no snapshot has been loaded.
+    const CBlockIndex* GetSnapshotBaseBlock() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;
     //! The EvoDB shared by the chainstates, once one is initialized.
@@ -1353,6 +1362,16 @@ public:
     //! nullptr if none does. Evo indexes read under that identity, such as the
     //! mined-commitment index, describe this chain.
     const CChain* EvoChain(::EvoDbIdentity identity) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! The state of a background sync (for net processing)
+    bool BackgroundSyncInProgress() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) {
+        return IsUsable(m_snapshot_chainstate.get()) && IsUsable(m_ibd_chainstate.get());
+    }
+
+    //! The tip of the background sync chain
+    const CBlockIndex* GetBackgroundSyncTip() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) {
+        return BackgroundSyncInProgress() ? m_ibd_chainstate->m_chain.Tip() : nullptr;
+    }
 
     node::BlockMap& BlockIndex() EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
     {
@@ -1517,8 +1536,7 @@ public:
 
     //! Switch the active chainstate to one based on a UTXO snapshot that was loaded
     //! previously.
-    Chainstate* ActivateExistingSnapshot(CTxMemPool* mempool, uint256 base_blockhash)
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    Chainstate* ActivateExistingSnapshot(uint256 base_blockhash) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! If we have validated a snapshot chain during this runtime, copy its
     //! chainstate directory over to the main `chainstate` location, completing
@@ -1530,6 +1548,26 @@ public:
     //!
     //! @sa node/chainstate:LoadChainstate()
     bool ValidatedSnapshotCleanup() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! @returns the chainstate that indexes should consult when ensuring that an
+    //!   index is synced with a chain where we can expect block index entries to have
+    //!   BLOCK_HAVE_DATA beneath the tip.
+    //!
+    //!   In other words, give us the chainstate for which we can reasonably expect
+    //!   that all blocks beneath the tip have been indexed. In practice this means
+    //!   when using an assumed-valid chainstate based upon a snapshot, return only the
+    //!   fully validated chain.
+    Chainstate& GetChainstateForIndexing() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Return the [start, end] (inclusive) of block heights we can prune.
+    //!
+    //! start > end is possible, meaning no blocks can be pruned.
+    std::pair<int, int> GetPruneRange(
+        const Chainstate& chainstate, int last_height_can_prune) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Return the height of the base block of the snapshot in use, if one exists, else
+    //! nullopt.
+    std::optional<int> GetSnapshotBaseHeight() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     ~ChainstateManager();
 };
@@ -1575,15 +1613,6 @@ SpecialTxRules GetSpecialTxRules(const CBlockIndex* pindexPrev, const Chainstate
 
 /** Determine the masternode reward era for the block following pindexPrev. */
 MnRewardEra GetMnRewardEraAfter(const CBlockIndex* pindexPrev, const ChainstateManager& chainman);
-
-/**
- * Return the expected assumeutxo value for a given height, if one exists.
- *
- * @param[in] height Get the assumeutxo value for this height.
- *
- * @returns empty if no assumeutxo configuration exists for the given height.
- */
-const AssumeutxoData* ExpectedAssumeutxo(const int height, const CChainParams& params);
 
 /**
  * Remove a persisted snapshot chainstate's on-disk artifacts: its coins database
