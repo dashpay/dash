@@ -79,6 +79,11 @@ static void EnsureCanSubmitProposals(const NodeContext& node, const std::string&
                                            "getindexinfo), so it can't look up proposal collateral yet. Try again "
                                            "once the index has synced.");
     }
+    if (!node.gov_collateral_index->IsCollateralSynced()) {
+        throw JSONRPCError(RPC_MISC_ERROR, "This node's governance collateral index follows the background chainstate "
+                                           "until assumeutxo snapshot validation completes and the index catches up, "
+                                           "so it can't look up proposal collateral yet. Try again then.");
+    }
 }
 
 static RPCHelpMan gobject_count()

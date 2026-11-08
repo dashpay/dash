@@ -39,6 +39,10 @@ Other indexes work but don't take advantage of this feature. They always start b
 from the genesis block. Once the background validation reaches the snapshot block,
 indexes will continue to build all the way to the tip.
 
+Governance waits until background validation has completed and the governance
+collateral index has caught up: until then the node neither processes nor relays
+governance objects, and `gobject prepare` and `gobject submit` refuse.
+
 For indexes that support pruning, note that no pruning will take place between
 the snapshot and the tip, until the background sync has completed - after which
 everything is pruned. Depending on how old the snapshot is, this may temporarily

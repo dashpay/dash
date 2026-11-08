@@ -1471,10 +1471,10 @@ class CGovernanceObject:
         self.nRevision = 0
         self.nTime = 0
         self.nCollateralHash = 0
-        self.vchData = []
+        self.vchData = b""
         self.nObjectType = 0
         self.masternodeOutpoint = COutPoint()
-        self.vchSig = []
+        self.vchSig = b""
 
     def deserialize(self, f):
         self.nHashParent = deser_uint256(f)
@@ -1492,15 +1492,15 @@ class CGovernanceObject:
 
     def serialize(self):
         r = b""
-        r += ser_uint256(self.nParentHash)
+        r += ser_uint256(self.nHashParent)
         r += self.nRevision.to_bytes(4, "little", signed=True)
         r += self.nTime.to_bytes(8, "little", signed=True)
-        r += deser_uint256(self.nCollateralHash)
-        r += deser_compact_size(len(self.vchData))
+        r += ser_uint256(self.nCollateralHash)
+        r += ser_compact_size(len(self.vchData))
         r += self.vchData
         r += self.nObjectType.to_bytes(4, "little", signed=True)
         r += self.masternodeOutpoint.serialize()
-        r += deser_compact_size(len(self.vchSig))
+        r += ser_compact_size(len(self.vchSig))
         r += self.vchSig
         return r
 
@@ -2421,6 +2421,23 @@ class msg_mnlistdiff:
 
     def __repr__(self):
         return "msg_mnlistdiff(baseBlockHash=%064x, blockHash=%064x)" % (self.baseBlockHash, self.blockHash)
+
+
+class msg_govobj:
+    __slots__ = ("obj",)
+    msgtype = b"govobj"
+
+    def __init__(self, obj=None):
+        self.obj = obj if obj is not None else CGovernanceObject()
+
+    def deserialize(self, f):
+        self.obj.deserialize(f)
+
+    def serialize(self):
+        return self.obj.serialize()
+
+    def __repr__(self):
+        return "msg_govobj(nCollateralHash=%064x)" % self.obj.nCollateralHash
 
 
 class msg_clsig:
