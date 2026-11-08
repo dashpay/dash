@@ -27,7 +27,7 @@ from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
     force_finish_mnsync,
-    wait_until_helper,
+    wait_until_helper_internal,
 )
 
 '''
@@ -122,7 +122,7 @@ def wait_for_banscore(node, peer_id, expected_score):
         return None
     if expected_score is None:
         # A peer that reached the ban threshold is dropped asynchronously
-        wait_until_helper(lambda: get_score() is None, timeout=10)
+        wait_until_helper_internal(lambda: get_score() is None, timeout=10)
         return
     # Scores are bumped while a message is processed and a pong is only sent after every earlier message was
     # processed, so once each connection answered a ping the score is final. Connections of banned peers are
@@ -146,7 +146,7 @@ def get_p2p_id(node, uacomment=None):
                 if p["subver"] == p2p.strSubVer:
                     return p["id"]
         return None
-    wait_until_helper(lambda: get_id() is not None, timeout=10)
+    wait_until_helper_internal(lambda: get_id() is not None, timeout=10)
     return get_id()
 
 
@@ -172,7 +172,7 @@ class QuorumDataInterface(P2PInterface):
 
     def wait_for_qmessage(self, message=None, timeout=3, message_expected=True):
         if message_expected:
-            wait_until_helper(lambda: self.message_count[message] > 0, timeout=timeout, lock=p2p_lock)
+            wait_until_helper_internal(lambda: self.message_count[message] > 0, timeout=timeout, lock=p2p_lock)
         else:
             # A reply would have been sent before the pong
             self.sync_with_ping()
