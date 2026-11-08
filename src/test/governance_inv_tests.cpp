@@ -41,8 +41,15 @@ namespace {
 //! Knows no collateral, like a synced index on a chain without fee burns
 struct EmptyCollateralSource final : public governance::CollateralSource {
     std::atomic<bool> synced{true};
+    //! While not negative, how many more queries report synced before the source reports behind
+    mutable std::atomic<int> synced_queries{-1};
 
-    bool IsCollateralSynced() const override { return synced; }
+    bool IsCollateralSynced() const override
+    {
+        int left{synced_queries};
+        while (left > 0 && !synced_queries.compare_exchange_weak(left, left - 1)) {}
+        return left < 0 ? synced.load() : left > 0;
+    }
     std::optional<governance::CollateralInfo> FindCollateral(const uint256&) const override { return std::nullopt; }
 };
 
@@ -468,6 +475,15 @@ BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
     }
     m_node.peerman->SendMessages(peer.get());
     BOOST_CHECK_EQUAL(CountQueuedInventory(*peer, object_inv, NetMsgType::GETDATA), 1U);
+
+    // A snapshot activation after the message gate leaves the index behind: the object is dropped without penalty
+    m_collateral.synced_queries = 1;
+    ProcessGovernanceObject(net_gov, *peer, govobj);
+    BOOST_CHECK(!m_node.govman->HaveObjectForHash(govobj.GetHash()));
+    BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 0);
+    m_collateral.synced_queries = -1;
+
+    // The request survived that, so the object sent again is processed
     ProcessGovernanceObject(net_gov, *peer, govobj);
     BOOST_CHECK(!m_node.govman->HaveObjectForHash(govobj.GetHash()));
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 20);

@@ -661,6 +661,11 @@ public:
             error = "This node is still building its governance collateral index, so it can't submit proposals yet";
             return std::nullopt;
         }
+        if (!context().gov_collateral_index->IsCollateralSynced()) {
+            error = "This node's governance collateral index follows the background chainstate until assumeutxo "
+                    "snapshot validation completes, so it can't submit proposals yet";
+            return std::nullopt;
+        }
         return WithActiveEvoView(
             context().evodb.get(), __func__,
             [&]() -> std::optional<CGovernanceObject> {
@@ -705,6 +710,11 @@ public:
         }
         if (!context().gov_collateral_index->BlockUntilSyncedToCurrentChain()) {
             error = "This node is still building its governance collateral index, so it can't submit proposals yet";
+            return false;
+        }
+        if (!context().gov_collateral_index->IsCollateralSynced()) {
+            error = "This node's governance collateral index follows the background chainstate until assumeutxo "
+                    "snapshot validation completes, so it can't submit proposals yet";
             return false;
         }
         return WithActiveEvoView(
