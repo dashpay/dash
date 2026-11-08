@@ -112,6 +112,18 @@ class AssumeutxoTest(BitcoinTestFramework):
             [b"\xff" * 32, 0], # wrong outpoint hash
             [(1).to_bytes(4, "little"), 32], # wrong outpoint index
         ]
+        # The first coin differs between runs (see authorize_snapshot), so its code
+        # VARINT((coinbase ? 1 : 0) | (height << 1)) is changed in its last byte,
+        # which keeps its length, and only in the coinbase flag and the lowest bit
+        # of the height, which keeps the height at or below the base.
+        code_end = 36
+        while valid_snapshot_contents[32 + 8 + code_end] & 0x80:
+            code_end += 1
+        code_last = valid_snapshot_contents[32 + 8 + code_end]
+        cases += [
+            [bytes([code_last ^ 1]), code_end], # wrong coin code: coinbase flag
+            [bytes([code_last ^ 2]), code_end], # another wrong coin code: height
+        ]
 
         for content, offset in cases:
             with open(bad_snapshot_path, "wb") as f:
