@@ -360,8 +360,8 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{
-         // TODO to be specified in a future patch.
+        m_assumeutxo_data = {
+            // TODO to be specified in a future patch.
         };
 
         // getchaintxstats 17280 000000000000000346a1804da4832b0b69dd9a7f96b14c7cb54585a9ac6ae98f
@@ -545,7 +545,7 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{
+        m_assumeutxo_data = {
             // TODO to be specified in a future patch.
         };
 
@@ -979,24 +979,30 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{
+        m_assumeutxo_data = {
             {
-                110,
-                {AssumeutxoHash{uint256S("0xffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f")}, EvoSnapshotHash{uint256{}}, 110},
+                .height = 110,
+                .hash_serialized = AssumeutxoHash{uint256S("0xffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f")},
+                .evo_hash = EvoSnapshotHash{uint256{}},
+                .nChainTx = 110,
+                .blockhash = uint256S("0x729bcb1479ff9f4968439f0276bd76bcb2de0f0720b7a16f383321f6a41cb238"),
             },
             {
-                200,
-                {AssumeutxoHash{uint256S("0x16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b")}, EvoSnapshotHash{uint256{}}, 200},
+                .height = 200,
+                .hash_serialized = AssumeutxoHash{uint256S("0x16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b")},
+                .evo_hash = EvoSnapshotHash{uint256{}},
+                .nChainTx = 200,
+                .blockhash = uint256S("0x19c1b203b5a960c7f3619e0e805b24c94e684b1aa261f3a79c84d291638a6e1f"),
             },
         };
-        for (const auto& [height, data] : opts.assumeutxo_data) {
-            const bool duplicate_block{std::ranges::any_of(m_assumeutxo_data, [&](const auto& entry) {
-                return entry.second.blockhash == data.blockhash;
-            })};
-            if (duplicate_block || !m_assumeutxo_data.emplace(height, data).second) {
-                throw std::runtime_error(strprintf("Duplicate height or block hash in -assumeutxodata (%d:%s)", height,
-                                                   data.blockhash.ToString()));
+        for (const auto& data : opts.assumeutxo_data) {
+            if (std::ranges::any_of(m_assumeutxo_data, [&](const auto& entry) {
+                    return entry.height == data.height || entry.blockhash == data.blockhash;
+                })) {
+                throw std::runtime_error(strprintf("Duplicate height or block hash in -assumeutxodata (%d:%s)",
+                                                   data.height, data.blockhash.ToString()));
             }
+            m_assumeutxo_data.push_back(data);
         }
 
         chainTxData = ChainTxData{

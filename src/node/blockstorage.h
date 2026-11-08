@@ -27,6 +27,7 @@ class CBlockUndo;
 class CChainParams;
 class Chainstate;
 class ChainstateManager;
+enum class ChainstateRole;
 struct CCheckpointData;
 struct FlatFilePos;
 namespace Consensus {
@@ -99,7 +100,7 @@ private:
      * per index entry (nStatus, nChainWork, nTimeMax, etc.) as well as peripheral
      * collections like m_dirty_blockindex.
      */
-    bool LoadBlockIndex()
+    bool LoadBlockIndex(const std::optional<uint256>& snapshot_blockhash)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     /** Return false if block file or undo file flushing fails. */
@@ -122,7 +123,11 @@ private:
     bool UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const;
 
     /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
-    void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, int chain_tip_height);
+    void FindFilesToPruneManual(
+        std::set<int>& setFilesToPrune,
+        int nManualPruneHeight,
+        const Chainstate& chain,
+        ChainstateManager& chainman);
 
     /**
      * Prune block and undo files (blk???.dat and rev???.dat) so that the disk space used is less than a user-defined target.
@@ -138,8 +143,13 @@ private:
      * A db flag records the fact that at least some block files have been pruned.
      *
      * @param[out]   setFilesToPrune   The set of file indices that can be unlinked will be returned
+     * @param        last_prune        The last height we're able to prune, according to the prune locks
      */
-    void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight, int chain_tip_height, int prune_height, bool is_ibd);
+    void FindFilesToPrune(
+        std::set<int>& setFilesToPrune,
+        int last_prune,
+        const Chainstate& chain,
+        ChainstateManager& chainman);
 
     RecursiveMutex cs_LastBlockFile;
     std::vector<CBlockFileInfo> m_blockfile_info;
@@ -196,10 +206,14 @@ public:
      */
     std::multimap<CBlockIndex*, CBlockIndex*> m_blocks_unlinked;
 
+    //! Height of the highest block LoadBlockIndex() found with a faked nTx (set without BLOCK_VALID_TRANSACTIONS), or -1
+    int m_faked_tx_height GUARDED_BY(::cs_main){-1};
+
     std::unique_ptr<CBlockTreeDB> m_block_tree_db GUARDED_BY(::cs_main);
 
     bool WriteBlockIndexDB() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool LoadBlockIndexDB() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool LoadBlockIndexDB(const std::optional<uint256>& snapshot_blockhash)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /**
      * Remove any pruned block & undo files that are still on disk.

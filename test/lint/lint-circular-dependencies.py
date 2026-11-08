@@ -33,6 +33,7 @@ EXPECTED_DASH_CIRCULAR_DEPENDENCIES = (
     "index/base -> node/context -> index/timestampindex -> index/base",
     "index/base -> node/context -> index/govcollateralindex -> index/base",
     "banman -> common/bloom -> evo/assetlocktx -> llmq/quorumsman -> llmq/blockprocessor -> net -> banman",
+    "blockfilter -> evo/specialtx_filter -> evo/assetlocktx -> node/blockstorage -> kernel/chain -> interfaces/chain.h -> blockfilter",
     "coinjoin/client -> coinjoin/util -> wallet/wallet -> psbt -> node/transaction -> net_processing -> coinjoin/walletman -> coinjoin/client",
     "common/bloom -> evo/assetlocktx -> llmq/commitment -> evo/deterministicmns -> evo/simplifiedmns -> merkleblock -> common/bloom",
     "common/bloom -> evo/assetlocktx -> llmq/quorumsman -> llmq/blockprocessor -> net -> common/bloom",

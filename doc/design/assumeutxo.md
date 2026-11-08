@@ -9,7 +9,7 @@ There is currently no canonical source for snapshots, but any downloaded snapsho
 will be checked against a hash that's been hardcoded in source code.
 
 Once you've obtained the snapshot, you can use the RPC command `loadtxoutset`
-(yet to be merged) to load it.
+to load it.
 
 ### Pruning
 

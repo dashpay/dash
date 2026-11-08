@@ -15,6 +15,7 @@
 #include <uint256.h>
 #include <util/chaintype.h>
 #include <util/hash_type.h>
+#include <util/vector.h>
 
 #include <cstdint>
 #include <map>
@@ -49,23 +50,24 @@ struct EvoSnapshotHash : public BaseHash<uint256> {
  * as valid.
  */
 struct AssumeutxoData {
+    int height;
+
     //! The expected hash of the deserialized UTXO set.
-    const AssumeutxoHash hash_serialized;
+    AssumeutxoHash hash_serialized;
 
     //! The expected single-SHA256 hash of the canonical Dash evo section.
-    const EvoSnapshotHash evo_hash;
+    EvoSnapshotHash evo_hash;
 
     //! Used to populate the nChainTx value, which is used during BlockManager::LoadBlockIndex().
     //!
     //! We need to hardcode the value here because this is computed cumulatively using block data,
     //! which we do not necessarily have at the time of snapshot load.
-    const unsigned int nChainTx;
+    unsigned int nChainTx;
 
-    //! The snapshot base block this entry authorizes, or null for any block at its height.
-    const uint256 blockhash{};
+    //! The hash of the base block for this snapshot. Used to refer to assumeutxo data
+    //! prior to having a loaded blockindex.
+    uint256 blockhash;
 };
-
-using MapAssumeutxo = std::map<int, const AssumeutxoData>;
 
 /**
  * Holds various statistics on transactions within a chain. Used to estimate
@@ -149,7 +151,16 @@ public:
 
     //! Get allowed assumeutxo configuration.
     //! @see ChainstateManager
-    const MapAssumeutxo& Assumeutxo() const { return m_assumeutxo_data; }
+    const std::vector<AssumeutxoData>& Assumeutxo() const { return m_assumeutxo_data; }
+
+    std::optional<AssumeutxoData> AssumeutxoForHeight(int height) const
+    {
+        return FindFirst(m_assumeutxo_data, [&](const auto& d) { return d.height == height; });
+    }
+    std::optional<AssumeutxoData> AssumeutxoForBlockhash(const uint256& blockhash) const
+    {
+        return FindFirst(m_assumeutxo_data, [&](const auto& d) { return d.blockhash == blockhash; });
+    }
 
     const ChainTxData& TxData() const { return chainTxData; }
     void UpdateDIP3Parameters(int nActivationHeight, int nEnforcementHeight);
@@ -246,8 +257,8 @@ public:
         std::unordered_map<Consensus::LLMQType, LLMQParameters> llmq_test_parameters{};
         //! Name of the LLMQ to use for InstantSend (DIP0024)
         std::optional<std::string> llmq_dip0024_instantsend{};
-        //! Extra exact snapshot authorizations, keyed by base height
-        std::vector<std::pair<int, AssumeutxoData>> assumeutxo_data{};
+        //! Extra exact snapshot authorizations
+        std::vector<AssumeutxoData> assumeutxo_data{};
     };
 
     static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);
@@ -283,7 +294,7 @@ protected:
     bool m_is_mockable_chain;
     int nLLMQConnectionRetryTimeout;
     CCheckpointData checkpointData;
-    MapAssumeutxo m_assumeutxo_data;
+    std::vector<AssumeutxoData> m_assumeutxo_data;
     ChainTxData chainTxData;
     int nPoolMinParticipants;
     int nPoolMaxParticipants;

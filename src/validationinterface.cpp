@@ -10,6 +10,7 @@
 #include <consensus/validation.h>
 #include <evo/evodb.h>
 #include <evo/snapshot_types.h>
+#include <kernel/chain.h>
 #include <logging.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -253,9 +254,9 @@ void CMainSignals::TransactionRemovedFromMempool(const CTransactionRef& tx, MemP
                           RemovalReasonToString(reason));
 }
 
-void CMainSignals::BlockConnected(const std::shared_ptr<const CBlock> &pblock, const CBlockIndex *pindex) {
-    auto event = [pblock, pindex, this] {
-        m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.BlockConnected(pblock, pindex); });
+void CMainSignals::BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock> &pblock, const CBlockIndex *pindex) {
+    auto event = [role, pblock, pindex, this] {
+        m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.BlockConnected(role, pblock, pindex); });
     };
     ENQUEUE_AND_LOG_EVENT(event, "%s: block hash=%s block height=%d", __func__,
                           pblock->GetHash().ToString(),
@@ -271,9 +272,9 @@ void CMainSignals::BlockDisconnected(const std::shared_ptr<const CBlock> &pblock
                           pindex->nHeight);
 }
 
-void CMainSignals::ChainStateFlushed(const CBlockLocator &locator) {
-    auto event = [locator, this] {
-        m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.ChainStateFlushed(locator); });
+void CMainSignals::ChainStateFlushed(ChainstateRole role, const CBlockLocator &locator) {
+    auto event = [role, locator, this] {
+        m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.ChainStateFlushed(role, locator); });
     };
     ENQUEUE_AND_LOG_EVENT(event, "%s: block hash=%s", __func__,
                           locator.IsNull() ? "null" : locator.vHave.front().ToString());

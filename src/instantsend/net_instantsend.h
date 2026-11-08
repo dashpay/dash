@@ -77,7 +77,7 @@ protected:
     void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence) override;
     void TransactionRemovedFromMempool(const CTransactionRef& ptx, MemPoolRemovalReason reason,
                                        uint64_t mempool_sequence) override;
-    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override;
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override;
     void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected) override;
     void NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) override;
 

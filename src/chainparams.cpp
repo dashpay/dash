@@ -215,12 +215,13 @@ static void ReadRegTestAssumeutxoArgs(const ArgsManager& args, CChainParams::Reg
                 "Invalid value (%s) for -assumeutxodata=<height>:<hash_serialized>:<evo_hash>:<nchaintx>:<blockhash>",
                 arg));
         }
-        options.assumeutxo_data.emplace_back(height, AssumeutxoData{
-                                                         .hash_serialized = AssumeutxoHash{uint256S(fields[1])},
-                                                         .evo_hash = EvoSnapshotHash{uint256S(fields[2])},
-                                                         .nChainTx = n_chain_tx,
-                                                         .blockhash = uint256S(fields[4]),
-                                                     });
+        options.assumeutxo_data.push_back(AssumeutxoData{
+            .height = height,
+            .hash_serialized = AssumeutxoHash{uint256S(fields[1])},
+            .evo_hash = EvoSnapshotHash{uint256S(fields[2])},
+            .nChainTx = n_chain_tx,
+            .blockhash = uint256S(fields[4]),
+        });
     }
 }
 

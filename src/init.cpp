@@ -1465,6 +1465,20 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     return true;
 }
 
+//! The indexes the node runs, in the order they were started.
+static std::vector<BaseIndex*> RunningIndexes(NodeContext& node)
+{
+    std::vector<BaseIndex*> indexes;
+    if (g_txindex) indexes.push_back(g_txindex.get());
+    if (node.gov_collateral_index) indexes.push_back(node.gov_collateral_index.get());
+    if (node.address_index) indexes.push_back(node.address_index.get());
+    if (node.timestamp_index) indexes.push_back(node.timestamp_index.get());
+    if (node.spent_index) indexes.push_back(node.spent_index.get());
+    ForEachBlockFilterIndex([&](BlockFilterIndex& index) { indexes.push_back(&index); });
+    if (g_coin_stats_index) indexes.push_back(g_coin_stats_index.get());
+    return indexes;
+}
+
 static bool LockDataDirectory(bool probeOnly)
 {
     // Make sure only a single Dash Core process is using the data directory.
@@ -2216,6 +2230,25 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;
 
+        // This is defined and set here instead of inline in validation.h to avoid a hard
+        // dependency between validation and index/base, since the latter is not in
+        // libbitcoinkernel.
+        chainman.restart_indexes = [&node]() {
+            LogPrintf("[snapshot] restarting indexes\n");
+
+            // Drain the validation interface queue to ensure that the old indexes
+            // don't have any pending work.
+            SyncWithValidationInterfaceQueue();
+
+            for (auto* index : RunningIndexes(node)) {
+                index->Interrupt();
+                index->Stop();
+                if (!index->Start()) {
+                    LogPrintf("[snapshot] WARNING failed to restart index %s on snapshot chain\n", index->GetName());
+                }
+            }
+        };
+
         node::ChainstateLoadOptions options;
         options.chainlocks = Assert(node.chainlocks.get());
         options.data_dir = args.GetDataDirNet();
@@ -2326,7 +2359,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // The index can't catch up once the node has pruned blocks it hasn't read, e.g. after upgrading a pruned
     // node, because a new index has to start from the genesis block. Starting it would fail with an init
     // error, so leave governance off instead.
-    if (WITH_LOCK(::cs_main, return gov_collateral_index->CanSync(chainman.ActiveChainstate()))) {
+    if (WITH_LOCK(::cs_main, return gov_collateral_index->CanSync(chainman.GetChainstateForIndexing()))) {
         node.gov_collateral_index = std::move(gov_collateral_index);
     } else if (is_governance_enabled) {
         is_governance_enabled = false;

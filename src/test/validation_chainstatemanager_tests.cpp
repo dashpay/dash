@@ -377,7 +377,7 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     const uint256 snapshot_blockhash = active_tip->GetBlockHash();
     SeedSnapshotMarker(evodb, snapshot_blockhash);
     Chainstate* c2_ptr = WITH_LOCK(::cs_main, return manager.ActivateExistingSnapshot(
-        &mempool, snapshot_blockhash));
+        snapshot_blockhash));
     BOOST_REQUIRE(c2_ptr);
     Chainstate& c2 = *c2_ptr;
     chainstates.push_back(&c2);
@@ -443,7 +443,6 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_rebalance_caches, TestChain100Setup)
 {
     ChainstateManager& manager = *m_node.chainman;
-    CTxMemPool& mempool = *m_node.mempool;
     CEvoDB& evodb = *m_node.evodb;
     size_t max_cache = 10000;
     manager.m_total_coinsdb_cache = max_cache;
@@ -471,7 +470,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_rebalance_caches, TestChain100Setup)
     //
     CBlockIndex* snapshot_base{WITH_LOCK(manager.GetMutex(), return manager.ActiveChain()[manager.ActiveChain().Height() / 2])};
     SeedSnapshotMarker(evodb, snapshot_base->GetBlockHash());
-    Chainstate* c2_ptr = WITH_LOCK(cs_main, return manager.ActivateExistingSnapshot(&mempool, snapshot_base->GetBlockHash()));
+    Chainstate* c2_ptr = WITH_LOCK(cs_main, return manager.ActivateExistingSnapshot(snapshot_base->GetBlockHash()));
     BOOST_REQUIRE(c2_ptr);
     Chainstate& c2 = *c2_ptr;
     chainstates.push_back(&c2);
@@ -632,10 +631,10 @@ struct SnapshotTestSetup : TestChain100Setup {
             BOOST_CHECK(!chainman.ActiveChain().Genesis()->IsAssumedValid());
         }
 
-        const AssumeutxoData& au_data = *ExpectedAssumeutxo(snapshot_height, ::Params());
+        const auto& au_data = ::Params().AssumeutxoForHeight(snapshot_height);
         const CBlockIndex* tip = WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip());
 
-        BOOST_CHECK_EQUAL(tip->nChainTx, au_data.nChainTx);
+        BOOST_CHECK_EQUAL(tip->nChainTx, au_data->nChainTx);
 
         // Make some assertions about the both chainstates. These checks ensure the
         // legacy chainstate hasn't changed and that the newly created chainstate
@@ -792,24 +791,25 @@ evo::QuorumSnapshotData& EvoSnapshotChainSetupType(evo::EvoSnapshot& snapshot, C
 //! Replaces the assumeutxo entry at a height for the lifetime of the guard.
 class ScopedAssumeutxoEntry
 {
-    MapAssumeutxo& m_map{const_cast<MapAssumeutxo&>(Params().Assumeutxo())};
+    std::vector<AssumeutxoData>& m_entries{const_cast<std::vector<AssumeutxoData>&>(Params().Assumeutxo())};
     const int m_height;
     std::optional<AssumeutxoData> m_saved;
 
+    void Erase() { std::erase_if(m_entries, [&](const auto& entry) { return entry.height == m_height; }); }
+
 public:
-    ScopedAssumeutxoEntry(int height, const AssumeutxoData& data) :
+    ScopedAssumeutxoEntry(int height, AssumeutxoData data) :
         m_height{height}
     {
-        if (const auto it{m_map.find(height)}; it != m_map.end()) {
-            m_saved.emplace(it->second);
-            m_map.erase(it);
-        }
-        m_map.emplace(height, data);
+        m_saved = Params().AssumeutxoForHeight(height);
+        Erase();
+        data.height = height;
+        m_entries.push_back(data);
     }
     ~ScopedAssumeutxoEntry()
     {
-        m_map.erase(m_height);
-        if (m_saved) m_map.emplace(m_height, *m_saved);
+        Erase();
+        if (m_saved) m_entries.push_back(*m_saved);
     }
 };
 
@@ -928,7 +928,7 @@ public:
         chainstate.ForceFlushStateToDisk();
         const auto stats{*kernel::ComputeUTXOStats(kernel::CoinStatsHashType::HASH_SERIALIZED, &chainstate.CoinsDB(),
                                                    m_node.chainman->m_blockman)};
-        m_pin.emplace(base->nHeight, AssumeutxoData{AssumeutxoHash{stats.hashSerialized},
+        m_pin.emplace(base->nHeight, AssumeutxoData{base->nHeight, AssumeutxoHash{stats.hashSerialized},
                                                     EvoSnapshotHash{evo::GetEvoSnapshotHash(section)}, base->nChainTx,
                                                     base->GetBlockHash()});
     }
@@ -954,7 +954,9 @@ public:
         in >> metadata;
         // As the loader's RPC turn would.
         const ActiveEvoViewScope turn{m_node.evodb.get()};
-        return m_node.chainman->ActivateSnapshot(in, metadata, /*in_memory=*/false);
+        return ActivateWithBaseHidden(*m_node.chainman, metadata.m_base_blockhash, [&] {
+            return m_node.chainman->ActivateSnapshot(in, metadata, /*in_memory=*/false);
+        });
     }
 
     ChainstateManager& SimulateNodeRestart() { return RestartChainstateManager(m_node, /*flush_chainstates=*/true); }
@@ -1097,10 +1099,11 @@ public:
             pin.emplace(evo::GetEvoSnapshotHash(*evo_section));
         })};
         const int base_height{WITH_LOCK(::cs_main, return m_node.chainman->ActiveHeight())};
-        const AssumeutxoData pinned{*ExpectedAssumeutxo(base_height, Params())};
+        const AssumeutxoData pinned{*Params().AssumeutxoForHeight(base_height)};
         return {path,
-                std::make_unique<ScopedAssumeutxoEntry>(base_height, AssumeutxoData{pinned.hash_serialized, *pin,
-                                                                                    pinned.nChainTx, pinned.blockhash})};
+                std::make_unique<ScopedAssumeutxoEntry>(base_height, AssumeutxoData{base_height, pinned.hash_serialized,
+                                                                                    *pin, pinned.nChainTx,
+                                                                                    pinned.blockhash})};
     }
 
     SnapshotCompletionResult Complete()
@@ -2450,18 +2453,24 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_reconsider_block_candidates, SnapshotT
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
 {
     ChainstateManager& chainman = *Assert(m_node.chainman);
-    CTxMemPool& mempool = *m_node.mempool;
     Chainstate& cs1 = chainman.ActiveChainstate();
 
     int num_indexes{0};
     int num_assumed_valid{0};
+    // Blocks in range [assumed_valid_start_idx, last_assumed_valid_idx) will be
+    // marked as assumed-valid and not having data.
     const int expected_assumed_valid{20};
-    const int last_assumed_valid_idx{40};
+    const int last_assumed_valid_idx{111};
     const int assumed_valid_start_idx = last_assumed_valid_idx - expected_assumed_valid;
+
+    // Mine to height 120, past the hardcoded regtest assumeutxo snapshot at
+    // height 110
+    mineBlocks(20);
 
     CBlockIndex* validated_tip{nullptr};
     CBlockIndex* assumed_base{nullptr};
     CBlockIndex* assumed_tip{WITH_LOCK(chainman.GetMutex(), return chainman.ActiveChain().Tip())};
+    BOOST_CHECK_EQUAL(assumed_tip->nHeight, 120);
 
     auto reload_all_block_indexes = [&]() {
         // For completeness, we also reset the block sequence counters to
@@ -2487,7 +2496,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
         LOCK(::cs_main);
         auto index = cs1.m_chain[i];
 
-        // Blocks with heights in range [20, 40) are marked ASSUMED_VALID
+        // Blocks with heights in range [91, 110] are marked ASSUMED_VALID
         if (i < last_assumed_valid_idx && i >= assumed_valid_start_idx) {
             index->nStatus = BlockStatus::BLOCK_VALID_TREE | BlockStatus::BLOCK_ASSUMED_VALID;
         }
@@ -2514,7 +2523,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
     const uint256 snapshot_blockhash = assumed_base->GetBlockHash();
     SeedSnapshotMarker(*m_node.evodb, snapshot_blockhash);
     Chainstate* cs2_ptr = WITH_LOCK(::cs_main,
-        return chainman.ActivateExistingSnapshot(&mempool, snapshot_blockhash));
+        return chainman.ActivateExistingSnapshot(snapshot_blockhash));
     BOOST_REQUIRE(cs2_ptr);
     Chainstate& cs2 = *cs2_ptr;
 
@@ -2525,10 +2534,36 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
     // Set tip of the assume-valid-based chain to the assume-valid block
     cs2.m_chain.SetTip(*assumed_base);
 
+    // Sanity check test variables.
+    BOOST_CHECK_EQUAL(num_indexes, 121); // 121 total blocks, including genesis
+    BOOST_CHECK_EQUAL(assumed_tip->nHeight, 120);  // original chain has height 120
+    BOOST_CHECK_EQUAL(validated_tip->nHeight, 90); // current cs1 chain has height 90
+    BOOST_CHECK_EQUAL(assumed_base->nHeight, 110); // current cs2 chain has height 110
+
+    // Regenerate cs1.setBlockIndexCandidates and cs2.setBlockIndexCandidate and
+    // check contents below.
     reload_all_block_indexes();
 
-    // The fully validated chain should have the current validated tip
-    // and the assumed valid base as candidates.
+    // The fully validated chain should only have the current validated tip and
+    // the assumed valid base as candidates, blocks 90 and 110. Specifically:
+    //
+    // - It does not have blocks 0-89 because they contain less work than the
+    //   chain tip.
+    //
+    // - It has block 90 because it has data and equal work to the chain tip,
+    //   (since it is the chain tip).
+    //
+    // - It does not have blocks 91-109 because they do not contain data.
+    //
+    // - It has block 110 even though it does not have data, because
+    //   LoadBlockIndex has a special case to always add the snapshot block as a
+    //   candidate. The special case is only actually intended to apply to the
+    //   snapshot chainstate cs2, not the background chainstate cs1, but it is
+    //   written broadly and applies to both.
+    //
+    // - It does not have any blocks after height 110 because cs1 is a background
+    //   chainstate, and only blocks where are ancestors of the snapshot block
+    //   are added as candidates for the background chainstate.
     BOOST_CHECK_EQUAL(cs1.setBlockIndexCandidates.size(), 2);
     BOOST_CHECK_EQUAL(cs1.setBlockIndexCandidates.count(validated_tip), 1);
     BOOST_CHECK_EQUAL(cs1.setBlockIndexCandidates.count(assumed_base), 1);
@@ -2536,8 +2571,25 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
     // The assumed-valid tolerant chain has the assumed valid base as a
     // candidate, but otherwise has none of the assumed-valid (which do not
     // HAVE_DATA) blocks as candidates.
+    //
+    // Specifically:
+    // - All blocks below height 110 are not candidates, because cs2 chain tip
+    //   has height 110 and they have less work than it does.
+    //
+    // - Block 110 is a candidate even though it does not have data, because it
+    //   is the snapshot block, which is assumed valid.
+    //
+    // - Blocks 111-120 are added because they have data.
+
+    // Check that block 90 is absent
     BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.count(validated_tip), 0);
+    // Check that block 109 is absent
+    BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.count(assumed_base->pprev), 0);
+    // Check that block 110 is present
+    BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.count(assumed_base), 1);
+    // Check that block 120 is present
     BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.count(assumed_tip), 1);
+    // Check that 11 blocks total are present.
     BOOST_CHECK_EQUAL(cs2.setBlockIndexCandidates.size(), num_indexes - last_assumed_valid_idx + 1);
 }
 
@@ -2962,6 +3014,12 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_snapshot_only_flush_restart, Sna
     Chainstate* background_chainstate = std::get<0>(chainstates);
     ChainstateManager& chainman = *Assert(m_node.chainman);
 
+    // Mine first: each new block also drives the background chainstate, which
+    // would connect the base again after the disconnect below.
+    mineBlocks(1);
+    const uint256 snapshot_marker = WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip()->GetBlockHash());
+    WITH_LOCK(::cs_main, chainman.ActiveChainstate().ForceFlushStateToDisk());
+
     // Keep this M2 marker-independence test below completion height; #25740 now
     // completes and cleans up immediately on restart when background is at base.
     DisconnectedBlockTransactions unused_pool{MAX_DISCONNECTED_TX_POOL_BYTES};
@@ -2977,10 +3035,6 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_snapshot_only_flush_restart, Sna
 
     uint256 normal_marker;
     BOOST_REQUIRE(m_node.evodb->ReadBestBlock(EvoDbIdentity::NORMAL, normal_marker));
-
-    mineBlocks(1);
-    const uint256 snapshot_marker = WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip()->GetBlockHash());
-    WITH_LOCK(::cs_main, chainman.ActiveChainstate().ForceFlushStateToDisk());
 
     ChainstateManager& restarted = this->SimulateNodeRestart(/*flush_chainstates=*/false);
     this->LoadVerifyActivateChainstate();
@@ -3844,7 +3898,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_fixture_pin, EvoSnapshotT
     const auto bytes{AssembleWireBytes(*section, evo::EVO_SNAPSHOT_VERSION)};
     uint256 hash;
     CSHA256().Write(bytes.data(), bytes.size()).Finalize(hash.begin());
-    BOOST_CHECK(EvoSnapshotHash{hash} == ExpectedAssumeutxo(BASE_HEIGHT, Params())->evo_hash);
+    BOOST_CHECK(EvoSnapshotHash{hash} == Params().AssumeutxoForHeight(BASE_HEIGHT)->evo_hash);
 
     std::set<uint256> registered;
     for (const auto& [protx_hash, _] : m_operator_keys)
@@ -3882,10 +3936,11 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_requires_its_pin, EvoSnap
         BOOST_CHECK(!m_node.chainman->IsSnapshotActive());
     };
     {
-        const AssumeutxoData pinned{*ExpectedAssumeutxo(BASE_HEIGHT, Params())};
+        const AssumeutxoData pinned{*Params().AssumeutxoForHeight(BASE_HEIGHT)};
         const ScopedAssumeutxoEntry null_pin{BASE_HEIGHT,
-                                             AssumeutxoData{pinned.hash_serialized, EvoSnapshotHash{uint256::ZERO},
-                                                            pinned.nChainTx, pinned.blockhash}};
+                                             AssumeutxoData{BASE_HEIGHT, pinned.hash_serialized,
+                                                            EvoSnapshotHash{uint256::ZERO}, pinned.nChainTx,
+                                                            pinned.blockhash}};
         refused_before_seeding(nullptr);
     }
     refused_before_seeding([](auto& evo_section) { evo_section.reset(); });
@@ -4069,7 +4124,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_bootstraps_the_next_cycle
         chainstate.ForceFlushStateToDisk();
         const auto stats{*kernel::ComputeUTXOStats(kernel::CoinStatsHashType::HASH_SERIALIZED, &chainstate.CoinsDB(),
                                                    m_node.chainman->m_blockman)};
-        pin.emplace(base_height, AssumeutxoData{AssumeutxoHash{stats.hashSerialized},
+        pin.emplace(base_height, AssumeutxoData{base_height, AssumeutxoHash{stats.hashSerialized},
                                                 EvoSnapshotHash{evo::GetEvoSnapshotHash(section)}, base->nChainTx,
                                                 base->GetBlockHash()});
     }
@@ -4265,6 +4320,63 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_rechecks_the_activ
     BOOST_CHECK(chainman.IsSnapshotActive());
 }
 
+//! A snapshot is of use only ahead of the active chain. At the active tip
+//! itself, or at an equal-work sibling of it, it is refused, and stays refused
+//! after a restart in that state: activated at the sibling, startup completion
+//! would find the sibling at the base height and reject the honest snapshot.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_needs_more_work_than_the_active_chain, EvoSnapshotTestSetup)
+{
+    static std::atomic<int> exit_status{EXIT_SUCCESS};
+    BOOST_REQUIRE(InitShutdownState(exit_status));
+    const fs::path snapshot{DumpEvoSnapshot()};
+    const fs::path data_dir{m_args.GetDataDirNet()};
+    const uint256 base_hash{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()->GetBlockHash())};
+    // Without the fixture's hiding of the base, as the loader activates.
+    const auto load = [&] {
+        AutoFile in{fsbridge::fopen(snapshot, "rb")};
+        node::SnapshotMetadata metadata;
+        in >> metadata;
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        return m_node.chainman->ActivateSnapshot(in, metadata, /*in_memory=*/false);
+    };
+    const auto refused = [&] {
+        BOOST_CHECK(!load());
+        LOCK(::cs_main);
+        ChainstateManager& chainman{*m_node.chainman};
+        BOOST_CHECK(!chainman.IsSnapshotActive());
+        BOOST_CHECK(!m_node.evodb->GetSnapshotGeneration());
+        BOOST_CHECK(!node::FindSnapshotChainstateDir(data_dir));
+        BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot_INVALID"));
+        BOOST_CHECK(!(Assert(chainman.m_blockman.LookupBlockIndex(base_hash))->nStatus & BLOCK_FAILED_MASK));
+        BOOST_CHECK(!ShutdownRequested());
+    };
+
+    // At the active tip.
+    refused();
+
+    // At an equal-work sibling of the active tip, the base being valid.
+    {
+        ChainstateManager& chainman{*m_node.chainman};
+        CBlockIndex* base_index{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(base_hash))};
+        BlockValidationState state;
+        BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, base_index));
+        CreateAndProcessBlock({}, CScript{} << OP_TRUE);
+        LOCK(::cs_main);
+        const CBlockIndex* sibling{chainman.ActiveTip()};
+        BOOST_REQUIRE(sibling != base_index);
+        BOOST_REQUIRE(sibling->nChainWork == base_index->nChainWork);
+        chainman.ActiveChainstate().ResetBlockFailureFlags(base_index);
+        BOOST_REQUIRE_EQUAL(m_node.mempool->size(), 0U);
+    }
+    const uint256 sibling_hash{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()->GetBlockHash())};
+    refused();
+
+    Restart();
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()->GetBlockHash()) == sibling_hash);
+    refused();
+    AbortShutdown();
+}
+
 //! A dispatch turn bound to NORMAL before the switch ends before it, when it
 //! ends within the handoff bound.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_waits_for_turns, EvoSnapshotTestSetup)
@@ -4421,7 +4533,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_missing_seed_stalls, EvoS
         return GetWarnings(/*verbose=*/true).original.find(text) != std::string::npos;
     };
     const BlockValidationState state{Feed(active, stall_height, stall_height)};
-    BOOST_CHECK(state.IsError());
+    BOOST_CHECK(IsLocalEvoStateError(state));
     BOOST_CHECK_EQUAL(Height(active), stall_height - 1);
     const CBlockIndex* stalled{
         WITH_LOCK(::cs_main, return m_node.chainman->m_blockman.LookupBlockIndex(m_blocks.at(stall_height)->GetHash()))};
@@ -4429,11 +4541,16 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_missing_seed_stalls, EvoS
     BOOST_CHECK(warned("Snapshot state unavailable"));
     BOOST_CHECK(warned("unrelated warning"));
 
+    // The stall does not hold up the background chainstate.
+    BOOST_CHECK(!m_node.chainman->ProcessNewBlock(m_blocks.at(1), /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_CHECK_EQUAL(Height(Background()), 1);
+    BOOST_CHECK_EQUAL(Height(active), stall_height - 1);
+
     // Completing the snapshot does not reach the snapshot chainstate's own
     // view, so it stays stalled and keeps warning. The restart that promotes
     // the snapshot clears the warning, leaving the other one, and the block
     // connects on the validated state.
-    Feed(Background(), 1, BASE_HEIGHT);
+    Feed(Background(), 2, BASE_HEIGHT);
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return m_node.chainman->IsSnapshotValidated()));
     BOOST_CHECK_EQUAL(Height(active), stall_height - 1);
     BOOST_CHECK(warned("Snapshot state unavailable"));

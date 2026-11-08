@@ -72,7 +72,7 @@ public:
     void UnregisterRecoveryInterface();
 
     // implements validation interface:
-    void BlockConnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_signer);
     void BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_signer);

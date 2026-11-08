@@ -340,8 +340,8 @@ static util::Result<void> RevalidateRetainedEvoSection(const ChainstateManager& 
         return util::Error{_("The assumeutxo snapshot's Evo state no longer matches its authorization. Restart with "
                              "-reindex-chainstate to discard the snapshot.")};
     };
-    const AssumeutxoData* au_data{ExpectedAssumeutxo(generation->base_height, chainman.GetParams())};
-    if (!au_data || (!au_data->blockhash.IsNull() && au_data->blockhash != generation->base)) {
+    const auto au_data{chainman.GetParams().AssumeutxoForBlockhash(generation->base)};
+    if (!au_data || au_data->height != generation->base_height) {
         return refuse("no assumeutxo authorization for the snapshot base");
     }
     const bool dip3_base{generation->base_height >=

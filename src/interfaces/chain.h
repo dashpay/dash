@@ -30,6 +30,7 @@ class CBlockIndex;
 class Coin;
 class uint256;
 enum class MemPoolRemovalReason;
+enum class ChainstateRole;
 struct bilingual_str;
 struct CBlockLocator;
 struct FeeCalculation;
@@ -318,10 +319,10 @@ public:
         virtual ~Notifications() {}
         virtual void transactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime) {}
         virtual void transactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason reason) {}
-        virtual void blockConnected(const BlockInfo& block) {}
+        virtual void blockConnected(ChainstateRole role, const BlockInfo& block) {}
         virtual void blockDisconnected(const BlockInfo& block) {}
         virtual void updatedBlockTip() {}
-        virtual void chainStateFlushed(const CBlockLocator& locator) {}
+        virtual void chainStateFlushed(ChainstateRole role, const CBlockLocator& locator) {}
         virtual void notifyChainLock(const CBlockIndex* pindexChainLock, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) {}
         virtual void notifyTransactionLock(const CTransactionRef &tx, const std::shared_ptr<const instantsend::InstantSendLock>& islock) {}
     };

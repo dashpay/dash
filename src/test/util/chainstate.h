@@ -19,6 +19,66 @@
 const auto NoMalleation = [](AutoFile& file, node::SnapshotMetadata& meta){};
 
 /**
+ * Run `activate`, a snapshot activation, with the base hidden from the active
+ * chain wherever activation compares the two chains' work, while the active
+ * chain is at the base.
+ *
+ * Activation refuses a snapshot the active chain has reached, while unit tests
+ * load the snapshot of the tip they just mined. Upstream's tests disconnect the
+ * tip for the whole activation. Here the active chain is at the base again while
+ * the snapshot is prepared, so preparation still captures the evo inputs and the
+ * base masternode list the background chainstate already connected. Only a tip
+ * this helper hid is put back: the test may move the chain meanwhile.
+ *
+ * TODO this is a unittest-specific hack, and we should probably rethink how to
+ * better generate/activate snapshots in unittests.
+ */
+template <typename F>
+static bool ActivateWithBaseHidden(ChainstateManager& chainman, const uint256& base_blockhash, F activate)
+{
+    struct Hider {
+        ChainstateManager& chainman;
+        Chainstate& active;
+        const uint256& base;
+        std::function<void()> coins_loaded{chainman.m_after_snapshot_coins_loaded_for_testing};
+        std::function<void()> before_switch{chainman.m_before_snapshot_switch_for_testing};
+        CBlockIndex* hidden{nullptr};
+
+        void Hide()
+        {
+            LOCK(::cs_main);
+            CBlockIndex* tip{active.m_chain.Tip()};
+            if (hidden || !tip || !tip->pprev || tip->GetBlockHash() != base) return;
+            active.m_chain.SetTip(*tip->pprev);
+            hidden = tip;
+        }
+        void Show()
+        {
+            LOCK(::cs_main);
+            if (hidden && active.m_chain.Tip() == hidden->pprev) active.m_chain.SetTip(*hidden);
+            hidden = nullptr;
+        }
+        ~Hider()
+        {
+            Show();
+            chainman.m_after_snapshot_coins_loaded_for_testing = coins_loaded;
+            chainman.m_before_snapshot_switch_for_testing = before_switch;
+        }
+    } hider{chainman, chainman.ActiveChainstate(), base_blockhash};
+
+    chainman.m_after_snapshot_coins_loaded_for_testing = [&] {
+        hider.Show();
+        if (hider.coins_loaded) hider.coins_loaded();
+    };
+    chainman.m_before_snapshot_switch_for_testing = [&] {
+        if (hider.before_switch) hider.before_switch();
+        hider.Hide();
+    };
+    hider.Hide();
+    return activate();
+}
+
+/**
  * Create and activate a UTXO snapshot, optionally providing a function to
  * malleate the snapshot.
  *
@@ -110,7 +170,9 @@ CreateAndActivateUTXOSnapshot(
             0 == WITH_LOCK(node.chainman->GetMutex(), return node.chainman->ActiveHeight()));
     }
 
-    return node.chainman->ActivateSnapshot(auto_infile, metadata, in_memory_chainstate);
+    return ActivateWithBaseHidden(*node.chainman, metadata.m_base_blockhash, [&] {
+        return node.chainman->ActivateSnapshot(auto_infile, metadata, in_memory_chainstate);
+    });
 }
 
 
