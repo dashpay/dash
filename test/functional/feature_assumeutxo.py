@@ -144,10 +144,16 @@ class AssumeutxoTest(BitcoinTestFramework):
         chainstate_snapshot_path.mkdir()
         with open(chainstate_snapshot_path / "base_blockhash", 'wb') as f:
             f.write(b'z' * 32)
+
+        def expected_error(log_msg="", error_msg=""):
+            with self.nodes[0].assert_debug_log([log_msg]):
+                self.nodes[0].assert_start_raises_init_error(expected_msg=error_msg, match=ErrorMatch.PARTIAL_REGEX)
+
         # The node has no EvoDB state for that snapshot either, which startup
         # reports first, with the prompt to reindex.
-        expected_error = "Snapshot chainstate EvoDB marker is missing. Reindex is required."
-        self.nodes[0].assert_start_raises_init_error(expected_msg=expected_error, match=ErrorMatch.PARTIAL_REGEX)
+        expected_error_msg = "Snapshot chainstate EvoDB marker is missing. Reindex is required."
+        error_details = "snapshot EvoDB marker is missing for base block"
+        expected_error(log_msg=error_details, error_msg=expected_error_msg)
 
         # resurrect node again
         rmtree(chainstate_snapshot_path)
