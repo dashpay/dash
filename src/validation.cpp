@@ -6515,6 +6515,17 @@ bool ChainstateManager::ActivateSnapshot(
         bool in_memory)
 {
     AssertLockNotHeld(::cs_main);
+    // One activation at a time: on its way out, a failing one tears down the
+    // snapshot directory, the evo captures and whatever generation is bound.
+    if (m_snapshot_activation_running.exchange(true)) {
+        LogPrintf("[snapshot] refusing to activate a snapshot while another activation is in progress\n");
+        return false;
+    }
+    const struct ActivationDone {
+        std::atomic<bool>& running;
+        ~ActivationDone() { running = false; }
+    } activation_done{m_snapshot_activation_running};
+
     uint256 base_blockhash = metadata.m_base_blockhash;
 
     if (this->SnapshotBlockhash()) {

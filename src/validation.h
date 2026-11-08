@@ -1105,6 +1105,8 @@ private:
     //! starts being recorded until the switch: the active chainstate records
     //! the base's MN list as it would in the background.
     std::optional<uint256> m_activating_snapshot_base GUARDED_BY(::cs_main);
+    //! Set while ActivateSnapshot() runs.
+    std::atomic<bool> m_snapshot_activation_running{false};
 
     /**
      * If a block header hasn't already been seen, call CheckBlockHeader on it, ensure

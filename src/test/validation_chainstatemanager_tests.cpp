@@ -4455,6 +4455,61 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_refused_when_loaded, EvoS
     BOOST_CHECK(!chainman.IsSnapshotActive());
 }
 
+//! A second activation while one runs is refused, before it touches anything
+//! the first relies on, and the first goes on to activate.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_activations_are_serialized, EvoSnapshotTestSetup)
+{
+    const fs::path snapshot{DumpEvoSnapshot()};
+    ForgetBlocks();
+    ChainstateManager& chainman{*m_node.chainman};
+    const auto activate = [&] {
+        AutoFile in{fsbridge::fopen(snapshot, "rb")};
+        node::SnapshotMetadata metadata;
+        in >> metadata;
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        return chainman.ActivateSnapshot(in, metadata, /*in_memory=*/false);
+    };
+
+    std::promise<void> first_running;
+    std::promise<void> release_first;
+    const std::shared_future<void> first_released{release_first.get_future().share()};
+    chainman.m_after_snapshot_coins_loaded_for_testing = [&] {
+        first_running.set_value();
+        first_released.wait();
+    };
+    auto first{std::async(std::launch::async, activate)};
+    first_running.get_future().wait();
+    const size_t coinsdb_cache{WITH_LOCK(::cs_main, return chainman.ActiveChainstate().m_coinsdb_cache_size_bytes)};
+    const auto fs_entries = [&] {
+        std::set<fs::path> entries;
+        for (const auto& entry : fs::directory_iterator(chainman.m_options.datadir)) entries.insert(entry.path());
+        return entries;
+    };
+    const auto entries_before{fs_entries()};
+
+    std::optional<bool> second;
+    {
+        ASSERT_DEBUG_LOG("refusing to activate a snapshot while another activation is in progress");
+        try {
+            second = activate();
+        } catch (const std::exception& e) {
+            BOOST_ERROR(strprintf("the second activation threw: %s", e.what()));
+        }
+    }
+    BOOST_CHECK(second == false);
+    // The first activation's directory and cache allocation are untouched.
+    BOOST_CHECK(fs_entries() == entries_before);
+    BOOST_CHECK(node::FindSnapshotChainstateDir(chainman.m_options.datadir));
+    BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveChainstate().m_coinsdb_cache_size_bytes),
+                      coinsdb_cache);
+
+    release_first.set_value();
+    BOOST_CHECK(first.get());
+    chainman.m_after_snapshot_coins_loaded_for_testing = nullptr;
+    BOOST_CHECK(chainman.IsSnapshotActive());
+    BOOST_CHECK(m_node.evodb->GetSnapshotGeneration());
+}
+
 //! A dispatch turn bound to NORMAL before the switch ends before it, when it
 //! ends within the handoff bound.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_waits_for_turns, EvoSnapshotTestSetup)
