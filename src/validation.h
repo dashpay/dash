@@ -1093,10 +1093,11 @@ private:
         const node::SnapshotMetadata& metadata,
         EvoPublication& publication);
 
-    //! Why the chainstate cannot switch to a snapshot based at `base` now, if
-    //! it cannot: the conditions activation relies on, checked again at the
-    //! switch since the active chainstate kept running while it prepared.
-    std::optional<std::string> SnapshotSwitchRefusal(const CBlockIndex& base) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Why this node cannot activate a snapshot based at `base` now, if it
+    //! cannot. Checked when the snapshot is loaded, where `base` is null while
+    //! its header is unknown, and again at the switch, since the active
+    //! chainstate kept running while the snapshot was prepared.
+    std::optional<std::string> SnapshotActivationRefusal(const CBlockIndex* base) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     //! Whether a snapshot based on `base` would be ahead of the active chain at `active_tip`.
     static bool SnapshotHasMoreWork(const CBlockIndex& active_tip, const CBlockIndex& base);
 

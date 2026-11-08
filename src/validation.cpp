@@ -6528,6 +6528,22 @@ bool ChainstateManager::ActivateSnapshot(
             LogPrintf("[snapshot] can't activate a snapshot when mempool not empty\n");
             return false;
         }
+        if (const auto refusal{SnapshotActivationRefusal(m_blockman.LookupBlockIndex(base_blockhash))}) {
+            LogPrintf("[snapshot] refusing to activate snapshot %s: %s\n", base_blockhash.ToString(), *refusal);
+            return false;
+        }
+    }
+
+    // A rejection moves the snapshot chainstate to chainstate_snapshot_INVALID
+    // and tells the user it is kept, so a second one would have nowhere to go.
+    fs::path rejected_dir{m_options.datadir / "chainstate"};
+    rejected_dir += node::SNAPSHOT_CHAINSTATE_SUFFIX;
+    rejected_dir += node::SNAPSHOT_INVALID_SUFFIX;
+    if (fs::exists(rejected_dir)) {
+        LogPrintf("[snapshot] refusing to activate snapshot %s: an earlier rejected snapshot "
+                  "chainstate is still at %s; remove it (after reporting) before loading another snapshot\n",
+                  base_blockhash.ToString(), fs::PathToString(rejected_dir));
+        return false;
     }
 
     int64_t current_coinsdb_cache_size{0};
@@ -6648,7 +6664,7 @@ bool ChainstateManager::ActivateSnapshot(
     try {
         const CBlockIndex* snapshot_start_block{Assert(m_blockman.LookupBlockIndex(base_blockhash))};
         // The active chainstate kept running while the snapshot was prepared.
-        if (const auto refusal{SnapshotSwitchRefusal(*snapshot_start_block)}) {
+        if (const auto refusal{SnapshotActivationRefusal(snapshot_start_block)}) {
             LogPrintf("[snapshot] refusing to activate snapshot %s: %s\n", base_blockhash.ToString(), *refusal);
             cleanup();
             return false;
@@ -6734,7 +6750,7 @@ bool ChainstateManager::ActivateSnapshot(
     // Move the mempool to the snapshot chainstate: only the active
     // chainstate keeps one, so background block connects cannot touch
     // mempool state built on the snapshot tip. The mempool is empty at
-    // this point (SnapshotSwitchRefusal checked it).
+    // this point (SnapshotActivationRefusal checked it).
     Assume(!m_snapshot_chainstate->m_mempool);
     if (m_ibd_chainstate->m_mempool) {
         Assume(m_ibd_chainstate->m_mempool->size() == 0);
@@ -6762,11 +6778,19 @@ bool ChainstateManager::SnapshotHasMoreWork(const CBlockIndex& active_tip, const
     return active_tip.nChainWork < base.nChainWork;
 }
 
-std::optional<std::string> ChainstateManager::SnapshotSwitchRefusal(const CBlockIndex& base) const
+std::optional<std::string> ChainstateManager::SnapshotActivationRefusal(const CBlockIndex* base_ptr) const
 {
     AssertLockHeld(::cs_main);
+    // Neither chainstate can keep the blocks it needs while the node prunes.
+    if (m_blockman.IsPruneMode()) return "pruning is enabled";
+    if (m_options.masternode) return "the node is a masternode";
+    if (m_options.legacy_indexes) return "-addressindex, -spentindex or -timestampindex is enabled";
+    // Also a snapshot chainstate that was rejected in this run.
+    if (m_snapshot_chainstate) return "a snapshot chainstate already exists";
     const Chainstate& active{*Assert(m_active_chainstate)};
     if (active.m_mempool && active.m_mempool->size() > 0) return "the mempool is not empty";
+    if (!base_ptr) return std::nullopt;
+    const CBlockIndex& base{*base_ptr};
     // Do a final check to ensure that the snapshot chainstate is actually a more
     // work chain than the active chainstate; a user could have loaded a snapshot
     // very late in the IBD process, and we wouldn't want to load a useless chainstate.

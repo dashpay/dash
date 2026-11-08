@@ -4377,6 +4377,84 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_needs_more_work_than_the_
     AbortShutdown();
 }
 
+//! What the switch refuses is refused before any coin is loaded too, and a
+//! rejected snapshot, in this run or one whose chainstate is still on disk, is
+//! not followed by another one.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_refused_when_loaded, EvoSnapshotTestSetup)
+{
+    const fs::path snapshot{DumpEvoSnapshot()};
+    ChainstateManager& chainman{*m_node.chainman};
+    CBlockIndex* base_index{WITH_LOCK(::cs_main, return chainman.ActiveTip())};
+    bool coins_loaded{false};
+    chainman.m_after_snapshot_coins_loaded_for_testing = [&] { coins_loaded = true; };
+    const auto refusal = [&](const std::string& reason) {
+        return strprintf("refusing to activate snapshot %s: %s", base_index->GetBlockHash().ToString(), reason);
+    };
+    const auto refused_at_load = [&](const std::string& log_msg) {
+        ASSERT_DEBUG_LOG(log_msg);
+        BOOST_CHECK(!LoadEvoSnapshot(snapshot));
+        BOOST_CHECK(!coins_loaded);
+        LOCK(::cs_main);
+        BOOST_CHECK(!chainman.IsSnapshotActive());
+        BOOST_CHECK(!m_node.evodb->GetSnapshotGeneration());
+        BOOST_CHECK(!node::FindSnapshotChainstateDir(chainman.m_options.datadir));
+    };
+
+    // The base is invalid.
+    BlockValidationState state;
+    BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, base_index));
+    refused_at_load(refusal(strprintf("block %s in the snapshot base's chain is invalid or conflicts with a ChainLock",
+                                      base_index->GetBlockHash().ToString())));
+    WITH_LOCK(::cs_main, chainman.ActiveChainstate().ResetBlockFailureFlags(base_index));
+    BOOST_REQUIRE(chainman.ActiveChainstate().ActivateBestChain(state));
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()), base_index);
+
+    // An ancestor of the base conflicts with a ChainLock.
+    CBlockIndex* ancestor{base_index->pprev};
+    WITH_LOCK(::cs_main, ancestor->nStatus |= BLOCK_CONFLICT_CHAINLOCK);
+    refused_at_load(refusal(strprintf("block %s in the snapshot base's chain is invalid or conflicts with a ChainLock",
+                                      ancestor->GetBlockHash().ToString())));
+    WITH_LOCK(::cs_main, ancestor->nStatus &= ~BLOCK_CONFLICT_CHAINLOCK);
+
+    // The mempool is not empty.
+    CMutableTransaction mtx;
+    mtx.vin.emplace_back(COutPoint{InsecureRand256(), 0});
+    mtx.vout.emplace_back(COIN, CScript{} << OP_TRUE);
+    const CTransactionRef tx{MakeTransactionRef(mtx)};
+    {
+        LOCK2(::cs_main, m_node.mempool->cs);
+        m_node.mempool->addUnchecked(TestMemPoolEntryHelper{}.FromTx(tx));
+    }
+    refused_at_load("can't activate a snapshot when mempool not empty");
+    WITH_LOCK(m_node.mempool->cs, m_node.mempool->removeRecursive(*tx, MemPoolRemovalReason::MANUAL));
+
+    // The chainstate of a snapshot rejected earlier is still on disk.
+    const fs::path rejected_dir{chainman.m_options.datadir / "chainstate_snapshot_INVALID"};
+    const fs::path rejected_file{rejected_dir / "000001.ldb"};
+    const std::string_view rejected_data{"rejected earlier"};
+    fs::create_directories(rejected_dir);
+    AutoFile{fsbridge::fopen(rejected_file, "wb")}.write(MakeByteSpan(rejected_data));
+    refused_at_load(refusal(strprintf("an earlier rejected snapshot chainstate is still at %s",
+                                      fs::PathToString(rejected_dir))));
+    BOOST_CHECK(fs::exists(rejected_dir));
+    BOOST_CHECK_EQUAL(fs::file_size(rejected_file), rejected_data.size());
+    fs::remove_all(rejected_dir);
+
+    // A snapshot that was rejected in this run, also once its chainstate has
+    // been removed.
+    chainman.m_after_snapshot_coins_loaded_for_testing = nullptr;
+    BOOST_REQUIRE(LoadEvoSnapshot(snapshot));
+    BOOST_REQUIRE(chainman.HandleSnapshotStateMismatch("test rejection", [](bilingual_str) {}));
+    BOOST_REQUIRE(!chainman.IsSnapshotActive());
+    BOOST_REQUIRE(fs::exists(rejected_dir));
+    fs::remove_all(rejected_dir);
+    {
+        ASSERT_DEBUG_LOG("a snapshot chainstate already exists");
+        BOOST_CHECK(!LoadEvoSnapshot(snapshot));
+    }
+    BOOST_CHECK(!chainman.IsSnapshotActive());
+}
+
 //! A dispatch turn bound to NORMAL before the switch ends before it, when it
 //! ends within the handoff bound.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_waits_for_turns, EvoSnapshotTestSetup)
@@ -4718,7 +4796,16 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_completion_uses_the_captu
     }
     BOOST_CHECK_EQUAL(Complete(), SnapshotCompletionResult::EVO_STATE_MISMATCH);
 
+    // The rejected chainstate is kept, and no snapshot is loaded until the user
+    // has removed it.
     Restart();
+    const fs::path rejected_dir{m_node.chainman->m_options.datadir / "chainstate_snapshot_INVALID"};
+    {
+        ASSERT_DEBUG_LOG("an earlier rejected snapshot chainstate is still at");
+        BOOST_CHECK(!ActivateEvoSnapshot());
+    }
+    BOOST_REQUIRE(fs::exists(rejected_dir));
+    fs::remove_all(rejected_dir);
     BOOST_REQUIRE(ActivateEvoSnapshot());
     write_capture([&] { m_node.evodb->Erase(coinbase_key); });
     CBlockIndex* base_index{WITH_LOCK(::cs_main, return m_node.chainman->m_blockman.LookupBlockIndex(base))};

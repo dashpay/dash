@@ -67,6 +67,7 @@
 #include <node/peerman_args.h>
 #include <node/transaction.h>
 #include <node/sync_manager.h>
+#include <node/utxo_snapshot.h>
 #include <node/validation_cache_args.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
@@ -1213,6 +1214,11 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     const CChainParams& chainparams = Params();
     // ********************************************************* Step 2: parameter interactions
 
+    // Snapshot authorizations are reviewed chain parameters on every other network.
+    if (args.IsArgSet("-assumeutxodata") && chainparams.GetChainType() != ChainType::REGTEST) {
+        return InitError(_("-assumeutxodata is only available on regtest."));
+    }
+
     // also see: InitParameterInteraction()
 
     // Error if network-specific options (-addnode, -connect, etc) are
@@ -2141,6 +2147,25 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     // ********************************************************* Step 7b: load block chain
+
+    // A snapshot chainstate, validated or not, stays in use until a restart
+    // promotes it, and neither chainstate can run with these options.
+    if (node::FindSnapshotChainstateDir(args.GetDataDirNet())) {
+        if (args.GetIntArg("-prune", 0)) {
+            return InitError(_("An assumeutxo snapshot chainstate is in use, which pruning would break. Restart without "
+                               "-prune until the snapshot has been validated and a restart has promoted it."));
+        }
+        if (node::LegacyIndexesEnabled(args)) {
+            return InitError(_("An assumeutxo snapshot chainstate is in use, which -addressindex, -spentindex and "
+                               "-timestampindex do not support. Restart without them until the snapshot has been "
+                               "validated and a restart has promoted it."));
+        }
+        if (args.IsArgSet("-masternodeblsprivkey")) {
+            return InitError(_("An assumeutxo snapshot chainstate is in use, which a masternode cannot run on. Restart "
+                               "without -masternodeblsprivkey until the snapshot has been validated and a restart has "
+                               "promoted it."));
+        }
+    }
 
     node.notifications = std::make_unique<KernelNotifications>();
     fReindex = args.GetBoolArg("-reindex", false);

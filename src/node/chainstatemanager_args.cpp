@@ -6,6 +6,9 @@
 
 #include <arith_uint256.h>
 #include <common/args.h>
+#include <index/addressindex.h>
+#include <index/spentindex.h>
+#include <index/timestampindex.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <node/coins_view_args.h>
 #include <node/database_args.h>
@@ -20,6 +23,12 @@
 #include <string>
 
 namespace node {
+bool LegacyIndexesEnabled(const ArgsManager& args)
+{
+    return args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) || args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX) ||
+           args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+}
+
 std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, ChainstateManager::Options& opts)
 {
     if (auto value{args.GetBoolArg("-checkblockindex")}) opts.check_block_index = *value;
@@ -38,6 +47,9 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, Chains
     if (auto value{args.GetIntArg("-maxtipage")}) opts.max_tip_age = std::chrono::seconds{*value};
 
     if (auto value{args.GetIntArg("-stopatheight")}) opts.stop_at_height = *value;
+
+    opts.masternode = args.IsArgSet("-masternodeblsprivkey");
+    opts.legacy_indexes = LegacyIndexesEnabled(args);
 
     ReadDatabaseArgs(args, opts.block_tree_db);
     ReadDatabaseArgs(args, opts.coins_db);
