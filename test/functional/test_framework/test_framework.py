@@ -55,7 +55,7 @@ from .util import (
     set_node_times,
     satoshi_round,
     softfork_active,
-    wait_until_helper,
+    wait_until_helper_internal,
     get_chain_folder,
     write_config,
 )
@@ -941,7 +941,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             node.mocktime = self.mocktime
 
     def wait_until(self, test_function, timeout=60, lock=None, sleep=0.05, do_assert=True):
-        return wait_until_helper(test_function, timeout=timeout, lock=lock, timeout_factor=self.options.timeout_factor, sleep=sleep, do_assert=do_assert)
+        return wait_until_helper_internal(test_function, timeout=timeout, lock=lock, timeout_factor=self.options.timeout_factor, sleep=sleep, do_assert=do_assert)
 
     # Private helper methods. These should not be accessed by the subclass test scripts.
 

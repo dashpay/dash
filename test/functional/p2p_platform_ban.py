@@ -9,7 +9,7 @@ from test_framework.p2p import (
     P2PInterface,
 )
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import wait_until_helper
+from test_framework.util import wait_until_helper_internal
 
 import struct
 
@@ -70,7 +70,7 @@ class PlatformBanMessagesTest(DashTestFramework):
         self.log.info("Platform ban message is created and signed")
         p2p_node2 = self.mninfo[2].get_node(self).add_p2p_connection(PlatformBanInterface())
         p2p_node2.send_message(msg)
-        wait_until_helper(lambda: p2p_node2.message_count["platformban"] > 0, timeout=10, lock=p2p_lock)
+        wait_until_helper_internal(lambda: p2p_node2.message_count["platformban"] > 0, timeout=10, lock=p2p_lock)
         p2p_node2.message_count["platformban"] = 0
 
         self.log.info("An already verified Platform ban skips handler work")

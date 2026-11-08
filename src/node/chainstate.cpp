@@ -429,7 +429,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
 
     // Load a chain created from a UTXO snapshot, if any exist.
     bilingual_str snapshot_error;
-    if (!chainman.DetectSnapshotChainstate(options.mempool, snapshot_error)) {
+    if (!chainman.DetectSnapshotChainstate(snapshot_error)) {
         return {ChainstateLoadStatus::FAILURE, snapshot_error};
     }
     if (chainman.IsSnapshotActive()) {

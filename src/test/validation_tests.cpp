@@ -42,15 +42,15 @@ BOOST_AUTO_TEST_CASE(test_assumeutxo)
 
     const auto out110 = *params->AssumeutxoForHeight(110);
     BOOST_CHECK_EQUAL(out110.hash_serialized.ToString(), "ffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f");
-    BOOST_CHECK_EQUAL(out110.nChainTx, 110U);
+    BOOST_CHECK_EQUAL(out110.nChainTx, 111U);
 
     const auto out110_2 = *params->AssumeutxoForBlockhash(uint256S("0x729bcb1479ff9f4968439f0276bd76bcb2de0f0720b7a16f383321f6a41cb238"));
     BOOST_CHECK_EQUAL(out110_2.hash_serialized.ToString(), "ffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f");
-    BOOST_CHECK_EQUAL(out110_2.nChainTx, 110U);
+    BOOST_CHECK_EQUAL(out110_2.nChainTx, 111U);
 
     const auto out210 = *params->AssumeutxoForHeight(200);
     BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b");
-    BOOST_CHECK_EQUAL(out210.nChainTx, 200U);
+    BOOST_CHECK_EQUAL(out210.nChainTx, 201U);
 }
 
 BOOST_AUTO_TEST_CASE(utxo_set_hash_commits_coin_height_and_coinbase)

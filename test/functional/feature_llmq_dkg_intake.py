@@ -37,7 +37,7 @@ from test_framework.messages import (
 )
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import wait_until_helper
+from test_framework.util import wait_until_helper_internal
 
 LLMQ_TEST = 100
 # protocol.h GetInventoryType: MSG_QUORUM_CONTRIB
@@ -84,7 +84,7 @@ def get_p2p_id(node, uacomment=None):
                 if p["subver"] == p2p.strSubVer:
                     return p["id"]
         return None
-    wait_until_helper(lambda: get_id() is not None, timeout=10)
+    wait_until_helper_internal(lambda: get_id() is not None, timeout=10)
     return get_id()
 
 
@@ -94,7 +94,7 @@ def wait_for_banscore(node, peer_id, expected_score):
             if peer["id"] == peer_id:
                 return peer["banscore"]
         return None
-    wait_until_helper(lambda: get_score() == expected_score, timeout=10)
+    wait_until_helper_internal(lambda: get_score() == expected_score, timeout=10)
 
 
 def send_requested_qcontrib(peer, payload):

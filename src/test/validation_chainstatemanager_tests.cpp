@@ -3081,7 +3081,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init_missing_evodb_marker, Sn
         *Assert(m_node.chainlocks), m_node.isman.get()));
 
     bilingual_str error;
-    BOOST_CHECK(!WITH_LOCK(::cs_main, return restarted.DetectSnapshotChainstate(m_node.mempool.get(), error)));
+    BOOST_CHECK(!WITH_LOCK(::cs_main, return restarted.DetectSnapshotChainstate(error)));
     BOOST_CHECK(error.original.find("Snapshot chainstate EvoDB marker") != std::string::npos);
 
     WITH_LOCK(::cs_main, restarted.ResetChainstates());

@@ -29,7 +29,7 @@ from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
     force_finish_mnsync,
-    wait_until_helper,
+    wait_until_helper_internal,
 )
 
 '''
@@ -122,7 +122,7 @@ def wait_for_banscore(node, peer_id, expected_score):
             if peer["id"] == peer_id:
                 return peer["banscore"]
         return None
-    wait_until_helper(lambda: get_score() == expected_score, timeout=6)
+    wait_until_helper_internal(lambda: get_score() == expected_score, timeout=6)
     # Re-read after a settle delay: the first read can race a pending bump,
     # in particular when the expected score is the peer's current one (e.g. 0).
     time.sleep(0.1)
@@ -142,7 +142,7 @@ def get_p2p_id(node, uacomment=None):
                 if p["subver"] == p2p.strSubVer:
                     return p["id"]
         return None
-    wait_until_helper(lambda: get_id() is not None, timeout=10)
+    wait_until_helper_internal(lambda: get_id() is not None, timeout=10)
     return get_id()
 
 
@@ -167,7 +167,7 @@ class QuorumDataInterface(P2PInterface):
             assert_qdata(self.get_qdata(), qgetdata, expected_error, len_vvec, len_contributions)
 
     def wait_for_qmessage(self, message=None, timeout=3, message_expected=True):
-        wait_until_helper(lambda: self.message_count[message] > 0, timeout=timeout, lock=p2p_lock, do_assert=message_expected)
+        wait_until_helper_internal(lambda: self.message_count[message] > 0, timeout=timeout, lock=p2p_lock, do_assert=message_expected)
         if not message_expected:
             assert self.message_count[message] == 0
         self.message_count[message] = 0

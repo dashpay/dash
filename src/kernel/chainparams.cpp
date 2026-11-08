@@ -984,14 +984,14 @@ public:
                 .height = 110,
                 .hash_serialized = AssumeutxoHash{uint256S("0xffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f")},
                 .evo_hash = EvoSnapshotHash{uint256{}},
-                .nChainTx = 110,
+                .nChainTx = 111,
                 .blockhash = uint256S("0x729bcb1479ff9f4968439f0276bd76bcb2de0f0720b7a16f383321f6a41cb238"),
             },
             {
                 .height = 200,
                 .hash_serialized = AssumeutxoHash{uint256S("0x16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b")},
                 .evo_hash = EvoSnapshotHash{uint256{}},
-                .nChainTx = 200,
+                .nChainTx = 201,
                 .blockhash = uint256S("0x19c1b203b5a960c7f3619e0e805b24c94e684b1aa261f3a79c84d291638a6e1f"),
             },
         };
