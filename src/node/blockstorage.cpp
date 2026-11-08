@@ -310,7 +310,12 @@ bool BlockManager::LoadBlockIndex(const std::optional<uint256>& snapshot_blockha
 
     int snapshot_height = -1;
     if (snapshot_blockhash) {
-        const AssumeutxoData au_data = *Assert(GetParams().AssumeutxoForBlockhash(*snapshot_blockhash));
+        const std::optional<AssumeutxoData> maybe_au_data = GetParams().AssumeutxoForBlockhash(*snapshot_blockhash);
+        if (!maybe_au_data) {
+            AbortNode(strprintf("Assumeutxo data not found for the given blockhash '%s'.", snapshot_blockhash->ToString()));
+            return false;
+        }
+        const AssumeutxoData& au_data = *Assert(maybe_au_data);
         snapshot_height = au_data.height;
         // A base the block index lacks is reported by ChainstateManager::LoadBlockIndex().
         if (CBlockIndex* base{LookupBlockIndex(*snapshot_blockhash)}) {
