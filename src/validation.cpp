@@ -8125,6 +8125,20 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
             fs::PathToString(p_old), fs::PathToString(p_new)));
     };
 
+    // A background chainstate directory an earlier promotion could not delete
+    // is of no use, and would stop the rename.
+    try {
+        if (fs::exists(tmp_old)) {
+            LogPrintf("[snapshot] removing %s, left behind by an earlier cleanup\n", fs::PathToString(tmp_old));
+            RemoveAllDurably(tmp_old);
+        }
+    } catch (const fs::filesystem_error& e) {
+        LogPrintf("Error removing path (%s): %s\n", fs::PathToString(tmp_old), e.what());
+        AbortNode(strprintf("Removal of '%s' failed. Cannot clean up the background chainstate leveldb directory.",
+                            fs::PathToString(tmp_old)));
+        throw;
+    }
+
     try {
         RenameDurably(ibd_chainstate_path, tmp_old);
     } catch (const fs::filesystem_error& e) {
