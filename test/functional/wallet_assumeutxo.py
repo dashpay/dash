@@ -31,9 +31,10 @@ class AssumeutxoTest(BitcoinTestFramework):
 
     def set_test_params(self):
         """Use the pregenerated, deterministic chain up to height 199."""
-        self.num_nodes = 2
+        self.num_nodes = 3
         self.rpc_timeout = 120
         self.extra_args = [
+            [],
             [],
             [],
         ]
@@ -41,7 +42,7 @@ class AssumeutxoTest(BitcoinTestFramework):
     def setup_network(self):
         """Start with the nodes disconnected so that one can generate a snapshot
         including blocks the other hasn't yet seen."""
-        self.add_nodes(2)
+        self.add_nodes(3)
         self.start_nodes(extra_args=self.extra_args)
 
     def run_test(self):
@@ -54,6 +55,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         """
         n0 = self.nodes[0]
         n1 = self.nodes[1]
+        n2 = self.nodes[2]
 
         # Mock time for a deterministic chain
         for n in self.nodes:
@@ -81,6 +83,7 @@ class AssumeutxoTest(BitcoinTestFramework):
 
             # make n1 aware of the new header, but don't give it the block.
             n1.submitheader(newblock)
+            n2.submitheader(newblock)
 
         # Ensure everyone is seeing the same headers.
         for n in self.nodes:
@@ -101,11 +104,12 @@ class AssumeutxoTest(BitcoinTestFramework):
         dump_output = n0.dumptxoutset('utxos.dat')
 
         # The blocks depend on how long the syncs took, which move the mock time
-        # on, so node 1 authorizes this dump: the regtest chain parameters have no
-        # entry for this chain.
+        # on, so nodes 1 and 2 authorize this dump: the regtest chain parameters
+        # have no entry for this chain.
         assert_equal(dump_output['nchaintx'], n0.getchaintxstats(blockhash=dump_output['base_hash'])['txcount'])
-        self.extra_args[1].append(f"-assumeutxodata={dump_output['base_height']}:{dump_output['txoutset_hash']}:{dump_output['evo']['hash']}:{dump_output['nchaintx']}:{dump_output['base_hash']}")
-        self.restart_node(1, extra_args=self.extra_args[1])
+        for i in (1, 2):
+            self.extra_args[i].append(f"-assumeutxodata={dump_output['base_height']}:{dump_output['txoutset_hash']}:{dump_output['evo']['hash']}:{dump_output['nchaintx']}:{dump_output['base_hash']}")
+            self.restart_node(i, extra_args=self.extra_args[i])
         assert_equal(n0.getblockchaininfo()["blocks"], SNAPSHOT_BASE_HEIGHT)
 
         # Mine more blocks on top of the snapshot that n1 hasn't yet seen. This
@@ -114,6 +118,7 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         assert_equal(n0.getblockcount(), FINAL_HEIGHT)
         assert_equal(n1.getblockcount(), START_HEIGHT)
+        assert_equal(n2.getblockcount(), START_HEIGHT)
 
         assert_equal(n0.getblockchaininfo()["blocks"], FINAL_HEIGHT)
 
@@ -171,6 +176,22 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         self.log.info("Ensuring wallet can be restored from a backup that was created before the snapshot height")
         n1.restorewallet("w2", "backup_w2.dat")
+
+        self.log.info("Check the last processed block of a wallet that is active during snapshot completion")
+        n2.loadtxoutset(dump_output['path'])
+        n2.restorewallet("w", "backup_w.dat")
+        w = n2.get_wallet_rpc("w")
+        # The snapshot chain reaches the tip before the background chainstate can
+        # download a block, so that no block of the active chain follows completion.
+        for height in range(SNAPSHOT_BASE_HEIGHT + 1, FINAL_HEIGHT + 1):
+            n2.submitblock(n0.getblock(n0.getblockhash(height), 0))
+        n2.syncwithvalidationinterfacequeue()
+        final_block = {'hash': n0.getbestblockhash(), 'height': FINAL_HEIGHT}
+        assert_equal(w.getwalletinfo()['lastprocessedblock'], final_block)
+        self.connect_nodes(0, 2)
+        self.wait_until(lambda: len(n2.getchainstates()['chainstates']) == 1)
+        n2.syncwithvalidationinterfacequeue()
+        assert_equal(w.getwalletinfo()['lastprocessedblock'], final_block)
 
 
 if __name__ == '__main__':

@@ -4132,6 +4132,10 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 bool fInvalidFound = false;
                 std::shared_ptr<const CBlock> nullBlockPtr;
                 const size_t stalls_before{m_evo_stalls.size()};
+                // BlockConnected signals must be sent for the original role;
+                // in case snapshot validation is completed during ActivateBestChainStep, the
+                // result of GetRole() changes from BACKGROUND to NORMAL.
+                const ChainstateRole chainstate_role{this->GetRole()};
                 if (!ActivateBestChainStep(state, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace)) {
                     // A system error occurred, or this chainstate stalled on
                     // its own Evo state. A stall still announces the blocks
@@ -4164,7 +4168,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
                 for (const PerBlockConnectTrace& trace : connectTrace.GetBlocksConnected()) {
                     assert(trace.pblock && trace.pindex);
-                    GetMainSignals().BlockConnected(this->GetRole(), trace.pblock, trace.pindex);
+                    GetMainSignals().BlockConnected(chainstate_role, trace.pblock, trace.pindex);
                 }
 
                 // This will have been toggled in
