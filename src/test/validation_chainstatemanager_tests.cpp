@@ -3603,6 +3603,42 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_promoted_swa
     BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_tip));
 }
 
+//! A background chainstate directory an earlier promotion could not delete
+//! survives a reindex, and must not stop the next snapshot loaded in that run
+//! from being promoted.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_promotion_after_a_leftover_cleanup_dir, SnapshotTestSetup)
+{
+    static std::atomic<int> exit_status{EXIT_SUCCESS};
+    BOOST_REQUIRE(InitShutdownState(exit_status));
+    const fs::path data_dir{gArgs.GetDataDirNet()};
+    const fs::path leftover{data_dir / "chainstate_todelete"};
+    fs::create_directories(leftover);
+    AutoFile{fsbridge::fopen(leftover / "000001.ldb", "wb")}.write(MakeByteSpan(std::string_view{"left behind"}));
+
+    this->SimulateNodeRestart();
+    m_args.ForceSetArg("-reindex-chainstate", "1");
+    this->LoadVerifyActivateChainstate();
+    m_args.ForceSetArg("-reindex-chainstate", "0");
+    BOOST_REQUIRE(fs::exists(leftover));
+
+    mineBlocks(10);
+    BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this));
+    ChainstateManager& chainman{*Assert(m_node.chainman)};
+    const uint256 snapshot_tip{WITH_LOCK(::cs_main, return chainman.ActiveTip()->GetBlockHash())};
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation([](bilingual_str) {})),
+                        SnapshotCompletionResult::SUCCESS);
+
+    this->SimulateNodeRestart();
+    node::ChainstateLoadStatus status{node::ChainstateLoadStatus::FAILURE};
+    BOOST_CHECK_NO_THROW(status = std::get<0>(this->TryLoadChainstate()));
+    BOOST_CHECK(status == node::ChainstateLoadStatus::SUCCESS);
+    BOOST_CHECK(!ShutdownRequested());
+    BOOST_CHECK(!fs::exists(leftover));
+    BOOST_CHECK(!node::FindSnapshotChainstateDir(data_dir));
+    BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_tip));
+    AbortShutdown();
+}
+
 //! Stop promotion at `failpoint` as if the node crashed there; the next startup
 //! must finish it from the journal without losing any snapshot-written Evo
 //! state.
