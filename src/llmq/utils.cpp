@@ -592,8 +592,8 @@ std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const ChainstateManager& 
                                                        gsl::not_null<const CBlockIndex*> pindex)
 {
     std::vector<Consensus::LLMQType> ret;
-    ret.reserve(Params().GetConsensus().llmqs.size());
-    for (const auto& params : Params().GetConsensus().llmqs) {
+    ret.reserve(chainman.GetConsensus().llmqs.size());
+    for (const auto& params : chainman.GetConsensus().llmqs) {
         if (chainman.IsQuorumTypeEnabled(params.type, pindex)) {
             ret.push_back(params.type);
         }
@@ -605,9 +605,9 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuoru
     const ChainstateManager& chainman, gsl::not_null<const CBlockIndex*> pindex)
 {
     std::vector<std::reference_wrapper<const Consensus::LLMQParams>> ret;
-    ret.reserve(Params().GetConsensus().llmqs.size());
+    ret.reserve(chainman.GetConsensus().llmqs.size());
 
-    std::copy_if(Params().GetConsensus().llmqs.begin(), Params().GetConsensus().llmqs.end(), std::back_inserter(ret),
+    std::copy_if(chainman.GetConsensus().llmqs.begin(), chainman.GetConsensus().llmqs.end(), std::back_inserter(ret),
                  [&pindex, &chainman](const auto& params) { return chainman.IsQuorumTypeEnabled(params.type, pindex); });
 
     return ret;
