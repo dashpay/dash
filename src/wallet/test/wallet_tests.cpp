@@ -26,6 +26,7 @@
 #include <evo/specialtx.h>
 #include <index/blockfilterindex.h>
 #include <interfaces/chain.h>
+#include <kernel/chain.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
 #include <node/blockstorage.h>
@@ -2044,7 +2045,7 @@ BOOST_FIXTURE_TEST_CASE(ConflictedDescendantReactivationReconcilesInputs, ListCo
     block_info.prev_hash = &block.hashPrevBlock;
     block_info.height = tip->nHeight;
     block_info.data = &block;
-    wallet->blockConnected(block_info);
+    wallet->blockConnected(ChainstateRole::NORMAL, block_info);
     {
         LOCK(wallet->cs_wallet);
         BOOST_REQUIRE(wallet->mapWallet.at(child->GetHash()).isConflicted());
@@ -2171,7 +2172,7 @@ BOOST_FIXTURE_TEST_CASE(MasternodeCollateralWithheldWhileListUnavailable, ListCo
     block_info.prev_hash = &block.hashPrevBlock;
     block_info.height = tip->nHeight + 1;
     block_info.data = &block;
-    wallet->blockConnected(block_info);
+    wallet->blockConnected(ChainstateRole::NORMAL, block_info);
     {
         LOCK(wallet->cs_wallet);
         BOOST_CHECK(wallet->IsLockedCoin(collateral));
@@ -2211,7 +2212,7 @@ BOOST_FIXTURE_TEST_CASE(AbandonedSpendRestoresActiveMasternodeCollateralLock, Li
     block_info.prev_hash = &block.hashPrevBlock;
     block_info.height = tip->nHeight;
     block_info.data = &block;
-    wallet->blockConnected(block_info);
+    wallet->blockConnected(ChainstateRole::NORMAL, block_info);
 
     const COutPoint collateral{pro_reg_tx->GetHash(), 0};
     {

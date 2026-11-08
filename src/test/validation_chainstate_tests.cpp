@@ -42,9 +42,11 @@ public:
     }
 
     int block_connected{0};
+    int background_block_connected{0};
     int updated_tip{0};
     int mn_list_changed{0};
     int chainstate_flushed{0};
+    int background_chainstate_flushed{0};
     //! The Evo view each BlockChecked callback ran under.
     std::vector<EvoDbIdentity> block_checked_views;
 
@@ -52,10 +54,16 @@ public:
     {
         block_checked_views.push_back(m_evodb.CurrentView().identity);
     }
-    void BlockConnected(const std::shared_ptr<const CBlock>&, const CBlockIndex*) override { ++block_connected; }
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>&, const CBlockIndex*) override
+    {
+        ++(role == ChainstateRole::BACKGROUND ? background_block_connected : block_connected);
+    }
     void UpdatedBlockTip(const CBlockIndex*, const CBlockIndex*, bool) override { ++updated_tip; }
     void NotifyMasternodeListChanged(bool, const CDeterministicMNList&, const CDeterministicMNListDiff&) override { ++mn_list_changed; }
-    void ChainStateFlushed(const CBlockLocator&) override { ++chainstate_flushed; }
+    void ChainStateFlushed(ChainstateRole role, const CBlockLocator&) override
+    {
+        ++(role == ChainstateRole::BACKGROUND ? background_chainstate_flushed : chainstate_flushed);
+    }
 
 private:
     const CEvoDB& m_evodb;
@@ -212,10 +220,13 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     // validation chain.
     BOOST_CHECK(block_added);
     BOOST_CHECK_EQUAL(curr_tip, ::g_best_block);
+    // Block and flush events of a background connect carry its role.
     BOOST_CHECK_EQUAL(event_counter.block_connected, 0);
+    BOOST_CHECK_EQUAL(event_counter.background_block_connected, 1);
     BOOST_CHECK_EQUAL(event_counter.updated_tip, 0);
     BOOST_CHECK_EQUAL(event_counter.mn_list_changed, 0);
     BOOST_CHECK_EQUAL(event_counter.chainstate_flushed, 0);
+    BOOST_CHECK_GE(event_counter.background_chainstate_flushed, 1);
     BOOST_CHECK_EQUAL(ui_mn_list_changed, 0);
     // Synchronous notifications of a background connect run under its view.
     BOOST_CHECK(event_counter.block_checked_views == std::vector<EvoDbIdentity>{EvoDbIdentity::NORMAL});
@@ -230,11 +241,11 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     ++retired_view.generation;
     {
         EvoViewScope live{snapshot_view};
-        GetMainSignals().ChainStateFlushed(CBlockLocator{});
+        GetMainSignals().ChainStateFlushed(ChainstateRole::ASSUMEDVALID, CBlockLocator{});
     }
     {
         EvoViewScope stale{retired_view};
-        GetMainSignals().ChainStateFlushed(CBlockLocator{});
+        GetMainSignals().ChainStateFlushed(ChainstateRole::ASSUMEDVALID, CBlockLocator{});
     }
     SyncWithValidationInterfaceQueue();
     UnregisterValidationInterface(&queued_counter);

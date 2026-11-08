@@ -553,8 +553,12 @@ void NetInstantSend::TransactionRemovedFromMempool(const CTransactionRef& tx, Me
     m_is_manager.TransactionIsRemoved(tx);
 }
 
-void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
+void NetInstantSend::BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
+    // Only the active chainstate's blocks concern this subscriber.
+    if (role == ChainstateRole::BACKGROUND) {
+        return;
+    }
     if (!m_is_manager.IsInstantSendEnabled()) {
         return;
     }
