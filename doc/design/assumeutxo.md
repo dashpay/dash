@@ -1,7 +1,7 @@
 # assumeutxo
 
 Assumeutxo is a feature that allows fast bootstrapping of a validating dashd
-instance with a very similar security model to assumevalid.
+instance.
 
 ## Loading a snapshot
 
