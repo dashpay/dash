@@ -12,7 +12,6 @@ class CoinControlTreeWidgetTests : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
-    void init();
     void shiftClickChecksRange();
     void shiftClickUnchecksRange();
     void clicksOutsideCheckboxIgnored();

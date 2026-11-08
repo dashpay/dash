@@ -579,12 +579,6 @@ void MasternodeMaintenanceTests::revokeRequestConstruction()
 
 void MasternodeMaintenanceTests::dialogFieldGeometry()
 {
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        QWARN("Skipping dialogFieldGeometry on macOS with the minimal platform due to QTBUG-49686");
-        return;
-    }
-#endif
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     auto source{std::make_shared<TestMnEntry>(MnType::Regular)};
@@ -622,12 +616,6 @@ void MasternodeMaintenanceTests::dialogFieldGeometry()
 
 void MasternodeMaintenanceTests::dialogLifecycleAndSubmissionStates()
 {
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        QWARN("Skipping dialogLifecycleAndSubmissionStates on macOS with the minimal platform due to QTBUG-49686");
-        return;
-    }
-#endif
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     auto source{std::make_shared<TestMnEntry>(MnType::Regular)};

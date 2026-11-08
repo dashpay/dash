@@ -56,7 +56,6 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QRadioButton>
-#include <QStyleFactory>
 #include <QTabWidget>
 #include <QTableView>
 #include <QTableWidget>
@@ -186,8 +185,6 @@ public:
 
     //! Everything answered so far, for failure messages
     const QStringList& seen() const { return m_seen; }
-    //! Window titles of those boxes, in the same order
-    const QStringList& titles() const { return m_titles; }
 
 private:
     void poll()
@@ -211,7 +208,6 @@ private:
             // counts down; wait for it rather than cancelling the flow.
             if (target != nullptr && !target->isEnabled()) return;
             m_pending = nullptr;
-            m_titles << box->windowTitle();
             m_seen << (box->text() + QLatin1Char('\n') + box->informativeText() + QLatin1Char('\n') + box->detailedText());
             if (!m_queued.isEmpty()) {
                 const Shot shot{m_queued.takeFirst()};
@@ -239,7 +235,6 @@ private:
     QTimer m_timer;
     QWidget* m_pending{nullptr};
     QStringList m_seen;
-    QStringList m_titles;
     QList<Shot> m_queued;
 };
 
@@ -315,16 +310,6 @@ QString TakeClipboardEnvelope(QString& fingerprint)
 
 void SharedMnWalkthroughTests::initTestCase()
 {
-#if defined(Q_OS_MACOS)
-    // The native macOS style paints through an NSView, which does not exist on
-    // the minimal platform and crashes there (QTBUG-49686). Fusion is what the
-    // Linux builds use anyway, and the Dash stylesheet still applies on top.
-    if (QApplication::platformName() == "minimal") {
-        if (QStyle* const fusion = QStyleFactory::create("Fusion"); fusion != nullptr) {
-            QApplication::setStyle(fusion);
-        }
-    }
-#endif
     // Grab the dialogs the way a user sees them: real fonts, real (light) theme
     // stylesheet. Both are loaded from Qt resources, so this works headless
     // under "minimal:enable_fonts". The plain "minimal" platform has no font
@@ -1072,9 +1057,9 @@ void SharedMnWalkthroughTests::walkthrough()
         list.openSharedMessage(standby_hex);
         QCOMPARE(pilot.seen().size(), answered + 2);
         const QString result{pilot.seen().last()};
-        QVERIFY2(pilot.titles().last() == QStringLiteral("Broadcast failed") && result.contains("early-exit penalty") &&
-                     result.contains("bad-prodis-penalty-floor"),
-                 qPrintable(pilot.titles().last() + QLatin1Char('\n') + result));
+        QVERIFY2(result.startsWith(QStringLiteral("This dissolution pays a share less than the network requires")) &&
+                     result.contains("early-exit penalty") && result.contains("bad-prodis-penalty-floor"),
+                 qPrintable(result));
         CMutableTransaction standby_full;
         QVERIFY(DecodeHexTx(standby_full, standby_hex.toStdString()));
         UniValue params(UniValue::VOBJ);

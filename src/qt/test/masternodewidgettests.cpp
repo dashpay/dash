@@ -664,12 +664,6 @@ void MasternodeWidgetTests::registeredCollateralExclusion()
 
 void MasternodeWidgetTests::wizardMinimumGeometry()
 {
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        QWARN("Skipping wizardMinimumGeometry on macOS with the minimal platform due to QTBUG-49686");
-        return;
-    }
-#endif
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
 
@@ -762,12 +756,6 @@ void MasternodeWidgetTests::wizardMinimumGeometry()
 
 void MasternodeWidgetTests::wizardPageValidation()
 {
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        QWARN("Skipping wizardPageValidation on macOS with the minimal platform due to QTBUG-49686");
-        return;
-    }
-#endif
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
 
@@ -880,12 +868,6 @@ void MasternodeWidgetTests::wizardPageValidation()
 
 void MasternodeWidgetTests::broadcastConfirmation()
 {
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        QWARN("Skipping broadcastConfirmation on macOS with the minimal platform due to QTBUG-49686");
-        return;
-    }
-#endif
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
 
@@ -1220,12 +1202,6 @@ void MasternodeWidgetTests::sharedMasternodeDetails()
 
 void MasternodeWidgetTests::wizardInteractionLifecycle()
 {
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        QWARN("Skipping wizardInteractionLifecycle on macOS with the minimal platform due to QTBUG-49686");
-        return;
-    }
-#endif
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
@@ -1303,12 +1279,6 @@ void MasternodeWidgetTests::wizardInteractionLifecycle()
 
 void MasternodeWidgetTests::registrationResultStates()
 {
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        QWARN("Skipping registrationResultStates on macOS with the minimal platform due to QTBUG-49686");
-        return;
-    }
-#endif
     TestChain100Setup test;
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
