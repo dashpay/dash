@@ -296,6 +296,48 @@ class AssumeutxoTest(BitcoinTestFramework):
         assert 'NETWORK' in ibd_node.getpeerinfo()[0]['servicesnames']
         self.sync_blocks(nodes=(ibd_node, snapshot_node))
 
+    def test_sync_to_most_work_chain_after_promotion(self):
+        """
+        A node whose snapshot is validated but not yet promoted by a restart
+        does not download from peers without the snapshot block in their
+        chain: it could not disconnect below the base's carried Evo state.
+        After the promoting restart it follows their chain.
+        """
+        self.log.info("Testing sync to the most-work chain without the snapshot block after promotion")
+
+        forking_node = self.nodes[0]
+        snapshot_node = self.nodes[2]  # Has already completed background validation
+        self.disconnect_nodes(snapshot_node.index, forking_node.index)
+        snapshot_tip = snapshot_node.getbestblockhash()
+        snapshot_base_hash = snapshot_node.getblockhash(SNAPSHOT_BASE_HEIGHT)
+
+        self.log.info("Forking node switches to an alternative chain that forks one block before the snapshot block")
+        fork_point = SNAPSHOT_BASE_HEIGHT - 1
+        forking_node_old_height = forking_node.getblockcount()
+        forking_node_old_chainwork = int(forking_node.getblockchaininfo()['chainwork'], 16)
+        forking_node.invalidateblock(forking_node.getblockhash(fork_point + 1))
+
+        self.log.info("Mine one more block than original chain to make the new chain have most work")
+        # With the mock time fixed, mining to the usual address would rebuild the invalidated block.
+        self.generatetoaddress(forking_node, (forking_node_old_height - fork_point) + 1, getnewdestination()[2], sync_fun=self.no_op)
+        assert int(forking_node.getblockchaininfo()['chainwork'], 16) > forking_node_old_chainwork
+
+        self.log.info("Before promotion the snapshot node does not download the chain without the snapshot block")
+        # Validated, but still the snapshot chainstate until a restart promotes it.
+        chainstate, = snapshot_node.getchainstates()['chainstates']
+        assert_equal(chainstate.get('snapshot_blockhash'), snapshot_base_hash)
+        with snapshot_node.assert_debug_log(expected_msgs=["which doesn't have the snapshot block in its best chain"],
+                                            unexpected_msgs=["local Evo state error"], timeout=30):
+            self.connect_nodes(snapshot_node.index, forking_node.index)
+        assert_equal(snapshot_node.getbestblockhash(), snapshot_tip)
+
+        self.log.info("After the promoting restart the snapshot node reorgs to the most-work chain")
+        self.restart_node(snapshot_node.index, extra_args=self.extra_args[snapshot_node.index])
+        chainstate, = snapshot_node.getchainstates()['chainstates']
+        assert_equal(chainstate.get('snapshot_blockhash'), None)
+        self.connect_nodes(snapshot_node.index, forking_node.index)
+        self.sync_blocks(nodes=(snapshot_node, forking_node))
+
     def assert_only_network_limited_service(self, node):
         node_services = node.getnetworkinfo()['localservicesnames']
         assert 'NETWORK' not in node_services
@@ -713,6 +755,8 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         # The following test cleans node2 and node3 chain directories.
         self.test_sync_from_assumeutxo_node(snapshot=dump_output)
+
+        self.test_sync_to_most_work_chain_after_promotion()
 
 
 @dataclass
