@@ -177,7 +177,7 @@ public:
     SERIALIZE_METHODS(PlatformBanMessage, obj)
     {
         READWRITE(obj.m_protx_hash, obj.m_requested_height, obj.m_quorum_hash);
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.m_signature), false));
         }
     }

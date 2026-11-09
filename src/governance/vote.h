@@ -190,7 +190,7 @@ public:
     SERIALIZE_METHODS(CGovernanceVote, obj)
     {
         READWRITE(obj.masternodeOutpoint, obj.nParentHash, obj.nVoteOutcome, obj.nVoteSignal, obj.nTime);
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             // Network reads: cap the signature vector before allocation and require
             // one of the two legitimate encodings. Other paths (disk, hash, write)
             // keep the unbounded default.
