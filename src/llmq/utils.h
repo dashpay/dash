@@ -17,6 +17,7 @@
 
 #include <gsl/pointers.h>
 
+#include <array>
 #include <functional>
 #include <optional>
 #include <unordered_set>
@@ -55,6 +56,8 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuoru
     const ChainstateManager& chainman, gsl::not_null<const CBlockIndex*> pindex);
 
 namespace utils {
+using QuorumMembers = std::vector<CDeterministicMNCPtr>;
+
 struct QuarterWalkResult {
     //! Candidate positions chosen for each quorum's new quarter
     std::vector<std::vector<size_t>> quarters;
@@ -84,6 +87,17 @@ std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_si
 //! all full. ReplayLegacyQuarters doesn't always rebuild such a walk exactly once it wraps around the list, but
 //! that is how legacy snapshots have always been rebuilt.
 std::vector<int> LegacySkipListForWalk(size_t list_size, const QuarterWalkResult& walk);
+
+//! Per quorum index, the four quarters in assembly order (H-3C, H-2C, H-C, new). Empty outer vector when
+//! the cycle can't be computed (skip list overflow, or a previous cycle's snapshot is malformed).
+//! GetAllQuorumMembers flattens this.
+std::vector<std::array<QuorumMembers, 4>> ComputeRotationQuarters(const Consensus::LLMQParams& llmqParams,
+                                                                  const UtilParameters& util_params,
+                                                                  gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
+                                                                  int cycleBaseHeight, const uint256& modifier,
+                                                                  bool predicting);
+//! Whether the cycle starting at cycle_base was built with the legacy walk, before the step walk replaced it
+bool IsLegacyRotationCycle(const Consensus::Params& params, const CBlockIndex& cycle_base);
 
 struct BlsCheck {
     CBLSSignature m_sig;
