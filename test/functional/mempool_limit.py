@@ -43,6 +43,7 @@ class MempoolLimitTest(BitcoinTestFramework):
         self.log.info('Check that mempoolminfee is minrelaytxfee')
         assert_equal(node.getmempoolinfo()['minrelaytxfee'], Decimal('0.00001000'))
         assert_equal(node.getmempoolinfo()['mempoolminfee'], Decimal('0.00001000'))
+        assert_equal(node.getmempoolinfo()['incrementalrelayfee'], Decimal('0.00001000'))
 
         tx_batch_size = 1
         num_of_batches = 75
