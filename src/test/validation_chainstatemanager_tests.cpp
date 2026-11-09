@@ -23,6 +23,8 @@
 #include <evo/specialtxman.h>
 #include <governance/superblock.h>
 #include <init.h>
+#include <instantsend/instantsend.h>
+#include <instantsend/lock.h>
 #include <instantsend/net_instantsend.h>
 #include <kernel/coinstats.h>
 #include <kernel/disconnected_transactions.h>
@@ -46,6 +48,7 @@
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <shutdown.h>
+#include <spork.h>
 #include <streams.h>
 #include <sync.h>
 #include <test/util/chainstate.h>
@@ -316,14 +319,27 @@ private:
     const uint256 m_hash{};
 };
 
+//! Regtest spork key matching Params().SporkAddress(), as used by the functional tests.
+constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
 } // namespace
 
 //! Reaches InstantSend's conflicting-block invalidation.
 struct NetInstantSendConflictsTest {
-    //! Invalidate `block_hash` for a lock whose transaction is unknown.
-    static void InvalidateTemporarily(NetInstantSend& net, const uint256& block_hash)
+    //! Invalidate `block_hash` for `islock`, whose transaction is unknown.
+    static void InvalidateTemporarily(NetInstantSend& net, const uint256& block_hash,
+                                      const instantsend::InstantSendLockPtr& islock)
     {
-        net.InvalidateConflictingBlocks(GetRandHash(), {.blocks = {block_hash}, .has_tx_for_lock = false});
+        net.InvalidateConflictingBlocks(::SerializeHash(*islock),
+                                        {.islock = islock, .blocks = {block_hash}, .has_tx_for_lock = false});
+    }
+    static void Retry(NetInstantSend& net) { net.RetryUnresolvedConflicts(); }
+    static void UpdatedBlockTip(NetInstantSend& net, const CBlockIndex* tip, const CBlockIndex* fork)
+    {
+        net.UpdatedBlockTip(tip, fork, /*fInitialDownload=*/false);
+    }
+    static void NotifyChainLock(NetInstantSend& net, const CBlockIndex* pindex, const chainlock::ChainLockSig& clsig)
+    {
+        net.NotifyChainLock(pindex, std::make_shared<const chainlock::ChainLockSig>(clsig));
     }
 };
 
@@ -1688,6 +1704,16 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
 
     mineBlocks(1);
     CBlockIndex* above_usable{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+    const auto check_stalled_at_usable{[&] {
+        LOCK(::cs_main);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), usable_index);
+        BOOST_CHECK_EQUAL(above_usable->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(usable_index->nStatus & BLOCK_FAILED_MASK, 0U);
+    }};
+    const auto reactivate{[&] {
+        BOOST_REQUIRE(snapshot_chainstate->ActivateBestChain(state));
+        BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip()), above_usable);
+    }};
     dip3_active.emplace();
     BOOST_CHECK(!snapshot_chainstate->InvalidateBlock(state, usable_index));
     BOOST_CHECK(IsLocalEvoStateError(state));
@@ -1702,19 +1728,53 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
     // blocks only for a moment: stalling partway leaves none of the blocks it
     // disconnected marked invalid.
     {
+        BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+        BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
+        BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 0).has_value());
+        BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 0).has_value());
+        const auto islock{std::make_shared<instantsend::InstantSendLock>()};
+        islock->txid = GetRandHash();
+        islock->inputs.emplace_back(GetRandHash(), 0);
+        const uint256 islock_hash{::SerializeHash(*islock)};
+        m_node.isman->WriteNewISLock(islock_hash, islock, std::nullopt);
+
         NetInstantSend net{m_node.peerman.get(),   *m_node.isman,      nullptr,  *m_node.llmq_ctx->sigman,
                            *m_node.llmq_ctx->qman, *m_node.chainlocks, chainman, *m_node.mempool,
                            *m_node.mn_sync};
         dip3_active.emplace();
-        NetInstantSendConflictsTest::InvalidateTemporarily(net, usable->GetHash());
+        NetInstantSendConflictsTest::InvalidateTemporarily(net, usable->GetHash(), islock);
         dip3_active.reset();
-        LOCK(::cs_main);
-        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), usable_index);
-        BOOST_CHECK_EQUAL(above_usable->nStatus & BLOCK_FAILED_MASK, 0U);
-        BOOST_CHECK_EQUAL(usable_index->nStatus & BLOCK_FAILED_MASK, 0U);
+        check_stalled_at_usable();
+        reactivate();
+
+        // The stall on `usable` lasts until a restart, so retrying on the next
+        // tip defers the conflict again, again leaving no block invalid.
+        NetInstantSendConflictsTest::UpdatedBlockTip(net, above_usable, usable_index);
+        {
+            ASSERT_DEBUG_LOG("islock=" + islock_hash.ToString() + ": chainstate stalled, retrying later");
+            NetInstantSendConflictsTest::Retry(net);
+        }
+        check_stalled_at_usable();
+        BOOST_CHECK(m_node.isman->IsLocked(islock->txid));
+        reactivate();
+
+        // A ChainLock on the conflicting block wins: the retry drops the lock
+        // instead of disconnecting the block.
+        const chainlock::ChainLockSig clsig{usable_index->nHeight, usable->GetHash(), {}};
+        m_node.chainlocks->UpdateBestChainlock(usable->GetHash(), clsig, usable_index);
+        NetInstantSendConflictsTest::NotifyChainLock(net, usable_index, clsig);
+        {
+            ASSERT_DEBUG_LOG("Removing ISLOCK and its chained children");
+            NetInstantSendConflictsTest::Retry(net);
+        }
+        BOOST_CHECK(!m_node.isman->IsLocked(islock->txid));
+        BOOST_CHECK(m_node.isman->GetInstantSendLockByTxid(islock->txid) == nullptr);
+        BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip()), above_usable);
+
+        m_node.chainlocks->ResetChainlock();
+        BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 4070908800).has_value());
+        BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 4070908800).has_value());
     }
-    BOOST_REQUIRE(snapshot_chainstate->ActivateBestChain(state));
-    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip()), above_usable);
 
     // Enforcing a ChainLock on a stalled sibling moves the chain away from
     // `usable`.
