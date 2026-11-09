@@ -162,6 +162,12 @@ class AssumeutxoTest(BitcoinTestFramework):
         rmtree(chainstate_snapshot_path)
         self.start_node(0)
 
+    def test_invalid_file_path(self):
+        self.log.info("Test dashd should fail when file path is invalid.")
+        node = self.nodes[0]
+        path = node.datadir_path / node.chain / "invalid" / "path"
+        assert_raises_rpc_error(-8, "Couldn't open file {} for reading.".format(path), node.loadtxoutset, path)
+
     def run_test(self):
         """
         Bring up two (disconnected) nodes, mine some new blocks on the first,
@@ -248,6 +254,7 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         self.test_invalid_snapshot_scenarios(dump_output['path'])
         self.test_invalid_chainstate_scenarios()
+        self.test_invalid_file_path()
 
         self.log.info(f"Loading snapshot into second node from {dump_output['path']}")
         loaded = n1.loadtxoutset(dump_output['path'])
