@@ -860,7 +860,7 @@ private:
     void ForgetObsoleteEvoStalls() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     //! Add the tip and every usable block at least as good as it to
     //! setBlockIndexCandidates, as a chain rewound below its best candidates
-    //! needs them.
+    //! or a chainstate made active by a snapshot rejection needs them.
     void RestoreBlockIndexCandidates() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     std::string EvoStallWarningSource() const;
 

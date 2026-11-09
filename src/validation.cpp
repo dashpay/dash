@@ -7244,6 +7244,7 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
     m_snapshot_chainstate->m_disabled = true;
     assert(!IsUsable(m_snapshot_chainstate.get()));
     assert(IsUsable(m_ibd_chainstate.get()));
+    m_ibd_chainstate->RestoreBlockIndexCandidates();
 
     // Record the rejection before restoring NORMAL: a snapshot directory left
     // behind without its generation can no longer be activated. If the
