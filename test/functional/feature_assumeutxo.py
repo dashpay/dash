@@ -12,7 +12,6 @@ instead of an entry in `CRegTestParams::m_assumeutxo_data`.
 
 ## Possible test improvements
 
-- TODO: test submitting a transaction and verifying it appears in mempool
 - TODO: test what happens with -reindex and -reindex-chainstate before the
       snapshot is validated, and make sure it's deleted successfully.
 
@@ -35,9 +34,13 @@ Interesting starting states could be loading a snapshot when the current chain t
 
 """
 from contextlib import nullcontext
+from decimal import Decimal
 from shutil import rmtree
 
-from test_framework.messages import MAGIC_BYTES
+from test_framework.messages import (
+    MAGIC_BYTES,
+    tx_from_hex,
+)
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import ErrorMatch
@@ -46,7 +49,10 @@ from test_framework.util import (
     assert_raises_rpc_error,
     p2p_port,
 )
-from test_framework.wallet import MiniWallet
+from test_framework.wallet import (
+    getnewdestination,
+    MiniWallet,
+)
 
 START_HEIGHT = 199
 EXTRA_TX_HEIGHTS = (210, 220)
@@ -251,6 +257,22 @@ class AssumeutxoTest(BitcoinTestFramework):
         assert_equal(snapshot['validated'], False)
 
         assert_equal(n1.getblockchaininfo()["blocks"], SNAPSHOT_BASE_HEIGHT)
+
+        self.log.info("Submit a spending transaction for a snapshot chainstate coin to the mempool")
+        # spend the coinbase output of the first block that is not available on node1
+        spend_coin_blockhash = n1.getblockhash(START_HEIGHT + 1)
+        assert_raises_rpc_error(-1, "Block not found on disk", n1.getblock, spend_coin_blockhash)
+        prev_tx = n0.getblock(spend_coin_blockhash, 3)['tx'][0]
+        prevout = {"txid": prev_tx['txid'], "vout": 0, "scriptPubKey": prev_tx['vout'][0]['scriptPubKey']['hex']}
+        privkey = n0.get_deterministic_priv_key().key
+        raw_tx = n1.createrawtransaction([prevout], {getnewdestination()[2]: prev_tx['vout'][0]['value'] - Decimal("0.001")})
+        signed_tx = n1.signrawtransactionwithkey(raw_tx, [privkey], [prevout])['hex']
+        signed_txid = tx_from_hex(signed_tx).rehash()
+
+        assert n1.gettxout(prev_tx['txid'], 0) is not None
+        n1.sendrawtransaction(signed_tx)
+        assert signed_txid in n1.getrawmempool()
+        assert not n1.gettxout(prev_tx['txid'], 0)
 
         PAUSE_HEIGHT = FINAL_HEIGHT - 40
 
