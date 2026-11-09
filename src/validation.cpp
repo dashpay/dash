@@ -2028,7 +2028,7 @@ bool ChainstateManager::IsInitialBlockDownload() const
     if (chain.Tip()->nChainWork < MinimumChainWork()) {
         return true;
     }
-    if (chain.Tip()->Time() < NodeClock::now() - m_options.max_tip_age) {
+    if (chain.Tip()->Time() < Now<NodeSeconds>() - m_options.max_tip_age) {
         return true;
     }
     LogPrintf("Leaving InitialBlockDownload (latching to false)\n");
