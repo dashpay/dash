@@ -2001,7 +2001,8 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
 
     // The V2Transport transparently falls back to V1 behavior when an incoming V1 connection is
     // detected, so use it whenever we signal NODE_P2P_V2.
-    const bool use_v2transport(nLocalServices & NODE_P2P_V2);
+    ServiceFlags local_services = GetLocalServices();
+    const bool use_v2transport(local_services & NODE_P2P_V2);
 
     CNode* pnode = new CNode(id,
                              std::move(sock),
@@ -2019,7 +2020,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
                                  .use_v2transport = use_v2transport,
                              });
     pnode->AddRef();
-    m_msgproc->InitializeNode(*pnode, nLocalServices);
+    m_msgproc->InitializeNode(*pnode, local_services);
     {
         LOCK(m_nodes_mutex);
         m_nodes.push_back(pnode);

@@ -3445,6 +3445,13 @@ static RPCHelpMan loadtxoutset()
     const CBlockIndex* snapshot_start_block{CHECK_NONFATAL(WITH_LOCK(::cs_main,
         return chainman.m_blockman.LookupBlockIndex(metadata.m_base_blockhash)))};
 
+    // Because we can't provide historical blocks during tip or background sync.
+    // Update local services to reflect we are a limited peer until we are fully sync.
+    node.connman->RemoveLocalServices(NODE_NETWORK);
+    // Setting the limited state is usually redundant because the node can always
+    // provide the last 288 blocks, but it doesn't hurt to set it.
+    node.connman->AddLocalServices(NODE_NETWORK_LIMITED);
+
     UniValue result(UniValue::VOBJ);
     result.pushKV("coins_loaded", metadata.m_coins_count);
     result.pushKV("tip_hash", snapshot_start_block->GetBlockHash().ToString());
