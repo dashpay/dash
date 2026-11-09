@@ -42,7 +42,7 @@ bool CCoinJoinEntry::AddScriptSig(const CTxIn& txin)
 
 uint256 CCoinJoinQueue::GetSignatureHash() const
 {
-    return SerializeHash(*this, SER_GETHASH, PROTOCOL_VERSION);
+    return SerializeSigHash(*this);
 }
 uint256 CCoinJoinQueue::GetHash() const { return SerializeHash(*this, SER_NETWORK, PROTOCOL_VERSION); }
 
@@ -76,7 +76,7 @@ bool CCoinJoinQueue::IsTimeOutOfBounds() const
 
 uint256 CCoinJoinBroadcastTx::GetSignatureHash() const
 {
-    return SerializeHash(*this, SER_GETHASH, PROTOCOL_VERSION);
+    return SerializeSigHash(*this);
 }
 
 bool CCoinJoinBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const

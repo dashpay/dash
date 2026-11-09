@@ -182,7 +182,7 @@ public:
     uint256 GetHash() const;
     uint256 GetSignatureHash() const
     {
-        return SerializeHash(*this);
+        return SerializeSigHash(*this);
     }
 
     std::string ToString(const CDeterministicMNList& tip_mn_list) const;

@@ -434,7 +434,7 @@ std::string CProRegTx::MakeSignString() const
     s += EncodeDestination(PKHash(keyIDVoting)) + "|";
 
     // ... and also the full hash of the payload as a protection against malleability and replays
-    s += ::SerializeHash(*this).ToString();
+    s += ::SerializeSigHash(*this).ToString();
 
     return s;
 }

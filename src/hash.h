@@ -233,6 +233,27 @@ uint256 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL
     return ss.GetHash();
 }
 
+/** A writer that computes the hash a signed object's signature commits to: the object's serializer leaves the signature out. */
+class SigHashWriter : public CHashWriter
+{
+public:
+    SigHashWriter() : CHashWriter{SER_GETHASH, PROTOCOL_VERSION} {}
+
+    template <typename T>
+    SigHashWriter& operator<<(const T& obj)
+    {
+        ::Serialize(*this, obj);
+        return *this;
+    }
+};
+
+/** Compute the 256-bit hash of a signed object's serialization without its signature. */
+template <typename T>
+uint256 SerializeSigHash(const T& obj)
+{
+    return (SigHashWriter{} << obj).GetHash();
+}
+
 /** Single-SHA256 a 32-byte input (represented as uint256). */
 [[nodiscard]] uint256 SHA256Uint256(const uint256& input);
 
