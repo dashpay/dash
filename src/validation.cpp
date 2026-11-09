@@ -6479,9 +6479,8 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex *pin
     if (pindex == nullptr)
         return 0.0;
 
-    if (!Assume(pindex->nChainTx > 0)) {
-        LogWarning("Internal bug detected: block %d has unset nChainTx (%s %s). Please report this issue here: %s\n",
-                   pindex->nHeight, PACKAGE_NAME, FormatFullVersion(), PACKAGE_BUGREPORT);
+    if (pindex->nChainTx == 0) {
+        LogDebug(BCLog::VALIDATION, "Block %d has unset nChainTx. Unable to estimate verification progress.\n", pindex->nHeight);
         return 0.0;
     }
 
