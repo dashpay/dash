@@ -80,8 +80,8 @@ BOOST_AUTO_TEST_CASE(cnode_listen_port)
 BOOST_AUTO_TEST_CASE(inventory_request_accounting)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
-    auto& chainstate = *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
     auto peer{MakeTestPeer(/*id=*/0)};
     auto fallback{MakeTestPeer(/*id=*/1)};
     auto& peerman = *m_node.peerman;
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(inventory_request_accounting)
     BOOST_CHECK_EQUAL(peerman.GetRequestedObjectCount(peer->GetId()), objects.size());
     peerman.FinalizeNode(*peer);
     peerman.FinalizeNode(*fallback);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 
@@ -197,9 +197,8 @@ BOOST_AUTO_TEST_CASE(peer_requested_object_authorizes_and_erases_per_peer_state)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     auto peer{MakeTestPeer(/*id=*/0)};
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
@@ -239,7 +238,7 @@ BOOST_AUTO_TEST_CASE(peer_requested_object_authorizes_and_erases_per_peer_state)
     BOOST_CHECK(WITH_LOCK(::cs_main, return m_node.peerman->PeerConsumeObjectRequest(peer->GetId(), unsolicited_inv)));
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 
@@ -251,9 +250,8 @@ BOOST_AUTO_TEST_CASE(peer_getdata_response_requires_an_inflight_request)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     auto peer{MakeTestPeer(/*id=*/0)};
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
@@ -279,7 +277,7 @@ BOOST_AUTO_TEST_CASE(peer_getdata_response_requires_an_inflight_request)
     BOOST_CHECK_EQUAL(m_node.peerman->GetRequestedObjectCount(peer->GetId()), 0U);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 
@@ -292,8 +290,8 @@ BOOST_AUTO_TEST_CASE(expired_getdata_response_is_late_not_unrequested)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate = *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     auto peer{MakeTestPeer(/*id=*/0)};
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
@@ -325,7 +323,7 @@ BOOST_AUTO_TEST_CASE(expired_getdata_response_is_late_not_unrequested)
                 GetDataResponse::UNREQUESTED);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 
@@ -336,8 +334,8 @@ BOOST_AUTO_TEST_CASE(forgotten_getdata_response_is_late_not_unrequested)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate = *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     auto peer{MakeTestPeer(/*id=*/0)};
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
@@ -357,7 +355,7 @@ BOOST_AUTO_TEST_CASE(forgotten_getdata_response_is_late_not_unrequested)
     BOOST_CHECK(ConsumeGetDataResponse(*m_node.peerman, *peer, inv) == GetDataResponse::UNREQUESTED);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 
@@ -370,8 +368,8 @@ BOOST_AUTO_TEST_CASE(getdata_response_grace_does_not_cross_inv_types)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate = *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     auto peer{MakeTestPeer(/*id=*/0)};
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
@@ -391,7 +389,7 @@ BOOST_AUTO_TEST_CASE(getdata_response_grace_does_not_cross_inv_types)
                 GetDataResponse::UNREQUESTED);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 
@@ -401,8 +399,8 @@ BOOST_AUTO_TEST_CASE(getdata_response_grace_expires)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
-    TestChainState& chainstate = *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     auto peer{MakeTestPeer(/*id=*/0)};
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
@@ -421,7 +419,7 @@ BOOST_AUTO_TEST_CASE(getdata_response_grace_expires)
     BOOST_CHECK(ConsumeGetDataResponse(*m_node.peerman, *peer, inv) == GetDataResponse::UNREQUESTED);
 
     m_node.peerman->FinalizeNode(*peer);
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     SetMockTime(0s);
 }
 
@@ -1224,11 +1222,10 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
     const int64_t time{0};
     const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
 
-    // Force Chainstate::IsInitialBlockDownload() to return false.
+    // Force ChainstateManager::IsInitialBlockDownload() to return false.
     // Otherwise PushAddress() isn't called by PeerManager::ProcessMessage().
-    TestChainState& chainstate =
-        *static_cast<TestChainState*>(&m_node.chainman->ActiveChainstate());
-    chainstate.JumpOutOfIbd();
+    auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
+    chainman.JumpOutOfIbd();
 
     m_node.peerman->InitializeNode(peer, NODE_NETWORK);
 
@@ -1278,7 +1275,7 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
     BOOST_CHECK(sent);
 
     CaptureMessage = CaptureMessageOrig;
-    chainstate.ResetIbd();
+    chainman.ResetIbd();
     m_node.args->ForceSetArg("-capturemessages", "0");
     m_node.args->ForceSetArg("-bind", "");
     // PeerManager::ProcessMessage() calls AddTimeData() which changes the internal state

@@ -37,7 +37,7 @@ static std::string CreateEncodedProposalObject(const UniValue& objJSON)
 BOOST_AUTO_TEST_CASE(valid_proposals_test)
 {
     // all proposals are valid but expired
-    UniValue tests = read_json(std::string(json_tests::proposals_valid, json_tests::proposals_valid + sizeof(json_tests::proposals_valid)));
+    UniValue tests = read_json(json_tests::proposals_valid);
 
     BOOST_CHECK_MESSAGE(tests.size(), "Empty `tests`");
     for(size_t i = 0; i < tests.size(); ++i) {
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(invalid_proposals_test)
 {
     // all proposals are invalid regardless of being expired or not
     // (i.e. we don't even check for expiration here)
-    UniValue tests = read_json(std::string(json_tests::proposals_invalid, json_tests::proposals_invalid + sizeof(json_tests::proposals_invalid)));
+    UniValue tests = read_json(json_tests::proposals_invalid);
 
     BOOST_CHECK_MESSAGE(tests.size(), "Empty `tests`");
     for(size_t i = 0; i < tests.size(); ++i) {

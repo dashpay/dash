@@ -6,19 +6,6 @@
 #ifndef BITCOIN_TXMEMPOOL_H
 #define BITCOIN_TXMEMPOOL_H
 
-#include <atomic>
-#include <limits>
-#include <map>
-#include <optional>
-#include <set>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
-
-#include <kernel/mempool_limits.h>
-#include <kernel/mempool_options.h>
-
 #include <arith_uint256.h>
 #include <coins.h>
 #include <consensus/amount.h>
@@ -27,7 +14,10 @@
 #include <index/spentindex_types.h>
 #include <indirectmap.h>
 #include <kernel/cs_main.h>
-#include <kernel/mempool_entry.h>
+#include <kernel/mempool_entry.h>          // IWYU pragma: export
+#include <kernel/mempool_limits.h>         // IWYU pragma: export
+#include <kernel/mempool_options.h>        // IWYU pragma: export
+#include <kernel/mempool_removal_reason.h> // IWYU pragma: export
 #include <netaddress.h>
 #include <policy/feerate.h>
 #include <policy/packages.h>
@@ -47,9 +37,17 @@
 #include <boost/multi_index/tag.hpp>
 #include <boost/multi_index_container.hpp>
 
-class CBlockIndex;
+#include <atomic>
+#include <limits>
+#include <map>
+#include <optional>
+#include <set>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
 class CChain;
-class Chainstate;
 
 // Forward declaration for CBLSLazyPublicKey:
 template<typename T> class CBLSLazyWrapper;
@@ -227,20 +225,6 @@ struct TxMempoolInfo
     /** The fee delta. */
     int64_t nFeeDelta;
 };
-
-/** Reason why a transaction was removed from the mempool,
- * this is passed to the notification signal.
- */
-enum class MemPoolRemovalReason {
-    EXPIRY,      //!< Expired from mempool
-    SIZELIMIT,   //!< Removed in size limiting
-    REORG,       //!< Removed for reorganization
-    BLOCK,       //!< Removed for block
-    CONFLICT,    //!< Removed for conflict with in-block transaction
-    MANUAL       //!< Removed manually
-};
-
-std::string RemovalReasonToString(const MemPoolRemovalReason& r) noexcept;
 
 /**
  * CTxMemPool stores valid-according-to-the-current-best-chain transactions
@@ -699,13 +683,13 @@ public:
     void GetTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize = nullptr, CAmount* ancestorfees = nullptr) const;
 
     /**
-     * @returns true if we've made an attempt to load the mempool regardless of
+     * @returns true if an initial attempt to load the persisted mempool was made, regardless of
      *          whether the attempt was successful or not
      */
     bool GetLoadTried() const;
 
     /**
-     * Set whether or not we've made an attempt to load the mempool (regardless
+     * Set whether or not an initial attempt to load the persisted mempool was made (regardless
      * of whether the attempt was successful or not)
      */
     void SetLoadTried(bool load_tried);

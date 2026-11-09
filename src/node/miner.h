@@ -27,6 +27,8 @@ class CDeterministicMNManager;
 class CEvoDB;
 class CMNListBuilder;
 class CScript;
+class Chainstate;
+class ChainstateManager;
 
 namespace chainlock
 {

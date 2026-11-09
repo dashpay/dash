@@ -12,6 +12,8 @@
 #include <index/base.h>
 #include <util/hasher.h>
 
+#include <unordered_map>
+
 class AutoFile;
 
 static const char* const DEFAULT_BLOCKFILTERINDEX = "0";

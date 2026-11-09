@@ -52,7 +52,7 @@ BOOST_FIXTURE_TEST_CASE(unrequested_qfcommit_is_dropped_and_scored, TestChain100
 
     // INV announcements for non-spork objects are only tracked outside IBD; the 100 mined blocks
     // of this fixture already take us out of it.
-    BOOST_REQUIRE(!m_node.chainman->ActiveChainstate().IsInitialBlockDownload());
+    BOOST_REQUIRE(!m_node.chainman->IsInitialBlockDownload());
 
     // Every Dash-specific message is offered to CMNAuth first, which asserts a loaded metadata
     // manager. The fixture leaves it unloaded, so initialise an empty cache here.

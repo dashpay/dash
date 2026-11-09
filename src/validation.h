@@ -493,14 +493,6 @@ protected:
      */
     Mutex m_chainstate_mutex;
 
-    /**
-     * Whether this chainstate is undergoing initial block download.
-     *
-     * Mutable because we need to be able to mark IsInitialBlockDownload()
-     * const, which latches this for caching purposes.
-     */
-    mutable std::atomic<bool> m_cached_finished_ibd{false};
-
     //! Optional mempool that is kept in sync with the chain.
     //! Only the active chainstate has a mempool.
     CTxMemPool* m_mempool;
@@ -755,14 +747,8 @@ public:
 
     void ClearBlockIndexCandidates() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    /** Check whether we are doing an initial block download (synchronizing from disk or network) */
-    bool IsInitialBlockDownload() const;
-
     /** Find the last common block of this chain and a locator. */
     const CBlockIndex* FindForkInGlobalIndex(const CBlockLocator& locator) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
-
-    /** Load the persisted mempool from disk */
-    void LoadMempool(const fs::path& load_path, fsbridge::FopenFn mockable_fopen_function = fsbridge::fopen);
 
     /** Update the chain tip based on database information, i.e. CoinsTip()'s best block. */
     bool LoadChainTip() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
@@ -1012,6 +998,15 @@ public:
     node::BlockManager m_blockman;
 
     /**
+     * Whether initial block download has ended and IsInitialBlockDownload
+     * should return false from now on.
+     *
+     * Mutable because we need to be able to mark IsInitialBlockDownload()
+     * const, which latches this for caching purposes.
+     */
+    mutable std::atomic<bool> m_cached_finished_ibd{false};
+
+    /**
      * Every received block is assigned a unique and increasing identifier, so we
      * know which one to give priority in case of a fork.
      */
@@ -1142,6 +1137,9 @@ public:
 
     //! Whether active-state-dependent masternode duties must remain disabled.
     bool IsSnapshotActiveAndUnvalidated() const;
+
+    /** Check whether we are doing an initial block download (synchronizing from disk or network) */
+    bool IsInitialBlockDownload() const;
 
     /**
      * Import blocks from an external file
