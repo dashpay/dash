@@ -64,7 +64,7 @@ public:
 
     [[nodiscard]] uint256 GetSignHash() const
     {
-        CHashWriter hw(SER_GETHASH, 0);
+        HashWriter hw{};
         SerializeWithoutSig(hw);
         hw << CBLSSignature();
         return hw.GetHash();

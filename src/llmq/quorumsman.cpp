@@ -736,7 +736,7 @@ static std::optional<size_t> SelectSigningCandidate(const Consensus::LLMQParams&
     std::vector<std::pair<uint256, size_t>> scores;
     scores.reserve(candidates.size());
     for (const auto i : util::irange(candidates.size())) {
-        CHashWriter h(SER_NETWORK, 0);
+        HashWriter h{};
         h << llmq_params.type;
         h << SigningCandidateCommitment(candidates[i]).quorumHash;
         h << selectionHash;

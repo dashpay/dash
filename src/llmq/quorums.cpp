@@ -19,7 +19,7 @@ const std::string DB_QUORUM_QUORUM_VVEC = "q_Qqvvec";
 
 uint256 MakeQuorumKey(const CQuorum& q)
 {
-    CHashWriter hw(SER_NETWORK, 0);
+    HashWriter hw{};
     hw << q.params.type;
     hw << q.qc->quorumHash;
     for (const auto& dmn : q.members) {
