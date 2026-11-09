@@ -7263,6 +7263,35 @@ bool Chainstate::FlushCoinsThenSyncEvo()
            m_evoDb.CommitRootTransaction(EvoDbIdentity(), /*sync=*/true);
 }
 
+void ChainstateManager::ForgetSnapshotBase(const CBlockIndex& base)
+{
+    AssertLockHeld(::cs_main);
+    std::vector<CBlockIndex*> from_base;
+    for (auto& [_, index] : m_blockman.m_block_index) {
+        if (index.GetAncestor(base.nHeight) == &base) from_base.push_back(&index);
+    }
+    std::sort(from_base.begin(), from_base.end(), CBlockIndexHeightOnlyComparator());
+    // nSequenceId orders the candidate sets.
+    for (Chainstate* chainstate : {m_ibd_chainstate.get(), m_snapshot_chainstate.get()}) {
+        for (CBlockIndex* index : from_base) chainstate->setBlockIndexCandidates.erase(index);
+    }
+    for (CBlockIndex* index : from_base) {
+        if (index->nTx > 0 && index->pprev->HaveNumChainTxs()) {
+            index->nChainTx = index->pprev->nChainTx + index->nTx;
+        } else if (index->nChainTx != 0) {
+            index->nChainTx = 0;
+            index->nSequenceId = 0;
+            if (index->nStatus & BLOCK_HAVE_DATA) {
+                auto [begin, end]{m_blockman.m_blocks_unlinked.equal_range(index->pprev)};
+                if (std::none_of(begin, end, [&](const auto& entry) { return entry.second == index; })) {
+                    m_blockman.m_blocks_unlinked.emplace(index->pprev, index);
+                }
+            }
+        }
+        if (LowerUnbackedValidity(*index, /*snapshot_base=*/nullptr)) m_blockman.m_dirty_blockindex.insert(index);
+    }
+}
+
 bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
                                                     std::function<void(bilingual_str)> shutdown_fnc)
 {
@@ -7321,6 +7350,7 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
     m_snapshot_chainstate->m_disabled = true;
     assert(!IsUsable(m_snapshot_chainstate.get()));
     assert(IsUsable(m_ibd_chainstate.get()));
+    if (const CBlockIndex* base{m_snapshot_chainstate->SnapshotBase()}) ForgetSnapshotBase(*base);
     m_ibd_chainstate->RestoreBlockIndexCandidates();
 
     // Record the rejection before restoring NORMAL: a snapshot directory left

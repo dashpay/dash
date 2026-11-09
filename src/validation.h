@@ -1236,6 +1236,10 @@ private:
     std::unique_ptr<evo::EvoSnapshotCapturePlan> m_evo_capture_plan GUARDED_BY(::cs_main);
     bool m_evo_capture_plan_loaded GUARDED_BY(::cs_main){false};
 
+    //! Give a rejected snapshot's base and the blocks above it the counts,
+    //! candidacy and validity they have without that snapshot.
+    void ForgetSnapshotBase(const CBlockIndex& base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 public:
     //! Make snapshot activation stop right before it publishes the seeded Evo
     //! generation, without cleaning up, as if the process died there.
