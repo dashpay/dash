@@ -1220,6 +1220,7 @@ void RegisterMasternodeWizard::refreshCollateralCandidates()
         showError(MasternodeWidgetUtil::masternodeStateUnavailableText());
         return;
     }
+    if (m_error_label->text() == MasternodeWidgetUtil::masternodeStateUnavailableText()) showError(QString());
     refreshCollateralCandidates(*registered);
 }
 

@@ -665,7 +665,7 @@ void MasternodeWidgetTests::registeredCollateralExclusion()
 
     // While the masternode list cannot be read, a registered collateral cannot
     // be told from a free one: the wizard keeps its candidates and says why.
-    {
+    const auto refresh_while_unavailable{[&](int candidates) {
         auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
         const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
         test.m_node.dmnman->SetListSnapshotMissHookForTesting(
@@ -673,14 +673,28 @@ void MasternodeWidgetTests::registeredCollateralExclusion()
         wizard.refreshCollateralCandidates();
         test.m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
         consensus.DIP0003Height = dip3_height;
-        QCOMPARE(wizard.m_col_utxo_combo->count(), 1);
+        QCOMPARE(wizard.m_col_utxo_combo->count(), candidates);
         QCOMPARE(wizard.m_error_label->text(), MasternodeWidgetUtil::masternodeStateUnavailableText());
         SetMiscWarning(Untranslated(""));
-    }
+    }};
+    refresh_while_unavailable(1);
+
+    // Once the list can be read again, a refresh replaces the unavailable state.
+    wizard.refreshCollateralCandidates();
+    QCOMPARE(wizard.m_col_utxo_combo->count(), 1);
+    QCOMPARE(wizard.m_error_label->text(), QString());
 
     wizard.refreshCollateralCandidates({collateral});
     QCOMPARE(wizard.m_col_utxo_combo->count(), 0);
     QVERIFY(!wizard.m_col_utxo_none->isHidden());
+
+    // The same holds with no candidate to list, when the refresh leaves the
+    // collateral list empty.
+    QVERIFY(wallet_model.wallet().lockCoin(collateral, /*write_to_db=*/false));
+    refresh_while_unavailable(0);
+    wizard.refreshCollateralCandidates();
+    QCOMPARE(wizard.m_col_utxo_combo->count(), 0);
+    QCOMPARE(wizard.m_error_label->text(), QString());
 }
 
 void MasternodeWidgetTests::wizardMinimumGeometry()
