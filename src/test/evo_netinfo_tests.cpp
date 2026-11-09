@@ -671,7 +671,7 @@ BOOST_AUTO_TEST_CASE(netinfo_retvals)
 
 bool CheckIfSerSame(const CService& lhs, const MnNetInfo& rhs)
 {
-    CHashWriter ss_lhs(SER_GETHASH, 0), ss_rhs(SER_GETHASH, 0);
+    HashWriter ss_lhs{}, ss_rhs{};
     ss_lhs << CNetAddr::V1(lhs);
     ss_rhs << rhs;
     return ss_lhs.GetSHA256() == ss_rhs.GetSHA256();

@@ -9,7 +9,7 @@
 
 uint256 CalcTxInputsHash(const CTransaction& tx)
 {
-    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
+    HashWriter hw{};
     for (const auto& in : tx.vin) {
         hw << in.prevout;
     }
@@ -18,7 +18,7 @@ uint256 CalcTxInputsHash(const CTransaction& tx)
 
 uint256 CalcTxOutputsHash(const CTransaction& tx)
 {
-    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
+    HashWriter hw{};
     for (const auto& out : tx.vout) {
         hw << out;
     }

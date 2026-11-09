@@ -386,7 +386,7 @@ uint256 CProRegTx::MakeSharedRegConsentHash(const CTransaction& tx) const
     // signatures. Covering the sequences matters: BIP68 gives them consensus meaning on
     // version >= 2 transactions, so an uncovered sequence rewrite could impose a months-long
     // relative timelock on a fully consented registration.
-    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
+    HashWriter hw{};
     hw << std::string("DashSharedMNReg");
     hw << nVersion;
     hw << tx.nVersion;
@@ -551,7 +551,7 @@ uint256 CProDisTx::MakeSignHash(const CTransaction& tx, uint8_t sig_count) const
     // unanimous dissolution as a unilateral one (or vice versa) by dropping/adding signatures.
     // Together with the empty-scriptSig rule and the low-S requirement this pins every free byte of
     // a ProDisTx, so its txid is non-malleable by third parties.
-    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
+    HashWriter hw{};
     hw << std::string("DashSharedMNDissolve");
     hw << nVersion;
     hw << tx.nVersion;

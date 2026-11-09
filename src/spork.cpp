@@ -267,7 +267,7 @@ uint256 CSporkMessage::GetHash() const
 
 uint256 CSporkMessage::GetSignatureHash() const
 {
-    CHashWriter s(SER_GETHASH, 0);
+    HashWriter s{};
     s << nSporkID;
     s << nValue;
     s << nTimeSigned;

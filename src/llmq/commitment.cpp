@@ -303,7 +303,7 @@ uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHa
                                         const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey,
                                         const uint256& vvecHash)
 {
-    CHashWriter hw(SER_GETHASH, 0);
+    HashWriter hw{};
     hw << llmqType;
     hw << blockHash;
     hw << DYNBITSET(validMembers);

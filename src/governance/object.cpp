@@ -526,7 +526,7 @@ uint256 CGovernanceObject::GetHash() const
 
 uint256 CGovernanceObject::GetDataHash() const
 {
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    HashWriter ss{};
     ss << GetDataAsHexString();
 
     return ss.GetHash();

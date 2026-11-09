@@ -554,7 +554,7 @@ public:
             hash.SetNull();
         }
         if (hash.IsNull()) {
-            CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+            HashWriter ss{};
             ss.write(MakeByteSpan(vecBytes));
             hash = ss.GetHash();
         }
