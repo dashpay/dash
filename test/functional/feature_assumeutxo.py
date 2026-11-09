@@ -24,7 +24,6 @@ Interesting test cases could be loading an assumeutxo snapshot file with:
 Interesting starting states could be loading a snapshot when the current chain tip is:
 
 - TODO: An ancestor of snapshot block
-- TODO: Not an ancestor of the snapshot block but has less work
 - TODO: The snapshot block
 - TODO: A descendant of the snapshot block
 - TODO: Not an ancestor or a descendant of the snapshot block and has more work
@@ -58,7 +57,7 @@ class AssumeutxoTest(BitcoinTestFramework):
 
     def set_test_params(self):
         """Use the pregenerated, deterministic chain up to height 199."""
-        self.num_nodes = 4
+        self.num_nodes = 5
         self.rpc_timeout = 120
         # A snapshot chainstate cannot run in prune mode.
         self.extra_args = [
@@ -66,12 +65,13 @@ class AssumeutxoTest(BitcoinTestFramework):
             ["-blockfilterindex=1", "-coinstatsindex=1"],
             ["-persistmempool=0", "-txindex=1", "-blockfilterindex=1", "-coinstatsindex=1"],
             [],
+            [],
         ]
 
     def setup_network(self):
         """Start with the nodes disconnected so that one can generate a snapshot
         including blocks the other hasn't yet seen."""
-        self.add_nodes(4)
+        self.add_nodes(5)
         self.start_nodes(extra_args=self.extra_args)
 
     def authorize_snapshot(self, dump_output):
@@ -79,7 +79,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         regtest chain parameters have no entry for this chain."""
         self.snapshot_hash = dump_output['txoutset_hash']
         self.pin = pin = f"-assumeutxodata={dump_output['base_height']}:{self.snapshot_hash}:{dump_output['evo']['hash']}:{dump_output['nchaintx']}:{dump_output['base_hash']}"
-        for i in (1, 2, 3):
+        for i in (1, 2, 3, 4):
             self.extra_args[i].append(pin)
             self.restart_node(i, extra_args=self.extra_args[i])
 
@@ -198,6 +198,29 @@ class AssumeutxoTest(BitcoinTestFramework):
             assert_raises_rpc_error(-32603, msg, node.loadtxoutset, dump_output_path)
             node.reconsiderblock(block_hash)
 
+    def test_snapshot_in_a_divergent_chain(self, dump_output_path):
+        n0 = self.nodes[0]
+        n4 = self.nodes[4]
+        assert_equal(n0.getblockcount(), FINAL_HEIGHT)
+        assert_equal(n4.getblockcount(), START_HEIGHT)
+
+        self.log.info("Check importing a snapshot where current chain-tip is not an ancestor of the snapshot block but has less work")
+        # Generate a divergent chain in n4 up to 298
+        self.generate(n4, nblocks=99, sync_fun=self.no_op)
+        assert_equal(n4.getblockcount(), SNAPSHOT_BASE_HEIGHT - 1)
+
+        # Try importing the snapshot and assert its success
+        loaded = n4.loadtxoutset(dump_output_path)
+        assert_equal(loaded['base_height'], SNAPSHOT_BASE_HEIGHT)
+        normal, snapshot = n4.getchainstates()["chainstates"]
+        assert_equal(normal['blocks'], START_HEIGHT + 99)
+        assert_equal(snapshot['blocks'], SNAPSHOT_BASE_HEIGHT)
+
+        # Now lets sync the nodes and wait for the background validation to finish
+        self.connect_nodes(0, 4)
+        self.sync_blocks(nodes=(n0, n4))
+        self.wait_until(lambda: len(n4.getchainstates()['chainstates']) == 1)
+
     def run_test(self):
         """
         Bring up two (disconnected) nodes, mine some new blocks on the first,
@@ -210,6 +233,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         n1 = self.nodes[1]
         n2 = self.nodes[2]
         n3 = self.nodes[3]
+        n4 = self.nodes[4]
 
         # Mock time for a deterministic chain
         for n in self.nodes:
@@ -252,6 +276,7 @@ class AssumeutxoTest(BitcoinTestFramework):
             n1.submitheader(newblock)
             n2.submitheader(newblock)
             n3.submitheader(newblock)
+            n4.submitheader(newblock)
 
         # Ensure everyone is seeing the same headers.
         for n in self.nodes:
@@ -522,6 +547,8 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.log.info("Restarting node 3 to ensure (Check|Load)BlockIndex passes")
         self.restart_node(3, extra_args=self.extra_args[3])
         assert_equal(n3.getblockcount(), FINAL_HEIGHT)
+
+        self.test_snapshot_in_a_divergent_chain(dump_output['path'])
 
 
 @dataclass
