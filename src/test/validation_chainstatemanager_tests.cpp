@@ -4569,7 +4569,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_activations_are_serialize
         node::SnapshotMetadata metadata;
         in >> metadata;
         const ActiveEvoViewScope turn{m_node.evodb.get()};
-        return chainman.ActivateSnapshot(in, metadata, /*in_memory=*/false);
+        return !!chainman.ActivateSnapshot(in, metadata, /*in_memory=*/false);
     };
 
     std::promise<void> first_running;

@@ -1299,7 +1299,7 @@ public:
     //!
     //! The caller must not hold cs_main: before the switch this waits for
     //! other threads' active-chain turns, which may need it.
-    [[nodiscard]] bool ActivateSnapshot(
+    [[nodiscard]] util::Result<void> ActivateSnapshot(
         AutoFile& coins_file, const node::SnapshotMetadata& metadata, bool in_memory)
         LOCKS_EXCLUDED(::cs_main);
 

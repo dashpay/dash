@@ -6598,7 +6598,7 @@ bool DeleteSnapshotChainstateFromDisk(const fs::path& data_dir)
     return DeleteCoinsDBFromDisk(*snapshot_datadir, /*is_snapshot=*/true);
 }
 
-bool ChainstateManager::ActivateSnapshot(
+util::Result<void> ChainstateManager::ActivateSnapshot(
         AutoFile& coins_file,
         const SnapshotMetadata& metadata,
         bool in_memory)
@@ -6608,7 +6608,7 @@ bool ChainstateManager::ActivateSnapshot(
     // snapshot directory, the evo captures and whatever generation is bound.
     if (m_snapshot_activation_running.exchange(true)) {
         LogPrintf("[snapshot] refusing to activate a snapshot while another activation is in progress\n");
-        return false;
+        return util::Error{Untranslated("Another snapshot activation is in progress")};
     }
     const struct ActivationDone {
         std::atomic<bool>& running;
@@ -6619,19 +6619,31 @@ bool ChainstateManager::ActivateSnapshot(
 
     if (this->SnapshotBlockhash()) {
         LogPrintf("[snapshot] can't activate a snapshot-based chainstate more than once\n");
-        return false;
+        return util::Error{_("Can't activate a snapshot-based chainstate more than once")};
     }
 
     {
         LOCK(::cs_main);
+
+        if (!GetParams().AssumeutxoForBlockhash(base_blockhash).has_value()) {
+            return util::Error{strprintf(_("assumeutxo block hash in snapshot metadata not recognized (%s)"),
+                base_blockhash.ToString())};
+        }
+
+        CBlockIndex* snapshot_start_block = m_blockman.LookupBlockIndex(base_blockhash);
+        if (!snapshot_start_block) {
+            return util::Error{strprintf(_("The base block header (%s) must appear in the headers chain. Make sure all headers are syncing, and call loadtxoutset again."),
+                          base_blockhash.ToString())};
+        }
+
         auto mempool{m_active_chainstate->GetMempool()};
         if (mempool && mempool->size() > 0) {
             LogPrintf("[snapshot] can't activate a snapshot when mempool not empty\n");
-            return false;
+            return util::Error{_("Can't activate a snapshot when mempool not empty.")};
         }
-        if (const auto refusal{SnapshotActivationRefusal(m_blockman.LookupBlockIndex(base_blockhash))}) {
+        if (const auto refusal{SnapshotActivationRefusal(snapshot_start_block)}) {
             LogPrintf("[snapshot] refusing to activate snapshot %s: %s\n", base_blockhash.ToString(), *refusal);
-            return false;
+            return util::Error{Untranslated(*refusal)};
         }
     }
 
@@ -6644,7 +6656,8 @@ bool ChainstateManager::ActivateSnapshot(
         LogPrintf("[snapshot] refusing to activate snapshot %s: an earlier rejected snapshot "
                   "chainstate is still at %s; remove it (after reporting) before loading another snapshot\n",
                   base_blockhash.ToString(), fs::PathToString(rejected_dir));
-        return false;
+        return util::Error{strprintf(Untranslated("An earlier rejected snapshot chainstate is still at %s; remove it (after reporting) before loading another snapshot"),
+                                     fs::PathToString(rejected_dir))};
     }
 
     int64_t current_coinsdb_cache_size{0};
@@ -6749,7 +6762,7 @@ bool ChainstateManager::ActivateSnapshot(
     if (!snapshot_ok) {
         LOCK(::cs_main);
         cleanup();
-        return false;
+        return util::Error{Untranslated("population failed")};
     }
 
     // Active-chain turns that started in the view being replaced finish in it.
@@ -6768,24 +6781,24 @@ bool ChainstateManager::ActivateSnapshot(
         if (const auto refusal{SnapshotActivationRefusal(snapshot_start_block)}) {
             LogPrintf("[snapshot] refusing to activate snapshot %s: %s\n", base_blockhash.ToString(), *refusal);
             cleanup();
-            return false;
+            return util::Error{Untranslated(*refusal)};
         }
         // As if the process died around publication: no cleanup.
-        if (m_stop_before_evo_publication_for_testing) return false;
+        if (m_stop_before_evo_publication_for_testing) return util::Error{Untranslated("stopped before publication for testing")};
         if (!snapshot_chainstate->m_evoDb.PublishSnapshotGeneration(
                 EvoSnapshotConsensusConfig::FromParams(GetParams()).Fingerprint(), publication.base_mn_list_hash,
                 publication.retained_section)) {
             LogPrintf("[snapshot] failed to publish the snapshot EvoDB generation\n");
             cleanup();
-            return false;
+            return util::Error{Untranslated("failed to publish the snapshot EvoDB generation")};
         }
-        if (m_stop_after_evo_publication_for_testing) return false;
+        if (m_stop_after_evo_publication_for_testing) return util::Error{Untranslated("stopped after publication for testing")};
 
         // If not in-memory, persist the base blockhash for use during subsequent
         // initialization.
         if (!in_memory && !node::WriteSnapshotBaseBlockhash(*snapshot_chainstate)) {
             cleanup();
-            return false;
+            return util::Error{Untranslated("could not write base blockhash")};
         }
     } catch (...) {
         cleanup();
@@ -6849,7 +6862,7 @@ bool ChainstateManager::ActivateSnapshot(
         m_snapshot_chainstate->CoinsTip().DynamicMemoryUsage() / (1000 * 1000));
 
     this->MaybeRebalanceCaches();
-    return true;
+    return {};
 }
 
 bool ChainstateManager::SnapshotHasMoreWork(const CBlockIndex& active_tip, const CBlockIndex& base)

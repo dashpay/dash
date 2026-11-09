@@ -3422,8 +3422,10 @@ static RPCHelpMan loadtxoutset()
     afile >> metadata;
 
     uint256 base_blockhash = metadata.m_base_blockhash;
+    // ActivateSnapshot() checks this too, but an unknown hash must not wait
+    // for its header below.
     if (!chainman.GetParams().AssumeutxoForBlockhash(base_blockhash).has_value()) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Unable to load UTXO snapshot, "
+        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Unable to load UTXO snapshot: "
             "assumeutxo block hash in snapshot metadata not recognized (%s)", base_blockhash.ToString()));
     }
     int max_secs_to_wait_for_headers = 60 * 10;
@@ -3455,8 +3457,9 @@ static RPCHelpMan loadtxoutset()
             RPC_INTERNAL_ERROR,
             "Timed out waiting for base block header to appear in headers chain");
     }
-    if (!chainman.ActivateSnapshot(afile, metadata, false)) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to load UTXO snapshot " + fs::PathToString(path));
+    auto activation_result{chainman.ActivateSnapshot(afile, metadata, false)};
+    if (!activation_result) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf(_("Unable to load UTXO snapshot: %s\n"), util::ErrorString(activation_result)).original);
     }
     CBlockIndex* new_tip{WITH_LOCK(::cs_main, return chainman.ActiveTip())};
 

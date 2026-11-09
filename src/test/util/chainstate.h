@@ -75,7 +75,7 @@ static bool ActivateWithBaseHidden(ChainstateManager& chainman, const uint256& b
         hider.Hide();
     };
     hider.Hide();
-    return activate();
+    return !!activate();
 }
 
 /**
