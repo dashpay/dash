@@ -2712,9 +2712,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 ThreadImport(chainman, vImportFiles);
 
                 // Load mempool from disk
-                if (auto* pool{chainman.ActiveChainstate().GetMempool()}) {
-                    LoadMempool(*pool, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{}, chainman.ActiveChainstate(), {});
-                    pool->SetLoadTried(!ShutdownRequested());
+                Chainstate& chainstate{chainman.ActiveChainstate()};
+                if (auto* pool{chainstate.GetMempool()}) {
+                    LoadMempool(*pool, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{}, chainstate, {});
+                    // A load stopped because the mempool moved to another chainstate did not finish.
+                    const bool load_stopped{WITH_LOCK(::cs_main, return chainstate.GetMempool() != pool)};
+                    pool->SetLoadTried(!ShutdownRequested() && !load_stopped);
                 }
             }
             FinishImportedStartup(node, args, skip_evodb_repair_on_reindex);

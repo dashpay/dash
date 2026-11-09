@@ -26,6 +26,7 @@
 #include <instantsend/net_instantsend.h>
 #include <kernel/coinstats.h>
 #include <kernel/disconnected_transactions.h>
+#include <kernel/mempool_persist.h>
 #include <key.h>
 #include <logging.h>
 #include <masternode/meta.h>
@@ -4462,6 +4463,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_refused_when_loaded, EvoS
         LOCK2(::cs_main, m_node.mempool->cs);
         m_node.mempool->addUnchecked(TestMemPoolEntryHelper{}.FromTx(tx));
     }
+    const fs::path mempool_dump{chainman.m_options.datadir / "mempool_refused_when_loaded.dat"};
+    BOOST_REQUIRE(kernel::DumpMempool(*m_node.mempool, mempool_dump));
     refused_at_load("can't activate a snapshot when mempool not empty");
     WITH_LOCK(m_node.mempool->cs, m_node.mempool->removeRecursive(*tx, MemPoolRemovalReason::MANUAL));
 
@@ -4481,10 +4484,22 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_refused_when_loaded, EvoS
     // been removed.
     chainman.m_after_snapshot_coins_loaded_for_testing = nullptr;
     BOOST_REQUIRE(LoadEvoSnapshot(snapshot));
+    Chainstate& loaded{chainman.ActiveChainstate()};
     BOOST_REQUIRE(chainman.HandleSnapshotStateMismatch("test rejection", [](bilingual_str) {}));
     BOOST_REQUIRE(!chainman.IsSnapshotActive());
     BOOST_REQUIRE(fs::exists(rejected_dir));
     fs::remove_all(rejected_dir);
+    // No chainstate holds the mempool any more, so a mempool load, whether it
+    // starts now or was started before the rejection, stops.
+    {
+        ASSERT_DEBUG_LOG("Stopping the mempool load");
+        BOOST_CHECK(!kernel::LoadMempool(*m_node.mempool, mempool_dump, chainman.ActiveChainstate(), {.use_current_time = true}));
+    }
+    {
+        ASSERT_DEBUG_LOG("Stopping the mempool load");
+        BOOST_CHECK(!kernel::LoadMempool(*m_node.mempool, mempool_dump, loaded, {.use_current_time = true}));
+    }
+    BOOST_CHECK_EQUAL(m_node.mempool->size(), 0U);
     {
         ASSERT_DEBUG_LOG("a snapshot chainstate already exists");
         BOOST_CHECK(!LoadEvoSnapshot(snapshot));
