@@ -669,6 +669,16 @@ def generate_to_height(test_framework, node, target_height):
     assert_equal(node.getblockcount(), target_height)
 
 
+def dumb_sync_blocks(*, src, dst, height=None):
+    """Sync blocks between `src` and `dst` nodes via RPC submitblock up to height."""
+    height = height or src.getblockcount()
+    for i in range(dst.getblockcount() + 1, height + 1):
+        block_hash = src.getblockhash(i)
+        block = src.getblock(blockhash=block_hash, verbose=0)
+        dst.submitblock(block)
+    assert_equal(dst.getblockcount(), height)
+
+
 def find_vout_for_address(node, txid, addr):
     """
     Locate the vout index of the given transaction sending to the
