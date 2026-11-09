@@ -6645,6 +6645,10 @@ util::Result<void> ChainstateManager::ActivateSnapshot(
             LogPrintf("[snapshot] refusing to activate snapshot %s: %s\n", base_blockhash.ToString(), *refusal);
             return util::Error{Untranslated(*refusal)};
         }
+
+        if (!m_best_header || m_best_header->GetAncestor(snapshot_start_block->nHeight) != snapshot_start_block) {
+            return util::Error{_("A forked headers-chain with more work than the chain with the snapshot base block header exists. Please proceed to sync without AssumeUtxo.")};
+        }
     }
 
     // A rejection moves the snapshot chainstate to chainstate_snapshot_INVALID

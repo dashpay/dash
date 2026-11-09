@@ -4374,10 +4374,15 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_rechecks_the_activ
         BlockValidationState state;
         BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, base_index));
     });
+    // Reconsidering a block does not restore the best header that invalidating
+    // it moved back, and a load refuses a base that is not on the best header
+    // chain.
+    const auto reset_best_header = [&] { WITH_LOCK(::cs_main, chainman.m_best_header = base_index); };
     {
         LOCK(::cs_main);
         chainman.ActiveChainstate().ResetBlockFailureFlags(base_index);
     }
+    reset_best_header();
     BlockValidationState state;
     BOOST_REQUIRE(chainman.ActiveChainstate().ActivateBestChain(state));
     BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()), base_index);
@@ -4399,6 +4404,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_rechecks_the_activ
     BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, Assert(sibling)));
     BOOST_REQUIRE(chainman.ActiveChainstate().ActivateBestChain(state));
     BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()), base_index);
+    reset_best_header();
 
     refused_after([&] { MineOneBlock(); });
     BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, WITH_LOCK(::cs_main, return chainman.ActiveTip())));
@@ -4496,6 +4502,9 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_refused_when_loaded, EvoS
     WITH_LOCK(::cs_main, chainman.ActiveChainstate().ResetBlockFailureFlags(base_index));
     BOOST_REQUIRE(chainman.ActiveChainstate().ActivateBestChain(state));
     BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()), base_index);
+    // Reconsidering the base does not restore the best header that
+    // invalidating it moved back.
+    WITH_LOCK(::cs_main, chainman.m_best_header = base_index);
 
     // An ancestor of the base conflicts with a ChainLock.
     CBlockIndex* ancestor{base_index->pprev};
