@@ -111,15 +111,16 @@ MnShareSession FrozenSession(const MnShareSession& draft, const std::vector<CKey
 }
 
 //! Answer the next message box with its button labelled `answer`, recording
-//! the box's title in `title`, which stays empty if no box opens before the
-//! caller processes events
-void AnswerMessageBox(const QString& answer, QString& title)
+//! the box's text in `text`, which stays empty if no box opens before the
+//! caller processes events. The text, not the title, identifies the box:
+//! macOS message boxes have no title.
+void AnswerMessageBox(const QString& answer, QString& text)
 {
-    title.clear();
-    QTimer::singleShot(0, [answer, &title] {
+    text.clear();
+    QTimer::singleShot(0, [answer, &text] {
         auto* const box{qobject_cast<QMessageBox*>(QApplication::activeModalWidget())};
         if (box == nullptr) return;
-        title = box->windowTitle();
+        text = box->text();
         for (QAbstractButton* const button : box->buttons()) {
             if (button->text() == answer) {
                 button->click();
@@ -564,7 +565,7 @@ void SharedMnWizardTests::signedSessionReservation()
             return button->text() == QStringLiteral("Release my coins") && !button->isHidden();
         });
     };
-    const QString keep_prompt{QStringLiteral("Keep this session for later?")};
+    const QString keep_prompt{QStringLiteral("Saving keeps your coins reserved")};
     QString prompt;
     {
         // Nothing was changed since the session was opened, but its coins stay
@@ -576,14 +577,14 @@ void SharedMnWizardTests::signedSessionReservation()
         AnswerMessageBox(QStringLiteral("Cancel"), prompt);
         dialog.onNext();
         QCoreApplication::processEvents();
-        QCOMPARE(prompt, keep_prompt);
+        QVERIFY2(prompt.startsWith(keep_prompt), qPrintable(prompt));
         QVERIFY(dialog.isVisible());
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
 
         AnswerMessageBox(QStringLiteral("Discard and Release Coins"), prompt);
         dialog.reject();
         QCoreApplication::processEvents();
-        QCOMPARE(prompt, keep_prompt);
+        QVERIFY2(prompt.startsWith(keep_prompt), qPrintable(prompt));
         QVERIFY(!dialog.isVisible());
         QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
     }
@@ -601,7 +602,7 @@ void SharedMnWizardTests::signedSessionReservation()
         AnswerMessageBox(QStringLiteral("Cancel"), prompt);
         dialog.reject();
         QCoreApplication::processEvents();
-        QCOMPARE(prompt, keep_prompt);
+        QVERIFY2(prompt.startsWith(keep_prompt), qPrintable(prompt));
         QVERIFY(dialog.isVisible());
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
     }
@@ -614,7 +615,7 @@ void SharedMnWizardTests::signedSessionReservation()
         AnswerMessageBox(QStringLiteral("Release"), prompt);
         dialog.releaseReservedCoins();
         QCoreApplication::processEvents();
-        QCOMPARE(prompt, QStringLiteral("Release your coins?"));
+        QVERIFY2(prompt.startsWith(QStringLiteral("The coins you reserved for Session")), qPrintable(prompt));
         QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
         QVERIFY(dialog.m_status_label->text().startsWith(QStringLiteral("Released")));
 

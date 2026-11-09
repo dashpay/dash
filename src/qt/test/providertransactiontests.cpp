@@ -31,7 +31,6 @@
 #include <optional>
 #include <vector>
 
-#include <QApplication>
 #include <QComboBox>
 #include <QListView>
 #include <QSettings>
@@ -366,11 +365,6 @@ void ProviderTransactionTests::providerTransactionHistory()
         filter.setTypeFilter(TransactionFilterProxy::TYPE(TransactionRecord::AssetLock));
         QCOMPARE(filter.rowCount(), 1);
 
-#if defined(Q_OS_MACOS)
-        if (QApplication::platformName() == "minimal") {
-            QWARN("Skipping TransactionView checks on macOS with the minimal platform due to QTBUG-49686");
-        } else
-#endif
         {
             CoinJoinOptionsRestorer coinjoin_restorer{m_node.coinJoinOptions()};
             m_node.coinJoinOptions().setEnabled(false);

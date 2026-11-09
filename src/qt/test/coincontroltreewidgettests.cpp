@@ -6,7 +6,6 @@
 
 #include <qt/coincontroltreewidget.h>
 
-#include <QApplication>
 #include <QHeaderView>
 #include <QStyle>
 #include <QStyleOptionViewItem>
@@ -89,16 +88,6 @@ void ShiftClickCheckbox(CoinControlTreeWidget& tree, QTreeWidgetItem* item)
     ClickCheckbox(tree, item, Qt::ShiftModifier);
 }
 } // namespace
-
-void CoinControlTreeWidgetTests::init()
-{
-#if defined(Q_OS_MACOS)
-    if (QApplication::platformName() == "minimal") {
-        // Showing widgets with the minimal platform crashes on macOS (QTBUG-49686)
-        QSKIP("Run with QT_QPA_PLATFORM=cocoa on macOS");
-    }
-#endif
-}
 
 void CoinControlTreeWidgetTests::shiftClickChecksRange()
 {
