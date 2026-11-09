@@ -119,20 +119,50 @@ Active node: `-vbparams=v24:0:999999999999:0:10:8:6:5:0` (trailing `0` means
 `feature_taproot` lets it mine its own coins. All wallet tests run as
 `--descriptors` (no BDB on this machine).
 
-## Branch state (2026-10-20)
+## Branch state (2026-11-10, after the rebase onto develop)
 
-78 commits over `origin/develop` at the first review (now more, see below), all green: `make check`, lint (minus tools
-not installed: flake8, shellcheck, codespell, vulture, cppcheck, zizmor), and
-the functional set `feature_taproot wallet_taproot rpc_psbt rpc_decodescript
-feature_block feature_csv_activation mempool_accept rpc_createmultisig
-rpc_misc rpc_signrawtransactionwithkey rpc_rawtransaction interface_bitcoin_cli`
-plus the descriptor-wallet suite (`wallet_*.py --descriptors`).
+Rebased onto `origin/develop` at 6271b740e9 (dash#8067). 62 commits plus two
+temporary ones on top (dash#8080, the `test_dash-qt` fix for
+`SharedMnWizardTests::signedSessionReservation`; drop them together with the
+notes commit once #8080 is merged). No `fixup!` commits remain: every fixup
+was squashed into its target, the early "disable ALL spenders"/revert pair
+was dropped, and the two notes commits became one.
 
-Eight `fixup!` commits await the user's `git rebase -i --autosquash`; targets
-are named in their subjects (#22051, #22558, #26934, gui#459, the two Dash
-consensus commits, the script-assets minimizer). The user drives rebases;
-after a squash expect a near-full recompile because the checkout touches
-many files.
+How the rebase was done (two passes, so each could be verified):
+
+1. Squash on the old base, then `git diff` against the old head: empty.
+2. Rebase onto develop. Conflicts, all in tests: `address.py` imports,
+   `descriptor_tests.cpp` flag constants (develop added `MIXED_PUBKEYS = 32`
+   from bitcoin#23171; `XONLY_KEYS = 64` and `MISSING_PRIVKEYS = 128` kept as
+   upstream), `wallet_signer.py` extra_args, `crypto/secp256k1.py` (develop's
+   `lru_cache` plus the new `test_H`), `rpc_decodescript.json` HRP.
+   One code adaptation: `CKey::SignSchnorr` passes `UCharCast(begin())`
+   because develop moved `CKey` to `std::byte` storage (bitcoin#29133);
+   squashed into the bitcoin#21365 commit. Second: the generated
+   `*.json.h` test headers are `std::string` now (bitcoin#28168), so the two
+   `bip341_wallet_vectors` readers use upstream's `Assert(tests.read(...))`
+   form (`read_json()` does not fit, the vectors are an object, not an
+   array); squashed into the bitcoin#23394 commit. Stale generated headers in a build tree must be
+   deleted by hand (`find src -name '*.json.h' -delete`), the make rule does
+   not depend on the Makefile.
+
+Backup refs in this checkout: `bp-taproot-pre-rebase` (old 91-commit head),
+`bp-taproot-squashed` (pass 1 on the old base), `bp-taproot-on-4c5c0153`
+(first rebase target before develop moved).
+
+Verification on the old develop tip (4c5c015350): build with zero warnings,
+lint, `test_dash` 172 suites, and 29 functional tests (feature_taproot,
+wallet_taproot, wallet_signer, rpc_psbt, rpc_decodescript, feature_block,
+the descriptor-wallet set). `test_dash-qt` crashed in
+`SharedMnWizardTests::signedSessionReservation` with heap corruption; that is
+develop's issue dash#8075 (stale message-box timers from `AddressBookTests`
+under the GLib event dispatcher), fixed by dash#8080, which is why its two
+commits ride on top for now. Results on the current tip: see the end of the
+file.
+
+This checkout had been configured for a TSAN benchmark build (the CI
+`linux64_tsan` line) when the rebase started. It is back on the regular
+debug configuration; the TSAN line is in the agent's scratchpad.
 
 ## Workflow rules from the user (keep following)
 
@@ -189,3 +219,13 @@ makes. Both share the per-transaction midstate hashes that
 outputs; BIP341 additionally amounts and scriptPubKeys), so a DIP-0143
 implementation would reuse that cache and add a `SigVersion` for the legacy
 ECDSA path: the taproot work does not replace it and does not need it.
+
+## Verification on develop 6271b740e9 (2026-11-10)
+
+Regular debug build with zero warnings; lint clean (minus the uninstalled
+tools); `make check` green including `test_dash-qt` (with dash#8080 on top)
+and all 172 `test_dash` suites; the functional set of 29 tests (feature_taproot,
+wallet_taproot, wallet_signer, rpc_psbt, rpc_decodescript, feature_block,
+feature_csv_activation, mempool_accept, rpc_createmultisig, rpc_misc,
+rpc_rawtransaction, rpc_signrawtransactionwithkey, interface_bitcoin_cli,
+tool_wallet and the wallet_* descriptor suite) all passed.
