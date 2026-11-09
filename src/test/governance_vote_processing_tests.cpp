@@ -265,7 +265,7 @@ BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, Governanc
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
     const auto spent = FundTransaction(chainman, tx, utxos, payout_script(), COIN);
     update.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    BOOST_REQUIRE(CHashSigner::SignHash(::SerializeHash(update), owner_key, update.vchSig));
+    BOOST_REQUIRE(CHashSigner::SignHash(::SerializeSigHash(update), owner_key, update.vchSig));
     SetTxPayload(tx, update);
     SignTransaction(tx, spent, coinbaseKey);
     MineBlock({tx});

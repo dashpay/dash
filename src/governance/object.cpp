@@ -534,7 +534,7 @@ uint256 CGovernanceObject::GetDataHash() const
 
 uint256 CGovernanceObject::GetSignatureHash() const
 {
-    return SerializeHash(*this);
+    return SerializeSigHash(m_obj);
 }
 
 void CGovernanceObject::SetMasternodeOutpoint(const COutPoint& outpoint)

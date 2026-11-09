@@ -337,7 +337,7 @@ std::optional<ProviderTxError> SignPayload(const CMutableTransaction& tx, Payloa
 {
     UpdateInputsHash(tx, payload);
     payload.vchSig.clear();
-    if (!wallet.signSpecialTxPayload(::SerializeHash(payload), key_id, payload.vchSig)) {
+    if (!wallet.signSpecialTxPayload(::SerializeSigHash(payload), key_id, payload.vchSig)) {
         return Error(ProviderTxErrorCode::INTERNAL_ERROR, "failed to sign special tx");
     }
     return std::nullopt;
@@ -358,7 +358,7 @@ template <typename Payload>
 void SignPayload(const CMutableTransaction& tx, Payload& payload, const CBLSSecretKey& key)
 {
     UpdateInputsHash(tx, payload);
-    payload.sig = key.Sign(::SerializeHash(payload));
+    payload.sig = key.Sign(::SerializeSigHash(payload));
 }
 
 using MutableTxResult = std::variant<CMutableTransaction, ProviderTxError>;
@@ -1287,7 +1287,7 @@ ProviderTxResult<SharedSignResult> SignShared(node::NodeContext& node, Wallet& w
         const auto dmn{GetSharedMn(node, payload->proTxHash)};
         if (!dmn) return SharedMnNotFound();
         shares = dmn->pdmnState->shares;
-        sign_hash = ::SerializeHash(*payload);
+        sign_hash = ::SerializeSigHash(*payload);
         result.kind = SharedSignResult::Kind::RegistrarUpdate;
     } else {
         return Error(ProviderTxErrorCode::INVALID_PARAMETER, "transaction is not a shared masternode transaction");
@@ -1505,7 +1505,7 @@ ProviderTxResult<PreparedSharedConsent> PrepareSharedRegistrarUpdate(node::NodeC
     tx = std::get<CMutableTransaction>(std::move(funded_result));
     UpdateInputsHash(tx, payload);
     SetTxPayload(tx, payload);
-    return PreparedSharedConsent{MakeTransactionRef(std::move(tx)), ::SerializeHash(payload)};
+    return PreparedSharedConsent{MakeTransactionRef(std::move(tx)), ::SerializeSigHash(payload)};
 }
 
 } // namespace evo::provider
