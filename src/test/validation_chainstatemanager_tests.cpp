@@ -4443,6 +4443,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_hash_mismatch, Sna
         res = WITH_LOCK(::cs_main,
             return chainman.MaybeCompleteSnapshotValidation());
         BOOST_CHECK_EQUAL(res, SnapshotCompletionResult::HASH_MISMATCH);
+        chainman.CheckBlockIndex();
     }
 
     auto all_chainstates = chainman.GetAll();
