@@ -6535,7 +6535,8 @@ bool ChainstateManager::ActivateSnapshot(
 
     {
         LOCK(::cs_main);
-        if (Assert(m_active_chainstate->GetMempool())->size() > 0) {
+        auto mempool{m_active_chainstate->GetMempool()};
+        if (mempool && mempool->size() > 0) {
             LogPrintf("[snapshot] can't activate a snapshot when mempool not empty\n");
             return false;
         }
