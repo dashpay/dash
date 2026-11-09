@@ -380,8 +380,9 @@ void Chainstate::MaybeUpdateMempoolForReorg(
     bool fAddToMempool)
 {
     if (!m_mempool) {
-        // Only reachable with a non-empty pool when a snapshot rejected
-        // mid-step handed its mempool back to the background chainstate.
+        // A background chainstate, or either chainstate once a snapshot
+        // rejection detached the mempool, possibly mid-step with blocks
+        // already disconnected.
         disconnectpool.clear();
         return;
     }
@@ -7238,9 +7239,11 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
     }
 
     m_active_chainstate = m_ibd_chainstate.get();
-    // Hand the mempool back so the again-active background chainstate owns
-    // it for the remainder of this (shutting-down) run.
-    m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
+    // No chainstate keeps the mempool for the rest of this run. Its
+    // transactions were accepted against the snapshot tip, and the rejected
+    // chainstate's coins views are reset below while a step that raised the
+    // mismatch may still be unwinding through its mempool update. The next
+    // startup re-validates the saved mempool.
     m_snapshot_chainstate->m_mempool = nullptr;
     m_snapshot_chainstate->m_disabled = true;
     assert(!IsUsable(m_snapshot_chainstate.get()));
