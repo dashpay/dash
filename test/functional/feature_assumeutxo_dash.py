@@ -657,6 +657,9 @@ class AssumeutxoDashTest(DashTestFramework):
         self.submit_blocks(importer, 1, V19_HEIGHT - 2)
         assert_equal([c["blocks"] for c in self.chainstates(importer)], [V19_HEIGHT - 2, stall_height - 1])
         assert not importer.getdeploymentinfo(importer.getblockhash(V19_HEIGHT - 2))["deployments"]["v19"]["active"]
+        # The invalid block has more work than the background tip, which is not
+        # a reason to warn about a fork.
+        assert "We do not appear to fully agree" not in importer.getblockchaininfo()["warnings"]
         with importer.assert_debug_log(expected_msgs=[], unexpected_msgs=["Misbehaving"]):
             relay.announce(self.chainlock_clsig, 29)
             self.wait_until(lambda: importer.getbestchainlock()["blockhash"] == self.chainlock["blockhash"])
