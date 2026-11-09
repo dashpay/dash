@@ -4983,10 +4983,20 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_rechecks_the_activ
         BlockValidationState state;
         BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, base_index));
     });
-    {
-        LOCK(::cs_main);
-        chainman.ActiveChainstate().ResetBlockFailureFlags(base_index);
-    }
+    // A load refuses a base that is not on the best header chain, and
+    // reconsiderblock restores the best header that invalidating the base
+    // moved back.
+    const auto reconsider_base = [&] {
+        if (RPCIsInWarmup(nullptr)) SetRPCWarmupFinished();
+        JSONRPCRequest reconsider;
+        reconsider.context = CoreContext{m_node};
+        reconsider.strMethod = "reconsiderblock";
+        reconsider.params = UniValue{UniValue::VARR};
+        reconsider.params.push_back(base_index->GetBlockHash().GetHex());
+        tableRPC.execute(reconsider);
+        BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return chainman.m_best_header), base_index);
+    };
+    reconsider_base();
     BlockValidationState state;
     BOOST_REQUIRE(chainman.ActiveChainstate().ActivateBestChain(state));
     BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()), base_index);
@@ -5008,6 +5018,9 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_rechecks_the_activ
     BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, Assert(sibling)));
     BOOST_REQUIRE(chainman.ActiveChainstate().ActivateBestChain(state));
     BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()), base_index);
+    // Invalidating the sibling moved the best header below the base (the
+    // rest of bitcoin#30666 is not ported).
+    reconsider_base();
 
     CBlockIndex* past_base{nullptr};
     refused_after([&] {
