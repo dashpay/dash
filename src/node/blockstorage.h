@@ -206,9 +206,6 @@ public:
      */
     std::multimap<CBlockIndex*, CBlockIndex*> m_blocks_unlinked;
 
-    //! Height of the highest block LoadBlockIndex() found with a faked nTx (set without BLOCK_VALID_TRANSACTIONS), or -1
-    int m_faked_tx_height GUARDED_BY(::cs_main){-1};
-
     std::unique_ptr<CBlockTreeDB> m_block_tree_db GUARDED_BY(::cs_main);
 
     bool WriteBlockIndexDB() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);

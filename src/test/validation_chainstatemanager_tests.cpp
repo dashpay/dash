@@ -643,9 +643,6 @@ struct SnapshotTestSetup : TestChain100Setup {
             BOOST_CHECK_EQUAL(
                 *node::ReadSnapshotBaseBlockhash(found),
                 *chainman.SnapshotBlockhash());
-
-            // Ensure that the genesis block was not marked assumed-valid.
-            BOOST_CHECK(!chainman.ActiveChain().Genesis()->IsAssumedValid());
         }
 
         const auto& au_data = ::Params().AssumeutxoForHeight(snapshot_height);
@@ -1028,8 +1025,10 @@ public:
         chainstate.LoadChainTip();
         chainman.MaybeRebalanceCaches();
         for (CBlockIndex* index{orig_tip}; index && index != chainstate.m_chain.Tip(); index = index->pprev) {
-            index->nStatus &= ~(BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
-            index->nStatus |= BLOCK_ASSUMED_VALID;
+            index->nStatus = BLOCK_VALID_TREE;
+            index->nTx = 0;
+            index->nChainTx = 0;
+            index->nSequenceId = 0;
         }
         // NORMAL forgets the Evo state of those blocks too, and rebuilds it
         // as they connect again.
@@ -2506,7 +2505,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_reconsider_block_candidates, SnapshotT
 //! - First, verify that setBlockIndexCandidates is as expected when using a single,
 //!   fully-validating chainstate.
 //!
-//! - Then mark a region of the chain BLOCK_ASSUMED_VALID and introduce a second chainstate
+//! - Then mark a region of the chain as missing data and introduce a second chainstate
 //!   that will tolerate assumed-valid blocks. Run LoadBlockIndex() and ensure that the first
 //!   chainstate only contains fully validated blocks and the other chainstate contains all blocks,
 //!   except those marked assume-valid, because those entries don't HAVE_DATA.
@@ -2517,7 +2516,6 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
     Chainstate& cs1 = chainman.ActiveChainstate();
 
     int num_indexes{0};
-    int num_assumed_valid{0};
     // Blocks in range [assumed_valid_start_idx, last_assumed_valid_idx) will be
     // marked as assumed-valid and not having data.
     const int expected_assumed_valid{20};
@@ -2552,34 +2550,29 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_loadblockindex, TestChain100Setup)
     reload_all_block_indexes();
     BOOST_CHECK_EQUAL(cs1.setBlockIndexCandidates.size(), 1);
 
-    // Mark some region of the chain assumed-valid, and remove the HAVE_DATA flag.
+    // Reset some region of the chain's nStatus, removing the HAVE_DATA flag.
     for (int i = 0; i <= cs1.m_chain.Height(); ++i) {
         LOCK(::cs_main);
         auto index = cs1.m_chain[i];
 
-        // Blocks with heights in range [91, 110] are marked ASSUMED_VALID
+        // Blocks with heights in range [91, 110] are marked as missing data.
         if (i < last_assumed_valid_idx && i >= assumed_valid_start_idx) {
-            index->nStatus = BlockStatus::BLOCK_VALID_TREE | BlockStatus::BLOCK_ASSUMED_VALID;
+            index->nStatus = BlockStatus::BLOCK_VALID_TREE;
+            index->nTx = 0;
+            index->nChainTx = 0;
         }
 
         ++num_indexes;
-        if (index->IsAssumedValid()) ++num_assumed_valid;
 
         // Note the last fully-validated block as the expected validated tip.
         if (i == (assumed_valid_start_idx - 1)) {
             validated_tip = index;
-            BOOST_CHECK(!index->IsAssumedValid());
         }
         // Note the last assumed valid block as the snapshot base
         if (i == last_assumed_valid_idx - 1) {
             assumed_base = index;
-            BOOST_CHECK(index->IsAssumedValid());
-        } else if (i == last_assumed_valid_idx) {
-            BOOST_CHECK(!index->IsAssumedValid());
         }
     }
-
-    BOOST_CHECK_EQUAL(expected_assumed_valid, num_assumed_valid);
 
     const uint256 snapshot_blockhash = assumed_base->GetBlockHash();
     SeedSnapshotMarker(*m_node.evodb, snapshot_blockhash);
@@ -4349,9 +4342,6 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_switch_rechecks_the_activ
         BOOST_CHECK(!node::FindSnapshotChainstateDir(chainman.m_options.datadir));
         BOOST_CHECK_EQUAL(chainman.ActiveChainstate().m_coinstip_cache_size_bytes, chainman.m_total_coinstip_cache);
         BOOST_CHECK_EQUAL(chainman.ActiveChainstate().m_coinsdb_cache_size_bytes, chainman.m_total_coinsdb_cache);
-        for (const auto& [_, index] : chainman.BlockIndex()) {
-            BOOST_CHECK(!(index.nStatus & BLOCK_ASSUMED_VALID));
-        }
     };
     const auto refused_after = [&](const std::function<void()>& meanwhile) {
         chainman.m_before_snapshot_switch_for_testing = meanwhile;
@@ -4691,35 +4681,31 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_turn_outlives_the_switch,
 }
 
 //! On a node with only the headers, a load refused after seeding, here by its
-//! dry run, leaves the block index as it was: nothing is marked assumed-valid
-//! and no transaction count is faked. Only the switch changes them.
+//! dry run, leaves the block index as it was: no transaction count is set.
+//! Only the switch sets one, the base's nChainTx from the pin, and no block
+//! gets a faked count.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_failed_preparation_fakes_no_block_index, EvoSnapshotTestSetup)
 {
     const fs::path snapshot{DumpEvoSnapshot()};
     ForgetBlocks();
     ChainstateManager& chainman{*m_node.chainman};
-    {
+    const int base_height{WITH_LOCK(::cs_main, return chainman.m_best_header->nHeight)};
+    const auto counted = [&] {
         LOCK(::cs_main);
-        for (CBlockIndex* index{chainman.m_best_header}; index && index->nHeight > 0; index = index->pprev) {
-            index->nStatus = (index->nStatus & ~(BLOCK_VALID_MASK | BLOCK_ASSUMED_VALID)) | BLOCK_VALID_TREE;
-            index->nTx = 0;
-            index->nChainTx = 0;
+        std::vector<int> heights;
+        for (const auto& [_, index] : chainman.BlockIndex()) {
+            if (index.nHeight > 0 && (index.nTx != 0 || index.nChainTx != 0)) heights.push_back(index.nHeight);
         }
-    }
-    const auto faked = [&] {
-        LOCK(::cs_main);
-        return std::ranges::any_of(chainman.BlockIndex(), [](const auto& entry) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-            return (entry.second.nStatus & BLOCK_ASSUMED_VALID) || (entry.second.nHeight > 0 && entry.second.nTx != 0);
-        });
+        return heights;
     };
-    BOOST_REQUIRE(!faked());
+    BOOST_REQUIRE(counted().empty());
     chainman.m_fail_evo_dry_run_for_testing = true;
     BOOST_CHECK(!LoadEvoSnapshot(snapshot));
     chainman.m_fail_evo_dry_run_for_testing = false;
     BOOST_CHECK(!m_node.evodb->GetSnapshotGeneration());
-    BOOST_CHECK(!faked());
+    BOOST_CHECK(counted().empty());
     BOOST_CHECK(LoadEvoSnapshot(snapshot));
-    BOOST_CHECK(faked());
+    BOOST_CHECK(counted() == std::vector<int>{base_height});
 }
 
 //! Preparing a snapshot commits NORMAL Evo records. The blocks the active

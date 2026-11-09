@@ -54,6 +54,7 @@ unsigned-integer-overflow:common/bloom.cpp
 unsigned-integer-overflow:coins.cpp
 unsigned-integer-overflow:compressor.cpp
 unsigned-integer-overflow:crypto/
+unsigned-integer-overflow:getchaintxstats*
 unsigned-integer-overflow:hash.cpp
 unsigned-integer-overflow:lcg.h
 # The quorum snapshot skip list stores offsets relative to the first skipped
@@ -74,6 +75,7 @@ implicit-integer-sign-change:CBlockPolicyEstimator::processBlockTx
 implicit-integer-sign-change:GetQuorumQuarterMembersBySnapshot
 implicit-integer-sign-change:compressor.h
 implicit-integer-sign-change:crypto/
+implicit-integer-sign-change:getchaintxstats*
 implicit-integer-sign-change:policy/fees.cpp
 implicit-integer-sign-change:prevector.h
 implicit-integer-sign-change:script/bitcoinconsensus.cpp
