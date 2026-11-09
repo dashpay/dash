@@ -713,6 +713,11 @@ class AssumeutxoDashTest(DashTestFramework):
         self.submit_blocks(importer, 1, V19_HEIGHT - 2)
         assert_equal([c["blocks"] for c in self.chainstates(importer)], [V19_HEIGHT - 2, stall_height - 1])
         assert not importer.getdeploymentinfo(importer.getblockhash(V19_HEIGHT - 2))["deployments"]["v19"]["active"]
+        # An invalid block with more work than the background tip is not a
+        # reason to warn about a fork.
+        importer.invalidateblock(conflicting_block)
+        assert_equal(self.invalid_tips(importer), [conflicting_block])
+        assert "We do not appear to fully agree" not in importer.getblockchaininfo()["warnings"]
         with importer.assert_debug_log(expected_msgs=[], unexpected_msgs=["Misbehaving"]):
             relay.announce(self.chainlock_clsig, 29)
             self.wait_until(lambda: importer.getbestchainlock()["blockhash"] == self.chainlock["blockhash"])
@@ -723,7 +728,7 @@ class AssumeutxoDashTest(DashTestFramework):
         with importer.assert_debug_log([f"stalled at block {stall_hash} (height {stall_height})"]):
             assert_raises_rpc_error(-25, "evo-local-unavailable", importer.submitblock, node.getblock(stall_hash, 0))
         assert_equal(importer.getbestblockhash(), node.getblockhash(stall_height - 1))
-        assert_equal(self.invalid_tips(importer), [])
+        assert_equal(self.invalid_tips(importer), [conflicting_block])
         assert_equal(importer.getblockheader(stall_hash)["chainlock"], False)
         importer.disconnect_p2ps()
 
