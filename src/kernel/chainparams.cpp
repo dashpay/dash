@@ -505,6 +505,20 @@ public:
         consensus.llmqTypeDIP0024InstantSend = Consensus::LLMQType::LLMQ_60_75;
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_25_67;
         consensus.llmqTypeMnhf = Consensus::LLMQType::LLMQ_50_60;
+        consensus.llmqLegacyRotationCycles = {
+            uint256S("0x000000c2b743330194753dd04612d315c6d6fa82bb2dd8133390d322665652a8"), // 838368
+            uint256S("0x0000019b49d8472cf7a61eebcde5b3ae76899fda0eb6977b4c4b89e83a61c5d6"), // 901152
+            uint256S("0x0000002ebb49b371fc4048530d4a86120ad7df05494f4f6796486794e074cbb0"), // 901440
+            uint256S("0x0000006bf3f118e89b51caabdf52ffbf25307fa3de29dbaaf4fd8885767b4a9b"), // 901728
+            uint256S("0x000000c62c4ec85e413a688ab555063cdb20f286b93f2ea30baa57a3ead62c32"), // 902016
+            uint256S("0x00000032576582b5908013c96bbccbeecb29266aaa65db56ef2a7a3f52d2e7f1"), // 902304
+            uint256S("0x0000008725d64d01965d95ae510dfcc74f00cfec09ac152e0b2e0eb2899b4e41"), // 902592
+            uint256S("0x00000130a955271036c1661e1892549d22b0089c03619446066cda443dd44dc8"), // 902880
+            uint256S("0x00000273417c2fdb13dcf3c35fcab3ace02605c67bd7b6c37df4f75038c357fc"), // 903168
+            uint256S("0x0000007dba91b5abb6003250d435f1e84e28999fa46486f67fb47e5a91eebca3"), // 1366560
+            uint256S("0x000000bbf499d2303e41488c13296197a01647d7e1712e64390c8bbbf7e70906"), // 1366848
+            uint256S("0x0000017466c3129af87638058f3abc27096061a8b06d0894095ad7b640f46c79"), // 1367136
+        };
 
         fDefaultConsistencyChecks = false;
         fRequireRoutableExternalIP = true;
