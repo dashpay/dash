@@ -60,7 +60,7 @@ export BDB_PREFIX="/path/to/dash/depends/x86_64-unknown-openbsd"
 #### GUI Dependencies
 ###### Qt5
 
-Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, Qt 5 is required.
+Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, Qt 5.15 or later is required.
 
 ```bash
 pkg_add qt5

@@ -88,7 +88,7 @@ brew install berkeley-db@4
 ###### Qt
 
 Dash Core includes a GUI built with the cross-platform Qt Framework.
-To compile the GUI, we need to install `qt@5`.
+To compile the GUI, we need to install Qt 5.15 or later through `qt@5`.
 Skip if you don't intend to use the GUI.
 
 ``` bash

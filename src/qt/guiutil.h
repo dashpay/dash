@@ -481,9 +481,6 @@ namespace GUIUtil
 
     /**
      * Returns the distance in pixels appropriate for drawing a subsequent character after text.
-     *
-     * In Qt 5.12 and before the QFontMetrics::width() is used and it is deprecated since Qt 5.13.
-     * In Qt 5.11 the QFontMetrics::horizontalAdvance() was introduced.
      */
     int TextWidth(const QFontMetrics& fm, const QString& text);
 
@@ -499,16 +496,11 @@ namespace GUIUtil
 
     /**
      * Returns the start-moment of the day in local time.
-     *
-     * QDateTime::QDateTime(const QDate& date) is deprecated since Qt 5.15.
-     * QDate::startOfDay() was introduced in Qt 5.14.
      */
     QDateTime StartOfDay(const QDate& date);
 
     /**
      * Returns true if pixmap has been set.
-     *
-     * QPixmap* QLabel::pixmap() is deprecated since Qt 5.15.
      */
     bool HasPixmap(const QLabel* label);
     QImage GetImage(const QLabel* label);
@@ -517,20 +509,13 @@ namespace GUIUtil
      * Splits the string into substrings wherever separator occurs, and returns
      * the list of those strings. Empty strings do not appear in the result.
      *
-     * QString::split() signature differs in different Qt versions:
-     *  - QString::SplitBehavior is deprecated since Qt 5.15
-     *  - Qt::SplitBehavior was introduced in Qt 5.14
-     * If {QString|Qt}::SkipEmptyParts behavior is required, use this
+     * If Qt::SkipEmptyParts behavior is required, use this
      * function instead of QString::split().
      */
     template <typename SeparatorType>
     QStringList SplitSkipEmptyParts(const QString& string, const SeparatorType& separator)
     {
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
         return string.split(separator, Qt::SkipEmptyParts);
-    #else
-        return string.split(separator, QString::SkipEmptyParts);
-    #endif
     }
 
 

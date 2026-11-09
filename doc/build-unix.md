@@ -91,10 +91,10 @@ sudo apt install systemtap-sdt-dev
 GUI dependencies:
 
 If you want to build dash-qt, make sure that the required packages for Qt development
-are installed. Qt 5 is necessary to build the GUI.
+are installed. Qt 5.15 or later is necessary to build the GUI.
 To build without GUI pass `--without-gui`.
 
-To build with Qt 5 you need the following:
+To build with Qt 5.15 or later you need the following:
 
 ```sh
 sudo apt-get install qtbase5-dev qttools5-dev qttools5-dev-tools
@@ -174,10 +174,10 @@ sudo dnf install systemtap-sdt-devel
 GUI dependencies:
 
 If you want to build dash-qt, make sure that the required packages for Qt development
-are installed. Qt 5 is necessary to build the GUI.
+are installed. Qt 5.15 or later is necessary to build the GUI.
 To build without GUI pass `--without-gui`.
 
-To build with Qt 5 you need the following:
+To build with Qt 5.15 or later you need the following:
 
 ```sh
 sudo dnf install qt5-qttools-devel qt5-qtbase-devel
