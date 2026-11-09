@@ -110,16 +110,19 @@ MnShareSession FrozenSession(const MnShareSession& draft, const std::vector<CKey
     return session;
 }
 
-//! Answer the next message box with its button labelled `answer`, recording
-//! the box's text in `text`, which stays empty if no box opens before the
-//! caller processes events. The text, not the title, identifies the box:
-//! macOS message boxes have no title.
-void AnswerMessageBox(const QString& answer, QString& text)
+//! Run `action`, answering the message box it opens with the button labelled
+//! `answer`, and return the box's text, which is empty if no box opened. The
+//! text, not the title, identifies the box: macOS message boxes have no title.
+//! Nothing is left waiting once `action` returns, so a later box is never
+//! answered on its behalf.
+QString AnswerMessageBox(const QString& answer, const std::function<void()>& action)
 {
-    text.clear();
-    QTimer::singleShot(0, [answer, &text] {
+    QString text;
+    QTimer poll;
+    QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
         auto* const box{qobject_cast<QMessageBox*>(QApplication::activeModalWidget())};
         if (box == nullptr) return;
+        poll.stop();
         text = box->text();
         for (QAbstractButton* const button : box->buttons()) {
             if (button->text() == answer) {
@@ -129,6 +132,9 @@ void AnswerMessageBox(const QString& answer, QString& text)
         }
         box->reject();
     });
+    poll.start(10);
+    action();
+    return text;
 }
 } // anonymous namespace
 
@@ -574,16 +580,12 @@ void SharedMnWizardTests::signedSessionReservation()
         dialog.handleImportedText(received.toJsonString());
         dialog.show();
         QVERIFY(offers_release(dialog));
-        AnswerMessageBox(QStringLiteral("Cancel"), prompt);
-        dialog.onNext();
-        QCoreApplication::processEvents();
+        prompt = AnswerMessageBox(QStringLiteral("Cancel"), [&] { dialog.onNext(); });
         QVERIFY2(prompt.startsWith(keep_prompt), qPrintable(prompt));
         QVERIFY(dialog.isVisible());
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
 
-        AnswerMessageBox(QStringLiteral("Discard and Release Coins"), prompt);
-        dialog.reject();
-        QCoreApplication::processEvents();
+        prompt = AnswerMessageBox(QStringLiteral("Discard and Release Coins"), [&] { dialog.reject(); });
         QVERIFY2(prompt.startsWith(keep_prompt), qPrintable(prompt));
         QVERIFY(!dialog.isVisible());
         QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
@@ -599,9 +601,7 @@ void SharedMnWizardTests::signedSessionReservation()
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
         dialog.show();
         QVERIFY(offers_release(dialog));
-        AnswerMessageBox(QStringLiteral("Cancel"), prompt);
-        dialog.reject();
-        QCoreApplication::processEvents();
+        prompt = AnswerMessageBox(QStringLiteral("Cancel"), [&] { dialog.reject(); });
         QVERIFY2(prompt.startsWith(keep_prompt), qPrintable(prompt));
         QVERIFY(dialog.isVisible());
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
@@ -612,9 +612,7 @@ void SharedMnWizardTests::signedSessionReservation()
         SharedMnCreateDialog dialog(m_node, &wallet_model, /*parent=*/nullptr);
         dialog.handleImportedText(received.toJsonString());
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
-        AnswerMessageBox(QStringLiteral("Release"), prompt);
-        dialog.releaseReservedCoins();
-        QCoreApplication::processEvents();
+        prompt = AnswerMessageBox(QStringLiteral("Release"), [&] { dialog.releaseReservedCoins(); });
         QVERIFY2(prompt.startsWith(QStringLiteral("The coins you reserved for Session")), qPrintable(prompt));
         QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
         QVERIFY(dialog.m_status_label->text().startsWith(QStringLiteral("Released")));
@@ -633,9 +631,7 @@ void SharedMnWizardTests::signedSessionReservation()
         dialog.handleImportedText(signed_session(/*coordinated=*/false, /*fully_signed=*/false).toJsonString());
         QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageSignatures));
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
-        AnswerMessageBox(QStringLiteral("Release"), prompt);
-        dialog.releaseReservedCoins();
-        QCoreApplication::processEvents();
+        AnswerMessageBox(QStringLiteral("Release"), [&] { dialog.releaseReservedCoins(); });
         QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
         bool complete{true};
         QString sign_error;
@@ -657,9 +653,7 @@ void SharedMnWizardTests::signedSessionReservation()
         QCOMPARE(int(dialog.currentPage()), int(SharedMnCreateDialog::PageApprovals));
         QVERIFY(!dialog.allApproved());
         QVERIFY(wallet_model.wallet().isLockedCoin(bob_coin));
-        AnswerMessageBox(QStringLiteral("Release"), prompt);
-        dialog.releaseReservedCoins();
-        QCoreApplication::processEvents();
+        AnswerMessageBox(QStringLiteral("Release"), [&] { dialog.releaseReservedCoins(); });
         QVERIFY(!wallet_model.wallet().isLockedCoin(bob_coin));
 
         dialog.handleImportedText(approved.toJsonString());
