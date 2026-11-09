@@ -348,9 +348,6 @@ bool BlockManager::LoadBlockIndex(const std::optional<uint256>& snapshot_blockha
         // PopulateAndValidateSnapshot()).
         // Pruned nodes may have deleted the block.
         if (pindex->nTx > 0) {
-            if ((pindex->nStatus & BLOCK_VALID_MASK) < BLOCK_VALID_TRANSACTIONS) {
-                m_faked_tx_height = std::max(m_faked_tx_height, pindex->nHeight);
-            }
             if (pindex->pprev) {
                 if (snapshot_blockhash && pindex->nHeight == snapshot_height &&
                         pindex->GetBlockHash() == *snapshot_blockhash) {
