@@ -114,6 +114,7 @@ BASE_SCRIPTS = [
     'feature_llmq_data_recovery.py',
     # vv Tests less than 5m vv
     'wallet_coinjoin_mixing.py',
+    'feature_assumeutxo_dash.py',
     'feature_fee_estimation.py',
     'feature_block.py', # NOTE: needs dash_hash to pass
     # vv Tests less than 2m vv
@@ -392,7 +393,6 @@ BASE_SCRIPTS = [
     'wallet_fallbackfee.py --legacy-wallet',
     'wallet_fallbackfee.py --descriptors',
     'rpc_dumptxoutset.py',
-    'feature_assumeutxo_dash.py',
     'rpc_estimatefee.py',
     'p2p_unrequested_blocks.py', # NOTE: needs dash_hash to pass
     'feature_shutdown.py',
