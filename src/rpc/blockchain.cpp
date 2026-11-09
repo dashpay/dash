@@ -3438,23 +3438,12 @@ static RPCHelpMan loadtxoutset()
     SnapshotMetadata metadata;
     afile >> metadata;
 
-    uint256 base_blockhash = metadata.m_base_blockhash;
-    if (!chainman.GetParams().AssumeutxoForBlockhash(base_blockhash).has_value()) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Unable to load UTXO snapshot, "
-            "assumeutxo block hash in snapshot metadata not recognized (%s)", base_blockhash.ToString()));
+    auto activation_result{chainman.ActivateSnapshot(afile, metadata, false)};
+    if (!activation_result) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf(_("Unable to load UTXO snapshot: %s\n"), util::ErrorString(activation_result)).original);
     }
-    CBlockIndex* snapshot_start_block = WITH_LOCK(::cs_main,
-            return chainman.m_blockman.LookupBlockIndex(base_blockhash));
-
-    if (!snapshot_start_block) {
-        throw JSONRPCError(
-            RPC_INTERNAL_ERROR,
-            strprintf("The base block header (%s) must appear in the headers chain. Make sure all headers are syncing, and call this RPC again.",
-                      base_blockhash.ToString()));
-    }
-    if (!chainman.ActivateSnapshot(afile, metadata, false)) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to load UTXO snapshot " + fs::PathToString(path));
-    }
+    const CBlockIndex* snapshot_start_block{CHECK_NONFATAL(WITH_LOCK(::cs_main,
+        return chainman.m_blockman.LookupBlockIndex(metadata.m_base_blockhash)))};
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("coins_loaded", metadata.m_coins_count);

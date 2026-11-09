@@ -70,7 +70,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.extra_args = [
             [],
             ["-blockfilterindex=1", "-coinstatsindex=1"],
-            ["-txindex=1", "-blockfilterindex=1", "-coinstatsindex=1"],
+            ["-persistmempool=0", "-txindex=1", "-blockfilterindex=1", "-coinstatsindex=1"],
             [],
         ]
 
@@ -86,7 +86,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         """Restart the nodes that load the snapshot with it authorized: the
         regtest chain parameters have no entry for this chain."""
         self.snapshot_hash = dump_output['txoutset_hash']
-        pin = f"-assumeutxodata={dump_output['base_height']}:{self.snapshot_hash}:{dump_output['evo']['hash']}:{dump_output['nchaintx']}:{dump_output['base_hash']}"
+        self.pin = pin = f"-assumeutxodata={dump_output['base_height']}:{self.snapshot_hash}:{dump_output['evo']['hash']}:{dump_output['nchaintx']}:{dump_output['base_hash']}"
         for i in (1, 2, 3):
             self.extra_args[i].append(pin)
             self.restart_node(i, extra_args=self.extra_args[i])
@@ -96,10 +96,11 @@ class AssumeutxoTest(BitcoinTestFramework):
         with open(valid_snapshot_path, 'rb') as f:
             valid_snapshot_contents = f.read()
         bad_snapshot_path = valid_snapshot_path + '.mod'
+        node = self.nodes[1]
 
         def expected_error(log_msg="", rpc_details=""):
-            with self.nodes[1].assert_debug_log([log_msg]):
-                assert_raises_rpc_error(-32603, f"Unable to load UTXO snapshot{rpc_details}", self.nodes[1].loadtxoutset, bad_snapshot_path)
+            with node.assert_debug_log([log_msg]):
+                assert_raises_rpc_error(-32603, f"Unable to load UTXO snapshot{rpc_details}", node.loadtxoutset, bad_snapshot_path)
 
         self.log.info("  - snapshot file refering to a block that is not in the assumeutxo parameters")
         prev_block_hash = self.nodes[0].getblockhash(SNAPSHOT_BASE_HEIGHT - 1)
@@ -108,8 +109,9 @@ class AssumeutxoTest(BitcoinTestFramework):
             with open(bad_snapshot_path, 'wb') as f:
                 # block hash of the snapshot base is stored right at the start (first 32 bytes)
                 f.write(bytes.fromhex(bad_block_hash)[::-1] + valid_snapshot_contents[32:])
-            error_details = f", assumeutxo block hash in snapshot metadata not recognized ({bad_block_hash})"
-            expected_error(rpc_details=error_details)
+
+            msg = f"Unable to load UTXO snapshot: assumeutxo block hash in snapshot metadata not recognized ({bad_block_hash})"
+            assert_raises_rpc_error(-32603, msg, node.loadtxoutset, bad_snapshot_path)
 
         self.log.info("  - snapshot file with wrong number of coins")
         valid_num_coins = int.from_bytes(valid_snapshot_contents[32:32 + 8], "little")
@@ -147,9 +149,8 @@ class AssumeutxoTest(BitcoinTestFramework):
             expected_error(log_msg=f"[snapshot] bad snapshot content hash: expected {self.snapshot_hash}, got ")
 
     def test_headers_not_synced(self, node, dump_output):
-        assert_raises_rpc_error(-32603, f"The base block header ({dump_output['base_hash']}) must appear in the headers chain. Make sure all headers are syncing, and call this RPC again.",
-                                node.loadtxoutset,
-                                dump_output['path'])
+        msg = f"Unable to load UTXO snapshot: The base block header ({dump_output['base_hash']}) must appear in the headers chain. Make sure all headers are syncing, and call loadtxoutset again."
+        assert_raises_rpc_error(-32603, msg, node.loadtxoutset, dump_output['path'])
 
     def test_invalid_chainstate_scenarios(self):
         self.log.info("Test different scenarios of invalid snapshot chainstate in datadir")
@@ -175,11 +176,39 @@ class AssumeutxoTest(BitcoinTestFramework):
         rmtree(chainstate_snapshot_path)
         self.start_node(0)
 
+    def test_invalid_mempool_state(self, dump_output_path):
+        self.log.info("Test dashd should fail when mempool not empty.")
+        node=self.nodes[2]
+        tx = MiniWallet(node).send_self_transfer(from_node=node)
+
+        assert tx['txid'] in node.getrawmempool()
+
+        # Attempt to load the snapshot on Node 2 and expect it to fail
+        msg = "Unable to load UTXO snapshot: Can't activate a snapshot when mempool not empty"
+        assert_raises_rpc_error(-32603, msg, node.loadtxoutset, dump_output_path)
+
+        self.restart_node(2, extra_args=self.extra_args[2])
+
     def test_invalid_file_path(self):
         self.log.info("Test dashd should fail when file path is invalid.")
         node = self.nodes[0]
         path = node.datadir_path / node.chain / "invalid" / "path"
         assert_raises_rpc_error(-8, "Couldn't open file {} for reading.".format(path), node.loadtxoutset, path)
+
+    def test_snapshot_block_invalidated(self, dump_output_path):
+        self.log.info("Test snapshot is not loaded when base block is invalid.")
+        node = self.nodes[0]
+        # Authorized for this check only: the node never loads a snapshot.
+        self.restart_node(0, extra_args=[*self.extra_args[0], self.pin])
+        # We are testing the case where the base block is invalidated itself
+        # and also the case where one of its parents is invalidated.
+        for height in [SNAPSHOT_BASE_HEIGHT, SNAPSHOT_BASE_HEIGHT - 1]:
+            block_hash = node.getblockhash(height)
+            node.invalidateblock(block_hash)
+            assert_equal(node.getblockcount(), height - 1)
+            msg = "in the snapshot base's chain is invalid or conflicts with a ChainLock"
+            assert_raises_rpc_error(-32603, msg, node.loadtxoutset, dump_output_path)
+            node.reconsiderblock(block_hash)
 
     def run_test(self):
         """
@@ -263,9 +292,11 @@ class AssumeutxoTest(BitcoinTestFramework):
 
         assert_equal(n0.getblockchaininfo()["blocks"], FINAL_HEIGHT)
 
+        self.test_invalid_mempool_state(dump_output['path'])
         self.test_invalid_snapshot_scenarios(dump_output['path'])
         self.test_invalid_chainstate_scenarios()
         self.test_invalid_file_path()
+        self.test_snapshot_block_invalidated(dump_output['path'])
 
         self.log.info(f"Loading snapshot into second node from {dump_output['path']}")
         loaded = n1.loadtxoutset(dump_output['path'])
