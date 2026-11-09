@@ -6644,9 +6644,21 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_real_quorums_rejected, Ev
     const auto snapshot_commitment{mined_in(m_node.chainman->ActiveChainstate().EvoView())};
     BOOST_REQUIRE(!snapshot_commitment.second.IsNull());
     BOOST_CHECK(mined_in(Background().EvoView()).second.IsNull());
+    // The base block's data arrives while the background chainstate is still
+    // below it, so it is only stored.
+    BOOST_REQUIRE(m_node.chainman->ProcessNewBlock(m_blocks.at(QUORUM_BASE_HEIGHT), /*force_processing=*/true, nullptr));
 
     m_node.notifications->m_shutdown_on_fatal_error = false;
     BOOST_REQUIRE(m_node.chainman->HandleSnapshotStateMismatch("test rejection"));
+    // A block arriving before the shutdown runs the validated chainstate on
+    // what the rejection left in the block index.
+    {
+        const CBlockIndex* validated_tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip())};
+        BlockValidationState state;
+        BOOST_CHECK(m_node.chainman->ActiveChainstate().ActivateBestChain(state));
+        BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()), validated_tip);
+        m_node.chainman->CheckBlockIndex();
+    }
     Restart();
     BOOST_REQUIRE(!m_node.chainman->IsSnapshotActive());
     BOOST_CHECK(mined_in(m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)).second.IsNull());
