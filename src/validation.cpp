@@ -7352,9 +7352,11 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason)
     }
 
     m_active_chainstate = m_ibd_chainstate.get();
-    // Hand the mempool back so the again-active background chainstate owns
-    // it for the remainder of this (shutting-down) run.
-    m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
+    // No chainstate keeps the mempool for the rest of this run. Its
+    // transactions were accepted against the snapshot tip, and the rejected
+    // chainstate's coins views are reset below while a step that raised the
+    // mismatch may still be unwinding through its mempool update. The next
+    // startup re-validates the saved mempool.
     m_snapshot_chainstate->m_mempool = nullptr;
     m_snapshot_chainstate->m_disabled = true;
     assert(!IsUsable(m_snapshot_chainstate.get()));
