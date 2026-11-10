@@ -28,6 +28,7 @@
 #include <ios>
 #include <map>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -40,6 +41,7 @@ class CCbTx;
 class CBlock;
 class CCreditPoolManager;
 class CMNHFManager;
+class CEvoDB;
 class CSpecialTxProcessor;
 struct EvoViewToken;
 
@@ -870,11 +872,75 @@ bool PlanEvoSnapshotDependencies(const ChainstateManager& chainman, const CBlock
                                  Consensus::LLMQType llmq_type, const std::vector<const CBlockIndex*>& commitments,
                                  EvoSnapshotDependencyPlan& plan, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-/** Build the Evo section at `base_index` from the calling thread's Evo view. */
+/** The inputs of a section that only block bodies provide, as the background
+ *  chainstate captured them while connecting those blocks. */
+struct EvoSnapshotCaptures {
+    std::map<std::pair<Consensus::LLMQType, uint256>, uint256> modifiers;
+    std::map<uint256, CreditHistoryEntry> credit_history;
+    CTransactionRef base_coinbase;
+    std::vector<uint256> base_coinbase_branch;
+    std::optional<CCreditPool> base_credit_pool;
+};
+
+/** The blocks at or below the base whose bodies a section's inputs come from:
+ *  the work blocks of the v20 modifiers, the credit-pool window and the base,
+ *  whose pool folds in every block back to the last pool on disk. */
+struct EvoSnapshotCapturePlan {
+    uint256 base;
+    int base_height{-1};
+    int window_first{-1};
+    std::map<uint256, std::vector<Consensus::LLMQType>> modifier_blocks;
+    //! Heights of every block whose body is an input.
+    std::set<int> heights;
+};
+
+std::optional<EvoSnapshotCapturePlan> PlanEvoSnapshotCaptures(const EvoSnapshot& snapshot, const ChainstateManager& chainman)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** Record, in the calling thread's open transaction, what `block` contributes
+ *  to the planned inputs. At the base that includes its credit pool, read
+ *  through `cpoolman` in the calling thread's Evo view; a LocalStateError
+ *  from that read propagates. */
+bool WriteEvoSnapshotCaptures(CEvoDB& evodb, CCreditPoolManager& cpoolman, const node::BlockManager& blockman,
+                              const EvoSnapshotCapturePlan& plan, const CBlock& block, const CBlockIndex& index,
+                              const Consensus::Params& consensus, std::string& error);
+
+/** The planned inputs captured so far. */
+EvoSnapshotCaptures ReadEvoSnapshotCaptures(CEvoDB& evodb, const EvoSnapshotCapturePlan& plan,
+                                            const ChainstateManager& chainman) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** Remove every capture on disk, whatever snapshot it was for. Only for when
+ *  no snapshot generation is live, e.g. after a crash before publication. */
+bool EraseAllEvoSnapshotCaptures(CEvoDB& evodb);
+
+/** Remove every capture, in the calling thread's open transaction. */
+void EraseEvoSnapshotCaptures(CEvoDB& evodb, const EvoSnapshotCapturePlan& plan, const ChainstateManager& chainman)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** Why the evo section could not be built or checked. Only a disagreement
+ *  says anything about the section; the others are about this node. */
+enum class EvoSectionFailure : uint8_t {
+    MISSING_INPUT,    //!< data this node lacks, which a later attempt may have
+    LOCAL_CORRUPTION, //!< data this node has but cannot read, or that is inconsistent
+    INTERNAL_ERROR,   //!< a bug in this node
+    DISAGREEMENT,     //!< the section disagrees with the chain or with validated state
+};
+
+std::string EvoSectionFailureName(EvoSectionFailure failure);
+
+/** The failure that an exception raised while building or checking the section
+ *  stands for. */
+EvoSectionFailure ClassifyEvoSectionError(const std::exception& e);
+
+/** Build the Evo section at `base_index` from the calling thread's Evo view.
+ *  Body-derived inputs come from `captures` where present, otherwise from the
+ *  blocks. On failure `failure`, if given, says why; an exception is
+ *  classified by ClassifyEvoSectionError(). */
 bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& chainman, CDeterministicMNManager& dmnman,
                       const llmq::CQuorumBlockProcessor& qblockman, llmq::CQuorumSnapshotManager& qsnapman,
                       CCreditPoolManager& cpoolman, CMNHFManager& mnhfman, const CBlockIndex* base_index,
-                      EvoSnapshot& snapshot, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+                      EvoSnapshot& snapshot, std::string& error, const EvoSnapshotCaptures* captures = nullptr,
+                      EvoSectionFailure* failure = nullptr) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 /** Apply the complete diff chain and return lists keyed by target block hash. */
 bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256, CDeterministicMNList>& lists,
@@ -905,8 +971,8 @@ bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& 
  *  runs them on NORMAL, the loader in the unpublished generation it seeded the
  *  section into, so deployment state at or below the base comes from the
  *  carried signal record and never from history the loading node lacks. */
-bool PreflightEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
-                          const CBlockIndex* base_index, std::string& error) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+bool PreflightEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman, const CBlockIndex* base_index,
+                          std::string& error, EvoSectionFailure* failure = nullptr) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 /** The scan-coverage gate of ValidateEvoSnapshotAgainstChain on its own:
  *  every ChainLock verification scan B + 1 may make and the asset-unlock scan
