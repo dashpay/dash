@@ -605,6 +605,15 @@ util::Result<SelectionResult> ChooseSelectionResult(const CWallet& wallet, const
         results.push_back(*knapsack_result);
     } else append_error(knapsack_result);
 
+    if (coin_selection_params.m_effective_feerate > CFeeRate{3 * coin_selection_params.m_long_term_feerate}) { // Minimize input set for feerates of at least 3×LTFRE (default: 3 duff/B+)
+        if (auto cg_result{CoinGrinder(groups.positive_group, nTargetValue, coin_selection_params.m_min_change_target, max_inputs_weight)}) {
+            cg_result->ComputeAndSetWaste(coin_selection_params.min_viable_change, coin_selection_params.m_cost_of_change, coin_selection_params.m_change_fee);
+            results.push_back(*cg_result);
+        } else {
+            append_error(cg_result);
+        }
+    }
+
     if (auto srd_result{SelectCoinsSRD(groups.positive_group, nTargetValue, coin_selection_params.m_change_fee, coin_selection_params.rng_fast, max_inputs_weight,
                                        coin_selection_params.m_coin_type == CoinType::ONLY_FULLY_MIXED)}) {
         srd_result->ComputeAndSetWaste(coin_selection_params.min_viable_change, coin_selection_params.m_cost_of_change, coin_selection_params.m_change_fee);

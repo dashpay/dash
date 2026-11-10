@@ -994,6 +994,222 @@ BOOST_AUTO_TEST_CASE(effective_value_test)
     BOOST_CHECK_EQUAL(output5.GetEffectiveValue(), nValue); // The effective value should be equal to the absolute value if input_bytes is -1
 }
 
+static util::Result<SelectionResult> CoinGrinder(const CAmount& target,
+                                                    const CoinSelectionParams& cs_params,
+                                                    const node::NodeContext& m_node,
+                                                    int max_weight,
+                                                    std::function<CoinsResult(CWallet&)> coin_setup)
+{
+    std::unique_ptr<CWallet> wallet = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
+    wallet->LoadWallet();
+    LOCK(wallet->cs_wallet);
+    wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+    wallet->SetupDescriptorScriptPubKeyMans("", "");
+
+    CoinEligibilityFilter filter(0, 0, 0); // accept all coins without ancestors
+    Groups group = GroupOutputs(*wallet, coin_setup(*wallet), cs_params, {{filter}})[filter].all_groups;
+    return CoinGrinder(group.positive_group, target, cs_params.m_min_change_target, max_weight);
+}
+
+BOOST_AUTO_TEST_CASE(coin_grinder_tests)
+{
+    // Test Coin Grinder:
+    // 1) Insufficient funds, select all provided coins and fail.
+    // 2) Exceeded max weight, coin selection always surpasses the max allowed weight.
+    // 3) Select coins without surpassing the max weight (some coins surpasses the max allowed weight, some others not)
+    // 4) Test that two less valuable UTXOs with a combined lower weight are preferred over a more valuable heavier UTXO
+    // 5) Test finding a solution in a UTXO pool with mixed weights
+    // 6) Test that the lightest solution among many clones is found
+    // 7) Test that lots of tiny UTXOs can be skipped if they are too heavy while there are enough funds in lookahead
+
+    FastRandomContext rand;
+    CoinSelectionParams dummy_params{ // Only used to provide the 'avoid_partial' flag.
+            rand,
+            /*change_output_size=*/34,
+            /*change_spend_size=*/68,
+            /*min_change_target=*/CENT,
+            /*effective_feerate=*/CFeeRate(5000),
+            /*long_term_feerate=*/CFeeRate(2000),
+            /*discard_feerate=*/CFeeRate(1000),
+            /*tx_noinputs_size=*/10 + 34, // static header size + output size
+            /*avoid_partial=*/false,
+    };
+
+    {
+        // #########################################################
+        // 1) Insufficient funds, select all provided coins and fail
+        // #########################################################
+        CAmount target = 49.5L * COIN;
+        int max_weight = 10'000; // high enough to not fail for this reason.
+        const auto& res = CoinGrinder(target, dummy_params, m_node, max_weight, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 10; ++j) {
+                add_coin(available_coins, wallet, CAmount(1 * COIN));
+                add_coin(available_coins, wallet, CAmount(2 * COIN));
+            }
+            return available_coins;
+        });
+        BOOST_CHECK(!res);
+        BOOST_CHECK(util::ErrorString(res).empty()); // empty means "insufficient funds"
+    }
+
+    {
+        // ###########################
+        // 2) Test max weight exceeded
+        // ###########################
+        CAmount target = 29.5L * COIN;
+        int max_weight = 750;
+        const auto& res = CoinGrinder(target, dummy_params, m_node, max_weight, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 10; ++j) {
+                add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(5000), 144, false, 0, true, 68);
+                add_coin(available_coins, wallet, CAmount(2 * COIN), CFeeRate(5000), 144, false, 0, true, 68);
+            }
+            return available_coins;
+        });
+        BOOST_CHECK(!res);
+        BOOST_CHECK(util::ErrorString(res).original.find("The inputs size exceeds the maximum weight") != std::string::npos);
+    }
+
+    {
+        // ###############################################################################################################
+        // 3) Test selection when some coins surpass the max allowed weight while others not. --> must find a good solution
+        // ################################################################################################################
+        CAmount target = 25.33L * COIN;
+        int max_weight = 2'500; // bytes
+        const auto& res = CoinGrinder(target, dummy_params, m_node, max_weight, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 60; ++j) { // 60 UTXO --> 19,8 DASH total --> 60 × 68 B = 4080 B
+                add_coin(available_coins, wallet, CAmount(0.33 * COIN), CFeeRate(5000), 144, false, 0, true, 68);
+            }
+            for (int i = 0; i < 10; i++) { // 10 UTXO --> 20 DASH total --> 10 × 68 B = 680 B
+                add_coin(available_coins, wallet, CAmount(2 * COIN), CFeeRate(5000), 144, false, 0, true, 68);
+            }
+            return available_coins;
+        });
+        BOOST_CHECK(res);
+        // Demonstrate how following improvements reduce iteration count and catch any regressions in the future.
+        size_t expected_attempts = 37;
+        BOOST_CHECK_MESSAGE(res->GetSelectionsEvaluated() == expected_attempts, strprintf("Expected %i attempts, but got %i", expected_attempts, res->GetSelectionsEvaluated()));
+    }
+
+    {
+        // #################################################################################################################
+        // 4) Test that two less valuable UTXOs with a combined lower weight are preferred over a more valuable heavier UTXO
+        // #################################################################################################################
+        CAmount target =  1.9L * COIN;
+        int max_weight = 400'000; // WU
+        const auto& res = CoinGrinder(target, dummy_params, m_node, max_weight, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            add_coin(available_coins, wallet, CAmount(2 * COIN), CFeeRate(5000), 144, false, 0, true, 148);
+            add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(5000), 144, false, 0, true, 68);
+            add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(5000), 144, false, 0, true, 68);
+            return available_coins;
+        });
+        SelectionResult expected_result(CAmount(0), SelectionAlgorithm::CG);
+        add_coin(1 * COIN, 1, expected_result);
+        add_coin(1 * COIN, 2, expected_result);
+        BOOST_CHECK(EquivalentResult(expected_result, *res));
+        // Demonstrate how following improvements reduce iteration count and catch any regressions in the future.
+        size_t expected_attempts = 3;
+        BOOST_CHECK_MESSAGE(res->GetSelectionsEvaluated() == expected_attempts, strprintf("Expected %i attempts, but got %i", expected_attempts, res->GetSelectionsEvaluated()));
+    }
+
+    {
+        // ###############################################################################################################
+        // 5) Test finding a solution in a UTXO pool with mixed weights
+        // ################################################################################################################
+        CAmount target = 30L * COIN;
+        int max_weight = 400'000; // WU
+        const auto& res = CoinGrinder(target, dummy_params, m_node, max_weight, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            for (int j = 0; j < 5; ++j) {
+                // Add heavy coins {3, 6, 9, 12, 15}
+                add_coin(available_coins, wallet, CAmount((3 + 3 * j) * COIN), CFeeRate(5000), 144, false, 0, true, 350);
+                // Add medium coins {2, 5, 8, 11, 14}
+                add_coin(available_coins, wallet, CAmount((2 + 3 * j) * COIN), CFeeRate(5000), 144, false, 0, true, 250);
+                // Add light coins {1, 4, 7, 10, 13}
+                add_coin(available_coins, wallet, CAmount((1 + 3 * j) * COIN), CFeeRate(5000), 144, false, 0, true, 150);
+            }
+            return available_coins;
+        });
+        BOOST_CHECK(res);
+        SelectionResult expected_result(CAmount(0), SelectionAlgorithm::CG);
+        add_coin(14 * COIN, 1, expected_result);
+        add_coin(13 * COIN, 2, expected_result);
+        add_coin(4 * COIN, 3, expected_result);
+        BOOST_CHECK(EquivalentResult(expected_result, *res));
+        // Demonstrate how following improvements reduce iteration count and catch any regressions in the future.
+        size_t expected_attempts = 92;
+        BOOST_CHECK_MESSAGE(res->GetSelectionsEvaluated() == expected_attempts, strprintf("Expected %i attempts, but got %i", expected_attempts, res->GetSelectionsEvaluated()));
+    }
+
+    {
+        // #################################################################################################################
+        // 6) Test that the lightest solution among many clones is found
+        // #################################################################################################################
+        CAmount target =  9.9L * COIN;
+        int max_weight = 400'000; // WU
+        const auto& res = CoinGrinder(target, dummy_params, m_node, max_weight, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            // Expected Result: 4 + 3 + 2 + 1 = 10 DASH at 400 B
+            add_coin(available_coins, wallet, CAmount(4 * COIN), CFeeRate(5000), 144, false, 0, true, 100);
+            add_coin(available_coins, wallet, CAmount(3 * COIN), CFeeRate(5000), 144, false, 0, true, 100);
+            add_coin(available_coins, wallet, CAmount(2 * COIN), CFeeRate(5000), 144, false, 0, true, 100);
+            add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(5000), 144, false, 0, true, 100);
+            // Distracting clones:
+            for (int j = 0; j < 100; ++j) {
+                add_coin(available_coins, wallet, CAmount(8 * COIN), CFeeRate(5000), 144, false, 0, true, 1000);
+            }
+            for (int j = 0; j < 100; ++j) {
+                add_coin(available_coins, wallet, CAmount(7 * COIN), CFeeRate(5000), 144, false, 0, true, 800);
+            }
+            for (int j = 0; j < 100; ++j) {
+                add_coin(available_coins, wallet, CAmount(6 * COIN), CFeeRate(5000), 144, false, 0, true, 600);
+            }
+            for (int j = 0; j < 100; ++j) {
+                add_coin(available_coins, wallet, CAmount(5 * COIN), CFeeRate(5000), 144, false, 0, true, 400);
+            }
+            return available_coins;
+        });
+        SelectionResult expected_result(CAmount(0), SelectionAlgorithm::CG);
+        add_coin(4 * COIN, 0, expected_result);
+        add_coin(3 * COIN, 0, expected_result);
+        add_coin(2 * COIN, 0, expected_result);
+        add_coin(1 * COIN, 0, expected_result);
+        BOOST_CHECK(EquivalentResult(expected_result, *res));
+        // Demonstrate how following improvements reduce iteration count and catch any regressions in the future.
+        size_t expected_attempts = 38;
+        BOOST_CHECK_MESSAGE(res->GetSelectionsEvaluated() == expected_attempts, strprintf("Expected %i attempts, but got %i", expected_attempts, res->GetSelectionsEvaluated()));
+    }
+
+    {
+        // #################################################################################################################
+        // 7) Test that lots of tiny UTXOs can be skipped if they are too heavy while there are enough funds in lookahead
+        // #################################################################################################################
+        CAmount target =  1.9L * COIN;
+        int max_weight = 40000; // WU
+        const auto& res = CoinGrinder(target, dummy_params, m_node, max_weight, [&](CWallet& wallet) {
+            CoinsResult available_coins;
+            add_coin(available_coins, wallet, CAmount(1.8 * COIN), CFeeRate(5000), 144, false, 0, true, 2500);
+            add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(5000), 144, false, 0, true, 1000);
+            add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(5000), 144, false, 0, true, 1000);
+            for (int j = 0; j < 100; ++j) {
+                // make a 100 unique coins only differing by one sat
+                add_coin(available_coins, wallet, CAmount(0.01 * COIN + j), CFeeRate(5000), 144, false, 0, true, 110);
+            }
+            return available_coins;
+        });
+        SelectionResult expected_result(CAmount(0), SelectionAlgorithm::CG);
+        add_coin(1 * COIN, 1, expected_result);
+        add_coin(1 * COIN, 2, expected_result);
+        BOOST_CHECK(EquivalentResult(expected_result, *res));
+        // Demonstrate how following improvements reduce iteration count and catch any regressions in the future.
+        size_t expected_attempts = 7;
+        BOOST_CHECK_MESSAGE(res->GetSelectionsEvaluated() == expected_attempts, strprintf("Expected %i attempts, but got %i", expected_attempts, res->GetSelectionsEvaluated()));
+    }
+}
+
 BOOST_AUTO_TEST_CASE(SelectCoins_effective_value_test)
 {
     // Test that the effective value is used to check whether preset inputs provide sufficient funds when subtract_fee_outputs is not used.
@@ -1133,6 +1349,7 @@ BOOST_AUTO_TEST_CASE(srd_tests)
         const auto& res = SelectCoinsSRDResult(49.5L * COIN, dummy_params, m_node, /*max_weight=*/1000, [&](CWallet& wallet) {
             CoinsResult available_coins;
             for (int j = 0; j < 10; ++j) {
+                /* 10 × 1 DASH + 10 × 2 DASH = 30 DASH. 20 × 68 B = 1360 B */
                 add_coin(available_coins, wallet, CAmount(1 * COIN), CFeeRate(0), 144, false, 0, true, 68);
                 add_coin(available_coins, wallet, CAmount(2 * COIN), CFeeRate(0), 144, false, 0, true, 68);
             }
