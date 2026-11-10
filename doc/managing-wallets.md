@@ -138,7 +138,7 @@ Legacy wallets can know about, be watching for, and be able to sign for, `migrat
 makes a best effort attempt to capture all of these things into Descriptor wallets. There may be
 unforeseen configurations which result in some scripts being excluded. If a migration fails
 unexpectedly or otherwise misses any scripts, please create an issue on GitHub. A backup of the
-original wallet can be found in the wallet directory with the name `<name>-<timestamp>.legacy.bak`.
+original wallet can be found in the wallet directory with the name `<name>_<timestamp>.legacy.bak`.
 
 The backup can be restored using the `restorewallet` command as discussed in the
 [Restoring the Wallet From a Backup](#16-restoring-the-wallet-from-a-backup) section
