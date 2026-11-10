@@ -1234,10 +1234,10 @@ class TaprootTest(BitcoinTestFramework):
         self.num_nodes = 2
         self.setup_clean_chain = True
         # Node 0 has Taproot inactive, Node 1 active.
-        # Node 0 has Taproot (v24) inactive, Node 1 activates it through plain BIP9 signalling (no EHF).
+        # Node 0 has Taproot inactive, Node 1 activates it through plain BIP9 signalling (no EHF).
         # Both nodes keep DIP3/v20 enforcement out of reach so the hand-built blocks need no coinbase payload.
         common_args = ["-par=1", "-dip3params=4000:4000", "-testactivationheight=v20@4000", "-testactivationheight=mn_rr@4000"]
-        self.extra_args = [common_args + ["-vbparams=v24:1:1"], common_args + ["-vbparams=v24:0:999999999999:0:10:8:6:5:0"]]
+        self.extra_args = [common_args + ["-vbparams=taproot:1:1"], common_args + ["-vbparams=taproot:0:999999999999:0:10:8:6:5:0"]]
 
     def block_submit(self, node, txs, msg, err_msg, cb_pubkey=None, fees=0, sigops_weight=0, accept=False):
 
@@ -1479,13 +1479,13 @@ class TaprootTest(BitcoinTestFramework):
         # Post-taproot activation tests go first (pre-taproot tests' blocks are invalid post-taproot).
         self.log.info("Post-activation tests...")
         self.generate(self.nodes[1], 101)
-        while not softfork_active(self.nodes[1], "v24"):
+        while not softfork_active(self.nodes[1], "taproot"):
             self.generate(self.nodes[1], 10)
         self.test_spenders(self.nodes[1], spenders_taproot_active(), input_counts=[1, 2, 2, 2, 2, 3])
 
         # A taproot spend can carry pushes the legacy interpreter rejects (control blocks deeper than 15
-        # levels, leaf scripts over 520 bytes), so a node without the v24 rules cannot follow the chain
-        # built above; like every EHF deployment, v24 is a hard fork for nodes that lack it. Let the
+        # levels, leaf scripts over 520 bytes), so a node without the taproot rules cannot follow the chain
+        # built above; like every EHF deployment, taproot is a hard fork for nodes that lack it. Let the
         # pre-activation node mine its own coins instead of syncing them from the active node.
         self.disconnect_nodes(0, 1)
         self.generate(self.nodes[0], 101, sync_fun=self.no_op)

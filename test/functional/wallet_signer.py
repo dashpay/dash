@@ -46,11 +46,11 @@ class WalletSignerTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
 
-        # v24 (taproot) activates through plain BIP9 signalling on both nodes
-        v24_active = "-vbparams=v24:0:999999999999:0:10:8:6:5:0"
+        # taproot activates through plain BIP9 signalling on both nodes
+        taproot_active = "-vbparams=taproot:0:999999999999:0:10:8:6:5:0"
         self.extra_args = [
-            [v24_active],
-            [f"-signer={self.mock_signer_path()}", '-keypool=10', v24_active],
+            [taproot_active],
+            [f"-signer={self.mock_signer_path()}", '-keypool=10', taproot_active],
         ]
         # whitelist peers to speed up tx relay / mempool sync
         for args in self.extra_args:
@@ -68,8 +68,8 @@ class WalletSignerTest(BitcoinTestFramework):
         os.remove(os.path.join(node.cwd, "mock_result"))
 
     def run_test(self):
-        self.log.info("Activating v24 (taproot)...")
-        while not softfork_active(self.nodes[0], "v24"):
+        self.log.info("Activating taproot...")
+        while not softfork_active(self.nodes[0], "taproot"):
             self.generate(self.nodes[0], 10)
         self.test_valid_signer()
         self.restart_node(1, [f"-signer={self.mock_invalid_signer_path()}", "-keypool=10"])

@@ -24,8 +24,8 @@ reference.
   `ExecuteTapscript`. Push-only, no 520-byte element cap, no MINIMALDATA on
   the stack items. A node without `SCRIPT_VERIFY_TAPROOT` evaluates the
   output as a plain script and rejects pushes over 520 bytes, so activation
-  is a hard fork for it. Activation gate is `DEPLOYMENT_V24` (already
-  EHF-gated).
+  is a hard fork for it. Activation gate is `DEPLOYMENT_TAPROOT` (bit 15,
+  EHF, own deployment since 2026-11-10 because v24 had already shipped).
 - **Sighash.** `SignatureHashSchnorr` writes `int32(nVersion | nType << 16)`,
   `nLockTime`, and for `nVersion >= SPECIAL_VERSION && nType !=
   TRANSACTION_NORMAL` the serialized `vExtraPayload`, exactly like the legacy
@@ -66,7 +66,7 @@ reference.
   an internal manager (`TransactionChangeType` in `wallet/spend.cpp`).
 - **Signing.** Dummy Schnorr signature is 65 bytes (wallet signs
   `SIGHASH_ALL`; no `SIGHASH_DEFAULT` RPC default switch). `tr()` import is
-  gated on `isV24Active()`.
+  gated on `isTaprootActive()`.
 - **Qt.** Receive tab dropdown "Legacy" / "Taproot", the latter only when the
   descriptor wallet has an active TAPROOT external manager
   (`interfaces::Wallet::taprootEnabled()`).
@@ -93,15 +93,15 @@ reference.
 
 ## Done after the first review round (2026-10-20)
 
-- bitcoin#22364: descriptor wallets created where v24 is active derive
+- bitcoin#22364: descriptor wallets created where taproot is active derive
   `tr(xpub/86h/coin'h/0h/{0,1}/*)` next to `pkh()` (BIP86 purpose,
   `BIP32_PURPOSE_TAPROOT` in `hdchain.h`); no tr() for CoinJoin. Gated on
-  `chain().isV24Active()` like the import path, so wallets created earlier
+  `chain().isTaprootActive()` like the import path, so wallets created earlier
   need `importdescriptors`.
 - `-addresstype` (legacy|taproot) and `-changetype`; `DEFAULT_ADDRESS_TYPE`
   in `wallet.h`.
 - bitcoin#23578: external signers may return tr() descriptors; activated
-  when v24 is active (`IsDefaultPurposeDescriptor` accepts 44' and 86').
+  when taproot is active (`IsDefaultPurposeDescriptor` accepts 44' and 86').
 - bitcoin#23789: change type follows the payment outputs
   (`TransactionChangeType` in `wallet/spend.cpp`, static). Dash difference:
   the "legacy default means legacy change" shortcut only applies when the
@@ -109,13 +109,13 @@ reference.
 - bitcoin#30048: `XOnlyPubKey::NUMS_H`; Dash commit on top fixes the dummy
   signer for fee estimation.
 - `wallet_taproot.py` covers all of the above; `wallet_signer.py` activates
-  v24 through `-vbparams` on both nodes.
+  taproot through `-vbparams` on both nodes.
 
 ## Test activation without masternodes
 
-Active node: `-vbparams=v24:0:999999999999:0:10:8:6:5:0` (trailing `0` means
+Active node: `-vbparams=taproot:0:999999999999:0:10:8:6:5:0` (trailing `0` means
 `useEHF=false`), then mine through the window. Inactive node:
-`-vbparams=v24:1:1`; it cannot follow an active chain (hard fork), so
+`-vbparams=taproot:1:1`; it cannot follow an active chain (hard fork), so
 `feature_taproot` lets it mine its own coins. All wallet tests run as
 `--descriptors` (no BDB on this machine).
 
@@ -229,3 +229,15 @@ wallet_taproot, wallet_signer, rpc_psbt, rpc_decodescript, feature_block,
 feature_csv_activation, mempool_accept, rpc_createmultisig, rpc_misc,
 rpc_rawtransaction, rpc_signrawtransactionwithkey, interface_bitcoin_cli,
 tool_wallet and the wallet_* descriptor suite) all passed.
+
+## Own deployment (2026-11-10)
+
+v24 is released, so taproot moved from `DEPLOYMENT_V24` to its own
+`DEPLOYMENT_TAPROOT` (bit 15, `"taproot"` in `getblockchaininfo`, EHF like
+v24/evo_shares, same window and thresholds). Mainnet start 2027-05-10 and
+testnet/devnet start 2027-03-01 are placeholders for release time; regtest
+starts at 0. Masternodes sign its MNHF signal like v24's (no `evo_shares`-style
+skip in `ehf_signals.cpp`). Gating sites: `GetBlockScriptFlags` and the
+mempool `AreInputsStandard` call in `validation.cpp`, and
+`Chain::isTaprootActive()` for the wallet (default `tr()` descriptors,
+`importdescriptors`, external signers). Tests use `-vbparams=taproot:...`.

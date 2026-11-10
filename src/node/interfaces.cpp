@@ -1644,6 +1644,11 @@ public:
         LOCK(::cs_main);
         return DeploymentActiveAfter(chainman().ActiveChain().Tip(), chainman(), Consensus::DEPLOYMENT_V24);
     }
+    bool isTaprootActive() override
+    {
+        LOCK(::cs_main);
+        return DeploymentActiveAfter(chainman().ActiveChain().Tip(), chainman(), Consensus::DEPLOYMENT_TAPROOT);
+    }
     bool havePruned() override
     {
         LOCK(::cs_main);

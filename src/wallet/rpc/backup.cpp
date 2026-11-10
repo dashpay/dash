@@ -1777,7 +1777,7 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
         ExtractDestination(scripts[0], dest);
         if (std::holds_alternative<TaprootDestination>(dest)) {
             // Check if Taproot is active
-            if (!wallet.chain().isV24Active()) {
+            if (!wallet.chain().isTaprootActive()) {
                 // Taproot is not active, raise an error
                 throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import tr() descriptor when Taproot is not active");
             }

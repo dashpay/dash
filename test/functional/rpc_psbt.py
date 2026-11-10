@@ -52,8 +52,8 @@ class PSBTTest(BitcoinTestFramework):
 
     def set_test_params(self):
         self.num_nodes = 3
-        # v24 (taproot) activates through plain BIP9 signalling on every node
-        self.extra_args = [["-vbparams=v24:0:999999999999:0:10:8:6:5:0"]] * 3
+        # taproot activates through plain BIP9 signalling on every node
+        self.extra_args = [["-vbparams=taproot:0:999999999999:0:10:8:6:5:0"]] * 3
         self.supports_cli = False
 
     def skip_test_if_missing_module(self):
@@ -770,7 +770,7 @@ class PSBTTest(BitcoinTestFramework):
 
         self.log.info("Test signing taproot inputs that the wallet has keys for but is not watching the scripts")
         if self.options.descriptors:
-            while not softfork_active(self.nodes[1], "v24"):
+            while not softfork_active(self.nodes[1], "taproot"):
                 self.generate(self.nodes[0], 10)
             self.nodes[1].createwallet(wallet_name="scriptwatchonly", disable_private_keys=True)
             watchonly = self.nodes[1].get_wallet_rpc("scriptwatchonly")

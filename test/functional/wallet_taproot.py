@@ -194,10 +194,10 @@ class WalletTaprootTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 3
         self.setup_clean_chain = True
-        # Nodes 0 and 1 activate v24 (taproot) through plain BIP9 signalling, node 2 never does.
+        # Nodes 0 and 1 activate taproot through plain BIP9 signalling, node 2 never does.
         # Dummy-signing a script-path spend assumes the shorter key path, so pay well above the relay minimum.
-        v24_active = "-vbparams=v24:0:999999999999:0:10:8:6:5:0"
-        self.extra_args = [['-keypool=100', '-fallbackfee=0.0002', v24_active], ['-keypool=100', '-fallbackfee=0.0002', v24_active], ["-vbparams=v24:1:1"]]
+        taproot_active = "-vbparams=taproot:0:999999999999:0:10:8:6:5:0"
+        self.extra_args = [['-keypool=100', '-fallbackfee=0.0002', taproot_active], ['-keypool=100', '-fallbackfee=0.0002', taproot_active], ["-vbparams=taproot:1:1"]]
         self.supports_cli = False
 
     def skip_test_if_missing_module(self):
@@ -266,7 +266,7 @@ class WalletTaprootTest(BitcoinTestFramework):
             assert_equal(len(rederive), 1)
             assert_equal(rederive[0], addr_g)
 
-        # tr descriptors can be imported where taproot (v24) is active, and nowhere else
+        # tr descriptors can be imported where taproot is active, and nowhere else
         result = privs_tr_enabled.importdescriptors([{"desc": desc, "timestamp": "now"}])
         assert(result[0]["success"])
         result = pubs_tr_enabled.importdescriptors([{"desc": desc_pub, "timestamp": "now"}])
@@ -424,15 +424,15 @@ class WalletTaprootTest(BitcoinTestFramework):
         self.do_test_psbt(comment, pattern, privmap, treefn, keys[2*nkeys:3*nkeys], keys[3*nkeys:4*nkeys])
 
     def run_test(self):
-        self.log.info("Activating v24 on the taproot-enabled nodes...")
+        self.log.info("Activating taproot on the taproot-enabled nodes...")
         for node in self.nodes[:2]:
-            while not softfork_active(node, "v24"):
+            while not softfork_active(node, "taproot"):
                 self.generate(node, 10, sync_fun=self.no_op)
 
         self.nodes[0].createwallet(wallet_name="boring", descriptors=True)
         self.boring = self.nodes[0].get_wallet_rpc("boring")
 
-        self.log.info("A wallet created where v24 is active derives tr() descriptors next to pkh()")
+        self.log.info("A wallet created where taproot is active derives tr() descriptors next to pkh()")
         descs = self.boring.listdescriptors()["descriptors"]
         tr_descs = [d for d in descs if d["desc"].startswith("tr(")]
         assert_equal(len(descs), 5)
@@ -446,7 +446,7 @@ class WalletTaprootTest(BitcoinTestFramework):
         legacy_info = self.boring.getaddressinfo(self.boring.getnewaddress())
         assert_equal(legacy_info["hdkeypath"], "m/44h/1h/0h/0/0")
 
-        self.log.info("A wallet created where v24 is inactive gets no tr() descriptors")
+        self.log.info("A wallet created where taproot is inactive gets no tr() descriptors")
         self.nodes[2].createwallet(wallet_name="inactive_default", descriptors=True)
         inactive = self.nodes[2].get_wallet_rpc("inactive_default")
         assert_equal(len(inactive.listdescriptors()["descriptors"]), 3)

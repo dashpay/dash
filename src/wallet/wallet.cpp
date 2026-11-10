@@ -4660,9 +4660,9 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
 {
     AssertLockHeld(cs_wallet);
 
-    // Taproot outputs are anyone-can-spend until v24 activates, so a wallet
+    // Taproot outputs are anyone-can-spend until taproot activates, so a wallet
     // created before that only gets its tr() descriptors through importdescriptors
-    const bool taproot_active = HaveChain() && chain().isV24Active();
+    const bool taproot_active = HaveChain() && chain().isTaprootActive();
     for (auto type : {PathDerivationType::BIP44_External, PathDerivationType::BIP44_Internal, PathDerivationType::DIP0009_CoinJoin}) {
         for (OutputType addr_type : OUTPUT_TYPES) {
             if (addr_type == OutputType::TAPROOT && (!taproot_active || type == PathDerivationType::DIP0009_CoinJoin)) continue;
@@ -4726,7 +4726,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
         UniValue signer_res = signer.GetDescriptors(account);
 
         if (!signer_res.isObject()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
-        const bool taproot_active = HaveChain() && chain().isV24Active();
+        const bool taproot_active = HaveChain() && chain().isTaprootActive();
         for (bool internal : {false, true}) {
             const UniValue& descriptor_vals = signer_res.find_value(internal ? "internal" : "receive");
             if (!descriptor_vals.isArray()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
