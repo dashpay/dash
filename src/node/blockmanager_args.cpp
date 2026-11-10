@@ -41,6 +41,7 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, BlockM
     if (auto value{args.GetBoolArg("-fastprune")}) opts.fast_prune = *value;
     if (auto value{args.GetBoolArg("-tinyblk")}) opts.tiny_blk = *value;
     if (auto value{args.GetBoolArg("-stopafterblockimport")}) opts.stop_after_block_import = *value;
+    if (auto value{args.GetIntArg("-blockcompression")}) opts.block_compression = *value;
 
     return std::nullopt;
 }

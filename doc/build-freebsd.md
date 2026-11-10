@@ -10,7 +10,7 @@ This guide describes how to build dashd, command-line utilities, and GUI on Free
 Run the following as root to install the base dependencies for building.
 
 ```bash
-pkg install autoconf automake boost-libs git gmake libevent libtool pkgconf libbacktrace
+pkg install autoconf automake boost-libs git gmake libevent libtool pkgconf libbacktrace zstd
 
 ```
 

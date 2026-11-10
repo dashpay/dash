@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <vector>
 
+class AutoFile;
 class BlockValidationState;
 class CBlock;
 class CBlockUndo;
@@ -31,8 +32,13 @@ struct FlatFilePos;
 namespace Consensus {
 struct Params;
 }
+namespace util {
+class ZstdFileReader;
+}
 
 namespace node {
+/** Higher levels cost several times more CPU per block for no measurable gain */
+static constexpr int MAX_RECOMMENDED_BLOCK_COMPRESSION_LEVEL{5};
 
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
@@ -41,8 +47,11 @@ static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** The maximum size of a blk?????.dat file (since 0.8) */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 
-/** Size of header written by WriteBlockToDisk before a serialized CBlock */
+/** Size of header written before the payload of each block and undo record */
 static constexpr size_t BLOCK_SERIALIZATION_HEADER_SIZE = CMessageHeader::MESSAGE_START_SIZE + sizeof(unsigned int);
+/** Set in the size field of a block or undo record whose payload is one zstd frame of the serialized data */
+static constexpr uint32_t BLOCK_RECORD_COMPRESSED{0x80000000};
+static constexpr uint32_t BLOCK_RECORD_SIZE_MASK{~BLOCK_RECORD_COMPRESSED};
 
 extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
@@ -107,8 +116,10 @@ private:
 
     FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false) const;
 
-    bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const;
-    bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const;
+    bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const;
+    /** Size field of the record already stored at pos */
+    std::optional<uint32_t> StoredBlockSizeField(const FlatFilePos& pos) const;
+    bool UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const;
 
     /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
     void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, int chain_tip_height);
@@ -241,6 +252,9 @@ public:
     /** True if any block files have ever been pruned. */
     bool m_have_pruned = false;
 
+    /** True if any zstd-compressed block or undo record has ever been written, which a build without zstd cannot read. */
+    bool m_have_compressed_records = false;
+
     //! Check whether the block associated with this index entry is pruned or not.
     bool IsBlockPruned(const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
@@ -266,6 +280,11 @@ public:
 
     void CleanupBlockRevFiles() const;
 };
+
+/** Position of the 8-byte header of the record whose payload starts at pos, null when pos leaves no room for one */
+FlatFilePos RecordHeaderPos(const FlatFilePos& pos);
+/** Read the header of the block record the file is positioned at and return a reader for its payload; a compressed payload is decompressed to at most MaxBlockSize() bytes */
+util::ZstdFileReader OpenRecordPayload(AutoFile& filein);
 
 void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles);
 } // namespace node

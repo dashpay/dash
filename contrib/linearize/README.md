@@ -5,6 +5,10 @@ Construct a linear, no-fork, best version of the Dash blockchain.
 
 https://github.com/dashpay/dash_hash
 
+Block files written by recent Dash Core versions hold zstd-compressed records; reading
+them with `linearize-data.py` needs the `zstandard` module (`pip install zstandard`)
+or Python 3.14+.
+
 ## Step 1: Download hash list
 
     $ ./linearize-hashes.py linearize.cfg > hashlist.txt
