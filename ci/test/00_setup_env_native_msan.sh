@@ -17,7 +17,9 @@ LIBCXX_FLAGS="-nostdinc++ -nostdlib++ -isystem ${LIBCXX_DIR}include/c++/v1 -L${L
 export MSAN_AND_LIBCXX_FLAGS="${MSAN_FLAGS} ${LIBCXX_FLAGS}"
 
 # BDB generates false-positives and will be removed in future
-export DEP_OPTS="DEBUG=1 NO_BDB=1 NO_QT=1 NO_UPNP=1 NO_NATPMP=1 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}'"
+# __BLST_NO_ASM__ makes blst use its C implementation instead of hand-written
+# assembly, which MSan cannot see through.
+export DEP_OPTS="DEBUG=1 NO_BDB=1 NO_QT=1 NO_UPNP=1 NO_NATPMP=1 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}' CPPFLAGS='-D__BLST_NO_ASM__'"
 export GOAL="install"
 # CC/CXX/CFLAGS/CXXFLAGS are repeated here rather than left to depends'
 # config.site. Upstream dropped them in bitcoin#29800 because its
@@ -26,12 +28,12 @@ export GOAL="install"
 # target whose compiler differs from the system default, so nothing else in
 # Dash's CI exercises that hand-off.
 # _FORTIFY_SOURCE is not compatible with MSAN.
-# --with-asm=no and --with-backend=easy keep secp256k1 and relic off
-# hand-written assembly, which MSan cannot see through.
+# --with-asm=no keeps secp256k1 off hand-written assembly, which MSan cannot
+# see through.
 # --disable-mimalloc selects the plain malloc secure allocator; mimalloc seeds
 # itself with a raw getrandom syscall before main(), which MSan cannot track.
 export BITCOIN_CONFIG="--with-sanitizers=memory --with-gui=no --without-bdb --with-sqlite \
---with-asm=no --with-backend=easy --disable-mimalloc \
+--with-asm=no --disable-mimalloc \
 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}' \
 CPPFLAGS='-U_FORTIFY_SOURCE'"
 export USE_MEMORY_SANITIZER="true"

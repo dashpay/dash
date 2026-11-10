@@ -12,23 +12,6 @@ BUILD_DIR=$(CURDIR)/../build
 CURR_DIR := $(dir $(MAKEFILE_PATH))
 SRC_DIR=$(CURDIR)/../src
 
-GMP_PREFIX := /usr/local
-
-ifeq ("$(OS)", "Darwin")
-  ifneq ($(wildcard /opt/local/bin/port),)
-    GMP_PREFIX := /opt/local
-  endif
-  ifeq ("$(ARCH)", "arm64")
-    ifneq ($(wildcard /opt/homebrew/bin/brew),)
-      GMP_PREFIX := /opt/homebrew
-    endif
-  endif
-else ifeq ("$(OS)", "Linux")
-  ifneq ($(wildcard /home/linuxbrew/.linuxbrew/bin/brew),)
-    GMP_PREFIX := /home/linuxbrew/.linuxbrew
-  endif
-endif
-
 MIMALLOC_LIB := mimalloc-secure
 MIMALLOC_LIB_PATH := $(CURR_DIR)../build/depends/mimalloc
 
@@ -36,18 +19,15 @@ ifneq ($(wildcard $(MIMALLOC_LIB_PATH)/libmimalloc-secure-debug.a),)
   MIMALLOC_LIB := mimalloc-secure-debug
 endif
 
+# blst is compiled into libdashbls; its headers come from the CMake build
 CGO_CXXFLAGS ?= "\
--I$(CURR_DIR)../build/depends/relic/include \
+-I$(CURR_DIR)../build/_deps/blst-src/bindings \
 -I$(CURR_DIR)../depends/mimalloc/include \
--I$(CURR_DIR)../depends/relic/include \
--I$(CURR_DIR)../include \
--I$(GMP_PREFIX)/include"
+-I$(CURR_DIR)../include"
 
 CGO_LDFLAGS ?= "\
 -L$(CURR_DIR)../build/src -ldashbls \
--L$(MIMALLOC_LIB_PATH) -l$(MIMALLOC_LIB) \
--L$(CURR_DIR)../build/depends/relic/lib -lrelic_s \
--L$(GMP_PREFIX)/lib -lgmp"
+-L$(MIMALLOC_LIB_PATH) -l$(MIMALLOC_LIB)"
 
 .PHONY: default prepare fmt test cover vet help clean config
 
