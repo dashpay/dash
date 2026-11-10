@@ -89,7 +89,10 @@ void CDSNotificationInterface::BlockDisconnected(const std::shared_ptr<const CBl
 
 void CDSNotificationInterface::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff)
 {
-    CMNAuth::NotifyMasternodeListChanged(undo, oldMNList, diff, m_connman);
+    // Iterating the nodes takes m_nodes_mutex, which must not happen under cs_main and the mempool lock held by our caller
+    CallFunctionInValidationInterfaceQueue([undo, oldMNList, diff, &connman = m_connman] {
+        CMNAuth::NotifyMasternodeListChanged(undo, oldMNList, diff, connman);
+    });
     if (m_govman.IsValid()) {
         m_govman.CheckAndRemove();
     }
