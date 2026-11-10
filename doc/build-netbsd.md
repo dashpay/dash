@@ -68,7 +68,7 @@ pkgin install db4
 
 #### GUI Dependencies
 
-Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, we need to install Qt 5.15 or later through the `qt5` package.
+Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, we need to install `qt5`.
 
 ```bash
 pkgin install qt5
