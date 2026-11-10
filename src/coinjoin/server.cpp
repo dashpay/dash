@@ -989,12 +989,6 @@ bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew, const CService& sender)
         return false;
     }
     if (admitted_input->fHasSig) return true;
-    for (const auto& other_entry : vecEntries) {
-        if (std::ranges::any_of(other_entry.vecTxDSIn,
-                               [&txinNew](const auto& input) { return input.scriptSig == txinNew.scriptSig; })) {
-            return false;
-        }
-    }
     if (!entry->AddScriptSig(txinNew)) return false;
     final_input->scriptSig = txinNew.scriptSig;
     return true;
