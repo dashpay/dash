@@ -137,14 +137,14 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
 
     MockTime(fuzzed_data_provider, chainstate);
 
-    // All RBF-spendable outpoints
-    std::set<COutPoint> outpoints_rbf;
-    // All outpoints counting toward the total supply (subset of outpoints_rbf)
+    // All spendable outpoints
+    std::set<COutPoint> outpoints_spendable;
+    // All outpoints counting toward the total supply (subset of outpoints_spendable)
     std::set<COutPoint> outpoints_supply;
     for (const auto& outpoint : g_outpoints_coinbase_init_mature) {
         Assert(outpoints_supply.insert(outpoint).second);
     }
-    outpoints_rbf = outpoints_supply;
+    outpoints_spendable = outpoints_supply;
 
     // The sum of the values of all spendable outpoints
     constexpr CAmount SUPPLY_TOTAL{COINBASE_MATURITY * 50 * COIN};
@@ -180,16 +180,16 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
             CMutableTransaction tx_mut;
             tx_mut.nVersion = CTransaction::CURRENT_VERSION;
             tx_mut.nLockTime = fuzzed_data_provider.ConsumeBool() ? 0 : fuzzed_data_provider.ConsumeIntegral<uint32_t>();
-            const auto num_in = fuzzed_data_provider.ConsumeIntegralInRange<int>(1, outpoints_rbf.size());
-            const auto num_out = fuzzed_data_provider.ConsumeIntegralInRange<int>(1, outpoints_rbf.size() * 2);
+            const auto num_in = fuzzed_data_provider.ConsumeIntegralInRange<int>(1, outpoints_spendable.size());
+            const auto num_out = fuzzed_data_provider.ConsumeIntegralInRange<int>(1, outpoints_spendable.size() * 2);
 
             CAmount amount_in{0};
             for (int i = 0; i < num_in; ++i) {
                 // Pop random outpoint
-                auto pop = outpoints_rbf.begin();
-                std::advance(pop, fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, outpoints_rbf.size() - 1));
+                auto pop = outpoints_spendable.begin();
+                std::advance(pop, fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, outpoints_spendable.size() - 1));
                 const auto outpoint = *pop;
-                outpoints_rbf.erase(pop);
+                outpoints_spendable.erase(pop);
                 amount_in += GetAmount(outpoint);
 
                 // Create input
@@ -210,7 +210,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
             auto tx = MakeTransactionRef(tx_mut);
             // Restore previously removed outpoints
             for (const auto& in : tx->vin) {
-                Assert(outpoints_rbf.insert(in.prevout).second);
+                Assert(outpoints_spendable.insert(in.prevout).second);
             }
             return tx;
         }();
@@ -224,7 +224,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
         if (fuzzed_data_provider.ConsumeBool()) {
             const auto& txid = fuzzed_data_provider.ConsumeBool() ?
                                    tx->GetHash() :
-                                   PickValue(fuzzed_data_provider, outpoints_rbf).hash;
+                                   PickValue(fuzzed_data_provider, outpoints_spendable).hash;
             const auto delta = fuzzed_data_provider.ConsumeIntegralInRange<CAmount>(-50 * COIN, +50 * COIN);
             tx_pool.PrioritiseTransaction(txid, delta);
         }
@@ -289,11 +289,11 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
                 insert_tx(/*created_by_tx=*/{consumed_erased}, /*consumed_by_tx=*/{outpoints_supply}, /*tx=*/*removed_tx);
             }
             for (const auto& added_tx : added) {
-                insert_tx(/*created_by_tx=*/{outpoints_supply, outpoints_rbf}, /*consumed_by_tx=*/{consumed_supply}, /*tx=*/*added_tx);
+                insert_tx(/*created_by_tx=*/{outpoints_supply, outpoints_spendable}, /*consumed_by_tx=*/{consumed_supply}, /*tx=*/*added_tx);
             }
             for (const auto& p : consumed_erased) {
                 Assert(outpoints_supply.erase(p) == 1);
-                Assert(outpoints_rbf.erase(p) == 1);
+                Assert(outpoints_spendable.erase(p) == 1);
             }
             for (const auto& p : consumed_supply) {
                 Assert(outpoints_supply.erase(p) == 1);
