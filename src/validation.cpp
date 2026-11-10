@@ -2857,6 +2857,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         // cache. Before DIP3 activates, new_list is the independently
         // computed empty list.
         RecordBackgroundMNListHash(pindex, mnlist_updates.new_list);
+        if (!CaptureSnapshotInputs(block, pindex, state)) return false;
     }
 
     const auto time_2_1{SteadyClock::now()};
@@ -3306,6 +3307,22 @@ void Chainstate::ForceFlushStateToDisk()
     }
 }
 
+bool Chainstate::CaptureSnapshotInputs(const CBlock& block, const CBlockIndex* pindex, BlockValidationState& state)
+{
+    AssertLockHeld(::cs_main);
+    if (EvoDbIdentity() != ::EvoDbIdentity::NORMAL) return true;
+    // The plan exists from before activation first releases cs_main, while
+    // this chainstate may still be the active one.
+    const evo::EvoSnapshotCapturePlan* plan{m_chainman.EvoCapturePlan()};
+    if (plan == nullptr) return true;
+    std::string error;
+    if (!evo::WriteEvoSnapshotCaptures(m_evoDb, *m_special_tx.m_cpoolman, m_blockman, *plan, block, *pindex,
+                                       m_chainman.GetConsensus(), error)) {
+        return state.Error(strprintf("failed to capture snapshot evo inputs: %s", error));
+    }
+    return true;
+}
+
 void Chainstate::RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDeterministicMNList& mn_list)
 {
     if (EvoDbIdentity() != ::EvoDbIdentity::NORMAL) return;
@@ -3414,21 +3431,24 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
 }
 
 /** Classify an error about this node's own Evo state at a chainstate boundary.
- *  Unavailable data, binding faults and a mismatch that could not reject the
- *  snapshot stall the chainstate (IsLocalEvoStateError); a rejected snapshot
- *  is an ordinary error, as the node is shutting down, and so is a block body
- *  it has but cannot read, which shuts it down. None of them marks the block
- *  invalid or blames a peer. */
+ *  Unavailable data, binding faults and a mismatch for a snapshot no longer in
+ *  use stall the chainstate (IsLocalEvoStateError); a rejected snapshot is an
+ *  ordinary error, as the node is shutting down, and so are a mismatch for a
+ *  snapshot still in use that could not be rejected and a block body it has
+ *  but cannot read, which shut it down. None of them marks the block invalid
+ *  or blames a peer. */
 static bool LocalEvoStateError(ChainstateManager& chainman, const evo::LocalStateError& e, BlockValidationState& state)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     LogPrintf("ERROR: local Evo state error: %s\n", e.what());
     if (dynamic_cast<const BlockDataReadError*>(&e)) {
         return AbortNode(state, strprintf("Failed to read block: %s", e.what()));
     }
     if (dynamic_cast<const evo::SnapshotStateMismatchError*>(&e)) {
-        if (chainman.HandleSnapshotStateMismatch(e.what())) {
+        if (chainman.RejectSnapshotOrStop(e.what())) {
             return state.Error("invalid assumeutxo evo snapshot state");
         }
+        if (ShutdownRequested()) return state.Error("invalid assumeutxo evo snapshot state could not be rejected");
         return state.LocalEvoStateError(LocalEvoStateResult::MISMATCH, "evo-local-mismatch");
     }
     if (dynamic_cast<const EvoViewBindingError*>(&e)) {
@@ -3436,6 +3456,8 @@ static bool LocalEvoStateError(ChainstateManager& chainman, const evo::LocalStat
     }
     return state.LocalEvoStateError(LocalEvoStateResult::UNAVAILABLE, "evo-local-unavailable");
 }
+
+static const std::string EVO_COMPLETION_WARNING_SOURCE{"snapshot-completion"};
 
 bool WarnLocalEvoStateUnavailable(const std::string& source, const std::string& detail, bool pruned)
 {
@@ -5584,6 +5606,10 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
         return false;
     }
     RecordBackgroundMNListHash(pindex, mnlist_updates.new_list);
+    if (!CaptureSnapshotInputs(block, pindex, state)) {
+        LogError("RollforwardBlock(DASH): %s\n", state.ToString());
+        return false;
+    }
     m_special_tx.RemoveMineableCommitmentsForBlock(block, pindex);
 
     for (size_t i = 0; i < block.vtx.size(); i++) {
@@ -6490,10 +6516,11 @@ bool ChainstateManager::ActivateSnapshot(
     }
 
     std::unique_ptr<Chainstate> snapshot_chainstate;
-    // Undo all that a failed activation set up: the generation, the caches
-    // and the snapshot directory.
+    // Undo all that a failed activation set up: the captured evo inputs and
+    // their plan, the generation, the caches and the snapshot directory.
     const auto cleanup = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
         m_activating_snapshot_base.reset();
+        ForgetEvoCaptures();
         this->MaybeRebalanceCaches();
 
         // Abandoning is a no-op when no generation was created.
@@ -6547,7 +6574,8 @@ bool ChainstateManager::ActivateSnapshot(
     } catch (const evo::LocalStateError& e) {
         // Evo state this node lacks, cannot read, or finds disagreeing with
         // the section refuses the snapshot, as bad input does.
-        LogPrintf("[snapshot] refusing to load on a local Evo state error: %s\n", e.what());
+        LogPrintf("[snapshot] refusing to load on a local Evo state error (%s): %s\n",
+                  evo::EvoSectionFailureName(evo::ClassifyEvoSectionError(e)), e.what());
         snapshot_ok = false;
     } catch (...) {
         LOCK(::cs_main);
@@ -6951,6 +6979,41 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         db_tx->Commit();
     }
     if (evo_snapshot && dip3_base) base_mn_list_hash = evo::CanonicalMNListHash(evo_snapshot->mn_list);
+    // The background chainstate captures the section's body-derived inputs as
+    // it connects them; capture now those it has already connected.
+    std::optional<evo::EvoSnapshotCapturePlan> capture_plan;
+    if (evo_snapshot) capture_plan = evo::PlanEvoSnapshotCaptures(*evo_snapshot, *this);
+    if (capture_plan) {
+        const EvoViewScope background_view{m_ibd_chainstate->EvoView()};
+        auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(::EvoDbIdentity::NORMAL);
+        // Whatever an earlier activation of this base left behind is stale.
+        evo::EraseEvoSnapshotCaptures(snapshot_chainstate.m_evoDb, *capture_plan, *this);
+        for (const int height : capture_plan->heights) {
+            const CBlockIndex* index{snapshot_start_block->GetAncestor(height)};
+            if (!m_ibd_chainstate->m_chain.Contains(index)) break;
+            CBlock block;
+            std::string evo_error;
+            // Completion would have no way to obtain this input.
+            if ((index->nStatus & BLOCK_HAVE_DATA) == 0 || !m_blockman.ReadBlockFromDisk(block, *index)) {
+                LogPrintf("[snapshot] the body of block %s, an input of the evo section, is not available\n",
+                          index->GetBlockHash().ToString());
+                return false;
+            }
+            try {
+                if (!evo::WriteEvoSnapshotCaptures(snapshot_chainstate.m_evoDb, *m_ibd_chainstate->m_special_tx.m_cpoolman,
+                                                   m_blockman, *capture_plan, block, *index, GetConsensus(), evo_error)) {
+                    LogPrintf("[snapshot] failed to capture evo inputs: %s\n", evo_error);
+                    return false;
+                }
+            } catch (const evo::LocalStateError& e) {
+                LogPrintf("[snapshot] failed to capture evo inputs: %s\n", e.what());
+                return false;
+            }
+        }
+        db_tx->Commit();
+        m_evo_capture_plan = std::make_unique<evo::EvoSnapshotCapturePlan>(*capture_plan);
+        m_evo_capture_plan_loaded = true;
+    }
 
     // Snapshot lifecycle recovery depends on the background chainstate's
     // independently captured MN-list hash. Make all preceding NORMAL writes
@@ -7054,6 +7117,16 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
     LogPrintf("[snapshot] !!! %s\n", user_error.original);
     LogPrintf("[snapshot] deleting snapshot, reverting to validated chain, and stopping node\n");
 
+    // The rejected snapshot's evo inputs will not be needed.
+    if (const evo::EvoSnapshotCapturePlan* plan{EvoCapturePlan()}) {
+        const EvoViewScope normal_view{m_ibd_chainstate->EvoView()};
+        auto db_tx = m_ibd_chainstate->m_evoDb.BeginTransaction(EvoDbIdentity::NORMAL);
+        evo::EraseEvoSnapshotCaptures(m_ibd_chainstate->m_evoDb, *plan, *this);
+        db_tx->Commit();
+    }
+    m_evo_capture_plan.reset();
+    m_evo_capture_plan_loaded = false;
+
     // DiscardSnapshotMarkers needs both identities' transaction trees fully
     // committed; a rejection raised mid-connection has not flushed them yet.
     const bool evodb_synced{m_ibd_chainstate->FlushCoinsThenSyncEvo() &&
@@ -7090,6 +7163,36 @@ bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
 
     shutdown_fnc(user_error);
     return true;
+}
+
+bilingual_str SnapshotCompletionStopMessage(SnapshotCompletionResult result, const std::string& reason)
+{
+    if (result == SnapshotCompletionResult::EVO_LOCAL_FAILURE) {
+        return strprintf(_("Validating the -assumeutxo snapshot failed on this node's own data, which is unreadable or "
+                           "inconsistent (%s). The snapshot was not rejected. Restarting with -reindex-chainstate "
+                           "discards it and rebuilds the chainstate from blocks; restart with -reindex instead if "
+                           "block data is damaged."),
+                         reason);
+    }
+    Assume(result == SnapshotCompletionResult::EVO_INTERNAL_ERROR);
+    return strprintf(_("Validating the -assumeutxo snapshot failed with an internal error (%s). The snapshot was not "
+                       "rejected. Please report this to %s. Restart with -reindex-chainstate to stop using the "
+                       "snapshot."),
+                     reason, PACKAGE_BUGREPORT);
+}
+
+bool ChainstateManager::RejectSnapshotOrStop(const std::string& reason, std::function<void(bilingual_str)> shutdown_fnc)
+{
+    AssertLockHeld(::cs_main);
+    if (HandleSnapshotStateMismatch(reason, shutdown_fnc)) return true;
+    // Nothing to reject once the snapshot chainstate is out of use; a snapshot
+    // still in use that cannot be rejected must not go on being used.
+    if (m_snapshot_chainstate && m_active_chainstate == m_snapshot_chainstate.get() &&
+        IsUsable(m_snapshot_chainstate.get())) {
+        AbortNode(strprintf("Failed to reject the invalid assumeutxo snapshot state (%s)", reason),
+                  _("Failed to reject an invalid assumeutxo snapshot. Restart with -reindex-chainstate to discard it."));
+    }
+    return false;
 }
 
 // Currently, this function holds cs_main for its duration, which could be for
@@ -7152,8 +7255,42 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     }
 
     auto handle_invalid_snapshot = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        const bool handled{HandleSnapshotStateMismatch("snapshot completion mismatch", shutdown_fnc)};
-        Assume(handled);
+        RejectSnapshotOrStop("snapshot completion mismatch", shutdown_fnc);
+    };
+    // Only a disagreement with validated state rejects the snapshot. Data this
+    // node lacks is retried at the next startup. When its own data or code
+    // fails, the snapshot is kept and the node stops instead of retrying at
+    // every restart.
+    const auto completion_failure = [&](evo::EvoSectionFailure failure, const std::string& reason)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        switch (failure) {
+        case evo::EvoSectionFailure::DISAGREEMENT:
+            LogPrintf("[snapshot] the evo section differs from the validated state: %s\n", reason);
+            SetEvoStateWarning(EVO_COMPLETION_WARNING_SOURCE, std::nullopt);
+            handle_invalid_snapshot();
+            return SnapshotCompletionResult::EVO_STATE_MISMATCH;
+        case evo::EvoSectionFailure::MISSING_INPUT:
+            LogPrintf("[snapshot] cannot rebuild the evo section from validated state yet: %s\n", reason);
+            if (WarnLocalEvoStateUnavailable(
+                    EVO_COMPLETION_WARNING_SOURCE,
+                    strprintf("snapshot validation lacks data to rebuild its Evo state (%s); it is retried at the "
+                              "next restart",
+                              reason))) {
+                GetNotifications().evoStateWarningChanged();
+            }
+            return SnapshotCompletionResult::EVO_DATA_UNAVAILABLE;
+        case evo::EvoSectionFailure::LOCAL_CORRUPTION:
+        case evo::EvoSectionFailure::INTERNAL_ERROR: {
+            LogPrintf("[snapshot] cannot validate the snapshot (%s): %s\n", evo::EvoSectionFailureName(failure), reason);
+            SetEvoStateWarning(EVO_COMPLETION_WARNING_SOURCE, std::nullopt);
+            const auto result{failure == evo::EvoSectionFailure::LOCAL_CORRUPTION
+                                  ? SnapshotCompletionResult::EVO_LOCAL_FAILURE
+                                  : SnapshotCompletionResult::EVO_INTERNAL_ERROR};
+            shutdown_fnc(SnapshotCompletionStopMessage(result, reason));
+            return result;
+        }
+        } // no default case, so the compiler can warn about missing cases
+        assert(false);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {
@@ -7199,11 +7336,10 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     // XXX note that this function is slow and will hold cs_main for potentially minutes.
     if (!maybe_ibd_stats) {
         LogPrintf("[snapshot] failed to generate stats for validation coins db\n");
-        // While this isn't a problem with the snapshot per se, this condition
-        // prevents us from validating the snapshot, so we should shut down and let the
-        // user handle the issue manually.
-        handle_invalid_snapshot();
-        return SnapshotCompletionResult::STATS_FAILED;
+        // Unlike upstream, keep the snapshot: nothing is known about it, and
+        // rejecting it would leave this node on the coins it cannot read.
+        return completion_failure(evo::EvoSectionFailure::LOCAL_CORRUPTION,
+                                  "the background chainstate's UTXO set cannot be read");
     }
     const auto& ibd_stats = *maybe_ibd_stats;
 
@@ -7224,9 +7360,6 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     // The snapshot marker records the derived deterministic-MN state that was
     // available when the snapshot chainstate began using the base block. Compare
     // it with the state independently derived by background validation.
-    //
-    // TODO(assumeutxo, M4-B4): extend the snapshot format and this comparison to
-    // the CbTx merkleRootMNList, merkleRootQuorums, and creditPool commitments.
     uint256 snapshot_mn_list_hash;
     if (!m_ibd_chainstate->m_evoDb.ReadSnapshotBaseMNListHash(snapshot_mn_list_hash)) {
         // Cold-start activation could not capture the base MN list (the
@@ -7237,10 +7370,15 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     } else {
         uint256 background_mn_list_block;
         uint256 background_mn_list_hash;
-        if (!m_ibd_chainstate->m_evoDb.ReadBackgroundMNListHash(
-                background_mn_list_block, background_mn_list_hash) ||
-            background_mn_list_block != snapshot_blockhash ||
-            snapshot_mn_list_hash != background_mn_list_hash) {
+        // The background chainstate records the base's list when it connects
+        // the base, or activation did when it already had: lacking it is this
+        // node's fault.
+        if (!m_ibd_chainstate->m_evoDb.ReadBackgroundMNListHash(background_mn_list_block, background_mn_list_hash) ||
+            background_mn_list_block != snapshot_blockhash) {
+            return completion_failure(evo::EvoSectionFailure::INTERNAL_ERROR,
+                                      "the background chainstate did not record its MN list at the base block");
+        }
+        if (snapshot_mn_list_hash != background_mn_list_hash) {
             LogPrintf("[snapshot] deterministic MN list mismatch at base block: captured_block=%s, actual=%s, expected=%s\n",
                       background_mn_list_block.ToString(), background_mn_list_hash.ToString(),
                       snapshot_mn_list_hash.ToString());
@@ -7249,24 +7387,75 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         }
     }
 
+    // Rebuild the whole evo section from the state background validation
+    // derived: it must be the section the snapshot chainstate was seeded from,
+    // which must still be the pinned one.
+    if (DeploymentActiveAt(index_new, GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
+        // Startup decoded the retained section and checked it against the
+        // pin, so a change since is this node's own corruption.
+        evo::EvoSnapshot retained;
+        try {
+            const auto retained_bytes{m_ibd_chainstate->m_evoDb.ReadRetainedEvoSection()};
+            if (!retained_bytes) {
+                return completion_failure(evo::EvoSectionFailure::LOCAL_CORRUPTION, "the retained evo section is missing");
+            }
+            CDataStream stream{*retained_bytes, SER_DISK, CLIENT_VERSION};
+            stream >> retained;
+            if (!stream.empty()) {
+                return completion_failure(evo::EvoSectionFailure::LOCAL_CORRUPTION,
+                                          "data left over after the retained evo section");
+            }
+        } catch (const std::ios_base::failure& e) {
+            return completion_failure(evo::EvoSectionFailure::LOCAL_CORRUPTION,
+                                      strprintf("the retained evo section does not decode: %s", e.what()));
+        }
+        const uint256 retained_hash{evo::GetEvoSnapshotHash(retained)};
+        if (EvoSnapshotHash{retained_hash} != au_data.evo_hash) {
+            return completion_failure(evo::EvoSectionFailure::LOCAL_CORRUPTION,
+                                      "the retained evo section no longer matches its pin");
+        }
+        evo::EvoSnapshot rebuilt;
+        std::string evo_error;
+        evo::EvoSectionFailure failure{evo::EvoSectionFailure::INTERNAL_ERROR};
+        bool built{false};
+        {
+            const EvoViewScope normal_view{m_ibd_chainstate->EvoView()};
+            auto& special_tx{m_ibd_chainstate->m_special_tx};
+            const evo::EvoSnapshotCapturePlan* plan{EvoCapturePlan()};
+            try {
+                const evo::EvoSnapshotCaptures captures{
+                    plan ? evo::ReadEvoSnapshotCaptures(m_ibd_chainstate->m_evoDb, *plan, *this)
+                         : evo::EvoSnapshotCaptures{}};
+                built = evo::BuildEvoSnapshot(GetParams(), *this, special_tx.DeterministicMNManager(),
+                                              special_tx.QuorumBlockProcessor(), special_tx.QuorumSnapshotManager(),
+                                              *special_tx.m_cpoolman, *special_tx.m_mnhfman, &index_new, rebuilt,
+                                              evo_error, &captures, &failure);
+            } catch (const std::exception& e) {
+                evo_error = e.what();
+                failure = evo::ClassifyEvoSectionError(e);
+            }
+        }
+        if (!built) return completion_failure(failure, evo_error);
+        if (evo::GetEvoSnapshotHash(rebuilt) != retained_hash) {
+            return completion_failure(evo::EvoSectionFailure::DISAGREEMENT, "the rebuilt section's hash differs");
+        }
+        if (SetEvoStateWarning(EVO_COMPLETION_WARNING_SOURCE, std::nullopt)) GetNotifications().evoStateWarningChanged();
+    }
+
+    // Each chainstate's Evo best block follows its own coins tip; a difference
+    // is this node's inconsistency, not the snapshot's.
     const uint256 snapshot_tip = m_snapshot_chainstate->CoinsTip().GetBestBlock();
     if (!m_ibd_chainstate->m_evoDb.VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_blockhash) ||
         !m_snapshot_chainstate->m_evoDb.VerifyBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_tip)) {
-        LogPrintf("[snapshot] EvoDB best-block markers do not match their chainstate tips\n");
-        handle_invalid_snapshot();
-        return SnapshotCompletionResult::EVO_STATE_MISMATCH;
-    }
-
-    // Until the full Evo comparison exists, a DIP3-active snapshot is never
-    // validated: it stays in use, unvalidated, and is never promoted.
-    if (DeploymentActiveAt(index_new, GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
-        LogPrintf("[snapshot] the evo section of the snapshot cannot be validated yet\n");
-        return SnapshotCompletionResult::EVO_DATA_UNAVAILABLE;
+        return completion_failure(evo::EvoSectionFailure::LOCAL_CORRUPTION,
+                                  "EvoDB best-block markers do not match their chainstate tips");
     }
 
     LogPrintf("[snapshot] snapshot beginning at %s has been fully validated\n",
         snapshot_blockhash.ToString());
 
+    // The captures stay until promotion, which repeats this check at the next
+    // startup.
     m_ibd_chainstate->m_disabled = true;
     // What background validation derived reaches the snapshot chainstate only
     // when the next startup promotes it: until then the snapshot chainstate
@@ -7424,6 +7613,58 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
 ChainstateManager::ChainstateManager(Options options, node::BlockManager::Options blockman_options)
     : m_options{Flatten(std::move(options))},
       m_blockman{std::move(blockman_options)} {}
+
+void ChainstateManager::ForgetEvoCaptures()
+{
+    AssertLockHeld(::cs_main);
+    Chainstate& normal_chainstate{m_ibd_chainstate ? *m_ibd_chainstate : ActiveChainstate()};
+    CEvoDB& evodb{normal_chainstate.m_evoDb};
+    if (m_evo_capture_plan) {
+        // The NORMAL root transaction may hold block progress whose coins are
+        // not on disk yet; they go first.
+        if (BlockValidationState state; !normal_chainstate.FlushStateToDisk(state, FlushStateMode::ALWAYS)) {
+            LogPrintf("[snapshot] failed to flush the chainstate, keeping the evo inputs captured for the snapshot: %s\n",
+                      state.ToString());
+            m_evo_capture_plan.reset();
+            m_evo_capture_plan_loaded = false;
+            return;
+        }
+        const EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        {
+            auto db_tx = evodb.BeginTransaction(EvoDbIdentity::NORMAL);
+            evo::EraseEvoSnapshotCaptures(evodb, *m_evo_capture_plan, *this);
+            db_tx->Commit();
+        }
+        if (!evodb.CommitRootTransaction(EvoDbIdentity::NORMAL, /*sync=*/true)) {
+            LogPrintf("[snapshot] failed to remove the evo inputs captured for the snapshot\n");
+        }
+    }
+    m_evo_capture_plan.reset();
+    m_evo_capture_plan_loaded = false;
+}
+
+const evo::EvoSnapshotCapturePlan* ChainstateManager::EvoCapturePlan()
+{
+    AssertLockHeld(::cs_main);
+    if (m_evo_capture_plan_loaded) return m_evo_capture_plan.get();
+    const auto generation{ActiveChainstate().m_evoDb.GetSnapshotGeneration()};
+    if (!generation) return nullptr;
+    if (!m_blockman.LookupBlockIndex(generation->base)) return nullptr;
+    m_evo_capture_plan_loaded = true;
+    const auto retained{ActiveChainstate().m_evoDb.ReadRetainedEvoSection()};
+    if (!retained) return nullptr;
+    evo::EvoSnapshot snapshot;
+    try {
+        CDataStream{*retained, SER_DISK, CLIENT_VERSION} >> snapshot;
+    } catch (const std::ios_base::failure& e) {
+        LogPrintf("[snapshot] the retained evo section does not decode: %s\n", e.what());
+        return nullptr;
+    }
+    if (auto plan{evo::PlanEvoSnapshotCaptures(snapshot, *this)}) {
+        m_evo_capture_plan = std::make_unique<evo::EvoSnapshotCapturePlan>(std::move(*plan));
+    }
+    return m_evo_capture_plan.get();
+}
 
 ChainstateManager::~ChainstateManager()
 {
@@ -7595,6 +7836,8 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
 
     const uint256 snapshot_tip = m_snapshot_chainstate->CoinsTip().GetBestBlock();
     CEvoDB& evo_db = m_snapshot_chainstate->m_evoDb;
+    std::optional<evo::EvoSnapshotCapturePlan> capture_plan;
+    if (const evo::EvoSnapshotCapturePlan* plan{EvoCapturePlan()}) capture_plan = *plan;
     // The NORMAL commit after the promotion must carry lifecycle records only:
     // whatever block progress either chainstate still holds goes to disk
     // first, coins before Evo state.
@@ -7665,6 +7908,19 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
         LogPrintf("[snapshot] failed to promote snapshot EvoDB markers during cleanup\n");
         return false;
     }
+    // The validated snapshot's evo inputs are no longer needed.
+    if (capture_plan) {
+        {
+            auto db_tx = evo_db.BeginTransaction(EvoDbIdentity::NORMAL);
+            evo::EraseEvoSnapshotCaptures(evo_db, *capture_plan, *this);
+            db_tx->Commit();
+        }
+        if (!evo_db.CommitRootTransaction(EvoDbIdentity::NORMAL, /*sync=*/true)) {
+            LogPrintf("[snapshot] failed to remove the evo inputs of the validated snapshot\n");
+        }
+    }
+    m_evo_capture_plan.reset();
+    m_evo_capture_plan_loaded = false;
 
     if (!DeleteCoinsDBFromDisk(tmp_old, /*is_snapshot=*/false)) {
         // No need to AbortNode because once the unneeded bg chainstate data is

@@ -12,6 +12,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
+#include <dbwrapper.h>
 #include <deploymentstatus.h>
 #include <evo/cbtx.h>
 #include <evo/creditpool.h>
@@ -33,6 +34,7 @@
 #include <versionbits.h>
 
 #include <algorithm>
+#include <ios>
 #include <map>
 #include <optional>
 #include <set>
@@ -97,18 +99,21 @@ bool IsApplicableRotationCycle(const ChainstateManager& chainman, const Consensu
 //! take from `seeded` through `error`, and needs no unmined cycle's block.
 std::optional<uint256> ExactWorkModifier(const Consensus::LLMQParams& params, const Consensus::Params& consensus,
                                          const node::BlockManager& blockman, const CBlockIndex* base_index,
-                                         const EvoSnapshotWorkBlock& work,
-                                         const std::optional<uint256>& seeded, std::string& error)
-    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+                                         const EvoSnapshotWorkBlock& work, const std::optional<uint256>& seeded,
+                                         std::string& error, EvoSectionFailure& failure) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     const CBlockIndex* modifier_work{base_index->GetAncestor(work.cycle_height - llmq::WORK_DIFF_DEPTH)};
     if (modifier_work == nullptr) {
         error = "evo quorum modifier work block is not an ancestor of the base";
+        failure = EvoSectionFailure::INTERNAL_ERROR;
         return std::nullopt;
     }
     if (DeploymentActiveAfter(modifier_work, consensus, Consensus::DEPLOYMENT_V20)) {
         if ((modifier_work->nStatus & BLOCK_HAVE_DATA) == 0) {
-            if (!seeded) error = "quorum work block data unavailable for its exact score modifier";
+            if (!seeded) {
+                error = "quorum work block data unavailable for its exact score modifier";
+                failure = EvoSectionFailure::MISSING_INPUT;
+            }
             return seeded;
         }
         CBlock block;
@@ -121,6 +126,7 @@ std::optional<uint256> ExactWorkModifier(const Consensus::LLMQParams& params, co
     if (params.useRotation) return ::SerializeHash(std::make_pair(params.type, modifier_work->GetBlockHash()));
     if (work.cycle_height > base_index->nHeight) {
         error = "pre-v20 modifier of a cycle above the base is undecidable";
+        failure = EvoSectionFailure::INTERNAL_ERROR;
         return std::nullopt;
     }
     return ::SerializeHash(std::make_pair(params.type, base_index->GetAncestor(work.cycle_height)->GetBlockHash()));
@@ -435,16 +441,54 @@ bool PlanEvoSnapshotDependencies(const ChainstateManager& chainman, const CBlock
     return true;
 }
 
+std::string EvoSectionFailureName(EvoSectionFailure failure)
+{
+    switch (failure) {
+    case EvoSectionFailure::MISSING_INPUT:
+        return "missing input";
+    case EvoSectionFailure::LOCAL_CORRUPTION:
+        return "local data unreadable or inconsistent";
+    case EvoSectionFailure::INTERNAL_ERROR:
+        return "internal error";
+    case EvoSectionFailure::DISAGREEMENT:
+        return "disagreement";
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
+}
+
+EvoSectionFailure ClassifyEvoSectionError(const std::exception& e)
+{
+    if (dynamic_cast<const SnapshotStateMismatchError*>(&e)) return EvoSectionFailure::DISAGREEMENT;
+    if (dynamic_cast<const BlockDataUnavailableError*>(&e)) return EvoSectionFailure::MISSING_INPUT;
+    if (dynamic_cast<const BlockDataReadError*>(&e) || dynamic_cast<const EvoDbInconsistencyError*>(&e) ||
+        dynamic_cast<const dbwrapper_error*>(&e) || dynamic_cast<const std::ios_base::failure*>(&e)) {
+        return EvoSectionFailure::LOCAL_CORRUPTION;
+    }
+    return EvoSectionFailure::INTERNAL_ERROR;
+}
+
 bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& chainman,
                       CDeterministicMNManager& dmnman, const llmq::CQuorumBlockProcessor& qblockman,
                       llmq::CQuorumSnapshotManager& qsnapman, CCreditPoolManager& cpoolman, CMNHFManager& mnhfman,
-                      const CBlockIndex* base_index, EvoSnapshot& snapshot, std::string& error)
+                      const CBlockIndex* base_index, EvoSnapshot& snapshot, std::string& error,
+                      const EvoSnapshotCaptures* captures, EvoSectionFailure* failure_out)
 {
     AssertLockHeld(::cs_main);
     error.clear();
+    EvoSectionFailure unused;
+    EvoSectionFailure& failure{failure_out ? *failure_out : unused};
+    failure = EvoSectionFailure::INTERNAL_ERROR;
+    const auto fail = [&](EvoSectionFailure why) {
+        failure = why;
+        return false;
+    };
+    // A block body this node lacks may come back; one it has is unreadable.
+    const auto body_failure = [](const CBlockIndex& index) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        return (index.nStatus & BLOCK_HAVE_DATA) ? EvoSectionFailure::LOCAL_CORRUPTION : EvoSectionFailure::MISSING_INPUT;
+    };
     if (base_index == nullptr) {
         error = "evo snapshot base block is null";
-        return false;
+        return fail(EvoSectionFailure::INTERNAL_ERROR);
     }
     const auto& consensus{chainparams.GetConsensus()};
 
@@ -456,18 +500,23 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
             result.Validate();
         } catch (const std::exception& e) {
             error = e.what();
-            return false;
+            return fail(EvoSectionFailure::INTERNAL_ERROR);
         }
         snapshot = std::move(result);
         return true;
     }
-    if (!CheckNextCycleContext(chainman, base_index, error)) return false;
+    // The context at the base derives from the signal record the section
+    // carries; validated state deciding otherwise disagrees with it.
+    if (!CheckNextCycleContext(chainman, base_index, error)) return fail(EvoSectionFailure::DISAGREEMENT);
     result.mn_list = dmnman.GetListForBlock(base_index);
-    {
+    if (captures && captures->base_coinbase) {
+        result.base_coinbase = captures->base_coinbase;
+        result.base_coinbase_branch = captures->base_coinbase_branch;
+    } else {
         CBlock base_block;
         if (!chainman.m_blockman.ReadBlockFromDisk(base_block, *base_index) || base_block.vtx.empty()) {
             error = "evo snapshot base block is unreadable";
-            return false;
+            return fail(body_failure(*base_index));
         }
         result.base_coinbase = base_block.vtx[0];
         result.base_coinbase_branch = BlockMerkleBranch(base_block, 0);
@@ -502,17 +551,22 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
         std::vector<const CBlockIndex*> carried{active};
         carried.insert(carried.end(), safety.begin(), safety.end());
         EvoSnapshotDependencyPlan plan;
-        if (!PlanEvoSnapshotDependencies(chainman, base_index, params.type, carried, plan, error)) return false;
+        if (!PlanEvoSnapshotDependencies(chainman, base_index, params.type, carried, plan, error)) {
+            return fail(EvoSectionFailure::INTERNAL_ERROR);
+        }
 
+        // The commitment index lists the quorum, so its record must be there.
         const auto read_commitment = [&](const CBlockIndex* quorum) -> std::optional<MinedQuorumCommitment> {
             auto [commitment, mined_hash] = qblockman.GetMinedCommitment(params.type, quorum->GetBlockHash());
             if (mined_hash.IsNull()) {
                 error = "mined quorum commitment not found for " + quorum->GetBlockHash().ToString();
+                failure = EvoSectionFailure::LOCAL_CORRUPTION;
                 return std::nullopt;
             }
             const int work_height{EvoSnapshotWorkHeight(consensus, params, data.rotation_enabled, quorum->nHeight)};
             if (work_height < 0) {
                 error = "mined quorum commitment below its work depth";
+                failure = EvoSectionFailure::INTERNAL_ERROR;
                 return std::nullopt;
             }
             return MinedQuorumCommitment{quorum->GetBlockHash(), base_index->GetAncestor(work_height)->GetBlockHash(),
@@ -548,17 +602,25 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
                 (void)llmq::utils::GetAllQuorumMembers(params.type, {dmnman, qsnapman, chainman, cycle});
                 stored = qsnapman.GetSnapshotForBlock(params.type, cycle);
             }
+            // Block connection stored it, and its inputs too unless they are lost.
             if (!stored) {
                 error = strprintf("rotation quarter for applicable cycle %d is unavailable", cycle->nHeight);
-                return false;
+                return fail(EvoSectionFailure::LOCAL_CORRUPTION);
             }
             const CBlockIndex* work{cycle->GetAncestor(cycle->nHeight - llmq::WORK_DIFF_DEPTH)};
             data.rotation_snapshots.push_back({cycle->GetBlockHash(), work->GetBlockHash(), *stored});
         }
         for (const auto& work : plan.work_blocks) {
-            const auto modifier{
-                ExactWorkModifier(params, consensus, chainman.m_blockman, base_index, work,
-                                  qsnapman.GetSeededQuorumModifier(params.type, work.work_index->GetBlockHash()), error)};
+            std::optional<uint256> modifier;
+            if (captures) {
+                const auto captured{captures->modifiers.find({params.type, work.work_index->GetBlockHash()})};
+                if (captured != captures->modifiers.end()) modifier = captured->second;
+            }
+            if (!modifier) {
+                modifier = ExactWorkModifier(params, consensus, chainman.m_blockman, base_index, work,
+                                             qsnapman.GetSeededQuorumModifier(params.type, work.work_index->GetBlockHash()),
+                                             error, failure);
+            }
             if (!modifier) return false;
             result.quorum_modifiers.push_back({params.type, work.work_index->GetBlockHash(), *modifier});
             if (work.work_index != base_index) historical.emplace(work.work_index->GetBlockHash(), work.work_index);
@@ -587,12 +649,20 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
         previous_hash = index->GetBlockHash();
         previous_list = list;
     }
-    result.credit_pool = cpoolman.GetCreditPool(base_index);
+    result.credit_pool = captures && captures->base_credit_pool ? *captures->base_credit_pool
+                                                                : cpoolman.GetCreditPool(base_index);
     const int window{chainparams.CreditPoolPeriodBlocks()};
     for (int height{std::max(0, base_index->nHeight - window + 1)}; height <= base_index->nHeight; ++height) {
-        const auto entry{
-            CCreditPoolManager::ReadHistoryEntry(base_index->GetAncestor(height), chainman.m_blockman, consensus, error)};
-        if (!entry) return false;
+        const CBlockIndex* index{base_index->GetAncestor(height)};
+        if (captures) {
+            if (const auto captured{captures->credit_history.find(index->GetBlockHash())};
+                captured != captures->credit_history.end()) {
+                result.credit_history.push_back(captured->second);
+                continue;
+            }
+        }
+        const auto entry{CCreditPoolManager::ReadHistoryEntry(index, chainman.m_blockman, consensus, error)};
+        if (!entry) return fail(body_failure(*index));
         result.credit_history.push_back(*entry);
     }
     // The raw record: GetSignalsStage() would filter it for the next block,
@@ -605,11 +675,12 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
         result.Validate();
     } catch (const std::exception& e) {
         error = e.what();
-        return false;
+        return fail(EvoSectionFailure::INTERNAL_ERROR);
     }
     // Export and load apply the same coverage gate; the exporter also checks
     // the proven scans against its complete index.
-    if (!CheckScanCoverage(result, chainman, base_index, &qblockman, error)) return false;
+    if (!CheckScanCoverage(result, chainman, base_index, &qblockman, error))
+        return fail(EvoSectionFailure::INTERNAL_ERROR);
     snapshot = std::move(result);
     return true;
 }
@@ -774,9 +845,9 @@ bool ValidateEvoSnapshotAgainstChain(const EvoSnapshot& snapshot, const Chainsta
             // Recompute wherever the chain allows; only an unreadable v20 work
             // block leaves the carried value to the pin.
             std::string modifier_error;
-            const auto expected{
-                ExactWorkModifier(params, consensus, chainman.m_blockman, base_index, work, carried_modifier->second,
-                                  modifier_error)};
+            EvoSectionFailure modifier_failure;
+            const auto expected{ExactWorkModifier(params, consensus, chainman.m_blockman, base_index, work,
+                                                  carried_modifier->second, modifier_error, modifier_failure)};
             if (!expected) return fail(modifier_error);
             if (*expected != carried_modifier->second) return fail("evo carried quorum modifier mismatch");
         }
@@ -823,10 +894,11 @@ bool VerifyEvoSnapshotBaseBlock(const EvoSnapshot& snapshot, const CBlockIndex& 
     return VerifyEvoSnapshotCbTx(snapshot, *cbtx, error);
 }
 
-bool PreflightEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman,
-                          const CBlockIndex* base_index, std::string& error)
+bool PreflightEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& chainman, const CBlockIndex* base_index,
+                          std::string& error, EvoSectionFailure* failure)
 {
     AssertLockHeld(::cs_main);
+    if (failure) *failure = base_index ? EvoSectionFailure::DISAGREEMENT : EvoSectionFailure::INTERNAL_ERROR;
     if (!ValidateEvoSnapshotAgainstChain(snapshot, chainman, base_index, error)) return false;
     return !DeploymentActiveAt(*base_index, chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003) ||
            VerifyEvoSnapshotBaseBlock(snapshot, *base_index, error);
@@ -937,6 +1009,165 @@ bool DryRunEvoSnapshot(const EvoSnapshot& snapshot, const ChainstateManager& cha
         return false;
     }
     return true;
+}
+
+namespace {
+// Captures are NORMAL records that exist only while a snapshot is being
+// validated: (prefix, kind, block hash, LLMQ type).
+const std::string EVODB_SNAPSHOT_CAPTURE{"b_evo_cap"};
+enum class CaptureKind : uint8_t {
+    MODIFIER,
+    CREDIT_HISTORY,
+    BASE_COINBASE,
+    BASE_CREDIT_POOL
+};
+using CaptureKey = std::tuple<std::string, uint8_t, uint256, uint8_t>;
+
+CaptureKey MakeCaptureKey(CaptureKind kind, const uint256& block_hash,
+                          Consensus::LLMQType llmq_type = Consensus::LLMQType::LLMQ_NONE)
+{
+    return {EVODB_SNAPSHOT_CAPTURE, static_cast<uint8_t>(kind), block_hash, static_cast<uint8_t>(llmq_type)};
+}
+} // namespace
+
+std::optional<EvoSnapshotCapturePlan> PlanEvoSnapshotCaptures(const EvoSnapshot& snapshot, const ChainstateManager& chainman)
+{
+    AssertLockHeld(::cs_main);
+    const CBlockIndex* base{chainman.m_blockman.LookupBlockIndex(snapshot.base_block_hash)};
+    if (base == nullptr) return std::nullopt;
+    EvoSnapshotCapturePlan plan;
+    plan.base = base->GetBlockHash();
+    plan.base_height = base->nHeight;
+    if (!snapshot.base_coinbase) return plan;
+    // The chain checks, which refuse a credit window reaching below genesis,
+    // run after the captures.
+    if (snapshot.credit_history.size() > static_cast<size_t>(base->nHeight) + 1) return std::nullopt;
+    plan.heights.insert(base->nHeight);
+    plan.window_first = base->nHeight - static_cast<int>(snapshot.credit_history.size()) + 1;
+    for (int height{plan.window_first}; height <= base->nHeight; ++height)
+        plan.heights.insert(height);
+    for (const auto& entry : snapshot.quorum_modifiers) {
+        const CBlockIndex* work{chainman.m_blockman.LookupBlockIndex(entry.work_block_hash)};
+        if (work == nullptr || base->GetAncestor(work->nHeight) != work) return std::nullopt;
+        // Only a v20 work block's modifier comes from its body.
+        if (!DeploymentActiveAfter(work, chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) continue;
+        plan.modifier_blocks[work->GetBlockHash()].push_back(entry.llmq_type);
+        plan.heights.insert(work->nHeight);
+    }
+    return plan;
+}
+
+bool WriteEvoSnapshotCaptures(CEvoDB& evodb, CCreditPoolManager& cpoolman, const node::BlockManager& blockman,
+                              const EvoSnapshotCapturePlan& plan, const CBlock& block, const CBlockIndex& index,
+                              const Consensus::Params& consensus, std::string& error)
+{
+    if (!plan.heights.contains(index.nHeight) || index.nHeight > plan.base_height) return true;
+    const uint256 hash{index.GetBlockHash()};
+    if (const auto it{plan.modifier_blocks.find(hash)}; it != plan.modifier_blocks.end()) {
+        for (const auto llmq_type : it->second) {
+            const uint256 modifier{
+                llmq::utils::GetWorkBlockModifier(SnapshotLLMQParams(llmq_type), block, index)};
+            if (!evodb.WriteDerived(MakeCaptureKey(CaptureKind::MODIFIER, hash, llmq_type), modifier)) {
+                error = "conflicting quorum modifier capture";
+                return false;
+            }
+        }
+    }
+    if (index.nHeight >= plan.window_first) {
+        const auto entry{CCreditPoolManager::ReadHistoryEntry(&index, blockman, consensus, error)};
+        if (!entry || !evodb.WriteDerived(MakeCaptureKey(CaptureKind::CREDIT_HISTORY, hash), *entry)) {
+            if (error.empty()) error = "conflicting credit-pool window capture";
+            return false;
+        }
+    }
+    if (hash == plan.base) {
+        if (block.vtx.empty() || !evodb.WriteDerived(MakeCaptureKey(CaptureKind::BASE_COINBASE, hash),
+                                                     std::make_pair(block.vtx[0], BlockMerkleBranch(block, 0)))) {
+            error = "conflicting base coinbase capture";
+            return false;
+        }
+        // The pool at the base folds in every block back to the last pool on
+        // disk, which may lie below the window.
+        std::optional<CCreditPool> pool;
+        try {
+            pool = cpoolman.GetCreditPool(&index);
+        } catch (const LocalStateError&) {
+            // This node's own data, e.g. a pruned body: the caller stalls.
+            throw;
+        } catch (const std::exception& e) {
+            error = strprintf("the credit pool at the base is not computable: %s", e.what());
+            return false;
+        }
+        if (!evodb.WriteDerived(MakeCaptureKey(CaptureKind::BASE_CREDIT_POOL, hash), *pool)) {
+            error = "conflicting base credit pool capture";
+            return false;
+        }
+    }
+    return true;
+}
+
+EvoSnapshotCaptures ReadEvoSnapshotCaptures(CEvoDB& evodb, const EvoSnapshotCapturePlan& plan,
+                                            const ChainstateManager& chainman)
+{
+    AssertLockHeld(::cs_main);
+    EvoSnapshotCaptures captures;
+    for (const auto& [hash, types] : plan.modifier_blocks) {
+        for (const auto llmq_type : types) {
+            uint256 modifier;
+            if (evodb.Read(MakeCaptureKey(CaptureKind::MODIFIER, hash, llmq_type), modifier)) {
+                captures.modifiers.emplace(std::make_pair(llmq_type, hash), modifier);
+            }
+        }
+    }
+    const CBlockIndex* base{chainman.m_blockman.LookupBlockIndex(plan.base)};
+    if (base == nullptr || plan.window_first < 0) return captures;
+    for (int height{plan.window_first}; height <= plan.base_height; ++height) {
+        const uint256 hash{base->GetAncestor(height)->GetBlockHash()};
+        CreditHistoryEntry entry;
+        if (evodb.Read(MakeCaptureKey(CaptureKind::CREDIT_HISTORY, hash), entry)) {
+            captures.credit_history.emplace(hash, entry);
+        }
+    }
+    std::pair<CTransactionRef, std::vector<uint256>> coinbase;
+    if (evodb.Read(MakeCaptureKey(CaptureKind::BASE_COINBASE, plan.base), coinbase)) {
+        std::tie(captures.base_coinbase, captures.base_coinbase_branch) = std::move(coinbase);
+    }
+    if (CCreditPool pool; evodb.Read(MakeCaptureKey(CaptureKind::BASE_CREDIT_POOL, plan.base), pool)) {
+        captures.base_credit_pool = std::move(pool);
+    }
+    return captures;
+}
+
+bool EraseAllEvoSnapshotCaptures(CEvoDB& evodb)
+{
+    CDBWrapper& db{evodb.GetRawDB()};
+    DataStream prefix;
+    prefix << EVODB_SNAPSHOT_CAPTURE;
+    std::unique_ptr<CDBIterator> it{db.NewIterator()};
+    CDBBatch batch{db};
+    for (it->Seek(prefix); it->Valid(); it->Next()) {
+        const auto key{it->GetKey()};
+        if (key.size() < prefix.size() || !std::equal(prefix.begin(), prefix.end(), key.begin())) break;
+        batch.Erase(key);
+    }
+    // Most startups have nothing to erase; spare them the synced write.
+    return batch.SizeEstimate() == 0 || db.WriteBatch(batch, /*fSync=*/true);
+}
+
+void EraseEvoSnapshotCaptures(CEvoDB& evodb, const EvoSnapshotCapturePlan& plan, const ChainstateManager& chainman)
+{
+    AssertLockHeld(::cs_main);
+    for (const auto& [hash, types] : plan.modifier_blocks) {
+        for (const auto llmq_type : types)
+            evodb.Erase(MakeCaptureKey(CaptureKind::MODIFIER, hash, llmq_type));
+    }
+    const CBlockIndex* base{chainman.m_blockman.LookupBlockIndex(plan.base)};
+    if (base == nullptr || plan.window_first < 0) return;
+    for (int height{plan.window_first}; height <= plan.base_height; ++height) {
+        evodb.Erase(MakeCaptureKey(CaptureKind::CREDIT_HISTORY, base->GetAncestor(height)->GetBlockHash()));
+    }
+    evodb.Erase(MakeCaptureKey(CaptureKind::BASE_COINBASE, plan.base));
+    evodb.Erase(MakeCaptureKey(CaptureKind::BASE_CREDIT_POOL, plan.base));
 }
 
 } // namespace evo

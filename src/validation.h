@@ -52,6 +52,9 @@
 class Chainstate;
 class CChainParams;
 class CEvoDB;
+namespace evo {
+struct EvoSnapshotCapturePlan;
+} // namespace evo
 class CTxMemPool;
 class TxValidationState;
 class CSpecialTxProcessor;
@@ -720,6 +723,11 @@ public:
      *  ordinary block connection never pays for hashing the full list. */
     void RecordBackgroundMNListHash(const CBlockIndex* pindex, const CDeterministicMNList& mn_list)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    /** Record what the background chainstate's connection of `block` gives
+     *  the snapshot's body-derived evo inputs. No-op on any other chainstate
+     *  or block. */
+    bool CaptureSnapshotInputs(const CBlock& block, const CBlockIndex* pindex, BlockValidationState& state)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Prune blockfiles from the disk if necessary and then flush chainstate changes
     //! if we pruned.
@@ -923,10 +931,22 @@ enum class SnapshotCompletionResult {
     // converge at the snapshot base block.
     EVO_STATE_MISMATCH,
 
-    // The background chainstate cannot compare the evo section yet, so the
-    // snapshot is neither validated nor rejected.
+    // The background chainstate lacks data it needs to rebuild the evo
+    // section, so the snapshot is neither validated nor rejected yet.
     EVO_DATA_UNAVAILABLE,
+
+    // This node's own data needed to validate the snapshot is unreadable or
+    // inconsistent. The snapshot is not rejected; the node stops.
+    EVO_LOCAL_FAILURE,
+
+    // Validating the snapshot hit an internal error. The snapshot is not
+    // rejected; the node stops.
+    EVO_INTERNAL_ERROR,
 };
+
+//! Why a node whose snapshot completion ended in EVO_LOCAL_FAILURE or
+//! EVO_INTERNAL_ERROR stops, and how it recovers.
+bilingual_str SnapshotCompletionStopMessage(SnapshotCompletionResult result, const std::string& reason);
 
 /** VersionBitsCache partitioned by Evo view. EHF signals that gate deployment
  *  states are Evo state, so a state computed under one view is never served to
@@ -1060,8 +1080,8 @@ private:
     };
 
     //! Internal helper for ActivateSnapshot(): load and check the coins, then
-    //! seed, check and dry-run the evo section into an unpublished generation.
-    //! Publishing it is left to the switch.
+    //! capture, seed, check and dry-run the evo section into an unpublished
+    //! generation. Publishing it is left to the switch.
     [[nodiscard]] bool PopulateAndValidateSnapshot(
         Chainstate& snapshot_chainstate,
         AutoFile& coins_file,
@@ -1204,6 +1224,11 @@ public:
     //! coins caches. This will be split somehow across chainstates.
     int64_t m_total_coinstip_cache{0};
 
+private:
+    std::unique_ptr<evo::EvoSnapshotCapturePlan> m_evo_capture_plan GUARDED_BY(::cs_main);
+    bool m_evo_capture_plan_loaded GUARDED_BY(::cs_main){false};
+
+public:
     //! Make snapshot activation stop right before it publishes the seeded Evo
     //! generation, without cleaning up, as if the process died there.
     bool m_stop_before_evo_publication_for_testing{false};
@@ -1221,6 +1246,12 @@ public:
     //! How long the switch to a snapshot waits for active-chain turns still
     //! running in the previous view to end.
     std::chrono::milliseconds m_snapshot_turn_handoff_timeout{std::chrono::seconds{5}};
+
+    //! The body-derived inputs of the live snapshot's evo section, from the
+    //! retained section; null without one, or while its base is unknown.
+    const evo::EvoSnapshotCapturePlan* EvoCapturePlan() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Erase the evo inputs captured for the snapshot and drop their plan.
+    void ForgetEvoCaptures() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     //
     //! The total number of bytes available for us to use across all leveldb
     //! coins databases. This will be split somehow across chainstates.
@@ -1278,6 +1309,13 @@ public:
     bool HandleSnapshotStateMismatch(
         const std::string& reason,
         std::function<void(bilingual_str)> shutdown_fnc = [](bilingual_str msg) { AbortNode(msg.original, msg); });
+
+    /** HandleSnapshotStateMismatch(), stopping the node when a snapshot that
+     * is still in use cannot be rejected. Returns whether it was rejected. */
+    bool RejectSnapshotOrStop(
+        const std::string& reason,
+        std::function<void(bilingual_str)> shutdown_fnc = [](bilingual_str msg) { AbortNode(msg.original, msg); })
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;

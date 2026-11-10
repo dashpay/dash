@@ -122,7 +122,8 @@ static bool RecoverSnapshotCleanup(CEvoDB& evodb, const fs::path& data_dir, bili
             }
             LogPrintf("[snapshot] completing interrupted snapshot EvoDB promotion\n");
             if (!evodb.PromoteSnapshotMarkers(journal->tip)) {
-                error = _("Failed to finish interrupted snapshot marker promotion.");
+                error = _("Failed to finish interrupted snapshot marker promotion. Restart to retry; if it keeps "
+                          "failing, restart with -reindex-chainstate.");
                 return false;
             }
             if (fs::exists(to_delete)) {
@@ -398,6 +399,12 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
             return {ChainstateLoadStatus::FAILURE, util::ErrorString(result)};
         }
     }
+    // Evo inputs captured for a snapshot that never got published, e.g. after
+    // a crash, are of no use.
+    if (!evodb.GetSnapshotGeneration() && !evo::EraseAllEvoSnapshotCaptures(evodb)) {
+        return {ChainstateLoadStatus::FAILURE,
+                _("Error removing stale assumeutxo snapshot state from the Evo database")};
+    }
     if (!options.dash_dbs_in_memory && !options.reindex && !options.reindex_chainstate) {
         bilingual_str recovery_error;
         if (!RecoverSnapshotCleanup(evodb, options.data_dir, recovery_error)) {
@@ -438,6 +445,10 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
                     _("Snapshot EvoDB state has no snapshot chainstate. Reindex is required.")};
         }
         LogPrintf("[snapshot] discarded a snapshot EvoDB generation that never activated\n");
+        if (!evo::EraseAllEvoSnapshotCaptures(evodb)) {
+            return {ChainstateLoadStatus::FAILURE,
+                    _("Error removing stale assumeutxo snapshot state from the Evo database")};
+        }
     }
 
     auto [init_status, init_error] = CompleteChainstateInitialization(chainman, cache_sizes, options, evodb, dmnman,
@@ -483,6 +494,9 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
         if (init_status != ChainstateLoadStatus::SUCCESS) {
             return {init_status, init_error};
         }
+    } else if (snapshot_completion == SnapshotCompletionResult::EVO_LOCAL_FAILURE ||
+               snapshot_completion == SnapshotCompletionResult::EVO_INTERNAL_ERROR) {
+        return {ChainstateLoadStatus::FAILURE, SnapshotCompletionStopMessage(snapshot_completion, "see debug.log")};
     } else {
         // The UTXO hashing inside completion takes minutes and aborts with
         // STATS_FAILED when shutdown is requested mid-way. That says nothing
