@@ -35,7 +35,6 @@
 #include <logging.h>
 #include <logging/timer.h>
 #include <node/blockstorage.h>
-#include <node/interface_ui.h>
 #include <node/utxo_snapshot.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
@@ -126,12 +125,6 @@ GlobalMutex g_best_block_mutex;
 std::condition_variable g_best_block_cv;
 uint256 g_best_block;
 
-// Forward declaration to break dependency over node/transaction.h
-namespace node
-{
-CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool, const uint256& hash, uint256& hashBlock, const BlockManager& blockman);
-} // namespace node
-using node::GetTransaction;
 
 namespace {
 
@@ -904,10 +897,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     if (auto conflictLockOpt = m_isman ? m_isman->ConflictingISLockIfAny(tx) : std::nullopt; conflictLockOpt.has_value()) {
         auto& [_, conflict_txid] = conflictLockOpt.value();
 
-        uint256 hashBlock;
-        if (auto txConflict = GetTransaction(nullptr, &m_pool, conflict_txid, hashBlock, m_active_chainstate.m_blockman); txConflict) {
-            GetMainSignals().NotifyInstantSendDoubleSpendAttempt(ptx, txConflict);
-        }
+        GetMainSignals().NotifyInstantSendDoubleSpendAttempt(ptx, m_pool.get(conflict_txid), conflict_txid);
         LogPrintf("ERROR: AcceptToMemoryPool : Transaction %s conflicts with locked TX %s\n", hash.ToString(), conflict_txid.ToString());
         return state.Invalid(TxValidationResult::TX_CONFLICT_LOCK, "tx-txlock-conflict");
     }
@@ -2389,7 +2379,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
 
     if (this == &m_chainman.ActiveChainstate() && mnlist_updates.diff.HasChanges()) {
         GetMainSignals().NotifyMasternodeListChanged(true, mnlist_updates.old_list, mnlist_updates.diff);
-        uiInterface.NotifyMasternodeListChanged(mnlist_updates.new_list, pindex->pprev);
+        m_chainman.GetNotifications().masternodeListChanged(mnlist_updates.new_list, pindex->pprev);
     }
 
     auto finish = Now<SteadyMilliseconds>();
@@ -3118,7 +3108,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     if (this == &m_chainman.ActiveChainstate() && mnlist_updates.diff.HasChanges()) {
         GetMainSignals().NotifyMasternodeListChanged(false, mnlist_updates.old_list, mnlist_updates.diff);
-        uiInterface.NotifyMasternodeListChanged(mnlist_updates.new_list, pindex);
+        m_chainman.GetNotifications().masternodeListChanged(mnlist_updates.new_list, pindex);
     }
 
     ::g_stats_client->timing("ConnectBlock_ms", Ticks<std::chrono::milliseconds>(time_8 - time_start), 1.0f);

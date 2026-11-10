@@ -7,7 +7,6 @@
 #include <bls/bls_ies.h>
 #include <evo/deterministicmns.h>
 #include <llmq/dkgsessionhandler.h>
-#include <llmq/options.h>
 #include <llmq/utils.h>
 #include <spork.h>
 #include <unordered_lru_cache.h>
@@ -44,8 +43,7 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
 
     if (fInitialDownload)
         return;
-    if (!DeploymentDIP0003Enforced(pindexNew->nHeight, Params().GetConsensus()))
-        return;
+    if (!DeploymentDIP0003Enforced(pindexNew->nHeight, m_chainman.GetConsensus())) return;
     if (!IsQuorumDKGEnabled(m_sporkman))
         return;
 
@@ -240,7 +238,7 @@ void CDKGSessionManager::CleanupOldContributions() const
 
     const auto prefixes = {DB_VVEC, DB_SKCONTRIB, DB_ENC_CONTRIB};
 
-    for (const auto& params : Params().GetConsensus().llmqs) {
+    for (const auto& params : m_chainman.GetConsensus().llmqs) {
         LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- looking for old entries for llmq type %d\n", __func__, std23::to_underlying(params.type));
 
         CDBBatch batch(*db);

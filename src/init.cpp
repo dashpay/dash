@@ -65,6 +65,7 @@
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
+#include <node/transaction.h>
 #include <node/sync_manager.h>
 #include <node/validation_cache_args.h>
 #include <policy/feerate.h>
@@ -127,7 +128,7 @@
 #include <llmq/net_quorum.h>
 #include <llmq/net_signing.h>
 #include <llmq/observer.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <masternode/utils.h>
@@ -1711,15 +1712,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     assert(!node.mn_metaman);
-    node.mn_metaman = std::make_unique<CMasternodeMetaMan>();
+    node.mn_metaman = std::make_unique<CMasternodeMetaMan>(args.GetDataDirNet());
 
     assert(!node.netfulfilledman);
-    node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
+    node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>(args.GetDataDirNet());
 
     bool is_governance_enabled{!args.GetBoolArg("-disablegovernance", !DEFAULT_GOVERNANCE_ENABLE)};
 
     assert(!node.sporkman);
-    node.sporkman = std::make_unique<CSporkManager>();
+    node.sporkman = std::make_unique<CSporkManager>(args.GetDataDirNet());
     node.chainlocks = std::make_unique<chainlock::Chainlocks>(*node.sporkman);
     node.sbman = std::make_unique<governance::SuperblockManager>();
 
@@ -1952,6 +1953,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         [&chainman = node.chainman](CBlock& block, const CBlockIndex& index) {
             assert(chainman);
             return chainman->m_blockman.ReadBlockFromDisk(block, index);
+        },
+        [&chainman = node.chainman, &mempool = node.mempool](const uint256& txid) {
+            assert(chainman);
+            uint256 block_hash;
+            return node::GetTransaction(/*block_index=*/nullptr, mempool.get(), txid, block_hash, chainman->m_blockman);
         });
 
     if (g_zmq_notification_interface) {
@@ -2063,6 +2069,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         node::ChainstateLoadOptions options;
         options.chainlocks = Assert(node.chainlocks.get());
         options.data_dir = args.GetDataDirNet();
+        options.index_migration.address_index = args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+        options.index_migration.spent_index = args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+        options.index_migration.timestamp_index = args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+        options.index_migration.batch_size = args.GetIntArg("-dbbatchsize", nDefaultDbBatchSize);
         options.reindex = node::fReindex;
         options.reindex_chainstate = fReindexChainState;
         options.prune = chainman.m_blockman.IsPruneMode();
@@ -2174,8 +2184,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     assert(!node.govman);
-    node.govman = std::make_unique<CGovernanceManager>(*node.mn_metaman, *node.chainman, *node.sbman, *node.dmnman,
-                                                       *node.mn_sync, node.gov_collateral_index.get());
+    node.govman = std::make_unique<CGovernanceManager>(args.GetDataDirNet(), *node.mn_metaman, *node.chainman,
+                                                       *node.sbman, *node.dmnman, *node.mn_sync,
+                                                       node.gov_collateral_index.get());
 
     // ********************************************************* Step 7c: Setup masternode mode or watch-only mode
     assert(!node.active_ctx);

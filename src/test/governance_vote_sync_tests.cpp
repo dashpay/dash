@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(fulfilled_request_manager_is_port_sensitive)
     const CService peer_a{CNetAddr{ipv4}, /*port=*/40000};
     const CService peer_b{CNetAddr{ipv4}, /*port=*/40001};
 
-    CNetFulfilledRequestManager fulfilled;
+    CNetFulfilledRequestManager fulfilled{m_args.GetDataDirNet()};
     BOOST_REQUIRE(fulfilled.LoadCache(/*load_cache=*/false));
 
     const std::string request{"mngovernancesync-votes-deadbeef"};

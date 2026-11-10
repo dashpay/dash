@@ -24,7 +24,8 @@ public:
 
     std::list<const CZMQAbstractNotifier*> GetActiveNotifiers() const;
 
-    static std::unique_ptr<CZMQNotificationInterface> Create(std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index);
+    static std::unique_ptr<CZMQNotificationInterface> Create(std::function<bool(CBlock&, const CBlockIndex&)> get_block_by_index,
+                                                             std::function<CTransactionRef(const uint256&)> get_transaction);
 
 protected:
     bool Initialize();
@@ -40,7 +41,7 @@ protected:
     void NotifyTransactionLock(const CTransactionRef &tx, const std::shared_ptr<const instantsend::InstantSendLock>& islock) override;
     void NotifyGovernanceVote(const std::shared_ptr<CDeterministicMNList>& tip_mn_list, const std::shared_ptr<const CGovernanceVote>& vote) override;
     void NotifyGovernanceObject(const std::shared_ptr<const Governance::Object>& object) override;
-    void NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx) override;
+    void NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx, const uint256& previous_txid) override;
     void NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& sig, bool /*proactive_relay*/) override;
 
 private:
@@ -48,6 +49,7 @@ private:
 
     void* pcontext{nullptr};
     std::list<std::unique_ptr<CZMQAbstractNotifier>> notifiers;
+    std::function<CTransactionRef(const uint256&)> m_get_transaction;
 };
 
 extern std::unique_ptr<CZMQNotificationInterface> g_zmq_notification_interface;

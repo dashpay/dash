@@ -5,7 +5,6 @@
 #include <llmq/commitment.h>
 
 #include <evo/deterministicmns.h>
-#include <llmq/options.h>
 #include <llmq/utils.h>
 #include <util/helpers.h>
 #include <util/std23.h>

@@ -7,8 +7,9 @@
 #include <bls/bls_batchverifier.h>
 #include <llmq/quorums.h>
 #include <llmq/signhash.h>
-#include <llmq/signing_shares.h>
 #include <llmq/signing.h>
+#include <llmq/signing_shares.h>
+#include <llmq/utils.h>
 #include <spork.h>
 
 #include <logging.h>

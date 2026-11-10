@@ -2,11 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <common/args.h>
 #include <evo/netinfo.h>
 
 #include <chainparams.h>
-#include <common/system.h>
 #include <evo/types.h>
 #include <netbase.h>
 #include <span.h>
@@ -90,15 +88,9 @@ NetInfoStatus ValidateMainnetPrimaryPort(NetInfoPurpose purpose, const NetInfoEn
 
 bool IsNodeOnMainnet() { return Params().GetChainType() == ChainType::MAIN; }
 
-bool IsServiceDeprecatedRPCEnabled()
-{
-    const auto args = gArgs.GetArgs("-deprecatedrpc");
-    return std::find(args.begin(), args.end(), "service") != args.end();
-}
-
 const CChainParams& MainParams()
 {
-    std::call_once(g_main_params_flag, [&]() { g_main_params = CreateChainParams(::gArgs, ChainType::MAIN); });
+    std::call_once(g_main_params_flag, [&]() { g_main_params = CChainParams::Main(); });
     return *Assert(g_main_params);
 }
 

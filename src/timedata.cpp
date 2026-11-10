@@ -8,7 +8,6 @@
 
 #include <timedata.h>
 
-#include <common/args.h>
 #include <logging.h>
 #include <netaddress.h>
 #include <node/interface_ui.h>
@@ -44,7 +43,7 @@ static std::set<CNetAddr> g_sources;
 static CMedianFilter<int64_t> g_time_offsets{BITCOIN_TIMEDATA_MAX_SAMPLES, 0};
 static bool g_warning_emitted;
 
-void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
+void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample, int64_t max_adjustment)
 {
     LOCK(g_timeoffset_mutex);
     // Ignore duplicates
@@ -78,7 +77,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
         int64_t nMedian = g_time_offsets.median();
         std::vector<int64_t> vSorted = g_time_offsets.sorted();
         // Only let other nodes change our time by so much
-        int64_t max_adjustment = std::max<int64_t>(0, gArgs.GetIntArg("-maxtimeadjustment", DEFAULT_MAX_TIME_ADJUSTMENT));
+        max_adjustment = std::max<int64_t>(0, max_adjustment);
         if (nMedian >= -max_adjustment && nMedian <= max_adjustment) {
             nTimeOffset = nMedian;
         } else {

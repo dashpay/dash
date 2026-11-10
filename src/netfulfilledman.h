@@ -8,6 +8,7 @@
 #include <netaddress.h>
 #include <serialize.h>
 #include <sync.h>
+#include <util/fs.h>
 
 #include <memory>
 
@@ -52,7 +53,7 @@ private:
 public:
     CNetFulfilledRequestManager(const CNetFulfilledRequestManager&) = delete;
     CNetFulfilledRequestManager& operator=(const CNetFulfilledRequestManager&) = delete;
-    CNetFulfilledRequestManager();
+    explicit CNetFulfilledRequestManager(const fs::path& data_dir);
     ~CNetFulfilledRequestManager();
 
     bool LoadCache(bool load_cache);

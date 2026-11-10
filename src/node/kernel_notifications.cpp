@@ -72,4 +72,9 @@ void KernelNotifications::warning(const bilingual_str& warning)
     DoWarning(warning);
 }
 
+void KernelNotifications::masternodeListChanged(const CDeterministicMNList& list, const CBlockIndex* index)
+{
+    uiInterface.NotifyMasternodeListChanged(list, index);
+}
+
 } // namespace node

@@ -11,6 +11,7 @@
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <primitives/transaction.h>
 #include <sync.h>
+#include <util/fs.h>
 #include <util/time.h>
 
 #include <atomic>
@@ -274,7 +275,7 @@ public:
     CGovernanceManager() = delete;
     CGovernanceManager(const CGovernanceManager&) = delete;
     CGovernanceManager& operator=(const CGovernanceManager&) = delete;
-    explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
+    explicit CGovernanceManager(const fs::path& data_dir, CMasternodeMetaMan& mn_metaman, const ChainstateManager& chainman,
                                 governance::SuperblockManager& superblocks, CDeterministicMNManager& dmnman,
                                 CMasternodeSync& mn_sync, const governance::CollateralSource* collateral);
     ~CGovernanceManager();

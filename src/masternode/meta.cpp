@@ -18,8 +18,8 @@ namespace {
 static const CMasternodeMetaInfo default_meta_info{};
 } // anonymous namespace
 
-CMasternodeMetaMan::CMasternodeMetaMan() :
-    m_db{std::make_unique<db_type>("mncache.dat", "magicMasternodeCache")}
+CMasternodeMetaMan::CMasternodeMetaMan(const fs::path& data_dir) :
+    m_db{std::make_unique<db_type>(data_dir, "mncache.dat", "magicMasternodeCache")}
 {
 }
 

@@ -6,7 +6,6 @@
 
 #include <chainparams.h>
 #include <llmq/context.h>
-#include <llmq/options.h>
 #include <llmq/utils.h>
 #include <validation.h>
 

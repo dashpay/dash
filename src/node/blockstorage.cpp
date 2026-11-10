@@ -398,12 +398,6 @@ bool BlockManager::LoadBlockIndexDB()
     m_block_tree_db->ReadReindexing(fReindexing);
     if (fReindexing) fReindex = true;
 
-    // Migrate old synchronous index data from block index database
-    // to async indexes in separate databases
-    if (!m_block_tree_db->MigrateOldIndexData()) {
-        return false;
-    }
-
     return true;
 }
 

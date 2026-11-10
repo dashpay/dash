@@ -5,7 +5,7 @@
 #include <arith_uint256.h>
 #include <llmq/context.h>
 #include <llmq/net_quorum.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <llmq/quorums.h>
 #include <llmq/quorumsman.h>
 #include <net.h>

@@ -23,6 +23,9 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <crypto/sha256.h>
+#include <index/addressindex.h>
+#include <index/spentindex.h>
+#include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <init.h>
 #include <init/common.h>
@@ -87,7 +90,7 @@
 #include <governance/superblock.h>
 #include <instantsend/instantsend.h>
 #include <llmq/context.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <llmq/signing.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
@@ -217,9 +220,9 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
 
     m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman); // Deterministic randomness for tests.
 
-    m_node.mn_metaman = std::make_unique<CMasternodeMetaMan>();
-    m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>();
-    m_node.sporkman = std::make_unique<CSporkManager>();
+    m_node.mn_metaman = std::make_unique<CMasternodeMetaMan>(m_args.GetDataDirNet());
+    m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>(m_args.GetDataDirNet());
+    m_node.sporkman = std::make_unique<CSporkManager>(m_args.GetDataDirNet());
     m_node.chainlocks = std::make_unique<chainlock::Chainlocks>(*m_node.sporkman);
     m_node.sbman = std::make_unique<governance::SuperblockManager>();
     m_node.mn_sync = std::make_unique<CMasternodeSync>(std::make_unique<NodeSyncNotifierImpl>(*m_node.connman, *m_node.netfulfilledman));
@@ -323,6 +326,9 @@ node::ChainstateLoadOptions ChainTestingSetup::ChainstateLoadOptionsForTest()
     options.isman = Assert(m_node.isman.get());
     options.chainlocks = Assert(m_node.chainlocks.get());
     options.data_dir = Assert(m_node.args)->GetDataDirNet();
+    options.index_migration.address_index = Assert(m_node.args)->GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+    options.index_migration.spent_index = Assert(m_node.args)->GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+    options.index_migration.timestamp_index = Assert(m_node.args)->GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
     options.block_tree_db_in_memory = m_block_tree_db_in_memory;
     options.coins_db_in_memory = m_coins_db_in_memory;
     options.dash_dbs_in_memory = m_dash_dbs_in_memory;

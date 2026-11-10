@@ -6,7 +6,7 @@
 #define BITCOIN_LLMQ_NET_QUORUM_H
 
 #include <llmq/cache.h>
-#include <llmq/options.h>
+#include <llmq/options_args.h>
 #include <llmq/quorums.h>
 #include <net_processing.h>
 #include <sync.h>
