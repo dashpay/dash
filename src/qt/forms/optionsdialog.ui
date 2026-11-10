@@ -1073,7 +1073,7 @@ https://explore.transifex.com/dash/dash/</string>
        <item>
         <widget class="QCheckBox" name="showMasternodesTab">
          <property name="toolTip">
-          <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
+          <string>Show an additional tab listing all masternodes on the network. Use the Owned checkbox to show only masternodes this wallet has keys for.</string>
          </property>
          <property name="text">
           <string>Show Masternodes Tab</string>
