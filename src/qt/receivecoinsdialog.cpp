@@ -12,6 +12,8 @@
 #include <qt/recentrequeststablemodel.h>
 #include <qt/walletmodel.h>
 
+#include <outputtype.h>
+
 #include <QCursor>
 #include <QMessageBox>
 
@@ -69,6 +71,18 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             &QItemSelectionModel::selectionChanged, this,
             &ReceiveCoinsDialog::recentRequestsView_selectionChanged);
 
+        // Populate address type dropdown and select default
+        auto add_address_type = [&](OutputType type, const QString& text, const QString& tooltip) {
+            const auto index = ui->addressType->count();
+            ui->addressType->addItem(text, (int) type);
+            ui->addressType->setItemData(index, tooltip, Qt::ToolTipRole);
+            if (model->wallet().getDefaultAddressType() == type) ui->addressType->setCurrentIndex(index);
+        };
+        add_address_type(OutputType::LEGACY, "Legacy", "Generates a Base58 address spendable by every Dash wallet.");
+        if (model->wallet().taprootEnabled()) {
+            add_address_type(OutputType::TAPROOT, "Taproot", "Generates a Bech32m taproot address; wallet support is still limited.");
+        }
+
         // Set the button to be enabled or disabled based on whether the wallet can give out new addresses.
         ui->receiveButton->setEnabled(model->wallet().canGetAddresses());
 
@@ -118,7 +132,8 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
     QString address;
     QString label = ui->reqLabel->text();
     /* Generate new receiving address */
-    address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "");
+    const OutputType address_type = (OutputType)ui->addressType->currentData().toInt();
+    address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", address_type);
 
     switch(model->getAddressTableModel()->getEditStatus())
     {

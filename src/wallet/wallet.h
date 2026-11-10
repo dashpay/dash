@@ -36,6 +36,7 @@
 #include <wallet/db.h>
 #include <wallet/coinselection.h>
 #include <external_signer.h>
+#include <outputtype.h>
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/transaction.h>
 #include <wallet/types.h>
@@ -133,6 +134,8 @@ static const CAmount DEFAULT_CONSOLIDATE_FEERATE{1000}; // 10 sat/vbyte
  * A value > 0 means to do partial spend avoidance if the fee difference against a regular coin selection instance is in the range [0..value].
  */
 static const CAmount DEFAULT_MAX_AVOIDPARTIALSPEND_FEE = 0;
+//! -addresstype default
+static const OutputType DEFAULT_ADDRESS_TYPE{OutputType::LEGACY};
 //! discourage APS fee higher than this amount
 constexpr CAmount HIGH_APS_FEE{COIN / 10000};
 //! Default for -spendzeroconfchange
@@ -214,6 +217,7 @@ protected:
     const CWallet* const pwallet;
     //! The ScriptPubKeyMan to reserve from. Based on type when GetReservedDestination is called
     ScriptPubKeyMan* m_spk_man{nullptr};
+    const OutputType type;
 
     //! The index of the address's key in the keypool
     int64_t nIndex{-1};
@@ -224,9 +228,9 @@ protected:
 
 public:
     //! Construct a ReserveDestination object. This does NOT reserve an address yet
-    explicit ReserveDestination(CWallet* pwallet)
+    explicit ReserveDestination(CWallet* pwallet, OutputType type = OutputType::LEGACY)
       : pwallet(pwallet)
-      { }
+      , type(type) { }
 
     ReserveDestination(const ReserveDestination&) = delete;
     ReserveDestination& operator=(const ReserveDestination&) = delete;
@@ -505,8 +509,8 @@ private:
      */
     int m_last_block_processed_height GUARDED_BY(cs_wallet) = -1;
 
-    ScriptPubKeyMan* m_external_spk_managers{nullptr};
-    ScriptPubKeyMan* m_internal_spk_managers{nullptr};
+    std::map<OutputType, ScriptPubKeyMan*> m_external_spk_managers;
+    std::map<OutputType, ScriptPubKeyMan*> m_internal_spk_managers;
 
     // Indexed by a unique identifier produced by each ScriptPubKeyMan using
     // ScriptPubKeyMan::GetID. In many cases it will be the hash of an internal structure
@@ -924,6 +928,12 @@ public:
      * transactions which have the lowest fees.
      */
     CFeeRate m_consolidate_feerate{DEFAULT_CONSOLIDATE_FEERATE};
+    //! The type of addresses the wallet hands out unless a request names one
+    OutputType m_default_address_type{DEFAULT_ADDRESS_TYPE};
+    /** Default output type for change outputs. When unset, automatically choose type
+     *  based on address type setting and the types of the non-change outputs
+     *  (see -changetype option documentation and implementation in TransactionChangeType for details). */
+    std::optional<OutputType> m_default_change_type{};
 
     /** The maximum fee amount we're willing to pay to prioritize partial spend avoidance. */
     CAmount m_max_aps_fee{DEFAULT_MAX_AVOIDPARTIALSPEND_FEE}; //!< note: this is absolute fee, not fee rate
@@ -983,7 +993,9 @@ public:
     void MarkDestinationsDirty(const std::set<CTxDestination>& destinations) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     util::Result<CTxDestination> GetNewDestination(const std::string label);
+    util::Result<CTxDestination> GetNewDestination(const OutputType type, const std::string label);
     util::Result<CTxDestination> GetNewChangeDestination();
+    util::Result<CTxDestination> GetNewChangeDestination(const OutputType type);
 
     isminetype IsMine(const CTxDestination& dest) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     isminetype IsMine(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -1197,7 +1209,9 @@ public:
     //! Returns all unique ScriptPubKeyMans
     std::set<ScriptPubKeyMan*> GetAllScriptPubKeyMans() const;
 
-    //! Get the ScriptPubKeyMan for internal/external chain.
+    //! Get the ScriptPubKeyMan for the given OutputType and internal/external chain.
+    ScriptPubKeyMan* GetScriptPubKeyMan(const OutputType& type, bool internal) const;
+    //! Get the legacy-type ScriptPubKeyMan for internal/external chain.
     ScriptPubKeyMan* GetScriptPubKeyMan(bool internal) const;
 
     //! Get all the ScriptPubKeyMans for a script
@@ -1249,18 +1263,21 @@ public:
 
     //! Adds the active ScriptPubKeyMan for the specified type and internal. Writes it to the wallet file
     //! @param[in] id The unique id for the ScriptPubKeyMan
+    //! @param[in] type The OutputType this ScriptPubKeyMan provides addresses for
     //! @param[in] internal Whether this ScriptPubKeyMan provides change addresses
-    void AddActiveScriptPubKeyMan(uint256 id, bool internal);
+    void AddActiveScriptPubKeyMan(uint256 id, OutputType type, bool internal);
 
     //! Loads an active ScriptPubKeyMan for the specified type and internal. (used by LoadWallet)
     //! @param[in] id The unique id for the ScriptPubKeyMan
+    //! @param[in] type The OutputType this ScriptPubKeyMan provides addresses for
     //! @param[in] internal Whether this ScriptPubKeyMan provides change addresses
-    void LoadActiveScriptPubKeyMan(uint256 id, bool internal);
+    void LoadActiveScriptPubKeyMan(uint256 id, OutputType type, bool internal);
 
     //! Remove specified ScriptPubKeyMan from set of active SPK managers. Writes the change to the wallet file.
     //! @param[in] id The unique id for the ScriptPubKeyMan
+    //! @param[in] type The OutputType this ScriptPubKeyMan provides addresses for
     //! @param[in] internal Whether this ScriptPubKeyMan provides change addresses
-    void DeactivateScriptPubKeyMan(uint256 id, bool internal);
+    void DeactivateScriptPubKeyMan(uint256 id, OutputType type, bool internal);
 
     //! Create new DescriptorScriptPubKeyMans and add them to the wallet
     void SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const SecureString& mnemonic, const SecureString mnemonic_passphrase) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);

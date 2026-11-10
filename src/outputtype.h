@@ -16,10 +16,11 @@
 
 enum class OutputType {
     LEGACY,
+    TAPROOT,
     UNKNOWN,
 };
 
-extern const std::array<OutputType, 1> OUTPUT_TYPES;
+extern const std::array<OutputType, 2> OUTPUT_TYPES;
 
 std::optional<OutputType> ParseOutputType(const std::string& str);
 const std::string& FormatOutputType(OutputType type);

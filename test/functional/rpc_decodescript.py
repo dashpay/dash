@@ -66,6 +66,7 @@ class DecodeScriptTest(BitcoinTestFramework):
         # <pubkey> OP_CHECKSIG
         rpc_result = self.nodes[0].decodescript(push_public_key + 'ac')
         assert_equal(public_key + ' OP_CHECKSIG', rpc_result['asm'])
+        assert_equal('pubkey', rpc_result['type'])
 
         self.log.info("- P2PKH")
         # OP_DUP OP_HASH160 <PubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
@@ -77,7 +78,9 @@ class DecodeScriptTest(BitcoinTestFramework):
         # <m> <A pubkey> <B pubkey> <C pubkey> <n> OP_CHECKMULTISIG
         # just imagine that the pub keys used below are different.
         # for our purposes here it does not matter that they are the same even though it is unrealistic.
-        rpc_result = self.nodes[0].decodescript('52' + push_public_key + push_public_key + push_public_key + '53ae')
+        multisig_script = '52' + push_public_key + push_public_key + push_public_key + '53ae'
+        rpc_result = self.nodes[0].decodescript(multisig_script)
+        assert_equal('multisig', rpc_result['type'])
         assert_equal('2 ' + public_key + ' ' + public_key + ' ' + public_key +  ' 3 OP_CHECKMULTISIG', rpc_result['asm'])
 
         self.log.info ("- P2SH")
@@ -112,8 +115,17 @@ class DecodeScriptTest(BitcoinTestFramework):
         # <sender-pubkey> OP_CHECKSIG
         #
         # lock until block 500,000
-        rpc_result = self.nodes[0].decodescript('63' + push_public_key + 'ad670320a107b17568' + push_public_key + 'ac')
+        cltv_script = '63' + push_public_key + 'ad670320a107b17568' + push_public_key + 'ac'
+        rpc_result = self.nodes[0].decodescript(cltv_script)
+        assert_equal('nonstandard', rpc_result['type'])
         assert_equal('OP_IF ' + public_key + ' OP_CHECKSIGVERIFY OP_ELSE 500000 OP_CHECKLOCKTIMEVERIFY OP_DROP OP_ENDIF ' + public_key + ' OP_CHECKSIG', rpc_result['asm'])
+
+        self.log.info("- P2TR")
+        # 1 <x-only pubkey>
+        xonly_public_key = '01'*32  # first ever P2TR output on mainnet
+        rpc_result = self.nodes[0].decodescript('5120' + xonly_public_key)
+        assert_equal('taproot', rpc_result['type'])
+        assert_equal('1 ' + xonly_public_key, rpc_result['asm'])
 
     def decoderawtransaction_asm_sighashtype(self):
         """Test decoding scripts via RPC command "decoderawtransaction".

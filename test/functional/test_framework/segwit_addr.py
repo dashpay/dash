@@ -103,6 +103,24 @@ DIP18_TYPE_P2PKH = 0xb0
 DIP18_TYPE_P2SH = 0x80
 
 
+def encode_taproot_address(hrp, output_key):
+    """Encode a 32-byte taproot output key as a Bech32m address (BIP 350 layout, version 1)."""
+    assert len(output_key) == 32
+    data = [1] + convertbits(list(output_key), 8, 5)
+    return bech32_encode(Encoding.BECH32M, hrp, data)
+
+
+def decode_taproot_address(hrp, addr):
+    """Decode a taproot address into its 32-byte output key, or None if it is not one for hrp."""
+    encoding, hrpgot, data = bech32_decode(addr)
+    if hrpgot != hrp or encoding != Encoding.BECH32M or not data or data[0] != 1:
+        return None
+    decoded = convertbits(data[1:], 5, 8, False)
+    if decoded is None or len(decoded) != 32:
+        return None
+    return bytes(decoded)
+
+
 def encode_platform_p2pkh(hrp, keyhash):
     """Encode a 20-byte keyhash as a DIP-18 Platform P2PKH bech32m address."""
     assert len(keyhash) == 20

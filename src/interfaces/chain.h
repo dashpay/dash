@@ -284,6 +284,10 @@ public:
     //! enables version 2 asset lock transactions by consensus.
     virtual bool isV24Active() = 0;
 
+    //! Whether Taproot rules apply to the next block; until then P2TR
+    //! outputs are anyone-can-spend.
+    virtual bool isTaprootActive() = 0;
+
     //! Check if any block has been pruned.
     virtual bool havePruned() = 0;
 

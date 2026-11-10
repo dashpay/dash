@@ -19,6 +19,7 @@ JSON_TEST_FILES = \
   test/data/blockfilters.json \
   test/data/base58_encode_decode.json \
   test/data/bip39_vectors.json \
+  test/data/bip341_wallet_vectors.json \
   test/data/key_io_valid.json \
   test/data/key_io_invalid.json \
   test/data/proposals_valid.json \
@@ -386,6 +387,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/script_flags.cpp \
  test/fuzz/script_format.cpp \
  test/fuzz/script_interpreter.cpp \
+ test/fuzz/script_assets_test_minimizer.cpp \
  test/fuzz/script_ops.cpp \
  test/fuzz/script_sigcache.cpp \
  test/fuzz/script_sign.cpp \

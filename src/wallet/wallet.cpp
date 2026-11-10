@@ -1839,9 +1839,11 @@ bool CWallet::CanGetAddresses(bool internal) const
 {
     LOCK(cs_wallet);
     if (m_spk_managers.empty()) return false;
-    auto spk_man = GetScriptPubKeyMan(internal);
-    if (spk_man && spk_man->CanGetAddresses(internal)) {
-        return true;
+    for (OutputType t : OUTPUT_TYPES) {
+        auto spk_man = GetScriptPubKeyMan(t, internal);
+        if (spk_man && spk_man->CanGetAddresses(internal)) {
+            return true;
+        }
     }
     return false;
 }
@@ -2680,8 +2682,8 @@ DBErrors CWallet::LoadWallet()
     }
 
     if (m_spk_managers.empty()) {
-        assert(m_external_spk_managers == nullptr);
-        assert(m_internal_spk_managers == nullptr);
+        assert(m_external_spk_managers.empty());
+        assert(m_internal_spk_managers.empty());
     }
 
     if (HaveChain()) {
@@ -2853,8 +2855,8 @@ size_t CWallet::KeypoolCountExternalKeys() const
     }
 
     unsigned int count = 0;
-    if (m_external_spk_managers) {
-        count += m_external_spk_managers->GetKeyPoolSize();
+    for (auto spk_man : m_external_spk_managers) {
+        count += spk_man.second->GetKeyPoolSize();
     }
 
     return count;
@@ -2883,10 +2885,15 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
 
 util::Result<CTxDestination> CWallet::GetNewDestination(const std::string label)
 {
+    return GetNewDestination(m_default_address_type, label);
+}
+
+util::Result<CTxDestination> CWallet::GetNewDestination(const OutputType type, const std::string label)
+{
     LOCK(cs_wallet);
-    auto spk_man = GetScriptPubKeyMan(/*internal=*/false);
+    auto spk_man = GetScriptPubKeyMan(type, /*internal=*/false);
     if (!spk_man) {
-        return util::Error{_("Error: No addresses available.")};
+        return util::Error{strprintf(_("Error: No %s addresses available."), FormatOutputType(type))};
     }
 
     auto op_dest = spk_man->GetNewDestination();
@@ -2899,9 +2906,14 @@ util::Result<CTxDestination> CWallet::GetNewDestination(const std::string label)
 
 util::Result<CTxDestination> CWallet::GetNewChangeDestination()
 {
+    return GetNewChangeDestination(m_default_address_type);
+}
+
+util::Result<CTxDestination> CWallet::GetNewChangeDestination(const OutputType type)
+{
     LOCK(cs_wallet);
 
-    ReserveDestination reservedest(this);
+    ReserveDestination reservedest(this, type);
     auto op_dest = reservedest.GetReservedDestination(true);
     if (op_dest) reservedest.KeepDestination();
 
@@ -2976,9 +2988,9 @@ std::set<std::string> CWallet::ListAddrBookLabels(const std::optional<AddressPur
 
 util::Result<CTxDestination> ReserveDestination::GetReservedDestination(bool fInternalIn)
 {
-    m_spk_man = pwallet->GetScriptPubKeyMan(fInternalIn);
+    m_spk_man = pwallet->GetScriptPubKeyMan(type, fInternalIn);
     if (!m_spk_man) {
-        return util::Error{_("Error: No addresses available.")};
+        return util::Error{strprintf(_("Error: No %s addresses available."), FormatOutputType(type))};
     }
 
     if (nIndex == -1) {
@@ -3399,6 +3411,24 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     // should be possible to use std::allocate_shared.
     std::shared_ptr<CWallet> walletInstance(new CWallet(chain, name, std::move(database)), ReleaseWallet);
     walletInstance->m_keypool_size = std::max(args.GetIntArg("-keypool", DEFAULT_KEYPOOL_SIZE), int64_t{1});
+
+    if (!args.GetArg("-addresstype", "").empty()) {
+        std::optional<OutputType> parsed = ParseOutputType(args.GetArg("-addresstype", ""));
+        if (!parsed) {
+            error = strprintf(_("Unknown address type '%s'"), args.GetArg("-addresstype", ""));
+            return nullptr;
+        }
+        walletInstance->m_default_address_type = parsed.value();
+    }
+
+    if (!args.GetArg("-changetype", "").empty()) {
+        std::optional<OutputType> parsed = ParseOutputType(args.GetArg("-changetype", ""));
+        if (!parsed) {
+            error = strprintf(_("Unknown change type '%s'"), args.GetArg("-changetype", ""));
+            return nullptr;
+        }
+        walletInstance->m_default_change_type = parsed.value();
+    }
     walletInstance->m_mnemonic_bits = args.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS);
     walletInstance->m_notify_tx_changed_script = args.GetArg("-walletnotify", "");
     walletInstance->m_notify_tx_locked_script = args.GetArg("-instantsendnotify", "");
@@ -4467,9 +4497,11 @@ std::set<ScriptPubKeyMan*> CWallet::GetActiveScriptPubKeyMans() const
 {
     std::set<ScriptPubKeyMan*> spk_mans;
     for (bool internal : {false, true}) {
-        auto spk_man = GetScriptPubKeyMan(internal);
-        if (spk_man) {
-            spk_mans.insert(spk_man);
+        for (OutputType t : OUTPUT_TYPES) {
+            auto spk_man = GetScriptPubKeyMan(t, internal);
+            if (spk_man) {
+                spk_mans.insert(spk_man);
+            }
         }
     }
     return spk_mans;
@@ -4484,13 +4516,19 @@ std::set<ScriptPubKeyMan*> CWallet::GetAllScriptPubKeyMans() const
     return spk_mans;
 }
 
-ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(bool internal) const
+ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(const OutputType& type, bool internal) const
 {
-    const auto spk_manager = internal ? m_internal_spk_managers : m_external_spk_managers;
-    if (spk_manager == nullptr) {
+    const std::map<OutputType, ScriptPubKeyMan*>& spk_managers = internal ? m_internal_spk_managers : m_external_spk_managers;
+    std::map<OutputType, ScriptPubKeyMan*>::const_iterator it = spk_managers.find(type);
+    if (it == spk_managers.end()) {
         return nullptr;
     }
-    return spk_manager;
+    return it->second;
+}
+
+ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(bool internal) const
+{
+    return GetScriptPubKeyMan(OutputType::LEGACY, internal);
 }
 
 std::set<ScriptPubKeyMan*> CWallet::GetScriptPubKeyMans(const CScript& script) const
@@ -4548,8 +4586,9 @@ LegacyScriptPubKeyMan* CWallet::GetLegacyScriptPubKeyMan() const
     }
     // Legacy wallets only have one ScriptPubKeyMan which is a LegacyScriptPubKeyMan.
     // Everything in m_internal_spk_managers and m_external_spk_managers point to the same legacyScriptPubKeyMan.
-    if (m_internal_spk_managers == nullptr) return nullptr;
-    return dynamic_cast<LegacyScriptPubKeyMan*>(m_internal_spk_managers);
+    auto it = m_internal_spk_managers.find(OutputType::LEGACY);
+    if (it == m_internal_spk_managers.end()) return nullptr;
+    return dynamic_cast<LegacyScriptPubKeyMan*>(it->second);
 }
 
 LegacyScriptPubKeyMan* CWallet::GetOrCreateLegacyScriptPubKeyMan()
@@ -4570,13 +4609,13 @@ void CWallet::AddScriptPubKeyMan(const uint256& id, std::unique_ptr<ScriptPubKey
 
 void CWallet::SetupLegacyScriptPubKeyMan()
 {
-    if (m_internal_spk_managers || m_external_spk_managers || !m_spk_managers.empty() || IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+    if (!m_internal_spk_managers.empty() || !m_external_spk_managers.empty() || !m_spk_managers.empty() || IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
         return;
     }
 
     auto spk_manager = std::make_unique<LegacyScriptPubKeyMan>(*this, m_keypool_size);
-    m_internal_spk_managers = spk_manager.get();
-    m_external_spk_managers = spk_manager.get();
+    m_internal_spk_managers[OutputType::LEGACY] = spk_manager.get();
+    m_external_spk_managers[OutputType::LEGACY] = spk_manager.get();
     uint256 id = spk_manager->GetID();
     AddScriptPubKeyMan(id, std::move(spk_manager));
 }
@@ -4621,8 +4660,12 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
 {
     AssertLockHeld(cs_wallet);
 
+    // Taproot outputs are anyone-can-spend until taproot activates, so a wallet
+    // created before that only gets its tr() descriptors through importdescriptors
+    const bool taproot_active = HaveChain() && chain().isTaprootActive();
     for (auto type : {PathDerivationType::BIP44_External, PathDerivationType::BIP44_Internal, PathDerivationType::DIP0009_CoinJoin}) {
-        { // OUTPUT_TYPE is only one: LEGACY
+        for (OutputType addr_type : OUTPUT_TYPES) {
+            if (addr_type == OutputType::TAPROOT && (!taproot_active || type == PathDerivationType::DIP0009_CoinJoin)) continue;
             auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, m_keypool_size));
             if (IsCrypted()) {
                 if (IsLocked()) {
@@ -4632,22 +4675,22 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
                     throw std::runtime_error(std::string(__func__) + ": Could not encrypt new descriptors");
                 }
             }
-            spk_manager->SetupDescriptorGeneration(master_key, mnemonic, mnemonic_passphrase, type);
+            spk_manager->SetupDescriptorGeneration(master_key, mnemonic, mnemonic_passphrase, type, addr_type);
             uint256 id = spk_manager->GetID();
             AddScriptPubKeyMan(id, std::move(spk_manager));
             if (type != PathDerivationType::DIP0009_CoinJoin) {
-                AddActiveScriptPubKeyMan(id, type == PathDerivationType::BIP44_Internal);
+                AddActiveScriptPubKeyMan(id, addr_type, type == PathDerivationType::BIP44_Internal);
             }
         }
     }
 }
 
-static bool IsBIP44Descriptor(const Descriptor& desc, const SigningProvider& provider)
+static bool IsDefaultPurposeDescriptor(const Descriptor& desc, const SigningProvider& provider, OutputType type)
 {
     std::vector<CScript> scripts;
     FlatSigningProvider out;
     if (!desc.Expand(/*pos=*/0, provider, scripts, out) || out.origins.empty()) return false;
-    const uint32_t purpose{BIP32_PURPOSE_STANDARD | 0x80000000U};
+    const uint32_t purpose{(type == OutputType::TAPROOT ? BIP32_PURPOSE_TAPROOT : BIP32_PURPOSE_STANDARD) | 0x80000000U};
     const uint32_t coin_type{static_cast<uint32_t>(Params().ExtCoinType()) | 0x80000000U};
     for (const auto& [_, origin] : out.origins) {
         const std::vector<uint32_t>& path = origin.second.path;
@@ -4683,6 +4726,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
         UniValue signer_res = signer.GetDescriptors(account);
 
         if (!signer_res.isObject()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
+        const bool taproot_active = HaveChain() && chain().isTaprootActive();
         for (bool internal : {false, true}) {
             const UniValue& descriptor_vals = signer_res.find_value(internal ? "internal" : "receive");
             if (!descriptor_vals.isArray()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
@@ -4694,64 +4738,67 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
                 if (desc == nullptr) {
                     throw std::runtime_error(std::string(__func__) + ": Invalid descriptor \"" + desc_str + "\" (" + desc_error + ")");
                 }
-                if (!desc->GetOutputType()) {
+                const std::optional<OutputType> out_type = desc->GetOutputType();
+                if (!out_type || (*out_type == OutputType::TAPROOT && !taproot_active)) {
                     continue;
                 }
-                // Only activate BIP44 descriptors, similar to how the non-external-signer branch
+                // Only activate BIP44 and BIP86 descriptors, similar to how the non-external-signer branch
                 // only activates certain types (External and Internal, but not CoinJoin)
-                const bool activate = IsBIP44Descriptor(*desc, keys);
+                const bool activate = IsDefaultPurposeDescriptor(*desc, keys, *out_type);
                 auto spk_manager = std::unique_ptr<ExternalSignerScriptPubKeyMan>(new ExternalSignerScriptPubKeyMan(*this, m_keypool_size));
                 spk_manager->SetupDescriptor(std::move(desc));
                 uint256 id = spk_manager->GetID();
                 AddScriptPubKeyMan(id, std::move(spk_manager));
                 if (activate) {
-                    AddActiveScriptPubKeyMan(id, internal);
+                    AddActiveScriptPubKeyMan(id, *out_type, internal);
                 }
             }
         }
     }
 }
 
-void CWallet::AddActiveScriptPubKeyMan(uint256 id, bool internal)
+void CWallet::AddActiveScriptPubKeyMan(uint256 id, OutputType type, bool internal)
 {
     WalletBatch batch(GetDatabase());
-    if (!batch.WriteActiveScriptPubKeyMan(id, internal)) {
+    if (!batch.WriteActiveScriptPubKeyMan(static_cast<uint8_t>(type), id, internal)) {
         throw std::runtime_error(std::string(__func__) + ": writing active ScriptPubKeyMan id failed");
     }
-    LoadActiveScriptPubKeyMan(id, internal);
+    LoadActiveScriptPubKeyMan(id, type, internal);
 }
 
-void CWallet::LoadActiveScriptPubKeyMan(uint256 id, bool internal)
+void CWallet::LoadActiveScriptPubKeyMan(uint256 id, OutputType type, bool internal)
 {
     // Activating ScriptPubKeyManager for a given output and change type is incompatible with legacy wallets.
     // Legacy wallets have only one ScriptPubKeyManager and it's active for all output and change types.
     Assert(IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
 
-    WalletLogPrintf("Setting spkMan to active: id = %s, type = %s, internal = %s\n", id.ToString(), FormatOutputType(OutputType::LEGACY), internal ? "true" : "false");
+    WalletLogPrintf("Setting spkMan to active: id = %s, type = %s, internal = %s\n", id.ToString(), FormatOutputType(type), internal ? "true" : "false");
     auto& spk_mans = internal ? m_internal_spk_managers : m_external_spk_managers;
     auto& spk_mans_other = internal ? m_external_spk_managers : m_internal_spk_managers;
     auto spk_man = m_spk_managers.at(id).get();
-    spk_mans = spk_man;
-    if (spk_mans_other == spk_man) {
-        spk_mans_other = nullptr;
+    spk_mans[type] = spk_man;
+
+    const auto it = spk_mans_other.find(type);
+    if (it != spk_mans_other.end() && it->second == spk_man) {
+        spk_mans_other.erase(it);
     }
 
     NotifyCanGetAddressesChanged();
 
 }
 
-void CWallet::DeactivateScriptPubKeyMan(uint256 id, bool internal)
+void CWallet::DeactivateScriptPubKeyMan(uint256 id, OutputType type, bool internal)
 {
-    auto spk_man = GetScriptPubKeyMan(internal);
+    auto spk_man = GetScriptPubKeyMan(type, internal);
     if (spk_man != nullptr && spk_man->GetID() == id) {
-        WalletLogPrintf("Deactivate spkMan: id = %s, type = %s, internal = %s\n", id.ToString(), FormatOutputType(OutputType::LEGACY), internal ? "true" : "false");
+        WalletLogPrintf("Deactivate spkMan: id = %s, type = %s, internal = %s\n", id.ToString(), FormatOutputType(type), internal ? "true" : "false");
         WalletBatch batch(GetDatabase());
-        if (!batch.EraseActiveScriptPubKeyMan(internal)) {
+        if (!batch.EraseActiveScriptPubKeyMan(static_cast<uint8_t>(type), internal)) {
             throw std::runtime_error(std::string(__func__) + ": erasing active ScriptPubKeyMan id failed");
         }
 
         auto& spk_mans = internal ? m_internal_spk_managers : m_external_spk_managers;
-        spk_mans = nullptr;
+        spk_mans.erase(type);
     }
 
     NotifyCanGetAddressesChanged();
@@ -4759,8 +4806,9 @@ void CWallet::DeactivateScriptPubKeyMan(uint256 id, bool internal)
 
 bool CWallet::IsLegacy() const
 {
-    if (m_internal_spk_managers == nullptr) return false;
-    auto spk_man = dynamic_cast<LegacyScriptPubKeyMan*>(m_internal_spk_managers);
+    auto it = m_internal_spk_managers.find(OutputType::LEGACY);
+    if (it == m_internal_spk_managers.end()) return false;
+    auto spk_man = dynamic_cast<LegacyScriptPubKeyMan*>(it->second);
     return spk_man != nullptr;
 }
 
@@ -4798,7 +4846,7 @@ std::optional<bool> CWallet::IsInternalScriptPubKeyMan(ScriptPubKeyMan* spk_man)
     const auto& type = desc_spk_man->GetWalletDescriptor().descriptor->GetOutputType();
     assert(type.has_value());
 
-    return GetScriptPubKeyMan(/*internal=*/true) == desc_spk_man;
+    return GetScriptPubKeyMan(*type, /*internal=*/true) == desc_spk_man;
 }
 
 ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const FlatSigningProvider& signing_provider, const std::string& label, bool internal)
@@ -4985,8 +5033,8 @@ bool CWallet::ApplyMigrationData(MigrationData& data, bilingual_str& error)
 
     // Remove the LegacyScriptPubKeyMan from memory
     m_spk_managers.erase(legacy_spkm->GetID());
-    m_external_spk_managers = nullptr;
-    m_internal_spk_managers = nullptr;
+    m_external_spk_managers.clear();
+    m_internal_spk_managers.clear();
 
     // Setup new descriptors
     SetWalletFlag(WALLET_FLAG_DESCRIPTORS);

@@ -16,6 +16,8 @@ Exports:
 """
 
 import functools
+import unittest
+from hashlib import sha256
 
 class FE:
     """Objects of this class represent elements of the field GF(2**256 - 2**32 - 977).
@@ -357,3 +359,9 @@ FAST_G = FastGEMul(G)
 @functools.lru_cache(maxsize=1024)
 def mul_G(a):
     return FAST_G.mul(a)
+
+class TestFrameworkSecp256k1(unittest.TestCase):
+    def test_H(self):
+        H = sha256(G.to_bytes_uncompressed()).digest()
+        assert GE.lift_x(FE.from_bytes(H)) is not None
+        self.assertEqual(H.hex(), "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0")

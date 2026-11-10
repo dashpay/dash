@@ -14,6 +14,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
+    softfork_active,
 )
 
 
@@ -44,9 +45,12 @@ class WalletSignerTest(BitcoinTestFramework):
 
     def set_test_params(self):
         self.num_nodes = 2
+
+        # taproot activates through plain BIP9 signalling on both nodes
+        taproot_active = "-vbparams=taproot:0:999999999999:0:10:8:6:5:0"
         self.extra_args = [
-            [],
-            [f"-signer={self.mock_signer_path()}", '-keypool=10'],
+            [taproot_active],
+            [f"-signer={self.mock_signer_path()}", '-keypool=10', taproot_active],
         ]
         # whitelist peers to speed up tx relay / mempool sync
         for args in self.extra_args:
@@ -64,6 +68,9 @@ class WalletSignerTest(BitcoinTestFramework):
         os.remove(os.path.join(node.cwd, "mock_result"))
 
     def run_test(self):
+        self.log.info("Activating taproot...")
+        while not softfork_active(self.nodes[0], "taproot"):
+            self.generate(self.nodes[0], 10)
         self.test_valid_signer()
         self.restart_node(1, [f"-signer={self.mock_invalid_signer_path()}", "-keypool=10"])
         self.test_invalid_signer()
@@ -100,7 +107,7 @@ class WalletSignerTest(BitcoinTestFramework):
         # )
         # self.clear_mock_result(self.nodes[1])
 
-        assert_equal(hww.getwalletinfo()["keypoolsize"], 10)
+        assert_equal(hww.getwalletinfo()["keypoolsize"], 20)
 
         address3 = hww.getnewaddress()
         assert_equal(address3, "yg8pCsowDbY7PbJMthTi4xkkmhNfcNNdHV")
@@ -111,8 +118,15 @@ class WalletSignerTest(BitcoinTestFramework):
         address1 = address3
         address2 = address3
 
+        address4 = hww.getnewaddress(address_type="taproot")
+        assert_equal(address4, "tdc1phw4cgpt6cd30kz9k4wkpwm872cdvhss29jga2xpmftelhqll62msggvc3l")
+        address_info = hww.getaddressinfo(address4)
+        assert_equal(address_info['solvable'], True)
+        assert_equal(address_info['ismine'], True)
+        assert_equal(address_info['hdkeypath'], "m/86h/1h/0h/0/0")
+
         self.log.info('Test walletdisplayaddress')
-        for address in [address1, address2, address3]:
+        for address in [address1, address2, address3, address4]:
             result = hww.walletdisplayaddress(address)
             assert_equal(result, {"address": address})
 
@@ -131,7 +145,7 @@ class WalletSignerTest(BitcoinTestFramework):
         )
 
         self.log.info('Prepare mock PSBT')
-        self.nodes[0].sendtoaddress(address1, 1)
+        self.nodes[0].sendtoaddress(address4, 1)
         self.generate(self.nodes[0], 1)
 
         # Load private key into wallet to generate a signed PSBT for the mock
@@ -140,14 +154,14 @@ class WalletSignerTest(BitcoinTestFramework):
         assert mock_wallet.getwalletinfo()['private_keys_enabled']
 
         result = mock_wallet.importdescriptors([{
-            "desc": "pkh([00000001/84h/1h/0']tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/0/*)#ta5h29a8",
+            "desc": "tr([00000001/86'/1'/0']tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/0/*)#0jtt2jc9",
             "timestamp": 0,
             "range": [0,1],
             "internal": False,
             "active": True
         },
         {
-            "desc": "pkh([00000001/84h/1h/0']tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/1/*)#6f3khsdl",
+            "desc": "tr([00000001/86'/1'/0']tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/1/*)#7xw2h8ga",
             "timestamp": 0,
             "range": [0, 0],
             "internal": True,

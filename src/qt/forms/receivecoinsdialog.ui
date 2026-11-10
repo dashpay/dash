@@ -181,6 +181,25 @@
            </widget>
           </item>
           <item>
+           <widget class="QComboBox" name="addressType">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>1000</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::StrongFocus</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
            <spacer name="horizontalSpacer_3">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -313,6 +332,7 @@
  <tabstops>
   <tabstop>reqLabel</tabstop>
   <tabstop>reqAmount</tabstop>
+  <tabstop>addressType</tabstop>
   <tabstop>reqMessage</tabstop>
   <tabstop>receiveButton</tabstop>
   <tabstop>clearButton</tabstop>

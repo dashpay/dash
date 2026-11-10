@@ -12,11 +12,12 @@
 #include <pubkey.h>
 #include <script/interpreter.h>
 #include <script/keyorigin.h>
+#include <script/standard.h>
+#include <span.h>
 
 class CKey;
 class CKeyID;
 class CScript;
-class CScriptID;
 class CTransaction;
 class SigningProvider;
 
@@ -31,6 +32,7 @@ public:
 
     /** Create a singular (non-script) signature. */
     virtual bool CreateSig(const SigningProvider& provider, std::vector<unsigned char>& vchSig, const CKeyID& keyid, const CScript& scriptCode, SigVersion sigversion) const =0;
+    virtual bool CreateSchnorrSig(const SigningProvider& provider, std::vector<unsigned char>& sig, const XOnlyPubKey& pubkey, const uint256* leaf_hash, const uint256* merkle_root, SigVersion sigversion) const =0;
 };
 
 /** A signature creator for transactions. */
@@ -44,10 +46,11 @@ class MutableTransactionSignatureCreator : public BaseSignatureCreator
     const PrecomputedTransactionData* m_txdata;
 
 public:
-    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amountIn, int nHashTypeIn = SIGHASH_ALL);
-    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amountIn, const PrecomputedTransactionData* txdata, int nHashTypeIn = SIGHASH_ALL);
+    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amountIn, int nHashTypeIn);
+    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amountIn, const PrecomputedTransactionData* txdata, int nHashTypeIn);
     const BaseSignatureChecker& Checker() const override { return checker; }
     bool CreateSig(const SigningProvider& provider, std::vector<unsigned char>& vchSig, const CKeyID& keyid, const CScript& scriptCode, SigVersion sigversion) const override;
+    bool CreateSchnorrSig(const SigningProvider& provider, std::vector<unsigned char>& sig, const XOnlyPubKey& pubkey, const uint256* leaf_hash, const uint256* merkle_root, SigVersion sigversion) const override;
 };
 
 /** A signature checker that accepts all signatures */
@@ -66,8 +69,13 @@ struct SignatureData {
     bool complete = false; ///< Stores whether the scriptSig is complete
     CScript scriptSig; ///< The scriptSig of an input. Contains complete signatures or the traditional partial signatures format
     CScript redeem_script; ///< The redeemScript (if any) for the input
+    TaprootSpendData tr_spenddata; ///< Taproot spending data.
+    std::optional<TaprootBuilder> tr_builder; ///< Taproot tree used to build tr_spenddata.
     std::map<CKeyID, SigPair> signatures; ///< BIP 174 style partial signatures for the input. May contain all signatures necessary for producing a final scriptSig.
     std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>> misc_pubkeys;
+    std::vector<unsigned char> taproot_key_path_sig; /// Schnorr signature for key path spending
+    std::map<std::pair<XOnlyPubKey, uint256>, std::vector<unsigned char>> taproot_script_sigs; ///< (Partial) schnorr signatures, indexed by XOnlyPubKey and leaf_hash.
+    std::map<XOnlyPubKey, std::pair<std::set<uint256>, KeyOriginInfo>> taproot_misc_pubkeys; ///< Miscellaneous Taproot pubkeys involved in this input along with their leaf script hashes and key origin data. Also includes the Taproot internal key (may have no leaf script hashes).
     std::vector<CKeyID> missing_pubkeys; ///< KeyIDs of pubkeys which could not be found
     std::vector<CKeyID> missing_sigs; ///< KeyIDs of pubkeys for signatures which could not be found
     uint160 missing_redeem_script; ///< ScriptID of the missing redeemScript (if any)

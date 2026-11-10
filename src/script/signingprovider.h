@@ -25,6 +25,32 @@ public:
     virtual bool GetKey(const CKeyID &address, CKey& key) const { return false; }
     virtual bool HaveKey(const CKeyID &address) const { return false; }
     virtual bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const { return false; }
+    virtual bool GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const { return false; }
+    virtual bool GetTaprootBuilder(const XOnlyPubKey& output_key, TaprootBuilder& builder) const { return false; }
+
+    bool GetKeyByXOnly(const XOnlyPubKey& pubkey, CKey& key) const
+    {
+        for (const auto& id : pubkey.GetKeyIDs()) {
+            if (GetKey(id, key)) return true;
+        }
+        return false;
+    }
+
+    bool GetPubKeyByXOnly(const XOnlyPubKey& pubkey, CPubKey& out) const
+    {
+        for (const auto& id : pubkey.GetKeyIDs()) {
+            if (GetPubKey(id, out)) return true;
+        }
+        return false;
+    }
+
+    bool GetKeyOriginByXOnly(const XOnlyPubKey& pubkey, KeyOriginInfo& info) const
+    {
+        for (const auto& id : pubkey.GetKeyIDs()) {
+            if (GetKeyOrigin(id, info)) return true;
+        }
+        return false;
+    }
 };
 
 extern const SigningProvider& DUMMY_SIGNING_PROVIDER;
@@ -42,6 +68,8 @@ public:
     bool GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const override;
     bool GetKey(const CKeyID& keyid, CKey& key) const override;
     bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const override;
+    bool GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const override;
+    bool GetTaprootBuilder(const XOnlyPubKey& output_key, TaprootBuilder& builder) const override;
 };
 
 struct FlatSigningProvider final : public SigningProvider
@@ -50,11 +78,14 @@ struct FlatSigningProvider final : public SigningProvider
     std::map<CKeyID, CPubKey> pubkeys;
     std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>> origins;
     std::map<CKeyID, CKey> keys;
+    std::map<XOnlyPubKey, TaprootBuilder> tr_trees; /** Map from output key to Taproot tree (which can then make the TaprootSpendData */
 
     bool GetCScript(const CScriptID& scriptid, CScript& script) const override;
     bool GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const override;
     bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const override;
     bool GetKey(const CKeyID& keyid, CKey& key) const override;
+    bool GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const override;
+    bool GetTaprootBuilder(const XOnlyPubKey& output_key, TaprootBuilder& builder) const override;
 
     FlatSigningProvider& Merge(FlatSigningProvider&& b) LIFETIMEBOUND;
 };

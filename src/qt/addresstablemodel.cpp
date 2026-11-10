@@ -336,7 +336,7 @@ void AddressTableModel::updateEntry(const QString &address,
     priv->updateEntry(address, label, isMine, purpose, status);
 }
 
-QString AddressTableModel::addRow(const QString &type, const QString &label, const QString &address)
+QString AddressTableModel::addRow(const QString &type, const QString &label, const QString &address, const OutputType address_type)
 {
     std::string strLabel = label.toStdString();
     std::string strAddress = address.toStdString();
@@ -365,7 +365,7 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
     else if(type == Receive)
     {
         // Generate a new address to associate with given label
-        auto op_dest = walletModel->wallet().getNewDestination(strLabel);
+        auto op_dest = walletModel->wallet().getNewDestination(address_type, strLabel);
         if (!op_dest) {
             WalletModel::UnlockContext ctx(walletModel->requestUnlock());
             if (!ctx.isValid()) {
@@ -373,7 +373,7 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
                 editStatus = WALLET_UNLOCK_FAILURE;
                 return QString();
             }
-            op_dest = walletModel->wallet().getNewDestination(strLabel);
+            op_dest = walletModel->wallet().getNewDestination(address_type, strLabel);
             if (!op_dest) {
                 editStatus = KEY_GENERATION_FAILURE;
                 return QString();
@@ -447,3 +447,5 @@ void AddressTableModel::emitDataChanged(int idx)
 }
 
 QString AddressTableModel::GetWalletDisplayName() const { return walletModel->getDisplayName(); };
+
+OutputType AddressTableModel::GetDefaultAddressType() const { return walletModel->wallet().getDefaultAddressType(); }

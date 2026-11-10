@@ -654,7 +654,7 @@ public:
     bool IsHDEnabled() const override;
 
     //! Setup descriptors based on the given CExtkey
-    bool SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type);
+    bool SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type, OutputType addr_type);
 
     /** Provide a descriptor at setup time
     * Returns false if already setup or setup fails, true if setup is successful

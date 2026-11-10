@@ -26,6 +26,7 @@ RPCHelpMan getnewaddress()
                 "so payments received with the address will be associated with 'label'.\n",
                 {
                     {"label", RPCArg::Type::STR, RPCArg::Default{""}, "The label name for the address to be linked to. It can also be set to the empty string \"\" to represent the default label. The label does not need to exist, it will be created if there is no label by the given name."},
+                    {"address_type", RPCArg::Type::STR, RPCArg::Default{"legacy"}, "The address type to use. Options are \"legacy\" and \"taproot\"."},
                 },
                 RPCResult{
                     RPCResult::Type::STR, "address", "The new Dash address"
@@ -48,7 +49,16 @@ RPCHelpMan getnewaddress()
     // Parse the label first so we don't generate a key if there's an error
     const std::string label{LabelFromValue(request.params[0])};
 
-    auto op_dest = pwallet->GetNewDestination(label);
+    OutputType output_type = pwallet->m_default_address_type;
+    if (!request.params[1].isNull()) {
+        std::optional<OutputType> parsed = ParseOutputType(request.params[1].get_str());
+        if (!parsed || parsed == OutputType::UNKNOWN) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[1].get_str()));
+        }
+        output_type = *parsed;
+    }
+
+    auto op_dest = pwallet->GetNewDestination(output_type, label);
     if (!op_dest) {
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, util::ErrorString(op_dest).original);
     }
@@ -62,7 +72,9 @@ RPCHelpMan getrawchangeaddress()
     return RPCHelpMan{"getrawchangeaddress",
                 "\nReturns a new Dash address, for receiving change.\n"
                 "This is for use with raw transactions, NOT normal use.\n",
-                {},
+                {
+                    {"address_type", RPCArg::Type::STR, RPCArg::Default{"legacy"}, "The address type to use. Options are \"legacy\" and \"taproot\"."},
+                },
                 RPCResult{
                     RPCResult::Type::STR, "address", "The address"
                 },
@@ -81,7 +93,16 @@ RPCHelpMan getrawchangeaddress()
         throw JSONRPCError(RPC_WALLET_ERROR, "Error: This wallet has no available keys");
     }
 
-    auto op_dest = pwallet->GetNewChangeDestination();
+    OutputType output_type = pwallet->m_default_address_type;
+    if (!request.params[0].isNull()) {
+        std::optional<OutputType> parsed = ParseOutputType(request.params[0].get_str());
+        if (!parsed || parsed == OutputType::UNKNOWN) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[0].get_str()));
+        }
+        output_type = *parsed;
+    }
+
+    auto op_dest = pwallet->GetNewChangeDestination(output_type);
     if (!op_dest) {
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, util::ErrorString(op_dest).original);
     }
@@ -402,6 +423,8 @@ public:
         }
         return obj;
     }
+
+    UniValue operator()(const TaprootDestination& id) const { return UniValue(UniValue::VOBJ); }
 };
 
 static UniValue DescribeWalletAddress(const CWallet& wallet, const CTxDestination& dest)
@@ -439,6 +462,7 @@ RPCHelpMan getaddressinfo()
                         {RPCResult::Type::STR, "desc", /*optional=*/true, "A descriptor for spending coins sent to this address (only when solvable)."},
                         {RPCResult::Type::STR, "parent_desc", /*optional=*/true, "The descriptor used to derive this address if this is a descriptor wallet"},
                         {RPCResult::Type::BOOL, "isscript", "If the key is a script."},
+                        {RPCResult::Type::STR_HEX, "output_key", /*optional=*/true, "The taproot output key (only for taproot addresses)"},
                         {RPCResult::Type::BOOL, "ischange", "If the address was used for change output."},
                         {RPCResult::Type::STR, "script", /*optional=*/true, "The output script type. Only if isscript is true and the redeemscript is known. Possible types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata"},
                         {RPCResult::Type::STR_HEX, "hex", /*optional=*/true, "The redeemscript for the p2sh address."},
@@ -511,11 +535,15 @@ RPCHelpMan getaddressinfo()
     isminetype mine = pwallet->IsMine(dest);
     ret.pushKV("ismine", bool(mine & ISMINE_SPENDABLE));
 
-    bool solvable = provider && IsSolvable(*provider, scriptPubKey);
-    ret.pushKV("solvable", solvable);
-
-    if (solvable) {
-        ret.pushKV("desc", InferDescriptor(scriptPubKey, *provider)->ToString());
+    if (provider) {
+        auto inferred = InferDescriptor(scriptPubKey, *provider);
+        bool solvable = inferred->IsSolvable() || IsSolvable(*provider, scriptPubKey);
+        ret.pushKV("solvable", solvable);
+        if (solvable) {
+            ret.pushKV("desc", inferred->ToString());
+        }
+    } else {
+        ret.pushKV("solvable", false);
     }
 
     const auto& spk_mans = pwallet->GetScriptPubKeyMans(scriptPubKey);

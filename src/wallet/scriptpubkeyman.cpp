@@ -96,6 +96,7 @@ IsMineResult IsMineInner(const LegacyScriptPubKeyMan& keystore, const CScript& s
     switch (whichType) {
     case TxoutType::NONSTANDARD:
     case TxoutType::NULL_DATA:
+    case TxoutType::TAPROOT:
         break;
     case TxoutType::PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
@@ -2507,7 +2508,7 @@ bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const
     }
 }
 
-bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type)
+bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type, OutputType addr_type)
 {
     LOCK(cs_desc_man);
     assert(m_storage.IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
@@ -2532,7 +2533,10 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
     std::string xpub = EncodeExtPubKey(master_key.Neuter());
 
     // Build descriptor string
-    std::string desc_prefix = strprintf("pkh(%s/%dh/%dh", xpub, type == PathDerivationType::DIP0009_CoinJoin ? BIP32_PURPOSE_FEATURE : BIP32_PURPOSE_STANDARD, Params().ExtCoinType());
+    const bool taproot = addr_type == OutputType::TAPROOT;
+    assert(!taproot || type != PathDerivationType::DIP0009_CoinJoin);
+    const uint8_t purpose = type == PathDerivationType::DIP0009_CoinJoin ? BIP32_PURPOSE_FEATURE : taproot ? BIP32_PURPOSE_TAPROOT : BIP32_PURPOSE_STANDARD;
+    std::string desc_prefix = strprintf("%s(%s/%dh/%dh", taproot ? "tr" : "pkh", xpub, purpose, Params().ExtCoinType());
     if (type == PathDerivationType::DIP0009_CoinJoin) {
         desc_prefix += "/4h";
     }
@@ -2817,9 +2821,35 @@ TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction&
             keys->Merge(std::move(*script_keys));
         } else {
             // Maybe there are pubkeys listed that we can sign for
-            script_keys = std::make_unique<FlatSigningProvider>();
-            for (const auto& pk_pair : input.hd_keypaths) {
-                const CPubKey& pubkey = pk_pair.first;
+            std::vector<CPubKey> pubkeys;
+
+            // ECDSA Pubkeys
+            for (const auto& [pk, _] : input.hd_keypaths) {
+                pubkeys.push_back(pk);
+            }
+
+            // Taproot output pubkey
+            std::vector<std::vector<unsigned char>> sols;
+            if (Solver(script, sols) == TxoutType::TAPROOT) {
+                sols[0].insert(sols[0].begin(), 0x02);
+                pubkeys.emplace_back(sols[0]);
+                sols[0][0] = 0x03;
+                pubkeys.emplace_back(sols[0]);
+            }
+
+            // Taproot pubkeys
+            for (const auto& pk_pair : input.m_tap_bip32_paths) {
+                const XOnlyPubKey& pubkey = pk_pair.first;
+                for (unsigned char prefix : {0x02, 0x03}) {
+                    unsigned char b[33] = {prefix};
+                    std::copy(pubkey.begin(), pubkey.end(), b + 1);
+                    CPubKey fullpubkey;
+                    fullpubkey.Set(b, b + 33);
+                    pubkeys.push_back(fullpubkey);
+                }
+            }
+
+            for (const auto& pubkey : pubkeys) {
                 std::unique_ptr<FlatSigningProvider> pk_keys = GetSigningProvider(pubkey);
                 if (pk_keys) {
                     keys->Merge(std::move(*pk_keys));

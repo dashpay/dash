@@ -154,6 +154,23 @@ public:
      */
     bool SignCompact(const uint256& hash, std::vector<unsigned char>& vchSig) const;
 
+    /**
+     * Create a BIP-340 Schnorr signature, for the xonly-pubkey corresponding to *this,
+     * optionally tweaked by *merkle_root. Additional nonce entropy is provided through
+     * aux.
+     *
+     * merkle_root is used to optionally perform tweaking of the private key, as specified
+     * in BIP341:
+     * - If merkle_root == nullptr: no tweaking is done, sign with key directly (this is
+     *                              used for signatures in BIP342 script).
+     * - If merkle_root->IsNull():  sign with key + H_TapTweak(pubkey) (this is used for
+     *                              key path spending when no scripts are present).
+     * - Otherwise:                 sign with key + H_TapTweak(pubkey || *merkle_root)
+     *                              (this is used for key path spending, with specific
+     *                              Merkle root of the script tree).
+     */
+    bool SignSchnorr(const uint256& hash, Span<unsigned char> sig, const uint256* merkle_root, const uint256& aux) const;
+
     //! Derive BIP32 child key.
     [[nodiscard]] bool Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
 

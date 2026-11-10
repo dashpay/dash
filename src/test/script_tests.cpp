@@ -7,6 +7,7 @@
 #endif
 
 #include <test/data/script_tests.json.h>
+#include <test/data/bip341_wallet_vectors.json.h>
 
 #include <common/system.h>
 #include <core_io.h>
@@ -14,6 +15,7 @@
 #include <rpc/util.h>
 #include <script/script.h>
 #include <script/script_error.h>
+#include <script/sigcache.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <streams.h>
@@ -1094,7 +1096,7 @@ SignatureData CombineSignatures(const CTxOut& txout, const CMutableTransaction& 
     SignatureData data;
     data.MergeSignatureData(scriptSig1);
     data.MergeSignatureData(scriptSig2);
-    ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(tx, 0, txout.nValue), txout.scriptPubKey, data);
+    ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(tx, 0, txout.nValue, SIGHASH_DEFAULT), txout.scriptPubKey, data);
     return data;
 }
 
@@ -1273,13 +1275,11 @@ BOOST_AUTO_TEST_CASE(script_GetScriptAsm)
     BOOST_CHECK_EQUAL(derSig + "83 " + pubKey, ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "83")) << vchPubKey));
 }
 
-static CScript
-ScriptFromHex(const char* hex)
+static CScript ScriptFromHex(const std::string& str)
 {
-    std::vector<unsigned char> data = ParseHex(hex);
+    std::vector<unsigned char> data = ParseHex(str);
     return CScript(data.begin(), data.end());
 }
-
 
 BOOST_AUTO_TEST_CASE(script_FindAndDelete)
 {
@@ -1404,6 +1404,25 @@ BOOST_AUTO_TEST_CASE(script_HasValidOps)
     BOOST_CHECK(!script.HasValidOps());
 }
 
+static CMutableTransaction TxFromHex(const std::string& str)
+{
+    CMutableTransaction tx;
+    SpanReader{SER_DISK, 0, ParseHex(str)} >> tx;
+    return tx;
+}
+
+static std::vector<CTxOut> TxOutsFromJSON(const UniValue& univalue)
+{
+    assert(univalue.isArray());
+    std::vector<CTxOut> prevouts;
+    for (size_t i = 0; i < univalue.size(); ++i) {
+        CTxOut txout;
+        SpanReader{SER_DISK, 0, ParseHex(univalue[i].get_str())} >> txout;
+        prevouts.push_back(std::move(txout));
+    }
+    return prevouts;
+}
+
 #if defined(HAVE_CONSENSUS_LIB)
 
 /* Test simple (successful) usage of dashconsensus_verify_script */
@@ -1516,5 +1535,217 @@ BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_invalid_flags)
     BOOST_CHECK_EQUAL(err, dashconsensus_ERR_INVALID_FLAGS);
 }
 
-#endif
+#endif // defined(HAVE_CONSENSUS_LIB)
+
+static std::vector<unsigned int> AllConsensusFlags()
+{
+    std::vector<unsigned int> ret;
+
+    for (unsigned int i = 0; i < 128; ++i) {
+        unsigned int flag = 0;
+        if (i & 1) flag |= SCRIPT_VERIFY_P2SH;
+        if (i & 2) flag |= SCRIPT_VERIFY_DERSIG;
+        if (i & 4) flag |= SCRIPT_VERIFY_NULLDUMMY;
+        if (i & 8) flag |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
+        if (i & 16) flag |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
+        if (i & 64) flag |= SCRIPT_VERIFY_TAPROOT;
+
+        ret.push_back(flag);
+    }
+
+    return ret;
+}
+
+/** Precomputed list of all valid combinations of consensus-relevant script validation flags. */
+static const std::vector<unsigned int> ALL_CONSENSUS_FLAGS = AllConsensusFlags();
+
+static void AssetTest(const UniValue& test)
+{
+    BOOST_CHECK(test.isObject());
+
+    CMutableTransaction mtx = TxFromHex(test["tx"].get_str());
+    const std::vector<CTxOut> prevouts = TxOutsFromJSON(test["prevouts"]);
+    BOOST_CHECK(prevouts.size() == mtx.vin.size());
+    size_t idx = test["index"].getInt<int64_t>();
+    unsigned int test_flags = ParseScriptFlags(test["flags"].get_str());
+    bool fin = test.exists("final") && test["final"].get_bool();
+
+    if (test.exists("success")) {
+        mtx.vin[idx].scriptSig = ScriptFromHex(test["success"]["scriptSig"].get_str());
+        CTransaction tx(mtx);
+        PrecomputedTransactionData txdata;
+        txdata.Init(tx, std::vector<CTxOut>(prevouts));
+        CachingTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, true);
+        for (const auto flags : ALL_CONSENSUS_FLAGS) {
+            // "final": true tests are valid for all flags. Others are only valid with flags that are
+            // a subset of test_flags.
+            if (fin || ((flags & test_flags) == flags)) {
+                bool ret = VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, flags, txcheck, nullptr);
+                BOOST_CHECK(ret);
+            }
+        }
+    }
+
+    if (test.exists("failure")) {
+        mtx.vin[idx].scriptSig = ScriptFromHex(test["failure"]["scriptSig"].get_str());
+        CTransaction tx(mtx);
+        PrecomputedTransactionData txdata;
+        txdata.Init(tx, std::vector<CTxOut>(prevouts));
+        CachingTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, true);
+        for (const auto flags : ALL_CONSENSUS_FLAGS) {
+            // If a test is supposed to fail with test_flags, it should also fail with any superset thereof.
+            if ((flags & test_flags) == test_flags) {
+                bool ret = VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, flags, txcheck, nullptr);
+                BOOST_CHECK(!ret);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(script_assets_test)
+{
+    // See src/test/fuzz/script_assets_test_minimizer.cpp for information on how to generate
+    // the script_assets_test.json file used by this test.
+
+    const char* dir = std::getenv("DIR_UNIT_TEST_DATA");
+    BOOST_WARN_MESSAGE(dir != nullptr, "Variable DIR_UNIT_TEST_DATA unset, skipping script_assets_test");
+    if (dir == nullptr) return;
+    auto path = fs::path(dir) / "script_assets_test.json";
+    bool exists = fs::exists(path);
+    BOOST_WARN_MESSAGE(exists, "File $DIR_UNIT_TEST_DATA/script_assets_test.json not found, skipping script_assets_test");
+    if (!exists) return;
+    std::ifstream file(path);
+    BOOST_CHECK(file.is_open());
+    file.seekg(0, std::ios::end);
+    size_t length = file.tellg();
+    file.seekg(0, std::ios::beg);
+    std::string data(length, '\0');
+    file.read(&data[0], data.size());
+    UniValue tests = read_json(data);
+    BOOST_CHECK(tests.isArray());
+    BOOST_CHECK(tests.size() > 0);
+
+    for (size_t i = 0; i < tests.size(); i++) {
+        AssetTest(tests[i]);
+    }
+    file.close();
+}
+
+BOOST_AUTO_TEST_CASE(bip341_keypath_test_vectors)
+{
+    UniValue tests;
+    Assert(tests.read(json_tests::bip341_wallet_vectors));
+
+    const auto& vectors = tests["keyPathSpending"];
+
+    for (const auto& vec : vectors.getValues()) {
+        auto txhex = ParseHex(vec["given"]["rawUnsignedTx"].get_str());
+        CMutableTransaction tx;
+        SpanReader{SER_NETWORK, PROTOCOL_VERSION, txhex} >> tx;
+        std::vector<CTxOut> utxos;
+        for (const auto& utxo_spent : vec["given"]["utxosSpent"].getValues()) {
+            auto script_bytes = ParseHex(utxo_spent["scriptPubKey"].get_str());
+            CScript script{script_bytes.begin(), script_bytes.end()};
+            CAmount amount{utxo_spent["amountSats"].getInt<int>()};
+            utxos.emplace_back(amount, script);
+        }
+
+        PrecomputedTransactionData txdata;
+        txdata.Init(tx, std::vector<CTxOut>{utxos}, true);
+
+        BOOST_CHECK(txdata.m_bip341_taproot_ready);
+        BOOST_CHECK_EQUAL(HexStr(txdata.m_spent_amounts_single_hash), vec["intermediary"]["hashAmounts"].get_str());
+        BOOST_CHECK_EQUAL(HexStr(txdata.m_outputs_single_hash), vec["intermediary"]["hashOutputs"].get_str());
+        BOOST_CHECK_EQUAL(HexStr(txdata.m_prevouts_single_hash), vec["intermediary"]["hashPrevouts"].get_str());
+        BOOST_CHECK_EQUAL(HexStr(txdata.m_spent_scripts_single_hash), vec["intermediary"]["hashScriptPubkeys"].get_str());
+        BOOST_CHECK_EQUAL(HexStr(txdata.m_sequences_single_hash), vec["intermediary"]["hashSequences"].get_str());
+
+        for (const auto& input : vec["inputSpending"].getValues()) {
+            int txinpos = input["given"]["txinIndex"].getInt<int>();
+            int hashtype = input["given"]["hashType"].getInt<int>();
+
+            // Load key.
+            auto privkey = ParseHex(input["given"]["internalPrivkey"].get_str());
+            CKey key;
+            key.Set(privkey.begin(), privkey.end(), true);
+
+            // Load Merkle root.
+            uint256 merkle_root;
+            if (!input["given"]["merkleRoot"].isNull()) {
+                merkle_root = uint256{ParseHex(input["given"]["merkleRoot"].get_str())};
+            }
+
+            // Compute and verify (internal) public key.
+            XOnlyPubKey pubkey{key.GetPubKey()};
+            BOOST_CHECK_EQUAL(HexStr(pubkey), input["intermediary"]["internalPubkey"].get_str());
+
+            // Sign and verify signature.
+            FlatSigningProvider provider;
+            provider.keys[key.GetPubKey().GetID()] = key;
+            MutableTransactionSignatureCreator creator(tx, txinpos, utxos[txinpos].nValue, &txdata, hashtype);
+            std::vector<unsigned char> signature;
+            BOOST_CHECK(creator.CreateSchnorrSig(provider, signature, pubkey, nullptr, &merkle_root, SigVersion::TAPROOT));
+            BOOST_CHECK_EQUAL(HexStr(signature), input["expected"]["witness"][0].get_str());
+
+            // We can't observe the tweak used inside the signing logic, so verify by recomputing it.
+            BOOST_CHECK_EQUAL(HexStr(pubkey.ComputeTapTweakHash(merkle_root.IsNull() ? nullptr : &merkle_root)), input["intermediary"]["tweak"].get_str());
+
+            // We can't observe the sighash used inside the signing logic, so verify by recomputing it.
+            ScriptExecutionData sed;
+            sed.m_annex_init = true;
+            sed.m_annex_present = false;
+            uint256 sighash;
+            BOOST_CHECK(SignatureHashSchnorr(sighash, sed, tx, txinpos, hashtype, SigVersion::TAPROOT, txdata, MissingDataBehavior::FAIL));
+            BOOST_CHECK_EQUAL(HexStr(sighash), input["intermediary"]["sigHash"].get_str());
+
+            // To verify the sigmsg, hash the expected sigmsg, and compare it with the (expected) sighash.
+            const auto sigmsg = ParseHex(input["intermediary"]["sigMsg"].get_str());
+            BOOST_CHECK_EQUAL(HexStr((HashWriter{HASHER_TAPSIGHASH} << Span{sigmsg}).GetSHA256()), input["intermediary"]["sigHash"].get_str());
+        }
+
+    }
+
+}
+
+BOOST_AUTO_TEST_CASE(bip341_dash_special_tx_sighash)
+{
+    // Vectors from the Python TaprootSignatureHash of the test framework: the digest commits to the
+    // 32-bit version|type word and, for a special transaction, to the serialized payload.
+    const auto utxo_bytes = ParseHex("00e1f5050000000022512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
+    CTxOut utxo;
+    SpanReader{SER_NETWORK, PROTOCOL_VERSION, utxo_bytes} >> utxo;
+
+    const std::vector<std::tuple<std::string, uint8_t, std::string>> vectors = {
+        // special transaction (nVersion 3, nType 8, 5-byte payload), SIGHASH_DEFAULT
+        {"030008000111111111111111111111111111111111111111111111111111111111111111110100000000feffffff01f0b9f50500000000225120222222222222222222222222222222222222222222222222222222222222222200000000050102030405", SIGHASH_DEFAULT, "828f19c0e3edc0a3077518104490e01562b46f625f56288d702857eb0d8da5e8"},
+        // the same special transaction, SIGHASH_ALL
+        {"030008000111111111111111111111111111111111111111111111111111111111111111110100000000feffffff01f0b9f50500000000225120222222222222222222222222222222222222222222222222222222222222222200000000050102030405", SIGHASH_ALL, "bc24dd617a4b4211ee80d037db6bb1ae826c9b6ef32e8f3eca678340414d3c3b"},
+        // version 3 normal transaction (no payload), SIGHASH_DEFAULT
+        {"030000000111111111111111111111111111111111111111111111111111111111111111110100000000feffffff01f0b9f50500000000225120222222222222222222222222222222222222222222222222222222222222222200000000", SIGHASH_DEFAULT, "c4512387dee74eaa4dfde9dfbd04178906b8a8fc7e72921c1a84582c7ecd542c"},
+    };
+    for (const auto& [tx_hex, hash_type, expected] : vectors) {
+        const auto tx_bytes = ParseHex(tx_hex);
+        CMutableTransaction tx;
+        SpanReader{SER_NETWORK, PROTOCOL_VERSION, tx_bytes} >> tx;
+        PrecomputedTransactionData txdata;
+        txdata.Init(tx, {utxo});
+        ScriptExecutionData execdata;
+        execdata.m_annex_init = true;
+        execdata.m_annex_present = false;
+        uint256 sighash;
+        BOOST_CHECK(SignatureHashSchnorr(sighash, execdata, tx, 0, hash_type, SigVersion::TAPROOT, txdata, MissingDataBehavior::FAIL));
+        BOOST_CHECK_EQUAL(HexStr(sighash), expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(compute_tapleaf)
+{
+    const uint8_t script[6] = {'f','o','o','b','a','r'};
+    uint256 tlc0 = uint256S("edbc10c272a1215dcdcc11d605b9027b5ad6ed97cd45521203f136767b5b9c06");
+    uint256 tlc2 = uint256S("8b5c4f90ae6bf76e259dbef5d8a59df06359c391b59263741b25eca76451b27a");
+
+    BOOST_CHECK_EQUAL(ComputeTapleafHash(0xc0, CScript(script, script + 6)), tlc0);
+    BOOST_CHECK_EQUAL(ComputeTapleafHash(0xc2, CScript(script, script + 6)), tlc2);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -141,12 +141,63 @@ void CoinsResult::Add(OutputType type, const COutput& out)
     }
 }
 
+static OutputType TransactionChangeType(const CWallet& wallet, const std::vector<CRecipient>& vecSend)
+{
+    // If -changetype is specified, always use that change type.
+    if (wallet.m_default_change_type) {
+        return *wallet.m_default_change_type;
+    }
+
+    const bool has_legacy_spkman(wallet.GetScriptPubKeyMan(OutputType::LEGACY, /*internal=*/true));
+    const bool has_taproot_spkman(wallet.GetScriptPubKeyMan(OutputType::TAPROOT, /*internal=*/true));
+
+    // if m_default_address_type is legacy, use legacy address as change.
+    // Unlike upstream, Dash defaults to legacy, so a wallet made only of
+    // imported taproot descriptors must fall through to its taproot keypool.
+    if (wallet.m_default_address_type == OutputType::LEGACY && has_legacy_spkman) {
+        return OutputType::LEGACY;
+    }
+
+    bool any_tr{false};
+    bool any_pkh{false};
+
+    for (const auto& recipient : vecSend) {
+        std::vector<std::vector<uint8_t>> dummy;
+        const TxoutType type{Solver(recipient.scriptPubKey, dummy)};
+        if (type == TxoutType::TAPROOT) {
+            any_tr = true;
+        } else if (type == TxoutType::PUBKEYHASH) {
+            any_pkh = true;
+        }
+    }
+
+    if (has_taproot_spkman && any_tr) {
+        // Currently tr is the only type supported by the TAPROOT spkman
+        return OutputType::TAPROOT;
+    }
+    if (has_legacy_spkman && any_pkh) {
+        // Currently pkh is the only type supported by the LEGACY spkman
+        return OutputType::LEGACY;
+    }
+
+    if (has_taproot_spkman) {
+        return OutputType::TAPROOT;
+    }
+    if (has_legacy_spkman) {
+        return OutputType::LEGACY;
+    }
+    // else use m_default_address_type for change
+    return wallet.m_default_address_type;
+}
+
 static OutputType GetOutputType(TxoutType type, bool is_from_p2sh)
 {
     switch (type) {
         case TxoutType::SCRIPTHASH:
         case TxoutType::PUBKEYHASH:
             return OutputType::LEGACY;
+        case TxoutType::TAPROOT:
+            return OutputType::TAPROOT;
         default:
             return OutputType::UNKNOWN;
     }
@@ -909,7 +960,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     coin_selection_params.m_long_term_feerate = wallet.m_consolidate_feerate;
 
     CAmount recipients_sum = 0;
-    ReserveDestination reservedest(&wallet);
+    ReserveDestination reservedest(&wallet, TransactionChangeType(wallet, vecSend));
     const bool sort_bip69{nChangePosInOut == -1};
     unsigned int outputs_to_subtract_fee_from = 0; // The number of outputs which we are subtracting the fee from
     for (const auto& recipient : vecSend) {

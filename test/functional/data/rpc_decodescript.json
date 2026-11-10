@@ -1,10 +1,19 @@
 [
     [
+        "5120eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        {
+            "asm": "1 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "desc": "rawtr(eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)#jk7c6kys",
+            "address": "tdc1pamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhqlt6yw6",
+            "type": "taproot"
+        }
+    ],
+    [
         "a914eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee87",
         {
             "asm": "OP_HASH160 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee OP_EQUAL",
-            "address": "92Cpm6g9Hba4maFG66aDjVxcgPY4wnQM4E",
             "desc": "addr(92Cpm6g9Hba4maFG66aDjVxcgPY4wnQM4E)#w082pp4j",
+            "address": "92Cpm6g9Hba4maFG66aDjVxcgPY4wnQM4E",
             "type": "scripthash"
         }
     ],
@@ -12,9 +21,49 @@
         "6a00",
         {
             "asm": "OP_RETURN 0",
-            "type": "nulldata",
-            "p2sh": "93JSZ4DRLAifokPwn3C6WtnZoAVHwDa6UP",
-            "desc": "raw(6a00)#ncfmkl43"
+            "desc": "raw(6a00)#ncfmkl43",
+            "type": "nulldata"
+        }
+    ],
+    [
+        "6aee",
+        {
+            "asm": "OP_RETURN OP_UNKNOWN",
+            "desc": "raw(6aee)#vsyzgqdt",
+            "type": "nonstandard"
+        }
+    ],
+    [
+        "6a02ee",
+        {
+            "asm": "OP_RETURN [error]",
+            "desc": "raw(6a02ee)#gvdwnlzl",
+            "type": "nonstandard"
+        }
+    ],
+    [
+        "02eeee",
+        {
+            "asm": "-28398",
+            "desc": "raw(02eeee)#5xzck7pr",
+            "type": "nonstandard",
+            "p2sh": "8pExS43UopUMdzuF7zrttyq11rrZck3GjL"
+        }
+    ],
+    [
+        "bc",
+        {
+            "asm": "OP_CHECKSIGADD",
+            "desc": "raw(bc)#2za2al40",
+            "type": "nonstandard"
+        }
+    ],
+    [
+        "50",
+        {
+            "asm": "OP_RESERVED",
+            "desc": "raw(50)#a7tu03xf",
+            "type": "nonstandard"
         }
     ]
 ]

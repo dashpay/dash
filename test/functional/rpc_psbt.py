@@ -9,7 +9,7 @@ from decimal import Decimal
 from itertools import product
 
 from test_framework.descriptors import descsum_create
-from test_framework.key import ECKey
+from test_framework.key import ECKey, H_POINT
 from test_framework.messages import (
     COutPoint,
     CTransaction,
@@ -30,6 +30,7 @@ from test_framework.psbt import (
 from test_framework.script import CScript, OP_TRUE
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
+    softfork_active,
     assert_approx,
     assert_equal,
     assert_greater_than,
@@ -51,6 +52,8 @@ class PSBTTest(BitcoinTestFramework):
 
     def set_test_params(self):
         self.num_nodes = 3
+        # taproot activates through plain BIP9 signalling on every node
+        self.extra_args = [["-vbparams=taproot:0:999999999999:0:10:8:6:5:0"]] * 3
         self.supports_cli = False
 
     def skip_test_if_missing_module(self):
@@ -765,12 +768,35 @@ class PSBTTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].finalizepsbt(psbt.to_base64()),
             {'hex': tx.serialize().hex(), 'complete': True})
 
+        self.log.info("Test signing taproot inputs that the wallet has keys for but is not watching the scripts")
+        if self.options.descriptors:
+            while not softfork_active(self.nodes[1], "taproot"):
+                self.generate(self.nodes[0], 10)
+            self.nodes[1].createwallet(wallet_name="scriptwatchonly", disable_private_keys=True)
+            watchonly = self.nodes[1].get_wallet_rpc("scriptwatchonly")
+
+            eckey = ECKey()
+            eckey.generate()
+            privkey = bytes_to_wif(eckey.get_bytes())
+
+            desc = descsum_create("tr({},pk({}))".format(H_POINT, eckey.get_pubkey().get_bytes().hex()))
+            res = watchonly.importdescriptors([{"desc": desc, "timestamp": "now"}])
+            assert res[0]["success"]
+            addr = self.nodes[0].deriveaddresses(desc)[0]
+            self.nodes[0].sendtoaddress(addr, 10)
+            self.generate(self.nodes[0], 1)
+            self.nodes[0].importdescriptors([{"desc": descsum_create("tr({})".format(privkey)), "timestamp":"now"}])
+
+            # Dummy-signing a script-path spend assumes the shorter key path, so pay well above the relay minimum
+            psbt = watchonly.walletcreatefundedpsbt([], [{self.nodes[0].getnewaddress(): 10}], None, {"subtractFeeFromOutputs": [0], "fee_rate": 10})["psbt"]
+            psbt = self.nodes[0].walletprocesspsbt(psbt)["psbt"]
+            self.nodes[0].sendrawtransaction(self.nodes[0].finalizepsbt(psbt)["hex"])
         self.log.info("Test descriptorprocesspsbt updates and signs a psbt with descriptors")
 
         self.generate(self.nodes[2], 1)
 
         # Disable the wallet for node 2 since `descriptorprocesspsbt` does not use the wallet
-        self.restart_node(2, extra_args=["-disablewallet"])
+        self.restart_node(2, extra_args=self.extra_args[2] + ["-disablewallet"])
         self.connect_nodes(0, 2)
         self.connect_nodes(1, 2)
 

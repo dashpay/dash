@@ -17,14 +17,17 @@
 #include <string>
 
 static const std::string OUTPUT_TYPE_STRING_LEGACY = "legacy";
+static const std::string OUTPUT_TYPE_STRING_TAPROOT = "taproot";
 static const std::string OUTPUT_TYPE_STRING_UNKNOWN = "unknown";
 
-const std::array<OutputType, 1> OUTPUT_TYPES = {OutputType::LEGACY};
+const std::array<OutputType, 2> OUTPUT_TYPES = {OutputType::LEGACY, OutputType::TAPROOT};
 
 std::optional<OutputType> ParseOutputType(const std::string& type)
 {
     if (type == OUTPUT_TYPE_STRING_LEGACY) {
         return OutputType::LEGACY;
+    } else if (type == OUTPUT_TYPE_STRING_TAPROOT) {
+        return OutputType::TAPROOT;
     } else if (type == OUTPUT_TYPE_STRING_UNKNOWN) {
         return OutputType::UNKNOWN;
     }
@@ -35,6 +38,7 @@ const std::string& FormatOutputType(OutputType type)
 {
     switch (type) {
     case OutputType::LEGACY: return OUTPUT_TYPE_STRING_LEGACY;
+    case OutputType::TAPROOT: return OUTPUT_TYPE_STRING_TAPROOT;
     case OutputType::UNKNOWN: return OUTPUT_TYPE_STRING_UNKNOWN;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
@@ -44,6 +48,7 @@ CTxDestination GetDestinationForKey(const CPubKey& key, OutputType type)
 {
     switch (type) {
     case OutputType::LEGACY: return PKHash(key);
+    case OutputType::TAPROOT: {} // This function should never be used with TAPROOT, so let it assert
     case OutputType::UNKNOWN: {} // This function should never be used with UNKNOWN, so let it assert
     } // no default case, so the compiler can warn about missing cases
     assert(false);
@@ -66,6 +71,7 @@ CTxDestination AddAndGetDestinationForScript(FillableSigningProvider& keystore, 
     case OutputType::LEGACY:
         keystore.AddCScript(GetScriptForDestination(sh));
         return sh;
+    case OutputType::TAPROOT: {} // This function should not be used for TAPROOT, so let it assert
     case OutputType::UNKNOWN: {} // This function should not be used for UNKNOWN, so let it assert
     } // no default case, so the compiler can warn about missing cases
     assert(false);

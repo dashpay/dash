@@ -184,7 +184,8 @@ static void CheckAssetLockCommon(uint8_t version, bool is_v24_active)
 
     BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state, is_v24_active));
 
-    BOOST_CHECK(AreInputsStandard(CTransaction(tx), coins));
+    BOOST_CHECK(AreInputsStandard(CTransaction(tx), coins, false));
+    BOOST_CHECK(AreInputsStandard(CTransaction(tx), coins, true));
 
     // Check version
     {

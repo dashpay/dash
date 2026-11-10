@@ -25,10 +25,12 @@ def getdescriptors(args):
 
     sys.stdout.write(json.dumps({
         "receive": [
-            "pkh([00000001/44h/1h/" + args.account + "']" + xpub + "/0/*)#aqllu46s"
+            "pkh([00000001/44h/1h/" + args.account + "']" + xpub + "/0/*)#aqllu46s",
+            "tr([00000001/86h/1h/" + args.account + "']" + xpub + "/0/*)#pcd5w87f"
         ],
         "internal": [
-            "pkh([00000001/44h/1h/" + args.account + "']" + xpub + "/1/*)#v567pq2g"
+            "pkh([00000001/44h/1h/" + args.account + "']" + xpub + "/1/*)#v567pq2g",
+            "tr([00000001/86h/1h/" + args.account + "']" + xpub + "/1/*)#svg4njw3"
         ]
     }))
 
@@ -40,6 +42,7 @@ def displayaddress(args):
     expected_desc = {
         "pkh([00000001/44h/1h/0h/0/0]02c97dc3f4420402e01a113984311bf4a1b8de376cac0bdcfaf1b3ac81f13433c7)#q3pqd8wh": "yg8pCsowDbY7PbJMthTi4xkkmhNfcNNdHV",
         "pkh([00000001/44h/1h/0h/0/1]03a20a46308be0b8ded6dff0a22b10b4245c587ccf23f3b4a303885be3a524f172)#x450egwy": "wrong_address",
+        "tr([00000001/86h/1h/0h/0/0]c97dc3f4420402e01a113984311bf4a1b8de376cac0bdcfaf1b3ac81f13433c7)#puqqa90m": "tdc1phw4cgpt6cd30kz9k4wkpwm872cdvhss29jga2xpmftelhqll62msggvc3l",
     }
     if args.desc not in expected_desc:
         return sys.stdout.write(json.dumps({"error": "Unexpected descriptor", "desc": args.desc}))

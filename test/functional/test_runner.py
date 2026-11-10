@@ -91,6 +91,7 @@ TEST_FRAMEWORK_MODULES = [
     "crypto.muhash",
     "crypto.poly1305",
     "crypto.ripemd160",
+    "crypto.secp256k1",
     "script",
     "segwit_addr",
 ]
@@ -150,6 +151,7 @@ BASE_SCRIPTS = [
     'rpc_verifyislock.py',
     'feature_dip3_deterministicmns.py --descriptors', # NOTE: needs dash_hash to pass
     'feature_notifications.py',
+    'feature_taproot.py --descriptors',
     # vv Tests less than 60s vv
     'feature_config_args.py',
     'mining_basic.py',
@@ -393,6 +395,7 @@ BASE_SCRIPTS = [
     'wallet_sendall.py --legacy-wallet',
     'wallet_sendall.py --descriptors',
     'wallet_create_tx.py --descriptors',
+    'wallet_taproot.py --descriptors',
     'p2p_fingerprint.py',
     'rpc_external_queue.py',
     'rpc_wipewallettxes.py',

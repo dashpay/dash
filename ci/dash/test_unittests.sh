@@ -16,6 +16,7 @@ if [ "$RUN_UNIT_TESTS" != "true" ] && [ "$RUN_UNIT_TESTS_SEQUENTIAL" != "true" ]
   exit 0
 fi
 
+export DIR_UNIT_TEST_DATA=${DIR_UNIT_TEST_DATA}
 export BOOST_TEST_RANDOM="${BOOST_TEST_RANDOM:-1}"
 export LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib"
 

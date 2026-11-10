@@ -84,10 +84,34 @@ std::string ScriptErrorString(const ScriptError serror)
             return "Signature must be zero for failed CHECK(MULTI)SIG operation";
         case SCRIPT_ERR_DISCOURAGE_UPGRADABLE_NOPS:
             return "NOPx reserved for soft-fork upgrades";
+        case SCRIPT_ERR_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION:
+            return "Taproot version reserved for soft-fork upgrades";
+        case SCRIPT_ERR_DISCOURAGE_OP_SUCCESS:
+            return "OP_SUCCESSx reserved for soft-fork upgrades";
+        case SCRIPT_ERR_DISCOURAGE_UPGRADABLE_PUBKEYTYPE:
+            return "Public key version reserved for soft-fork upgrades";
         case SCRIPT_ERR_PUBKEYTYPE:
             return "Public key is neither compressed or uncompressed";
         case SCRIPT_ERR_CLEANSTACK:
             return "Stack size must be exactly one after execution";
+        case SCRIPT_ERR_SCHNORR_SIG_SIZE:
+            return "Invalid Schnorr signature size";
+        case SCRIPT_ERR_SCHNORR_SIG_HASHTYPE:
+            return "Invalid Schnorr signature hash type";
+        case SCRIPT_ERR_SCHNORR_SIG:
+            return "Invalid Schnorr signature";
+        case SCRIPT_ERR_TAPROOT_STACK_EMPTY:
+            return "Taproot spend was passed an empty stack";
+        case SCRIPT_ERR_TAPROOT_WRONG_CONTROL_SIZE:
+            return "Invalid Taproot control block size";
+        case SCRIPT_ERR_TAPROOT_COMMITMENT_MISMATCH:
+            return "Taproot commitment mismatch";
+        case SCRIPT_ERR_TAPSCRIPT_VALIDATION_WEIGHT:
+            return "Too much signature validation relative to scriptSig size";
+        case SCRIPT_ERR_TAPSCRIPT_CHECKMULTISIG:
+            return "OP_CHECKMULTISIG(VERIFY) is not available in tapscript";
+        case SCRIPT_ERR_TAPSCRIPT_MINIMALIF:
+            return "OP_IF/NOTIF argument must be minimal in tapscript";
         case SCRIPT_ERR_OP_CODESEPARATOR:
             return "Using OP_CODESEPARATOR";
         case SCRIPT_ERR_SIG_FINDANDDELETE:

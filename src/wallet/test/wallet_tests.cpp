@@ -740,8 +740,9 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTestingSetup)
     //   1. One UTXO as the recipient
     //   2. One UTXO from the change, due to payment address matching logic
 
+    // The wallet derives only pkh() destinations itself; taproot descriptors are imported
     for (const auto& out_type : OUTPUT_TYPES) {
-        if (out_type == OutputType::UNKNOWN) continue;
+        if (out_type != OutputType::LEGACY) continue;
         expected_coins_sizes[out_type] = 2U;
         TestCoinsResult(*this, out_type, 1 * COIN, expected_coins_sizes);
     }

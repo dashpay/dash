@@ -16,6 +16,7 @@ from test_framework.script_util import (
     keyhash_to_p2pkh_script,
     scripthash_to_p2sh_script,
 )
+from .segwit_addr import encode_taproot_address
 
 # Note unlike in bitcoin, this address isn't bech32 since we don't (at this time) support bech32.
 ADDRESS_BCRT1_UNSPENDABLE = 'yVg3NBUHNEhgDceqwVUjsZHreC5PBHnUo9'
@@ -87,6 +88,10 @@ def key_to_p2pkh(key, main=False):
 def script_to_p2sh(script, main=False):
     script = check_script(script)
     return scripthash_to_p2sh(hash160(script), main)
+
+def output_key_to_p2tr(key, main=False):
+    """Encode a 32-byte taproot output key as a Bech32m address."""
+    return encode_taproot_address("dc" if main else "tdc", key)
 
 def check_key(key):
     if (type(key) is str):

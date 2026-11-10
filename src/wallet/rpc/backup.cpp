@@ -1170,6 +1170,8 @@ static std::string RecurseImportData(const CScript& script, ImportData& import_d
     case TxoutType::NULL_DATA:
         return "unspendable script";
     case TxoutType::NONSTANDARD:
+    case TxoutType::TAPROOT:
+    default:
         return "unrecognized script";
     } // no default case, so the compiler can warn about missing cases
     NONFATAL_UNREACHABLE();
@@ -1769,6 +1771,18 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
             }
         }
 
+        // Taproot descriptors cannot be imported if Taproot is not yet active.
+        // Check if this is a Taproot descriptor
+        CTxDestination dest;
+        ExtractDestination(scripts[0], dest);
+        if (std::holds_alternative<TaprootDestination>(dest)) {
+            // Check if Taproot is active
+            if (!wallet.chain().isTaprootActive()) {
+                // Taproot is not active, raise an error
+                throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import tr() descriptor when Taproot is not active");
+            }
+        }
+
         // If private keys are enabled, check some things.
         if (!wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
            if (keys.keys.empty()) {
@@ -1800,11 +1814,11 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
             if (!w_desc.descriptor->GetOutputType()) {
                 warnings.push_back("Unknown output type, cannot set descriptor to active.");
             } else {
-                wallet.AddActiveScriptPubKeyMan(spk_manager->GetID(), internal);
+                wallet.AddActiveScriptPubKeyMan(spk_manager->GetID(), *w_desc.descriptor->GetOutputType(), internal);
             }
         } else {
             if (w_desc.descriptor->GetOutputType()) {
-                wallet.DeactivateScriptPubKeyMan(spk_manager->GetID(), internal);
+                wallet.DeactivateScriptPubKeyMan(spk_manager->GetID(), *w_desc.descriptor->GetOutputType(), internal);
             }
         }
 

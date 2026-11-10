@@ -141,6 +141,7 @@ public:
 constexpr uint8_t BIP32_PURPOSE_FEATURE{9};
 /** Purpose code allotted to BIP 44 (standard derivation paths) */
 constexpr uint8_t BIP32_PURPOSE_STANDARD{44};
+constexpr uint8_t BIP32_PURPOSE_TAPROOT{86};
 
 } // namespace wallet
 
