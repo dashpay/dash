@@ -12,4 +12,10 @@ export NO_DEPENDS=1
 export TEST_RUNNER_EXTRA="--exclude feature_init,rpc_bind,feature_bind_extra --timeout-factor=4"  # Excluded for now, see https://github.com/bitcoin/bitcoin/issues/17765#issuecomment-602068547
 export GOAL="install"
 # Temporarily pin dwarf 4, until valgrind can understand clang's dwarf 5
-export BITCOIN_CONFIG="--enable-zmq --with-incompatible-bdb --with-gui=no CC='clang-19 -gdwarf-4' CXX='clang++-19 -gdwarf-4'"  # TODO enable GUI
+export BITCOIN_CONFIG="\
+ -DWITH_ZMQ=ON -DWITH_BDB=ON -DWARN_INCOMPATIBLE_BDB=OFF -DBUILD_GUI=OFF \
+ -DCMAKE_C_COMPILER=clang-19 \
+ -DCMAKE_CXX_COMPILER=clang++-19 \
+ -DCMAKE_C_FLAGS='-gdwarf-4' \
+ -DCMAKE_CXX_FLAGS='-gdwarf-4' \
+"  # TODO enable GUI

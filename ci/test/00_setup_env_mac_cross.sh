@@ -16,5 +16,5 @@ export XCODE_BUILD_ID=17B100
 export RUN_UNIT_TESTS=false
 export RUN_FUNCTIONAL_TESTS=false
 export GOAL="all deploy"
-export BITCOIN_CONFIG="--with-gui --enable-reduce-exports --disable-miner"
+export BITCOIN_CONFIG="-DBUILD_GUI=ON -DREDUCE_EXPORTS=ON -DENABLE_MINER=OFF"
 export RUN_STDLIB_PATH_CHECK=true

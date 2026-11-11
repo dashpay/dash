@@ -11,6 +11,7 @@ nonnull-attribute:dashbls/
 # Suppressions in dependencies that are developed outside this repository.
 unsigned-integer-overflow:*/include/c++/
 unsigned-integer-overflow:FuzzedDataProvider::ConsumeIntegralInRange
+unsigned-integer-overflow:dashbls/depends/mimalloc/
 unsigned-integer-overflow:leveldb/
 unsigned-integer-overflow:minisketch/
 unsigned-integer-overflow:secp256k1*
