@@ -1188,10 +1188,14 @@ void CGovernanceManager::RemoveInvalidVotes()
 
     std::vector<COutPoint> changedKeyMNs;
     for (const auto& [internalId, pdmnState] : diff.updatedMNs) {
-        auto oldDmn = lastMNListForVotingKeys->GetMNByInternalId(internalId);
-        // BuildDiff will construct itself with MNs that we already have knowledge
-        // of, meaning that fetch operations should never fail.
-        assert(oldDmn);
+        auto newDmn = tip_mn_list.GetMNByInternalId(internalId);
+        if (!Assume(newDmn)) {
+            continue;
+        }
+        auto oldDmn = lastMNListForVotingKeys->GetMN(newDmn->proTxHash);
+        if (!Assume(oldDmn)) {
+            continue;
+        }
         if ((pdmnState.fields & CDeterministicMNStateDiff::Field_keyIDVoting) && pdmnState.state.keyIDVoting != oldDmn->pdmnState->keyIDVoting) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         } else if ((pdmnState.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) && pdmnState.state.pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
@@ -1200,9 +1204,9 @@ void CGovernanceManager::RemoveInvalidVotes()
     }
     for (const auto& id : diff.removedMns) {
         auto oldDmn = lastMNListForVotingKeys->GetMNByInternalId(id);
-        // BuildDiff will construct itself with MNs that we already have knowledge
-        // of, meaning that fetch operations should never fail.
-        assert(oldDmn);
+        if (!Assume(oldDmn)) {
+            continue;
+        }
         changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
     }
 
