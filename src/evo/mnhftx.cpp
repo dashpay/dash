@@ -250,7 +250,7 @@ std::optional<CMNHFManager::Signals> CMNHFManager::ProcessBlock(const CBlock& bl
         AddToCache(signals, pindex);
         return signals;
     } catch (const EvoDbInconsistencyError& e) {
-        // Local EvoDB corruption (the node is already aborting): fail with
+        // Local EvoDB inconsistency (missing or mismatched state): fail with
         // M_ERROR so the block is not marked invalid.
         state.Error(e.what());
         return std::nullopt;
@@ -284,12 +284,21 @@ bool CMNHFManager::UndoBlock(const CBlock& block, const CBlockIndex* const pinde
 
 CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
 {
-    if (pindex == nullptr) return {};
+    if (auto signals = GetFromCache(pindex)) return *signals;
+    throw EvoDbMissingStateError(strprintf("MNHF signals unavailable for block %s", pindex->GetBlockHash().ToString()));
+}
+
+void CMNHFManager::RebuildSignals(const CBlockIndex* pindex)
+{
+    AssertLockHeld(::cs_main);
 
     std::stack<const CBlockIndex *> to_calculate;
 
     std::optional<CMNHFManager::Signals> signalsTmp;
     while (!(signalsTmp = GetFromCache(pindex)).has_value()) {
+        if (!pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+            throw std::runtime_error("failed-getehfforblock-unvalidated");
+        }
         to_calculate.push(pindex);
         pindex = pindex->pprev;
     }
@@ -317,7 +326,6 @@ CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
 
         to_calculate.pop();
     }
-    return *signalsTmp;
 }
 
 std::optional<CMNHFManager::Signals> CMNHFManager::GetFromCache(const CBlockIndex* const pindex)
@@ -365,7 +373,7 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
 {
     assert(pindex != nullptr);
     const uint256& blockHash = pindex->GetBlockHash();
-    if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20) &&
+    if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20) && Assume(m_evoDb.HasActiveTransaction()) &&
         !m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, blockHash), signals)) {
         // A mismatch is local EvoDB corruption, not a statement about the
         // block. Abort here: some callers (miner, RPC) never pass through a
@@ -389,7 +397,7 @@ bool CMNHFManager::ForceSignalDBUpdate(const CBlockIndex* tip)
 
     const bool last_legacy = bls::bls_legacy_scheme.load();
     bls::bls_legacy_scheme.store(false);
-    GetSignalsStage(tip);
+    RebuildSignals(tip);
     bls::bls_legacy_scheme.store(last_legacy);
 
     dbTx->Commit();

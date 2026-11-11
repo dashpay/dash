@@ -1727,6 +1727,10 @@ RPCHelpMan getdeploymentinfo()
                 if (!blockindex) {
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
                 }
+                // ConnectBlock skips the genesis block, so it never reaches BLOCK_VALID_SCRIPTS
+                if (blockindex->pprev && !blockindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+                    throw JSONRPCError(RPC_MISC_ERROR, "MNHF signals unavailable for an invalid or unvalidated block");
+                }
             }
 
             const auto ehf_signals{CHECK_NONFATAL(node.special_tx)->m_mnhfman->GetSignalsStage(blockindex)};
