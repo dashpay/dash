@@ -273,6 +273,11 @@ details.
 
   _(defaults to the value of `nproc` outside the container)_
 
+* _**CONFIGFLAGS**_
+
+  Additional CMake configuration options, for example
+  `CONFIGFLAGS="-DENABLE_CRASH_HOOKS=ON"`. Options are separated by whitespace.
+
 * _**SOURCE_DATE_EPOCH**_
 
   Override the reference UNIX timestamp used for bit-for-bit reproducibility,

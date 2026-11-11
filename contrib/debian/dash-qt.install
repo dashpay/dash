@@ -1,4 +1,4 @@
-usr/local/bin/dash-qt usr/bin
+usr/bin/dash-qt usr/bin
 share/pixmaps/dash32.xpm usr/share/pixmaps
 share/pixmaps/dash16.xpm usr/share/pixmaps
 share/pixmaps/dash128.png usr/share/pixmaps
