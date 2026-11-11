@@ -473,6 +473,8 @@ jobs:
       options: --user root
     env:
       BUILD_TARGET: linux64_multiprocess
+      # One full lint pass is about 237 MiB; retain it plus room for changed inputs.
+      CTCACHE_MAXSIZE_MB: 512
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -526,16 +528,19 @@ jobs:
           test -s "build-ci/dashcore-${BUILD_TARGET}/compile_commands.json"
         shell: bash
 
+      # ctcache hashes preprocessed headers, comments, flags and clang-tidy config.
+      # Only toolchain/plugin changes need a new namespace, not all depends recipes.
       - name: Restore ctcache cache
         uses: actions/cache/restore@v5
         with:
           path: /cache/ctcache
-          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/devtools/bitcoin-tidy/*', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
+          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile', 'contrib/devtools/bitcoin-tidy/**') }}-linux64_multiprocess-${{ github.sha }}
           restore-keys: |
-            ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/devtools/bitcoin-tidy/*', 'depends/packages/*') }}-linux64_multiprocess-
+            ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile', 'contrib/devtools/bitcoin-tidy/**') }}-linux64_multiprocess-
 
       - name: Run linters
         run: |
+          python3 -m unittest discover -s ci/dash -p test_cleanup_ctcache.py
           CACHE_DIR="/cache"
           source ./ci/dash/matrix.sh
           ./ci/dash/lint-tidy.sh
@@ -548,7 +553,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: /cache/ctcache
-          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/devtools/bitcoin-tidy/*', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
+          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile', 'contrib/devtools/bitcoin-tidy/**') }}-linux64_multiprocess-${{ github.sha }}
 
   test-linux64:
     name: linux64-test
