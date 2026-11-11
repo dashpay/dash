@@ -9,6 +9,7 @@
 #endif
 
 #include <chain.h>
+#include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <common/system.h>
 #include <consensus/amount.h>
@@ -839,6 +840,10 @@ static RPCHelpMan getblocktemplate()
         if (!IsRPCRunning())
             throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Shutting down");
         // TODO: Maybe recheck connections/IBD and (if something wrong) send an expires-immediately template to stop miners?
+    }
+
+    if (!CHECK_NONFATAL(node.chainlocks)->CanBuildOn(*active_chain.Tip())) {
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is waiting for the ChainLocked block...");
     }
 
     const Consensus::Params& consensusParams = Params().GetConsensus();

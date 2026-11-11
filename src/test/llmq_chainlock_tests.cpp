@@ -481,6 +481,58 @@ BOOST_FIXTURE_TEST_CASE(coinbase_chainlock_processing, RegTestingSetup)
     BOOST_CHECK_EQUAL(m_node.clhandler->SeenChainLockCacheSizeForTesting(), seen);
 }
 
+BOOST_FIXTURE_TEST_CASE(can_build_only_on_best_chainlock_chain, RegTestingSetup)
+{
+    BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+    BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 0).has_value());
+
+    // Heights 0-9 at [0, 9], with a fork of heights 5-7 off height 4 at [10, 12].
+    std::vector<CBlockIndex> indexes(13);
+    std::vector<uint256> hashes(indexes.size());
+    for (size_t i = 0; i < indexes.size(); ++i) {
+        hashes[i] = GetTestBlockHash(i);
+        indexes[i].phashBlock = &hashes[i];
+        if (i > 0) indexes[i].pprev = &indexes[i == 10 ? 4 : i - 1];
+        indexes[i].nHeight = indexes[i].pprev ? indexes[i].pprev->nHeight + 1 : 0;
+        indexes[i].BuildSkip();
+    }
+    const CBlockIndex& tip = indexes[9];
+    const CBlockIndex& fork_tip = indexes[12];
+
+    auto& chainlocks = *m_node.chainlocks;
+    BOOST_CHECK(chainlocks.CanBuildOn(tip));
+
+    const auto lock = [&](int height, const uint256& hash, const CBlockIndex* index) {
+        chainlocks.ResetChainlock();
+        const auto clsig = CreateChainLock(height, hash);
+        BOOST_REQUIRE(chainlocks.UpdateBestChainlock(::SerializeHash(clsig), clsig, index));
+    };
+    const auto lock_index = [&](const CBlockIndex& index) { lock(index.nHeight, index.GetBlockHash(), &index); };
+
+    lock_index(tip);
+    BOOST_CHECK(chainlocks.CanBuildOn(tip));
+    BOOST_CHECK(!chainlocks.CanBuildOn(indexes[7]));
+    BOOST_CHECK(!chainlocks.CanBuildOn(fork_tip));
+
+    lock_index(indexes[3]);
+    BOOST_CHECK(chainlocks.CanBuildOn(tip));
+    BOOST_CHECK(chainlocks.CanBuildOn(fork_tip));
+
+    lock_index(fork_tip);
+    BOOST_CHECK(chainlocks.CanBuildOn(fork_tip));
+    BOOST_CHECK(!chainlocks.CanBuildOn(tip));
+
+    // The locked block is not known yet.
+    lock(10, GetTestBlockHash(1000), nullptr);
+    BOOST_CHECK(!chainlocks.CanBuildOn(tip));
+    lock(6, GetTestBlockHash(1000), nullptr);
+    BOOST_CHECK(!chainlocks.CanBuildOn(tip));
+
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 4070908800).has_value());
+    BOOST_CHECK(chainlocks.CanBuildOn(tip));
+}
+
 // A CLSIG is only ever sent in reply to a GETDATA, so one that the peer neither announced nor was
 // asked for must be dropped before ProcessNewChainLock -- which would otherwise remember its hash
 // and do that work again for every distinct signature blob, at no cost to the sender.

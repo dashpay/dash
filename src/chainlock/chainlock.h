@@ -71,6 +71,9 @@ public:
 
     [[nodiscard]] bool HasConflictingChainLock(int nHeight, const uint256& blockHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
+    //! Whether a new block on top of `tip` would be consistent with the best ChainLock.
+    [[nodiscard]] bool CanBuildOn(const CBlockIndex& tip) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
     bool UpdateBestChainlock(const uint256& hash, const chainlock::ChainLockSig& clsig, const CBlockIndex* pindex)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
