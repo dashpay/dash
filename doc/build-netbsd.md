@@ -18,6 +18,8 @@ pkgin install autoconf automake libtool pkg-config git gmake boost libevent zstd
 
 ```
 
+blst is not available in pkgsrc; build it as described in [build-unix.md](build-unix.md#blst), using `shasum -a 256 -c` in place of `sha256sum -c`.
+
 NetBSD may ship with an older version of `gcc` than is needed to build C++20 (GCC 11.1+ is required). You should install a newer `gcc` and pass it to the configure script.
 
 For example, grab `gcc12`:

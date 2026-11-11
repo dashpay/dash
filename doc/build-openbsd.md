@@ -15,6 +15,8 @@ pkg_add bash git gmake libevent libtool boost zstd
 pkg_add autoconf automake python
 ```
 
+blst is not available as an OpenBSD package; build it as described in [build-unix.md](build-unix.md#blst), using `sha256 -c` in place of `sha256sum -c`.
+
 See [dependencies.md](dependencies.md) for a complete overview.
 
 ### 2. Clone Dash Core Repo

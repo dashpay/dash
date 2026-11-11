@@ -10,9 +10,11 @@ This guide describes how to build dashd, command-line utilities, and GUI on Free
 Run the following as root to install the base dependencies for building.
 
 ```bash
-pkg install autoconf automake boost-libs git gmake libevent libtool pkgconf libbacktrace zstd
+pkg install autoconf automake blst boost-libs git gmake libevent libtool pkgconf libbacktrace zstd
 
 ```
+
+The `blst` package installs its headers into `/usr/local/include/libblst`, so add `BLST_CPPFLAGS="-I/usr/local/include/libblst" LDFLAGS="-L/usr/local/lib"` to the `./configure` commands below.
 
 See [dependencies.md](dependencies.md) for a complete overview.
 

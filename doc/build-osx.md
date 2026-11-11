@@ -50,6 +50,8 @@ See [dependencies.md](dependencies.md) for a complete overview.
 brew install automake libtool boost pkg-config libevent zstd
 ```
 
+blst is not available in Homebrew; build it as described in [build-unix.md](build-unix.md#blst), using `shasum -a 256 -c` instead of `sha256sum -c`.
+
 ### 4. Clone Dash repository
 
 `git` should already be installed by default on your system.
