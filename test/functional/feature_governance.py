@@ -10,8 +10,19 @@ Node 1 is pruned, so it can't run -txindex and looks proposal collateral up in t
 import json
 import os
 import shutil
+import struct
 
-from test_framework.messages import CBlock, from_hex, uint256_to_string
+from test_framework.messages import (
+    CBlock,
+    MSG_GOVERNANCE_OBJECT,
+    MSG_GOVERNANCE_OBJECT_VOTE,
+    from_hex,
+    msg_generic,
+    ser_string,
+    ser_uint256,
+    uint256_to_string,
+)
+from test_framework.p2p import P2PInterface, p2p_lock
 from test_framework.test_framework import (
     DashTestFramework,
 )
@@ -21,6 +32,18 @@ from test_framework.util import assert_equal, assert_raises_rpc_error, force_fin
 GOVERNANCE_UPDATE_MIN = 60 * 60 # src/governance/object.h
 MIN_BLOCKS_TO_KEEP = 288 # src/validation.h
 BUDGET_ARGS = ["-budgetparams=10:10:10"]
+
+
+class GovernanceSyncPeer(P2PInterface):
+    def __init__(self):
+        super().__init__()
+        self.governance_invs = set()
+
+    def on_inv(self, message):
+        for inv in message.inv:
+            if inv.type in (MSG_GOVERNANCE_OBJECT, MSG_GOVERNANCE_OBJECT_VOTE):
+                self.governance_invs.add((inv.type, inv.hash))
+
 
 class DashGovernanceTest (DashTestFramework):
     def add_options(self, parser):
@@ -81,6 +104,28 @@ class DashGovernanceTest (DashTestFramework):
             collateral = self.nodes[0].protx("info", mn.proTxHash)
             count += len(mn.get_node(self).gobject("getcurrentvotes", trigger_hash, collateral["collateralHash"], str(collateral["collateralIndex"])))
         return count
+
+    def check_govsync_is_peer_local(self):
+        node = self.nodes[0]
+        self.log.info("Governance sync inventories go only to the requesting peer")
+        # Flush ordinary announcements before connecting peers that have never seen these inventories.
+        self.bump_mocktime(1)
+        for object_hash, inv_type, expected_hashes in (
+            (0, MSG_GOVERNANCE_OBJECT, {int(h, 16) for h in node.gobject("list")}),
+            (int(self.p0_hash, 16), MSG_GOVERNANCE_OBJECT_VOTE,
+             {int(h, 16) for h in node.gobject("getcurrentvotes", self.p0_hash)}),
+        ):
+            assert expected_hashes
+            requester = node.add_p2p_connection(GovernanceSyncPeer())
+            bystander = node.add_p2p_connection(GovernanceSyncPeer())
+            # A one-byte, all-zero bloom filter requests every vote and is distinct from an object fetch.
+            bloom_filter = ser_string(b"\x00") + struct.pack("<IIB", 1, 0, 0)
+            requester.send_and_ping(msg_generic(b"govsync", ser_uint256(object_hash) + bloom_filter))
+            requester.wait_until(lambda: requester.governance_invs == {(inv_type, h) for h in expected_hashes})
+            bystander.sync_with_ping()
+            with p2p_lock:
+                assert_equal(bystander.governance_invs, set())
+            node.disconnect_p2ps()
 
     def check_budget_cannot_be_kept_by_the_miner(self, node):
         """A superblock whose miner keeps the budget stays within the superblock limits, so only a node that knows
@@ -222,6 +267,8 @@ class DashGovernanceTest (DashTestFramework):
         assert_equal(self.nodes[0].gobject("get", self.p2_hash)["FundingResult"]["NoCount"], 2)
         self.wait_until(lambda: self.nodes[1].gobject("get", self.p2_hash)["FundingResult"]["YesCount"] == self.mn_count - 2, timeout = 5)
         self.wait_until(lambda: self.nodes[1].gobject("get", self.p2_hash)["FundingResult"]["NoCount"] == 2, timeout = 5)
+
+        self.check_govsync_is_peer_local()
 
         assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
         # 5 nodes voted on 3 proposals so we expect to see 15 votes total
