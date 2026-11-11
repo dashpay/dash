@@ -532,7 +532,7 @@ static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
 static void PrintCrashInfo(const crash_info& ci)
 {
     auto str = GetCrashInfoStr(ci);
-    LogPrintf("%s", str); /* Continued */
+    LogPrintf("%s", str); // NOLINT(bitcoin-unterminated-logprintf)
     tfm::format(std::cerr, "%s", str);
     fflush(stderr);
 }

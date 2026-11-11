@@ -133,7 +133,7 @@ bool ParseBoolV(const UniValue& v, const std::string &strName)
     }
 
     if (!v.isBool()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a JSON boolean. " /* Continued */
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a JSON boolean. "
                            "Pass -deprecatedrpc=permissive_bool to allow legacy boolean parsing.", strName));
     }
     return v.get_bool();

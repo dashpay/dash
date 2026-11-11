@@ -727,7 +727,7 @@ bool BlockManager::FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigne
         // a reindex. A flush error might also leave some of the data files
         // untrimmed.
         if (!FlushBlockFile(!fKnown, finalize_undo)) {
-            LogPrintLevel(BCLog::BLOCKSTORAGE, BCLog::Level::Warning, /* Continued */
+            LogPrintLevel(BCLog::BLOCKSTORAGE, BCLog::Level::Warning,
                           "Failed to flush previous block file %05i (finalize=%i, finalize_undo=%i) before opening new block file %05i\n",
                           m_last_blockfile, !fKnown, finalize_undo, nFile);
         }

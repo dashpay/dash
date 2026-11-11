@@ -1530,7 +1530,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // Warn about relative -datadir path.
     if (args.IsArgSet("-datadir") && !args.GetPathArg("-datadir").is_absolute()) {
-        LogPrintf("Warning: relative datadir option '%s' specified, which will be interpreted relative to the " /* Continued */
+        LogPrintf("Warning: relative datadir option '%s' specified, which will be interpreted relative to the "
                   "current working directory '%s'. This is fragile, because if Dash Core is started in the future "
                   "from a different location, it will be unable to locate the current data files. There could "
                   "also be data loss if Dash Core is started while in a temporary directory.\n",
@@ -1648,7 +1648,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     fListen = args.GetBoolArg("-listen", DEFAULT_LISTEN);
     fDiscover = args.GetBoolArg("-discover", true);
-    const bool ignores_incoming_txs{args.GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY)};
+
+    PeerManager::Options peerman_opts{};
+    ApplyArgsManOptions(args, peerman_opts);
 
     {
 
@@ -1713,7 +1715,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.fee_estimator);
     // Don't initialize fee estimation with old data if we don't relay transactions,
     // as they would never get updated.
-    if (!ignores_incoming_txs) {
+    if (!peerman_opts.ignore_incoming_txs) {
         bool read_stale_estimates = args.GetBoolArg("-acceptstalefeeestimates", DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
         if (read_stale_estimates && (chainparams.GetChainType() != ChainType::REGTEST)) {
             return InitError(strprintf(_("acceptstalefeeestimates is not supported on %s chain."), chainparams.GetChainTypeString()));
@@ -2233,14 +2235,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (!node.active_ctx) {
         // Only constructed in wallet-enabled builds; stays null otherwise, must check before use
         node.cj_walletman = CJWalletManager::make(chainman, *node.dmnman, *node.mn_metaman, *node.mempool, *node.mn_sync,
-                                                  *node.isman, !ignores_incoming_txs);
+                                                  *node.isman, !peerman_opts.ignore_incoming_txs);
     }
 #endif
-
-    PeerManager::Options peerman_opts{
-        .ignore_incoming_txs = ignores_incoming_txs,
-    };
-    ApplyArgsManOptions(args, peerman_opts);
 
     assert(!node.peerman);
     node.peerman = PeerManager::make(*node.connman, *node.addrman, node.banman.get(), *node.dstxman,
@@ -2594,7 +2591,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
                 if (!result.repair_errors.empty()) {
                     // Critical errors occurred - reindex required
-                    LogPrintf("Failed to repair masternode list diffs. Database corruption detected. " /* Continued */
+                    LogPrintf("Failed to repair masternode list diffs. Database corruption detected. "
                               "Please restart with -reindex to rebuild the database.\n"
                               "Errors:\n%s\n",
                               Join(result.repair_errors, "\n"));

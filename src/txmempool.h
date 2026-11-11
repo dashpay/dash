@@ -720,6 +720,10 @@ public:
 
     CTransactionRef get(const uint256& hash) const;
     TxMempoolInfo info(const uint256& hash) const;
+
+    /** Returns info for a transaction if its entry_sequence < last_sequence */
+    TxMempoolInfo info_for_relay(const uint256& hash, uint64_t last_sequence) const;
+
     std::vector<TxMempoolInfo> infoAll() const;
 
     /** Get the transaction holding this version 2 asset unlock instance hash, if any. */

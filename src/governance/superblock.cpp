@@ -191,7 +191,7 @@ void CSuperblock::ParsePaymentSchedule(const std::string& strPaymentAddresses, c
             throw std::runtime_error(msg);
         }
 
-        LogPrint(BCLog::GOBJECT, /* Continued */
+        LogPrint(BCLog::GOBJECT,
                  "CSuperblock::%s -- i = %d, amount string = %s, nAmount = %lld, proposalHash = %s\n", __func__,
                  i, vecPaymentAmounts[i], nAmount, proposalHash.ToString());
 
@@ -480,7 +480,7 @@ bool SuperblockManager::IsSuperblockTriggeredInternal(const CDeterministicMNList
         LogPrint(BCLog::GOBJECT, "IsSuperblockTriggered -- data = %s\n", entry.obj->GetDataAsPlainString());
 
         if (nBlockHeight != entry.sb->GetBlockHeight()) {
-            LogPrint(BCLog::GOBJECT, /* Continued */
+            LogPrint(BCLog::GOBJECT,
                      "IsSuperblockTriggered -- block height doesn't match nBlockHeight = %d, blockStart = %d, "
                      "continuing\n",
                      nBlockHeight, entry.sb->GetBlockHeight());

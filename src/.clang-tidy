@@ -1,5 +1,6 @@
 Checks: '
 -*,
+bitcoin-*,
 bugprone-argument-comment,
 bugprone-use-after-move,
 bugprone-lambda-function-name,

@@ -118,7 +118,7 @@ void CCoinJoinClientSession::ProcessMessage(CNode& peer, Chainstate& active_chai
             return;
         }
 
-        WalletCJLogPrint(m_wallet, "DSFINALTX -- txNew %s", txNew.ToString()); /* Continued */
+        WalletCJLogPrint(m_wallet, "DSFINALTX -- txNew %s", txNew.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
 
         // check to see if input is spent already? (and probably not confirmed)
         SignFinalTransaction(peer, active_chainstate, connman, mempool, txNew);
@@ -479,7 +479,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
     LOCK(cs_coinjoin);
 
     finalMutableTransaction = CMutableTransaction{finalTransactionNew};
-    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- finalMutableTransaction=%s", __func__, finalMutableTransaction.ToString()); /* Continued */
+    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- finalMutableTransaction=%s", __func__, finalMutableTransaction.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
 
     // STEP 1: check final transaction general rules
 
@@ -622,7 +622,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
     }
 
     // push all of our signatures to the Masternode
-    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- pushing signed inputs to the masternode, finalMutableTransaction=%s", __func__, finalMutableTransaction.ToString()); /* Continued */
+    WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- pushing signed inputs to the masternode, finalMutableTransaction=%s", __func__, finalMutableTransaction.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
     CNetMsgMaker msgMaker(peer.GetCommonVersion());
     connman.PushMessage(&peer, msgMaker.Make(NetMsgType::DSSIGNFINALTX, signed_inputs));
     SetState(POOL_STATE_SIGNING);
@@ -735,7 +735,7 @@ void CCoinJoinClientManager::AddPendingObservation(const std::vector<COutPoint>&
         // would make them selectable again while a valid mixing transaction spending them
         // may already be in flight. Nothing more we can do about it here beyond making
         // the failure loud - the wallet database is broken.
-        LogPrintf("CCoinJoinClientManager::%s -- ERROR: failed to persist locks for %d successfully mixed input(s), " /* Continued */
+        LogPrintf("CCoinJoinClientManager::%s -- ERROR: failed to persist locks for %d successfully mixed input(s), "
                   "they will not survive a restart until this succeeds\n",
                   __func__, outpoints.size());
     }
@@ -769,7 +769,7 @@ void CCoinJoinClientManager::LoadPendingObservations(wallet::WalletBatch& batch)
         // never becomes readable, and the retry runs for as long as this node does.
         if (!m_pending_obs_load_failed) {
             m_pending_obs_load_failed = true;
-            LogPrintf("CCoinJoinClientManager::%s -- ERROR: failed to read the pending observation record, will keep " /* Continued */
+            LogPrintf("CCoinJoinClientManager::%s -- ERROR: failed to read the pending observation record, will keep "
                       "retrying silently. The inputs it tracks stay locked until it can be read, `lockunspent` "
                       "releases them manually\n",
                       __func__);
@@ -847,7 +847,7 @@ void CCoinJoinClientManager::CheckPendingObservations(const CTxMemPool& mempool)
                 // Still unspent in chain and mempool long after the session completed -
                 // the finalized transaction most likely never propagated, release the
                 // input so the wallet does not lose it forever
-                LogPrintf("CCoinJoinClientManager::%s -- WARNING: never observed finalized mixing transaction for %s, " /* Continued */
+                LogPrintf("CCoinJoinClientManager::%s -- WARNING: never observed finalized mixing transaction for %s, "
                           "releasing lock after %d seconds\n",
                           __func__, outpoint.ToStringShort(), COINJOIN_PENDING_OBSERVATION_TIMEOUT);
                 m_wallet->UnlockCoin(outpoint, &get_batch());
@@ -863,7 +863,7 @@ void CCoinJoinClientManager::CheckPendingObservations(const CTxMemPool& mempool)
             // selected for another session - so only refresh the timer to keep the check
             // above from running on every pass. The refresh is deliberately not persisted,
             // the worst a restart can do is re-run the check once.
-            WalletCJLogPrint(m_wallet, "CCoinJoinClientManager::%s -- %s is spent in chain/mempool but not according to " /* Continued */
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientManager::%s -- %s is spent in chain/mempool but not according to "
                                        "the wallet, keeping it locked\n",
                              __func__, outpoint.ToStringShort());
             it->second = nNow;
@@ -878,7 +878,7 @@ void CCoinJoinClientManager::CheckPendingObservations(const CTxMemPool& mempool)
         const bool fPersisted{PersistPendingObservations(*m_wallet, get_batch(), m_pending_obs)};
         // Retried on every pass until it succeeds, only complain when it starts failing
         if (!fPersisted && !m_pending_obs_dirty) {
-            LogPrintf("CCoinJoinClientManager::%s -- ERROR: failed to persist %d pending observation(s), " /* Continued */
+            LogPrintf("CCoinJoinClientManager::%s -- ERROR: failed to persist %d pending observation(s), "
                       "will keep retrying\n",
                       __func__, m_pending_obs.size());
         }
@@ -1437,7 +1437,7 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
         m_mn_metaman.AddUsedMasternode(dmn->proTxHash);
 
         if (connman.IsMasternodeOrDisconnectRequested(dmn->pdmnState->netInfo->GetPrimary())) {
-            WalletCJLogPrint(m_wallet, /* Continued */
+            WalletCJLogPrint(m_wallet,
                              "CCoinJoinClientSession::JoinExistingQueue -- skipping connection, masternode=%s\n", dmn->proTxHash.ToString());
             continue;
         }
@@ -1512,7 +1512,7 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
         }
 
         if (m_mn_metaman.IsMixingThresholdExceeded(dmn->proTxHash, nMnCount)) {
-            WalletCJLogPrint(m_wallet, /* Continued */
+            WalletCJLogPrint(m_wallet,
                              "CCoinJoinClientSession::StartNewQueue -- too early to mix with node masternode=%s\n",
                              dmn->proTxHash.ToString());
             nTries++;
@@ -1543,7 +1543,7 @@ bool CCoinJoinClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CCon
         pendingDsaRequest = CPendingDsaRequest(dmn->proTxHash, CCoinJoinAccept(nSessionDenom, txMyCollateral));
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTime();
-        WalletCJLogPrint(/* Continued */
+        WalletCJLogPrint(
                          m_wallet,
                          "CCoinJoinClientSession::StartNewQueue -- pending connection, masternode=%s, nSessionDenom=%d "
                          "(%s)\n",

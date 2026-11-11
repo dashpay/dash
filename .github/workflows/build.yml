@@ -512,9 +512,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: /cache/ctcache
-          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
+          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/devtools/bitcoin-tidy/*', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
           restore-keys: |
-            ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-linux64_multiprocess-
+            ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/devtools/bitcoin-tidy/*', 'depends/packages/*') }}-linux64_multiprocess-
 
       - name: Run linters
         run: |
@@ -530,7 +530,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: /cache/ctcache
-          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
+          key: ctcache-${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/devtools/bitcoin-tidy/*', 'depends/packages/*') }}-linux64_multiprocess-${{ github.sha }}
 
   test-linux64:
     name: linux64-test

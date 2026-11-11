@@ -1592,6 +1592,17 @@ TxMempoolInfo CTxMemPool::info(const uint256& hash) const
     return GetInfo(i);
 }
 
+TxMempoolInfo CTxMemPool::info_for_relay(const uint256& hash, uint64_t last_sequence) const
+{
+    LOCK(cs);
+    indexed_transaction_set::const_iterator i = mapTx.find(hash);
+    if (i != mapTx.end() && i->GetSequence() < last_sequence) {
+        return GetInfo(i);
+    } else {
+        return TxMempoolInfo();
+    }
+}
+
 bool CTxMemPool::existsProviderTxCrossSchemeConflict(const CTransaction& tx) const
 {
     LOCK(cs);

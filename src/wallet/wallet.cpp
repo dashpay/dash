@@ -2581,7 +2581,7 @@ bool CWallet::SignGovernanceVote(const CKeyID& keyID, CGovernanceVote& vote) con
 util::Result<void> CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm)
 {
     LOCK(cs_wallet);
-    WalletLogPrintf("CommitTransaction:\n%s", tx->ToString()); /* Continued */
+    WalletLogPrintf("CommitTransaction:\n%s", tx->ToString()); // NOLINT(bitcoin-unterminated-logprintf)
 
     // What this commit records about the transaction.
     const auto record_commit{[&](CWalletTx& wtx, bool new_tx) {

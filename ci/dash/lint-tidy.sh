@@ -43,6 +43,8 @@ fi
 
 # Setup ctcache for clang-tidy result caching
 export CTCACHE_SAVE_OUTPUT=1
+# The cache key is the preprocessed source: keep comments so that a NOLINT edit invalidates it
+export CTCACHE_KEEP_COMMENTS=1
 export CTCACHE_CLANG_TIDY="${CLANG_TIDY_BIN}"
 mkdir -p "${CTCACHE_DIR}"
 
@@ -64,6 +66,11 @@ fi
 # Zero stats before run to get accurate statistics for this run only
 python3 "${CLANG_TIDY_CACHE_PY}" --zero-stats 2>&1 || true
 
+TIDY_BUILD_DIR="${BASE_ROOT_DIR}/build-ci/tidy-build"
+cmake -B "${TIDY_BUILD_DIR}" -DLLVM_DIR="$(llvm-config --cmakedir)" -DCMAKE_BUILD_TYPE=Release -S "${BASE_ROOT_DIR}/contrib/devtools/bitcoin-tidy"
+cmake --build "${TIDY_BUILD_DIR}" "${MAKEJOBS}"
+cmake --build "${TIDY_BUILD_DIR}" --target bitcoin-tidy-tests "${MAKEJOBS}"
+
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}/src"
 
 # Filter out files by regex here, because regex may not be
@@ -84,6 +91,7 @@ if ! ( run-clang-tidy \
   -checks=clang-diagnostic-old-style-cast,google-readability-casting \
   -warnings-as-errors=-clang-diagnostic-old-style-cast,-google-readability-casting \
   -clang-tidy-binary="${CLANG_TIDY_CACHE}" \
+  -load="${TIDY_BUILD_DIR}/libbitcoin-tidy.so" \
   -p "${CAST_LINT_DB}" \
   -quiet "${MAKEJOBS}" | \
   python3 "${BASE_ROOT_DIR}/ci/dash/lint-cstyle-casts.py" filter --source-root "${BASE_ROOT_DIR}" | \
