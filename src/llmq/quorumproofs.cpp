@@ -94,7 +94,7 @@ static ProofMerklePath ReadPath(CDataStream& in)
     ProofMerklePath path;
     uint8_t size;
     in >> path.index >> path.count >> size;
-    Require(size <= 17 && static_cast<size_t>(size) * 32 <= in.size(), "proof path length");
+    Require(size <= 17 && size_t{size} * 32 <= in.size(), "proof path length");
     path.siblings.resize(size);
     for (auto& hash : path.siblings) in >> hash;
     return path;
@@ -249,7 +249,7 @@ static CoinbasePayload Coinbase(const ProofTransaction& proof, const ProofCertif
     const auto payload = ParseCoinbasePayload(proof.transaction);
     Require(payload.envelope_ok, "coinbase envelope");
     Require(payload.payload_ok && payload.version >= CCbTx::Version::CLSIG_AND_BALANCE &&
-                payload.height == static_cast<int64_t>(cert.height) && payload.best_cl_height_diff < cert.height &&
+                payload.height == int64_t{cert.height} && payload.best_cl_height_diff < cert.height &&
                 !payload.merkle_root_quorums.IsNull(),
             "coinbase payload");
     return payload;
@@ -277,7 +277,7 @@ ProofMerklePath ProofMerklePath::Build(const std::vector<uint256>& leaves, uint3
     ProofMerklePath path{index, static_cast<uint32_t>(leaves.size()), {}};
     auto layer = leaves;
     while (layer.size() > 1) {
-        path.siblings.push_back(layer[std::min(static_cast<size_t>(index ^ 1U), layer.size() - 1)]);
+        path.siblings.push_back(layer[std::min(size_t{index ^ 1U}, layer.size() - 1)]);
         if (layer.size() & 1) layer.push_back(layer.back());
         for (size_t i = 0; i < layer.size(); i += 2) layer[i / 2] = Hash(layer[i], layer[i + 1]);
         layer.resize(layer.size() / 2);
@@ -368,7 +368,7 @@ QuorumProofChain QuorumProofChain::Decode(const std::vector<unsigned char>& byte
         link.mining = ReadTransaction(in);
         uint16_t headers;
         in >> headers;
-        Require(headers <= remaining && static_cast<size_t>(headers) * 80 <= in.size(), "ancestor length/budget");
+        Require(headers <= remaining && size_t{headers} * 80 <= in.size(), "ancestor length/budget");
         remaining -= headers;
         link.ancestors.resize(headers);
         for (auto& header : link.ancestors) in >> header;
@@ -722,7 +722,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
             predecessor = std::move(signer);
         }
         Require(best && predecessor, "no B-only route within proof budget");
-        for (int32_t h = mined->nHeight; h < static_cast<int64_t>(best->certificate.height); ++h) {
+        for (int32_t h = mined->nHeight; h < int64_t{best->certificate.height}; ++h) {
             best->ancestors.push_back(m_tip->GetAncestor(h)->GetBlockHeader());
         }
         remaining -= best->ancestors.size();

@@ -1516,9 +1516,9 @@ static RPCHelpMan getquorumproofchain()
             }
             try {
                 chainlock::CoinbaseChainLockReader reader(tip, chainman.m_blockman);
-                const int64_t start = std::max<int64_t>(minimum, static_cast<int64_t>(checkpoint->nHeight) + 1);
+                const int64_t start = std::max<int64_t>(minimum, int64_t{checkpoint->nHeight} + 1);
                 if (start > tip->nHeight) throw std::runtime_error("No archived certificate within search budget");
-                const int maximum = static_cast<int>(std::min<int64_t>(tip->nHeight, start + static_cast<int64_t>(llmq::MAX_PROOF_HEADERS)));
+                const int maximum = static_cast<int>(std::min<int64_t>(tip->nHeight, start + int64_t{llmq::MAX_PROOF_HEADERS}));
                 const CBlockIndex* target_guard{nullptr};
                 const CBlockIndex* target{nullptr};
                 llmq::QuorumProofBuilder builder(*ctx.quorum_block_processor, *ctx.qman, tip, chainman, reader);
@@ -1557,7 +1557,7 @@ static RPCHelpMan getquorumproofchain()
                     target = tip->GetAncestor(target_signature.getHeight());
                     proof = builder.Build(checkpoint, target_signature);
                     if (proof || minimum == 0) break;
-                    next = static_cast<int64_t>(target_signature.getHeight()) + 1;
+                    next = int64_t{target_signature.getHeight()} + 1;
                 }
                 if (!proof) throw std::runtime_error("No bridge to snapshot within search budget");
                 // Build() already verified the proof and matched the result against the

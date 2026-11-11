@@ -230,7 +230,7 @@ std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Find(int minimum_heigh
     while (below_minimum(high)) {
         if (high == tip_height) return std::nullopt;
         low = high + 1;
-        high = static_cast<int>(std::min<int64_t>(tip_height, static_cast<int64_t>(high) + step));
+        high = static_cast<int>(std::min<int64_t>(tip_height, int64_t{high} + step));
         step *= 2;
     }
     while (low < high) {
