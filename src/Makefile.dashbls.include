@@ -93,7 +93,7 @@ dashbls_libmimalloc_secure_la_SOURCES = \
   dashbls/depends/mimalloc/src/prim/prim.c
 
 dashbls_libmimalloc_secure_la_CPPFLAGS = $(AM_CPPFLAGS) $(MIMALLOC_CPPFLAGS_INT)
-dashbls_libmimalloc_secure_la_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -static
+dashbls_libmimalloc_secure_la_CFLAGS = $(AM_CFLAGS) $(HARDENED_CXXFLAGS) $(PIE_FLAGS) -static
 dashbls_libmimalloc_secure_la_LDFLAGS = $(AM_LDFLAGS) -static
 
 if ENABLE_TESTS
