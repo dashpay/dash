@@ -24,4 +24,4 @@ export RUN_UNIT_TESTS=false
 export RUN_FUNCTIONAL_TESTS=false
 export GOAL="install"
 export DEP_OPTS="CC=aarch64-linux-gnu-gcc-11 CXX=aarch64-linux-gnu-g++-11"
-export BITCOIN_CONFIG="--enable-reduce-exports CC=aarch64-linux-gnu-gcc-11 CXX=aarch64-linux-gnu-g++-11"
+export BITCOIN_CONFIG="-DREDUCE_EXPORTS=ON"

@@ -36,6 +36,6 @@ else
   if [ "$RUN_UNIT_TESTS_SEQUENTIAL" = "true" ]; then
     ./src/test/test_dash --catch_system_errors=no -l test_suite
   else
-      make "$MAKEJOBS" check VERBOSE=1
+      QT_QPA_PLATFORM=minimal ctest "$MAKEJOBS" --output-on-failure
   fi
 fi
