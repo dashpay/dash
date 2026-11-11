@@ -1153,6 +1153,11 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, co
     return true;
 }
 
+void CSpecialTxProcessor::RemoveMineableCommitmentsForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex)
+{
+    m_qblockman.RemoveMineableCommitmentsForBlock(block, pindex);
+}
+
 bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const CBlockIndex* pindex, const CCbTx& cbTx,
                                                       CAmount blockSubsidy, BlockValidationState& state)
 {
