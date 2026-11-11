@@ -25,6 +25,40 @@ In order to avoid rebuilding all dependencies for each build, the binaries are
 cached and reused when possible. Changes in the dependency-generator will
 trigger cache-invalidation and rebuilds as necessary.
 
+### clang-tidy result cache
+
+`linux64_multiprocess-lint` restores only `/cache/ctcache`, separately from
+compiler ccache, cppcheck and depends. Its `CTCACHE_MAXSIZE_MB` is 512 MiB:
+a full lint pass currently occupies about 237 MiB, so this retains a full
+pass with room for changed inputs. Other jobs' cache limits and the local
+fallback in `00_setup_env.sh` are unchanged. `cleanup-ctcache.py` removes
+oldest files until allocated disk usage is within the limit, rather than
+removing a percentage of files with very different sizes. ctcache refreshes
+an output's modification time on a hit.
+
+The archive key includes both CI Dockerfiles (including the inherited LLVM
+version) and the bitcoin-tidy plugin sources. Within that namespace, restore
+falls back to the latest commit's archive. Do not add all depends recipes to
+the namespace: ctcache already hashes preprocessed source and headers,
+comments (for NOLINT), compiler/tidy arguments and the effective tidy config.
+A recipe change should invalidate affected translation units, not every
+cached result. Toolchain/plugin changes still require a cold cache.
+
+Only successful default-branch push jobs save archives; pull requests only
+restore them. The existing `prune-ccache` job keeps the newest default-branch
+ctcache generation per target. Overlapping runs can restore before a previous
+run saves, so cold starts are still possible. Separate keys do not reserve
+separate GitHub cache quotas: all jobs share the repository's storage limit
+(10 GB by default), with least-recently-accessed eviction and removal of
+entries unused for seven days. Account for overlapping generations and other
+jobs before increasing this budget further.
+
+Run the cleanup regression tests without a compiler or build artifacts:
+
+```sh
+python3 -m unittest discover -s ci/dash -p test_cleanup_ctcache.py -v
+```
+
 ### amd64 runner tiers
 
 `.github/workflows/select_dynamic_runner.py` places the amd64 jobs in two

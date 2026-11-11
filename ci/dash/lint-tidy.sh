@@ -11,29 +11,6 @@ set -eo pipefail
 #          only on nor do they set the requisite build parameters. Make sure you do
 #          that *before* running this script.
 
-# Cleanup old ctcache entries to keep cache size under limit
-cleanup_ctcache() {
-  local cache_dir=$1
-  local max_size_mb=$2
-  local cache_size_mb
-
-  cache_size_mb=$(du -sm "${cache_dir}" 2>/dev/null | cut -f1)
-  if [ "${cache_size_mb}" -gt "${max_size_mb}" ]; then
-    echo "Cache size ${cache_size_mb}MB exceeds limit ${max_size_mb}MB, cleaning old entries..."
-    # Remove files older than 7 days, or if still too large, oldest 20% of files
-    find "${cache_dir}" -type f -mtime +7 -delete 2>/dev/null || true
-    cache_size_mb=$(du -sm "${cache_dir}" 2>/dev/null | cut -f1)
-    if [ "${cache_size_mb}" -gt "${max_size_mb}" ]; then
-      local file_count remove_count
-      file_count=$(find "${cache_dir}" -type f | wc -l)
-      remove_count=$((file_count / 5))
-      find "${cache_dir}" -type f -printf '%T+ %p\0' | sort -z | head -z -n "${remove_count}" | cut -z -d' ' -f2- | xargs -0 rm -f 2>/dev/null || true
-      echo "Attempted to remove ${remove_count} oldest cache entries"
-    fi
-    echo "Cache size after cleanup: $(du -sh "${cache_dir}" 2>/dev/null | cut -f1)"
-  fi
-}
-
 # Verify clang-tidy is available
 CLANG_TIDY_BIN=$(command -v clang-tidy)
 if [ -z "${CLANG_TIDY_BIN}" ]; then
@@ -107,7 +84,7 @@ du -sh "${CTCACHE_DIR}" 2>/dev/null || echo "Cache directory not found"
 python3 "${CLANG_TIDY_CACHE_PY}" --show-stats 2>&1 || true
 
 # Limit cache size (ctcache has no built-in size management)
-cleanup_ctcache "${CTCACHE_DIR}" "${CTCACHE_MAXSIZE_MB}"
+python3 "${BASE_ROOT_DIR}/ci/dash/cleanup-ctcache.py" "${CTCACHE_DIR}" "${CTCACHE_MAXSIZE_MB}"
 echo "=========================="
 
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}"
