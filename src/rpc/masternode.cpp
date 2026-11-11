@@ -415,7 +415,7 @@ static RPCHelpMan masternode_payments()
 
     CHECK_NONFATAL(node.dmnman);
     // Payees are selected from the previous block's list, so the genesis block has none
-    while (vecPayments.size() < uint64_t(std::abs(nCount)) && pindex != nullptr && pindex->pprev != nullptr) {
+    while (vecPayments.size() < static_cast<uint64_t>(std::abs(nCount)) && pindex != nullptr && pindex->pprev != nullptr) {
         CBlock block;
         if (!chainman.m_blockman.ReadBlockFromDisk(block, *pindex)) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");

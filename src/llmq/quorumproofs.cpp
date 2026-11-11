@@ -68,7 +68,7 @@ static void Require(bool condition, const char* message)
 static void WriteBlob(CDataStream& out, const std::vector<unsigned char>& bytes)
 {
     Require(bytes.size() <= MAX_PROOF_BYTES, "proof blob limit");
-    out << uint32_t(bytes.size());
+    out << static_cast<uint32_t>(bytes.size());
     out.write(AsBytes(Span{bytes}));
 }
 
@@ -85,7 +85,7 @@ static std::vector<unsigned char> ReadBlob(CDataStream& in, size_t limit)
 static void WritePath(CDataStream& out, const ProofMerklePath& path)
 {
     Require(path.siblings.size() <= 17, "proof path limit");
-    out << path.index << path.count << uint8_t(path.siblings.size());
+    out << path.index << path.count << static_cast<uint8_t>(path.siblings.size());
     for (const auto& hash : path.siblings) out << hash;
 }
 
@@ -94,7 +94,7 @@ static ProofMerklePath ReadPath(CDataStream& in)
     ProofMerklePath path;
     uint8_t size;
     in >> path.index >> path.count >> size;
-    Require(size <= 17 && size_t(size) * 32 <= in.size(), "proof path length");
+    Require(size <= 17 && size_t{size} * 32 <= in.size(), "proof path length");
     path.siblings.resize(size);
     for (auto& hash : path.siblings) in >> hash;
     return path;
@@ -151,9 +151,10 @@ static CFinalCommitment ParseCommitment(const std::vector<unsigned char>& bytes,
         const auto params = std::find_if(Consensus::available_llmqs.begin(), Consensus::available_llmqs.end(),
                                          [&](const Consensus::LLMQParams& item) { return item.type == commitment.llmqType; });
         Require(params != Consensus::available_llmqs.end(), "unsupported quorum type");
-        Require((commitment.nVersion == 4) == (int(commitment.llmqType) == 5) &&
+        Require((commitment.nVersion == 4) == (static_cast<int>(commitment.llmqType) == 5) &&
                 commitment.quorumIndex >= 0 && commitment.quorumIndex < 32 &&
-                commitment.signers.size() == size_t(params->size) && commitment.validMembers.size() == size_t(params->size) &&
+                commitment.signers.size() == static_cast<size_t>(params->size) &&
+                commitment.validMembers.size() == static_cast<size_t>(params->size) &&
                 commitment.CountSigners() >= params->threshold && commitment.CountValidMembers() >= params->threshold &&
                 ConsensusBytes(commitment) == bytes, "noncanonical or undersized commitment");
         cache.Insert(key, commitment);
@@ -248,7 +249,7 @@ static CoinbasePayload Coinbase(const ProofTransaction& proof, const ProofCertif
     const auto payload = ParseCoinbasePayload(proof.transaction);
     Require(payload.envelope_ok, "coinbase envelope");
     Require(payload.payload_ok && payload.version >= CCbTx::Version::CLSIG_AND_BALANCE &&
-                payload.height == int64_t(cert.height) && payload.best_cl_height_diff < cert.height &&
+                payload.height == int64_t{cert.height} && payload.best_cl_height_diff < cert.height &&
                 !payload.merkle_root_quorums.IsNull(),
             "coinbase payload");
     return payload;
@@ -273,10 +274,10 @@ bool ProofMerklePath::Verify(uint256 leaf, const uint256& root) const
 ProofMerklePath ProofMerklePath::Build(const std::vector<uint256>& leaves, uint32_t index)
 {
     Require(index < leaves.size() && leaves.size() <= std::numeric_limits<uint32_t>::max(), "merkle index");
-    ProofMerklePath path{index, uint32_t(leaves.size()), {}};
+    ProofMerklePath path{index, static_cast<uint32_t>(leaves.size()), {}};
     auto layer = leaves;
     while (layer.size() > 1) {
-        path.siblings.push_back(layer[std::min(size_t(index ^ 1U), layer.size() - 1)]);
+        path.siblings.push_back(layer[std::min(size_t{index ^ 1U}, layer.size() - 1)]);
         if (layer.size() & 1) layer.push_back(layer.back());
         for (size_t i = 0; i < layer.size(); i += 2) layer[i / 2] = Hash(layer[i], layer[i + 1]);
         layer.resize(layer.size() / 2);
@@ -329,14 +330,14 @@ std::vector<unsigned char> QuorumProofChain::Encode() const
     out << anchor;
     WriteBlob(out, seed);
     WritePath(out, seedPath);
-    out << uint16_t(links.size());
+    out << static_cast<uint16_t>(links.size());
     size_t remaining = MAX_PROOF_HEADERS;
     for (const auto& link : links) {
         Require(link.ancestors.size() <= remaining, "total ancestor limit");
         remaining -= link.ancestors.size();
         WriteCertificate(out, link.certificate);
         WriteTransaction(out, link.mining);
-        out << uint16_t(link.ancestors.size());
+        out << static_cast<uint16_t>(link.ancestors.size());
         for (const auto& header : link.ancestors) out << header;
         Require(out.size() <= MAX_PROOF_BYTES, "proof size limit");
     }
@@ -367,7 +368,7 @@ QuorumProofChain QuorumProofChain::Decode(const std::vector<unsigned char>& byte
         link.mining = ReadTransaction(in);
         uint16_t headers;
         in >> headers;
-        Require(headers <= remaining && size_t(headers) * 80 <= in.size(), "ancestor length/budget");
+        Require(headers <= remaining && size_t{headers} * 80 <= in.size(), "ancestor length/budget");
         remaining -= headers;
         link.ancestors.resize(headers);
         for (auto& header : link.ancestors) in >> header;
@@ -434,7 +435,7 @@ std::vector<unsigned char> EncodeBootstrap(const QuorumProofChain& proof, const 
             "state does not match proof target");
     CDataStream out(SER_NETWORK, PROTOCOL_VERSION);
     WriteBlob(out, proof.Encode());
-    out << uint8_t(records.size());
+    out << static_cast<uint8_t>(records.size());
     for (const auto& record : records) {
         Require(record.kind <= 1 && !record.leaf.empty() && record.leaf.size() != 64 && record.leaf.size() <= 4096 &&
                 record.path.Verify(Hash(record.leaf), record.kind == 0 ? state.quorumRoot : state.masternodeRoot), "projection inclusion");
@@ -535,9 +536,9 @@ ProofState QuorumProofBuilder::StateAt(const node::BlockManager& blockman, const
     if (StateCache().Get(index->GetBlockHash(), cached)) return cached;
     CBlock block;
     Require(blockman.ReadBlockFromDisk(block, *index) && !block.vtx.empty(), "historical block unavailable");
-    ProofCertificate cert{uint32_t(index->nHeight), block.GetBlockHeader(), {}};
+    ProofCertificate cert{static_cast<uint32_t>(index->nHeight), block.GetBlockHeader(), {}};
     auto cb = Coinbase(ProofTransaction::Build(block, 0), cert);
-    const ProofState state{uint8_t(network == "main" ? 0 : 1), uint32_t(index->nHeight), index->GetBlockHash(),
+    const ProofState state{static_cast<uint8_t>(network == "main" ? 0 : 1), static_cast<uint32_t>(index->nHeight), index->GetBlockHash(),
                            cb.merkle_root_mn_list, cb.merkle_root_quorums};
     StateCache().Insert(index->GetBlockHash(), state);
     return state;
@@ -645,7 +646,7 @@ static ProofTransaction MiningTransaction(const node::BlockManager& blocks, cons
         // which starts with nVersion u16, llmqType u8, quorumHash. Compare the
         // prefix first; only a candidate match pays for full deserialization.
         const auto& raw = tx.vExtraPayload;
-        if (raw.size() < 2 + 4 + 2 + 1 + 32 || raw[2 + 4 + 2] != uint8_t(kind) ||
+        if (raw.size() < 2 + 4 + 2 + 1 + 32 || raw[2 + 4 + 2] != static_cast<uint8_t>(kind) ||
             !std::equal(quorum.begin(), quorum.end(), raw.begin() + 2 + 4 + 2 + 1)) {
             continue;
         }
@@ -669,7 +670,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
             "checkpoint/target not on chain");
     Require(targetIndex->GetBlockHash() == target.getBlockHash(), "target ChainLock block mismatch");
     auto certificate = [&](const chainlock::CoinbaseChainLock& entry) {
-        return ProofCertificate{uint32_t(entry.height), m_tip->GetAncestor(entry.height)->GetBlockHeader(),
+        return ProofCertificate{static_cast<uint32_t>(entry.height), m_tip->GetAncestor(entry.height)->GetBlockHeader(),
                                 entry.Signed().getSig()};
     };
     QuorumProofChain proof;
@@ -682,7 +683,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
         seedLeaves.push_back(SerializeHash(seed));
         if (seed.llmqType == kind && seed.nVersion >= 3) seedHashes.insert(seed.quorumHash);
     }
-    proof.target = {uint32_t(target.getHeight()), targetIndex->GetBlockHeader(), target.getSig()};
+    proof.target = {static_cast<uint32_t>(target.getHeight()), targetIndex->GetBlockHeader(), target.getSig()};
     auto needed = DetermineChainlockSigningCommitment(targetIndex->nHeight);
     Require(needed.has_value(), "target signer unavailable");
     int32_t later = targetIndex->nHeight;
@@ -699,7 +700,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
         double bestScore = std::numeric_limits<double>::infinity();
         // Exact bytes/progress over nearby candidates. Expand the search only
         // when the near window cannot bridge; the verifier does not depend on this heuristic.
-        const int32_t maximum = std::min(later - 1, mined->nHeight + int32_t(remaining));
+        const int32_t maximum = std::min(later - 1, mined->nHeight + static_cast<int32_t>(remaining));
         for (int32_t height = mined->nHeight; height <= maximum; ++height) {
             if (height > mined->nHeight + 8 && best) break;
             const auto entry = m_chainlocks.Find(height, maximum);
@@ -714,14 +715,14 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
             if (!cert.Verify(*signer, checkpoint->nHeight, kind)) continue;
             const auto cost = 180 + 4 + mining.transaction.size() + 9 + 32 * mining.path.siblings.size() + 2 +
                               80 * (height - mined->nHeight);
-            const double score = double(cost) / (mined->nHeight - std::max(checkpoint->nHeight, previous->nHeight));
+            const double score = static_cast<double>(cost) / (mined->nHeight - std::max(checkpoint->nHeight, previous->nHeight));
             if (score >= bestScore) continue;
             bestScore = score;
             best = ProofLink{cert, mining, {}};
             predecessor = std::move(signer);
         }
         Require(best && predecessor, "no B-only route within proof budget");
-        for (int32_t h = mined->nHeight; h < int64_t(best->certificate.height); ++h) {
+        for (int32_t h = mined->nHeight; h < int64_t{best->certificate.height}; ++h) {
             best->ancestors.push_back(m_tip->GetAncestor(h)->GetBlockHeader());
         }
         remaining -= best->ancestors.size();

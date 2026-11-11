@@ -660,7 +660,7 @@ bool CoinJoin::ValidatePromotionEntry(const std::vector<CTxIn>& vecTxIn, const s
     nMessageIDRet = MSG_NOERR;
 
     // Check input count
-    if (vecTxIn.size() != static_cast<size_t>(PROMOTION_RATIO)) {
+    if (vecTxIn.size() != size_t{PROMOTION_RATIO}) {
         LogPrint(BCLog::COINJOIN, "CoinJoin::ValidatePromotionEntry -- ERROR: wrong input count %zu, expected %d\n",
                 vecTxIn.size(), PROMOTION_RATIO);
         nMessageIDRet = ERR_SIZE_MISMATCH;
@@ -719,7 +719,7 @@ bool CoinJoin::ValidateDemotionEntry(const std::vector<CTxIn>& vecTxIn, const st
     }
 
     // Check output count
-    if (vecTxOut.size() != static_cast<size_t>(PROMOTION_RATIO)) {
+    if (vecTxOut.size() != size_t{PROMOTION_RATIO}) {
         LogPrint(BCLog::COINJOIN, "CoinJoin::ValidateDemotionEntry -- ERROR: wrong output count %zu, expected %d\n",
                 vecTxOut.size(), PROMOTION_RATIO);
         nMessageIDRet = ERR_SIZE_MISMATCH;
@@ -764,6 +764,6 @@ bool CoinJoin::ValidateFinalTxComposition(size_t nTotalInputs, size_t nTotalOutp
     if (nLargerInputs > nTotalInputs || nLargerOutputs > nTotalOutputs) return false;
     const size_t nSessionInputs = nTotalInputs - nLargerInputs;
     const size_t nSessionOutputs = nTotalOutputs - nLargerOutputs;
-    return nSessionInputs >= nLargerOutputs * size_t(PROMOTION_RATIO) &&
-           nSessionOutputs >= nLargerInputs * size_t(PROMOTION_RATIO);
+    return nSessionInputs >= nLargerOutputs * size_t{PROMOTION_RATIO} &&
+           nSessionOutputs >= nLargerInputs * size_t{PROMOTION_RATIO};
 }

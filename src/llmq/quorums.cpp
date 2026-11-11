@@ -185,7 +185,7 @@ int CQuorum::GetMemberIndex(const uint256& proTxHash) const
     for (const auto i : util::irange(members.size())) {
         // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == proTxHash) {
-            return int(i);
+            return static_cast<int>(i);
         }
     }
     return -1;

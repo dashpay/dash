@@ -160,7 +160,7 @@ CarrierEntry LoadCarrier(const node::BlockManager& blockman, const CBlockIndex* 
         cb->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || cb->nHeight != carrier_height) {
         throw std::runtime_error("Invalid historical ChainLock coinbase");
     }
-    if (cb->bestCLHeightDiff >= uint32_t(carrier_height)) {
+    if (cb->bestCLHeightDiff >= static_cast<uint32_t>(carrier_height)) {
         throw std::runtime_error("Invalid historical coinbase ChainLock height");
     }
     // Consensus writes a null certificate as all-zero bytes. Anything else is a
@@ -190,7 +190,7 @@ std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Read(int carrier_heigh
     if (!entry.has_chainlock) {
         return m_cache.emplace(carrier_height, std::nullopt).first->second;
     }
-    const int height = carrier_height - int(entry.height_diff) - 1;
+    const int height = carrier_height - static_cast<int>(entry.height_diff) - 1;
     const auto* signed_block = m_tip->GetAncestor(height);
     if (!signed_block) throw std::runtime_error("Invalid historical ChainLock block height");
     // Deferred decode: binary search only compares heights, so most carriers
@@ -230,7 +230,7 @@ std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Find(int minimum_heigh
     while (below_minimum(high)) {
         if (high == tip_height) return std::nullopt;
         low = high + 1;
-        high = int(std::min<int64_t>(tip_height, int64_t(high) + step));
+        high = static_cast<int>(std::min<int64_t>(tip_height, int64_t{high} + step));
         step *= 2;
     }
     while (low < high) {

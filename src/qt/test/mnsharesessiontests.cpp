@@ -483,7 +483,7 @@ void MnShareSessionTests::penaltyPreviewMath()
 
     // Past the boundary: no penalty
     preview = MnShareSession::PenaltyPreviewFor(amounts, /*actor_index=*/0, penalty, early_period, fee,
-                                                /*at_height=*/registered + int(early_period), registered);
+                                                /*at_height=*/registered + static_cast<int>(early_period), registered);
     QVERIFY2(preview.valid, qPrintable(preview.error));
     QVERIFY(!preview.early);
     QCOMPARE(preview.payouts[0], 400 * COIN - fee);

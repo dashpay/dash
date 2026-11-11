@@ -539,7 +539,7 @@ bool CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retB
         return false;
     }
 
-    for (const auto i : std::views::iota(members.size(), size_t(params.size))) {
+    for (const auto i : std::views::iota(members.size(), static_cast<size_t>(params.size))) {
         // cppcheck-suppress useStlAlgorithm
         if (qc.validMembers[i]) {
             retBan = true;

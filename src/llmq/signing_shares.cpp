@@ -296,7 +296,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
 static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv)
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
-    return llmq_params_opt.has_value() && (inv.inv.size() == size_t(llmq_params_opt->size));
+    return llmq_params_opt.has_value() && (inv.inv.size() == static_cast<size_t>(llmq_params_opt->size));
 }
 
 bool CSigSharesManager::ProcessMessageSigShares(const CNode& pfrom, const CSigSharesInv& inv, const std::string& msg_type)

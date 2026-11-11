@@ -746,9 +746,9 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
             if (!llmq_params_opt.has_value()) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-commitment-type");
             }
-            int qcnHeight = int(opt_qc->nHeight);
+            int qcnHeight = static_cast<int>(opt_qc->nHeight);
             int quorumHeight = qcnHeight - (qcnHeight % llmq_params_opt->dkgInterval) +
-                               int(opt_qc->commitment.quorumIndex);
+                               int{opt_qc->commitment.quorumIndex};
             auto pQuorumBaseBlockIndex = pindexPrev->GetAncestor(quorumHeight);
             if (!pQuorumBaseBlockIndex || pQuorumBaseBlockIndex->GetBlockHash() != opt_qc->commitment.quorumHash) {
                 // we should actually never get into this case as validation should have caught it...but let's be sure
