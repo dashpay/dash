@@ -423,6 +423,13 @@ class DashGovernanceTest (DashTestFramework):
         self.log.info("Revert mocktime back to avoid issues in tests below")
         self.bump_mocktime(GOVERNANCE_UPDATE_MIN * -1, update_schedulers=False)
 
+        self.log.info("A restarted node retains the funded trigger until the superblock")
+        self.restart_node(1)
+        force_finish_mnsync(pruned_node)
+        self.connect_nodes(0, 1)
+        for _ in range(4):
+            self.bump_mocktime(4 * 60)
+
         block_count = self.nodes[0].getblockcount()
         n = sb_cycle - block_count % sb_cycle
 
