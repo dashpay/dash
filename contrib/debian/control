@@ -5,20 +5,20 @@ Maintainer: Holger Schinzel <holger@dash.org>
 Uploaders: Holger Schinzel <holger@dash.org>
 Build-Depends: debhelper,
  devscripts,
- automake,
- libtool,
+ cmake (>= 3.22),
  bash-completion,
  libdb4.8++-dev,
+ libsqlite3-dev,
  pkg-config,
- libevent-dev,
- libboost-filesystem1.48-dev | libboost-filesystem-dev (>> 1.47),
- libboost-thread1.48-dev | libboost-thread-dev (>> 1.47),
- libboost-test1.48-dev | libboost-test-dev (>> 1.47),
+ libevent-dev (>= 2.1.8),
+ libboost-filesystem-dev (>= 1.73),
+ libboost-thread-dev (>= 1.73),
+ libboost-test-dev (>= 1.73),
  libminiupnpc8-dev | libminiupnpc-dev,
- qt4-qmake, libqt4-dev,
+ qtbase5-dev (>= 5.15),
  qttools5-dev-tools, qttools5-dev,
  libqrencode-dev,
- python,
+ python3,
  libzmq3-dev
 Standards-Version: 3.9.2
 Homepage: https://www.dash.org/

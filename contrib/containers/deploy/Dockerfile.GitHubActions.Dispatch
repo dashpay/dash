@@ -8,6 +8,7 @@ RUN apt-get update && \
     bsdmainutils \
     build-essential \
     ca-certificates \
+    cmake \
     curl \
     g++-aarch64-linux-gnu \
     libtool \
@@ -28,19 +29,14 @@ RUN case "$TARGETPLATFORM" in \
   *) exit 1 ;; \
 esac
 
-RUN ./autogen.sh && \
-  case "$TARGETPLATFORM" in \
-  "linux/arm64") ./configure --prefix=`pwd`/depends/aarch64-linux-gnu ;; \
-  "linux/amd64") ./configure --prefix=`pwd`/depends/x86_64-pc-linux-gnu ;; \
+RUN case "$TARGETPLATFORM" in \
+  "linux/arm64") cmake -S . -B build --toolchain "$PWD/depends/aarch64-linux-gnu/toolchain.cmake" ;; \
+  "linux/amd64") cmake -S . -B build --toolchain "$PWD/depends/x86_64-pc-linux-gnu/toolchain.cmake" ;; \
+  *) exit 1 ;; \
 esac
 
-RUN make -j`nproc | awk '{x=$1/2; print x}'` && make install
-
-RUN mkdir built-target && \
-  case "$TARGETPLATFORM" in \
-  "linux/arm64") cp depends/aarch64-linux-gnu/bin/dash* /home/dash/built-target ;; \
-  "linux/amd64") cp depends/x86_64-pc-linux-gnu/bin/dash* /home/dash/built-target ;; \
-esac
+RUN cmake --build build -j`nproc | awk '{x=$1/2; print x}'` && \
+    cmake --install build --prefix /home/dash/built-target
 
 FROM ubuntu:jammy
 LABEL maintainer="Dash Developers <dev@dash.org>"
@@ -66,7 +62,7 @@ RUN apt-get update && \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /home/dash/built-target/dash* /usr/local/bin
+COPY --from=builder /home/dash/built-target/bin/dash* /usr/local/bin
 
 USER dash
 
