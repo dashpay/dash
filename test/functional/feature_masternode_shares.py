@@ -12,7 +12,7 @@ from decimal import Decimal
 from test_framework.descriptors import descsum_create
 from test_framework.address import key_to_p2pkh
 from test_framework.crypto import secp256k1
-from test_framework.key import ECKey, ORDER, rfc6979_nonce
+from test_framework.key import ORDER, rfc6979_nonce
 from test_framework.messages import (
     COIN,
     CBlock,
@@ -34,7 +34,7 @@ from test_framework.util import (
     get_bip9_details,
     softfork_active,
 )
-from test_framework.wallet_util import bytes_to_wif, get_generate_key
+from test_framework.wallet_util import bytes_to_wif, generate_keypair, get_generate_key
 
 # Keep the earliest activation height above the ~119 blocks the framework setup mines, so
 # run_test starts with v24 locked in but not yet active and can exercise pre-activation rules
@@ -477,8 +477,7 @@ class MasternodeSharesTest(DashTestFramework):
                         wallet.importprivkey(key.privkey)
                     refund = wallet.addmultisigaddress(2, [key.pubkey for key in keys])["address"]
             # The test keeps the owner key too, to sign dissolutions the wallet refuses to
-            owner_key = ECKey()
-            owner_key.generate()
+            owner_key, owner_pubkey = generate_keypair()
             owner_wif = bytes_to_wif(owner_key.get_bytes())
             if self.options.descriptors:
                 result, = wallet.importdescriptors([{"desc": descsum_create(f"pkh({owner_wif})"), "timestamp": "now"}])
@@ -487,7 +486,7 @@ class MasternodeSharesTest(DashTestFramework):
                 wallet.importprivkey(owner_wif, "", False)
             owner_keys.append(owner_key)
             shares.append({"amount": amount * COIN, "refundAddress": refund,
-                           "ownerAddress": key_to_p2pkh(owner_key.get_pubkey().get_bytes().hex()),
+                           "ownerAddress": key_to_p2pkh(owner_pubkey.hex()),
                            "rewardAddress": common_reward})
             funding_addresses.append(wallet.getnewaddress())
             change_addresses.append(wallet.getnewaddress())

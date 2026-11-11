@@ -287,7 +287,9 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
             wallet = node_v19.get_wallet_rpc("w1_v19")
             assert wallet.getaddressinfo(address_18075)["solvable"]
 
-            self.stop_node(node_v17.index, expected_stderr=("Warning: Make sure to encrypt your wallet and delete all non-encrypted backups after you have verified that the wallet works!\n"*3)[:-1])
+        # v0.17 warns on every start of a non-encrypted HD wallet
+        hd_warnings = 3 if self.is_bdb_compiled() else 2
+        self.stop_node(node_v17.index, expected_stderr=("Warning: Make sure to encrypt your wallet and delete all non-encrypted backups after you have verified that the wallet works!\n"*hd_warnings)[:-1])
 
 if __name__ == '__main__':
     BackwardsCompatibilityTest().main()

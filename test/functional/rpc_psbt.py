@@ -9,7 +9,6 @@ from decimal import Decimal
 from itertools import product
 
 from test_framework.descriptors import descsum_create
-from test_framework.key import ECKey
 from test_framework.messages import (
     COutPoint,
     CTransaction,
@@ -38,8 +37,8 @@ from test_framework.util import (
     random_bytes,
 )
 from test_framework.wallet_util import (
-    bytes_to_wif,
-    get_generate_key
+    generate_keypair,
+    get_generate_key,
 )
 
 import json
@@ -51,6 +50,8 @@ class PSBTTest(BitcoinTestFramework):
 
     def set_test_params(self):
         self.num_nodes = 3
+        # whitelist peers to speed up tx relay / mempool sync
+        self.extra_args = [["-whitelist=noban@127.0.0.1"]] * self.num_nodes
         self.supports_cli = False
 
     def skip_test_if_missing_module(self):
@@ -589,9 +590,7 @@ class PSBTTest(BitcoinTestFramework):
 
         self.log.info("Test that we can fund psbts with external inputs specified")
 
-        eckey = ECKey()
-        eckey.generate()
-        privkey = bytes_to_wif(eckey.get_bytes())
+        privkey, _ = generate_keypair(wif=True)
 
         self.nodes[1].createwallet("extfund")
         wallet = self.nodes[1].get_wallet_rpc("extfund")

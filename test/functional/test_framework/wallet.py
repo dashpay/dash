@@ -17,6 +17,7 @@ from test_framework.address import (
     key_to_p2pkh,
     ADDRESS_BCRT1_P2SH_OP_TRUE,
 )
+from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.descriptors import descsum_create
 from test_framework.key import ECKey
 from test_framework.messages import (
@@ -41,7 +42,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than_or_equal,
 )
-from test_framework.blocktools import COINBASE_MATURITY
+from test_framework.wallet_util import generate_keypair
 
 DEFAULT_FEE = Decimal("0.0001")
 
@@ -378,9 +379,7 @@ def getnewdestination(address_type='legacy'):
        'legacy'. Can be used when a random destination is needed, but no
        compiled wallet is available (e.g. as replacement to the
        getnewaddress/getaddressinfo RPCs)."""
-    key = ECKey()
-    key.generate()
-    pubkey = key.get_pubkey().get_bytes()
+    key, pubkey = generate_keypair()
     if address_type == 'legacy':
         scriptpubkey = key_to_p2pkh_script(pubkey)
         address = key_to_p2pkh(pubkey)

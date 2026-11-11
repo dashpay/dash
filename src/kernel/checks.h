@@ -16,8 +16,8 @@ struct Context;
 /**
  *  Ensure a usable environment with all necessary library support.
  */
-std::optional<bilingual_str> SanityChecks(const Context&);
+[[nodiscard]] std::optional<bilingual_str> SanityChecks(const Context&);
 
-}
+} // namespace kernel
 
 #endif // BITCOIN_KERNEL_CHECKS_H

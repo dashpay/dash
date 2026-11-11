@@ -75,7 +75,8 @@ BOOST_FIXTURE_TEST_CASE(tx_reject_negative_version, TestChain100DIP3Setup)
     tx.vout.emplace_back(1 * COIN, scriptPubKey);
     FillableSigningProvider keystore;
     keystore.AddKey(coinbaseKey);
-    BOOST_REQUIRE(SignSignature(keystore, *m_coinbase_txns[0], tx, 0, SIGHASH_ALL));
+    SignatureData empty;
+    BOOST_REQUIRE(SignSignature(keystore, *m_coinbase_txns[0], tx, 0, SIGHASH_ALL, empty));
 
     {
         LOCK(cs_main);

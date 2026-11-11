@@ -288,7 +288,8 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
         CMutableTransaction collateral;
         collateral.vin.emplace_back(collateral_input);
         collateral.vout.emplace_back(COIN / 10 - CoinJoin::GetCollateralAmount(), P2PKHScript(100 + i));
-        BOOST_REQUIRE(SignSignature(provider, previous_script, collateral, 0, COIN / 10, SIGHASH_ALL));
+        SignatureData empty;
+        BOOST_REQUIRE(SignSignature(provider, previous_script, collateral, 0, COIN / 10, SIGHASH_ALL, empty));
         server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
         // Descending output order requires verification against the canonical BIP69 transaction.
         CCoinJoinEntry original{{CTxDSIn{CTxIn{input}, previous_script, 0}},
@@ -317,8 +318,9 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
     std::vector<CTxIn> signed_inputs;
     for (int i{0}; i < participants; ++i) {
         const auto index{input_index(entries[i].vecTxDSIn[0].prevout)};
+        SignatureData empty;
         BOOST_REQUIRE(SignSignature(provider, previous_scripts[i], final, index, amount,
-                                    SIGHASH_ALL | (i == 0 ? SIGHASH_ANYONECANPAY : 0)));
+                                    SIGHASH_ALL | (i == 0 ? SIGHASH_ANYONECANPAY : 0), empty));
         signed_inputs.push_back(final.vin[index]);
     }
     const auto rejected = [](CNode& peer) {
@@ -355,7 +357,8 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
     modified_proposal.vout.front().scriptPubKey = P2PKHScript(0xff);
     const auto first_index{input_index(signed_inputs[0].prevout)};
     constexpr int legacy_mode{SIGHASH_ALL | SIGHASH_ANYONECANPAY};
-    BOOST_REQUIRE(SignSignature(provider, previous_scripts[0], modified_proposal, first_index, amount, legacy_mode));
+    SignatureData empty;
+    BOOST_REQUIRE(SignSignature(provider, previous_scripts[0], modified_proposal, first_index, amount, legacy_mode, empty));
     BOOST_REQUIRE(VerifyScript(modified_proposal.vin[first_index].scriptSig, previous_scripts[0],
                                STANDARD_SCRIPT_VERIFY_FLAGS,
                                MutableTransactionSignatureChecker(&modified_proposal, first_index, amount,

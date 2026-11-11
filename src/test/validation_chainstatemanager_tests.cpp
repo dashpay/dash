@@ -240,7 +240,7 @@ struct SnapshotTestSetup : TestChain100Setup {
         {
             LOCK(::cs_main);
             BOOST_CHECK(!chainman.IsSnapshotValidated());
-            BOOST_CHECK(!node::FindSnapshotChainstateDir(m_args.GetDataDirNet()));
+            BOOST_CHECK(!node::FindSnapshotChainstateDir(chainman.m_options.datadir));
         }
 
         size_t initial_size;
@@ -290,7 +290,7 @@ struct SnapshotTestSetup : TestChain100Setup {
                 auto_infile >> coin;
         }));
 
-        BOOST_CHECK(!node::FindSnapshotChainstateDir(m_args.GetDataDirNet()));
+        BOOST_CHECK(!node::FindSnapshotChainstateDir(chainman.m_options.datadir));
 
         BOOST_REQUIRE(!CreateAndActivateUTXOSnapshot(
             this, [](AutoFile& auto_infile, SnapshotMetadata& metadata) {
@@ -314,7 +314,7 @@ struct SnapshotTestSetup : TestChain100Setup {
         }));
 
         BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this));
-        BOOST_CHECK(fs::exists(*node::FindSnapshotChainstateDir(m_args.GetDataDirNet())));
+        BOOST_CHECK(fs::exists(*node::FindSnapshotChainstateDir(chainman.m_options.datadir)));
 
         // Ensure our active chain is the snapshot chainstate.
         BOOST_CHECK(!chainman.ActiveChainstate().m_from_snapshot_blockhash->IsNull());
@@ -336,7 +336,7 @@ struct SnapshotTestSetup : TestChain100Setup {
         {
             LOCK(::cs_main);
 
-            fs::path found = *node::FindSnapshotChainstateDir(m_args.GetDataDirNet());
+            fs::path found = *node::FindSnapshotChainstateDir(chainman.m_options.datadir);
 
             // Note: WriteSnapshotBaseBlockhash() is implicitly tested above.
             BOOST_CHECK_EQUAL(
@@ -452,7 +452,7 @@ struct SnapshotTestSetup : TestChain100Setup {
             m_node.notifications = std::make_unique<KernelNotifications>();
             const ChainstateManager::Options chainman_opts{
                 .chainparams = ::Params(),
-                .datadir = m_args.GetDataDirNet(),
+                .datadir = chainman.m_options.datadir,
                 .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
                 .mn_sync = m_node.mn_sync.get(),
                 .notifications = *m_node.notifications,
@@ -637,7 +637,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
 
     this->SetupSnapshot();
 
-    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir(m_args.GetDataDirNet());
+    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir(chainman.m_options.datadir);
     BOOST_CHECK(fs::exists(snapshot_chainstate_dir));
     BOOST_CHECK_EQUAL(snapshot_chainstate_dir, gArgs.GetDataDirNet() / "chainstate_snapshot");
 
@@ -934,7 +934,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
     SnapshotCompletionResult res;
     auto mock_shutdown = [](bilingual_str msg) {};
 
-    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir(m_args.GetDataDirNet());
+    fs::path snapshot_chainstate_dir = *node::FindSnapshotChainstateDir(chainman.m_options.datadir);
     BOOST_CHECK(fs::exists(snapshot_chainstate_dir));
     BOOST_CHECK_EQUAL(snapshot_chainstate_dir, gArgs.GetDataDirNet() / "chainstate_snapshot");
 

@@ -6,13 +6,11 @@
 #ifndef BITCOIN_ADDRDB_H
 #define BITCOIN_ADDRDB_H
 
-#include <net_types.h> // For banmap_t
-#include <univalue.h>
+#include <net_types.h>
 #include <util/fs.h>
 #include <util/result.h>
 
 #include <memory>
-#include <optional>
 #include <vector>
 
 class ArgsManager;
@@ -20,7 +18,6 @@ class AddrMan;
 class CAddress;
 class DataStream;
 class NetGroupManager;
-struct bilingual_str;
 
 /** Only used by tests. */
 void ReadFromStream(AddrMan& addr, DataStream& ssPeers);

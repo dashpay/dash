@@ -836,7 +836,6 @@ static RPCHelpMan wipewallettxes()
 
     for (size_t progress = 0; progress < STEPS; ++progress) {
         std::vector<uint256> vHashIn;
-        std::vector<uint256> vHashOut;
         size_t count{0};
 
         for (auto& [txid, wtx] : pwallet->mapWallet) {
@@ -845,12 +844,12 @@ static RPCHelpMan wipewallettxes()
             vHashIn.push_back(txid);
         }
 
-        if (vHashIn.size() > 0 && pwallet->ZapSelectTx(vHashIn, vHashOut) != DBErrors::LOAD_OK) {
-            pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions…").translated, pwallet->GetDisplayName()), 100);
-            throw JSONRPCError(RPC_WALLET_ERROR, "Could not properly delete transactions.");
+        if (vHashIn.size() > 0) {
+            if (auto res = pwallet->RemoveTxs(vHashIn); !res) {
+                pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions…").translated, pwallet->GetDisplayName()), 100);
+                throw JSONRPCError(RPC_WALLET_ERROR, util::ErrorString(res).original);
+            }
         }
-
-        CHECK_NONFATAL(vHashOut.size() == vHashIn.size());
 
         if (pwallet->IsAbortingRescan() || pwallet->chain().shutdownRequested()) {
             pwallet->ShowProgress(strprintf("%s " + _("Wiping wallet transactions…").translated, pwallet->GetDisplayName()), 100);
