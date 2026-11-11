@@ -117,6 +117,9 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs, !m_qc_hashes_cache_mutex, !m_commitment_payload_mutex);
     bool UndoBlock(const Chainstate& chainstate, const CBlock& block, gsl::not_null<const CBlockIndex*> pindex)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs, !m_qc_hashes_cache_mutex, !m_commitment_payload_mutex);
+    //! Drop the commitments mined by a block that has been fully connected from the mineable pool.
+    void RemoveMineableCommitmentsForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs, !m_commitment_payload_mutex);
 
     //! The parsed payload of a quorum commitment transaction, or nullptr if it does not parse.
     std::shared_ptr<const CFinalCommitmentTxPayload> GetCommitmentTxPayload(const CTransaction& tx) const
