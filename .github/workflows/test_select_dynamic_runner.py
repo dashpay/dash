@@ -260,7 +260,71 @@ class SelectDynamicRunnerTest(unittest.TestCase):
 
         self.assertEqual(outputs["runner_amd64"], MODULE.DEFAULT_RUNNER_AMD64)
         self.assertEqual(outputs["runner_arm64"], "blacksmith-arm64")
-        self.assertIn("amd64-github-fallback", outputs["decision_reason"])
+        self.assertIn("amd64-default-fallback", outputs["decision_reason"])
+
+    def test_default_runner_vars_replace_hosted_defaults(self):
+        def fetch_json(_url):
+            raise RuntimeError("boom")
+
+        outputs = MODULE.select_runners(
+            event_name="push",
+            event={},
+            threshold=10,
+            arm64_threshold=30,
+            runner_amd64_var="",
+            runner_arm64_var="",
+            fetch_json=fetch_json,
+            repos=[REPO],
+            runner_default_amd64_var="default-amd64",
+            runner_default_arm64_var="default-arm64",
+        )
+
+        self.assertEqual(outputs["use_blacksmith"], "false")
+        self.assertEqual(outputs["runner_amd64"], "default-amd64")
+        self.assertEqual(outputs["runner_arm64"], "default-arm64")
+        self.assertEqual(outputs["runner_prelint_arm64"], "default-arm64")
+        self.assertEqual(outputs["runner_fast"], "default-amd64")
+        self.assertEqual(outputs["runner_build"], "default-amd64")
+
+    def test_escalation_overrides_default_runner_vars(self):
+        outputs = MODULE.select_runners(
+            event_name="push",
+            event={},
+            threshold=10,
+            arm64_threshold=30,
+            runner_amd64_var="blacksmith-amd64",
+            runner_arm64_var="blacksmith-arm64",
+            fetch_json=lambda url: backlog_responses(11)[url],
+            repos=[REPO],
+            runner_default_amd64_var="default-amd64",
+            runner_default_arm64_var="default-arm64",
+        )
+
+        self.assertEqual(outputs["runner_amd64"], "blacksmith-amd64")
+        self.assertEqual(outputs["runner_arm64"], "default-arm64")
+
+    def test_tiers_use_default_runner_var_in_place_of_github_hosted(self):
+        outputs = self._select(queued_jobs=0, runner_default_amd64_var="default-amd64")
+        self.assertEqual(outputs["runner_fast"], "default-amd64")
+        self.assertEqual(outputs["runner_build"], "default-amd64")
+
+        outputs = self._select(
+            queued_jobs=40,
+            event=pull_request_event("mallory"),
+            actor="mallory",
+            runner_default_amd64_var="default-amd64",
+        )
+        self.assertEqual(outputs["runner_fast"], "default-amd64")
+        self.assertEqual(outputs["fast_decision_reason"], "actor-not-allowed")
+
+        outputs = self._select(
+            queued_jobs=20,
+            runner_amd64_var="",
+            runner_selfhosted_build_var="",
+            runner_default_amd64_var="default-amd64",
+        )
+        self.assertEqual(outputs["runner_build"], "default-amd64")
+        self.assertEqual(outputs["build_decision_reason"], "selfhosted-build-disabled")
 
     # --- amd64 tiers ---------------------------------------------------------
 
@@ -504,6 +568,51 @@ class SelectDynamicRunnerTest(unittest.TestCase):
         self.assertFalse(MODULE.targets_github_hosted_runner(job, ["dash-x64-build"]))
         self.assertFalse(MODULE.targets_github_hosted_runner(job, ["DASH-X64-BUILD"]))
         self.assertTrue(MODULE.targets_github_hosted_runner(job, [""]))
+
+    def test_backlog_excludes_jobs_on_moved_default_runners(self):
+        responses = add_queued_jobs(backlog_responses(0), "own-amd64", 11)
+
+        moved = self._select(
+            runner_default_amd64_var="own-amd64",
+            fetch_json=lambda url: responses[url],
+        )
+        self.assertEqual(moved["backlog_count"], "0")
+        self.assertEqual(moved["runner_amd64"], "own-amd64")
+        self.assertEqual(moved["runner_fast"], "own-amd64")
+        self.assertEqual(moved["fast_decision_reason"], "hosted:queued:0")
+
+        responses_arm64 = add_queued_jobs(backlog_responses(0), "own-arm64", 31)
+        moved_arm64 = self._select(
+            runner_default_arm64_var="own-arm64",
+            fetch_json=lambda url: responses_arm64[url],
+        )
+        self.assertEqual(moved_arm64["backlog_count"], "0")
+        self.assertEqual(moved_arm64["runner_arm64"], "own-arm64")
+
+        # A default naming one of GitHub's images still counts its jobs.
+        explicit = self._select(
+            queued_jobs=11,
+            runner_default_amd64_var=MODULE.DEFAULT_RUNNER_AMD64,
+        )
+        self.assertEqual(explicit["backlog_count"], "11")
+        self.assertEqual(explicit["runner_amd64"], "blacksmith-amd64")
+
+        responses_other = add_queued_jobs(backlog_responses(0), "ubuntu-22.04", 11)
+        other_image = self._select(
+            runner_default_amd64_var="ubuntu-22.04",
+            fetch_json=lambda url: responses_other[url],
+        )
+        self.assertEqual(other_image["backlog_count"], "11")
+        self.assertEqual(other_image["runner_amd64"], "blacksmith-amd64")
+
+    def test_github_hosted_image_labels(self):
+        for label in ("ubuntu-24.04", "ubuntu-22.04-arm", "ubuntu-latest", "ubuntu-slim",
+                      "windows-11-arm", "macos-15-intel", "macos-latest-xlarge"):
+            with self.subTest(label=label):
+                self.assertTrue(MODULE.GITHUB_HOSTED_IMAGE_LABEL.fullmatch(label))
+        for label in ("ubuntu-core", "own-amd64", "dash-x64-build", "ubuntu-24.04 "):
+            with self.subTest(label=label):
+                self.assertFalse(MODULE.GITHUB_HOSTED_IMAGE_LABEL.fullmatch(label))
 
     # --- arm64 pre-lint rung -------------------------------------------------
 

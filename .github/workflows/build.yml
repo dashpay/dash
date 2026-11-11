@@ -107,6 +107,10 @@ jobs:
           BACKLOG_THRESHOLD: "10"
           BACKLOG_THRESHOLD_ARM64: "30"
           GH_TOKEN: ${{ github.token }}
+          # Runners used unless the backlog or a blacksmith-ci label moves a
+          # run to RUNNER_AMD64/RUNNER_ARM64. Unset, they are GitHub-hosted.
+          RUNNER_DEFAULT_AMD64_VAR: ${{ vars.RUNNER_DEFAULT_AMD64 }}
+          RUNNER_DEFAULT_ARM64_VAR: ${{ vars.RUNNER_DEFAULT_ARM64 }}
           RUNNER_AMD64_VAR: ${{ vars.RUNNER_AMD64 }}
           RUNNER_ARM64_VAR: ${{ vars.RUNNER_ARM64 }}
           # Self-hosted rung for the arm64 pull request container builds. They
@@ -115,11 +119,11 @@ jobs:
           RUNNER_SELFHOSTED_ARM64_VAR: ${{ vars.RUNNER_SELFHOSTED_ARM64 }}
           SELFHOSTED_LINT_AUTHORS: ${{ vars.SELFHOSTED_LINT_AUTHORS }}
           SELFHOSTED_MAX_QUEUED: "6"
-          # The amd64 jobs run in two tiers, each GitHub-hosted, then its own
-          # self-hosted label, then RUNNER_AMD64. Only trusted runs (the
-          # allowlist above, plus any push to develop or master) leave
-          # GitHub-hosted. Unset a tier's label to skip its self-hosted step;
-          # see ci/README.md.
+          # The amd64 jobs run in two tiers, each on RUNNER_DEFAULT_AMD64, then
+          # its own self-hosted label, then RUNNER_AMD64. Only trusted runs
+          # (the allowlist above, plus any push to develop or master) leave
+          # the default runner. Unset a tier's label to skip its self-hosted
+          # step; see ci/README.md.
           RUNNER_SELFHOSTED_FAST_VAR: ${{ vars.RUNNER_SELFHOSTED_FAST }}
           FAST_SELFHOSTED_QUEUE_LIMIT: "16"
           RUNNER_SELFHOSTED_BUILD_VAR: ${{ vars.RUNNER_SELFHOSTED_BUILD }}
@@ -173,7 +177,7 @@ jobs:
       runs-on: ${{ needs.check-skip.outputs['runner-fast'] }}
 
   # Pushes build the trusted-* images that later runs reuse, so they stay on
-  # GitHub's runners; only pull request builds use the fast tier.
+  # the amd64/arm64 runners; only pull request builds use the fast tier.
   container:
     permissions:
       contents: read
@@ -615,7 +619,7 @@ jobs:
       !cancelled() &&
       github.event_name == 'push' &&
       github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ vars.RUNNER_DEFAULT_ARM64 || 'ubuntu-24.04-arm' }}
     permissions:
       actions: write
     steps:

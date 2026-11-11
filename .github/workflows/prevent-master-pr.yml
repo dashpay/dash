@@ -9,7 +9,7 @@ permissions: {}
 
 jobs:
   fail:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_PREVENT_MASTER_PR || 'ubuntu-latest' }}
     steps:
       - run: exit 1
 

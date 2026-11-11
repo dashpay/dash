@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   main:
-    runs-on: ${{ vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL_MERGE_CONFLICTS || vars.DASH_LIGHT_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: check if prs are dirty
         uses: eps1lon/actions-label-merge-conflict@v3.1.0
