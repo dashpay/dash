@@ -19,7 +19,12 @@ if [ -n "$CONFIG_SHELL" ]; then
   export CONFIG_SHELL="$CONFIG_SHELL"
 fi
 
-BITCOIN_CONFIG_ALL="--enable-external-signer --disable-dependency-tracking --prefix=$DEPENDS_DIR/$HOST --bindir=$BASE_OUTDIR/bin --libdir=$BASE_OUTDIR/lib"
+BITCOIN_CONFIG_ALL="--enable-external-signer --disable-dependency-tracking --bindir=$BASE_OUTDIR/bin --libdir=$BASE_OUTDIR/lib"
+if [ -z "$NO_DEPENDS" ]; then
+  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} --prefix=$DEPENDS_DIR/$HOST"
+else
+  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} --prefix=$BASE_OUTDIR"
+fi
 if [ -z "$NO_WERROR" ]; then
   BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} --enable-werror"
 fi

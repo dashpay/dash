@@ -17,7 +17,9 @@ if [ "$RUN_UNIT_TESTS" != "true" ] && [ "$RUN_UNIT_TESTS_SEQUENTIAL" != "true" ]
 fi
 
 export BOOST_TEST_RANDOM="${BOOST_TEST_RANDOM:-1}"
-export LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib"
+if [ -z "$NO_DEPENDS" ]; then
+  export LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib"
+fi
 
 export WINEDEBUG=fixme-all
 export BOOST_TEST_LOG_LEVEL=test_suite
