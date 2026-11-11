@@ -44,10 +44,16 @@ RUN set -ex; \
     git \
     jq \
     libbz2-dev \
+    libevent-dev \
+    libgmp-dev \
     liblzma-dev \
+    libminiupnpc-dev \
+    libnatpmp-dev \
     libreadline-dev \
     libsqlite3-dev \
     libssl-dev \
+    libzmq3-dev \
+    libzstd-dev \
     make \
     parallel \
     xz-utils \
