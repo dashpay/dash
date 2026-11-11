@@ -202,7 +202,7 @@ bool CTransactionBuilder::CouldAddOutputs(const std::vector<CAmount>& vecOutputA
 {
     CAmount nAmountAdditional{0};
     assert(vecOutputAmounts.size() < std::numeric_limits<int>::max());
-    int nBytesAdditional = nBytesOutput * int(vecOutputAmounts.size());
+    int nBytesAdditional = nBytesOutput * static_cast<int>(vecOutputAmounts.size());
     for (const auto nAmountOutput : vecOutputAmounts) {
         if (nAmountOutput < 0) {
             return false;

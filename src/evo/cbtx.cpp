@@ -122,7 +122,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                 map_indexed_hashes[opt_qc->commitment.quorumIndex] = qcHash;
             } else {
                 auto& vec_hashes = qcHashes[llmq_params.type];
-                if (vec_hashes.size() == size_t(llmq_params.signingActiveQuorumCount)) {
+                if (vec_hashes.size() == static_cast<size_t>(llmq_params.signingActiveQuorumCount)) {
                     // we pop the last entry, which is actually the oldest quorum as GetMinedAndActiveCommitmentsUntilBlock
                     // returned quorums in reversed order. This pop and later push can only work ONCE, but we rely on the
                     // fact that a block can only contain a single commitment for one LLMQ type
@@ -146,7 +146,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     for (const auto& [llmqType, vec_hashes] : qcHashes) {
         const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
         assert(llmq_params_opt.has_value());
-        if (vec_hashes.size() > size_t(llmq_params_opt->signingActiveQuorumCount)) {
+        if (vec_hashes.size() > static_cast<size_t>(llmq_params_opt->signingActiveQuorumCount)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "excess-quorums-calc-cbtx-quorummerkleroot");
         }
         // Copy vec_hashes into vec_hashes_final
@@ -219,7 +219,7 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
     }
     const auto payload = GetTxPayload<CCbTx>(*block.vtx[0]);
     if (!payload || payload->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || payload->nHeight != height ||
-        !payload->bestCLSignature.Get().IsValid() || payload->bestCLHeightDiff >= uint32_t(height)) {
+        !payload->bestCLSignature.Get().IsValid() || payload->bestCLHeightDiff >= static_cast<uint32_t>(height)) {
         return std::nullopt;
     }
     return std::make_pair(payload->bestCLSignature.Get(), payload->bestCLHeightDiff);

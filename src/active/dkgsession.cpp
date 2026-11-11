@@ -57,7 +57,7 @@ std::optional<CDKGContribution> ActiveDKGSession::Contribute()
         std::vector<CBLSSecretKey> svec(params.threshold);
         vvecContribution = std::make_shared<std::vector<CBLSPublicKey>>();
         for (const auto i : util::irange(svec.size())) {
-            uint256 seed{::SerializeHash(std::make_pair(m_quorum_base_block_index->GetBlockHash(), uint32_t(i)))};
+            uint256 seed{::SerializeHash(std::make_pair(m_quorum_base_block_index->GetBlockHash(), static_cast<uint32_t>(i)))};
             *seed.begin() = 0; // keep it below the group order
             svec[i] = CBLSSecretKey{Span{seed}};
             vvecContribution->emplace_back(svec[i].GetPublicKey());
@@ -374,7 +374,7 @@ std::optional<CDKGJustification> ActiveDKGSession::VerifyAndJustify()
         if (m->bad) {
             continue;
         }
-        if (m->badMemberVotes.size() >= size_t(params.dkgBadVotesThreshold)) {
+        if (m->badMemberVotes.size() >= static_cast<size_t>(params.dkgBadVotesThreshold)) {
             logger.Batch("%s marked as bad as %d other members voted for this", m->dmn->proTxHash.ToString(), m->badMemberVotes.size());
             MarkBadMember(m->idx);
             continue;
@@ -666,7 +666,7 @@ std::vector<CFinalCommitment> ActiveDKGSession::FinalizeCommitments()
     std::vector<CFinalCommitment> finalCommitments;
     for (const auto& p : commitmentsMap) {
         const auto& cvec = p.second;
-        if (cvec.size() < size_t(params.minSize)) {
+        if (cvec.size() < static_cast<size_t>(params.minSize)) {
             // commitment was signed by a minority
             continue;
         }

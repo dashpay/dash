@@ -169,7 +169,7 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
 
             auto itTallyItem = mapTally.find(txdest);
             if (nMaxOupointsPerAddress != -1 && itTallyItem != mapTally.end() &&
-                int64_t(itTallyItem->second.outpoints.size()) >= nMaxOupointsPerAddress) {
+                static_cast<int64_t>(itTallyItem->second.outpoints.size()) >= nMaxOupointsPerAddress) {
                 continue;
             }
 
@@ -221,7 +221,7 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
     if (LogAcceptDebug(BCLog::SELECTCOINS)) {
         std::string strMessage = "SelectCoinsGroupedByAddresses - vecTallyRet:\n";
         for (const auto& item : vecTallyRet) {
-            strMessage += strprintf("  %s %f\n", EncodeDestination(item.txdest), float(item.nAmount) / COIN);
+            strMessage += strprintf("  %s %f\n", EncodeDestination(item.txdest), static_cast<float>(item.nAmount) / COIN);
         }
         LogPrint(BCLog::SELECTCOINS, "%s", strMessage); // NOLINT(bitcoin-unterminated-logprintf)
     }

@@ -299,7 +299,7 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
         case Column::END_DATE:
             return proposal->endDate();
         case Column::PAYMENT_AMOUNT:
-            return qlonglong(proposal->paymentAmount());
+            return static_cast<qlonglong>(proposal->paymentAmount());
         case Column::VOTING_STATUS:
             return proposal->getAbsoluteYesCount();
         default:

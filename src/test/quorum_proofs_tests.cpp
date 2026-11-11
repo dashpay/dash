@@ -199,7 +199,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
                     return entry.quorumHash == signer->quorumHash;
                 });
                 BOOST_REQUIRE(match != commitments.end());
-                const size_t key = size_t(match - commitments.begin());
+                const size_t key = static_cast<size_t>(match - commitments.begin());
                 payload.bestCLSignature.Set(keys[key].Sign(llmq::SignHash{params.type, signer->quorumHash,
                                                                            chainlock::GenSigRequestId(height - 1),
                                                                            previous->GetBlockHash()}
@@ -502,7 +502,7 @@ BOOST_AUTO_TEST_CASE(all_truncations_and_old_format_rejected) {
 BOOST_AUTO_TEST_CASE(tampering_cannot_authenticate_state) {
     const auto bytes = ParseHex(TESTNET_PROOF);
     const auto trusted = llmq::QuorumProofChain::Decode(bytes).anchor;
-    for (size_t pos : {size_t(8), size_t(13), size_t(120), size_t(600), bytes.size() / 2, bytes.size() - 1}) {
+    for (size_t pos : {size_t{8}, size_t{13}, size_t{120}, size_t{600}, bytes.size() / 2, bytes.size() - 1}) {
         auto bad = bytes;
         bad[pos] ^= 1;
         BOOST_CHECK_THROW(llmq::QuorumProofChain::Decode(bad).Verify(trusted), std::exception);

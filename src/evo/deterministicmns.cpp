@@ -203,7 +203,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
                                                               Consensus::DEPLOYMENT_MN_RR);
     const auto counts = GetCounts();
     const auto weighted_count = isMNRewardReallocation ? counts.enabled() : counts.m_valid_weighted;
-    nCount = std::min(nCount, int(weighted_count));
+    nCount = std::min(nCount, static_cast<int>(weighted_count));
 
     std::vector<CDeterministicMNCPtr> result;
     result.reserve(weighted_count);

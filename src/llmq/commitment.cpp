@@ -183,7 +183,7 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
         LogPrint(BCLog::LLMQ, "CFinalCommitment::%s mns[%d] validMembers[%s] signers[%s]\n", __func__, members.size(), ss.str(), ss2.str());
     }
 
-    for (const auto i : std::views::iota(members.size(), size_t(llmq_params.size))) {
+    for (const auto i : std::views::iota(members.size(), static_cast<size_t>(llmq_params.size))) {
         if (validMembers[i]) {
             LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid validMembers bitset. bit %d should not be set\n", quorumHash.ToString(), i);
             return false;
@@ -223,11 +223,11 @@ bool CFinalCommitment::VerifyNull() const
 
 bool CFinalCommitment::VerifySizes(const Consensus::LLMQParams& params) const
 {
-    if (signers.size() != size_t(params.size)) {
+    if (signers.size() != static_cast<size_t>(params.size)) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid signers.size=%d\n", quorumHash.ToString(), signers.size());
         return false;
     }
-    if (validMembers.size() != size_t(params.size)) {
+    if (validMembers.size() != static_cast<size_t>(params.size)) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid validMembers.size=%d\n", quorumHash.ToString(),
                  validMembers.size());
         return false;
@@ -262,7 +262,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CFinalCo
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-version");
     }
 
-    if (qcTx.nHeight != uint32_t(util_params.m_base_index->nHeight + 1)) {
+    if (qcTx.nHeight != static_cast<uint32_t>(util_params.m_base_index->nHeight + 1)) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- h[%d] invalid qcTx.nHeight[%d]\n", util_params.m_base_index->nHeight,
                  qcTx.nHeight);
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-height");

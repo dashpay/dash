@@ -764,6 +764,6 @@ bool CoinJoin::ValidateFinalTxComposition(size_t nTotalInputs, size_t nTotalOutp
     if (nLargerInputs > nTotalInputs || nLargerOutputs > nTotalOutputs) return false;
     const size_t nSessionInputs = nTotalInputs - nLargerInputs;
     const size_t nSessionOutputs = nTotalOutputs - nLargerOutputs;
-    return nSessionInputs >= nLargerOutputs * size_t(PROMOTION_RATIO) &&
-           nSessionOutputs >= nLargerInputs * size_t(PROMOTION_RATIO);
+    return nSessionInputs >= nLargerOutputs * static_cast<size_t>(PROMOTION_RATIO) &&
+           nSessionOutputs >= nLargerInputs * static_cast<size_t>(PROMOTION_RATIO);
 }

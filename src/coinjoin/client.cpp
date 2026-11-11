@@ -1245,7 +1245,7 @@ bool CCoinJoinClientManager::DoAutomaticDenominating(ChainstateManager& chainman
     bool fResult = true;
     AssertLockNotHeld(cs_deqsessions);
     LOCK(cs_deqsessions);
-    if (int(deqSessions.size()) < CCoinJoinClientOptions::GetSessions()) {
+    if (static_cast<int>(deqSessions.size()) < CCoinJoinClientOptions::GetSessions()) {
         deqSessions.emplace_back(m_wallet, *this, m_dmnman, m_mn_metaman, m_mn_sync, m_isman);
     }
     for (auto& session : deqSessions) {
