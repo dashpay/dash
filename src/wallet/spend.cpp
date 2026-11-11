@@ -587,9 +587,12 @@ util::Result<SelectionResult> ChooseSelectionResult(const CWallet& wallet, const
     int max_inputs_weight = MAX_STANDARD_TX_SIZE - coin_selection_params.tx_noinputs_size;
 
     groups.positive_group.clear(); // Cleared to skip BnB and SRD as they're unaware of mixed coins
-    if (auto bnb_result{SelectCoinsBnB(groups.positive_group, nTargetValue, coin_selection_params.m_cost_of_change, max_inputs_weight)}) {
-        results.push_back(*bnb_result);
-    } else append_error(bnb_result);
+    // SFFO frequently causes issues in the context of changeless input sets: skip BnB when SFFO is active
+    if (!coin_selection_params.m_subtract_fee_outputs) {
+        if (auto bnb_result{SelectCoinsBnB(groups.positive_group, nTargetValue, coin_selection_params.m_cost_of_change, max_inputs_weight)}) {
+            results.push_back(*bnb_result);
+        } else append_error(bnb_result);
+    }
 
     max_inputs_weight -= coin_selection_params.change_output_size;
 
@@ -601,6 +604,15 @@ util::Result<SelectionResult> ChooseSelectionResult(const CWallet& wallet, const
         knapsack_result->ComputeAndSetWaste(coin_selection_params.min_viable_change, coin_selection_params.m_cost_of_change, coin_selection_params.m_change_fee);
         results.push_back(*knapsack_result);
     } else append_error(knapsack_result);
+
+    if (coin_selection_params.m_effective_feerate > CFeeRate{3 * coin_selection_params.m_long_term_feerate}) { // Minimize input set for feerates of at least 3×LTFRE (default: 3 duff/B+)
+        if (auto cg_result{CoinGrinder(groups.positive_group, nTargetValue, coin_selection_params.m_min_change_target, max_inputs_weight)}) {
+            cg_result->ComputeAndSetWaste(coin_selection_params.min_viable_change, coin_selection_params.m_cost_of_change, coin_selection_params.m_change_fee);
+            results.push_back(*cg_result);
+        } else {
+            append_error(cg_result);
+        }
+    }
 
     if (auto srd_result{SelectCoinsSRD(groups.positive_group, nTargetValue, coin_selection_params.m_change_fee, coin_selection_params.rng_fast, max_inputs_weight,
                                        coin_selection_params.m_coin_type == CoinType::ONLY_FULLY_MIXED)}) {
@@ -1235,6 +1247,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     // accidental reuse.
     reservedest.KeepDestination();
 
+    wallet.WalletLogPrintf("Coin Selection: Algorithm:%s, Waste Metric Score:%d\n", GetAlgorithmName(result.GetAlgo()), result.GetWaste());
     wallet.WalletLogPrintf("Fee Calculation: Fee:%d Bytes:%u Tgt:%d (requested %d) Reason:\"%s\" Decay %.5f: Estimation: (%g - %g) %.2f%% %.1f/(%.1f %d mem %.1f out) Fail: (%g - %g) %.2f%% %.1f/(%.1f %d mem %.1f out)\n",
               current_fee, nBytes, feeCalc.returnedTarget, feeCalc.desiredTarget, StringForFeeReason(feeCalc.reason), feeCalc.est.decay,
               feeCalc.est.pass.start, feeCalc.est.pass.end,
