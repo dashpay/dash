@@ -117,9 +117,9 @@ void BlockAssembler::resetBlock()
 static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const node::BlockManager& blockman, const CBlockIndex* pindexPrev,
                                   uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
 {
-    auto best_clsig = chainlocks.GetBestChainLock();
-    if (best_clsig.getHeight() < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)) {
-        // We don't want legacy BLS ChainLocks in CbTx (can happen on regtest/devenets)
+    auto [best_clsig, pindexCL] = chainlocks.GetBestChainlockWithPindex();
+    if (best_clsig.getHeight() < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19) ||
+        pindexPrev->GetAncestor(best_clsig.getHeight()) != pindexCL) {
         best_clsig = chainlock::ChainLockSig{};
     }
     if (best_clsig.getHeight() == pindexPrev->nHeight) {
