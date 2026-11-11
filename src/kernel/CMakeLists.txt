@@ -2,8 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
-# Match libdashkernel_la_SOURCES in src/Makefile.am. The kernel supplies its
-# own globals and helpers instead of pulling in the full node and RPC layers.
+# The kernel supplies its own globals and helpers instead of pulling in the full node and RPC layers.
 add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   bitcoinkernel.cpp
   ../arith_uint256.cpp

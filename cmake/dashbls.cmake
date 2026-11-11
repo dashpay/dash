@@ -2,9 +2,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
-# Counterpart to src/Makefile.dashbls.include. The dashbls subtree's own CMake
-# project downloads blst at configure time, so build its sources here instead
-# and take blst from depends or the system.
+# The dashbls subtree's own CMake project downloads blst at configure time, so
+# build its sources here instead and take blst from depends or the system.
 
 if(ENABLE_MIMALLOC)
   add_library(mimalloc_secure STATIC EXCLUDE_FROM_ALL
@@ -61,8 +60,8 @@ target_compile_definitions(dashbls
   PRIVATE
     $<$<BOOL:${ENABLE_MIMALLOC}>:BLSALLOC_MIMALLOC=1>
 )
-# The vendored headers are included as system headers, as Autotools does, so
-# that Dash's warning set (and WERROR) does not apply to them.
+# The vendored headers are included as system headers, so that Dash's warning
+# set (and WERROR) does not apply to them.
 target_include_directories(dashbls SYSTEM
   PRIVATE
     ${PROJECT_SOURCE_DIR}/src/dashbls/include/dashbls

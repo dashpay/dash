@@ -139,7 +139,6 @@ endfunction()
 set_default_config(RelWithDebInfo)
 
 # Redefine/adjust per-configuration flags.
-# Keep this list in sync with the --enable-debug DEBUG_CPPFLAGS in configure.ac.
 # Dash uses DEBUG_CORE, not upstream's DEBUG, which is what span.h and
 # init/common.cpp check.
 target_compile_definitions(core_interface_debug INTERFACE
@@ -159,10 +158,9 @@ else()
   # Prefer -O2 optimization level. (-O3 is CMake's default for Release for many compilers.)
   replace_cxx_flag_in_config(Release -O3 -O2)
 
-  # Autotools always keeps at least -g1 on non-debug builds so libbacktrace can
-  # still symbolize a crash, with -fno-omit-frame-pointer to keep the result
-  # usable under optimization; see the non-debug branch in configure.ac, which
-  # sets both DEBUG_CFLAGS and DEBUG_CXXFLAGS. These belong on the configuration
+  # Non-debug builds keep at least -g1 so libbacktrace can still symbolize a
+  # crash, with -fno-omit-frame-pointer to keep the result usable under
+  # optimization, for both C and C++. These belong on the configuration
   # rather than on stacktraces_interface: flags carried on a target are appended
   # after the per-configuration ones, so a debug level set there would clamp
   # every configuration to it. RelWithDebInfo already carries -g and only needs

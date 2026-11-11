@@ -5,169 +5,27 @@ reset-files.bash
 
 # Build subdirectories.
 /*build*
-!/build-aux
-!/build_msvc
 
-*.tar.gz
-
-*.exe
-src/dash
-src/dashd
-src/dash-cli
-src/dash-gui
-src/dash-node
-src/dash-tx
-src/dash-util
-src/dash-chainstate
-src/dash-wallet
-src/test/fuzz/fuzz
-src/test/test_dash
-src/dashbls/runtest
-src/qt/test/test_dash-qt
-src/qt/res/css/colors/*
-src/bench/bench_dash
-
-# autoreconf
-Makefile.in
-aclocal.m4
-autom4te.cache/
-build-aux/config.guess
-build-aux/config.sub
-build-aux/depcomp
-build-aux/install-sh
-build-aux/ltmain.sh
-build-aux/m4/libtool.m4
-build-aux/m4/lt~obsolete.m4
-build-aux/m4/ltoptions.m4
-build-aux/m4/ltsugar.m4
-build-aux/m4/ltversion.m4
-build-aux/missing
-build-aux/compile
-build-aux/test-driver
-config.cache
-config.log
-config.status
-config.status.old
-configure
-libtool
-src/config/bitcoin-config.h
-src/config/bitcoin-config.h.in
-src/config/stamp-h1
-src/obj
-share/setup.nsi
-share/qt/Info.plist
-
-src/qt/*.moc
-src/qt/moc_*.cpp
-src/qt/forms/ui_*.h
-
-src/qt/test/moc*.cpp
-libconftest.dylib*
-
-.deps
-.dirstamp
-.libs
-.*.swp
-*~
-*.bak
-*.rej
-*.orig
 *.pyc
-*.o
-*.o-*
-*.a
-*.pb.cc
-*.pb.h
-*.dat
-
-*.log
-*.trs
-*.zip
-
-*.json.h
-*.raw.h
 
 # Only ignore unexpected patches
 *.patch
 !contrib/guix/patches/*.patch
 !depends/patches/**/*.patch
 
-#libtool object files
-*.lo
-*.la
-
-# Compilation and Qt preprocessor part
-*.qm
-Makefile
-!depends/Makefile
-dash-qt
-Dash-Qt.app
-
-# Qt Creator
-Makefile.am.user
-
-# Unit-tests
-Makefile.test
-dash-qt_test
-
-# Resources cpp
-qrc_*.cpp
-
-# Mac specific
-.DS_Store
-build
-*.dSYM
+/CMakeUserPresets.json
 
 # Previous releases
-releases
-
-#lcov
-*.gcno
-*.gcda
-/*.info
-test_dash.coverage/
-total.coverage/
-fuzz.coverage/
-coverage_percent.txt
-/cov_tool_wrapper.sh
-qa-assets/
-
-#build tests
-linux-coverage-build
-linux-build
-win32-build
-test/config.ini
-test/cache/*
-test/.mypy_cache/
-
-!src/leveldb*/Makefile
+/releases
 
 .cproject
 .project
-.autotools
-/doc/doxygen/
-
-libdashconsensus.pc
-contrib/devtools/split-debug.sh
-src/qt/dash-qt.bash
-qa/pull-tester/tests-config.sh
-
-#development symlinks
-dash-cli
-dashd
-dash-qt
-make
 
 /docker/bin
 
 # CLion
 .idea
 cmake-build-debug
-
-# clang-check
-*.plist
-
-dist/
 
 /guix-build-*
 

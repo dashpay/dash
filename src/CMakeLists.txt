@@ -103,8 +103,7 @@ target_link_libraries(bitcoin_consensus
 # Dash still ships the public consensus library that upstream dropped in
 # bitcoin#29648, so build and install it here too. It gets its own compilation
 # of the consensus and crypto sources because the public library is built
-# without the optimised SHA-256 backends; see libdashconsensus_la in
-# src/Makefile.am. This has to stay below add_subdirectory(crypto), which is
+# without the optimised SHA-256 backends. This has to stay below add_subdirectory(crypto), which is
 # what sets crypto_base_sources and crypto_sph_sources in this scope.
 if(BUILD_CONSENSUS_LIB)
   add_library(dashconsensus SHARED
@@ -125,10 +124,9 @@ if(BUILD_CONSENSUS_LIB)
       dashbls
       secp256k1
   )
-  # libdashconsensus_la carries no -version-info, so libtool builds it as
-  # 0:0:0 and installs libdashconsensus.so.0.0.0 with an .so.0 soname. Match
-  # that here, otherwise consumers linked against an Autotools install cannot
-  # resolve DT_NEEDED against a CMake one.
+  # Releases built with Autotools installed libdashconsensus.so.0.0.0 with an
+  # .so.0 soname (libtool's 0:0:0). Keep that, otherwise consumers linked
+  # against an earlier release cannot resolve DT_NEEDED against this one.
   set_target_properties(dashconsensus PROPERTIES VERSION 0.0.0 SOVERSION 0)
   if(MINGW)
     # libtool includes the ABI version in the DLL name, but not its import library.

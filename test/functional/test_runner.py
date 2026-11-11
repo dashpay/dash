@@ -532,7 +532,7 @@ def main():
 
     if not enable_bitcoind:
         print("No functional tests to run.")
-        print("Rerun ./configure with --with-daemon and then make")
+        print("Rerun cmake with -DBUILD_DAEMON=ON and then build")
         sys.exit(1)
 
     # Build list of tests

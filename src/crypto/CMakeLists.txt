@@ -68,9 +68,8 @@ if(HAVE_ARM_SHANI)
   target_link_libraries(bitcoin_crypto PRIVATE bitcoin_crypto_arm_shani)
 endif()
 
-# The sphlib sources sit on the X11 proof-of-work path, so Autotools builds
-# them as their own library with -O3 (SPHLIB_FLAGS in configure.ac). Mirror
-# that here instead of letting them inherit the default optimisation level.
+# The sphlib sources sit on the X11 proof-of-work path, so build them with -O3
+# instead of letting them inherit the default optimisation level.
 set(crypto_sph_sources
   x11/aes.cpp
   x11/blake.c
