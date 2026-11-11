@@ -47,7 +47,7 @@ struct NetInstantSendTest : TestChain100Setup {
     static Uint256HashSet ProcessBatch(NetInstantSend& net, const Consensus::LLMQParams& params, int offset,
                                        const std::vector<instantsend::PendingISLockEntry>& locks)
     {
-        return net.ProcessPendingInstantSendLocks(params, offset, /*ban=*/true, locks);
+        return net.ProcessPendingInstantSendLocks(params, offset, /*ban=*/offset != 0, locks);
     }
 
     // Returns the cycle hash of a quorum whose base block is at `height`. Mining a block afterwards drops it.
@@ -126,9 +126,14 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
     stream << islock;
     net.ProcessMessage(*peer, NetMsgType::ISDLOCK, stream);
 
+    // A queued lock counts as known, but is not served before it is verified.
+    const auto hash = ::SerializeHash(islock);
+    instantsend::InstantSendLock served;
+    BOOST_CHECK(isman.AlreadyHave(CInv{MSG_ISDLOCK, hash}));
+    BOOST_CHECK(!isman.GetInstantSendLockByHash(hash, served));
+
     const auto pending = isman.FetchPendingLocks();
     BOOST_REQUIRE_EQUAL(pending.m_pending_is.size(), 1U);
-    const auto hash = ::SerializeHash(islock);
     BOOST_CHECK(pending.m_pending_is.front().islock_hash == hash);
     BOOST_CHECK_EQUAL(pending.m_pending_is.front().node_id, peer->GetId());
     BOOST_REQUIRE(pending.m_pending_is.front().islock->sig.Get().IsValid());
@@ -143,6 +148,21 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
         BOOST_CHECK(!isman.AlreadyHave(CInv{MSG_ISDLOCK, hash}));
     }
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 0);
+
+    // A verified lock that waits for its transaction was announced. It stays served when the transaction
+    // arrives and the lock is queued again.
+    CMutableTransaction mtx;
+    mtx.vin.emplace_back(COutPoint{GetRandHash(), 0});
+    const auto tx = MakeTransactionRef(mtx);
+    auto waiting = std::make_shared<instantsend::InstantSendLock>(islock);
+    waiting->txid = tx->GetHash();
+    const auto waiting_hash = ::SerializeHash(*waiting);
+    isman.AddPendingISLock(waiting_hash, waiting, peer->GetId());
+    BOOST_CHECK(isman.GetInstantSendLockByHash(waiting_hash, served));
+    // A peer can send the lock again while the first copy is in verification.
+    isman.EnqueueInstantSendLock(peer->GetId(), waiting_hash, waiting);
+    BOOST_REQUIRE(isman.AttachISLockToTx(tx));
+    BOOST_CHECK(isman.GetInstantSendLockByHash(waiting_hash, served));
 }
 
 BOOST_FIXTURE_TEST_CASE(missing_quorum_does_not_drop_batch, NetInstantSendTest)
@@ -174,6 +194,36 @@ BOOST_FIXTURE_TEST_CASE(missing_quorum_does_not_drop_batch, NetInstantSendTest)
     BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[1].islock_hash}));
     BOOST_CHECK(!sigman.HasRecoveredSig(params.type, locks[1].islock->GetRequestId(), locks[1].islock->txid));
     BOOST_CHECK(sigman.FetchPendingReconstructed().empty());
+
+    // Without rotation the retry looks up the same quorum, and accepts the lock once the commitment is there.
+    AddMinedQuorum(/*height=*/0, key);
+    BOOST_CHECK(ProcessBatch(net, params, params.dkgInterval, {locks[1]}).empty());
+    BOOST_CHECK(m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[1].islock_hash}));
+}
+
+BOOST_FIXTURE_TEST_CASE(failing_lock_does_not_drop_its_peers_other_locks, NetInstantSendTest)
+{
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    CBLSSecretKey other_key;
+    other_key.MakeNewKey();
+    const auto cycle_hash = AddMinedQuorum(/*height=*/24, key);
+
+    // One peer sends a lock with a failing signature ahead of valid ones. The batch verifier checks every 8
+    // locks, so the peer is already marked bad when the last two are reached.
+    std::vector<instantsend::PendingISLockEntry> locks;
+    for (int i = 0; i < 10; ++i) {
+        const auto islock = MakeLock(cycle_hash, i == 0 ? other_key : key);
+        locks.push_back({{/*node_id=*/1, islock}, ::SerializeHash(*islock)});
+    }
+
+    const auto failed = ProcessBatch(net, params, /*offset=*/0, locks);
+    BOOST_CHECK_EQUAL(failed.size(), 1U);
+    BOOST_CHECK(failed.contains(locks[0].islock_hash));
+    BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[0].islock_hash}));
+    for (size_t i = 1; i < locks.size(); ++i) {
+        BOOST_CHECK_MESSAGE(m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[i].islock_hash}), "lock " << i);
+    }
 }
 
 BOOST_FIXTURE_TEST_CASE(cached_recovered_sig_does_not_authenticate_other_lock, NetInstantSendTest)

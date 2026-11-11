@@ -35,6 +35,8 @@ namespace instantsend {
 struct PendingISLockFromPeer {
     NodeId node_id{0};
     InstantSendLockPtr islock;
+    //! Verified and announced while it waited for its transaction, so peers may still request it
+    bool verified{false};
 };
 
 struct PendingISLockEntry : PendingISLockFromPeer {

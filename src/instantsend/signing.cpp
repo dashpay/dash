@@ -13,11 +13,13 @@
 #include <evo/specialtxman.h>
 #include <index/txindex.h>
 #include <instantsend/instantsend.h>
+#include <instantsend/lock.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signing_shares.h>
 #include <logging.h>
 #include <masternode/sync.h>
 #include <spork.h>
+#include <util/check.h>
 #include <util/helpers.h>
 #include <validation.h>
 
@@ -352,6 +354,14 @@ void InstantSendSigner::HandleNewInstantSendLockRecoveredSig(const llmq::CRecove
         return;
     }
 
+    const auto& llmq_params = Params().GetLLMQ(recoveredSig.getLlmqType());
+    const uint256& quorum_hash = recoveredSig.getQuorumHash();
+    const CBlockIndex* quorum_base = WITH_LOCK(::cs_main, return m_chainman.m_blockman.LookupBlockIndex(quorum_hash));
+    if (!Assume(llmq_params && quorum_base)) {
+        return;
+    }
+    // Near a rotation the quorum that signed can be of another cycle than the one selected at this node's tip.
+    islock->cycleHash = GetCycleHash(*quorum_base, llmq_params->dkgInterval);
     islock->sig = recoveredSig.sig;
     m_isman.TryEmplacePendingLock(/*hash=*/::SerializeHash(*islock), /*id=*/-1, islock);
 }
@@ -483,10 +493,6 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
                  tx.GetHash().ToString());
         return;
     }
-
-    const int cycle_height = quorum->m_quorum_base_block_index->nHeight -
-                             quorum->m_quorum_base_block_index->nHeight % llmq_params_opt->dkgInterval;
-    islock.cycleHash = quorum->m_quorum_base_block_index->GetAncestor(cycle_height)->GetBlockHash();
 
     {
         LOCK(cs_creating);

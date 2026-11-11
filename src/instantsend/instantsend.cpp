@@ -167,7 +167,8 @@ instantsend::InstantSendLockPtr CInstantSendManager::AttachISLockToTx(const CTra
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
                  tx->GetHash().ToString(), it->first.ToString());
         auto islock = it->second.islock;
-        pendingInstantSendLocks.try_emplace(it->first, it->second);
+        // A copy that a peer sent meanwhile may already be queued.
+        pendingInstantSendLocks.try_emplace(it->first, it->second).first->second.verified = true;
         pendingNoTxInstantSendLocks.erase(it);
         return islock;
     }
@@ -372,8 +373,9 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, instants
     auto islock = db.GetInstantSendLockByHash(hash);
     if (!islock) {
         LOCK(cs_pendingLocks);
+        // A lock that is queued for its first verification is not served: it may turn out to be invalid.
         auto it = pendingInstantSendLocks.find(hash);
-        if (it != pendingInstantSendLocks.end()) {
+        if (it != pendingInstantSendLocks.end() && it->second.verified) {
             islock = it->second.islock;
         } else {
             auto itNoTx = pendingNoTxInstantSendLocks.find(hash);
