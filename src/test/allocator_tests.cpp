@@ -251,4 +251,26 @@ BOOST_AUTO_TEST_CASE(mt_pooled_secure_allocator_zero_pool_count)
     allocator.deallocate(p, 1);
 }
 
+BOOST_AUTO_TEST_CASE(mt_pooled_secure_allocator_reuses_all_chunks)
+{
+    mt_pooled_secure_allocator<unsigned char> allocator{/*nrequested_size=*/32,
+                                                        /*nnext_size=*/1,
+                                                        /*nmax_size=*/0,
+                                                        /*pools_count=*/1};
+    auto& pool = LockedPoolManager::Instance();
+
+    auto* p = allocator.allocate(33);
+    BOOST_REQUIRE(p != nullptr);
+    allocator.deallocate(p, 33);
+    const auto used = pool.stats().used;
+
+    for (int i = 0; i < 1000; ++i) {
+        p = allocator.allocate(33);
+        BOOST_REQUIRE(p != nullptr);
+        allocator.deallocate(p, 33);
+    }
+
+    BOOST_CHECK_EQUAL(pool.stats().used, used);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

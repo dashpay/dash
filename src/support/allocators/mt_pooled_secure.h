@@ -58,7 +58,7 @@ struct mt_pooled_secure_allocator : public std::allocator<T> {
         uint8_t* ptr = (uint8_t*)p - sizeof(size_t);
         size_t bucket = *(size_t*)ptr;
         std::lock_guard<std::mutex> lock(pools[bucket]->mutex);
-        pools[bucket]->deallocate(ptr, n * sizeof(T));
+        pools[bucket]->deallocate(ptr, n * sizeof(T) + sizeof(size_t));
     }
 
 private:
