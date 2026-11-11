@@ -1259,14 +1259,14 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
 
     // Store transaction in memory
     m_pool.addUnchecked(*entry, ws.m_ancestors, validForFeeEstimation);
-    CAmount nValueOut = tx.GetValueOut();
-    unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
-
-    ::g_stats_client->count("transactions.sizeBytes", entry->GetTxSize(), 1.0f);
-    ::g_stats_client->count("transactions.fees", ws.m_modified_fees, 1.0f);
-    ::g_stats_client->count("transactions.inputValue", nValueOut - ws.m_modified_fees, 1.0f);
-    ::g_stats_client->count("transactions.outputValue", nValueOut, 1.0f);
-    ::g_stats_client->count("transactions.sigOps", nSigOps, 1.0f);
+    if (::g_stats_client->active()) {
+        const CAmount nValueOut = tx.GetValueOut();
+        ::g_stats_client->count("transactions.sizeBytes", entry->GetTxSize(), 1.0f);
+        ::g_stats_client->count("transactions.fees", ws.m_modified_fees, 1.0f);
+        ::g_stats_client->count("transactions.inputValue", nValueOut + ws.m_base_fees, 1.0f);
+        ::g_stats_client->count("transactions.outputValue", nValueOut, 1.0f);
+        ::g_stats_client->count("transactions.sigOps", entry->GetSigOpCount(), 1.0f);
+    }
 
     // Add memory address index
     m_pool.addAddressIndex(*entry, m_view);
@@ -3686,16 +3686,18 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
              Ticks<SecondsDouble>(time_total),
              Ticks<MillisecondsDouble>(time_total) / num_blocks_total);
 
-    unsigned int nSigOps = 0;
-    for (const auto& tx : blockConnecting.vtx) {
-        nSigOps += GetLegacySigOpCount(*tx);
+    if (::g_stats_client->active()) {
+        unsigned int nSigOps = 0;
+        for (const auto& tx : blockConnecting.vtx) {
+            nSigOps += GetLegacySigOpCount(*tx);
+        }
+        ::g_stats_client->timing("ConnectTip_ms", Ticks<std::chrono::milliseconds>(time_6 - time_1), 1.0f);
+        ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(blockConnecting, PROTOCOL_VERSION), 1.0f);
+        ::g_stats_client->gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
+        ::g_stats_client->gauge("blocks.tip.Version", blockConnecting.nVersion, 1.0f);
+        ::g_stats_client->gauge("blocks.tip.NumTransactions", blockConnecting.vtx.size(), 1.0f);
+        ::g_stats_client->gauge("blocks.tip.SigOps", nSigOps, 1.0f);
     }
-    ::g_stats_client->timing("ConnectTip_ms", Ticks<std::chrono::milliseconds>(time_6 - time_1), 1.0f);
-    ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(blockConnecting, PROTOCOL_VERSION), 1.0f);
-    ::g_stats_client->gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
-    ::g_stats_client->gauge("blocks.tip.Version", blockConnecting.nVersion, 1.0f);
-    ::g_stats_client->gauge("blocks.tip.NumTransactions", blockConnecting.vtx.size(), 1.0f);
-    ::g_stats_client->gauge("blocks.tip.SigOps", nSigOps, 1.0f);
 
     // If we are the background validation chainstate, check to see if we are done
     // validating the snapshot (i.e. our tip has reached the snapshot's base block).

@@ -65,7 +65,7 @@ RawSender::~RawSender()
     QueueFlush();
 
     LogPrintf("Stopped RawSender instance sending messages to %s:%d. %d successes, %d failures.\n",
-              m_host, m_port, m_successes, m_failures);
+              m_host, m_port, m_successes.load(), m_failures.load());
 }
 
 std::optional<bilingual_str> RawSender::Send(const RawMessage& msg)
