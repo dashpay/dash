@@ -358,7 +358,10 @@ mkdir -p "$DISTSRC"
                             find "${DISTNAME}/lib" -type f -print0
                         } | while IFS= read -r -d '' elf; do
                             if file "$elf" | grep -q "ELF.*executable\|ELF.*shared object"; then
-                                build_id=$("${HOST}"-readelf -n "$elf" 2>/dev/null | awk '/Build ID/ {print $3; exit}')
+                                # Read all of readelf's output: notes such as USDT probes can exceed a
+                                # pipe buffer, and a reader that exits early kills readelf with SIGPIPE,
+                                # which pipefail turns into a failure.
+                                build_id=$("${HOST}"-readelf -n "$elf" 2>/dev/null | awk '/Build ID/ && !id {id = $3} END {print id}')
                                 if [ -n "$build_id" ] && [ -f "${elf}.dbg" ]; then
                                     dir="${DISTNAME}/usr/lib/debug/.build-id/${build_id:0:2}"
                                     mkdir -p "$dir"
@@ -369,6 +372,7 @@ mkdir -p "$DISTSRC"
                         done
 
                         # Verify build-ids and debug links
+                        verification_status=0
                         verification_output=$(
                             {
                                 find "${DISTNAME}/bin" -type f -executable -print0
@@ -378,7 +382,7 @@ mkdir -p "$DISTSRC"
                                 while IFS= read -r -d '' elf; do
                                     if file "$elf" | grep -q "ELF.*executable\|ELF.*shared object"; then
                                         # Check for build-id
-                                        if ! "${HOST}"-readelf -n "$elf" 2>/dev/null | grep -q "Build ID"; then
+                                        if ! "${HOST}"-readelf -n "$elf" 2>/dev/null | grep "Build ID" >/dev/null; then
                                             echo "ERROR: No build-id found in $elf" >&2
                                             verification_failed=1
                                         fi
@@ -392,8 +396,7 @@ mkdir -p "$DISTSRC"
                                 done
                                 exit "$verification_failed"
                             } 2>&1
-                        )
-                        verification_status=$?
+                        ) || verification_status=$?
                         if [ "$verification_status" -ne 0 ]; then
                             echo "$verification_output" >&2
                             exit 1
