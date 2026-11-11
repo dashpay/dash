@@ -4,6 +4,7 @@
 
 #include <instantsend/lock.h>
 
+#include <chain.h>
 #include <hash.h>
 #include <primitives/transaction.h>
 #include <util/hasher.h>
@@ -41,6 +42,11 @@ bool InstantSendLock::TriviallyValid() const
 uint256 GenInputLockRequestId(const COutPoint& outpoint)
 {
     return ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, outpoint));
+}
+
+uint256 GetCycleHash(const CBlockIndex& quorum_base, int dkg_interval)
+{
+    return quorum_base.GetAncestor(quorum_base.nHeight - quorum_base.nHeight % dkg_interval)->GetBlockHash();
 }
 
 std::vector<COutPoint> GetLockInputs(const CTransaction& tx)

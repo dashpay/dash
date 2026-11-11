@@ -10,6 +10,7 @@
 #include <consensus/params.h>
 #include <cxxtimer.hpp>
 #include <instantsend/instantsend.h>
+#include <instantsend/lock.h>
 #include <instantsend/signing.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
@@ -59,6 +60,9 @@ static std::optional<int> GetBlockHeight(llmq::CInstantSendManager& is_manager, 
 struct NetInstantSend::BatchVerificationData {
     CBLSBatchVerifier<NodeId, uint256> batchVerifier{false, true, BATCH_VERIFIER_SOURCE_THRESHOLD};
     Uint256HashMap<llmq::CRecoveredSig> recSigs;
+    //! Locks whose own signature was checked, by the batch verifier or against a stored recovered signature.
+    //! Any other lock of the batch is dropped.
+    Uint256HashSet checked;
     size_t verifyCount{0};
     size_t alreadyVerified{0};
 };
@@ -104,8 +108,7 @@ bool NetInstantSend::ValidateDeterministicCycleHeight(
 }
 
 std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVerificationBatch(
-    const Consensus::LLMQParams& llmq_params,
-    int signOffset,
+    const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
     const std::vector<instantsend::PendingISLockEntry>& pend)
 {
     auto data = std::make_unique<BatchVerificationData>();
@@ -116,10 +119,6 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
         const auto& hash = pending.islock_hash;
         auto nodeId = pending.node_id;
         const auto& islock = pending.islock;
-
-        if (data->batchVerifier.badSources.count(nodeId)) {
-            continue;
-        }
 
         CBLSSignature sig = islock->sig.Get();
         if (!sig.IsValid()) {
@@ -135,16 +134,18 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
             continue;
         }
 
-        int nSignHeight{-1};
         const auto dkgInterval = llmq_params.dkgInterval;
-        const int tipHeight = m_is_manager.GetTipHeight();
-        const int cycleHeight = *cycleHeightOpt;
-        if (cycleHeight + dkgInterval < tipHeight) {
-            nSignHeight = cycleHeight + dkgInterval - 1;
+        const CBlockIndex* pindex_start{nullptr};
+        {
+            // The cutoff and the start block must come from one view of the chain: with a tip height that trails
+            // the chain, a lock of the previous cycle would be checked against the quorums that replaced its own.
+            LOCK(::cs_main);
+            const int next_cycle_height = *cycleHeightOpt + dkgInterval;
+            const int sign_height = next_cycle_height < active_chain.Height() ? next_cycle_height - 1 : -1;
+            pindex_start = llmq::SelectQuorumForSigningStartBlock(active_chain, sign_height, signOffset);
         }
         // For RegTest non-rotating quorum cycleHash has directly quorum hash
-        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, active_chain, m_qman,
-                                                                             id, nSignHeight, signOffset)
+        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_qman, id, pindex_start)
                                               : m_qman.GetQuorum(llmq_params.type, islock->cycleHash);
 
         if (!quorum) {
@@ -152,21 +153,33 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
             data->batchVerifier.badMessages.emplace(hash);
             continue;
         }
+        // The banning pass selects from the previous active set, which never belongs to the lock's cycle.
+        if (llmq_params.useRotation && !ban &&
+            instantsend::GetCycleHash(*quorum->m_quorum_base_block_index, dkgInterval) != islock->cycleHash) {
+            // Left unchecked, so it is dropped without a score or a retry: peers that predate this check accept
+            // and relay such locks.
+            LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: noncanonical cycleHash, peer=%d\n",
+                     __func__, islock->txid.ToString(), hash.ToString(), nodeId);
+            continue;
+        }
         llmq::CRecoveredSig recovered_sig;
         if (m_sigman.GetRecoveredSig(llmq_params.type, id, islock->txid, recovered_sig) &&
             recovered_sig.getQuorumHash() == quorum->qc->quorumHash && recovered_sig.sig.Get() == sig) {
             data->alreadyVerified++;
+            data->checked.emplace(hash);
             continue;
         }
 
         uint256 signHash = llmq::SignHash{llmq_params.type, quorum->qc->quorumHash, id, islock->txid}.Get();
         data->batchVerifier.PushMessage(nodeId, hash, signHash, sig, quorum->qc->quorumPublicKey);
         data->verifyCount++;
+        data->checked.emplace(hash);
 
         // We can reconstruct the CRecoveredSig objects from the islock and pass it to the signing manager, which
         // avoids unnecessary double-verification of the signature. We however only do this when verification here
         // turns out to be good (which is checked further down)
-        if (!m_sigman.HasRecoveredSigForId(llmq_params.type, id)) {
+        const bool scoring_only{ban && llmq_params.useRotation};
+        if (!scoring_only && !m_sigman.HasRecoveredSigForId(llmq_params.type, id)) {
             data->recSigs.try_emplace(hash, llmq::CRecoveredSig(llmq_params.type, quorum->qc->quorumHash, id, islock->txid,
                                                                 islock->sig));
         }
@@ -192,7 +205,8 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
         const bool source_bad = data.batchVerifier.badSources.count(nodeId);
         const bool message_bad = data.batchVerifier.badMessages.count(hash);
 
-        if (source_bad || message_bad) {
+        // A lock whose own signature was checked keeps its result when another lock from the same peer fails
+        if (message_bad || !data.checked.count(hash)) {
             LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: verification failed, peer=%d\n",
                      __func__, islock->txid.ToString(), hash.ToString(), nodeId);
             if (ban && source_bad && penalized.emplace(nodeId).second) {
@@ -203,6 +217,10 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
             if (message_bad) {
                 badISLocks.emplace(hash);
             }
+            continue;
+        }
+        if (ban && llmq_params.useRotation) {
+            // A signature of the previous active set does not make the lock valid; it only spares the peer.
             continue;
         }
 
@@ -262,6 +280,11 @@ void NetInstantSend::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
 
     WITH_LOCK(::cs_main, m_peer_manager->PeerEraseObjectRequest(from, CInv{MSG_ISDLOCK, hash}));
 
+    if (islock->nVersion != instantsend::InstantSendLock::CURRENT_VERSION) {
+        // Not scored: peers that predate this check accept and relay such locks.
+        return;
+    }
+
     if (!ValidateIncomingISLock(*islock, from)) {
         return;
     }
@@ -316,7 +339,7 @@ Uint256HashSet NetInstantSend::ProcessPendingInstantSendLocks(
     const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
     const std::vector<instantsend::PendingISLockEntry>& pend)
 {
-    auto batch = BuildVerificationBatch(llmq_params, signOffset, pend);
+    auto batch = BuildVerificationBatch(llmq_params, signOffset, ban, pend);
     if (!batch) return {};
 
     cxxtimer::Timer verifyTimer(true);
@@ -352,7 +375,9 @@ void NetInstantSend::ProcessPendingISLocks(std::vector<instantsend::PendingISLoc
                 still_pending.emplace_back(std::move(pending));
             }
         }
-        // Now check against the previous active set and perform banning if this fails
+        // Now check against the previous active set, only to decide whether to ban: a lock that fails
+        // here too has a forged signature, while one that passes is an altered copy of an older lock.
+        // Without rotation there is no previous set: the same quorum is looked up again and may accept the lock
         ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, still_pending);
     }
     uiInterface.NotifyInstantSendChanged();
