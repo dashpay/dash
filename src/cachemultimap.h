@@ -90,9 +90,7 @@ public:
         if(mit == mapIndex.end()) {
             mit = mapIndex.emplace(key, it_map_t()).first;
         }
-        it_map_t& mapIt = mit->second;
-
-        if(mapIt.count(value) > 0) {
+        if (mit->second.count(value) > 0) {
             // Don't insert duplicates
             return false;
         }
@@ -101,7 +99,7 @@ public:
             PruneLast();
         }
         listItems.push_front(item_t(key, value));
-        mapIt.emplace(value, listItems.begin());
+        mapIndex[key].emplace(value, listItems.begin());
         return true;
     }
 

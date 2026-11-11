@@ -164,6 +164,24 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
     CacheMultiMap<int,int> mapTest4;
     mapTest4 = cmmapTest1;
     BOOST_CHECK(Compare(cmmapTest1, mapTest4));
+
+    CacheMultiMap<int, int> full_cache{2};
+    BOOST_CHECK(full_cache.Insert(1, 1));
+    BOOST_CHECK(full_cache.Insert(2, 2));
+    BOOST_CHECK(full_cache.Insert(1, 3));
+    std::vector<int> values;
+    BOOST_CHECK(full_cache.GetAll(1, values));
+    BOOST_CHECK(values == std::vector<int>{3});
+    BOOST_CHECK_EQUAL(full_cache.GetSize(), 2U);
+
+    BOOST_CHECK(full_cache.Insert(1, 4));
+    BOOST_CHECK(!full_cache.HasKey(2));
+    BOOST_CHECK(!full_cache.Insert(1, 4));
+    BOOST_CHECK(full_cache.Insert(1, 5));
+    BOOST_CHECK_EQUAL(full_cache.GetSize(), 2U);
+    values.clear();
+    BOOST_CHECK(full_cache.GetAll(1, values));
+    BOOST_CHECK((values == std::vector<int>{4, 5}));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

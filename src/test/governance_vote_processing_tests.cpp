@@ -232,11 +232,50 @@ struct TestGovernanceStore : GovernanceStore {
 
 BOOST_FIXTURE_TEST_SUITE(governance_vote_processing_tests, GovernanceVoteSetup)
 
+BOOST_FIXTURE_TEST_CASE(vote_ordering, BasicTestingSetup)
+{
+    const COutPoint collateral{uint256::ONE, 0};
+    const auto make_vote = [](const COutPoint& mn, const uint256& parent, vote_signal_enum_t signal,
+                              vote_outcome_enum_t outcome, int64_t timestamp) {
+        CGovernanceVote vote{mn, parent, signal, outcome};
+        vote.SetTime(timestamp);
+        return vote;
+    };
+    const std::vector<CGovernanceVote> votes{
+        make_vote(collateral, uint256::ONE, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1000),
+        make_vote(collateral, uint256::ONE, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1001),
+        make_vote(collateral, uint256::ONE, VOTE_SIGNAL_VALID, VOTE_OUTCOME_YES, 1000),
+        make_vote(collateral, uint256::ONE, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_NO, 1000),
+        make_vote(collateral, uint256S("02"), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1000),
+        make_vote(COutPoint{uint256::ONE, 1}, uint256::ONE, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1000),
+        make_vote(COutPoint{uint256S("02"), 0}, uint256::ONE, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES, 1000),
+    };
+    for (size_t i = 0; i < votes.size(); ++i) {
+        BOOST_CHECK(!(votes[i] < votes[i]));
+        for (size_t j = i + 1; j < votes.size(); ++j) {
+            BOOST_CHECK(!(votes[i] == votes[j]));
+            BOOST_CHECK(votes[i] < votes[j]);
+            BOOST_CHECK(!(votes[j] < votes[i]));
+        }
+    }
+    auto resigned = votes.front();
+    resigned.SetSignature({1, 2, 3});
+    BOOST_CHECK(resigned == votes.front());
+    BOOST_CHECK(!(resigned < votes.front()));
+    BOOST_CHECK(!(votes.front() < resigned));
+}
+
 // A vote that arrives before its parent object must be kept and replayed once the object shows up,
 // otherwise every vote that races ahead of its proposal is lost for good.
 BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
 {
     auto& govman = *m_node.govman;
+    CKey second_voting_key;
+    CBLSSecretKey second_operator_key;
+    const auto protx = CreateProRegTx(*m_node.chainman, utxos, /*port=*/2, payout_script(), coinbaseKey,
+                                      second_voting_key, second_operator_key);
+    const COutPoint second_collateral{protx.GetHash(), 0};
+    MineBlock({protx});
 
     // Build the proposal but keep it out of the manager: the vote arrives first.
     const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
@@ -258,6 +297,14 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_CHECK_EQUAL(hash_to_request, parent_hash);
     BOOST_CHECK(govman.GetOrphanVoteObjectHashes() == std::vector<uint256>{parent_hash});
 
+    CGovernanceVote second_vote{second_collateral, parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES};
+    SignWithVotingKey(second_vote, second_voting_key);
+    BOOST_REQUIRE(second_vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+    BOOST_CHECK(!govman.ProcessVote(second_vote, exception, hash_to_request));
+    BOOST_CHECK_EQUAL(hash_to_request, parent_hash);
+    BOOST_CHECK(!govman.ProcessVote(second_vote, exception, hash_to_request));
+    BOOST_CHECK(hash_to_request.IsNull());
+
     const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
     CGovernanceObject proposal{MakeProposal(collateral_hash)};
     BOOST_REQUIRE_EQUAL(proposal.GetHash(), parent_hash);
@@ -267,8 +314,9 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     // The orphan vote is now applied to the object it was waiting for and is no longer pending.
     auto stored = govman.FindConstGovernanceObject(parent_hash);
     BOOST_REQUIRE(stored != nullptr);
-    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
+    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 2);
     BOOST_CHECK_EQUAL(govman.GetCurrentVotes(parent_hash, mn_collateral).size(), 1U);
+    BOOST_CHECK_EQUAL(govman.GetCurrentVotes(parent_hash, second_collateral).size(), 1U);
     BOOST_CHECK(govman.GetOrphanVoteObjectHashes().empty());
     // Known gap, pinned here so a fix has to update this test: CheckOrphanVotes() applies the
     // vote to the object but never indexes it in cmapVoteToObject, so the vote inv it relays
@@ -280,7 +328,7 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     uint256 replay_hash_to_request;
     BOOST_CHECK(!govman.ProcessVote(vote, replay_exception, replay_hash_to_request));
     BOOST_CHECK_EQUAL(replay_exception.GetNodePenalty(), 0);
-    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
+    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 2);
 }
 
 // Votes are only counted if they carry a signature from a registered masternode.
