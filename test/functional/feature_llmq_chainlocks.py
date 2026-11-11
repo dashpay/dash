@@ -13,6 +13,7 @@ Checks LLMQs based ChainLocks
 from io import BytesIO
 
 from test_framework.messages import CBlock, CCbTx
+from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
 
@@ -124,7 +125,7 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.log.info("Isolate node, mine on another, reconnect and submit CL via RPC")
         self.isolate_node(0)
-        self.generate(self.nodes[1], 1, sync_fun=self.no_op)
+        self.generate(self.nodes[1], 3, sync_fun=self.no_op)
         self.wait_for_chainlocked_block(self.nodes[1], self.nodes[1].getbestblockhash())
         best_0 = self.nodes[0].getbestchainlock()
         best_1 = self.nodes[1].getbestchainlock()
@@ -132,6 +133,7 @@ class LLMQChainLocksTest(DashTestFramework):
         assert best_0['height'] != best_1['height']
         assert best_0['signature'] != best_1['signature']
         assert_equal(best_0['known_block'], True)
+        parent_cl = best_0
         node_height = self.nodes[1].submitchainlock(best_0['blockhash'], best_0['signature'], best_0['height'])
         rpc_height = self.nodes[0].submitchainlock(best_1['blockhash'], best_1['signature'], best_1['height'])
         assert_equal(best_1['height'], node_height)
@@ -141,6 +143,44 @@ class LLMQChainLocksTest(DashTestFramework):
         assert_equal(best_0['height'], best_1['height'])
         assert_equal(best_0['signature'], best_1['signature'])
         assert_equal(best_0['known_block'], False)
+
+        self.log.info("Build templates while the best ChainLock is above the tip")
+        node = self.nodes[0]
+        parent_hash = node.getbestblockhash()
+        parent_height = node.getblockcount()
+        assert best_0['height'] > parent_height
+        node.setnetworkactive(True)
+        node.add_p2p_connection(P2PInterface())
+        assert_equal(node.getblocktemplate()['previousblockhash'], parent_hash)
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        cbtx = node.getblock(block_hash, 2)['cbTx']
+        assert_equal(cbtx['bestCLSignature'], parent_cl['signature'])
+        assert_equal(cbtx['bestCLHeightDiff'], parent_height - parent_cl['height'])
+        self.test_coinbase_best_cl(node)
+
+        self.log.info("Build templates while the newer ChainLock's header is known above the tip")
+        # Disable conflict enforcement so templates can be tested without the locked block's body.
+        node.sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 4070908800)
+        for height in range(parent_height + 1, best_1['height'] + 1):
+            node.submitheader(self.nodes[1].getblockheader(self.nodes[1].getblockhash(height), False))
+        node.syncwithvalidationinterfacequeue()
+        assert_equal(node.getbestchainlock()['known_block'], True)
+        assert_raises_rpc_error(-1, "Block not found on disk", node.getblock, best_1['blockhash'])
+        parent_hash = node.getbestblockhash()
+        parent_height = node.getblockcount()
+        assert best_1['height'] > parent_height
+        assert_equal(parent_hash, block_hash)
+        assert_equal(node.getblocktemplate()['previousblockhash'], parent_hash)
+        block_hash = self.generate(node, 1, sync_fun=self.no_op)[0]
+        cbtx = node.getblock(block_hash, 2)['cbTx']
+        assert_equal(cbtx['bestCLSignature'], parent_cl['signature'])
+        assert_equal(cbtx['bestCLHeightDiff'], parent_height - parent_cl['height'])
+        self.test_coinbase_best_cl(node)
+        self.bump_mocktime(1)
+        node.sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 0)
+        self.bump_mocktime(1)
+        node.disconnect_p2ps()
+
         self.reconnect_isolated_node(0, 1)
         self.sync_all()
 
