@@ -2042,8 +2042,9 @@ class DashTestFramework(BitcoinTestFramework):
 
         rec_sig = self.get_recovered_sig(request_id, message_hash, llmq_type=llmq_type)
 
-        block_count = self.mninfo[0].get_node(self).getblockcount()
-        cycle_hash = int(self.mninfo[0].get_node(self).getblockhash(block_count - (block_count % llmq_cycle_len)), 16)
+        node = self.mninfo[0].get_node(self)
+        quorum_height = node.getblockheader(rec_sig['quorumHash'])['height']
+        cycle_hash = int(node.getblockhash(quorum_height - quorum_height % llmq_cycle_len), 16)
         isdlock = msg_isdlock(1, inputs, tx.sha256, cycle_hash, bytes.fromhex(rec_sig['sig']))
 
         return isdlock

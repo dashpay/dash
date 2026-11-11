@@ -59,6 +59,7 @@ static std::optional<int> GetBlockHeight(llmq::CInstantSendManager& is_manager, 
 struct NetInstantSend::BatchVerificationData {
     CBLSBatchVerifier<NodeId, uint256> batchVerifier{false, true, BATCH_VERIFIER_SOURCE_THRESHOLD};
     Uint256HashMap<llmq::CRecoveredSig> recSigs;
+    Uint256HashSet noncanonical;
     size_t verifyCount{0};
     size_t alreadyVerified{0};
 };
@@ -104,8 +105,7 @@ bool NetInstantSend::ValidateDeterministicCycleHeight(
 }
 
 std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVerificationBatch(
-    const Consensus::LLMQParams& llmq_params,
-    int signOffset,
+    const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
     const std::vector<instantsend::PendingISLockEntry>& pend)
 {
     auto data = std::make_unique<BatchVerificationData>();
@@ -152,6 +152,15 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
             data->batchVerifier.badMessages.emplace(hash);
             continue;
         }
+        // The banning pass selects from the previous active set, which never belongs to the lock's cycle.
+        if (llmq_params.useRotation && !ban) {
+            const auto* quorum_base = quorum->m_quorum_base_block_index;
+            const int quorum_cycle_height = quorum_base->nHeight - quorum_base->nHeight % dkgInterval;
+            if (quorum_base->GetAncestor(quorum_cycle_height)->GetBlockHash() != islock->cycleHash) {
+                data->noncanonical.emplace(hash);
+                continue;
+            }
+        }
         llmq::CRecoveredSig recovered_sig;
         if (m_sigman.GetRecoveredSig(llmq_params.type, id, islock->txid, recovered_sig) &&
             recovered_sig.getQuorumHash() == quorum->qc->quorumHash && recovered_sig.sig.Get() == sig) {
@@ -189,6 +198,13 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
         auto nodeId = pending.node_id;
         const auto& islock = pending.islock;
 
+        if (data.noncanonical.count(hash)) {
+            // Not scored or retried: peers that predate this check accept and relay such locks.
+            LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: noncanonical cycleHash, peer=%d\n",
+                     __func__, islock->txid.ToString(), hash.ToString(), nodeId);
+            continue;
+        }
+
         const bool source_bad = data.batchVerifier.badSources.count(nodeId);
         const bool message_bad = data.batchVerifier.badMessages.count(hash);
 
@@ -203,6 +219,10 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
             if (message_bad) {
                 badISLocks.emplace(hash);
             }
+            continue;
+        }
+        if (ban) {
+            // A signature of the previous active set does not make the lock valid; it only spares the peer.
             continue;
         }
 
@@ -262,6 +282,11 @@ void NetInstantSend::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
 
     WITH_LOCK(::cs_main, m_peer_manager->PeerEraseObjectRequest(from, CInv{MSG_ISDLOCK, hash}));
 
+    if (islock->nVersion != instantsend::InstantSendLock::CURRENT_VERSION) {
+        // Not scored: peers that predate this check accept and relay such locks.
+        return;
+    }
+
     if (!ValidateIncomingISLock(*islock, from)) {
         return;
     }
@@ -316,7 +341,7 @@ Uint256HashSet NetInstantSend::ProcessPendingInstantSendLocks(
     const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
     const std::vector<instantsend::PendingISLockEntry>& pend)
 {
-    auto batch = BuildVerificationBatch(llmq_params, signOffset, pend);
+    auto batch = BuildVerificationBatch(llmq_params, signOffset, ban, pend);
     if (!batch) return {};
 
     cxxtimer::Timer verifyTimer(true);
@@ -352,7 +377,8 @@ void NetInstantSend::ProcessPendingISLocks(std::vector<instantsend::PendingISLoc
                 still_pending.emplace_back(std::move(pending));
             }
         }
-        // Now check against the previous active set and perform banning if this fails
+        // Now check against the previous active set, only to decide whether to ban: a lock that fails
+        // here too has a forged signature, while one that passes is an altered copy of an older lock
         ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, still_pending);
     }
     uiInterface.NotifyInstantSendChanged();
