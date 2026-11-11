@@ -16,11 +16,3 @@ indent_size = 4
 # .cirrus.yml, .fuzzbuzz.yml, etc.
 [*.yml]
 indent_size = 2
-
-# Makefiles
-[{*.am,Makefile.*.include}]
-indent_style = tab
-
-# Autoconf scripts
-[configure.ac]
-indent_size = 2

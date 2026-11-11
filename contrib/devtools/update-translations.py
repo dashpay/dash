@@ -292,12 +292,6 @@ def update_build_systems():
         f.write('    </qresource>\n')
         f.write('</RCC>\n')
 
-    # update Makefile include
-    with open('src/Makefile.qt_locale.include', 'w', encoding='utf8') as f:
-        f.write('QT_TS = \\\n')
-        f.write(' \\\n'.join(f'  qt/locale/{filename}' for (filename, basename, lang) in filename_lang))
-        f.write('\n') # make sure last line doesn't end with a backslash
-
 if __name__ == '__main__':
     check_at_repository_root()
     remove_current_translations()

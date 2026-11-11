@@ -142,13 +142,11 @@ option(ENABLE_MINER "Enable the in-wallet miner and its RPCs." ON)
 
 option(ENABLE_MIMALLOC "Use mimalloc for BLS secret memory until BLSInit() installs the locked pool." ON)
 
-# Dash, unlike upstream, still provides the public libdashconsensus API
-# (--with-libs under Autotools, enabled by default).
+# Dash, unlike upstream, still provides the public libdashconsensus API.
 option(BUILD_CONSENSUS_LIB "Build the public dashconsensus shared library." ON)
 
-# Matches the Autotools `--enable-stacktraces=auto` default: enabled when
-# libbacktrace and its prerequisites are found, otherwise disabled with a
-# warning. See the detection block further down.
+# Enabled when libbacktrace and its prerequisites are found, otherwise
+# disabled with a warning. See the detection block further down.
 option(ENABLE_STACKTRACES "Gather and print exception stack traces. Requires libbacktrace." ON)
 cmake_dependent_option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces." OFF "ENABLE_STACKTRACES" OFF)
 
@@ -277,7 +275,7 @@ target_link_libraries(core_interface INTERFACE
 target_compile_definitions(core_interface INTERFACE
   HAVE_CONFIG_H
   # gsl/pointers.h pulls in <iostream> and defines stream operators unless this
-  # is set. Keep it in sync with CORE_CPPFLAGS in configure.ac.
+  # is set.
   GSL_NO_IOSTREAMS
 )
 
@@ -535,8 +533,8 @@ else()
     IF_CHECK_PASSED "-Wno-unused-parameter"
   )
 
-  # Warnings that are suppressed outright. Keep in sync with NOWARN_CXXFLAGS in
-  # configure.ac; without these a WERROR build fails on GCC or Clang.
+  # Warnings that are suppressed outright; without these a WERROR build fails
+  # on GCC or Clang.
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # -Wdeprecated-literal-operator causes problems with clang 20.
     # TODO: remove it once we update hana.
@@ -658,10 +656,8 @@ if(WERROR)
   unset(werror_flag)
 endif()
 
-# Autotools puts the warning and -Werror flags in CXXFLAGS only; AM_CFLAGS
-# carries neither. Restrict them to C++ here as well, so that the vendored
-# sphlib C sources under crypto/x11 are held to the same standard as they are
-# by the Autotools build.
+# The warning and -Werror flags apply to C++ only, so that they do not reach
+# the vendored sphlib C sources under crypto/x11.
 get_target_property(warn_interface_flags warn_interface INTERFACE_COMPILE_OPTIONS)
 if(warn_interface_flags)
   set_target_properties(warn_interface PROPERTIES

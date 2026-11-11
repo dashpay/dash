@@ -595,7 +595,7 @@ BOOST_AUTO_TEST_CASE(bls_verify_contribution_shares_empty_vvecs_tests)
 // contributions are accepted. Accepting an invalid share would corrupt the
 // recovered quorum key; rejecting an honest one would stall DKG. This property
 // was previously only covered by src/bench/bls_dkg.cpp, which does not run under
-// `make check`.
+// ctest.
 //
 // QUORUM_SIZE exceeds CONTRIBUTION_VERIFY_BATCH_SIZE so the aggregated path
 // builds more than one batch. Corrupting a share in the first batch must then

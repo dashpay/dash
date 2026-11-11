@@ -5,7 +5,7 @@
 '''
 Check that executables do not link Rust code.
 
-dash-sdk-cxx, the Dash Platform SDK binding (--enable-platform-gui), is for
+dash-sdk-cxx, the Dash Platform SDK binding (-DENABLE_PLATFORM_GUI=ON), is for
 dash-qt, test_dash and test_dash-qt only; dashd, the command-line tools,
 bench_dash and the fuzz binary must not contain any of it.
 A binary fails if its symbol table has cxx bridge, Rust runtime or Rust

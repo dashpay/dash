@@ -2,8 +2,6 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
-# This script is a multiplatform port of the share/genbuild.sh shell script.
-
 macro(fatal_error)
   message(FATAL_ERROR "\n"
     "Usage:\n"
@@ -31,8 +29,8 @@ else()
 endif()
 
 # NOTE: Unlike upstream, clientversion.cpp only knows about
-#       BUILD_GIT_DESCRIPTION, so this emits the same `git describe` string
-#       that share/genbuild.sh produces. Otherwise every non-release build
+#       BUILD_GIT_DESCRIPTION, so this emits a `git describe` string.
+#       Otherwise every non-release build
 #       reports its version as "vX.Y.Z-unk".
 set(GIT_DESCRIPTION)
 if(NOT "$ENV{BITCOIN_GENBUILD_NO_GIT}" STREQUAL "1")
