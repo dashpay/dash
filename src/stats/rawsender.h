@@ -11,6 +11,7 @@
 #include <util/threadinterrupt.h>
 #include <util/translation.h>
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <optional>
@@ -111,9 +112,9 @@ private:
     const uint64_t m_interval_ms;
 
     /* Number of messages sent */
-    uint64_t m_successes{0};
+    std::atomic<uint64_t> m_successes{0};
     /* Number of messages not sent */
-    uint64_t m_failures{0};
+    std::atomic<uint64_t> m_failures{0};
 };
 
 #endif // BITCOIN_STATS_RAWSENDER_H

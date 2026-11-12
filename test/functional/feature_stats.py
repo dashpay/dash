@@ -10,8 +10,11 @@ import socket
 import time
 import threading
 
+from test_framework.messages import COIN
 from test_framework.netutil import test_ipv6_local
 from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import assert_equal
+from test_framework.wallet import MiniWallet
 from queue import Queue
 
 ONION_ADDR = "pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"
@@ -64,7 +67,7 @@ class StatsServer:
             try:
                 msg = self.queue.get(timeout=5)
                 if expected_msg in msg:
-                    return
+                    return msg
             except queue.Empty:
                 continue
         raise AssertionError(f"Did not receive message containing '{expected_msg}' within {timeout} seconds")
@@ -133,8 +136,15 @@ class StatsTest(BitcoinTestFramework):
     def test_conn(self, host: str):
         server = StatsServer(host, 8125)
         server.start()
-        self.restart_node(0, extra_args=[f'-statshost=udp://{host}', '-statsbatchsize=0', '-statsduration=0'])
+        self.restart_node(0, extra_args=[f'-statshost=udp://{host}', '-statsbatchsize=0', '-statsduration=0', '-statsperiod=5', '-reindex'])
         server.assert_msg_received("CheckBlock_us")
+        server.assert_msg_received("network.difficulty:")
+        wallet = MiniWallet(self.nodes[0])
+        utxo = wallet.get_utxo()
+        tx = wallet.create_self_transfer(utxo_to_spend=utxo)
+        self.nodes[0].prioritisetransaction(tx["txid"], 1000)
+        wallet.sendrawtransaction(from_node=self.nodes[0], tx_hex=tx["hex"])
+        assert_equal(server.assert_msg_received("transactions.inputValue:"), f"transactions.inputValue:{int(utxo['value'] * COIN)}|c")
         server.stop()
 
 if __name__ == '__main__':
