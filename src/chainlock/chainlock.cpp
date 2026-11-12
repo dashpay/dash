@@ -95,6 +95,23 @@ bool Chainlocks::HasConflictingChainLock(int nHeight, const uint256& blockHash) 
     return pAncestor->GetBlockHash() != blockHash;
 }
 
+bool Chainlocks::CanBuildOn(const CBlockIndex& tip) const
+{
+    LOCK(cs);
+
+    if (!IsEnabled() || bestChainLock.IsNull()) {
+        return true;
+    }
+
+    // A new block can be neither the locked block nor one of its ancestors.
+    if (bestChainLock.getHeight() > tip.nHeight) {
+        return false;
+    }
+
+    const auto* pAncestor = tip.GetAncestor(bestChainLock.getHeight());
+    return pAncestor != nullptr && pAncestor->GetBlockHash() == bestChainLock.getBlockHash();
+}
+
 void Chainlocks::ResetChainlock()
 {
     LOCK(cs);

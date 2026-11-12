@@ -239,6 +239,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     LOCK(::cs_main);
     CBlockIndex* pindexPrev = m_chainstate.m_chain.Tip();
     assert(pindexPrev != nullptr);
+    if (!m_chainlocks.CanBuildOn(*pindexPrev)) {
+        throw std::runtime_error(strprintf("%s: a block on %s would conflict with %s", __func__,
+                                           pindexPrev->GetBlockHash().ToString(),
+                                           m_chainlocks.GetBestChainLock().ToString()));
+    }
     nHeight = pindexPrev->nHeight + 1;
 
     const bool fDIP0001Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0001)};
