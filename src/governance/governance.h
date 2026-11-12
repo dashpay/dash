@@ -419,7 +419,7 @@ private:
     void InitOnLoad()
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
-    void CheckOrphanVotes(CGovernanceObject& govobj)
+    void CheckOrphanVotes(const std::shared_ptr<CGovernanceObject>& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store, !cs_relay);
 
     void RebuildIndexes()
