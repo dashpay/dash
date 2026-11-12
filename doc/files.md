@@ -27,8 +27,8 @@ The data directory is the default location where the Dash Core files are stored.
 Platform | Data directory path
 ---------|--------------------
 Linux    | `$HOME/.dashcore/`
-macOS    | `$HOME/Library/Application Support/Dashcore/`
-Windows  | `%APPDATA%\Dashcore\` <sup>[\[1\]](#note1)</sup>
+macOS    | `$HOME/Library/Application Support/DashCore/`
+Windows  | `%APPDATA%\DashCore\` <sup>[\[1\]](#note1)</sup>
 
 2. A custom data directory path can be specified with the `-datadir` option.
 
@@ -47,10 +47,13 @@ Subdirectory       | File(s)               | Description
 -------------------|-----------------------|------------
 `blocks/`          |                       | Blocks directory; can be specified by `-blocksdir` option (except for `blocks/index/`)
 `blocks/index/`    | LevelDB database      | Block index; `-blocksdir` option does not affect this path
-`blocks/`          | `blkNNNNN.dat`<sup>[\[2\]](#note2)</sup> | Actual Dash blocks (in network format, dumped in raw on disk, 128 MiB per file)
-`blocks/`          | `revNNNNN.dat`<sup>[\[2\]](#note2)</sup> | Block undo data (custom format)
+`blocks/`          | `blkNNNNN.dat`<sup>[\[2\]](#note2)</sup> | Actual Dash blocks (in network format, optionally zstd-compressed with `-blockcompression`, 128 MiB per file)
+`blocks/`          | `revNNNNN.dat`<sup>[\[2\]](#note2)</sup> | Block undo data (custom format, optionally zstd-compressed with `-blockcompression`)
 `chainstate/`      | LevelDB database      | Blockchain state (a compact representation of all currently unspent transaction outputs (UTXOs) and metadata about the transactions they are from)
 `indexes/txindex/` | LevelDB database      | Transaction index; *optional*, used if `-txindex=1`
+`indexes/addressindex/` | LevelDB database | Address index; *optional*, used if `-addressindex=1`
+`indexes/spentindex/` | LevelDB database   | Spent output index; *optional*, used if `-spentindex=1`
+`indexes/timestampindex/` | LevelDB database | Block timestamp index; *optional*, used if `-timestampindex=1`
 `indexes/blockfilter/basic/db/` | LevelDB database      | Blockfilter index LevelDB database for the basic filtertype; *optional*, used if `-blockfilterindex=basic`
 `indexes/blockfilter/basic/`    | `fltrNNNNN.dat`<sup>[\[2\]](#note2)</sup> | Blockfilter index filters for the basic filtertype; *optional*, used if `-blockfilterindex=basic`
 `indexes/coinstats/db/` | LevelDB database | Coinstats index; *optional*, used if `-coinstatsindex=1`
@@ -66,6 +69,7 @@ Subdirectory       | File(s)               | Description
 `./`               | `governance.dat`      | stores data for governance objects
 `./`               | `mncache.dat`         | stores data for masternode list
 `./`               | `netfulfilled.dat`    | stores data about recently made network requests
+`./`               | `sporks.dat`          | stores spork state
 `./`               | `fee_estimates.dat`   | Stores statistics used to estimate minimum transaction fees required for confirmation
 `./`               | `guisettings.ini.bak` | Backup of former [GUI settings](#gui-settings) after `-resetguisettings` option is used
 `./`               | `ip_asn.map`          | IP addresses to Autonomous System Numbers (ASNs) mapping used for bucketing of the peers; path can be specified with the `-asmap` option
@@ -120,11 +124,11 @@ These subdirectories and files are no longer used by Dash Core:
 Path           | Description | Repository notes
 ---------------|-------------|-----------------
 `banlist.dat`  | Stores the addresses/subnets of banned nodes; completely ignored and superseded by `banlist.json` in 20.0 | [PR #5574](https://github.com/dashpay/dash/pull/5574)
-`blktree/`     | Blockchain index; replaced by `blocks/index/` in [0.8.0](https://github.com/dash/dash/blob/master/doc/release-notes/release-notes-0.8.0.md#improvements) | [PR #2231](https://github.com/dash/dash/pull/2231), [`8fdc94cc`](https://github.com/dash/dash/commit/8fdc94cc8f0341e96b1edb3a5b56811c0b20bd15)
-`coins/`       | Unspent transaction output database; replaced by `chainstate/` in 0.8.0 | [PR #2231](https://github.com/dash/dash/pull/2231), [`8fdc94cc`](https://github.com/dash/dash/commit/8fdc94cc8f0341e96b1edb3a5b56811c0b20bd15)
-`blkindex.dat` | Blockchain index BDB database; replaced by {`chainstate/`, `blocks/index/`, `blocks/revNNNNN.dat`<sup>[\[2\]](#note2)</sup>} in 0.8.0 | [PR #1677](https://github.com/dash/dash/pull/1677)
-`blk000?.dat`  | Block data (custom format, 2 GiB per file); replaced by `blocks/blkNNNNN.dat`<sup>[\[2\]](#note2)</sup> in 0.8.0 | [PR #1677](https://github.com/dash/dash/pull/1677)
-`addr.dat`     | Peer IP address BDB database; replaced by `peers.dat` in [0.7.0](https://github.com/dash/dash/blob/master/doc/release-notes/release-notes-0.7.0.md) | [PR #1198](https://github.com/dash/dash/pull/1198), [`928d3a01`](https://github.com/dash/dash/commit/928d3a011cc66c7f907c4d053f674ea77dc611cc)
+`blktree/`     | Blockchain index; replaced by `blocks/index/` in [0.8.0](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.8.0.md#improvements) | [PR #2231](https://github.com/bitcoin/bitcoin/pull/2231), [`8fdc94cc`](https://github.com/bitcoin/bitcoin/commit/8fdc94cc8f0341e96b1edb3a5b56811c0b20bd15)
+`coins/`       | Unspent transaction output database; replaced by `chainstate/` in 0.8.0 | [PR #2231](https://github.com/bitcoin/bitcoin/pull/2231), [`8fdc94cc`](https://github.com/bitcoin/bitcoin/commit/8fdc94cc8f0341e96b1edb3a5b56811c0b20bd15)
+`blkindex.dat` | Blockchain index BDB database; replaced by {`chainstate/`, `blocks/index/`, `blocks/revNNNNN.dat`<sup>[\[2\]](#note2)</sup>} in 0.8.0 | [PR #1677](https://github.com/bitcoin/bitcoin/pull/1677)
+`blk000?.dat`  | Block data (custom format, 2 GiB per file); replaced by `blocks/blkNNNNN.dat`<sup>[\[2\]](#note2)</sup> in 0.8.0 | [PR #1677](https://github.com/bitcoin/bitcoin/pull/1677)
+`addr.dat`     | Peer IP address BDB database; replaced by `peers.dat` in [0.7.0](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.7.0.md) | [PR #1198](https://github.com/bitcoin/bitcoin/pull/1198), [`928d3a01`](https://github.com/bitcoin/bitcoin/commit/928d3a011cc66c7f907c4d053f674ea77dc611cc)
 
 ## Notes
 

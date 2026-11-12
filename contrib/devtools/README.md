@@ -118,7 +118,7 @@ For example:
 dashpay/dash repository.
 
 What it does:
-* Fetch master and the pull request.
+* Fetch the target branch (the pull request's base by default) and the pull request.
 * Locally construct a merge commit.
 * Show the diff that merge results in.
 * Ask you to verify the resulting source tree (so you can do a make
@@ -191,7 +191,7 @@ It will do the following automatically:
 - update git for added translations
 - update build system
 
-See doc/translation-process.md for more information.
+See doc/translation_process.md for more information.
 
 circular-dependencies.py
 ========================

@@ -84,6 +84,8 @@ maintained:
 * for `src/crypto/ctaes`: https://github.com/bitcoin-core/ctaes.git (branch master)
 * for `src/crc32c`: https://github.com/bitcoin-core/crc32c-subtree.git (branch bitcoin-fork)
 * for `src/minisketch`: https://github.com/sipa/minisketch.git (branch master)
+* for `src/dashbls`: https://github.com/dashpay/bls-signatures.git (branch develop)
+* for `src/immer`: https://github.com/arximboldi/immer.git (branch master)
 
 To do so, add the upstream repository as remote:
 

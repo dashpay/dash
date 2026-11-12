@@ -42,7 +42,7 @@ TimeoutStopSec=600
 # Directory creation and permissions
 ####################################
 
-# Run as dash:dash
+# Run as dashcore:dashcore
 User=dashcore
 Group=dashcore
 

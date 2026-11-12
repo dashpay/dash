@@ -238,7 +238,7 @@ This process could take many hours, or even days on slower than average systems.
 By default, blockchain and wallet data files will be stored in:
 
 ``` bash
-/Users/${USER}/Library/Application Support/Dash/
+/Users/${USER}/Library/Application Support/DashCore/
 ```
 
 Before running, you may create an empty configuration file:
