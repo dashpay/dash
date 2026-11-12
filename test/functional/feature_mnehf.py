@@ -26,13 +26,14 @@ from test_framework.wallet_util import generate_keypair
 class MnehfTest(DashTestFramework):
     def add_options(self, parser):
         self.add_wallet_options(parser)
+        parser.add_argument("--spork21", default=False, action="store_true",
+                            help="Test with all quorum members connected")
 
     def set_test_params(self):
         # testdummy starts as NEVER_ACTIVE, run_test opens its signalling window later
-        extra_args = [["-vbparams=testdummy:-2:999999999999:0:4:4:4:5:1", "-persistmempool=0"]] * 2
-        # One masternode is enough: the EHF signal only needs a recovered signature of any quorum
-        self.set_dash_test_params(2, 1, extra_args=extra_args)
-        self.set_dash_llmq_test_params(1, 1)
+        extra_args = [["-vbparams=testdummy:-2:999999999999:0:4:4:4:5:1", "-persistmempool=0"]] * 4
+        self.set_dash_test_params(4, 3, extra_args=extra_args)
+        self.set_dash_llmq_test_params(3, 3)
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
@@ -91,6 +92,8 @@ class MnehfTest(DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork_enabled)
         self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", spork_disabled)
         self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", spork_disabled)
+        if self.options.spork21:
+            self.nodes[0].sporkupdate("SPORK_21_QUORUM_ALL_CONNECTED", spork_enabled)
         self.wait_for_sporks_same()
 
     def check_fork(self, expected):
@@ -123,11 +126,45 @@ class MnehfTest(DashTestFramework):
         self.check_no_ehf_signing("before its start time")
 
         self.log.info("Check that masternodes sign testdummy once its start time is reached")
+        request_id = hash256(ser_string(b"mnhf") + struct.pack("<Q", 28))[::-1].hex()
+        selection = node.quorum("selectquorum", 100, request_id)
+        signer = self.get_mninfo(selection["recoveryMembers"][-1])
+        mn_node = signer.get_node(self)
+        missing_members = [mn for mn in self.mninfo if mn != signer]
+        for mn in missing_members:
+            self.isolate_node(mn.nodeIdx)
+        online_nodes = [node, mn_node]
+        quorum_hash = selection["quorumHash"]
         self.bump_mocktime(600, update_schedulers=False)
-        while node.getblockheader(node.getbestblockhash())['mediantime'] < start_time:
-            self.generate(node, 1)
-        mn_node = self.mninfo[0].get_node(self)
-        self.wait_until(lambda: len(self.ehf_signals_in_mempool(mn_node, 28)) == 1)
+        with mn_node.assert_debug_log(["created sigShare.", f"id={request_id}, msgHash="], timeout=10):
+            while node.getblockheader(node.getbestblockhash())['mediantime'] < start_time:
+                self.generate(node, 1, sync_fun=lambda: self.sync_blocks(online_nodes))
+        assert_equal(self.ehf_signals_in_mempool(mn_node, 28), [])
+
+        self.log.info("Expire the incomplete signing session before the missing members return")
+        with mn_node.assert_debug_log(["signing session timed out.", f"id={request_id}, msgHash="], timeout=10):
+            self.bump_mocktime(61)
+        self.generate(node, 1, sync_fun=lambda: self.sync_blocks(online_nodes))
+        mn_node.syncwithvalidationinterfacequeue()
+        assert_equal(self.ehf_signals_in_mempool(mn_node, 28), [])
+
+        for mn in missing_members:
+            self.reconnect_isolated_node(mn.nodeIdx, 0)
+        self.sync_blocks()
+        members = {mn.proTxHash for mn in self.mninfo}
+
+        def members_connected():
+            self.bump_mocktime(1)
+            return all(members - {mn.proTxHash} <=
+                       {peer.get("verified_proregtx_hash") for peer in mn.get_node(self).getpeerinfo()}
+                       for mn in self.mninfo)
+
+        self.wait_until(members_connected, timeout=30, sleep=1)
+        self.generateblock(node, node.getnewaddress(), [], sync_fun=self.sync_blocks)
+        assert_equal(mn_node.quorum("selectquorum", 100, request_id)["quorumHash"], quorum_hash)
+        assert self.wait_until(lambda: len(self.ehf_signals_in_mempool(mn_node, 28)) == 1,
+                               timeout=30, do_assert=False), "EHF signal did not recover after retrying with the same quorum"
+        self.sync_mempools()
 
     def send_tx(self, tx):
         return self.nodes[0].sendrawtransaction(hexstring=tx.serialize().hex(), maxfeerate=0)
@@ -137,7 +174,8 @@ class MnehfTest(DashTestFramework):
 
         self.set_sporks()
         self.log.info("Mine a quorum...")
-        self.mine_quorum_single_member()
+        self.mine_until_mns_confirmed_for_next_dkg()
+        self.mine_quorum()
         self.test_no_signing_outside_window()
         self.check_fork('defined')
 
@@ -226,8 +264,7 @@ class MnehfTest(DashTestFramework):
         self.check_fork('active')
 
         self.log.info("Testing duplicate EHF signal with same bit")
-        # Same quorum as the original signal: a quorum member never signs the same request id twice,
-        # so only an identical payload gets its (already existing) recovered signature
+        # Use the original quorum so the identical payload gets its existing recovered signature.
         ehf_tx_duplicate = self.send_tx(self.create_mnehf(28, pubkey, quorumHash=format(mnehf_payload.quorumHash, '064x')))
         tip_blockhash = self.generate(node, 1, sync_fun=lambda: self.sync_blocks())[0]
         block = node.getblock(tip_blockhash)
@@ -240,7 +277,7 @@ class MnehfTest(DashTestFramework):
         self.check_fork('defined')
 
         self.log.info("Wait MNs to sign EHF message")
-        self.mine_quorum_single_member()
+        self.mine_quorum()
         self.check_fork('defined')
 
         def check_ehf_activated(self):
