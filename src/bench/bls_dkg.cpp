@@ -5,7 +5,10 @@
 #include <bench/bench.h>
 
 #include <bls/bls_worker.h>
+#include <clientversion.h>
+#include <hash.h>
 #include <llmq/options_args.h>
+#include <streams.h>
 #include <util/helpers.h>
 
 #include <random.h>
@@ -59,7 +62,12 @@ private:
     }
 
 public:
-    explicit DKG(int quorumSize)
+    explicit DKG(int quorumSize) :
+        DKG(quorumSize, quorumSize / 2 + 1)
+    {
+    }
+
+    DKG(int quorumSize, int threshold)
     {
         members.reserve(quorumSize);
         ids.reserve(quorumSize);
@@ -73,7 +81,7 @@ public:
 
         blsWorker.Start(llmq::DEFAULT_WORKER_COUNT);
         for (auto& member : members) {
-            blsWorker.GenerateContributions(quorumSize / 2 + 1, ids, member.vvec, member.skShares);
+            blsWorker.GenerateContributions(threshold, ids, member.vvec, member.skShares);
         }
     }
     ~DKG()
@@ -87,6 +95,48 @@ public:
 
         bench.minEpochIterations(epoch_iters).run([&] {
             quorumVvec = blsWorker.BuildQuorumVerificationVector(receivedVvecs, false);
+        });
+    }
+
+    // The work of ActiveDKGSession::SendCommitment. A cold run decodes every verification vector from its
+    // database encoding first, as CDKGSessionManager::GetVerifiedContributions does on a cache miss.
+    void Bench_BuildCommitment(benchmark::Bench& bench, bool cold)
+    {
+        ReceiveVvecs();
+        ReceiveShares(0);
+        CDataStream db(SER_DISK, CLIENT_VERSION);
+        for (const auto& vvec : receivedVvecs) {
+            db << *vvec;
+        }
+
+        bench.epochs(3).run([&] {
+            auto vvecs = receivedVvecs;
+            if (cold) {
+                CDataStream s{db};
+                for (auto& vvec : vvecs) {
+                    vvec = std::make_shared<std::vector<CBLSPublicKey>>();
+                    s >> *vvec;
+                }
+            }
+            const auto vvec = blsWorker.BuildQuorumVerificationVector(vvecs);
+            const auto skShare = blsWorker.AggregateSecretKeys(receivedSkShares);
+            const auto sig = skShare.Sign(::SerializeHash(*vvec), false);
+            assert(sig.IsValid());
+        });
+    }
+
+    // The per-sender work of CDKGSession::ReceiveMessage(CDKGPrematureCommitment) once the vvec is built
+    void Bench_VerifyCommitment(benchmark::Bench& bench)
+    {
+        ReceiveVvecs();
+        ReceiveShares(0);
+        const uint256 hash = ::SerializeHash(*quorumVvec);
+        const auto sig = blsWorker.AggregateSecretKeys(receivedSkShares).Sign(hash, false);
+
+        bench.run([&] {
+            const bool valid = ::SerializeHash(*quorumVvec) == hash &&
+                               sig.VerifyInsecure(CBLSWorker::BuildPubKeyShare(quorumVvec, ids[0]), hash, false);
+            assert(valid);
         });
     }
 
@@ -189,6 +239,23 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
         ptr.reset();                                                                            \
     }                                                                                           \
     BENCHMARK(BLSDKG_VerifyContributionShares_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
+
+// llmq_400_85
+static void BLSDKG_BuildCommitment_cold_400(benchmark::Bench& bench)
+{
+    DKG(bench.output() ? 400 : 2, bench.output() ? 340 : 2).Bench_BuildCommitment(bench, /*cold=*/true);
+}
+static void BLSDKG_BuildCommitment_cached_400(benchmark::Bench& bench)
+{
+    DKG(bench.output() ? 400 : 2, bench.output() ? 340 : 2).Bench_BuildCommitment(bench, /*cold=*/false);
+}
+static void BLSDKG_VerifyCommitment_400(benchmark::Bench& bench)
+{
+    DKG(bench.output() ? 400 : 2, bench.output() ? 340 : 2).Bench_VerifyCommitment(bench);
+}
+BENCHMARK(BLSDKG_BuildCommitment_cold_400, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLSDKG_BuildCommitment_cached_400, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLSDKG_VerifyCommitment_400, benchmark::PriorityLevel::HIGH)
 
 BENCH_GenerateContributions(simple, 50, 50);
 BENCH_GenerateContributions(simple, 100, 5);
