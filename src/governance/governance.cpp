@@ -285,12 +285,12 @@ bool CGovernanceManager::ProcessObject(const std::string& peer_str, const uint25
     return true;
 }
 
-void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
+void CGovernanceManager::CheckOrphanVotes(const std::shared_ptr<CGovernanceObject>& govobj)
 {
     AssertLockHeld(cs_store);
     AssertLockNotHeld(cs_relay);
 
-    uint256 nHash = govobj.GetHash();
+    uint256 nHash = Assert(govobj)->GetHash();
     std::vector<governance::OrphanVote> orphan_votes;
     cmmapOrphanVotes.GetAll(nHash, orphan_votes);
 
@@ -304,8 +304,10 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
         CGovernanceException e;
         if (orphan_vote.expiration < now) {
             fRemove = true;
-        } else if (govobj.ProcessVote(m_mn_metaman, fRateChecksEnabled, tip_mn_list, vote, e)) {
-            RelayVote(vote);
+        } else if (govobj->ProcessVote(m_mn_metaman, fRateChecksEnabled, tip_mn_list, vote, e)) {
+            if (cmapVoteToObject.Insert(vote.GetHash(), govobj)) {
+                RelayVote(vote);
+            }
             fRemove = true;
         }
         if (fRemove) {
@@ -379,7 +381,7 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
 
     // WE MIGHT HAVE PENDING/ORPHAN VOTES FOR THIS OBJECT
 
-    CheckOrphanVotes(*govobj);
+    CheckOrphanVotes(govobj);
 
     // SEND NOTIFICATION TO SCRIPT/ZMQ
     GetMainSignals().NotifyGovernanceObject(std::make_shared<const Governance::Object>(govobj->Object()), nHash.ToString());

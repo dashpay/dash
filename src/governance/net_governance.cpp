@@ -153,7 +153,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
             m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ,
                                                        static_cast<int>(invs.size())));
             for (const auto& inv : invs) {
-                m_peer_manager->PeerRelayInv(inv);
+                m_peer_manager->PeerPushInventory(peer.GetId(), inv);
             }
         } else {
             // Sync votes for a specific governance object
@@ -165,7 +165,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
             m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE,
                                                        static_cast<int>(invs.size())));
             for (const auto& inv : invs) {
-                m_peer_manager->PeerRelayInv(inv);
+                m_peer_manager->PeerPushInventory(peer.GetId(), inv);
             }
         }
     }
