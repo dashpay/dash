@@ -1794,10 +1794,12 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
         WalletCJLogPrint(m_wallet, "vecInputsByRounds: rounds: %d, inputs: %d\n", pair.first, pair.second);
     }
 
-    int nRounds = vecInputsByRounds.begin()->first;
-    if (PrepareDenominate(nRounds, nRounds, strError, vecTxDSIn, vecPSInOutPairsTmp)) {
-        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", nRounds);
-        return SendDenominate(vecPSInOutPairsTmp, connman);
+    if (!vecInputsByRounds.empty()) {
+        int nRounds = vecInputsByRounds.begin()->first;
+        if (PrepareDenominate(nRounds, nRounds, strError, vecTxDSIn, vecPSInOutPairsTmp)) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", nRounds);
+            return SendDenominate(vecPSInOutPairsTmp, connman);
+        }
     }
 
     // We failed? That's strange but let's just make final attempt and try to mix everything
