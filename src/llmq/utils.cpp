@@ -20,7 +20,6 @@
 #include <util/time.h>
 #include <validation.h>
 
-#include <atomic>
 #include <map>
 #include <optional>
 
@@ -834,14 +833,7 @@ std::unordered_set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType
                                                              gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
                                                              size_t memberCount, size_t connectionCount)
 {
-    static uint256 qwatchConnectionSeed;
-    static std::atomic<bool> qwatchConnectionSeedGenerated{false};
-    static RecursiveMutex qwatchConnectionSeedCs;
-    if (!qwatchConnectionSeedGenerated) {
-        LOCK(qwatchConnectionSeedCs);
-        qwatchConnectionSeed = GetRandHash();
-        qwatchConnectionSeedGenerated = true;
-    }
+    static const uint256 qwatchConnectionSeed = GetRandHash();
 
     std::unordered_set<size_t> result;
     uint256 rnd = qwatchConnectionSeed;
