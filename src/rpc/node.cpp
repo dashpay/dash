@@ -325,7 +325,7 @@ static RPCHelpMan mnauth()
     }
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
-    return node.connman->TryMarkVerified(nodeId, proTxHash, publicKey.GetHash());
+    return EnsureConnman(node).TryMarkVerified(nodeId, proTxHash, publicKey.GetHash());
 },
     };
 }
