@@ -2538,7 +2538,7 @@ static RPCHelpMan getspecialtxes()
 
         nTxNum++;
         if (nTxNum <= nSkip) continue;
-        if (nTxNum > nSkip + nCount) break;
+        if (nTxNum - nSkip > nCount) break;
 
         switch (nVerbosity)
         {
