@@ -104,7 +104,7 @@ public:
             obj.confirmedHash,
             obj.confirmedHashWithProRegTxHash,
             obj.keyIDOwner);
-        READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.nVersion == ProTxVersion::LegacyBLS));
+        READWRITE(BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), ProTxVersion::GetBLSScheme(obj.nVersion)));
         READWRITE(
             obj.keyIDVoting,
             NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
@@ -300,7 +300,8 @@ public:
             using BaseType = std::decay_t<decltype(member)>;
             if constexpr (BaseType::mask == Field_pubKeyOperator) {
                 if (obj.fields & member.mask) {
-                    READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator), obj.state.nVersion == ProTxVersion::LegacyBLS));
+                    READWRITE(BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator),
+                                         ProTxVersion::GetBLSScheme(obj.state.nVersion)));
                 }
             } else if constexpr (BaseType::mask == Field_netInfo) {
                 if (obj.fields & member.mask) {
@@ -435,7 +436,7 @@ public:
             if constexpr (BaseType::mask == LegacyField_pubKeyOperator) {
                 if (fields & member.mask) {
                     // We'll set proper scheme later in MigrateLegacyDiffs()
-                    s >> CBLSLazyPublicKeyVersionWrapper(state.pubKeyOperator, /*legacy=*/true);
+                    s >> BLSEncoded(state.pubKeyOperator, BLSScheme::Legacy);
                 }
             } else if constexpr (BaseType::mask == LegacyField_netInfo) {
                 if (fields & member.mask) {

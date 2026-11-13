@@ -42,8 +42,7 @@ BOOST_FIXTURE_TEST_CASE(platform_recovered_sigs_preserve_each_message, TestingSe
     const auto make_sig = [&](uint32_t message) {
         const auto msg = GetTestQuorumHash(message);
         return std::make_shared<const CRecoveredSig>(type, quorum, id, msg,
-                                                     key.Sign(SignHash(type, quorum, id, msg).Get(),
-                                                              bls::bls_legacy_scheme.load()));
+                                                     key.Sign(SignHash(type, quorum, id, msg).Get(), GetAmbientBLSScheme()));
     };
     const auto current = make_sig(4);
     const auto earlier = make_sig(3);
@@ -68,8 +67,7 @@ BOOST_AUTO_TEST_CASE(platform_recovered_sigs_persistence_and_expiry)
     key.MakeNewKey();
     const auto make_sig = [&](uint32_t message) {
         const auto msg = GetTestQuorumHash(message);
-        return CRecoveredSig(type, quorum, id, msg,
-                             key.Sign(SignHash(type, quorum, id, msg).Get(), bls::bls_legacy_scheme.load()));
+        return CRecoveredSig(type, quorum, id, msg, key.Sign(SignHash(type, quorum, id, msg).Get(), GetAmbientBLSScheme()));
     };
     const auto first = make_sig(3);
     const auto second = make_sig(4);
@@ -120,8 +118,7 @@ BOOST_AUTO_TEST_CASE(truncated_recovered_sig_markers_expire_after_reopen)
     const auto msg = GetTestQuorumHash(3);
     CBLSSecretKey key;
     key.MakeNewKey();
-    const CRecoveredSig sig{type, quorum, id, msg,
-                            key.Sign(SignHash{type, quorum, id, msg}.Get(), bls::bls_legacy_scheme.load())};
+    const CRecoveredSig sig{type, quorum, id, msg, key.Sign(SignHash{type, quorum, id, msg}.Get(), GetAmbientBLSScheme())};
     const auto path = m_args.GetDataDirBase() / "truncated_sigs";
     const auto now = GetTime();
     SetMockTime(now);
@@ -170,8 +167,7 @@ BOOST_AUTO_TEST_CASE(recovered_sig_reinsertion_survives_stale_expiry)
     key.MakeNewKey();
     const auto make_sig = [&](uint32_t message) {
         const auto msg = GetTestQuorumHash(message);
-        return CRecoveredSig{type, quorum, id, msg,
-                             key.Sign(SignHash{type, quorum, id, msg}.Get(), bls::bls_legacy_scheme.load())};
+        return CRecoveredSig{type, quorum, id, msg, key.Sign(SignHash{type, quorum, id, msg}.Get(), GetAmbientBLSScheme())};
     };
     const auto now = GetTime();
     for (const bool same_message : {false, true}) {
@@ -411,7 +407,7 @@ BOOST_AUTO_TEST_CASE(pending_sig_shares_session_removal_updates_count)
 
 BOOST_AUTO_TEST_CASE(sig_share_batch_verifier_judges_each_sender_by_its_own_share)
 {
-    const bool legacy_scheme{bls::bls_legacy_scheme.load()};
+    const BLSScheme legacy_scheme{GetAmbientBLSScheme()};
     const CSigShare sig_share{MakeSigShare(1)};
 
     CBLSSecretKey sk_share;

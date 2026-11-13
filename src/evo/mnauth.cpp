@@ -44,7 +44,7 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternode
     mnauth.proRegTxHash = mn_activeman.GetProTxHash();
 
     // all clients uses basic BLS
-    mnauth.sig = mn_activeman.Sign(signHash, false);
+    mnauth.sig = mn_activeman.Sign(signHash, BLSScheme::Basic);
 
     LogPrint(BCLog::NET_NETCONN, "CMNAuth::%s -- Sending MNAUTH, peer=%d\n", __func__, peer.GetId());
     connman.PushMessage(&peer, CNetMsgMaker(peer.GetCommonVersion()).Make(NetMsgType::MNAUTH, mnauth));
@@ -80,7 +80,7 @@ MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_s
 
     if (!mnauth.sig.IsValid()) {
         LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- invalid mnauth for protx=%s with sig=%s\n",
-                 mnauth.proRegTxHash.ToString(), mnauth.sig.ToString(false));
+                 mnauth.proRegTxHash.ToString(), mnauth.sig.ToString(BLSScheme::Basic));
         return MisbehavingError{100, "invalid mnauth signature"};
     }
 
@@ -97,7 +97,7 @@ MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_s
     const uint256 signHash{::SerializeHash(std::make_tuple(pubKey, peer.GetSentMNAuthChallenge(), !peer.IsInboundConn(), peer.nVersion.load()))};
     LogPrint(BCLog::NET_NETCONN, "CMNAuth::%s -- constructed signHash for nVersion %d, peer=%d\n", __func__, peer.nVersion, peer.GetId());
 
-    if (!mnauth.sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator.Get(), signHash, false)) {
+    if (!mnauth.sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator.Get(), signHash, BLSScheme::Basic)) {
         // Same as above, MN seems to not know its fate yet, so give it a chance to update. If this is a
         // malicious node (DoSing us), it'll get banned soon.
         return MisbehavingError{10, "mnauth signature verification failed"};

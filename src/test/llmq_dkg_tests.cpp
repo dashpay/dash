@@ -156,13 +156,13 @@ BOOST_AUTO_TEST_CASE(contribution_records_vvec_scheme)
     qc.vvec = std::make_shared<std::vector<CBLSPublicKey>>(std::vector<CBLSPublicKey>{sk.GetPublicKey()});
     qc.contributions = std::make_shared<CBLSIESMultiRecipientObjects<CBLSSecretKey>>();
 
-    for (const bool legacy : {true, false}) {
-        bls::bls_legacy_scheme.store(legacy);
+    for (const BLSScheme legacy : {BLSScheme::Legacy, BLSScheme::Basic}) {
+        bls::bls_legacy_scheme.store(legacy == BLSScheme::Legacy);
         CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
         stream << qc;
         CDKGContribution received;
         stream >> received;
-        BOOST_CHECK_EQUAL(received.vvecLegacyScheme, legacy);
+        BOOST_CHECK(received.vvecLegacyScheme == legacy);
         BOOST_REQUIRE_EQUAL(received.vvec->size(), 1U);
         BOOST_CHECK((*received.vvec)[0].IsValid());
         BOOST_CHECK((*received.vvec)[0] == (*qc.vvec)[0]);

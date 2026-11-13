@@ -178,7 +178,7 @@ public:
     {
         READWRITE(obj.m_protx_hash, obj.m_requested_height, obj.m_quorum_hash);
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.m_signature), false));
+            READWRITE(BLSEncoded(const_cast<CBLSSignature&>(obj.m_signature), BLSScheme::Basic));
         }
     }
 

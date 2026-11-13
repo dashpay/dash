@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(proupserv_rejects_invalid_ntype)
         proReg.scriptPayout = NewP2PKHScript(payout_key);
         CBLSSecretKey operator_key;
         operator_key.MakeNewKey();
-        proReg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+        proReg.pubKeyOperator.Set(operator_key.GetPublicKey(), BLSScheme::Basic);
 
         TxValidationState state;
         BOOST_CHECK(!proReg.IsTriviallyValid(state));

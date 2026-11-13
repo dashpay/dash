@@ -49,7 +49,7 @@ uint256 CCoinJoinQueue::GetHash() const { return SerializeHash(*this, SER_NETWOR
 
 bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
-    if (!CBLSSignature(Span{vchSig}, false).VerifyInsecure(blsPubKey, GetSignatureHash(), false)) {
+    if (!CBLSSignature(Span{vchSig}, BLSScheme::Basic).VerifyInsecure(blsPubKey, GetSignatureHash(), BLSScheme::Basic)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinQueue::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
@@ -82,7 +82,7 @@ uint256 CCoinJoinBroadcastTx::GetSignatureHash() const
 
 bool CCoinJoinBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
-    if (!CBLSSignature(Span{vchSig}, false).VerifyInsecure(blsPubKey, GetSignatureHash(), false)) {
+    if (!CBLSSignature(Span{vchSig}, BLSScheme::Basic).VerifyInsecure(blsPubKey, GetSignatureHash(), BLSScheme::Basic)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBroadcastTx::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }

@@ -419,19 +419,16 @@ MinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s)
         throw std::ios_base::failure("inconsistent evo snapshot commitment bitset sizes");
     }
     ReadFixedBitSet(s, commitment.validMembers, valid_members_size);
-    const bool legacy{commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION ||
-                      commitment.nVersion == llmq::CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION};
+    const BLSScheme scheme{commitment.GetBLSScheme()};
     HashVerifier<Stream> bls_input{s};
-    bls_input >> CBLSPublicKeyVersionWrapper(commitment.quorumPublicKey, legacy) >> commitment.quorumVvecHash >>
-        CBLSSignatureVersionWrapper(commitment.quorumSig, legacy) >>
-        CBLSSignatureVersionWrapper(commitment.membersSig, legacy);
+    bls_input >> BLSEncoded(commitment.quorumPublicKey, scheme) >> commitment.quorumVvecHash >>
+        BLSEncoded(commitment.quorumSig, scheme) >> BLSEncoded(commitment.membersSig, scheme);
     s >> entry.mined_block_hash;
     // BLS decoding may normalize an opposite-scheme encoding to an invalid
     // object. Snapshot input must match the requested scheme's canonical bytes.
     CHashWriter canonical{s.GetType(), s.GetVersion()};
-    canonical << CBLSPublicKeyVersionWrapper(commitment.quorumPublicKey, legacy) << commitment.quorumVvecHash
-              << CBLSSignatureVersionWrapper(commitment.quorumSig, legacy)
-              << CBLSSignatureVersionWrapper(commitment.membersSig, legacy);
+    canonical << BLSEncoded(commitment.quorumPublicKey, scheme) << commitment.quorumVvecHash
+              << BLSEncoded(commitment.quorumSig, scheme) << BLSEncoded(commitment.membersSig, scheme);
     if (bls_input.GetHash() != canonical.GetHash()) {
         throw std::ios_base::failure("noncanonical evo snapshot commitment encoding");
     }

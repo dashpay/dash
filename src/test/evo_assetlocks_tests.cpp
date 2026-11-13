@@ -522,7 +522,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
 
         CBLSSecretKey sk;
         sk.MakeNewKey();
-        const bool legacy_scheme = bls::bls_legacy_scheme.load();
+        const BLSScheme legacy_scheme{GetAmbientBLSScheme()};
         const CBLSSignature sig_a{sk.Sign(uint256::ONE, legacy_scheme)};
         const CBLSSignature sig_b{sk.Sign(uint256::TWO, legacy_scheme)};
         BOOST_REQUIRE(sig_a.IsValid() && sig_b.IsValid() && sig_a != sig_b);
@@ -673,7 +673,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock_cbtx_merkle_root, BasicTestingSetup)
     // exists to cover
     CBLSSecretKey sk;
     sk.MakeNewKey();
-    block.vtx.back() = make_unlock(2, 2, 700, sk.Sign(uint256::ONE, bls::bls_legacy_scheme.load()));
+    block.vtx.back() = make_unlock(2, 2, 700, sk.Sign(uint256::ONE, GetAmbientBLSScheme()));
     BOOST_CHECK(block.vtx.back()->GetHash() == make_unlock(2, 2, 500)->GetHash());
     BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block) != root_resigned);
 }

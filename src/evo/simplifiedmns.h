@@ -75,14 +75,11 @@ public:
             READWRITE(
                 obj.nVersion);
         }
-        READWRITE(
-                obj.proRegTxHash,
-                obj.confirmedHash,
-                NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
-                                  obj.nVersion >= ProTxVersion::ExtAddr),
-                CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
-                obj.keyIDVoting,
-                obj.isValid);
+        READWRITE(obj.proRegTxHash, obj.confirmedHash,
+                  NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
+                                    obj.nVersion >= ProTxVersion::ExtAddr),
+                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), ProTxVersion::GetBLSScheme(obj.nVersion)),
+                  obj.keyIDVoting, obj.isValid);
         if ((s.GetType() & SER_NETWORK) && s.GetVersion() < DMN_TYPE_PROTO_VERSION) {
             return;
         }

@@ -747,7 +747,7 @@ public:
         if (!qc.quorumPublicKey.IsValid()) {
             return {};
         }
-        return {PlatformQuorumStatus::FOUND, qc.quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false)};
+        return {PlatformQuorumStatus::FOUND, qc.quorumPublicKey.ToByteVector(BLSScheme::Basic)};
     }
     std::vector<uint8_t> getInstantSendLock(const uint256& txid) override
     {

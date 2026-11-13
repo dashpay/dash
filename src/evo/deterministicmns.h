@@ -475,9 +475,9 @@ public:
     [[nodiscard]] bool HasOperatorKeyUnderAnyScheme(const CBLSPublicKey& pubkey, const uint256& self) const
     {
         if (!pubkey.IsValid()) return false;
-        for (const bool legacy_scheme : {true, false}) {
+        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
             CBLSLazyPublicKey wrapped;
-            wrapped.Set(pubkey, legacy_scheme);
+            wrapped.Set(pubkey, scheme);
             if (!HasUniqueProperty(wrapped)) continue;
             const auto holder = GetUniquePropertyMN(wrapped);
             if (holder && holder->proTxHash != self) return true;
