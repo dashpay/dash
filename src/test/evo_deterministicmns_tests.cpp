@@ -9,6 +9,7 @@
 #include <clientversion.h>
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
+#include <core_io.h>
 #include <deploymentstatus.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
@@ -4447,6 +4448,201 @@ BOOST_AUTO_TEST_CASE(statediff_captures_operator_key_reencoding)
             BOOST_CHECK(::SerializeHash(reconstructed.pubKeyOperator) == ::SerializeHash(b.pubKeyOperator));
         }
     }
+
+    {
+        BOOST_TEST_CONTEXT("different operator key")
+        {
+            CBLSSecretKey other;
+            other.MakeNewKey();
+            CDeterministicMNState changed_from;
+            changed_from.nVersion = ProTxVersion::LegacyBLS;
+            changed_from.pubKeyOperator.Set(sk.GetPublicKey(), /*specificLegacyScheme=*/true);
+            changed_from.netInfo = NetInfoInterface::MakeNetInfo(changed_from.nVersion);
+            CDeterministicMNState changed_to{changed_from};
+            changed_to.pubKeyOperator.Set(other.GetPublicKey(), /*specificLegacyScheme=*/true);
+            const CDeterministicMNStateDiff diff{changed_from, changed_to};
+            BOOST_CHECK(diff.fields & CDeterministicMNStateDiff::Field_pubKeyOperator);
+        }
+    }
+    {
+        BOOST_TEST_CONTEXT("unchanged operator key")
+        {
+            CDeterministicMNState unchanged;
+            unchanged.nVersion = ProTxVersion::LegacyBLS;
+            unchanged.pubKeyOperator.Set(sk.GetPublicKey(), /*specificLegacyScheme=*/true);
+            unchanged.netInfo = NetInfoInterface::MakeNetInfo(unchanged.nVersion);
+            const CDeterministicMNState copy{unchanged};
+            const CDeterministicMNStateDiff diff{unchanged, copy};
+            BOOST_CHECK((diff.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) == 0);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(proupserv_mainnet_pre_v19_verifies_legacy_only)
+{
+    // Mainnet height 1898717, txid b227237ecf56d44e5f1cc69ae87e73a75c80a9c1cc6959faad4232fd22f5efc5.
+    const std::string raw_tx =
+        "030002000176aae4e31867298db9e95e158f97603cd304c502a3298a5e655207bd72f84af5000000006a473044022002233382e7c2c48e"
+        "e382404a961ae592310806b7817bb85dfd7e7a8dd4029bf602205d5b5a513e1ae44af571cf84752f13ebd93f8e304711f589860e56a779"
+        "c3ff7e012103b40af40be1b2a12d9a7296c990750878832d146fd686b5776a9fd4d961820a3afeffffff01a6820100000000001976a914"
+        "56e5b213afbc7879e9932223f1f18a6e3606d5bf88ac00000000b5010086bda1a615c1d3c1f57ff42a3ea4fc4236eb9c3693350ca31272"
+        "9abf7c72b89400000000000000000000ffff6c3daa8b270f007e82b17db3f564a6b8051b49b6d3f0d08ac019ee30a09ecc6216678d39d7"
+        "a363805c989927a85cdcfc41b0c8afa06635682d1639544de64301d5d6bb16e5f4ef1c2c2cc702fdd84a6853f60631cd5b540355a09ff0"
+        "d293a1547ad021c0d09baa8e305b55e4cea97a4f3a555e3330ed999833242dcd823cc07b781ccfef03a75c";
+    CMutableTransaction mtx;
+    BOOST_REQUIRE(DecodeHexTx(mtx, raw_tx));
+    const auto payload = GetTxPayload<CProUpServTx>(CTransaction{mtx});
+    BOOST_REQUIRE(payload);
+    CBLSPublicKey operator_key;
+    BOOST_REQUIRE(operator_key.SetHexStr("1379c53e87019f8a6082ef5083f66955e65a646412721d557be40b4ab4014fa95066c4e627bbf"
+                                         "a7bd77b4ccb8d37cc05",
+                                         /*specificLegacyScheme=*/true));
+    const uint256 hash{::SerializeHash(*payload)};
+    BOOST_CHECK(payload->sig.VerifyInsecure(operator_key, hash, /*specificLegacyScheme=*/true));
+    BOOST_CHECK(!payload->sig.VerifyInsecure(operator_key, hash, /*specificLegacyScheme=*/false));
+}
+
+void FuncProUpServSignatureFollowsBlockHeight(TestChainV19BeforeActivationSetup& setup)
+{
+    struct ScopedBLSScheme {
+        bool prev;
+        explicit ScopedBLSScheme(bool legacy) :
+            prev{bls::bls_legacy_scheme.load()}
+        {
+            bls::bls_legacy_scheme.store(legacy);
+        }
+        ~ScopedBLSScheme() { bls::bls_legacy_scheme.store(prev); }
+    };
+
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto sync_tip = [&] { dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip())); };
+
+    // The fixture stops five blocks before the block whose connect switches the scheme.
+    // Register before that block so the pre-switch checks still see a legacy tip.
+    for (int i = 0; i < 3; ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        sync_tip();
+    }
+    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
+
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    auto tx_reg = CreateProRegTx(chainman, utxos, /*port=*/21001, GenerateRandomAddress(), setup.coinbaseKey, owner_key,
+                                 operator_key);
+    const uint256 proTxHash{tx_reg.GetHash()};
+    setup.CreateAndProcessBlock({tx_reg}, coinbase_pk);
+    sync_tip();
+    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
+    const auto registered = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(registered);
+    BOOST_REQUIRE(registered->pdmnState->nVersion == ProTxVersion::LegacyBLS);
+
+    int port{21002};
+    auto make_upserv = [&](bool sign_legacy) {
+        ScopedBLSScheme guard(sign_legacy);
+        auto tx = CreateProUpServTx(chainman, utxos, proTxHash, operator_key, port++, CScript(), setup.coinbaseKey,
+                                    ProTxVersion::LegacyBLS);
+        if (tx.vout.size() >= 2) {
+            utxos.emplace(COutPoint(tx.GetHash(), tx.vout.size() - 1), Coin(tx.vout.back(), /*nHeightIn=*/1, false));
+        }
+        return tx;
+    };
+    auto check = [&](const CMutableTransaction& tx) {
+        TxValidationState state;
+        LOCK(cs_main);
+        const bool ok = CheckProUpServTx(CTransaction(tx), chainman.ActiveChain().Tip(), dmnman,
+                                         chainman.GetConsensus(), TipRules(chainman), state, /*check_sigs=*/true);
+        return std::pair<bool, std::string>{ok, state.GetRejectReason()};
+    };
+
+    {
+        const auto [ok, reason] = check(make_upserv(/*sign_legacy=*/true));
+        BOOST_CHECK_MESSAGE(ok, reason);
+    }
+    {
+        const auto [ok, reason] = check(make_upserv(/*sign_legacy=*/false));
+        BOOST_CHECK(!ok);
+        BOOST_CHECK_EQUAL(reason, "bad-protx-sig");
+    }
+
+    setup.CreateAndProcessBlock({}, coinbase_pk);
+    sync_tip();
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().GetMN(proTxHash)->pdmnState->nVersion == ProTxVersion::LegacyBLS);
+
+    {
+        const auto [ok, reason] = check(make_upserv(/*sign_legacy=*/false));
+        BOOST_CHECK_MESSAGE(ok, reason);
+    }
+    {
+        const auto [ok, reason] = check(make_upserv(/*sign_legacy=*/true));
+        BOOST_CHECK(!ok);
+        BOOST_CHECK_EQUAL(reason, "bad-protx-sig");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(proupserv_signature_scheme_follows_block_height)
+{
+    TestChainV19BeforeActivationSetup setup;
+    FuncProUpServSignatureFollowsBlockHeight(setup);
+}
+
+BOOST_AUTO_TEST_CASE(operator_key_uniqueness_is_per_encoding)
+{
+    CBLSSecretKey key_p;
+    key_p.MakeNewKey();
+    CBLSSecretKey key_q;
+    key_q.MakeNewKey();
+    const CBLSPublicKey p = key_p.GetPublicKey();
+    const CBLSPublicKey q = key_q.GetPublicKey();
+
+    auto make_mn = [](uint64_t internal_id, uint8_t tag, const CBLSPublicKey& pubkey, bool legacy) {
+        auto state = std::make_shared<CDeterministicMNState>();
+        state->nVersion = legacy ? ProTxVersion::LegacyBLS : ProTxVersion::BasicBLS;
+        state->pubKeyOperator.Set(pubkey, /*specificLegacyScheme=*/legacy);
+        uint160 owner_id;
+        owner_id.begin()[0] = tag;
+        state->keyIDOwner = CKeyID{owner_id};
+        state->keyIDVoting = state->keyIDOwner;
+        state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+        auto dmn = std::make_shared<CDeterministicMN>(internal_id);
+        uint256 protx;
+        protx.begin()[0] = tag;
+        dmn->proTxHash = protx;
+        dmn->collateralOutpoint = COutPoint(protx, 1);
+        dmn->pdmnState = std::move(state);
+        return dmn;
+    };
+
+    CDeterministicMNList list;
+    const auto mn_p = make_mn(1, 1, p, /*legacy=*/true);
+    const auto mn_q = make_mn(2, 2, q, /*legacy=*/false);
+    list.AddMN(mn_p);
+    list.AddMN(mn_q);
+    BOOST_REQUIRE(mn_p->pdmnState->pubKeyOperator.IsLegacy());
+    BOOST_REQUIRE(!mn_q->pdmnState->pubKeyOperator.IsLegacy());
+
+    auto expect_found = [&](const CBLSPublicKey& pubkey, bool legacy, const uint256& protx) {
+        CBLSLazyPublicKey wrapped;
+        wrapped.Set(pubkey, /*specificLegacyScheme=*/legacy);
+        BOOST_CHECK_EQUAL(list.HasUniqueProperty(wrapped), !protx.IsNull());
+        const auto found = list.GetUniquePropertyMN(wrapped);
+        if (protx.IsNull()) {
+            BOOST_CHECK(!found);
+        } else {
+            BOOST_REQUIRE(found);
+            BOOST_CHECK(found->proTxHash == protx);
+        }
+    };
+    expect_found(p, /*legacy=*/true, mn_p->proTxHash);
+    expect_found(p, /*legacy=*/false, uint256());
+    expect_found(q, /*legacy=*/false, mn_q->proTxHash);
+    expect_found(q, /*legacy=*/true, uint256());
+    BOOST_CHECK(list.HasOperatorKeyUnderAnyScheme(p, uint256()));
+    BOOST_CHECK(list.HasOperatorKeyUnderAnyScheme(q, uint256()));
 }
 
 BOOST_AUTO_TEST_CASE(has_operator_key_under_any_scheme)

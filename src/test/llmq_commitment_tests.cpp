@@ -7,6 +7,7 @@
 
 #include <chain.h>
 #include <consensus/validation.h>
+#include <core_io.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
@@ -391,6 +392,140 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
                                               GetTestQuorumHash(2));
 
     BOOST_CHECK(hash4 == hash5);
+}
+
+namespace {
+
+class ScopedBLSScheme
+{
+public:
+    explicit ScopedBLSScheme(bool legacy) :
+        m_prev{bls::bls_legacy_scheme.load()}
+    {
+        bls::bls_legacy_scheme.store(legacy);
+    }
+    ~ScopedBLSScheme() { bls::bls_legacy_scheme.store(m_prev); }
+    ScopedBLSScheme(const ScopedBLSScheme&) = delete;
+    ScopedBLSScheme& operator=(const ScopedBLSScheme&) = delete;
+
+private:
+    bool m_prev;
+};
+
+CBLSSecretKey SecretFromScalar(uint8_t scalar)
+{
+    std::vector<uint8_t> bytes(32, 0);
+    bytes.back() = scalar;
+    CBLSSecretKey sk;
+    sk.SetBytes(bytes, false);
+    BOOST_REQUIRE(sk.IsValid());
+    return sk;
+}
+
+CFinalCommitment NullSizedCommitment(uint16_t version, const CBLSPublicKey& pubkey)
+{
+    const auto params = Params().GetLLMQ(Consensus::LLMQType::LLMQ_50_60);
+    BOOST_REQUIRE(params);
+    CFinalCommitment commitment;
+    commitment.nVersion = version;
+    commitment.llmqType = params->type;
+    commitment.signers.assign(params->size, false);
+    commitment.validMembers.assign(params->size, false);
+    commitment.quorumPublicKey = pubkey;
+    return commitment;
+}
+
+CFinalCommitment RoundTripWithVersion(const CFinalCommitment& commitment, uint16_t wire_version)
+{
+    std::vector<unsigned char> buf;
+    CVectorWriter ds(SER_NETWORK, PROTOCOL_VERSION, buf, 0);
+    ds << commitment;
+    BOOST_REQUIRE_GE(buf.size(), 2U);
+    BOOST_REQUIRE_EQUAL(buf[0], static_cast<unsigned char>(commitment.nVersion));
+    BOOST_REQUIRE_EQUAL(buf[1], 0);
+    buf[0] = static_cast<unsigned char>(wire_version);
+    buf[1] = static_cast<unsigned char>(wire_version >> 8);
+    CDataStream in(buf, SER_NETWORK, PROTOCOL_VERSION);
+    CFinalCommitment out;
+    BOOST_CHECK_NO_THROW(in >> out);
+    BOOST_CHECK(in.empty());
+    return out;
+}
+
+} // namespace
+
+BOOST_AUTO_TEST_CASE(commitment_opposite_scheme_pubkey_deserializes_null)
+{
+    // Scalar 1's legacy encoding is canonical only under legacy. A basic-version
+    // commitment carrying those bytes must drop the key instead of throwing.
+    const auto legacy_only = NullSizedCommitment(CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION,
+                                                 SecretFromScalar(1).GetPublicKey());
+    const auto as_basic = RoundTripWithVersion(legacy_only, CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION);
+    BOOST_CHECK(!as_basic.quorumPublicKey.IsValid());
+    BOOST_CHECK(!as_basic.quorumSig.IsValid());
+    BOOST_CHECK(!as_basic.membersSig.IsValid());
+    BOOST_CHECK(as_basic.IsNull());
+    BOOST_CHECK(as_basic.VerifyNull());
+
+    // Scalar 2's basic encoding is canonical only under basic. Mirror case.
+    const auto basic_only = NullSizedCommitment(CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION,
+                                                SecretFromScalar(2).GetPublicKey());
+    const auto as_legacy = RoundTripWithVersion(basic_only, CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION);
+    BOOST_CHECK(!as_legacy.quorumPublicKey.IsValid());
+    BOOST_CHECK(!as_legacy.quorumSig.IsValid());
+    BOOST_CHECK(!as_legacy.membersSig.IsValid());
+    BOOST_CHECK(as_legacy.IsNull());
+    BOOST_CHECK(as_legacy.VerifyNull());
+}
+
+BOOST_AUTO_TEST_CASE(commitment_mainnet_pre_v19_verifies_legacy_only)
+{
+    // Mainnet height 1898412, txid 2f9731e46562f18dd1b135b14433b3927e4d3ccc0fb89ecdf27ec8532b44b8d0.
+    const std::string raw_tx =
+        "03000600000000000000fd55010100acf71c00010004ecf84b2fa47aa7a68074c6002e40d27650465704c0e386700f0000000000000064"
+        "ffffffffffffffffffffffff0f64ffffffffffffffffffffffff0f0ee6b155297c084fd6ae7a1551ed69587479c8210007fd86275723a5"
+        "f1ea9816faa80da16d18563489e450b9e6fbbb880e1334987cccb3bda273adc5e9d0c335d664e9bb25208ac80e304c1fcdf207db827bd1"
+        "63b2a93ea99df01c01c4fb892fe1207ec35f126fc0fe6e52698f59d5005f03af5b0aafd109822d3e1ba616c63a0f0fb3081c4b615696cd"
+        "f2b28af910790b89791ebad4b747607195f91b95d4b60596c69aee3845cc49ff4818323d358f806458face507e60f8412792251a7d5b9b"
+        "edd62cb27dd48378dd97b52e585845b7c7fa9fe54afe024fb5ca481e38b5d10dd928dd3b459d0057cda002b52d4819f3e37b4cf2a1319d"
+        "a0c4142aff6d244109907c9757fed010503d746c4a6ec6e7";
+    CMutableTransaction mtx;
+    BOOST_REQUIRE(DecodeHexTx(mtx, raw_tx));
+    const auto payload = GetTxPayload<CFinalCommitmentTxPayload>(CTransaction{mtx});
+    BOOST_REQUIRE(payload);
+    const auto& qc = payload->commitment;
+    const auto json = qc.ToJson();
+    BOOST_CHECK_EQUAL(payload->nHeight, 1898412U);
+    BOOST_CHECK_EQUAL(json["version"].getInt<int>(), 1);
+    BOOST_CHECK_EQUAL(json["llmqType"].getInt<int>(), 4);
+    BOOST_CHECK_EQUAL(json["quorumHash"].get_str(), "000000000000000f7086e3c00457465076d2402e00c67480a6a77aa42f4bf8ec");
+    BOOST_CHECK_EQUAL(json["quorumPublicKey"].get_str(), "0ee6b155297c084fd6ae7a1551ed69587479c8210007fd86275723a5f1ea9"
+                                                         "816faa80da16d18563489e450b9e6fbbb88");
+    BOOST_CHECK_EQUAL(json["quorumVvecHash"].get_str(),
+                      "db07f2cd1f4c300ec88a2025bbe964d635c3d0e9c5ad73a2bdb3cc7c9834130e");
+    BOOST_CHECK_EQUAL(json["quorumSig"].get_str(), "827bd163b2a93ea99df01c01c4fb892fe1207ec35f126fc0fe6e52698f59d5005f0"
+                                                   "3af5b0aafd109822d3e1ba616c63a0f0fb3081c4b615696cdf2b28af910790b8979"
+                                                   "1ebad4b747607195f91b95d4b60596c69aee3845cc49ff4818323d358f");
+    BOOST_CHECK_EQUAL(json["validMembers"].get_str(), "ffffffffffffffffffffffff0f");
+    BOOST_CHECK_EQUAL(json["validMembersCount"].getInt<int>(), 100);
+
+    uint256 hash_legacy;
+    uint256 hash_basic;
+    {
+        ScopedBLSScheme guard(true);
+        hash_legacy = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                          qc.quorumVvecHash);
+    }
+    {
+        ScopedBLSScheme guard(false);
+        hash_basic = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                         qc.quorumVvecHash);
+    }
+    BOOST_CHECK(hash_legacy != hash_basic);
+    BOOST_CHECK(qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, true));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, false));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, true));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, false));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
