@@ -580,7 +580,7 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
         CBLSSecretKey secret;
         BOOST_REQUIRE(secret.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", legacy));
         auto keyed_state{std::make_shared<CDeterministicMNState>(*unread_state)};
-        keyed_state->pubKeyOperator.Set(secret.GetPublicKey(), legacy);
+        keyed_state->pubKeyOperator.Set(secret.GetPublicKey());
         unread->pdmnState = keyed_state;
         BOOST_CHECK_NO_THROW(snapshot.Validate());
         const auto before_read{GetEvoSnapshotHash(snapshot)};

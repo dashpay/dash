@@ -49,11 +49,6 @@
 
 class CChain;
 
-// Forward declaration for CBLSLazyPublicKey:
-template<typename T> class CBLSLazyWrapper;
-class CBLSPublicKey;
-using CBLSLazyPublicKey = CBLSLazyWrapper<CBLSPublicKey>;
-
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
 
@@ -511,7 +506,7 @@ public:
     void removeForReorg(CChain& chain, std::function<bool(txiter)> filter_final_and_mature) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
     void removeConflicts(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxPubKeyConflicts(const CTransaction &tx, const CKeyID &keyId) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeProTxPubKeyConflicts(const CTransaction &tx, const CBLSLazyPublicKey &pubKey) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeProTxPubKeyConflicts(const CTransaction& tx, const uint256& pubKeyHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxPlatformNodeIDConflicts(const CTransaction &tx, const uint160 &platformNodeID) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxCollateralConflicts(const CTransaction &tx, const COutPoint &collateralOutpoint) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Remove every mempool TX that refers to proTxHash. Used when the MN it names ceases to exist
@@ -754,7 +749,7 @@ public:
      * Does another in-flight transaction already claim this transaction's operator key under the
      * *other* BLS encoding?
      *
-     * mapProTxBlsPubKeyHashes is keyed by CBLSLazyPublicKey::GetHash(), which is scheme-sensitive,
+     * mapProTxBlsPubKeyHashes is keyed by the hash of the operator key under its owner's scheme,
      * so existsProviderTxConflict() above compares operator keys per encoding rather than per key
      * and cannot see this.
      *

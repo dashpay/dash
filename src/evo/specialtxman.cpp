@@ -82,18 +82,6 @@ static bool SetStateVersion(CDeterministicMNState& state_mn, uint16_t nVersion, 
         state_mn.scriptPayout.clear();
     }
 
-    // Keep the operator key's BLS encoding a deterministic function of nVersion, matching the SML and
-    // on-disk serialization, so the stored key and the (scheme-dependent) unique-property index use
-    // the same scheme on every node whether the list was built online or reloaded from a snapshot.
-    // Set() rather than SetLegacy(): the latter only flips the flag and leaves the cached
-    // serialization in the old encoding, so a reloaded node would decode a different key. This runs
-    // before the early return because callers pre-set nVersion, so the version may already match here
-    // while the key still needs re-encoding.
-    if (state_mn.pubKeyOperator != CBLSLazyPublicKey()) {
-        const CBLSPublicKey& pubkey{state_mn.pubKeyOperator.Get()};
-        state_mn.pubKeyOperator.Set(pubkey, ProTxVersion::GetBLSScheme(nVersion));
-    }
-
     if (state_mn.nVersion == nVersion && state_mn.netInfo->CanStorePlatform() == needs_extended) {
         return true;
     }
@@ -462,10 +450,10 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
                     return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
                 }
             }
-            if (newList.HasUniqueProperty(proTx.pubKeyOperator)) {
+            if (newList.HasUniqueProperty(OperatorKeySlotOf(proTx))) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
             }
-        } else if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.pubKeyOperator)) {
+        } else if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(OperatorKeySlotOf(proTx))) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
         }
 
@@ -546,11 +534,10 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
             }
         }
 
-        // Migrating a legacy masternode to the basic scheme re-encodes its stored key
-        // (SetStateVersion), moving it to the basic-scheme slot. Per-transaction checks ran
-        // against pindexPrev, so re-check against the list as rebuilt so far: if another
-        // masternode holds this key under either encoding, the re-key in UpdateMN() would throw
-        // out of block assembly.
+        // Migrating a legacy masternode to the basic scheme stores its operator key under the
+        // basic-scheme slot. Per-transaction checks ran against pindexPrev, so re-check against
+        // the list as rebuilt so far: if another masternode holds this key under either encoding,
+        // the re-key in UpdateMN() would throw out of block assembly.
         if (is_v24_active && IsSchemeMigration(current_version, target_version) &&
             newList.HasOperatorKeyUnderAnyScheme(dmn->pdmnState->pubKeyOperator.Get(),
                                                  /*self=*/opt_proTx->proTxHash)) {
@@ -585,10 +572,10 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
         // Per-transaction checks ran against pindexPrev, so an earlier transaction in this same
         // block is invisible to them. Re-evaluate against the list as rebuilt so far: this update
         // moves the operator key to a new unique-property slot if it rotates the key or crosses
-        // the legacy->basic boundary (which re-encodes the key), and if that slot is held by
-        // another masternode the re-key in UpdateMN() would throw out of block assembly. Reject
-        // cleanly. Scoped to those two cases so a pre-existing cross-scheme pair's non-migrating
-        // routine update is not blocked.
+        // the legacy->basic boundary (the key is then stored under the new scheme), and if that
+        // slot is held by another masternode the re-key in UpdateMN() would throw out of block
+        // assembly. Reject cleanly. Scoped to those two cases so a pre-existing cross-scheme
+        // pair's non-migrating routine update is not blocked.
         {
             const bool migrating{IsSchemeMigration(old_version, target_version)};
             if (is_v24_active && (operator_changed || migrating) &&
@@ -605,9 +592,9 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
             newState->pubKeyOperator = opt_proTx->pubKeyOperator;
         }
         newState->keyIDVoting = opt_proTx->keyIDVoting;
-        // SetStateVersion() re-encodes the operator key to target_version's scheme, so the stored
-        // key stays consistent with its version whether it was carried in this payload (possibly
-        // under a different version's encoding) or migrated in place.
+        // The state version selects the operator key's encoding, so the stored key
+        // stays consistent with its version whether it was carried in this payload (possibly
+        // under a different version's encoding) or kept while the version changes.
         if (!SetStateVersion(*newState, target_version, dmn->nType, state)) {
             return false;
         }
@@ -719,10 +706,6 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
         if (!SetStateVersion(*newState, old_version, dmn->nType, state)) {
             return false;
         }
-        if (operator_changed) {
-            newState->pubKeyOperator.SetLegacy(false);
-        }
-
         // CheckProUpSharedRegTx ran against pindexPrev, so transactions earlier in this same
         // block are invisible to it. Re-evaluate against the list as rebuilt so far: another
         // update may have taken the operator key (under either encoding; the re-key in
@@ -1392,10 +1375,10 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
                     return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
                 }
             }
-            if (mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
+            if (mnList.HasUniqueProperty(OperatorKeySlotOf(*opt_ptx))) {
                 return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
             }
-        } else if (mnList.HasUniqueProperty(opt_ptx->keyIDOwner) || mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
+        } else if (mnList.HasUniqueProperty(opt_ptx->keyIDOwner) || mnList.HasUniqueProperty(OperatorKeySlotOf(*opt_ptx))) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
         }
 
@@ -1636,8 +1619,8 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
     if (!IsPayoutListKeySafe(owner_payouts, collateralTxDest, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting,
                              check_payout_collateral_reuse, state)) return false;
 
-    if (mnList.HasUniqueProperty(opt_ptx->pubKeyOperator)) {
-        auto otherDmn = mnList.GetUniquePropertyMN(opt_ptx->pubKeyOperator);
+    if (mnList.HasUniqueProperty(OperatorKeySlotOf(*opt_ptx))) {
+        auto otherDmn = mnList.GetUniquePropertyMN(OperatorKeySlotOf(*opt_ptx));
         if (opt_ptx->proTxHash != otherDmn->proTxHash) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
         }

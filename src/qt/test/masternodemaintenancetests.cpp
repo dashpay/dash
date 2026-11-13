@@ -689,7 +689,7 @@ QString MakeRegistrarEnvelope(const uint256& pro_tx_hash, const COutPoint& fee_i
     payload.proTxHash = pro_tx_hash;
     CBLSSecretKey operator_secret;
     operator_secret.MakeNewKey();
-    payload.pubKeyOperator.Set(operator_secret.GetPublicKey(), BLSScheme::Basic);
+    payload.pubKeyOperator.Set(operator_secret.GetPublicKey());
     SetTxPayload(tx, payload);
 
     UniValue json(UniValue::VOBJ);

@@ -76,7 +76,7 @@ BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff,
 
     CCbTx cbTx;
     cbTx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
-    cbTx.bestCLSignature.Set(valid_sig, BLSScheme::Basic);
+    cbTx.bestCLSignature.Set(valid_sig);
 
     // bestCLHeightDiff == nHeight: lower boundary of the rejected range.
     cbTx.bestCLHeightDiff = static_cast<uint32_t>(pindex.nHeight);

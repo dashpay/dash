@@ -326,14 +326,12 @@ public:
 
 };
 
+//! A BLS object together with the encoding it has in the structure that owns it.
 template <typename T>
-class BLSEncoded
-{
-private:
+struct BLSEncoded {
     T& obj;
     BLSScheme scheme;
 
-public:
     BLSEncoded(T& obj, BLSScheme scheme) :
         obj(obj),
         scheme(scheme)
@@ -385,27 +383,102 @@ public:
     bool Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids);
 };
 
-template<typename BLSObject>
+/**
+ * Holds a BLS object as its serialized bytes and decodes it on first use.
+ *
+ * The object has no scheme of its own. The bytes it was read from are kept together with the scheme
+ * they were read under so that decoding can be deferred, and writing it back under that same scheme
+ * needs no decoding at all. Anything that depends on an encoding names the scheme.
+ */
+template <typename BLSObject>
 class CBLSLazyWrapper
 {
 private:
     mutable std::mutex mutex;
 
+    // The encoding of the object under bufScheme, meaningful when bufValid is set
     mutable std::array<uint8_t, BLSObject::SerSize> vecBytes{};
+    mutable bool bufValid{false};
+    mutable BLSScheme bufScheme{BLSScheme::Basic};
 
     mutable BLSObject obj;
     mutable bool objInitialized{false};
 
-    // Indicates if the value contained in vecBytes is valid
-    mutable bool bufValid{false};
-    mutable BLSScheme bufLegacyScheme{BLSScheme::Legacy};
-
+    // Hash of vecBytes, null until computed
     mutable uint256 hash;
 
+    const BLSObject& GetLocked() const
+    {
+        static const BLSObject invalidObj;
+        if (!bufValid && !objInitialized) {
+            return invalidObj;
+        }
+        if (!objInitialized) {
+            obj.SetBytes(vecBytes, bufScheme);
+            if (!obj.IsValid() || !obj.CheckMalleable(vecBytes, bufScheme)) {
+                bufValid = false;
+                return invalidObj;
+            }
+            objInitialized = true;
+        }
+        return obj;
+    }
+
+    std::array<uint8_t, BLSObject::SerSize> EncodeLocked(const BLSScheme scheme) const
+    {
+        if (bufValid && bufScheme == scheme) {
+            return vecBytes;
+        }
+        const auto bytes{GetLocked().ToBytes(scheme)};
+        if (objInitialized && !bufValid) {
+            vecBytes = bytes;
+            bufValid = true;
+            bufScheme = scheme;
+            hash.SetNull();
+        }
+        return bytes;
+    }
+
+protected:
+    template <typename Stream>
+    void SerializeAs(Stream& s, const BLSScheme scheme) const
+    {
+        std::unique_lock<std::mutex> l(mutex);
+        s.write(MakeByteSpan(EncodeLocked(scheme)));
+    }
+
+    template <typename Stream>
+    void UnserializeAs(Stream& s, const BLSScheme scheme)
+    {
+        std::unique_lock<std::mutex> l(mutex);
+        s.read(AsWritableBytes(Span{vecBytes.data(), BLSObject::SerSize}));
+        bufValid = std::any_of(vecBytes.begin(), vecBytes.end(), [](uint8_t c) { return c != 0; });
+        bufScheme = scheme;
+        objInitialized = false;
+        hash.SetNull();
+    }
+
+    uint256 GetHashAs(const BLSScheme scheme) const
+    {
+        std::unique_lock<std::mutex> l(mutex);
+        const auto bytes{EncodeLocked(scheme)};
+        const bool cacheable{bufValid && bufScheme == scheme};
+        if (cacheable && !hash.IsNull()) {
+            return hash;
+        }
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss.write(MakeByteSpan(bytes));
+        const uint256 ret{ss.GetHash()};
+        if (cacheable) {
+            hash = ret;
+        }
+        return ret;
+    }
+
+    std::string ToStringAs(const BLSScheme scheme) const { return Get().ToString(scheme); }
+
 public:
-    CBLSLazyWrapper() :
-        bufLegacyScheme(GetAmbientBLSScheme())
-    {}
+    CBLSLazyWrapper() = default;
 
     explicit CBLSLazyWrapper(const CBLSLazyWrapper& r)
     {
@@ -417,7 +490,7 @@ public:
     {
         std::unique_lock<std::mutex> l(r.mutex);
         bufValid = r.bufValid;
-        bufLegacyScheme = r.bufLegacyScheme;
+        bufScheme = r.bufScheme;
         if (r.bufValid) {
             vecBytes = r.vecBytes;
         } else {
@@ -439,73 +512,19 @@ public:
         s.seek(BLSObject::SerSize);
     }
 
-    template <typename Stream>
-    inline void Serialize(Stream& s, const BLSScheme scheme) const
-    {
-        std::unique_lock<std::mutex> l(mutex);
-        if (!objInitialized && !bufValid) {
-            std::fill(vecBytes.begin(), vecBytes.end(), 0);
-        } else if (!bufValid || (bufLegacyScheme != scheme)) {
-            vecBytes = obj.ToBytes(scheme);
-            bufValid = true;
-            bufLegacyScheme = scheme;
-            hash.SetNull();
-        }
-        s.write(MakeByteSpan(vecBytes));
-    }
-
-    template<typename Stream>
-    inline void Serialize(Stream& s) const
-    {
-        Serialize(s, bufLegacyScheme);
-    }
-
-    template <typename Stream>
-    inline void Unserialize(Stream& s, const BLSScheme scheme) const
-    {
-        std::unique_lock<std::mutex> l(mutex);
-        s.read(AsWritableBytes(Span{vecBytes.data(), BLSObject::SerSize}));
-        bufValid = std::any_of(vecBytes.begin(), vecBytes.end(), [](uint8_t c) { return c != 0; });
-        bufLegacyScheme = scheme;
-        objInitialized = false;
-        hash.SetNull();
-    }
-
-    template<typename Stream>
-    inline void Unserialize(Stream& s) const
-    {
-        Unserialize(s, bufLegacyScheme);
-    }
-
-    void Set(const BLSObject& _obj, const BLSScheme scheme)
+    void Set(const BLSObject& _obj)
     {
         std::unique_lock<std::mutex> l(mutex);
         bufValid = false;
-        bufLegacyScheme = scheme;
         objInitialized = true;
         obj = _obj;
         hash.SetNull();
     }
+
     const BLSObject& Get() const
     {
         std::unique_lock<std::mutex> l(mutex);
-        static BLSObject invalidObj;
-        if (!bufValid && !objInitialized) {
-            return invalidObj;
-        }
-        if (!objInitialized) {
-            obj.SetBytes(vecBytes, bufLegacyScheme);
-            if (!obj.IsValid()) {
-                bufValid = false;
-                return invalidObj;
-            }
-            if (!obj.CheckMalleable(vecBytes, bufLegacyScheme)) {
-                bufValid = false;
-                return invalidObj;
-            }
-            objInitialized = true;
-        }
-        return obj;
+        return GetLocked();
     }
 
     bool operator==(const CBLSLazyWrapper& r) const
@@ -521,7 +540,7 @@ public:
             // If one is default and the other isn't, we are not equal
             if (is_default != r_is_default) return false;
 
-            if (bufValid && r.bufValid && bufLegacyScheme == r.bufLegacyScheme) {
+            if (bufValid && r.bufValid && bufScheme == r.bufScheme) {
                 return vecBytes == r.vecBytes;
             }
             if (objInitialized && r.objInitialized) {
@@ -535,37 +554,53 @@ public:
     {
         return !(*this == r);
     }
-
-    uint256 GetHash() const
-    {
-        std::unique_lock<std::mutex> l(mutex);
-        if (!objInitialized && !bufValid) {
-            std::fill(vecBytes.begin(), vecBytes.end(), 0);
-            hash.SetNull();
-        } else if (!bufValid) {
-            vecBytes = obj.ToBytes(bufLegacyScheme);
-            bufValid = true;
-            hash.SetNull();
-        }
-        if (hash.IsNull()) {
-            CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-            ss.write(MakeByteSpan(vecBytes));
-            hash = ss.GetHash();
-        }
-        return hash;
-    }
-
-    bool IsLegacy() const { return bufLegacyScheme == BLSScheme::Legacy; }
-
-    void SetLegacy(bool legacy) { bufLegacyScheme = legacy ? BLSScheme::Legacy : BLSScheme::Basic; }
-
-    std::string ToString() const
-    {
-        return Get().ToString(bufLegacyScheme);
-    }
 };
-using CBLSLazySignature = CBLSLazyWrapper<CBLSSignature>;
-using CBLSLazyPublicKey = CBLSLazyWrapper<CBLSPublicKey>;
+
+//! Signatures only travel in messages and payloads that are always basic.
+class CBLSLazySignature : public CBLSLazyWrapper<CBLSSignature>
+{
+public:
+    using CBLSLazyWrapper::Serialize;
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        CBLSLazyWrapper::SerializeAs(s, BLSScheme::Basic);
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        CBLSLazyWrapper::UnserializeAs(s, BLSScheme::Basic);
+    }
+
+    uint256 GetHash() const { return CBLSLazyWrapper::GetHashAs(BLSScheme::Basic); }
+
+    std::string ToString() const { return ToStringAs(BLSScheme::Basic); }
+};
+
+//! A public key is encoded under the scheme its owner's version selects, so every encoding names one.
+class CBLSLazyPublicKey : public CBLSLazyWrapper<CBLSPublicKey>
+{
+public:
+    using CBLSLazyWrapper::Serialize;
+
+    template <typename Stream>
+    void Serialize(Stream& s, const BLSScheme scheme) const
+    {
+        CBLSLazyWrapper::SerializeAs(s, scheme);
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s, const BLSScheme scheme)
+    {
+        CBLSLazyWrapper::UnserializeAs(s, scheme);
+    }
+
+    uint256 GetHash(const BLSScheme scheme) const { return CBLSLazyWrapper::GetHashAs(scheme); }
+
+    std::string ToString(const BLSScheme scheme) const { return ToStringAs(scheme); }
+};
 
 using BLSVerificationVectorPtr = std::shared_ptr<std::vector<CBLSPublicKey>>;
 
