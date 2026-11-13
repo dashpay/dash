@@ -147,7 +147,7 @@ protected:
     std::vector<CBLSId> memberIds;
     std::vector<BLSVerificationVectorPtr> receivedVvecs;
     // whether each received vvec was deserialized under the legacy BLS scheme, see CDKGContribution::vvecLegacyScheme
-    std::vector<bool> receivedVvecsLegacyScheme;
+    std::vector<BLSScheme> receivedVvecsLegacyScheme;
     // these are not necessarily verified yet. Only trust in what was written to the DB
     std::vector<CBLSSecretKey> receivedSkContributions;
     /// Contains the received unverified/encrypted DKG contributions

@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE(blockfilter_special_transactions_test)
     // Generate a valid BLS key
     CBLSSecretKey blsKey;
     blsKey.MakeNewKey();
-    proRegPayload.pubKeyOperator.Set(blsKey.GetPublicKey(), false);
+    proRegPayload.pubKeyOperator.Set(blsKey.GetPublicKey(), BLSScheme::Basic);
     proRegPayload.inputsHash = uint256();  // Empty inputs hash
 
     // Create payout script
@@ -256,7 +256,7 @@ BOOST_AUTO_TEST_CASE(blockfilter_special_transactions_test)
     proUpRegPayload.nVersion = 1;
     proUpRegPayload.proTxHash = uint256S("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     proUpRegPayload.nMode = 0;
-    proUpRegPayload.pubKeyOperator.Set(blsKey.GetPublicKey(), false);
+    proUpRegPayload.pubKeyOperator.Set(blsKey.GetPublicKey(), BLSScheme::Basic);
     proUpRegPayload.keyIDVoting = CKeyID(uint160(ParseHex("6666666666666666666666666666666666666666")));
     CScript newPayoutScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(ParseHex("7777777777777777777777777777777777777777")) << OP_EQUALVERIFY << OP_CHECKSIG;
     proUpRegPayload.scriptPayout = newPayoutScript;
@@ -373,7 +373,7 @@ BOOST_AUTO_TEST_CASE(blockfilter_special_transactions_edge_cases)
 
     CBLSSecretKey blsKey;
     blsKey.MakeNewKey();
-    proRegPayload_empty.pubKeyOperator.Set(blsKey.GetPublicKey(), false);
+    proRegPayload_empty.pubKeyOperator.Set(blsKey.GetPublicKey(), BLSScheme::Basic);
     proRegPayload_empty.inputsHash = uint256();
 
     // Empty payout script

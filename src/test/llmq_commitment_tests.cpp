@@ -417,7 +417,7 @@ CBLSSecretKey SecretFromScalar(uint8_t scalar)
     std::vector<uint8_t> bytes(32, 0);
     bytes.back() = scalar;
     CBLSSecretKey sk;
-    sk.SetBytes(bytes, false);
+    sk.SetBytes(bytes, BLSScheme::Basic);
     BOOST_REQUIRE(sk.IsValid());
     return sk;
 }
@@ -522,10 +522,10 @@ BOOST_AUTO_TEST_CASE(commitment_mainnet_pre_v19_verifies_legacy_only)
                                          qc.quorumVvecHash);
     }
     BOOST_CHECK(hash_legacy != hash_basic);
-    BOOST_CHECK(qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, true));
-    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, false));
-    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, true));
-    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, false));
+    BOOST_CHECK(qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Legacy));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Basic));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, BLSScheme::Legacy));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, BLSScheme::Basic));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -23,9 +23,9 @@
 
 BOOST_AUTO_TEST_SUITE(bls_tests)
 
-void FuncSign(const bool legacy_scheme)
+void FuncSign(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSSecretKey sk1, sk2;
     sk1.MakeNewKey();
@@ -45,9 +45,9 @@ void FuncSign(const bool legacy_scheme)
     return;
 }
 
-void FuncSerialize(const bool legacy_scheme)
+void FuncSerialize(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSSecretKey sk;
     CDataStream ds2(SER_DISK, CLIENT_VERSION), ds3(SER_DISK, CLIENT_VERSION);
@@ -56,46 +56,49 @@ void FuncSerialize(const bool legacy_scheme)
     sk.MakeNewKey();
     CBLSSignature sig1 = sk.Sign(msgHash, legacy_scheme);
     ds2 << sig1;
-    ds3 << CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(sig1), !legacy_scheme);
+    ds3 << BLSEncoded(const_cast<CBLSSignature&>(sig1),
+                      legacy_scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy);
 
     CBLSSignature sig2;
     ds2 >> sig2;
     BOOST_CHECK(sig1 == sig2);
 
     CBLSSignature sig3;
-    ds3 >> CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(sig3), !legacy_scheme);
+    ds3 >> BLSEncoded(const_cast<CBLSSignature&>(sig3),
+                      legacy_scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy);
     BOOST_CHECK(sig1 == sig3);
 
     return;
 }
 
-void FuncSetHexStr(const bool legacy_scheme)
+void FuncSetHexStr(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     // Note: 2nd bool argument for SetHexStr for bls::PrivateKey has a meaning modOrder, not is-legacy
     CBLSSecretKey sk;
     std::string strValidSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
     // Note: invalid string passed to SetHexStr() should cause it to fail and reset key internal data
-    BOOST_CHECK(sk.SetHexStr(strValidSecret, false));
-    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1g", false)); // non-hex
+    BOOST_CHECK(sk.SetHexStr(strValidSecret, BLSScheme::Basic));
+    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1g", BLSScheme::Basic)); // non-hex
     BOOST_CHECK(!sk.IsValid());
     BOOST_CHECK(sk == CBLSSecretKey());
     // Try few more invalid strings
-    BOOST_CHECK(sk.SetHexStr(strValidSecret, false));
-    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e", false)); // hex but too short
+    BOOST_CHECK(sk.SetHexStr(strValidSecret, BLSScheme::Basic));
+    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e",
+                              BLSScheme::Basic)); // hex but too short
     BOOST_CHECK(!sk.IsValid());
-    BOOST_CHECK(sk.SetHexStr(strValidSecret, false));
-    BOOST_CHECK(
-        !sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20", false)); // hex but too long
+    BOOST_CHECK(sk.SetHexStr(strValidSecret, BLSScheme::Basic));
+    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+                              BLSScheme::Basic)); // hex but too long
     BOOST_CHECK(!sk.IsValid());
 
     return;
 }
 
-void FuncKeyAgg(const bool legacy_scheme)
+void FuncKeyAgg(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSSecretKey sk1, sk2;
     sk1.MakeNewKey();
@@ -117,9 +120,9 @@ void FuncKeyAgg(const bool legacy_scheme)
     BOOST_CHECK(!sig.VerifyInsecure(ag_pk, msgHash2));
 }
 
-void FuncKeyAggVec(const bool legacy_scheme)
+void FuncKeyAggVec(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     std::vector<CBLSSecretKey> vec_sk;
     std::vector<CBLSPublicKey> vec_pk;
@@ -160,9 +163,9 @@ void FuncKeyAggVec(const bool legacy_scheme)
 }
 
 
-void FuncSigAggSub(const bool legacy_scheme)
+void FuncSigAggSub(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     int count = 20;
     std::vector<CBLSPublicKey> vec_pks;
@@ -216,9 +219,9 @@ void FuncSigAggSub(const bool legacy_scheme)
 }
 
 
-void FuncSigAggSecure(const bool legacy_scheme)
+void FuncSigAggSecure(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     int count = 10;
 
@@ -239,9 +242,9 @@ void FuncSigAggSecure(const bool legacy_scheme)
     BOOST_CHECK(sec_agg_sig.VerifySecureAggregated(vec_pks, hash));
 }
 
-void FuncDHExchange(const bool legacy_scheme)
+void FuncDHExchange(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSSecretKey sk1, sk2;
     sk1.MakeNewKey();
@@ -274,7 +277,7 @@ struct Message
 
 static void AddMessage(std::vector<Message>& vec, uint32_t sourceId, uint32_t msgId, uint8_t msgHash, bool valid)
 {
-    bool legacy_scheme = bls::bls_legacy_scheme.load();
+    const BLSScheme legacy_scheme{GetAmbientBLSScheme()};
     Message m;
     m.sourceId = sourceId;
     m.msgId = msgId;
@@ -297,7 +300,7 @@ static void AddMessage(std::vector<Message>& vec, uint32_t sourceId, uint32_t ms
 static void AddCancellingMessages(std::vector<Message>& vec, uint32_t sourceId1, uint32_t msgId1, uint8_t msgHash1,
                                   uint32_t sourceId2, uint32_t msgId2, uint8_t msgHash2, bool sameKey)
 {
-    const bool legacy_scheme = bls::bls_legacy_scheme.load();
+    const BLSScheme legacy_scheme{GetAmbientBLSScheme()};
     AddMessage(vec, sourceId1, msgId1, msgHash1, true);
     AddMessage(vec, sourceId2, msgId2, msgHash2, true);
     auto& m1 = vec[vec.size() - 2];
@@ -351,9 +354,9 @@ static void Verify(std::vector<Message>& vec)
     Verify(vec, true, true);
 }
 
-void FuncBatchVerifier(const bool legacy_scheme)
+void FuncBatchVerifier(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     std::vector<Message> msgs;
 
@@ -408,9 +411,9 @@ void FuncBatchVerifier(const bool legacy_scheme)
     Verify(msgs);
 }
 
-void FuncThresholdSignature(const bool legacy_scheme)
+void FuncThresholdSignature(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     [[maybe_unused]] const uint256 hash = GetRandHash();
 
@@ -460,62 +463,62 @@ void FuncThresholdSignature(const bool legacy_scheme)
 
 BOOST_AUTO_TEST_CASE(bls_sethexstr_tests)
 {
-    FuncSetHexStr(true);
-    FuncSetHexStr(false);
+    FuncSetHexStr(BLSScheme::Legacy);
+    FuncSetHexStr(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_serialize_tests)
 {
-    FuncSerialize(true);
-    FuncSerialize(false);
+    FuncSerialize(BLSScheme::Legacy);
+    FuncSerialize(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_sig_tests)
 {
-    FuncSign(true);
-    FuncSign(false);
+    FuncSign(BLSScheme::Legacy);
+    FuncSign(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_key_agg_tests)
 {
-    FuncKeyAgg(true);
-    FuncKeyAgg(false);
+    FuncKeyAgg(BLSScheme::Legacy);
+    FuncKeyAgg(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_key_agg_vec_tests)
 {
-    FuncKeyAggVec(true);
-    FuncKeyAggVec(false);
+    FuncKeyAggVec(BLSScheme::Legacy);
+    FuncKeyAggVec(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_sig_agg_sub_tests)
 {
-    FuncSigAggSub(true);
-    FuncSigAggSub(false);
+    FuncSigAggSub(BLSScheme::Legacy);
+    FuncSigAggSub(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_sig_agg_secure_tests)
 {
-    FuncSigAggSecure(true);
-    FuncSigAggSecure(false);
+    FuncSigAggSecure(BLSScheme::Legacy);
+    FuncSigAggSecure(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_dh_exchange_tests)
 {
-    FuncDHExchange(true);
-    FuncDHExchange(false);
+    FuncDHExchange(BLSScheme::Legacy);
+    FuncDHExchange(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(batch_verifier_tests)
 {
-    FuncBatchVerifier(true);
-    FuncBatchVerifier(false);
+    FuncBatchVerifier(BLSScheme::Legacy);
+    FuncBatchVerifier(BLSScheme::Basic);
 }
 
 BOOST_AUTO_TEST_CASE(bls_threshold_signature_tests)
 {
-    FuncThresholdSignature(true);
-    FuncThresholdSignature(false);
+    FuncThresholdSignature(BLSScheme::Legacy);
+    FuncThresholdSignature(BLSScheme::Basic);
 }
 
 // Regression test: a DKG justification path can reach
@@ -525,9 +528,9 @@ BOOST_AUTO_TEST_CASE(bls_threshold_signature_tests)
 // the process; it must instead treat a missing vvec as a failed verification, like
 // the plural VerifyVerificationVectors() path. A *valid* id is required so the guard
 // does not short-circuit before reaching the (previously) unguarded dereference.
-void FuncVerifyContributionShareNullVvec(const bool legacy_scheme)
+void FuncVerifyContributionShareNullVvec(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSWorker worker;
     worker.Start(1);
@@ -549,8 +552,8 @@ void FuncVerifyContributionShareNullVvec(const bool legacy_scheme)
 
 BOOST_AUTO_TEST_CASE(bls_verify_contribution_share_null_vvec_tests)
 {
-    FuncVerifyContributionShareNullVvec(true);
-    FuncVerifyContributionShareNullVvec(false);
+    FuncVerifyContributionShareNullVvec(BLSScheme::Legacy);
+    FuncVerifyContributionShareNullVvec(BLSScheme::Basic);
 }
 
 // Regression: an empty verification-vector set schedules no work at all, so
@@ -560,9 +563,9 @@ BOOST_AUTO_TEST_CASE(bls_verify_contribution_share_null_vvec_tests)
 // AbortPhaseException, and std::terminate aborts dashd.
 // Contract: return an empty result vector, on both the aggregated and the
 // one-by-one path.
-void FuncVerifyContributionSharesEmptyVvecs(const bool legacy_scheme)
+void FuncVerifyContributionSharesEmptyVvecs(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSWorker worker;
     worker.Start(1);
@@ -587,8 +590,8 @@ void FuncVerifyContributionSharesEmptyVvecs(const bool legacy_scheme)
 
 BOOST_AUTO_TEST_CASE(bls_verify_contribution_shares_empty_vvecs_tests)
 {
-    FuncVerifyContributionSharesEmptyVvecs(true);
-    FuncVerifyContributionSharesEmptyVvecs(false);
+    FuncVerifyContributionSharesEmptyVvecs(BLSScheme::Legacy);
+    FuncVerifyContributionSharesEmptyVvecs(BLSScheme::Basic);
 }
 
 // Positive control for the empty-input guard: it must not change which
@@ -602,9 +605,9 @@ BOOST_AUTO_TEST_CASE(bls_verify_contribution_shares_empty_vvecs_tests)
 // fail that batch, fall back to per-contribution verification, blame exactly the
 // corrupted index, and leave the second batch accepted wholesale - an invalid
 // share must never be masked by the valid shares it is aggregated with.
-void FuncVerifyContributionSharesHonest(const bool legacy_scheme)
+void FuncVerifyContributionSharesHonest(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     constexpr size_t QUORUM_SIZE{CBLSWorker::CONTRIBUTION_VERIFY_BATCH_SIZE + 2};
     constexpr int THRESHOLD{6};
@@ -702,8 +705,8 @@ void FuncVerifyContributionSharesHonest(const bool legacy_scheme)
 
 BOOST_AUTO_TEST_CASE(bls_verify_contribution_shares_honest_tests)
 {
-    FuncVerifyContributionSharesHonest(true);
-    FuncVerifyContributionSharesHonest(false);
+    FuncVerifyContributionSharesHonest(BLSScheme::Legacy);
+    FuncVerifyContributionSharesHonest(BLSScheme::Basic);
 }
 
 // A duplicate coefficient point between two members' verification vectors must not fail the
@@ -714,9 +717,9 @@ BOOST_AUTO_TEST_CASE(bls_verify_contribution_shares_honest_tests)
 // The fix verifies each contribution against its own vvec, so only the member whose share no
 // longer matches its own vvec fails. Regression: on the old all-or-nothing code every entry
 // came back false, so the honest members verifying true is what distinguishes fixed from broken.
-void FuncVerifyContributionSharesDuplicateCoefficient(const bool legacy_scheme)
+void FuncVerifyContributionSharesDuplicateCoefficient(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSWorker worker;
     worker.Start(4);
@@ -777,13 +780,13 @@ void FuncVerifyContributionSharesDuplicateCoefficient(const bool legacy_scheme)
 
 BOOST_AUTO_TEST_CASE(bls_verify_contribution_shares_duplicate_coefficient_tests)
 {
-    FuncVerifyContributionSharesDuplicateCoefficient(true);
-    FuncVerifyContributionSharesDuplicateCoefficient(false);
+    FuncVerifyContributionSharesDuplicateCoefficient(BLSScheme::Legacy);
+    FuncVerifyContributionSharesDuplicateCoefficient(BLSScheme::Basic);
 }
 
-void FuncAggregateCollidingContributionShares(const bool legacy_scheme)
+void FuncAggregateCollidingContributionShares(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme);
+    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     CBLSWorker worker;
     worker.Start(4);
@@ -832,8 +835,8 @@ void FuncAggregateCollidingContributionShares(const bool legacy_scheme)
 
 BOOST_AUTO_TEST_CASE(bls_aggregate_colliding_contribution_shares_tests)
 {
-    FuncAggregateCollidingContributionShares(true);
-    FuncAggregateCollidingContributionShares(false);
+    FuncAggregateCollidingContributionShares(BLSScheme::Legacy);
+    FuncAggregateCollidingContributionShares(BLSScheme::Basic);
 }
 
 // A dummy BLS object that satisfies the minimal interface expected by CBLSLazyWrapper.
@@ -853,19 +856,19 @@ public:
     }
 
     // Convert to bytes; ignore the legacy flag for simplicity.
-    std::array<uint8_t, SerSize> ToBytes(bool /*legacy*/) const { return data; }
+    std::array<uint8_t, SerSize> ToBytes(BLSScheme /*scheme*/) const { return data; }
 
     // Set from bytes; again, ignore the legacy flag.
-    void SetBytes(const std::array<uint8_t, SerSize>& bytes, bool /*legacy*/) { data = bytes; }
+    void SetBytes(const std::array<uint8_t, SerSize>& bytes, BLSScheme /*scheme*/) { data = bytes; }
 
     // A dummy malleability check: simply compares the stored data to the given bytes.
-    bool CheckMalleable(const std::array<uint8_t, SerSize>& bytes, bool /*legacy*/) const { return data == bytes; }
+    bool CheckMalleable(const std::array<uint8_t, SerSize>& bytes, BLSScheme /*scheme*/) const { return data == bytes; }
 
     // Reset the object to an "empty" state.
     void Reset() { data.fill(0); }
 
     // Produce a string representation.
-    std::string ToString(bool /*legacy*/) const { return HexStr(data); }
+    std::string ToString(BLSScheme /*scheme*/) const { return HexStr(data); }
 
     // Equality operator.
     bool operator==(const DummyBLS& other) const { return data == other.data; }
@@ -890,7 +893,7 @@ BOOST_AUTO_TEST_CASE(test_non_default_vs_default)
     LazyDummyBLS lazy_set;
     DummyBLS obj;
     obj.data = {1, 0, 0, 0}; // nonzero data makes the object valid
-    lazy_set.Set(obj, false);
+    lazy_set.Set(obj, BLSScheme::Basic);
     BOOST_CHECK(!(lazy_default == lazy_set));
     BOOST_CHECK(lazy_default != lazy_set);
 }
@@ -902,9 +905,9 @@ BOOST_AUTO_TEST_CASE(test_non_default_vs_different)
     LazyDummyBLS lazy_b;
     DummyBLS obj;
     obj.data = {1, 2, 3, 4}; // nonzero data makes the object valid
-    lazy_a.Set(obj, false);
+    lazy_a.Set(obj, BLSScheme::Basic);
     obj.data = {2, 2, 3, 4}; // nonzero data makes the object valid
-    lazy_b.Set(obj, false);
+    lazy_b.Set(obj, BLSScheme::Basic);
     BOOST_CHECK(lazy_a != lazy_b);
 }
 
@@ -916,9 +919,9 @@ BOOST_AUTO_TEST_CASE(test_equality_same_value)
     BOOST_CHECK(lazy1 == lazy2);
     DummyBLS obj;
     obj.data = {5, 6, 7, 8};
-    lazy1.Set(obj, false);
+    lazy1.Set(obj, BLSScheme::Basic);
     BOOST_CHECK(lazy1 != lazy2);
-    lazy2.Set(obj, false);
+    lazy2.Set(obj, BLSScheme::Basic);
     BOOST_CHECK(lazy1 == lazy2);
 }
 
@@ -929,15 +932,15 @@ BOOST_AUTO_TEST_CASE(test_serialization_unserialization)
     DummyBLS obj;
     obj.data = {9, 10, 11, 12};
     // Set with a specific legacy flag (true in this case)
-    lazy1.Set(obj, true);
+    lazy1.Set(obj, BLSScheme::Legacy);
 
     // Serialize the lazy object into a data stream.
     CDataStream ds(SER_DISK, CLIENT_VERSION);
-    lazy1.Serialize(ds, true);
+    lazy1.Serialize(ds, BLSScheme::Legacy);
 
     // Create a new instance and unserialize the data into it.
     LazyDummyBLS lazy2;
-    lazy2.Unserialize(ds, true);
+    lazy2.Unserialize(ds, BLSScheme::Legacy);
     BOOST_CHECK(lazy1 == lazy2);
     BOOST_CHECK(lazy2.Get() == obj);
 }
@@ -949,8 +952,8 @@ BOOST_AUTO_TEST_CASE(test_get_hash_consistency)
     LazyDummyBLS lazy2;
     DummyBLS obj;
     obj.data = {13, 14, 15, 16};
-    lazy1.Set(obj, false);
-    lazy2.Set(obj, false);
+    lazy1.Set(obj, BLSScheme::Basic);
+    lazy2.Set(obj, BLSScheme::Basic);
     uint256 hash1 = lazy1.GetHash();
     uint256 hash2 = lazy2.GetHash();
     BOOST_CHECK(hash1 == hash2);
@@ -1019,7 +1022,7 @@ CBLSSecretKey SecretFromScalar(uint8_t scalar)
     std::vector<uint8_t> bytes(32, 0);
     bytes.back() = scalar;
     CBLSSecretKey sk;
-    sk.SetBytes(bytes, false);
+    sk.SetBytes(bytes, BLSScheme::Basic);
     BOOST_REQUIRE(sk.IsValid());
     return sk;
 }
@@ -1033,7 +1036,7 @@ enum class DecodeKind {
 struct DecodeRow {
     const char* name;
     const char* hex;
-    bool legacy;
+    BLSScheme legacy;
     DecodeKind kind;
     // Re-encodings of the decoded point. Null unless kind == Valid.
     const char* point_legacy;
@@ -1076,8 +1079,8 @@ void CheckDecode(const DecodeRow& row)
         return;
     }
     BOOST_REQUIRE(obj.IsValid());
-    BOOST_CHECK_EQUAL(obj.ToString(true), row.point_legacy);
-    BOOST_CHECK_EQUAL(obj.ToString(false), row.point_basic);
+    BOOST_CHECK_EQUAL(obj.ToString(BLSScheme::Legacy), row.point_legacy);
+    BOOST_CHECK_EQUAL(obj.ToString(BLSScheme::Basic), row.point_basic);
 }
 
 // Public key of secret scalar 1, and the different point its basic encoding decodes to under legacy.
@@ -1115,15 +1118,15 @@ const char* SIG6_BAS_AS_LEG_BAS = "a29305a30c9830695358432443b30d29ac40cc60aba2d
 template <typename Lazy, typename Object>
 void CheckLazy(const Object& point, const Object& other)
 {
-    const auto legacy_arr = point.ToBytes(true);
-    const auto basic_arr = point.ToBytes(false);
-    const auto other_arr = other.ToBytes(true);
+    const auto legacy_arr = point.ToBytes(BLSScheme::Legacy);
+    const auto basic_arr = point.ToBytes(BLSScheme::Basic);
+    const auto other_arr = other.ToBytes(BLSScheme::Legacy);
     const std::vector<uint8_t> legacy_bytes(legacy_arr.begin(), legacy_arr.end());
     const std::vector<uint8_t> basic_bytes(basic_arr.begin(), basic_arr.end());
     const std::vector<uint8_t> other_bytes(other_arr.begin(), other_arr.end());
     const std::vector<uint8_t> garbage(Object::SerSize, 0xff);
 
-    for (const bool scheme : {true, false}) {
+    for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
         Lazy lazy;
         CDataStream in(garbage, SER_DISK, CLIENT_VERSION);
         lazy.Unserialize(in, scheme);
@@ -1143,15 +1146,15 @@ void CheckLazy(const Object& point, const Object& other)
 
     Lazy legacy_wrapped;
     CDataStream legacy_in(legacy_bytes, SER_DISK, CLIENT_VERSION);
-    legacy_wrapped.Unserialize(legacy_in, true);
+    legacy_wrapped.Unserialize(legacy_in, BLSScheme::Legacy);
     Lazy basic_wrapped;
     CDataStream basic_in(basic_bytes, SER_DISK, CLIENT_VERSION);
-    basic_wrapped.Unserialize(basic_in, false);
+    basic_wrapped.Unserialize(basic_in, BLSScheme::Basic);
     BOOST_CHECK(legacy_wrapped == basic_wrapped);
 
     Lazy other_wrapped;
     CDataStream other_in(other_bytes, SER_DISK, CLIENT_VERSION);
-    other_wrapped.Unserialize(other_in, true);
+    other_wrapped.Unserialize(other_in, BLSScheme::Legacy);
     BOOST_CHECK(legacy_wrapped != other_wrapped);
 
     Lazy unset_a;
@@ -1166,15 +1169,16 @@ void CheckLazy(const Object& point, const Object& other)
     BOOST_CHECK(legacy_wrapped.GetHash() == hash_of(legacy_bytes));
     BOOST_CHECK(basic_wrapped.GetHash() == hash_of(basic_bytes));
 
-    for (const bool from_legacy : {true, false}) {
+    for (const BLSScheme from_legacy : {BLSScheme::Legacy, BLSScheme::Basic}) {
         Lazy raw;
-        const auto& bytes = from_legacy ? legacy_bytes : basic_bytes;
+        const auto& bytes = from_legacy == BLSScheme::Legacy ? legacy_bytes : basic_bytes;
         CDataStream raw_in(bytes, SER_DISK, CLIENT_VERSION);
         raw.Unserialize(raw_in, from_legacy);
         std::vector<unsigned char> raw_out;
         CVectorWriter raw_writer(SER_DISK, CLIENT_VERSION, raw_out, 0);
         // Existing behavior, changed by a later commit: an undecoded wrapper serialized under the other scheme writes all zeros.
-        BOOST_CHECK_NO_THROW(raw.Serialize(raw_writer, !from_legacy));
+        BOOST_CHECK_NO_THROW(
+            raw.Serialize(raw_writer, from_legacy == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy));
         const std::vector<unsigned char> zeros(Object::SerSize, 0);
         BOOST_CHECK(raw_out == zeros);
     }
@@ -1188,46 +1192,52 @@ BOOST_AUTO_TEST_CASE(bls_scheme_decode_matrix)
     const std::string pk_inf = InfinityHex(CBLSPublicKey::SerSize);
     const std::string pk_ff = RepeatByteHex(0xff, CBLSPublicKey::SerSize);
     const DecodeRow pk_rows[]{
-        {"pk all-zero", pk_zero.c_str(), true, DecodeKind::Invalid, nullptr, nullptr},
-        {"pk all-zero", pk_zero.c_str(), false, DecodeKind::Invalid, nullptr, nullptr},
-        {"pk infinity", pk_inf.c_str(), true, DecodeKind::Throws, nullptr, nullptr},
-        {"pk infinity", pk_inf.c_str(), false, DecodeKind::Throws, nullptr, nullptr},
-        {"pk garbage", pk_ff.c_str(), true, DecodeKind::Throws, nullptr, nullptr},
-        {"pk garbage", pk_ff.c_str(), false, DecodeKind::Throws, nullptr, nullptr},
-        {"pk1 legacy encoding", PK1_LEG, true, DecodeKind::Valid, PK1_LEG, PK1_BAS},
-        {"pk1 legacy encoding", PK1_LEG, false, DecodeKind::Invalid, nullptr, nullptr},
-        {"pk1 basic encoding", PK1_BAS, false, DecodeKind::Valid, PK1_LEG, PK1_BAS},
-        {"pk1 basic encoding", PK1_BAS, true, DecodeKind::Valid, PK1_BAS, PK1_BAS_AS_LEG_BAS},
-        {"pk2 legacy encoding", PK2_LEG, true, DecodeKind::Valid, PK2_LEG, PK2_BAS},
-        {"pk2 legacy encoding", PK2_LEG, false, DecodeKind::Valid, PK2_LEG_AS_BAS_LEG, PK2_LEG},
-        {"pk2 basic encoding", PK2_BAS, false, DecodeKind::Valid, PK2_LEG, PK2_BAS},
-        {"pk2 basic encoding", PK2_BAS, true, DecodeKind::Invalid, nullptr, nullptr},
+        {"pk all-zero", pk_zero.c_str(), BLSScheme::Legacy, DecodeKind::Invalid, nullptr, nullptr},
+        {"pk all-zero", pk_zero.c_str(), BLSScheme::Basic, DecodeKind::Invalid, nullptr, nullptr},
+        {"pk infinity", pk_inf.c_str(), BLSScheme::Legacy, DecodeKind::Throws, nullptr, nullptr},
+        {"pk infinity", pk_inf.c_str(), BLSScheme::Basic, DecodeKind::Throws, nullptr, nullptr},
+        {"pk garbage", pk_ff.c_str(), BLSScheme::Legacy, DecodeKind::Throws, nullptr, nullptr},
+        {"pk garbage", pk_ff.c_str(), BLSScheme::Basic, DecodeKind::Throws, nullptr, nullptr},
+        {"pk1 legacy encoding", PK1_LEG, BLSScheme::Legacy, DecodeKind::Valid, PK1_LEG, PK1_BAS},
+        {"pk1 legacy encoding", PK1_LEG, BLSScheme::Basic, DecodeKind::Invalid, nullptr, nullptr},
+        {"pk1 basic encoding", PK1_BAS, BLSScheme::Basic, DecodeKind::Valid, PK1_LEG, PK1_BAS},
+        {"pk1 basic encoding", PK1_BAS, BLSScheme::Legacy, DecodeKind::Valid, PK1_BAS, PK1_BAS_AS_LEG_BAS},
+        {"pk2 legacy encoding", PK2_LEG, BLSScheme::Legacy, DecodeKind::Valid, PK2_LEG, PK2_BAS},
+        {"pk2 legacy encoding", PK2_LEG, BLSScheme::Basic, DecodeKind::Valid, PK2_LEG_AS_BAS_LEG, PK2_LEG},
+        {"pk2 basic encoding", PK2_BAS, BLSScheme::Basic, DecodeKind::Valid, PK2_LEG, PK2_BAS},
+        {"pk2 basic encoding", PK2_BAS, BLSScheme::Legacy, DecodeKind::Invalid, nullptr, nullptr},
     };
     for (const auto& row : pk_rows) {
-        BOOST_TEST_CONTEXT(row.name << " legacy=" << row.legacy) { CheckDecode<CBLSPublicKey>(row); }
+        BOOST_TEST_CONTEXT(row.name << " legacy=" << (row.legacy == BLSScheme::Legacy))
+        {
+            CheckDecode<CBLSPublicKey>(row);
+        }
     }
 
     const std::string sig_zero = RepeatByteHex(0x00, CBLSSignature::SerSize);
     const std::string sig_inf = InfinityHex(CBLSSignature::SerSize);
     const std::string sig_ff = RepeatByteHex(0xff, CBLSSignature::SerSize);
     const DecodeRow sig_rows[]{
-        {"sig all-zero", sig_zero.c_str(), true, DecodeKind::Invalid, nullptr, nullptr},
-        {"sig all-zero", sig_zero.c_str(), false, DecodeKind::Invalid, nullptr, nullptr},
-        {"sig infinity", sig_inf.c_str(), true, DecodeKind::Throws, nullptr, nullptr},
-        {"sig infinity", sig_inf.c_str(), false, DecodeKind::Throws, nullptr, nullptr},
-        {"sig garbage", sig_ff.c_str(), true, DecodeKind::Throws, nullptr, nullptr},
-        {"sig garbage", sig_ff.c_str(), false, DecodeKind::Throws, nullptr, nullptr},
-        {"sig1 legacy encoding", SIG1_LEG, true, DecodeKind::Valid, SIG1_LEG, SIG1_BAS},
-        {"sig1 legacy encoding", SIG1_LEG, false, DecodeKind::Invalid, nullptr, nullptr},
-        {"sig1 basic encoding", SIG1_BAS, false, DecodeKind::Valid, SIG1_LEG, SIG1_BAS},
-        {"sig1 basic encoding", SIG1_BAS, true, DecodeKind::Invalid, nullptr, nullptr},
-        {"sig6 legacy encoding", SIG6_LEG, true, DecodeKind::Valid, SIG6_LEG, SIG6_BAS},
-        {"sig6 legacy encoding", SIG6_LEG, false, DecodeKind::Invalid, nullptr, nullptr},
-        {"sig6 basic encoding", SIG6_BAS, false, DecodeKind::Valid, SIG6_LEG, SIG6_BAS},
-        {"sig6 basic encoding", SIG6_BAS, true, DecodeKind::Valid, SIG6_BAS, SIG6_BAS_AS_LEG_BAS},
+        {"sig all-zero", sig_zero.c_str(), BLSScheme::Legacy, DecodeKind::Invalid, nullptr, nullptr},
+        {"sig all-zero", sig_zero.c_str(), BLSScheme::Basic, DecodeKind::Invalid, nullptr, nullptr},
+        {"sig infinity", sig_inf.c_str(), BLSScheme::Legacy, DecodeKind::Throws, nullptr, nullptr},
+        {"sig infinity", sig_inf.c_str(), BLSScheme::Basic, DecodeKind::Throws, nullptr, nullptr},
+        {"sig garbage", sig_ff.c_str(), BLSScheme::Legacy, DecodeKind::Throws, nullptr, nullptr},
+        {"sig garbage", sig_ff.c_str(), BLSScheme::Basic, DecodeKind::Throws, nullptr, nullptr},
+        {"sig1 legacy encoding", SIG1_LEG, BLSScheme::Legacy, DecodeKind::Valid, SIG1_LEG, SIG1_BAS},
+        {"sig1 legacy encoding", SIG1_LEG, BLSScheme::Basic, DecodeKind::Invalid, nullptr, nullptr},
+        {"sig1 basic encoding", SIG1_BAS, BLSScheme::Basic, DecodeKind::Valid, SIG1_LEG, SIG1_BAS},
+        {"sig1 basic encoding", SIG1_BAS, BLSScheme::Legacy, DecodeKind::Invalid, nullptr, nullptr},
+        {"sig6 legacy encoding", SIG6_LEG, BLSScheme::Legacy, DecodeKind::Valid, SIG6_LEG, SIG6_BAS},
+        {"sig6 legacy encoding", SIG6_LEG, BLSScheme::Basic, DecodeKind::Invalid, nullptr, nullptr},
+        {"sig6 basic encoding", SIG6_BAS, BLSScheme::Basic, DecodeKind::Valid, SIG6_LEG, SIG6_BAS},
+        {"sig6 basic encoding", SIG6_BAS, BLSScheme::Legacy, DecodeKind::Valid, SIG6_BAS, SIG6_BAS_AS_LEG_BAS},
     };
     for (const auto& row : sig_rows) {
-        BOOST_TEST_CONTEXT(row.name << " legacy=" << row.legacy) { CheckDecode<CBLSSignature>(row); }
+        BOOST_TEST_CONTEXT(row.name << " legacy=" << (row.legacy == BLSScheme::Legacy))
+        {
+            CheckDecode<CBLSSignature>(row);
+        }
     }
 }
 
@@ -1237,8 +1247,8 @@ BOOST_AUTO_TEST_CASE(bls_plain_aggregation_scheme_independent)
     const auto sk2 = SecretFromScalar(2);
     const auto pk1 = sk1.GetPublicKey();
     const auto pk2 = sk2.GetPublicKey();
-    const auto sig1 = sk1.Sign(uint256::ONE, true);
-    const auto sig2 = sk2.Sign(uint256::ONE, true);
+    const auto sig1 = sk1.Sign(uint256::ONE, BLSScheme::Legacy);
+    const auto sig2 = sk2.Sign(uint256::ONE, BLSScheme::Legacy);
 
     CBLSPublicKey pk_member_legacy;
     CBLSPublicKey pk_member_basic;
@@ -1285,18 +1295,18 @@ BOOST_AUTO_TEST_CASE(bls_secure_aggregation_scheme_dependent)
     const auto sk1 = SecretFromScalar(1);
     const auto sk2 = SecretFromScalar(2);
     const uint256 hash = uint256::ONE;
-    for (const bool scheme : {true, false}) {
+    for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
         std::vector<CBLSPublicKey> pks{sk1.GetPublicKey(), sk2.GetPublicKey()};
         std::vector<CBLSSignature> sigs{sk1.Sign(hash, scheme), sk2.Sign(hash, scheme)};
         CBLSSignature agg;
         {
-            ScopedBLSScheme guard(scheme);
+            ScopedBLSScheme guard(scheme == BLSScheme::Legacy);
             agg = CBLSSignature::AggregateSecure(sigs, pks, hash);
             BOOST_CHECK(agg.IsValid());
             BOOST_CHECK(agg.VerifySecureAggregated(pks, hash));
         }
         {
-            ScopedBLSScheme guard(!scheme);
+            ScopedBLSScheme guard(scheme == BLSScheme::Basic);
             BOOST_CHECK(!agg.VerifySecureAggregated(pks, hash));
         }
     }
@@ -1307,12 +1317,12 @@ BOOST_AUTO_TEST_CASE(bls_verify_insecure_scheme_dependent)
     const auto sk = SecretFromScalar(1);
     const auto pk = sk.GetPublicKey();
     const uint256 hash = uint256::ONE;
-    const auto legacy_sig = sk.Sign(hash, true);
-    const auto basic_sig = sk.Sign(hash, false);
-    BOOST_CHECK(legacy_sig.VerifyInsecure(pk, hash, true));
-    BOOST_CHECK(!legacy_sig.VerifyInsecure(pk, hash, false));
-    BOOST_CHECK(basic_sig.VerifyInsecure(pk, hash, false));
-    BOOST_CHECK(!basic_sig.VerifyInsecure(pk, hash, true));
+    const auto legacy_sig = sk.Sign(hash, BLSScheme::Legacy);
+    const auto basic_sig = sk.Sign(hash, BLSScheme::Basic);
+    BOOST_CHECK(legacy_sig.VerifyInsecure(pk, hash, BLSScheme::Legacy));
+    BOOST_CHECK(!legacy_sig.VerifyInsecure(pk, hash, BLSScheme::Basic));
+    BOOST_CHECK(basic_sig.VerifyInsecure(pk, hash, BLSScheme::Basic));
+    BOOST_CHECK(!basic_sig.VerifyInsecure(pk, hash, BLSScheme::Legacy));
 }
 
 BOOST_AUTO_TEST_CASE(bls_lazy_wrapper_scheme_bytes)
@@ -1321,7 +1331,7 @@ BOOST_AUTO_TEST_CASE(bls_lazy_wrapper_scheme_bytes)
     const auto sk2 = SecretFromScalar(2);
     const uint256 hash = uint256::ONE;
     CheckLazy<CBLSLazyPublicKey>(sk1.GetPublicKey(), sk2.GetPublicKey());
-    CheckLazy<CBLSLazySignature>(sk1.Sign(hash, true), sk2.Sign(hash, true));
+    CheckLazy<CBLSLazySignature>(sk1.Sign(hash, BLSScheme::Legacy), sk2.Sign(hash, BLSScheme::Legacy));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

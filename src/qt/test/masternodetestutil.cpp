@@ -209,7 +209,7 @@ PreparedRegistration PrepareRegistration(const MnShareSession& session, const CB
     }
     payload.vchJoinSigs.assign(payload.shares.size(), CompactSignature{});
     payload.keyIDVoting = ToKeyID(std::get<PKHash>(DecodeDestination(session.terms().votingAddress.toStdString())));
-    payload.pubKeyOperator.Set(operator_secret.GetPublicKey(), /*specificLegacyScheme=*/false);
+    payload.pubKeyOperator.Set(operator_secret.GetPublicKey(), BLSScheme::Basic);
     payload.nOperatorReward = session.terms().operatorReward;
     payload.nEarlyPeriodBlocks = session.terms().earlyPeriodBlocks;
     payload.nEarlyPenalty = session.terms().earlyPenalty;
@@ -249,7 +249,7 @@ QString FreshOperatorPubKey()
 {
     CBLSSecretKey secret;
     secret.MakeNewKey();
-    return QString::fromStdString(secret.GetPublicKey().ToString(/*specificLegacyScheme=*/false));
+    return QString::fromStdString(secret.GetPublicKey().ToString(BLSScheme::Basic));
 }
 
 } // namespace MasternodeTestUtil
