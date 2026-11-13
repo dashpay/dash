@@ -13,8 +13,6 @@ Run the following as root to install the base dependencies for building.
 pkg_add bash git gmake libevent libtool boost zstd
 # Select the newest version of the following packages:
 pkg_add autoconf automake python
-
-git clone https://github.com/dashpay/dash.git
 ```
 
 See [dependencies.md](dependencies.md) for a complete overview.

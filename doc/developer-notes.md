@@ -1279,6 +1279,12 @@ Current subtrees include:
 - src/minisketch
   - Upstream at https://github.com/sipa/minisketch ; maintained by Core contributors.
 
+- src/dashbls
+  - Upstream at https://github.com/dashpay/bls-signatures ; maintained by Dash Core contributors.
+
+- src/immer
+  - Upstream at https://github.com/arximboldi/immer ; provides the immutable containers used by the deterministic masternode list.
+
 Upgrading LevelDB
 ---------------------
 
@@ -1382,21 +1388,6 @@ To find all previous uses of scripted diffs in the repository, do:
 ```
 git log --grep="-BEGIN VERIFY SCRIPT-"
 ```
-
-Release notes
--------------
-
-Release notes should be written for any PR that:
-
-- introduces a notable new feature
-- fixes a significant bug
-- changes an API or configuration model
-- makes any other visible change to the end-user experience.
-
-Release notes should be added to a PR-specific release note file at
-`/doc/release-notes-<PR number>.md` to avoid conflicts between multiple PRs.
-All `release-notes*` files are merged into a single
-[/doc/release-notes.md](/doc/release-notes.md) file prior to the release.
 
 Release notes
 -------------

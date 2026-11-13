@@ -106,8 +106,8 @@ def main(args):
     if not success:
         print("Error: couldn't fetch signature file. "
               "Have you specified the version number in the following format?")
-        print(f"[{VERSIONPREFIX}]<version>[-rc[0-9]][-platform] "
-              f"(example: {VERSIONPREFIX}0.21.0-rc3-osx)")
+        print(f"[{VERSIONPREFIX}]<version>[-rc.N][-platform] "
+              f"(example: {VERSIONPREFIX}22.0.0-darwin)")
         print("wget output:")
         print(indent(output, '\t'))
         return 4
@@ -116,8 +116,8 @@ def main(args):
     sigfile2 = SIGNATUREFILENAME + ".2"
     success, output = download_with_wget(HOST2 + remote_sigfile, sigfile2)
     if not success:
-        print("github.com failed to provide signature file, "
-              "but dashcore-binaries.thepasta.org did?")
+        print("dashcore-binaries.thepasta.org failed to provide signature file, "
+              "but github.com did?")
         print("wget output:")
         print(indent(output, '\t'))
         remove_files([sigfile1])

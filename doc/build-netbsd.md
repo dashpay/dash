@@ -18,19 +18,19 @@ pkgin install autoconf automake libtool pkg-config git gmake boost libevent zstd
 
 ```
 
-NetBSD currently ships with an older version of `gcc` than is needed to build. You should upgrade your `gcc` and then pass this new version to the configure script.
+NetBSD may ship with an older version of `gcc` than is needed to build C++20 (GCC 11.1+ is required). You should install a newer `gcc` and pass it to the configure script.
 
-For example, grab `gcc9`:
+For example, grab `gcc12`:
 ```
-pkgin install gcc9
+pkgin install gcc12
 ```
 
 Then, when configuring, pass the following:
 ```bash
 ./configure
     ...
-    CC="/usr/pkg/gcc9/bin/gcc" \
-    CXX="/usr/pkg/gcc9/bin/g++" \
+    CC="/usr/pkg/gcc12/bin/gcc" \
+    CXX="/usr/pkg/gcc12/bin/g++" \
     ...
 ```
 
@@ -52,7 +52,7 @@ It is not necessary to build wallet functionality to run dashd or the GUI.
 
 ###### Descriptor Wallet Support
 
-`sqlite3` is required to enable support for [descriptor wallets](https://github.com/dashpay/dash/blob/master/doc/descriptors.md).
+`sqlite3` is required to enable support for [descriptor wallets](descriptors.md).
 
 ```bash
 pkgin install sqlite3
@@ -83,10 +83,10 @@ pkgin install qrencode
 #### Test Suite Dependencies
 
 There is an included test suite that is useful for testing code changes when developing.
-To run the test suite (recommended), you will need to have Python 3 installed:
+To run the test suite (recommended), you will need to have Python 3.10+ installed:
 
 ```bash
-pkgin install python37
+pkgin install python312
 ```
 
 ### Building Dash Core

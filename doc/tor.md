@@ -173,7 +173,7 @@ details).
 If you configure your Tor system accordingly, it is possible to make your node also
 reachable from the Tor network. Add these lines to your /etc/tor/torrc (or equivalent
 config file): *Needed for Tor version 0.2.7.0 and older versions of Tor only. For newer
-versions of Tor see [Section 4](#4-automatically-listen-on-tor).*
+versions of Tor see [Section 2](#2-automatically-create-a-dash-core-onion-service).*
 
     HiddenServiceDir /var/lib/tor/dashcore-service/
     HiddenServicePort 9999 127.0.0.1:9996
