@@ -2443,15 +2443,12 @@ void CCoinJoinClientManager::DoMaintenance(ChainstateManager& chainman, CConnman
 
     if (!m_mn_sync.IsBlockchainSynced() || ShutdownRequested()) return;
 
-    static int nTick = 0;
-    static int nDoAutoNextRun = nTick + COINJOIN_AUTO_TIMEOUT_MIN;
-
-    nTick++;
+    m_tick++;
     CheckTimeout();
     ProcessPendingDsaRequest(connman);
-    if (nDoAutoNextRun == nTick) {
+    if (m_do_auto_next_run == m_tick) {
         DoAutomaticDenominating(chainman, connman, mempool);
-        nDoAutoNextRun = nTick + COINJOIN_AUTO_TIMEOUT_MIN + GetRand<int>(/*nMax=*/COINJOIN_AUTO_TIMEOUT_MAX - COINJOIN_AUTO_TIMEOUT_MIN);
+        m_do_auto_next_run = m_tick + COINJOIN_AUTO_TIMEOUT_MIN + GetRand<int>(/*nMax=*/COINJOIN_AUTO_TIMEOUT_MAX - COINJOIN_AUTO_TIMEOUT_MIN);
     }
 }
 

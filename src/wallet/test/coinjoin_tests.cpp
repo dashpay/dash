@@ -232,6 +232,39 @@ public:
     }
 };
 
+BOOST_FIXTURE_TEST_CASE(coinjoin_maintenance_runs_for_every_wallet, CTransactionBuilderTestSetup)
+{
+    struct RestoreOptions {
+        const bool enabled{CCoinJoinClientOptions::IsEnabled()};
+        const int backups{nWalletBackups};
+        ~RestoreOptions()
+        {
+            CCoinJoinClientOptions::SetEnabled(enabled);
+            nWalletBackups = backups;
+        }
+    } restore_options;
+    CCoinJoinClientOptions::SetEnabled(true);
+    nWalletBackups = 0;
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+
+    auto other_wallet{std::make_shared<CWallet>(m_node.chain.get(), "other", CreateMockableWalletDatabase())};
+    other_wallet->SetupLegacyScriptPubKeyMan();
+    CCoinJoinClientManager first(wallet, *m_node.dmnman, *m_node.mn_metaman, *m_node.mn_sync, *m_node.isman, nullptr);
+    CCoinJoinClientManager second(other_wallet, *m_node.dmnman, *m_node.mn_metaman, *m_node.mn_sync, *m_node.isman, nullptr);
+    BOOST_REQUIRE(first.startMixing());
+    BOOST_REQUIRE(second.startMixing());
+    for (int tick{0}; tick < COINJOIN_AUTO_TIMEOUT_MIN; ++tick) {
+        BOOST_CHECK(first.isMixing());
+        BOOST_CHECK(second.isMixing());
+        first.DoMaintenance(*m_node.chainman, *m_node.connman, *m_node.mempool);
+        second.DoMaintenance(*m_node.chainman, *m_node.connman, *m_node.mempool);
+    }
+    // Each wallet's first automatic attempt stops mixing when automatic backups are disabled.
+    BOOST_CHECK(!first.isMixing());
+    BOOST_CHECK(!second.isMixing());
+}
+
 BOOST_FIXTURE_TEST_CASE(coinjoin_pending_observation_tests, CTransactionBuilderTestSetup)
 {
     // 0.100001 DASH, a valid CoinJoin denomination

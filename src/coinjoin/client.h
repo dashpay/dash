@@ -227,6 +227,9 @@ private:
     // Keep track of current block height
     int nCachedBlockHeight{0};
 
+    int m_tick{0};
+    int m_do_auto_next_run{COINJOIN_AUTO_TIMEOUT_MIN};
+
     bool fCreateAutoBackups{true}; // builtin support for automatic backups
 
     bool WaitForAnotherBlock() const;
