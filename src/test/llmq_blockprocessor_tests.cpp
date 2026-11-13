@@ -8,6 +8,7 @@
 
 #include <chainparams.h>
 #include <consensus/params.h>
+#include <deploymentstatus.h>
 #include <hash.h>
 #include <masternode/meta.h>
 #include <net.h>
@@ -195,6 +196,54 @@ BOOST_FIXTURE_TEST_CASE(qfcommit_with_more_signers_replaces_stored_one, TestChai
     BOOST_CHECK(inv->hash == ::SerializeHash(qc_three));
     BOOST_CHECK(blockprocessor.HasMineableCommitment(::SerializeHash(qc_three)));
     BOOST_CHECK(!blockprocessor.HasMineableCommitment(::SerializeHash(qc_two)));
+
+    SetMockTime(0s);
+}
+
+struct PreV19Setup : public TestChain100Setup {
+    PreV19Setup() :
+        TestChain100Setup{ChainType::REGTEST,
+                          {"-testactivationheight=v19@1000", "-testactivationheight=v20@1000",
+                           "-testactivationheight=mn_rr@1000"}}
+    {
+    }
+};
+
+// No DKG runs for a quorum base before v19, so a relayed commitment for one is ignored without
+// verifying it. A stale one still costs the peer, as it would after v19.
+BOOST_FIXTURE_TEST_CASE(pre_v19_qfcommit_is_ignored_unless_stale, PreV19Setup)
+{
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+    BOOST_REQUIRE(!m_node.chainman->IsInitialBlockDownload());
+    BOOST_REQUIRE(m_node.mn_metaman->LoadCache(/*load_cache=*/false));
+
+    auto& blockprocessor = *m_node.llmq_ctx->quorum_block_processor;
+    const auto& llmq_params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST_V17);
+    BOOST_REQUIRE(Params().GetLLMQ(llmq_params.type).has_value());
+
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+    const CBlockIndex* recent_base{tip->GetAncestor(tip->nHeight - (tip->nHeight % llmq_params.dkgInterval))};
+    const CBlockIndex* stale_base{recent_base->GetAncestor(recent_base->nHeight - 2 * llmq_params.dkgInterval)};
+    BOOST_REQUIRE(!DeploymentActiveAfter(recent_base, m_node.chainman->GetConsensus(), Consensus::DEPLOYMENT_V19));
+
+    NodeId next_id{71};
+    auto deliver = [&](const CFinalCommitment& qc) EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+        auto peer{MakeTestPeer(next_id++)};
+        m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
+        AnnounceInv(*m_node.peerman, *peer, CInv{MSG_QUORUM_FINAL_COMMITMENT, ::SerializeHash(qc)});
+        SetMockTime(GetTime<std::chrono::seconds>() + 61s);
+        m_node.peerman->SendMessages(peer.get());
+        SendMessage(*m_node.peerman, *peer, NetMsgType::QFCOMMITMENT, Serialized(qc));
+        const int score{MisbehaviorScore(*m_node.peerman, *peer)};
+        m_node.peerman->FinalizeNode(*peer);
+        return score;
+    };
+
+    const auto recent_qc = CreateValidCommitment(llmq_params, recent_base->GetBlockHash());
+    BOOST_CHECK_EQUAL(deliver(recent_qc), 0);
+    BOOST_CHECK(!blockprocessor.HasMineableCommitment(::SerializeHash(recent_qc)));
+
+    BOOST_CHECK_EQUAL(deliver(CreateValidCommitment(llmq_params, stale_base->GetBlockHash())), 100);
 
     SetMockTime(0s);
 }

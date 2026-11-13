@@ -170,6 +170,9 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
             }
             return ret;
         }
+        if (!DeploymentActiveAfter(pQuorumBaseBlockIndex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)) {
+            return ret;
+        }
         if (HasMinedCommitment(type, qc.quorumHash)) {
             LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- commitment for quorum hash[%s], type[%d], quorumIndex[%d] is already mined, peer=%d\n",
                      __func__, qc.quorumHash.ToString(), std23::to_underlying(type), qc.quorumIndex, peer.GetId());
