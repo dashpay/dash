@@ -353,10 +353,14 @@ public:
         // fast rescanning via block filters is only supported by descriptor wallets right now
         assert(!m_wallet.IsLegacy());
 
+        // Descriptors are added and rebuilt under cs_wallet while a rescan
+        // runs, so each one is read whole.
+        LOCK(m_wallet.cs_wallet);
         // create initial filter with scripts from all ScriptPubKeyMans
         for (auto spkm : m_wallet.GetAllScriptPubKeyMans()) {
             auto desc_spkm{dynamic_cast<DescriptorScriptPubKeyMan*>(spkm)};
             assert(desc_spkm != nullptr);
+            LOCK(desc_spkm->cs_desc_man);
             AddScriptPubKeys(desc_spkm);
             // save each range descriptor's end for possible future filter updates
             if (desc_spkm->IsHDEnabled()) {
@@ -368,9 +372,11 @@ public:
     void UpdateIfNeeded()
     {
         // repopulate filter with new scripts if top-up has happened since last iteration
+        LOCK(m_wallet.cs_wallet);
         for (const auto& [desc_spkm_id, last_range_end] : m_last_range_ends) {
             auto desc_spkm{dynamic_cast<DescriptorScriptPubKeyMan*>(m_wallet.GetScriptPubKeyMan(desc_spkm_id))};
             assert(desc_spkm != nullptr);
+            LOCK(desc_spkm->cs_desc_man);
             int32_t current_range_end{desc_spkm->GetEndRange()};
             if (current_range_end > last_range_end) {
                 AddScriptPubKeys(desc_spkm, last_range_end);
