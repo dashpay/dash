@@ -122,7 +122,7 @@ bool CDKGSession::Init(const uint256& _myProTxHash, int _quorumIndex)
         const CBlockIndex* pCycleQuorumBaseBlockIndex = m_quorum_base_block_index->GetAncestor(cycleQuorumBaseHeight);
         std::stringstream ss;
         for (const auto& mn : members) {
-            ss << mn->dmn->proTxHash.ToString().substr(0, 4) << " | ";
+            ss << mn->dmn->proTxHash.ToString().substr(0, 16) << " | ";
         }
         logger.Batch("DKGComposition h[%d] i[%d] DKG:[%s]", pCycleQuorumBaseBlockIndex->nHeight, quorumIndex, ss.str());
     }

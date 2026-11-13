@@ -56,13 +56,6 @@ unsigned-integer-overflow:compressor.cpp
 unsigned-integer-overflow:crypto/
 unsigned-integer-overflow:hash.cpp
 unsigned-integer-overflow:lcg.h
-# The quorum snapshot skip list stores offsets relative to the first skipped
-# index, and the index wraps around the sorted MN list, so an offset can be
-# negative. Encoding wraps size_t and narrows into vector<int>, decoding wraps
-# it back; the two cancel and the absolute index is recovered exactly. Per
-# symbol rather than per file so the rest of llmq/utils.cpp stays covered.
-unsigned-integer-overflow:BuildNewQuorumQuarterMembers
-unsigned-integer-overflow:GetQuorumQuarterMembersBySnapshot
 unsigned-integer-overflow:policy/fees.cpp
 unsigned-integer-overflow:prevector.h
 unsigned-integer-overflow:EvalScript
@@ -71,7 +64,6 @@ unsigned-integer-overflow:bitset_detail::PopCount
 implicit-integer-sign-change:addrman.h
 implicit-integer-sign-change:compat/stdin.cpp
 implicit-integer-sign-change:CBlockPolicyEstimator::processBlockTx
-implicit-integer-sign-change:GetQuorumQuarterMembersBySnapshot
 implicit-integer-sign-change:compressor.h
 implicit-integer-sign-change:crypto/
 implicit-integer-sign-change:policy/fees.cpp
@@ -83,7 +75,6 @@ implicit-integer-sign-change:util/strencodings.cpp
 implicit-integer-sign-change:util/strencodings.h
 implicit-integer-sign-change:validation.cpp
 implicit-signed-integer-truncation,implicit-integer-sign-change:test/skiplist_tests.cpp
-implicit-signed-integer-truncation,implicit-integer-sign-change:BuildNewQuorumQuarterMembers
 implicit-signed-integer-truncation:addrman.h
 implicit-signed-integer-truncation:crypto/
 implicit-unsigned-integer-truncation:crypto/

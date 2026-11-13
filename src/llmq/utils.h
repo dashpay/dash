@@ -9,6 +9,7 @@
 #include <evo/types.h>
 #include <llmq/params.h>
 #include <saltedhasher.h>
+#include <span.h>
 
 #include <chainparams.h>
 #include <sync.h>
@@ -16,6 +17,7 @@
 
 #include <gsl/pointers.h>
 
+#include <array>
 #include <functional>
 #include <optional>
 #include <unordered_set>
@@ -54,6 +56,49 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuoru
     const ChainstateManager& chainman, gsl::not_null<const CBlockIndex*> pindex);
 
 namespace utils {
+using QuorumMembers = std::vector<CDeterministicMNCPtr>;
+
+struct QuarterWalkResult {
+    //! Candidate positions chosen for each quorum's new quarter
+    std::vector<std::vector<size_t>> quarters;
+    //! Skip list in the format stored in CQuorumSnapshot
+    std::vector<int> skip_list;
+};
+
+//! Legacy builder loop over positions; returns quarters and the legacy skip list (incl. the
+//! firstSkippedIndex == 0 quirk); nullopt where the legacy code returns empty quarters early.
+std::optional<QuarterWalkResult> WalkLegacyQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
+                                                    const std::vector<size_t>& used_counts,
+                                                    const std::function<bool(size_t, size_t)>& can_add);
+//! Legacy MODE_SKIPPING_ENTRIES / MODE_NO_SKIPPING rebuild loop over positions.
+std::vector<std::vector<size_t>> ReplayLegacyQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
+                                                       Span<const int> skip_list);
+
+//! Step-encoded walk: skip_list holds the steps (visits across all quorum indices) at which a candidate was
+//! skipped, the first absolute and each later one as a positive delta. can_add(quorum_index, position) returns
+//! true if the candidate joins that index and must record the addition. nullopt if a delta doesn't fit in int.
+std::optional<QuarterWalkResult> WalkNewQuarters(size_t list_size, size_t quorum_count, size_t quarter_size,
+                                                 const std::function<bool(size_t, size_t)>& can_add);
+//! Inverse of WalkNewQuarters; nullopt if skip_list is malformed, not fully consumed or would repeat a
+//! position within a quarter.
+std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_size, size_t quorum_count,
+                                                                  size_t quarter_size, Span<const int> skip_list);
+//! The skip list WalkLegacyQuarters stores for the same walk, given a WalkNewQuarters result whose quarters are
+//! all full. ReplayLegacyQuarters doesn't always rebuild such a walk exactly once it wraps around the list, but
+//! that is how legacy snapshots have always been rebuilt.
+std::vector<int> LegacySkipListForWalk(size_t list_size, const QuarterWalkResult& walk);
+
+//! Per quorum index, the four quarters in assembly order (H-3C, H-2C, H-C, new). Empty outer vector when
+//! the cycle can't be computed (skip list overflow, or a previous cycle's snapshot is malformed).
+//! GetAllQuorumMembers flattens this.
+std::vector<std::array<QuorumMembers, 4>> ComputeRotationQuarters(const Consensus::LLMQParams& llmqParams,
+                                                                  const UtilParameters& util_params,
+                                                                  gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
+                                                                  int cycleBaseHeight, const uint256& modifier,
+                                                                  bool predicting);
+//! Whether the cycle starting at cycle_base was built with the legacy walk, before the step walk replaced it
+bool IsLegacyRotationCycle(const Consensus::Params& params, const CBlockIndex& cycle_base);
+
 struct BlsCheck {
     CBLSSignature m_sig;
     std::vector<CBLSPublicKey> m_pubkeys;
