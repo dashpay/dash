@@ -190,7 +190,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         fKeepChangeAddress = _model->getOptionsModel()->getKeepChangeAddress();
 
         QSettings settings;
-        if (fKeepChangeAddress && settings.contains("sCustomChangeAddress")) {
+        if (!m_coin_control->IsUsingCoinJoin() && fKeepChangeAddress && settings.contains("sCustomChangeAddress")) {
             ui->checkBoxCoinControlChange->setChecked(true);
             ui->lineEditCoinControlChange->setText(settings.value("sCustomChangeAddress").toString());
             coinControlChangeEdited(ui->lineEditCoinControlChange->text());
@@ -249,7 +249,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
 SendCoinsDialog::~SendCoinsDialog()
 {
     QSettings settings;
-    if (fKeepChangeAddress) {
+    if (fKeepChangeAddress && !m_coin_control->IsUsingCoinJoin()) {
         settings.setValue("sCustomChangeAddress", ui->lineEditCoinControlChange->text());
     }
     settings.setValue("fFeeSectionMinimized", fFeeMinimized);
