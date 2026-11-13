@@ -171,7 +171,7 @@ def download_binary(tag, args) -> int:
 
     Path(tarball).unlink()
 
-    if tag >= "v19" and args.host == "arm64-apple-darwin":
+    if tag >= "v19" and args.platform == "arm64-apple-darwin":
         # Starting with v19 there are arm64 binaries for ARM (e.g. M1, M2) macs, but they have to be signed to run
         binary_path = f'{os.getcwd()}/{tag}/bin/'
 
