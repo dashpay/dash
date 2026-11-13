@@ -50,6 +50,7 @@ void DummyWalletInit::AddWalletOptions(ArgsManager& argsman) const
         "-keypool=<n>",
         "-maxapsfee=<n>",
         "-maxtxfee=<amt>",
+        "-maxwalletbackups=<n>",
         "-signer=<cmd>",
         "-spendzeroconfchange",
         "-wallet=<path>",
