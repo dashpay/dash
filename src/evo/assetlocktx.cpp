@@ -9,6 +9,7 @@
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 
+#include <bls/bls.h>
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <consensus/validation.h>
@@ -16,6 +17,7 @@
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <tinyformat.h>
+#include <util/check.h>
 #include <util/ranges_set.h>
 
 #include <algorithm>
@@ -144,8 +146,10 @@ static bool VerifyAssetUnlockSig(const CAssetUnlockPayload& payload, ScanQuorums
 
     const uint256 requestId = ::SerializeHash(std::make_pair(ASSET_UNLOCK_REQUESTID_PREFIX, payload.getIndex()));
 
-    if (const llmq::SignHash signHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
-        payload.getQuorumSig().VerifyInsecure(quorum->qc->quorumPublicKey, signHash.Get())) {
+    const llmq::SignHash signHash(llmqType, quorum->qc->quorumHash, requestId, msgHash);
+    // TODO(bls): temporary equivalence check
+    Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
+    if (payload.getQuorumSig().VerifyInsecure(quorum->qc->quorumPublicKey, signHash.Get())) {
         return true;
     }
 
@@ -198,6 +202,8 @@ static bool CheckAssetUnlockTxImpl(const BlockManager& blockman, VerifySig&& ver
     // deliberately NOT re-checked here: this function has no v24 activation status available, and
     // an unconditional rejection would diverge from pre-activation consensus and split the chain.
 
+    // TODO(bls): temporary equivalence check
+    Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
     const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx);
     if (!opt_assetUnlockTx) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-assetunlocktx-payload");

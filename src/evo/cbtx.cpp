@@ -17,6 +17,7 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <node/blockstorage.h>
+#include <util/check.h>
 #include <util/time.h>
 
 
@@ -57,6 +58,8 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_act
     if (cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE) {
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
         ss << cbTx.bestCLSignature;
+        // TODO(bls): temporary equivalence check
+        Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
         if (!cbTx.bestCLSignature.Get().IsValid()) {
             try {
                 CBLSSignature sig;
