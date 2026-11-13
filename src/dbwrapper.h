@@ -163,6 +163,8 @@ public:
     ~CDBIterator();
 
     bool Valid() const;
+    //! True once a read failed, e.g. on a corrupt block. Entries may then have been skipped.
+    bool HasError() const;
 
     void SeekToFirst();
 
