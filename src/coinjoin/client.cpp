@@ -1793,10 +1793,12 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
         WalletCJLogPrint(m_wallet, "vecInputsByRounds: rounds: %d, inputs: %d\n", pair.first, pair.second);
     }
 
-    int nRounds = vecInputsByRounds.begin()->first;
-    if (PrepareDenominate(nRounds, nRounds, strError, vecTxDSIn, vecPSInOutPairsTmp)) {
-        WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", nRounds);
-        return SendDenominate(vecPSInOutPairsTmp, connman);
+    if (!vecInputsByRounds.empty()) {
+        int nRounds = vecInputsByRounds.begin()->first;
+        if (PrepareDenominate(nRounds, nRounds, strError, vecTxDSIn, vecPSInOutPairsTmp)) {
+            WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", nRounds);
+            return SendDenominate(vecPSInOutPairsTmp, connman);
+        }
     }
 
     // We failed? That's strange but let's just make final attempt and try to mix everything
@@ -2442,15 +2444,12 @@ void CCoinJoinClientManager::DoMaintenance(ChainstateManager& chainman, CConnman
 
     if (!m_mn_sync.IsBlockchainSynced() || ShutdownRequested()) return;
 
-    static int nTick = 0;
-    static int nDoAutoNextRun = nTick + COINJOIN_AUTO_TIMEOUT_MIN;
-
-    nTick++;
+    m_tick++;
     CheckTimeout();
     ProcessPendingDsaRequest(connman);
-    if (nDoAutoNextRun == nTick) {
+    if (m_do_auto_next_run == m_tick) {
         DoAutomaticDenominating(chainman, connman, mempool);
-        nDoAutoNextRun = nTick + COINJOIN_AUTO_TIMEOUT_MIN + GetRand<int>(/*nMax=*/COINJOIN_AUTO_TIMEOUT_MAX - COINJOIN_AUTO_TIMEOUT_MIN);
+        m_do_auto_next_run = m_tick + COINJOIN_AUTO_TIMEOUT_MIN + GetRand<int>(/*nMax=*/COINJOIN_AUTO_TIMEOUT_MAX - COINJOIN_AUTO_TIMEOUT_MIN);
     }
 }
 
