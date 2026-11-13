@@ -600,7 +600,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         else:
             extra_confs = [[]]
         if extra_args is None:
-            extra_args = [[]]
+            extra_args = []
         if binary is None:
             binary = [self.options.bitcoind]
         assert_equal(len(extra_confs), 1)
@@ -625,7 +625,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         p15 = self.options.perf
         p16 = self.options.valgrind
 
-        t_node = TestNode(p0, p1, p2, chain=p3, rpchost=p4, timewait=p5, timeout_factor=p6, bitcoind=p7, bitcoin_cli=p8, mocktime=p9, coverage_dir=p10, cwd=p11, extra_conf=p12, extra_args=p13, use_cli=p14, start_perf=p15, use_valgrind=p16)
+        t_node = TestNode(p0, p1, p2, chain=p3, rpchost=p4, timewait=p5, timeout_factor=p6, bitcoind=p7, bitcoin_cli=p8, mocktime=p9, coverage_dir=p10, cwd=p11, extra_conf=p12, extra_args=p13, use_cli=p14, start_perf=p15, use_valgrind=p16, descriptors=self.options.descriptors, v2transport=self.options.v2transport, uses_wallet=self.uses_wallet)
         self.nodes.append(t_node)
         return t_node
 
@@ -1276,7 +1276,7 @@ class MasternodeInfo:
     def get_node(self, test: BitcoinTestFramework) -> TestNode:
         if self.nodeIdx is None:
             raise AssertionError("nodeIdx must be set, did you call set_node()")
-        if self.nodeIdx > len(test.nodes):
+        if self.nodeIdx >= len(test.nodes):
             raise AssertionError(f"Node at pos {self.nodeIdx} not present, did you start the node?")
         return test.nodes[self.nodeIdx]
 
@@ -1394,9 +1394,9 @@ class MasternodeInfo:
             raise AssertionError("Intending to use assert_raises_rpc_error() but didn't specify code and message")
 
         # Update commands should be run from the appropriate MasternodeInfo instance, we do not allow overriding some values for this reason
-        if self.proTxHash is None:
+        if not self.proTxHash:
             raise AssertionError("proTxHash not set, did you call set_params()")
-        if self.keyOperator is None:
+        if not self.keyOperator:
             raise AssertionError("keyOperator not set, did you call generate_addresses()")
 
         # Use assert_raises_rpc_error if we expect to error out
@@ -1437,7 +1437,7 @@ class MasternodeInfo:
             raise AssertionError("Intending to use assert_raises_rpc_error() but didn't specify code and message")
 
         # Update commands should be run from the appropriate MasternodeInfo instance, we do not allow overriding proTxHash for this reason
-        if self.proTxHash is None:
+        if not self.proTxHash:
             raise AssertionError("proTxHash not set, did you call set_params()")
 
         # Use assert_raises_rpc_error if we expect to error out
@@ -1479,9 +1479,9 @@ class MasternodeInfo:
         self.validate_inputs(platform_node_id, addrs_platform_p2p, addrs_platform_https, expected_assert_code, expected_assert_msg)
 
         # Update commands should be run from the appropriate MasternodeInfo instance, we do not allow overriding some values for this reason
-        if self.proTxHash is None:
+        if not self.proTxHash:
             raise AssertionError("proTxHash not set, did you call set_params()")
-        if self.keyOperator is None:
+        if not self.keyOperator:
             raise AssertionError("keyOperator not set, did you call generate_addresses()")
 
         # Use assert_raises_rpc_error if we expect to error out
