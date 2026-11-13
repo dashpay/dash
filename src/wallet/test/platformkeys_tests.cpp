@@ -2,7 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chain.h>
 #include <chainparams.h>
+#include <interfaces/handler.h>
 #include <interfaces/wallet.h>
 #include <key.h>
 #include <key_io.h>
@@ -12,6 +14,7 @@
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
+#include <util/time.h>
 #include <wallet/bip39.h>
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
@@ -28,6 +31,8 @@
 #include <iterator>
 #include <optional>
 #include <set>
+#include <string>
+#include <utility>
 #include <vector>
 
 using namespace wallet;
@@ -717,34 +722,207 @@ BOOST_FIXTURE_TEST_CASE(dip15_compact_xpub_account_reference_and_payment_vectors
 
 //! A payment received before the loss must become spendable again once the
 //! restored wallet re-imports the friendship keychain: the recovery contract
-//! for DIP-15 funds.
+//! for DIP-15 funds. The restored wallet has already scanned the payment's
+//! block, so the import owes a rescan from the chain's birth, and an earlier
+//! request for the same chain moves that birth back and owes another.
 BOOST_FIXTURE_TEST_CASE(recovery_import_after_restore_is_spendable, SeededWalletPair)
 {
+    const auto tip{[&] { return WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()); }};
     // The payment targets the xpub the contact holds — exported by wallet A
-    // before the loss.
+    // before the loss in its first request — and is mined.
+    const int64_t first_request{tip()->GetBlockTime()};
     const auto original_keychain{m_iface->ensureFriendshipReceivingKeychain(
-        FriendshipKeychainRequest{ACCOUNT, m_my_id, m_their_id, /*birth_time=*/0})};
+        FriendshipKeychainRequest{ACCOUNT, m_my_id, m_their_id, first_request})};
     BOOST_REQUIRE(original_keychain);
     CTxDestination destination;
     BOOST_REQUIRE(DeriveFriendshipPaymentDestination(original_keychain.value, /*index=*/0, destination));
-    const CScript script{GetScriptForDestination(destination)};
-    CMutableTransaction payment;
-    payment.vin.emplace_back(g_insecure_rand_ctx.rand256(), 0);
-    payment.vout.emplace_back(COIN, script);
+    const CMutableTransaction payment{CreateValidMempoolTransaction(m_coinbase_txns[0], /*input_vout=*/0,
+                                                                    /*input_height=*/1, coinbaseKey,
+                                                                    GetScriptForDestination(destination), COIN,
+                                                                    /*submit=*/false)};
+    CreateAndProcessBlock({payment}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    // A second request for the same chain, sent long after the payment.
+    SetMockTime(GetTime() + 2 * TIMESTAMP_WINDOW);
+    CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    const int64_t second_request{tip()->GetBlockTime()};
 
-    // Restored wallet B: not ours until the friendship keychain is back.
+    // Restored wallet B has scanned the whole chain without the friendship
+    // keychain: the payment is not ours.
+    WITH_LOCK(m_wallet_b->cs_wallet, m_wallet_b->SetLastBlockProcessed(tip()->nHeight, tip()->GetBlockHash()));
     BOOST_CHECK_EQUAL(IsMineIn(*m_wallet_b, destination), ISMINE_NO);
+    const auto spendable_coins{[&] {
+        LOCK(m_wallet_b->cs_wallet);
+        return AvailableCoins(*m_wallet_b).Size();
+    }};
+    BOOST_CHECK(!m_iface_b->owedRescanFrom());
 
-    const auto imported{m_iface_b->ensureFriendshipReceivingKeychain(
-        FriendshipKeychainRequest{ACCOUNT, m_my_id, m_their_id, /*birth_time=*/0})};
-    BOOST_REQUIRE(imported);
+    // Imported from the second request only, the rescan it owes starts after the payment.
+    BOOST_REQUIRE(m_iface_b->ensureFriendshipReceivingKeychain(
+        FriendshipKeychainRequest{ACCOUNT, m_my_id, m_their_id, second_request}));
+    BOOST_CHECK_EQUAL(IsMineIn(*m_wallet_b, destination), ISMINE_SPENDABLE);
+    BOOST_REQUIRE(m_iface_b->owedRescanFrom() == std::optional<int64_t>{second_request});
+    BOOST_CHECK(m_iface_b->rescanFromTime(second_request) == RescanStatus::SUCCESS);
+    BOOST_CHECK(!m_iface_b->owedRescanFrom());
+    BOOST_CHECK_EQUAL(spendable_coins(), 0U);
 
-    LOCK(m_wallet_b->cs_wallet);
-    m_wallet_b->AddToWallet(MakeTransactionRef(payment), TxStateInMempool{});
+    // The first request makes the chain older, and the rescan that owes finds the payment.
+    const FriendshipKeychainRequest earliest{ACCOUNT, m_my_id, m_their_id, first_request};
+    BOOST_REQUIRE(m_iface_b->ensureFriendshipReceivingKeychain(earliest));
+    BOOST_REQUIRE(m_iface_b->owedRescanFrom() == std::optional<int64_t>{first_request});
 
-    CCoinControl coin_control;
-    coin_control.m_include_unsafe_inputs = true;
-    BOOST_CHECK_EQUAL(AvailableCoins(*m_wallet_b, &coin_control).Size(), 1U);
+    // A rescan aborted before it reads a block settles nothing, even one from
+    // genesis, and what is owed outlives a restart.
+    {
+        const auto abort_at_start{m_iface_b->handleShowProgress([&](const std::string&, int percent) {
+            if (percent == 0) m_iface_b->abortRescan();
+        })};
+        BOOST_CHECK(m_iface_b->rescanFromTime(0) == RescanStatus::USER_ABORT);
+    }
+    BOOST_CHECK_EQUAL(spendable_coins(), 0U);
+    const auto restarted{
+        std::make_shared<CWallet>(m_node.chain.get(), "", DuplicateMockDatabase(m_wallet_b->GetDatabase()))};
+    BOOST_REQUIRE_EQUAL(restarted->LoadWallet(), DBErrors::LOAD_OK);
+    BOOST_CHECK(interfaces::MakeWallet(m_context, restarted)->owedRescanFrom() == std::optional<int64_t>{first_request});
+
+    const auto owed{m_iface_b->owedRescanFrom()};
+    BOOST_REQUIRE(owed == std::optional<int64_t>{first_request});
+    BOOST_CHECK(m_iface_b->rescanFromTime(*owed) == RescanStatus::SUCCESS);
+    BOOST_CHECK(!m_iface_b->owedRescanFrom());
+    BOOST_CHECK_EQUAL(spendable_coins(), 1U);
+}
+
+//! The birth of a receiving chain and what the owed-rescan scenarios share.
+struct OwedRescanSetup : public FriendshipWalletSetup {
+    const int64_t m_birth{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()->GetBlockTime())};
+
+    FriendshipKeychainRequest Request(const uint256& their_id, int64_t birth_time) const
+    {
+        return FriendshipKeychainRequest{ACCOUNT, m_my_id, their_id, birth_time};
+    }
+    //! The wallet as a restart would load it.
+    std::shared_ptr<CWallet> Restart(CWallet& wallet)
+    {
+        auto restarted{std::make_shared<CWallet>(m_node.chain.get(), "", DuplicateMockDatabase(wallet.GetDatabase()))};
+        BOOST_REQUIRE_EQUAL(restarted->LoadWallet(), DBErrors::LOAD_OK);
+        return restarted;
+    }
+    //! What the wallet owes after a restart.
+    std::optional<int64_t> OwedAfterRestart(CWallet& wallet)
+    {
+        return interfaces::MakeWallet(m_context, Restart(wallet))->owedRescanFrom();
+    }
+};
+
+//! Importing a receiving chain, or moving its birth earlier, owes a rescan
+//! from that birth, recorded before the chain changes.
+BOOST_FIXTURE_TEST_CASE(friendship_import_owes_rescan, OwedRescanSetup)
+{
+    BOOST_CHECK(!m_iface->owedRescanFrom());
+    const MockableData without_chain{GetMockableDatabase(*m_wallet).m_records};
+    const auto keychain{m_iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth))};
+    BOOST_REQUIRE(keychain);
+    BOOST_CHECK(m_iface->owedRescanFrom() == std::optional<int64_t>{m_birth});
+    BOOST_CHECK(OwedAfterRestart(*m_wallet) == std::optional<int64_t>{m_birth});
+    // A restarted wallet keeps the records it loaded when it adds one.
+    const auto restarted{Restart(*m_wallet)};
+    BOOST_REQUIRE(interfaces::MakeWallet(m_context, restarted)->ensureFriendshipReceivingKeychain(Request(uint256::ONE, m_birth + 10)));
+    BOOST_CHECK(OwedAfterRestart(*restarted) == std::optional<int64_t>{m_birth});
+
+    CTxDestination destination;
+    BOOST_REQUIRE(DeriveFriendshipPaymentDestination(keychain.value, /*index=*/0, destination));
+    const auto held_birth{[&] {
+        LOCK(m_wallet->cs_wallet);
+        const auto chain{m_wallet->GetScriptPubKeyMans(GetScriptForDestination(destination))};
+        BOOST_REQUIRE_EQUAL(chain.size(), 1U);
+        return (*chain.begin())->GetTimeFirstKey();
+    }};
+
+    // A later or the same birth leaves the chain as it is, without a write.
+    GetMockableDatabase(*m_wallet).m_pass = false;
+    BOOST_CHECK(m_iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth + 10)));
+    BOOST_CHECK(m_iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth)));
+    BOOST_CHECK_EQUAL(held_birth(), m_birth);
+
+    // When the owed rescan cannot be saved, the chain is left as it was.
+    BOOST_CHECK(m_iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth - 10)).status ==
+                PlatformKeyStatus::IMPORT_ERROR);
+    GetMockableDatabase(*m_wallet).m_pass = true;
+    BOOST_CHECK_EQUAL(held_birth(), m_birth);
+    BOOST_CHECK(m_iface->owedRescanFrom() == std::optional<int64_t>{m_birth});
+
+    // An earlier birth for a chain the wallet holds owes a rescan from it,
+    // and the wallet's birth, which later blocks are scanned from, follows.
+    BOOST_REQUIRE(m_iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth - 10)));
+    BOOST_CHECK_EQUAL(held_birth(), m_birth - 10);
+    BOOST_CHECK_EQUAL(m_wallet->GetBirthTime(), m_birth - 10);
+    BOOST_CHECK(m_iface->owedRescanFrom() == std::optional<int64_t>{m_birth - 10});
+    BOOST_CHECK(OwedAfterRestart(*m_wallet) == std::optional<int64_t>{m_birth - 10});
+
+    // A chain held without its key is given it, and owes a rescan as a new one does.
+    WalletDescriptor without_key{[&] {
+        LOCK(m_wallet->cs_wallet);
+        const auto& chain{dynamic_cast<DescriptorScriptPubKeyMan&>(
+            **m_wallet->GetScriptPubKeyMans(GetScriptForDestination(destination)).begin())};
+        LOCK(chain.cs_desc_man);
+        return chain.GetWalletDescriptor();
+    }()};
+    without_key.cache = DescriptorCache{};
+    const auto wallet{std::make_shared<CWallet>(m_node.chain.get(), "", std::make_unique<MockableDatabase>(without_chain))};
+    BOOST_REQUIRE_EQUAL(wallet->LoadWallet(), DBErrors::LOAD_OK);
+    BOOST_REQUIRE(WITH_LOCK(wallet->cs_wallet, return wallet->AddWalletDescriptor(without_key, FlatSigningProvider{},
+                                                                                   /*label=*/"", /*internal=*/false)));
+    const auto iface{interfaces::MakeWallet(m_context, wallet)};
+    BOOST_REQUIRE(iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth - 10)));
+    BOOST_CHECK(iface->owedRescanFrom() == std::optional<int64_t>{m_birth - 10});
+}
+
+//! A rescan owed for a receiving chain is settled by a completed rescan from
+//! no later than its birth that started after it was recorded.
+BOOST_FIXTURE_TEST_CASE(friendship_owed_rescan_settles, OwedRescanSetup)
+{
+    BOOST_REQUIRE(m_iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth)));
+    // A rescan from after the birth does not cover it.
+    BOOST_CHECK(m_iface->rescanFromTime(m_birth + 1) == RescanStatus::SUCCESS);
+    BOOST_CHECK(m_iface->owedRescanFrom() == std::optional<int64_t>{m_birth});
+    BOOST_CHECK(m_iface->rescanFromTime(m_birth) == RescanStatus::SUCCESS);
+    BOOST_CHECK(!m_iface->owedRescanFrom());
+    BOOST_CHECK(!OwedAfterRestart(*m_wallet));
+
+    // A chain imported while a rescan runs may be paid in a block it has
+    // already read: the rescan it owes outlives the one running.
+    const uint256 other_id{uint256S("3333333333333333333333333333333333333333333333333333333333333333")};
+    BOOST_REQUIRE(m_iface->ensureFriendshipReceivingKeychain(Request(m_their_id, m_birth - 10)));
+    {
+        bool imported_while_scanning{false};
+        const auto progress{m_iface->handleShowProgress([&](const std::string&, int) {
+            if (std::exchange(imported_while_scanning, true)) return;
+            BOOST_CHECK(m_iface->ensureFriendshipReceivingKeychain(Request(other_id, m_birth)));
+        })};
+        BOOST_CHECK(m_iface->rescanFromTime(m_birth - 10) == RescanStatus::SUCCESS);
+        BOOST_REQUIRE(imported_while_scanning);
+    }
+    BOOST_CHECK(m_iface->owedRescanFrom() == std::optional<int64_t>{m_birth});
+    BOOST_CHECK(m_iface->rescanFromTime(m_birth) == RescanStatus::SUCCESS);
+    BOOST_CHECK(!m_iface->owedRescanFrom());
+
+    // Born after every block: the rescan reads no block and replays the mempool.
+    const int64_t unmined{m_birth + 2 * TIMESTAMP_WINDOW};
+    const auto unmined_chain{m_iface->ensureFriendshipReceivingKeychain(Request(uint256::ONE, unmined))};
+    BOOST_REQUIRE(unmined_chain);
+    CTxDestination unconfirmed_destination;
+    BOOST_REQUIRE(DeriveFriendshipPaymentDestination(unmined_chain.value, /*index=*/0, unconfirmed_destination));
+    const CMutableTransaction unconfirmed{
+        CreateValidMempoolTransaction(m_coinbase_txns[0], /*input_vout=*/0,
+                                      /*input_height=*/1, coinbaseKey, GetScriptForDestination(unconfirmed_destination))};
+    const auto holds_unconfirmed{[&] {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->GetWalletTx(unconfirmed.GetHash()) != nullptr;
+    }};
+    BOOST_CHECK(!holds_unconfirmed());
+    BOOST_CHECK(m_iface->owedRescanFrom() == std::optional<int64_t>{unmined});
+    BOOST_CHECK(m_iface->rescanFromTime(unmined) == RescanStatus::SUCCESS);
+    BOOST_CHECK(!m_iface->owedRescanFrom());
+    BOOST_CHECK(holds_unconfirmed());
 }
 
 //! Recovery re-runs re-import friendships it already imported; that must

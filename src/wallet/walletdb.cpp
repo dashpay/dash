@@ -60,6 +60,7 @@ const std::string MINVERSION{"minversion"};
 const std::string NAME{"name"};
 const std::string OLD_KEY{"wkey"};
 const std::string ORDERPOSNEXT{"orderposnext"};
+const std::string OWED_RESCAN{"owed_rescan"};
 const std::string PLATFORM_DATA{"platform_data"};
 const std::string POOL{"pool"};
 const std::string PURPOSE{"purpose"};
@@ -261,6 +262,16 @@ bool WalletBatch::WritePlatformData(const std::string& key, const std::vector<un
 bool WalletBatch::ErasePlatformData(const std::string& key)
 {
     return EraseIC(std::make_pair(DBKeys::PLATFORM_DATA, key));
+}
+
+bool WalletBatch::WriteOwedRescan(uint64_t sequence, int64_t from_time)
+{
+    return WriteIC(std::make_pair(DBKeys::OWED_RESCAN, sequence), from_time);
+}
+
+bool WalletBatch::EraseOwedRescan(uint64_t sequence)
+{
+    return EraseIC(std::make_pair(DBKeys::OWED_RESCAN, sequence));
 }
 
 bool WalletBatch::WriteActiveScriptPubKeyMan(const uint256& id, bool internal)
@@ -1225,6 +1236,18 @@ static DBErrors LoadDashRecords(CWallet* pwallet, DatabaseBatch& batch) EXCLUSIV
         return DBErrors::LOAD_OK;
     });
     result = std::max(result, platform_data_res.m_result);
+
+    // Load owed rescan records
+    LoadResult owed_rescan_res = LoadRecords(pwallet, batch, DBKeys::OWED_RESCAN,
+        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        uint64_t sequence;
+        key >> sequence;
+        int64_t from_time;
+        value >> from_time;
+        pwallet->LoadOwedRescan(sequence, from_time);
+        return DBErrors::LOAD_OK;
+    });
+    result = std::max(result, owed_rescan_res.m_result);
 
     return result;
 }
