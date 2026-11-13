@@ -518,6 +518,15 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
 
+    // Nor does a signature that fails validation. The participant is not connected, so a
+    // session-wide rejection would find it unreachable and reset the session.
+    CDataStream invalid_stream{SER_NETWORK, PROTOCOL_VERSION};
+    invalid_stream << std::vector<CTxIn>{CTxIn{COutPoint{uint256::ONE, 0}}};
+
+    BOOST_CHECK_NO_THROW(server.ProcessMessage(*participant, NetMsgType::DSSIGNFINALTX, invalid_stream));
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+
     // A count beyond the generic CompactSize cap is a malformed message, not a
     // CoinJoin-level violation: it throws the standard deserialization error out
     // to net processing. No txin is materialized and the session is left intact,
