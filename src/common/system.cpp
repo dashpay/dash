@@ -34,7 +34,7 @@ const std::string gCoinJoinName = "CoinJoin";
 
 /**
     nWalletBackups:
-        1..10   - number of automatic backups to keep
+        1..20   - number of most recent automatic backups to keep
         0       - disabled by command-line
         -1      - disabled because of some error during run-time
         -2      - disabled because wallet was locked and we were not able to replenish keypool
