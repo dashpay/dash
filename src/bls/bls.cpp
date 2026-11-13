@@ -145,7 +145,7 @@ void CBLSPublicKey::AggregateInsecure(const CBLSPublicKey& o)
 {
     assert(IsValid() && o.IsValid());
     try {
-        impl = Scheme(GetAmbientBLSScheme())->Aggregate({impl, o.impl});
+        impl = pScheme->Aggregate({impl, o.impl});
     } catch (...) {
         fValid = false;
     }
@@ -166,7 +166,7 @@ CBLSPublicKey CBLSPublicKey::AggregateInsecure(Span<CBLSPublicKey> pks)
 
     CBLSPublicKey ret;
     try {
-        ret.impl = Scheme(GetAmbientBLSScheme())->Aggregate(vecPublicKeys);
+        ret.impl = pScheme->Aggregate(vecPublicKeys);
         ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
@@ -230,7 +230,7 @@ void CBLSSignature::AggregateInsecure(const CBLSSignature& o)
 {
     assert(IsValid() && o.IsValid());
     try {
-        impl = Scheme(GetAmbientBLSScheme())->Aggregate({impl, o.impl});
+        impl = pScheme->Aggregate({impl, o.impl});
     } catch (...) {
         fValid = false;
     }
@@ -251,7 +251,7 @@ CBLSSignature CBLSSignature::AggregateInsecure(Span<CBLSSignature> sigs)
 
     CBLSSignature ret;
     try {
-        ret.impl = Scheme(GetAmbientBLSScheme())->Aggregate(v);
+        ret.impl = pScheme->Aggregate(v);
         ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
