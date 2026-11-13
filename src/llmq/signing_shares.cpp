@@ -596,6 +596,8 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
             if (!quorum) {
                 LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
                           std23::to_underlying(llmqType), sigShare.getQuorumHash().ToString());
+                retSigShares.clear();
+                retQuorums.clear();
                 return false;
             }
             retQuorums.try_emplace(k, quorum);

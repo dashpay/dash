@@ -57,8 +57,7 @@ ChainlockHandler::ChainlockHandler(chainlock::Chainlocks& chainlocks, Chainstate
 
 ChainlockHandler::~ChainlockHandler()
 {
-    scheduler->stop();
-    scheduler_thread->join();
+    Stop();
 }
 
 void ChainlockHandler::Start()
@@ -72,7 +71,13 @@ void ChainlockHandler::Start()
         std::chrono::seconds{5});
 }
 
-void ChainlockHandler::Stop() { scheduler->stop(); }
+void ChainlockHandler::Stop()
+{
+    scheduler->stop();
+    if (scheduler_thread->joinable()) {
+        scheduler_thread->join();
+    }
+}
 
 bool ChainlockHandler::AlreadyHave(const CInv& inv) const
 {
