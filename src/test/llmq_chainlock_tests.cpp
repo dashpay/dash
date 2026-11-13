@@ -71,7 +71,7 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
             } else {
                 certified = activation + 16999;
             }
-            payload.bestCLSignature.Set(signature, BLSScheme::Basic);
+            payload.bestCLSignature.Set(signature);
             payload.bestCLHeightDiff = height - certified - 1;
         }
         CMutableTransaction coinbase;
@@ -415,7 +415,7 @@ BOOST_FIXTURE_TEST_CASE(coinbase_chainlock_processing, RegTestingSetup)
 
     CCbTx cbtx;
     cbtx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
-    cbtx.bestCLSignature.Set(CreateRandomBLSSignature(), GetAmbientBLSScheme());
+    cbtx.bestCLSignature.Set(CreateRandomBLSSignature());
     CMutableTransaction tx;
     tx.nVersion = CTransaction::SPECIAL_VERSION;
     tx.nType = TRANSACTION_COINBASE;

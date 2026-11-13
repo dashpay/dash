@@ -107,7 +107,7 @@ CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXO
     pro_tx.collateralOutpoint.n = 0;
     Assert(pro_tx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)) == NetInfoStatus::Success);
     pro_tx.keyIDOwner = owner_key_ret.GetPubKey().GetID();
-    pro_tx.pubKeyOperator.Set(operator_key_ret.GetPublicKey(), GetAmbientBLSScheme());
+    pro_tx.pubKeyOperator.Set(operator_key_ret.GetPublicKey());
     pro_tx.keyIDVoting = owner_key_ret.GetPubKey().GetID();
     pro_tx.scriptPayout = script_payout;
 

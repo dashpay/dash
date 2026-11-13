@@ -15,6 +15,7 @@
 #include <script/script.h>
 #include <util/helpers.h>
 
+#include <array>
 #include <memory>
 #include <utility>
 
@@ -56,6 +57,10 @@ public:
 
     CKeyID keyIDOwner;
     CBLSLazyPublicKey pubKeyOperator;
+    [[nodiscard]] BLSScheme OperatorKeyScheme() const
+    {
+        return ProTxVersion::GetBLSScheme(static_cast<uint16_t>(nVersion));
+    }
     CKeyID keyIDVoting;
     std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CScript scriptPayout;
@@ -104,7 +109,7 @@ public:
             obj.confirmedHash,
             obj.confirmedHashWithProRegTxHash,
             obj.keyIDOwner);
-        READWRITE(BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), ProTxVersion::GetBLSScheme(obj.nVersion)));
+        READWRITE(BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.OperatorKeyScheme()));
         READWRITE(
             obj.keyIDVoting,
             NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
@@ -257,14 +262,11 @@ public:
                     fields |= member.mask;
                 }
             } else if constexpr (BaseType::mask == Field_pubKeyOperator) {
-                // CBLSLazyPublicKey::operator== compares the underlying key and ignores its BLS
-                // encoding, but a scheme migration re-encodes the same key (legacy->basic). That must
-                // be captured in the diff or a diff-reconstructed list keeps the old encoding while an
-                // online-built list has the new one, and the two diverge (mnUniquePropertyMap included).
-                // GetHash() only covers the encoded bytes, and identical bytes decode to a different key
-                // under the other scheme, so a scheme change must be captured even when the bytes match.
-                if (member.get(a).GetHash() != member.get(b).GetHash() ||
-                    (a.nVersion == ProTxVersion::LegacyBLS) != (b.nVersion == ProTxVersion::LegacyBLS)) {
+                // operator== compares the point and ignores its encoding. A scheme migration
+                // re-encodes the same point, and identical bytes decode to a different point under
+                // the other scheme, so either a different encoding or a different scheme is a change.
+                if (member.get(a).GetHash(a.OperatorKeyScheme()) != member.get(b).GetHash(b.OperatorKeyScheme()) ||
+                    a.OperatorKeyScheme() != b.OperatorKeyScheme()) {
                     member.get(state) = member.get(b);
                     fields |= member.mask;
                 }
@@ -301,7 +303,7 @@ public:
             if constexpr (BaseType::mask == Field_pubKeyOperator) {
                 if (obj.fields & member.mask) {
                     READWRITE(BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator),
-                                         ProTxVersion::GetBLSScheme(obj.state.nVersion)));
+                                         obj.state.OperatorKeyScheme()));
                 }
             } else if constexpr (BaseType::mask == Field_netInfo) {
                 if (obj.fields & member.mask) {
@@ -389,8 +391,15 @@ private:
 public:
     uint32_t fields{0};
     CDeterministicMNState state;
+    //! Operator key bytes exactly as stored by the legacy diff. The format has no scheme; the
+    //! bytes are turned into a key once the owning version is known.
+    std::array<uint8_t, CBLSPublicKey::SerSize> pubKeyOperatorBytes{};
 
     CDeterministicMNStateDiffLegacy() = default;
+
+    //! Build state.pubKeyOperator from pubKeyOperatorBytes under the diff's version when that
+    //! field is present, and under legacy otherwise.
+    void MaterializeOperatorKeyFromBytes();
 
     template <typename Stream>
     CDeterministicMNStateDiffLegacy(deserialize_type, Stream& s)
@@ -408,8 +417,8 @@ public:
             using BaseType = std::decay_t<decltype(member)>;
             if constexpr (BaseType::mask == LegacyField_pubKeyOperator) {
                 if (fields & member.mask) {
-                    // We serialize it as is, no version wrapper is used here
-                    s << state.pubKeyOperator;
+                    // Raw 48 bytes, with no scheme wrapper.
+                    s.write(MakeByteSpan(pubKeyOperatorBytes));
                 }
             } else if constexpr (BaseType::mask == LegacyField_netInfo) {
                 if (fields & member.mask) {
@@ -435,8 +444,7 @@ public:
             using BaseType = std::decay_t<decltype(member)>;
             if constexpr (BaseType::mask == LegacyField_pubKeyOperator) {
                 if (fields & member.mask) {
-                    // We'll set proper scheme later in MigrateLegacyDiffs()
-                    s >> BLSEncoded(state.pubKeyOperator, BLSScheme::Legacy);
+                    s.read(AsWritableBytes(Span{pubKeyOperatorBytes.data(), pubKeyOperatorBytes.size()}));
                 }
             } else if constexpr (BaseType::mask == LegacyField_netInfo) {
                 if (fields & member.mask) {
@@ -449,6 +457,7 @@ public:
                 }
             }
         });
+        MaterializeOperatorKeyFromBytes();
     }
 
     // Convert to new format

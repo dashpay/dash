@@ -541,10 +541,7 @@ RegistrationResult BuildRegistration(node::NodeContext& node, Wallet& wallet,
     }
     payload.keyIDOwner = request.owner_key;
     payload.keyIDVoting = request.voting_key.IsNull() ? request.owner_key : request.voting_key;
-    payload.pubKeyOperator.Set(request.operator_key, request.use_legacy_bls_scheme ? BLSScheme::Legacy : BLSScheme::Basic);
-    if (payload.pubKeyOperator.IsLegacy() != (payload.nVersion == ProTxVersion::LegacyBLS)) {
-        return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator key encoding does not match ProTx version");
-    }
+    payload.pubKeyOperator.Set(request.operator_key);
     payload.nOperatorReward = request.operator_reward;
 
     auto payouts_result{BuildPayouts(request.payouts)};
@@ -1035,17 +1032,9 @@ ProviderTxResult<ProviderTxSubmission> UpdateRegistrar(node::NodeContext& node, 
         if (!request.operator_key->IsValid()) {
             return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator BLS address must be a valid BLS public key");
         }
-        payload.pubKeyOperator.Set(*request.operator_key,
-                                   request.use_legacy_bls_scheme ? BLSScheme::Legacy : BLSScheme::Basic);
+        payload.pubKeyOperator.Set(*request.operator_key);
     } else {
         payload.pubKeyOperator = dmn->pdmnState->pubKeyOperator;
-        if (!request.use_legacy_bls_scheme && payload.pubKeyOperator != CBLSLazyPublicKey() &&
-            payload.pubKeyOperator.IsLegacy()) {
-            payload.pubKeyOperator.Set(payload.pubKeyOperator.Get(), BLSScheme::Basic);
-        }
-    }
-    if (payload.pubKeyOperator.IsLegacy() != (payload.nVersion == ProTxVersion::LegacyBLS)) {
-        return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator key encoding does not match ProTx version");
     }
 
     CTxDestination payout_destination;
@@ -1191,7 +1180,7 @@ ProviderTxResult<PreparedSharedRegistration> PrepareSharedRegistration(node::Nod
     if (!request.operator_key.IsValid()) {
         return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator BLS address must be a valid BLS public key");
     }
-    payload.pubKeyOperator.Set(request.operator_key, BLSScheme::Basic);
+    payload.pubKeyOperator.Set(request.operator_key);
     payload.keyIDVoting = request.voting_key;
     if (request.operator_reward > 10000) {
         return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operatorReward must be between 0 and 10000");
@@ -1495,7 +1484,7 @@ ProviderTxResult<PreparedSharedConsent> PrepareSharedRegistrarUpdate(node::NodeC
         if (!request.operator_key->IsValid()) {
             return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator BLS address must be a valid BLS public key");
         }
-        payload.pubKeyOperator.Set(*request.operator_key, BLSScheme::Basic);
+        payload.pubKeyOperator.Set(*request.operator_key);
     } else {
         payload.pubKeyOperator = dmn->pdmnState->pubKeyOperator;
     }

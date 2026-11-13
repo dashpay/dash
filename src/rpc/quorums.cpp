@@ -232,11 +232,11 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
                 mo.pushKV("service", dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
             }
             mo.pushKV("addresses", GetNetInfoWithLegacyFields(*dmn->pdmnState, dmn->nType));
-            mo.pushKV("pubKeyOperator", dmn->pdmnState->pubKeyOperator.ToString());
+            mo.pushKV("pubKeyOperator", dmn->pdmnState->pubKeyOperator.ToString(dmn->pdmnState->OperatorKeyScheme()));
             mo.pushKV("valid", static_cast<bool>(quorum.qc->validMembers[i]));
             if (quorum.qc->validMembers[i]) {
                 if (quorum.params.is_single_member()) {
-                    mo.pushKV("pubKeyShare", dmn->pdmnState->pubKeyOperator.ToString());
+                    mo.pushKV("pubKeyShare", dmn->pdmnState->pubKeyOperator.ToString(dmn->pdmnState->OperatorKeyScheme()));
                 } else {
                     CBLSPublicKey pubKey = quorum.GetPubKeyShare(i);
                     if (pubKey.IsValid()) {

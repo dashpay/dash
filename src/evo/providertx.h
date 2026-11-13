@@ -156,6 +156,7 @@ public:
     uint16_t platformHTTPPort{0};
     CKeyID keyIDOwner;
     CBLSLazyPublicKey pubKeyOperator;
+    [[nodiscard]] BLSScheme OperatorKeyScheme() const { return ProTxVersion::GetBLSScheme(nVersion); }
     CKeyID keyIDVoting;
     uint16_t nOperatorReward{0};
     CScript scriptPayout;
@@ -181,8 +182,7 @@ public:
         READWRITE(obj.nType, obj.nMode, obj.collateralOutpoint,
                   NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
                                     obj.nVersion >= ProTxVersion::ExtAddr),
-                  obj.keyIDOwner,
-                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), ProTxVersion::GetBLSScheme(obj.nVersion)),
+                  obj.keyIDOwner, BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.OperatorKeyScheme()),
                   obj.keyIDVoting, obj.nOperatorReward);
         if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
@@ -325,6 +325,7 @@ public:
     uint256 proTxHash;
     uint16_t nMode{0}; // only 0 supported for now
     CBLSLazyPublicKey pubKeyOperator;
+    [[nodiscard]] BLSScheme OperatorKeyScheme() const { return ProTxVersion::GetBLSScheme(nVersion); }
     CKeyID keyIDVoting;
     CScript scriptPayout;
     MasternodePayoutShares payouts;
@@ -342,7 +343,7 @@ public:
             return;
         }
         READWRITE(obj.proTxHash, obj.nMode,
-                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), ProTxVersion::GetBLSScheme(obj.nVersion)),
+                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.OperatorKeyScheme()),
                   obj.keyIDVoting);
         if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
@@ -519,6 +520,7 @@ public:
     uint16_t nVersion{CURRENT_VERSION};
     uint256 proTxHash;
     CBLSLazyPublicKey pubKeyOperator;
+    [[nodiscard]] static BLSScheme OperatorKeyScheme() { return BLSScheme::Basic; }
     CKeyID keyIDVoting;
     uint256 inputsHash; // replay protection
     // One signature per share, in share order; a shared registrar update requires unanimity
@@ -527,8 +529,8 @@ public:
     SERIALIZE_METHODS(CProUpSharedRegTx, obj)
     {
         READWRITE(obj.nVersion, obj.proTxHash,
-                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), BLSScheme::Basic), obj.keyIDVoting,
-                  obj.inputsHash);
+                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.OperatorKeyScheme()),
+                  obj.keyIDVoting, obj.inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
             uint8_t sig_count{0};
             SER_WRITE(obj, sig_count = static_cast<uint8_t>(obj.vchSigs.size()));

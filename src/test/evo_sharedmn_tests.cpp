@@ -514,7 +514,7 @@ BOOST_AUTO_TEST_CASE(shared_reg_consent_hash)
         CProRegTx mutated{proTx};
         CBLSSecretKey sk;
         sk.MakeNewKey();
-        mutated.pubKeyOperator.Set(sk.GetPublicKey(), BLSScheme::Basic);
+        mutated.pubKeyOperator.Set(sk.GetPublicKey());
         BOOST_CHECK(mutated.MakeSharedRegConsentHash(CTransaction(mtx)) != base);
     }
 }
@@ -1018,7 +1018,7 @@ BOOST_AUTO_TEST_CASE(shared_tx_filter_matching)
 
     CProUpSharedRegTx upreg;
     upreg.proTxHash = protx_hash;
-    upreg.pubKeyOperator.Set(CBLSPublicKey(), BLSScheme::Basic);
+    upreg.pubKeyOperator.Set(CBLSPublicKey());
     upreg.keyIDVoting = new_voting_key.GetPubKey().GetID();
     upreg.vchSigs = DummyJoinSigs(2);
     CMutableTransaction upreg_mtx;

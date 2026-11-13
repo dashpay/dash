@@ -1571,7 +1571,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShareForSingleMember(const 
 
     // TODO: This one should be SIGN by QUORUM key, not by OPERATOR key
     // see TODO in CDKGSession::FinalizeSingleCommitment for details
-    sigShare.sigShare.Set(m_mn_activeman.Sign(signHash), BLSScheme::Basic);
+    sigShare.sigShare.Set(m_mn_activeman.Sign(signHash));
 
     if (!sigShare.sigShare.Get().IsValid()) {
         LogPrintf("CSigSharesManager::%s -- failed to sign sigShare. signHash=%s, id=%s, msgHash=%s, time=%s\n",
@@ -1625,7 +1625,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorum& quorum
     CSigShare sigShare(quorum.params.type, quorum.qc->quorumHash, id, msgHash, static_cast<uint16_t>(memberIdx), {});
     uint256 signHash = sigShare.buildSignHash().Get();
 
-    sigShare.sigShare.Set(skShare.Sign(signHash), BLSScheme::Basic);
+    sigShare.sigShare.Set(skShare.Sign(signHash));
     if (!sigShare.sigShare.Get().IsValid()) {
         LogPrintf("CSigSharesManager::%s -- failed to sign sigShare. signHash=%s, id=%s, msgHash=%s, time=%s\n", __func__,
                   signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), t.count());
