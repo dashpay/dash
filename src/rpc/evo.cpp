@@ -2028,8 +2028,8 @@ static UniValue evodb_verify_or_repair_impl(const JSONRPCRequest& request, bool 
         } else {
             uint256 start_block_hash = ParseBlock(request.params[0], chainman, "startBlock");
             start_index = chainman.m_blockman.LookupBlockIndex(start_block_hash);
-            if (!start_index) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Start block not found");
+            if (!start_index || !chainman.ActiveChain().Contains(start_index)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Start block not found in active chain");
             }
         }
 
@@ -2042,8 +2042,8 @@ static UniValue evodb_verify_or_repair_impl(const JSONRPCRequest& request, bool 
         } else {
             uint256 stop_block_hash = ParseBlock(request.params[1], chainman, "stopBlock");
             stop_index = chainman.m_blockman.LookupBlockIndex(stop_block_hash);
-            if (!stop_index) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Stop block not found");
+            if (!stop_index || !chainman.ActiveChain().Contains(stop_index)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Stop block not found in active chain");
             }
         }
     }

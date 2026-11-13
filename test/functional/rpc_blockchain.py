@@ -331,7 +331,13 @@ class BlockchainTest(BitcoinTestFramework):
         blockhash = self.nodes[0].getblockhash(HEIGHT)
         self.nodes[0].invalidateblock(blockhash)
         assert_raises_rpc_error(-8, "Block is not in main chain", self.nodes[0].getchaintxstats, blockhash=blockhash)
+        for command in ("verify", "repair"):
+            assert_raises_rpc_error(-8, "Start block not found in active chain", self.nodes[0].evodb, command, blockhash, blockhash)
+            assert_raises_rpc_error(-8, "Stop block not found in active chain", self.nodes[0].evodb, command, HEIGHT - 1, blockhash)
         self.nodes[0].reconsiderblock(blockhash)
+        verification = self.nodes[0].evodb("verify", blockhash, blockhash)
+        assert_equal(verification["startHeight"], HEIGHT)
+        assert_equal(verification["stopHeight"], HEIGHT)
 
         chaintxstats = self.nodes[0].getchaintxstats(nblocks=1)
         # 200 txs plus genesis tx
