@@ -300,7 +300,7 @@ public:
 
     //! GetPublicKey() is invariant to BLS scheme
     [[nodiscard]] CBLSPublicKey GetPublicKey() const;
-    [[nodiscard]] CBLSSignature Sign(const uint256& hash, const BLSScheme scheme) const;
+    [[nodiscard]] CBLSSignature Sign(const uint256& hash) const;
 };
 
 class CBLSPublicKey : public CBLSWrapper<bls::G1Element, BLS_CURVE_PUBKEY_SIZE, CBLSPublicKey>
@@ -375,12 +375,12 @@ public:
 
     void SubInsecure(const CBLSSignature& o);
     void MulInsecure(const CBLSSecretKey& factor);
-    [[nodiscard]] bool VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash, const BLSScheme scheme) const;
-    [[nodiscard]] bool VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash) const;
+    [[nodiscard]] bool VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash,
+                                      const BLSScheme scheme = BLSScheme::Basic) const;
     [[nodiscard]] bool VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<uint256> hashes) const;
 
-    [[nodiscard]] bool VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash, BLSScheme scheme) const;
-    [[nodiscard]] bool VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash) const;
+    [[nodiscard]] bool VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash,
+                                              BLSScheme scheme = BLSScheme::Basic) const;
 
     bool Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids);
 };

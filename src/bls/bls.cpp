@@ -122,7 +122,7 @@ CBLSPublicKey CBLSSecretKey::GetPublicKey() const
     return pubKey;
 }
 
-CBLSSignature CBLSSecretKey::Sign(const uint256& hash, const BLSScheme scheme) const
+CBLSSignature CBLSSecretKey::Sign(const uint256& hash) const
 {
     if (!IsValid()) {
         return {};
@@ -130,7 +130,7 @@ CBLSSignature CBLSSecretKey::Sign(const uint256& hash, const BLSScheme scheme) c
 
     CBLSSignature sigRet;
     try {
-        sigRet.impl = Scheme(scheme)->Sign(impl, bls::Bytes(hash.begin(), hash.size()));
+        sigRet.impl = Scheme(BLSScheme::Basic)->Sign(impl, bls::Bytes(hash.begin(), hash.size()));
         sigRet.fValid = true;
     } catch (...) {
         sigRet.fValid = false;
@@ -283,8 +283,8 @@ CBLSSignature CBLSSignature::AggregateSecure(Span<CBLSSignature> sigs,
 
     CBLSSignature ret;
     try {
-        ret.impl = Scheme(GetAmbientBLSScheme())
-                       ->AggregateSecure(vecPublicKeys, vecSignatures, bls::Bytes(hash.begin(), hash.size()));
+        ret.impl =
+            Scheme(BLSScheme::Basic)->AggregateSecure(vecPublicKeys, vecSignatures, bls::Bytes(hash.begin(), hash.size()));
         ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
@@ -321,11 +321,6 @@ bool CBLSSignature::VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& h
     }
 }
 
-bool CBLSSignature::VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash) const
-{
-    return VerifyInsecure(pubKey, hash, GetAmbientBLSScheme());
-}
-
 bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<uint256> hashes) const
 {
     if (!IsValid()) {
@@ -347,7 +342,7 @@ bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<u
     }
 
     try {
-        return Scheme(GetAmbientBLSScheme())->AggregateVerify(pubKeyVec, hashes2, impl);
+        return Scheme(BLSScheme::Basic)->AggregateVerify(pubKeyVec, hashes2, impl);
     } catch (...) {
         return false;
     }
@@ -370,11 +365,6 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     } catch (...) {
         return false;
     }
-}
-
-bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash) const
-{
-    return VerifySecureAggregated(pks, hash, GetAmbientBLSScheme());
 }
 
 bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)

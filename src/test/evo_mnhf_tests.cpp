@@ -62,8 +62,8 @@ BOOST_AUTO_TEST_CASE(verify_mnhf_specialtx_tests)
     BOOST_CHECK(ag_pk.IsValid());
 
     uint256 verHash = uint256S(ToString(bit));
-    auto sig = ag_sk.Sign(verHash, BLSScheme::Basic);
-    BOOST_CHECK(sig.VerifyInsecure(ag_pk, verHash, BLSScheme::Basic));
+    auto sig = ag_sk.Sign(verHash);
+    BOOST_CHECK(sig.VerifyInsecure(ag_pk, verHash));
 
     auto& chainman = Assert(m_node.chainman);
     auto& qman = *Assert(m_node.llmq_ctx)->qman;

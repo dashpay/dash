@@ -203,9 +203,8 @@ struct QuorumProofGenerationSetup : TestingSetup {
                 payload.bestCLSignature.Set(keys[key].Sign(llmq::SignHash{params.type, signer->quorumHash,
                                                                           chainlock::GenSigRequestId(height - 1),
                                                                           previous->GetBlockHash()}
-                                                               .Get(),
-                                                           BLSScheme::Basic),
-                                            GetAmbientBLSScheme());
+                                                               .Get()),
+                                            BLSScheme::Basic);
             }
             const bool mining = height == checkpoint_height - params.dkgInterval || height == checkpoint_height ||
                                 (mine_nonstandard_handoff && height == handoff_height);

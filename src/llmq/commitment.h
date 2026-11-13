@@ -78,7 +78,7 @@ public:
 
     bool VerifySignatureAsync(const llmq::UtilParameters& util_params,
                               CCheckQueueControl<utils::BlsCheck>* queue_control, BLSScheme scheme) const;
-    bool Verify(const llmq::UtilParameters& util_params, bool checkSigs, BLSScheme scheme) const;
+    bool Verify(const llmq::UtilParameters& util_params, bool checkSigs, BLSScheme scheme = BLSScheme::Basic) const;
     bool VerifyNull() const;
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
@@ -172,7 +172,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CFinalCo
 
 uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash,
                             const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash,
-                            BLSScheme pubkey_scheme);
+                            BLSScheme pubkey_scheme = BLSScheme::Basic);
 
 } // namespace llmq
 

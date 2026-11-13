@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/setup_common.h>
 
 #include <clientversion.h>
@@ -627,8 +628,8 @@ BOOST_FIXTURE_TEST_CASE(commitment_bls_wire_encoding_is_canonical, BasicTestingS
                                                     : llmq::CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION;
             }
             entry.commitment.quorumPublicKey = key.GetPublicKey();
-            entry.commitment.quorumSig = key.Sign(H(1), legacy);
-            entry.commitment.membersSig = key.Sign(H(2), legacy);
+            entry.commitment.quorumSig = SignBLS(key, H(1), legacy);
+            entry.commitment.membersSig = SignBLS(key, H(2), legacy);
             const auto encode = [&](int opposite_field) {
                 auto& qc{entry.commitment};
                 CDataStream bytes{SER_DISK, CLIENT_VERSION};
