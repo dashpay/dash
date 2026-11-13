@@ -192,8 +192,7 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
         }
     }
 
-    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, /*checkSigs=*/true,
-                   GetAmbientBLSScheme())) {
+    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, /*checkSigs=*/true)) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- commitment for quorum %s:%d is not valid quorumIndex[%d] nversion[%d], peer=%d\n",
                  __func__, qc.quorumHash.ToString(),
                  std23::to_underlying(qc.llmqType), qc.quorumIndex, qc.nVersion, peer.GetId());
@@ -411,7 +410,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
     }
 
     // we don't validate signatures here; they already validated on previous step
-    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, /*checksigs=*/false, BLSScheme::Basic)) {
+    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, /*checksigs=*/false)) {
         LogPrint(BCLog::LLMQ,
                  "%s -- height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, "
                  "quorumPublicKey=%s qc verify failed.\n",

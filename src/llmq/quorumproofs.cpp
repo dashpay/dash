@@ -317,7 +317,7 @@ bool ProofCertificate::Verify(const CFinalCommitment& signer, uint32_t minimum, 
     static ProofCache<bool, 16384> cache;
     bool valid{false};
     if (cache.Get(key, valid)) return valid;
-    if (!signature.VerifyInsecure(signer.quorumPublicKey, hash.Get(), BLSScheme::Basic)) return false;
+    if (!signature.VerifyInsecure(signer.quorumPublicKey, hash.Get())) return false;
     cache.Insert(key, true);
     return true;
 }

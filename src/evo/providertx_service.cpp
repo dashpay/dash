@@ -343,11 +343,22 @@ std::optional<ProviderTxError> SignPayload(const CMutableTransaction& tx, Payloa
     return std::nullopt;
 }
 
+std::optional<ProviderTxError> RequireV19ForOperatorSignature(const ChainSnapshot& snapshot)
+{
+    // LegacyBLS means v19 is not active for the next block, so consensus would
+    // verify this operator signature under the legacy scheme.
+    if (snapshot.provider_tx_version == ProTxVersion::LegacyBLS) {
+        return Error(ProviderTxErrorCode::INVALID_PARAMETER,
+                     "operator-signed provider transactions need v19 to be active");
+    }
+    return std::nullopt;
+}
+
 template <typename Payload>
-void SignPayload(const CMutableTransaction& tx, Payload& payload, const CBLSSecretKey& key, BLSScheme scheme)
+void SignPayload(const CMutableTransaction& tx, Payload& payload, const CBLSSecretKey& key)
 {
     UpdateInputsHash(tx, payload);
-    payload.sig = key.Sign(::SerializeHash(payload), scheme);
+    payload.sig = key.Sign(::SerializeHash(payload));
 }
 
 using MutableTxResult = std::variant<CMutableTransaction, ProviderTxError>;
@@ -974,13 +985,15 @@ ProviderTxResult<ProviderTxSubmission> UpdateService(node::NodeContext& node, Wa
         return *error;
     }
 
+    if (auto error{RequireV19ForOperatorSignature(chain_snapshot)}) return *error;
+
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     auto funded_result{Fund(wallet, std::move(tx), payload, fund_destination)};
     if (const auto* error{std::get_if<ProviderTxError>(&funded_result)}) return *error;
     tx = std::get<CMutableTransaction>(std::move(funded_result));
-    SignPayload(tx, payload, request.operator_key, ProTxVersion::GetBLSScheme(payload.nVersion));
+    SignPayload(tx, payload, request.operator_key);
     SetTxPayload(tx, payload);
     return Finish(node, wallet, tx, request.submit);
 }
@@ -1111,13 +1124,15 @@ ProviderTxResult<ProviderTxSubmission> Revoke(node::NodeContext& node, Wallet& w
         return *error;
     }
 
+    if (auto error{RequireV19ForOperatorSignature(chain_snapshot)}) return *error;
+
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
     auto funded_result{Fund(wallet, std::move(tx), payload, fund_destination)};
     if (const auto* error{std::get_if<ProviderTxError>(&funded_result)}) return *error;
     tx = std::get<CMutableTransaction>(std::move(funded_result));
-    SignPayload(tx, payload, request.operator_key, ProTxVersion::GetBLSScheme(payload.nVersion));
+    SignPayload(tx, payload, request.operator_key);
     SetTxPayload(tx, payload);
     return Finish(node, wallet, tx, request.submit);
 }

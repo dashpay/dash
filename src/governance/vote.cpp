@@ -29,8 +29,8 @@ uint256 SignatureCacheKey(const CKeyID& key, const uint256& sigHash, const std::
     return ss.GetHash();
 }
 
-//! The BLS verdict is always computed with VerifyInsecure(..., BLSScheme::Basic),
-//! so the key must be fingerprinted under that same scheme. Serializing via operator<< would
+//! The BLS verdict is basic, so the key must be fingerprinted under that same scheme.
+//! Serializing via operator<< would
 //! instead use the mutable bls_legacy_scheme global, and a legacy encoding of P can equal the
 //! basic encoding of -P. Across an activation or a reorg that flips the global, a verdict cached
 //! for one key could then be served for the other.
@@ -199,7 +199,7 @@ bool CGovernanceVote::CheckSignature(const CBLSPublicKey& pubKey) const
 
     CBLSSignature sig;
     sig.SetBytes(vchSig, BLSScheme::Basic);
-    const bool valid{sig.VerifyInsecure(pubKey, sigHash, BLSScheme::Basic)};
+    const bool valid{sig.VerifyInsecure(pubKey, sigHash)};
     if (!valid) {
         LogPrint(BCLog::GOBJECT, "CGovernanceVote::CheckSignature -- VerifyInsecure() failed\n");
     }

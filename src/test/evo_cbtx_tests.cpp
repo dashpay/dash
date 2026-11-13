@@ -71,13 +71,12 @@ BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff,
     // A structurally-valid BLS signature is required for the IsValid() guard.
     CBLSSecretKey sk;
     sk.MakeNewKey();
-    const BLSScheme scheme{GetAmbientBLSScheme()};
-    CBLSSignature valid_sig = sk.Sign(uint256::ONE, scheme);
+    CBLSSignature valid_sig = sk.Sign(uint256::ONE);
     BOOST_REQUIRE(valid_sig.IsValid());
 
     CCbTx cbTx;
     cbTx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
-    cbTx.bestCLSignature.Set(valid_sig, scheme);
+    cbTx.bestCLSignature.Set(valid_sig, BLSScheme::Basic);
 
     // bestCLHeightDiff == nHeight: lower boundary of the rejected range.
     cbTx.bestCLHeightDiff = static_cast<uint32_t>(pindex.nHeight);

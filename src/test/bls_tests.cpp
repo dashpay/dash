@@ -13,6 +13,7 @@
 #include <random.h>
 #include <script/standard.h>
 #include <streams.h>
+#include <test/util/bls.h>
 #include <test/util/setup_common.h>
 #include <timedata.h>
 #include <util/helpers.h>
@@ -25,8 +26,6 @@ BOOST_AUTO_TEST_SUITE(bls_tests)
 
 void FuncSign(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
-
     CBLSSecretKey sk1, sk2;
     sk1.MakeNewKey();
     sk2.MakeNewKey();
@@ -34,13 +33,13 @@ void FuncSign(const BLSScheme legacy_scheme)
     uint256 msgHash1 = uint256::ONE;
     uint256 msgHash2 = uint256::TWO;
 
-    auto sig1 = sk1.Sign(msgHash1, legacy_scheme);
-    auto sig2 = sk2.Sign(msgHash1, legacy_scheme);
-    BOOST_CHECK(sig1.VerifyInsecure(sk1.GetPublicKey(), msgHash1));
-    BOOST_CHECK(!sig1.VerifyInsecure(sk1.GetPublicKey(), msgHash2));
-    BOOST_CHECK(!sig2.VerifyInsecure(sk1.GetPublicKey(), msgHash1));
-    BOOST_CHECK(!sig2.VerifyInsecure(sk2.GetPublicKey(), msgHash2));
-    BOOST_CHECK(sig2.VerifyInsecure(sk2.GetPublicKey(), msgHash1));
+    auto sig1 = SignBLS(sk1, msgHash1, legacy_scheme);
+    auto sig2 = SignBLS(sk2, msgHash1, legacy_scheme);
+    BOOST_CHECK(sig1.VerifyInsecure(sk1.GetPublicKey(), msgHash1, legacy_scheme));
+    BOOST_CHECK(!sig1.VerifyInsecure(sk1.GetPublicKey(), msgHash2, legacy_scheme));
+    BOOST_CHECK(!sig2.VerifyInsecure(sk1.GetPublicKey(), msgHash1, legacy_scheme));
+    BOOST_CHECK(!sig2.VerifyInsecure(sk2.GetPublicKey(), msgHash2, legacy_scheme));
+    BOOST_CHECK(sig2.VerifyInsecure(sk2.GetPublicKey(), msgHash1, legacy_scheme));
 
     return;
 }
@@ -54,7 +53,7 @@ void FuncSerialize(const BLSScheme legacy_scheme)
     uint256 msgHash = uint256::ONE;
 
     sk.MakeNewKey();
-    CBLSSignature sig1 = sk.Sign(msgHash, legacy_scheme);
+    CBLSSignature sig1 = SignBLS(sk, msgHash, legacy_scheme);
     ds2 << sig1;
     ds3 << BLSEncoded(const_cast<CBLSSignature&>(sig1),
                       legacy_scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy);
@@ -98,8 +97,6 @@ void FuncSetHexStr(const BLSScheme legacy_scheme)
 
 void FuncKeyAgg(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
-
     CBLSSecretKey sk1, sk2;
     sk1.MakeNewKey();
     sk2.MakeNewKey();
@@ -115,14 +112,13 @@ void FuncKeyAgg(const BLSScheme legacy_scheme)
     uint256 msgHash1 = uint256::ONE;
     uint256 msgHash2 = uint256::TWO;
 
-    auto sig = ag_sk.Sign(msgHash1, legacy_scheme);
-    BOOST_CHECK(sig.VerifyInsecure(ag_pk, msgHash1));
-    BOOST_CHECK(!sig.VerifyInsecure(ag_pk, msgHash2));
+    auto sig = SignBLS(ag_sk, msgHash1, legacy_scheme);
+    BOOST_CHECK(sig.VerifyInsecure(ag_pk, msgHash1, legacy_scheme));
+    BOOST_CHECK(!sig.VerifyInsecure(ag_pk, msgHash2, legacy_scheme));
 }
 
 void FuncKeyAggVec(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     std::vector<CBLSSecretKey> vec_sk;
     std::vector<CBLSPublicKey> vec_pk;
@@ -157,15 +153,14 @@ void FuncKeyAggVec(const BLSScheme legacy_scheme)
     uint256 msgHash1 = uint256::ONE;
     uint256 msgHash2 = uint256::TWO;
 
-    auto sig = ag_sk.Sign(msgHash1, legacy_scheme);
-    BOOST_CHECK(sig.VerifyInsecure(ag_pk, msgHash1));
-    BOOST_CHECK(!sig.VerifyInsecure(ag_pk, msgHash2));
+    auto sig = SignBLS(ag_sk, msgHash1, legacy_scheme);
+    BOOST_CHECK(sig.VerifyInsecure(ag_pk, msgHash1, legacy_scheme));
+    BOOST_CHECK(!sig.VerifyInsecure(ag_pk, msgHash2, legacy_scheme));
 }
 
 
-void FuncSigAggSub(const BLSScheme legacy_scheme)
+void FuncSigAggSub()
 {
-    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     int count = 20;
     std::vector<CBLSPublicKey> vec_pks;
@@ -183,7 +178,7 @@ void FuncSigAggSub(const BLSScheme legacy_scheme)
         vec_pks.push_back(sk.GetPublicKey());
         hash = GetRandHash();
         vec_hashes.push_back(hash);
-        CBLSSignature sig_i = sk.Sign(hash, legacy_scheme);
+        CBLSSignature sig_i = sk.Sign(hash);
         vec_sigs.push_back(sig_i);
         if (i == 0) {
             // first sig is assigned directly
@@ -221,8 +216,6 @@ void FuncSigAggSub(const BLSScheme legacy_scheme)
 
 void FuncSigAggSecure(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
-
     int count = 10;
 
     uint256 hash = GetRandHash();
@@ -234,12 +227,15 @@ void FuncSigAggSecure(const BLSScheme legacy_scheme)
     for (int i = 0; i < count; i++) {
         sk.MakeNewKey();
         vec_pks.push_back(sk.GetPublicKey());
-        vec_sigs.push_back(sk.Sign(hash, legacy_scheme));
+        vec_sigs.push_back(SignBLS(sk, hash, legacy_scheme));
     }
 
-    auto sec_agg_sig = CBLSSignature::AggregateSecure(vec_sigs, vec_pks, hash);
+    auto sec_agg_sig = AggregateSecureBLS(vec_sigs, vec_pks, hash, legacy_scheme);
     BOOST_CHECK(sec_agg_sig.IsValid());
-    BOOST_CHECK(sec_agg_sig.VerifySecureAggregated(vec_pks, hash));
+    BOOST_CHECK(sec_agg_sig.VerifySecureAggregated(vec_pks, hash, legacy_scheme));
+    if (legacy_scheme == BLSScheme::Basic) {
+        BOOST_CHECK(sec_agg_sig == CBLSSignature::AggregateSecure(vec_sigs, vec_pks, hash));
+    }
 }
 
 void FuncDHExchange(const BLSScheme legacy_scheme)
@@ -277,20 +273,19 @@ struct Message
 
 static void AddMessage(std::vector<Message>& vec, uint32_t sourceId, uint32_t msgId, uint8_t msgHash, bool valid)
 {
-    const BLSScheme legacy_scheme{GetAmbientBLSScheme()};
     Message m;
     m.sourceId = sourceId;
     m.msgId = msgId;
     m.msgHash = uint256(msgHash);
     m.sk.MakeNewKey();
     m.pk = m.sk.GetPublicKey();
-    m.sig = m.sk.Sign(m.msgHash, legacy_scheme);
+    m.sig = m.sk.Sign(m.msgHash);
     m.valid = valid;
 
     if (!valid) {
         CBLSSecretKey tmp;
         tmp.MakeNewKey();
-        m.sig = tmp.Sign(m.msgHash, legacy_scheme);
+        m.sig = tmp.Sign(m.msgHash);
     }
 
     vec.emplace_back(m);
@@ -300,7 +295,6 @@ static void AddMessage(std::vector<Message>& vec, uint32_t sourceId, uint32_t ms
 static void AddCancellingMessages(std::vector<Message>& vec, uint32_t sourceId1, uint32_t msgId1, uint8_t msgHash1,
                                   uint32_t sourceId2, uint32_t msgId2, uint8_t msgHash2, bool sameKey)
 {
-    const BLSScheme legacy_scheme{GetAmbientBLSScheme()};
     AddMessage(vec, sourceId1, msgId1, msgHash1, true);
     AddMessage(vec, sourceId2, msgId2, msgHash2, true);
     auto& m1 = vec[vec.size() - 2];
@@ -308,12 +302,12 @@ static void AddCancellingMessages(std::vector<Message>& vec, uint32_t sourceId1,
     if (sameKey) {
         m2.sk = m1.sk;
         m2.pk = m1.pk;
-        m2.sig = m2.sk.Sign(m2.msgHash, legacy_scheme);
+        m2.sig = m2.sk.Sign(m2.msgHash);
     }
 
     CBLSSecretKey sk_error;
     sk_error.MakeNewKey();
-    const CBLSSignature error{sk_error.Sign(uint256::ONE, legacy_scheme)};
+    const CBLSSignature error{sk_error.Sign(uint256::ONE)};
     m1.sig.AggregateInsecure(error);
     m2.sig.SubInsecure(error);
     m1.valid = false;
@@ -354,10 +348,8 @@ static void Verify(std::vector<Message>& vec)
     Verify(vec, true, true);
 }
 
-void FuncBatchVerifier(const BLSScheme legacy_scheme)
+void FuncBatchVerifier()
 {
-    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
-
     std::vector<Message> msgs;
 
     // distinct messages from distinct sources
@@ -413,7 +405,6 @@ void FuncBatchVerifier(const BLSScheme legacy_scheme)
 
 void FuncThresholdSignature(const BLSScheme legacy_scheme)
 {
-    bls::bls_legacy_scheme.store(legacy_scheme == BLSScheme::Legacy);
 
     [[maybe_unused]] const uint256 hash = GetRandHash();
 
@@ -431,7 +422,7 @@ void FuncThresholdSignature(const BLSScheme legacy_scheme)
 
     CBLSSecretKey thr_sk = v_threshold_sks[0];
     CBLSPublicKey thr_pk = v_threshold_pks[0];
-    CBLSSignature thr_sig = thr_sk.Sign(hash, legacy_scheme);
+    CBLSSignature thr_sig = SignBLS(thr_sk, hash, legacy_scheme);
 
     std::vector<CBLSId> v_size_ids;
     std::vector<CBLSSecretKey> v_size_sk_shares;
@@ -448,8 +439,8 @@ void FuncThresholdSignature(const BLSScheme legacy_scheme)
         std::vector<CBLSSignature> v_share_sigs;
         std::vector<CBLSId> v_share_ids;
         for ([[maybe_unused]] const auto j : util::irange(m_shares)) {
-            v_share_sigs.emplace_back(v_size_sk_shares[j].Sign(hash, legacy_scheme));
-            BOOST_CHECK(v_share_sigs.back().VerifyInsecure(v_size_pk_shares[j], hash));
+            v_share_sigs.emplace_back(SignBLS(v_size_sk_shares[j], hash, legacy_scheme));
+            BOOST_CHECK(v_share_sigs.back().VerifyInsecure(v_size_pk_shares[j], hash, legacy_scheme));
             v_share_ids.push_back(v_size_ids[j]);
         }
 
@@ -457,7 +448,7 @@ void FuncThresholdSignature(const BLSScheme legacy_scheme)
         BOOST_CHECK_EQUAL(rec_share_sig.Recover(v_share_sigs, v_share_ids), m_shares >= 2);
         BOOST_CHECK_EQUAL(rec_share_sig.IsValid(), m_shares >= 2);
         BOOST_CHECK_EQUAL(rec_share_sig == thr_sig, m_shares >= m_threshold);
-        BOOST_CHECK_EQUAL(rec_share_sig.VerifyInsecure(thr_pk, hash), m_shares >= m_threshold);
+        BOOST_CHECK_EQUAL(rec_share_sig.VerifyInsecure(thr_pk, hash, legacy_scheme), m_shares >= m_threshold);
     }
 }
 
@@ -491,11 +482,7 @@ BOOST_AUTO_TEST_CASE(bls_key_agg_vec_tests)
     FuncKeyAggVec(BLSScheme::Basic);
 }
 
-BOOST_AUTO_TEST_CASE(bls_sig_agg_sub_tests)
-{
-    FuncSigAggSub(BLSScheme::Legacy);
-    FuncSigAggSub(BLSScheme::Basic);
-}
+BOOST_AUTO_TEST_CASE(bls_sig_agg_sub_tests) { FuncSigAggSub(); }
 
 BOOST_AUTO_TEST_CASE(bls_sig_agg_secure_tests)
 {
@@ -509,11 +496,7 @@ BOOST_AUTO_TEST_CASE(bls_dh_exchange_tests)
     FuncDHExchange(BLSScheme::Basic);
 }
 
-BOOST_AUTO_TEST_CASE(batch_verifier_tests)
-{
-    FuncBatchVerifier(BLSScheme::Legacy);
-    FuncBatchVerifier(BLSScheme::Basic);
-}
+BOOST_AUTO_TEST_CASE(batch_verifier_tests) { FuncBatchVerifier(); }
 
 BOOST_AUTO_TEST_CASE(bls_threshold_signature_tests)
 {
@@ -1247,8 +1230,8 @@ BOOST_AUTO_TEST_CASE(bls_plain_aggregation_scheme_independent)
     const auto sk2 = SecretFromScalar(2);
     const auto pk1 = sk1.GetPublicKey();
     const auto pk2 = sk2.GetPublicKey();
-    const auto sig1 = sk1.Sign(uint256::ONE, BLSScheme::Legacy);
-    const auto sig2 = sk2.Sign(uint256::ONE, BLSScheme::Legacy);
+    const auto sig1 = SignBLS(sk1, uint256::ONE, BLSScheme::Legacy);
+    const auto sig2 = SignBLS(sk2, uint256::ONE, BLSScheme::Legacy);
 
     CBLSPublicKey pk_member_legacy;
     CBLSPublicKey pk_member_basic;
@@ -1297,17 +1280,14 @@ BOOST_AUTO_TEST_CASE(bls_secure_aggregation_scheme_dependent)
     const uint256 hash = uint256::ONE;
     for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
         std::vector<CBLSPublicKey> pks{sk1.GetPublicKey(), sk2.GetPublicKey()};
-        std::vector<CBLSSignature> sigs{sk1.Sign(hash, scheme), sk2.Sign(hash, scheme)};
-        CBLSSignature agg;
-        {
-            ScopedBLSScheme guard(scheme == BLSScheme::Legacy);
-            agg = CBLSSignature::AggregateSecure(sigs, pks, hash);
-            BOOST_CHECK(agg.IsValid());
-            BOOST_CHECK(agg.VerifySecureAggregated(pks, hash));
-        }
-        {
-            ScopedBLSScheme guard(scheme == BLSScheme::Basic);
-            BOOST_CHECK(!agg.VerifySecureAggregated(pks, hash));
+        std::vector<CBLSSignature> sigs{SignBLS(sk1, hash, scheme), SignBLS(sk2, hash, scheme)};
+        const CBLSSignature agg{AggregateSecureBLS(sigs, pks, hash, scheme)};
+        BOOST_CHECK(agg.IsValid());
+        BOOST_CHECK(agg.VerifySecureAggregated(pks, hash, scheme));
+        const BLSScheme other{scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy};
+        BOOST_CHECK(!agg.VerifySecureAggregated(pks, hash, other));
+        if (scheme == BLSScheme::Basic) {
+            BOOST_CHECK(agg == CBLSSignature::AggregateSecure(sigs, pks, hash));
         }
     }
 }
@@ -1317,8 +1297,9 @@ BOOST_AUTO_TEST_CASE(bls_verify_insecure_scheme_dependent)
     const auto sk = SecretFromScalar(1);
     const auto pk = sk.GetPublicKey();
     const uint256 hash = uint256::ONE;
-    const auto legacy_sig = sk.Sign(hash, BLSScheme::Legacy);
-    const auto basic_sig = sk.Sign(hash, BLSScheme::Basic);
+    const auto legacy_sig = SignBLS(sk, hash, BLSScheme::Legacy);
+    const auto basic_sig = sk.Sign(hash);
+    BOOST_CHECK(basic_sig == SignBLS(sk, hash, BLSScheme::Basic));
     BOOST_CHECK(legacy_sig.VerifyInsecure(pk, hash, BLSScheme::Legacy));
     BOOST_CHECK(!legacy_sig.VerifyInsecure(pk, hash, BLSScheme::Basic));
     BOOST_CHECK(basic_sig.VerifyInsecure(pk, hash, BLSScheme::Basic));
@@ -1331,7 +1312,7 @@ BOOST_AUTO_TEST_CASE(bls_lazy_wrapper_scheme_bytes)
     const auto sk2 = SecretFromScalar(2);
     const uint256 hash = uint256::ONE;
     CheckLazy<CBLSLazyPublicKey>(sk1.GetPublicKey(), sk2.GetPublicKey());
-    CheckLazy<CBLSLazySignature>(sk1.Sign(hash, BLSScheme::Legacy), sk2.Sign(hash, BLSScheme::Legacy));
+    CheckLazy<CBLSLazySignature>(SignBLS(sk1, hash, BLSScheme::Legacy), SignBLS(sk2, hash, BLSScheme::Legacy));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

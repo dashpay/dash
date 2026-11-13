@@ -83,6 +83,12 @@ class ProTxVersionTest(DashTestFramework):
         surviving_legacy_mn: MasternodeInfo = self.dynamically_add_masternode()
         assert surviving_legacy_mn is not None
 
+        self.log.info("Operator-signed provider transactions are refused before v19")
+        extra_legacy_mn.update_service(self.nodes[0], submit=False,
+                                       addrs_core_p2p=[f'127.0.0.1:{extra_legacy_mn.nodePort}'],
+                                       expected_assert_code=-8,
+                                       expected_assert_msg="operator-signed provider transactions need v19 to be active")
+
         mn_list_before = self.nodes[0].masternodelist()
         pubkeyoperator_list_before = set([mn_list_before[e]["pubkeyoperator"] for e in mn_list_before])
 

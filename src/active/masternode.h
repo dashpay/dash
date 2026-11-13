@@ -61,7 +61,7 @@ public:
     template <template <typename> class EncryptedObj, typename Obj>
     [[nodiscard]] bool Decrypt(const EncryptedObj<Obj>& obj, size_t idx, Obj& ret_obj, int version) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    [[nodiscard]] CBLSSignature Sign(const uint256& hash, BLSScheme scheme) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    [[nodiscard]] CBLSSignature Sign(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
     [[nodiscard]] std::vector<uint8_t> SignBasic(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     [[nodiscard]] COutPoint GetOutPoint() const { READ_LOCK(cs); return m_outpoint; }

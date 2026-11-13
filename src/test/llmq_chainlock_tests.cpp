@@ -71,7 +71,7 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
             } else {
                 certified = activation + 16999;
             }
-            payload.bestCLSignature.Set(signature, GetAmbientBLSScheme());
+            payload.bestCLSignature.Set(signature, BLSScheme::Basic);
             payload.bestCLHeightDiff = height - certified - 1;
         }
         CMutableTransaction coinbase;

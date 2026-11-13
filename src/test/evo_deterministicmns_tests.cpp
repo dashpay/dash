@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/masternode.h>
 #include <test/util/setup_common.h>
 
@@ -119,7 +120,7 @@ static CMutableTransaction CreateProUpServTx(const ChainstateManager& chainman, 
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
     tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = operatorKey.Sign(::SerializeHash(proTx), GetAmbientBLSScheme());
+    proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), GetAmbientBLSScheme());
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, coinbaseKey);
 
@@ -165,7 +166,7 @@ static CMutableTransaction CreateProUpRevTx(const ChainstateManager& chainman, S
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
     tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = operatorKey.Sign(::SerializeHash(proTx), GetAmbientBLSScheme());
+    proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), GetAmbientBLSScheme());
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, coinbaseKey);
 
@@ -742,7 +743,7 @@ void FuncMNPaymentMultiplicityV24Boundary(TestChainSetup& setup)
     const auto spent_ups = FundTransaction(chainman, tx_ups, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
                                            1 * COIN);
     pro_ups.inputsHash = CalcTxInputsHash(CTransaction(tx_ups));
-    pro_ups.sig = operator_key.Sign(::SerializeHash(pro_ups), GetAmbientBLSScheme());
+    pro_ups.sig = SignBLS(operator_key, ::SerializeHash(pro_ups), GetAmbientBLSScheme());
     SetTxPayload(tx_ups, pro_ups);
     SignTransaction(tx_ups, spent_ups, setup.coinbaseKey);
     setup.CreateAndProcessBlock({tx_ups}, coinbase_pk);
@@ -1181,7 +1182,7 @@ void FuncProUpServInvalidNType(TestChainSetup& setup)
         BOOST_REQUIRE(tx.vout[0].nValue > 10000);
         tx.vout[0].nValue -= 10000;
         proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-        proTx.sig = operatorKey.Sign(::SerializeHash(proTx), GetAmbientBLSScheme());
+        proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), GetAmbientBLSScheme());
         SetTxPayload(tx, proTx);
         SignTransaction(tx, spent, setup.coinbaseKey);
         return tx;
@@ -1384,7 +1385,7 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     payload.proTxHash = proTxHash;
     BOOST_REQUIRE_EQUAL(payload.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:3"), NetInfoStatus::Success);
     payload.inputsHash = CalcTxInputsHash(CTransaction(tx_child));
-    payload.sig = operatorKey.Sign(::SerializeHash(payload), GetAmbientBLSScheme());
+    payload.sig = SignBLS(operatorKey, ::SerializeHash(payload), GetAmbientBLSScheme());
     SetTxPayload(tx_child, payload);
 
     // Grind the child's output value until the parent's txid sorts before the child's: the
@@ -2703,7 +2704,7 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
         const auto spent = FundTransaction(chainman, tx, utxos,
                                            GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
         ups.inputsHash = CalcTxInputsHash(CTransaction(tx));
-        ups.sig = operator_key.Sign(::SerializeHash(ups), GetAmbientBLSScheme());
+        ups.sig = SignBLS(operator_key, ::SerializeHash(ups), GetAmbientBLSScheme());
         SetTxPayload(tx, ups);
         SignTransaction(tx, spent, setup.coinbaseKey);
         TxValidationState st;
@@ -3033,7 +3034,7 @@ static CMutableTransaction CreateEvoProUpServTx(TestChainV24SignalBeforeV19Setup
     const auto spent = FundTransaction(setup.chainman, tx, setup.utxos,
                                        GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = operator_key.Sign(::SerializeHash(proTx), BLSScheme::Basic);
+    proTx.sig = operator_key.Sign(::SerializeHash(proTx));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, setup.coinbaseKey);
     return tx;
@@ -4582,6 +4583,28 @@ void FuncProUpServSignatureFollowsBlockHeight(TestChainV19BeforeActivationSetup&
         BOOST_CHECK(!ok);
         BOOST_CHECK_EQUAL(reason, "bad-protx-sig");
     }
+
+    // A v1 update built after v19 is signed basic and still accepted: the
+    // payload version only selects the encoding, and the block selects verification.
+    {
+        CProUpServTx proTx;
+        proTx.nVersion = ProTxVersion::LegacyBLS;
+        proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
+        proTx.proTxHash = proTxHash;
+        BOOST_CHECK_EQUAL(proTx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)),
+                          NetInfoStatus::Success);
+        CMutableTransaction tx;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+        const auto spent = FundTransaction(chainman, tx, utxos,
+                                           GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
+        proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+        proTx.sig = operator_key.Sign(::SerializeHash(proTx));
+        SetTxPayload(tx, proTx);
+        SignTransaction(tx, spent, setup.coinbaseKey);
+        const auto [ok, reason] = check(tx);
+        BOOST_CHECK_MESSAGE(ok, reason);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(proupserv_signature_scheme_follows_block_height)
@@ -5086,7 +5109,7 @@ BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
     tx_serv.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     const auto serv_spent = FundTransaction(chainman, tx_serv, setup.utxos, pro_reg.scriptPayout, COIN);
     pro_serv.inputsHash = CalcTxInputsHash(CTransaction(tx_serv));
-    pro_serv.sig = operator_key.Sign(::SerializeHash(pro_serv), BLSScheme::Basic);
+    pro_serv.sig = operator_key.Sign(::SerializeHash(pro_serv));
     SetTxPayload(tx_serv, pro_serv);
     SignTransaction(tx_serv, serv_spent, setup.coinbaseKey);
     const CBlock good = setup.CreateBlock({tx_serv}, setup.coinbase_pk, chainman.ActiveChainstate());

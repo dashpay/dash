@@ -289,7 +289,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CFinalCo
         return true;
     }
 
-    if (!qcTx.commitment.Verify(util_params.replace_index(pQuorumBaseBlockIndex), false, BLSScheme::Basic)) {
+    if (!qcTx.commitment.Verify(util_params.replace_index(pQuorumBaseBlockIndex), false)) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- h[%d] invalid qcTx.commitment[%s] Verify failed\n",
                  util_params.m_base_index->nHeight, qcTx.commitment.quorumHash.ToString());
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-invalid");
