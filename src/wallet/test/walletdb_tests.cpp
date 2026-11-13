@@ -4,8 +4,14 @@
 
 #include <test/util/setup_common.h>
 #include <clientversion.h>
+#include <hash.h>
+#include <key_io.h>
+#include <script/descriptor.h>
 #include <streams.h>
 #include <uint256.h>
+#include <util/message.h>
+#include <util/strencodings.h>
+#include <wallet/bip39.h>
 #include <wallet/crypter.h>
 #include <wallet/hdchain.h>
 #include <wallet/test/util.h>
@@ -218,6 +224,51 @@ BOOST_AUTO_TEST_CASE(walletdb_read_write_deadlock)
 
         // Now delete all records, which performs a read write operation.
         BOOST_CHECK(wallet->GetLegacyScriptPubKeyMan()->DeleteRecords());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_descriptor_mnemonic_consistency)
+{
+    const SecureString mnemonic{"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"};
+    const SecureString passphrase{"recovery passphrase"};
+    SecureVector seed;
+    CMnemonic::ToSeed(mnemonic, passphrase, seed);
+    CExtKey root;
+    root.SetSeed(MakeByteSpan(seed));
+    const CPubKey pubkey{root.key.GetPubKey()};
+    const CPrivKey privkey{root.key.GetPrivKey()};
+    enum class Record { NO_MNEMONIC, MATCHING, MISMATCHED };
+    for (const Record record : {Record::NO_MNEMONIC, Record::MATCHING, Record::MISMATCHED}) {
+        CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+        FlatSigningProvider provider;
+        std::string error;
+        auto parsed{Parse("pkh(" + HexStr(pubkey) + ")", provider, error, false)};
+        BOOST_REQUIRE_MESSAGE(parsed, error);
+        WalletDescriptor descriptor(std::move(parsed), 0, 0, 1, 0);
+        {
+            WalletBatch batch(wallet.GetDatabase());
+            BOOST_REQUIRE(batch.WriteWalletFlags(WALLET_FLAG_DESCRIPTORS));
+            BOOST_REQUIRE(batch.WriteDescriptor(descriptor.id, descriptor));
+            if (record == Record::NO_MNEMONIC) {
+                // Records written before mnemonics were stored end after the key hash.
+                std::vector<unsigned char> key_bytes(pubkey.begin(), pubkey.end());
+                key_bytes.insert(key_bytes.end(), privkey.begin(), privkey.end());
+                BOOST_REQUIRE(wallet.GetDatabase().MakeBatch()->Write(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(descriptor.id, pubkey)), std::make_pair(privkey, Hash(key_bytes))));
+            } else {
+                BOOST_REQUIRE(batch.WriteDescriptorKey(descriptor.id, pubkey, privkey, mnemonic, record == Record::MATCHING ? passphrase : SecureString{"wrong passphrase"}));
+            }
+        }
+        const auto result{wallet.LoadWallet()};
+        if (record == Record::MISMATCHED) {
+            BOOST_CHECK(result == DBErrors::CORRUPT);
+            continue;
+        }
+        BOOST_REQUIRE(result == DBErrors::LOAD_OK);
+        LOCK(wallet.cs_wallet);
+        BOOST_CHECK(wallet.IsMine(GetScriptForDestination(PKHash(pubkey))) == ISMINE_SPENDABLE);
+        std::string signature;
+        BOOST_CHECK(wallet.SignMessage("descriptor load regression", PKHash(pubkey), signature) == SigningResult::OK);
+        BOOST_CHECK(MessageVerify(EncodeDestination(PKHash(pubkey)), signature, "descriptor load regression") == MessageVerificationResult::OK);
     }
 }
 
