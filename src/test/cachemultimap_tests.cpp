@@ -188,4 +188,35 @@ BOOST_AUTO_TEST_CASE(same_key_eviction_at_capacity)
     BOOST_CHECK_EQUAL(value, 2);
 }
 
+BOOST_AUTO_TEST_CASE(capacity_limits)
+{
+    CacheMultiMap<int,int> cache(0);
+    BOOST_CHECK(!cache.Insert(1, 1));
+    BOOST_CHECK_EQUAL(cache.GetSize(), 0);
+    BOOST_CHECK(!cache.HasKey(1));
+
+    cache.Clear();
+    cache.SetMaxSize(10);
+    for (int i = 0; i < 10; ++i) {
+        BOOST_REQUIRE(cache.Insert(i / 2, i));
+    }
+    cache.SetMaxSize(5);
+    BOOST_CHECK_EQUAL(cache.GetSize(), 5);
+    for (int i = 0; i < 5; ++i) {
+        std::vector<int> values;
+        const bool found = cache.GetAll(i, values);
+        if (i < 2) {
+            BOOST_CHECK(!found);
+        } else {
+            BOOST_CHECK(found);
+            const std::vector<int> expected = i == 2 ? std::vector<int>{5} : std::vector<int>{i * 2, i * 2 + 1};
+            BOOST_CHECK_EQUAL_COLLECTIONS(values.begin(), values.end(), expected.begin(), expected.end());
+        }
+    }
+    cache.SetMaxSize(0);
+    BOOST_CHECK_EQUAL(cache.GetSize(), 0);
+    BOOST_CHECK(!cache.HasKey(4));
+    BOOST_CHECK(!cache.Insert(1, 1));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

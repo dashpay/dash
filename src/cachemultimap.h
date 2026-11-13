@@ -74,6 +74,9 @@ public:
     void SetMaxSize(size_type nMaxSizeIn)
     {
         nMaxSize = nMaxSizeIn;
+        while (listItems.size() > nMaxSize) {
+            PruneLast();
+        }
     }
 
     size_type GetMaxSize() const {
@@ -86,13 +89,16 @@ public:
 
     bool Insert(const K& key, const V& value)
     {
+        if (nMaxSize == 0) {
+            return false;
+        }
         if (map_cit mit = mapIndex.find(key); mit != mapIndex.end() && mit->second.count(value) > 0) {
             // Don't insert duplicates
             return false;
         }
 
         // Pruning may erase this key's entry in mapIndex, so look it up only afterwards
-        if(listItems.size() == nMaxSize) {
+        while (listItems.size() >= nMaxSize) {
             PruneLast();
         }
         listItems.push_front(item_t(key, value));
