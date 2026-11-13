@@ -47,6 +47,12 @@ using QcHashMap = std::map<Consensus::LLMQType, std::vector<uint256>>;
 //! As above, but keyed by quorumIndex, for rotation-enabled types.
 using QcIndexedHashMap = std::map<Consensus::LLMQType, std::map<int16_t, uint256>>;
 
+struct SigningRecord {
+    int quorum_height;
+    bool signed_commitment;
+};
+using SigningRecords = Uint256HashMap<std::vector<SigningRecord>>;
+
 /** Erase a mined commitment unless another chainstate still contains its block. */
 bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chainstate,
                                         gsl::not_null<const CBlockIndex*> pindex,
@@ -82,6 +88,15 @@ private:
     mutable PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru GUARDED_BY(m_qc_hashes_cache_mutex);
     mutable QcHashMap m_qc_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
     mutable QcIndexedHashMap m_qc_indexed_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
+
+    using ValidMemberSigners = std::vector<std::pair<uint256, bool>>;
+    mutable Mutex m_signing_records_mutex;
+    //! By commitment hash, with the quorum base height
+    mutable Uint256HashMap<std::pair<int, std::shared_ptr<const ValidMemberSigners>>> m_valid_member_signers_cache
+        GUARDED_BY(m_signing_records_mutex);
+    //! By hash of the gathering block and the window; DKG sessions of a cycle share it
+    mutable Uint256LruHashMap<std::shared_ptr<const SigningRecords>, 4> m_signing_records_cache
+        GUARDED_BY(m_signing_records_mutex);
 
     //! A block's commitment payloads are needed by CheckSpecialTx, the masternode list update,
     //! ProcessBlock and the CbTx quorum merkle root to avoid duplicated decodes of BLS elements.
@@ -158,7 +173,19 @@ public:
                                                                                     const CBlockIndex* pindex,
                                                                                     size_t cycle) const;
     std::optional<const CBlockIndex*> GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const;
+
+    /**
+     * Signing records of every masternode that was a valid member of a non-null commitment mined until pindex
+     * for a quorum based in (pindex->nHeight - window, pindex->nHeight].
+     * Returns nullptr without caching the result if the view is incomplete or the chain changed underneath.
+     */
+    std::shared_ptr<const SigningRecords> GetSigningRecords(gsl::not_null<const CBlockIndex*> pindex, int window) const
+        EXCLUSIVE_LOCKS_REQUIRED(!m_signing_records_mutex) LOCKS_EXCLUDED(::cs_main);
 private:
+    std::shared_ptr<const ValidMemberSigners> GetValidMemberSigners(const CFinalCommitment& qc,
+                                                                    gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex) const
+        EXCLUSIVE_LOCKS_REQUIRED(m_signing_records_mutex);
+
     //! Called from every site that writes or erases mined commitment state.
     void DropQcHashesCache() EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);
 

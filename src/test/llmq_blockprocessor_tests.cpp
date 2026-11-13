@@ -8,6 +8,8 @@
 
 #include <chainparams.h>
 #include <consensus/params.h>
+#include <consensus/validation.h>
+#include <evo/deterministicmns.h>
 #include <hash.h>
 #include <masternode/meta.h>
 #include <net.h>
@@ -25,6 +27,9 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
+#include <map>
+
 using namespace llmq;
 using namespace llmq::testutils;
 
@@ -36,6 +41,92 @@ CDataStream Serialized(const CFinalCommitment& qc)
     CDataStream payload{SER_NETWORK, PROTOCOL_VERSION};
     payload << qc;
     return payload;
+}
+
+struct SigningHistorySetup : TestChainV19Setup {
+    CDeterministicMNManager dmnman{*m_node.evodb, *m_node.mn_metaman};
+    CQuorumBlockProcessor blockprocessor{*m_node.chainman, dmnman, *m_node.evodb, *m_node.llmq_ctx->qsnapman, 0};
+
+    SigningHistorySetup()
+    {
+        mineBlocks(132);
+        CDeterministicMNList mn_list;
+        for (int i = 0; i < 8; ++i) {
+            auto mn = std::make_shared<CDeterministicMN>(i);
+            mn->proTxHash = GetTestQuorumHash(i + 1);
+            mn->collateralOutpoint = COutPoint(mn->proTxHash, 0);
+            auto state = std::make_shared<CDeterministicMNState>();
+            state->nVersion = ProTxVersion::BasicBLS;
+            state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+            state->keyIDOwner.begin()[0] = i + 1;
+            state->nRegisteredHeight = 100;
+            state->UpdateConfirmedHash(mn->proTxHash, GetTestBlockHash(i + 1));
+            mn->pdmnState = state;
+            mn_list.AddMN(mn);
+        }
+        // Read persisted lists with a fresh manager instead of replacing the node's cached lists.
+        for (int height = 100; height <= 240; ++height) {
+            mn_list.SetHeight(height);
+            mn_list.SetBlockHash(Index(height)->GetBlockHash());
+            m_node.evodb->Write(std::make_pair(std::string{"dmn_S3"}, mn_list.GetBlockHash()), mn_list);
+        }
+    }
+
+    CBlockIndex* Index(int height) const
+    {
+        return WITH_LOCK(cs_main, return m_node.chainman->ActiveChain()[height]);
+    }
+
+    std::vector<CDeterministicMNCPtr> Members(Consensus::LLMQType type, int height)
+    {
+        return utils::GetAllQuorumMembers(type, {dmnman, *m_node.llmq_ctx->qsnapman, *m_node.chainman, Index(height)},
+                                          /*reset_cache=*/true);
+    }
+
+    CFinalCommitment Commitment(Consensus::LLMQType type, int height, const std::vector<size_t>& invalid_members = {},
+                                const std::vector<size_t>& non_signers = {})
+    {
+        const auto params = Params().GetLLMQ(type).value();
+        BOOST_REQUIRE_EQUAL(Members(type, height).size(), static_cast<size_t>(params.size));
+        CFinalCommitment qc{params, Index(height)->GetBlockHash()};
+        qc.nVersion = CFinalCommitment::GetVersion(IsQuorumRotationEnabled(params, Index(height)), true);
+        qc.quorumIndex = height % params.dkgInterval;
+        qc.validMembers.assign(params.size, true);
+        qc.signers.assign(params.size, true);
+        for (const auto i : invalid_members)
+            qc.validMembers[i] = false;
+        for (const auto i : non_signers)
+            qc.signers[i] = false;
+        return qc;
+    }
+
+    void Store(const CFinalCommitment& qc, int mined_height, int base_height)
+    {
+        if (IsQuorumRotationEnabled(Params().GetLLMQ(qc.llmqType).value(), Index(base_height))) {
+            m_node.evodb->Write(std::make_pair(std::string{"q_mc"}, std::make_pair(qc.llmqType, qc.quorumHash)),
+                                std::make_pair(qc, Index(mined_height)->GetBlockHash()));
+            m_node.evodb->Write(std::make_tuple(std::string{"q_mcihi"}, qc.llmqType, int{qc.quorumIndex},
+                                                htobe32_internal(UINT32_MAX - mined_height)),
+                                base_height);
+        } else {
+            WriteMinedCommitment(*m_node.evodb, qc, Index(mined_height)->GetBlockHash(), mined_height, base_height);
+        }
+    }
+};
+
+using NormalizedSigningRecords = std::map<uint256, std::vector<std::pair<int, bool>>>;
+
+NormalizedSigningRecords Normalize(const SigningRecords& records)
+{
+    NormalizedSigningRecords ret;
+    for (const auto& [protx, history] : records) {
+        auto& entries = ret[protx];
+        for (const auto& record : history) {
+            entries.emplace_back(record.quorum_height, record.signed_commitment);
+        }
+        std::sort(entries.begin(), entries.end());
+    }
+    return ret;
 }
 } // namespace
 
@@ -197,6 +288,90 @@ BOOST_FIXTURE_TEST_CASE(qfcommit_with_more_signers_replaces_stored_one, TestChai
     BOOST_CHECK(!blockprocessor.HasMineableCommitment(::SerializeHash(qc_two)));
 
     SetMockTime(0s);
+}
+
+BOOST_FIXTURE_TEST_CASE(signing_records_window_mining_height_and_rotation, SigningHistorySetup)
+{
+    constexpr auto type{Consensus::LLMQType::LLMQ_TEST};
+    constexpr auto rotated_type{Consensus::LLMQType::LLMQ_TEST_DIP0024};
+    for (int height : {120, 144, 168}) {
+        Members(rotated_type, height);
+    }
+    BOOST_REQUIRE(IsQuorumRotationEnabled(Params().GetLLMQ(rotated_type).value(), Index(228)));
+    Store(Commitment(type, 192), 202, 192);
+    Store(Commitment(type, 216, /*invalid_members=*/{2}, /*non_signers=*/{1}), 226, 216);
+    Store(Commitment(rotated_type, 192), 204, 192);
+    Store(Commitment(rotated_type, 193), 205, 193);
+    Store(Commitment(rotated_type, 216), 228, 216);
+    Store(Commitment(rotated_type, 217), 229, 217);
+
+    NormalizedSigningRecords expected;
+    const auto non_rotated_members = Members(type, 216);
+    const auto inside_members = Members(rotated_type, 193);
+    for (const auto& mn : inside_members) {
+        expected[mn->proTxHash].emplace_back(193, true);
+    }
+    const auto expected_before_non_rotated = expected;
+    expected[non_rotated_members[0]->proTxHash].emplace_back(216, true);
+    expected[non_rotated_members[1]->proTxHash].emplace_back(216, false);
+    const auto expected_before_mining = expected;
+    const auto rotated_members = Members(rotated_type, 216);
+    for (const auto& mn : rotated_members) {
+        expected[mn->proTxHash].emplace_back(216, true);
+    }
+    for (auto& [_, history] : expected) {
+        std::sort(history.begin(), history.end());
+    }
+
+    BOOST_CHECK(Normalize(*blockprocessor.GetSigningRecords(Index(228), 36)) == expected);
+
+    BOOST_CHECK(Normalize(*blockprocessor.GetSigningRecords(Index(225), 33)) == expected_before_non_rotated);
+    const auto earlier = Normalize(*blockprocessor.GetSigningRecords(Index(227), 35));
+    BOOST_CHECK(earlier == expected_before_mining);
+    const auto later = Normalize(*blockprocessor.GetSigningRecords(Index(229), 37));
+    for (const auto& mn : Members(rotated_type, 217)) {
+        const auto& history = later.at(mn->proTxHash);
+        BOOST_CHECK(std::find(history.begin(), history.end(), std::make_pair(217, true)) != history.end());
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(signing_records_unavailable_for_inconsistent_view, SigningHistorySetup)
+{
+    constexpr auto type{Consensus::LLMQType::LLMQ_TEST};
+    CEvoDB evo_db{util::DbWrapperParams{.path = m_args.GetDataDirNet() / "signing-history", .memory = true, .wipe = true}};
+    CQuorumBlockProcessor processor{*m_node.chainman, dmnman, evo_db, *m_node.llmq_ctx->qsnapman, 0};
+    const auto qc = Commitment(type, 216, /*invalid_members=*/{2}, /*non_signers=*/{1});
+    const auto key = std::make_pair(std::string{"q_mc"}, std::make_pair(type, qc.quorumHash));
+    const auto mined_hash = Index(226)->GetBlockHash();
+    WriteMinedCommitment(evo_db, qc, mined_hash, 226, 216);
+    auto* gathering = Index(240);
+    NormalizedSigningRecords expected;
+    const auto members = Members(type, 216);
+    expected[members[0]->proTxHash].emplace_back(216, true);
+    expected[members[1]->proTxHash].emplace_back(216, false);
+
+    auto& chainstate = m_node.chainman->ActiveChainstate();
+    BlockValidationState state;
+    BOOST_REQUIRE(chainstate.InvalidateBlock(state, gathering));
+    BOOST_REQUIRE(Index(240) == nullptr);
+    BOOST_CHECK(!processor.GetSigningRecords(gathering, 48));
+    WITH_LOCK(cs_main, chainstate.ResetBlockFailureFlags(gathering));
+    BOOST_REQUIRE_MESSAGE(chainstate.ActivateBestChain(state), state.ToString());
+    BOOST_REQUIRE(Index(240) == gathering);
+
+    evo_db.Erase(key);
+    BOOST_CHECK(!processor.GetSigningRecords(gathering, 48));
+
+    // Mined in a block that is not an ancestor of the gathering block
+    evo_db.Write(key, std::make_pair(qc, gathering->GetBlockHash()));
+    BOOST_CHECK(!processor.GetSigningRecords(Index(230), 38));
+
+    WriteMinedCommitment(evo_db, qc, mined_hash, 226, 216);
+    for (const auto& [pindex, window] : {std::pair{gathering, 48}, std::pair{Index(230), 38}}) {
+        const auto records = processor.GetSigningRecords(pindex, window);
+        BOOST_REQUIRE(records);
+        BOOST_CHECK(Normalize(*records) == expected);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

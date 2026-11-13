@@ -40,7 +40,7 @@ class SimplePoSeMixin:
             self.log.info(f"Testing no PoSe banning in normal conditions {i + 1}/{iters}")
             self.mine_quorum(expected_connections=expected_connections)
 
-    def mine_quorum_less_checks(self, expected_members, mninfos_online):
+    def mine_quorum_less_checks(self, expected_members, mninfos_online, expected_commitments=None):
         # Unlike in mine_quorum we don't know how many complaints and justifications to expect:
         # the deaf masternode is a regular DKG participant until enough probes to it have failed,
         # so each phase waits for exactly the messages the members report having sent instead.
@@ -78,7 +78,7 @@ class SimplePoSeMixin:
         self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
-        self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_members, mninfos_online, all_types=True)
+        self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_members if expected_commitments is None else expected_commitments, mninfos_online, all_types=True)
         self.wait_for_offset_quorum_phase(q, 5, mninfos_online)
         self.move_blocks(nodes, 2)
 

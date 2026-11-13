@@ -7,7 +7,8 @@
 feature_llmq_simplepose_capabilities.py
 
 Checks simple PoSe system based on LLMQ commitments: banning of masternodes
-that run an outdated protocol or lack a required service.
+that run an outdated protocol, lack a required service, or stay valid quorum
+members but persistently do not sign the final commitments.
 
 '''
 
@@ -23,6 +24,8 @@ from test_framework.util import assert_equal, force_finish_mnsync
 
 # See version.h
 MIN_MASTERNODE_PROTO_VERSION = 70242
+
+NON_SIGNER_MSG = "recent commitments it was a valid member of"
 
 
 class MasternodePeer(P2PInterface):
@@ -64,6 +67,9 @@ class LLMQSimplePoSeCapabilitiesTest(SimplePoSeMixin, DashTestFramework):
             self.test_no_service(relay, services, reason, banned=not self.options.disable_spork23)
             self.repair_masternodes(True)
             self.reset_probe_timeouts()
+
+        if not self.options.disable_spork23:
+            self.test_non_signer()
 
     def force_old_mn_proto(self, mn: MasternodeInfo):
         self.stop_node(mn.nodeIdx)
@@ -180,6 +186,38 @@ class LLMQSimplePoSeCapabilitiesTest(SimplePoSeMixin, DashTestFramework):
         for m in others:
             assert not check_punished(self.nodes[0], m)
             assert not check_banned(self.nodes[0], m)
+
+    def test_non_signer(self):
+        # The scenarios above banned and revived this masternode, so its signing history starts empty
+        mn = self.mninfo[0]
+        node = mn.get_node(self)
+        observer = self.mninfo[1].get_node(self)
+
+        self.log.info("A masternode that never signs commitments is banned")
+        node.quorum('dkgsimerror', 'commit-omit-all-types', 100)
+        rounds = 0
+        with observer.assert_debug_log([f"{mn.proTxHash} signed only"]):
+            while rounds < 20 and not check_banned(self.nodes[0], mn):
+                rounds += 1
+                self.log.info(f"Round {rounds} without a premature commitment")
+                self.mine_quorum_omitting_commitment()
+        assert check_banned(self.nodes[0], mn)
+
+        self.log.info("After a revival the old history does not count, and missing one commitment is not punished")
+        self.repair_masternodes(False)
+        with observer.assert_debug_log([], unexpected_msgs=[NON_SIGNER_MSG]):
+            self.mine_quorum_omitting_commitment()
+            node.quorum('dkgsimerror', 'commit-omit-all-types', 0)
+            for _ in range(2):
+                self.reset_probe_timeouts()
+                self.mine_quorum()
+        assert not check_punished(self.nodes[0], mn)
+        assert not check_banned(self.nodes[0], mn)
+
+    def mine_quorum_omitting_commitment(self):
+        self.reset_probe_timeouts()
+        members = len([m for m in self.mninfo if not check_banned(self.nodes[0], m)])
+        self.mine_quorum_less_checks(members, self.mninfo, expected_commitments=members - 1)
 
 
 if __name__ == '__main__':
