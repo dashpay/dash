@@ -42,6 +42,7 @@
 #include <iterator>
 #include <memory>
 #include <ranges>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -267,15 +268,16 @@ BOOST_AUTO_TEST_CASE(server_signing_timeout_charges_each_offender_once)
     const CScript previous_script{GetScriptForDestination(PKHash(key.GetPubKey()))};
 
     // One missing signature, several missing signatures from the same participant,
-    // no offenders, and every participant offending.
+    // no offenders, every participant offending, and every participant that was asked
+    // to sign offending in a session finalized on timeout without one participant's entry.
     uint32_t collateral_index{0};
-    const std::array<std::pair<int, int>, 4> scenarios{{{1, 1}, {3, 1}, {0, 0}, {3, 3}}};
-    for (const auto& [unsigned_inputs, offenders] : scenarios) {
+    const std::array<std::tuple<int, int, int>, 5> scenarios{{{1, 1, 3}, {3, 1, 3}, {0, 0, 3}, {3, 3, 3}, {3, 3, 4}}};
+    for (const auto& [unsigned_inputs, offenders, session_collaterals] : scenarios) {
         TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), connman,
                                       *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
                                       *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync), *Assert(m_node.isman));
         std::vector<uint256> collaterals;
-        for (int participant{0}; participant < 3; ++participant) {
+        for (int participant{0}; participant < session_collaterals; ++participant) {
             const uint32_t index{collateral_index++};
             const COutPoint collateral_input{uint256::TWO, index};
             {
@@ -290,6 +292,7 @@ BOOST_AUTO_TEST_CASE(server_signing_timeout_charges_each_offender_once)
             BOOST_REQUIRE(SignSignature(provider, previous_script, collateral, 0, COIN / 10, SIGHASH_ALL, empty));
             collaterals.push_back(collateral.GetHash());
             server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
+            if (participant >= 3) continue; // never sent an entry
 
             CCoinJoinEntry entry;
             entry.txCollateral = MakeTransactionRef(collateral);
