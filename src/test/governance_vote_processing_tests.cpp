@@ -257,7 +257,7 @@ BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, Governanc
     CProUpRegTx update;
     update.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
     update.proTxHash = registration.GetHash();
-    update.pubKeyOperator.Set(operator_key.GetPublicKey(), GetAmbientBLSScheme());
+    update.pubKeyOperator.Set(operator_key.GetPublicKey());
     update.keyIDVoting = voting_key.GetPubKey().GetID();
     update.scriptPayout = payout_script();
     CMutableTransaction tx;

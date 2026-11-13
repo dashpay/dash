@@ -193,7 +193,7 @@ UniValue CDeterministicMNState::ToJson(MnType nType) const
     } else if (ExtractDestination(scriptPayout, dest)) {
         obj.pushKV("payoutAddress", EncodeDestination(dest));
     }
-    obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+    obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(OperatorKeyScheme()));
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
     }
@@ -263,7 +263,7 @@ UniValue CDeterministicMNStateDiff::ToJson(MnType nType) const
         }
     }
     if (fields & Field_pubKeyOperator) {
-        obj.pushKV("pubKeyOperator", state.pubKeyOperator.ToString());
+        obj.pushKV("pubKeyOperator", state.pubKeyOperator.ToString(state.OperatorKeyScheme()));
     }
     if (nType == MnType::Evo) {
         if (fields & Field_platformNodeID) {
@@ -346,7 +346,7 @@ UniValue CProRegTx::ToJson() const
     } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
     }
-    ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+    ret.pushKV("pubKeyOperator", pubKeyOperator.ToString(OperatorKeyScheme()));
     ret.pushKV("operatorReward", static_cast<double>(nOperatorReward) / 100);
     if (nType == MnType::Evo) {
         ret.pushKV("platformNodeID", platformNodeID.ToString());
@@ -370,7 +370,7 @@ UniValue CProUpRegTx::ToJson() const
     } else if (CTxDestination dest; ExtractDestination(scriptPayout, dest)) {
         ret.pushKV("payoutAddress", EncodeDestination(dest));
     }
-    ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+    ret.pushKV("pubKeyOperator", pubKeyOperator.ToString(OperatorKeyScheme()));
     ret.pushKV("inputsHash", inputsHash.ToString());
     return ret;
 }
@@ -414,7 +414,7 @@ UniValue CProUpSharedRegTx::ToJson() const
     ret.pushKV("version", nVersion);
     ret.pushKV("proTxHash", proTxHash.ToString());
     ret.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
-    ret.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+    ret.pushKV("pubKeyOperator", pubKeyOperator.ToString(OperatorKeyScheme()));
     ret.pushKV("inputsHash", inputsHash.ToString());
     ret.pushKV("sigCount", static_cast<uint64_t>(vchSigs.size()));
     return ret;
@@ -518,7 +518,7 @@ UniValue CSimplifiedMNListEntry::ToJson(bool extended) const
         obj.pushKV("service", GetDeprecatedServiceField(*this));
     }
     obj.pushKV("addresses", GetNetInfoWithLegacyFields(*this, nType));
-    obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+    obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(OperatorKeyScheme()));
     obj.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     obj.pushKV("isValid", isValid);
     if (nType == MnType::Evo) {

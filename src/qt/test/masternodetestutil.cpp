@@ -209,7 +209,7 @@ PreparedRegistration PrepareRegistration(const MnShareSession& session, const CB
     }
     payload.vchJoinSigs.assign(payload.shares.size(), CompactSignature{});
     payload.keyIDVoting = ToKeyID(std::get<PKHash>(DecodeDestination(session.terms().votingAddress.toStdString())));
-    payload.pubKeyOperator.Set(operator_secret.GetPublicKey(), BLSScheme::Basic);
+    payload.pubKeyOperator.Set(operator_secret.GetPublicKey());
     payload.nOperatorReward = session.terms().operatorReward;
     payload.nEarlyPeriodBlocks = session.terms().earlyPeriodBlocks;
     payload.nEarlyPenalty = session.terms().earlyPenalty;

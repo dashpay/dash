@@ -157,7 +157,8 @@ MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_s
         return {};
     }
 
-    if (!connman.TryMarkVerified(peer.GetId(), mnauth.proRegTxHash, dmn->pdmnState->pubKeyOperator.GetHash())) {
+    if (!connman.TryMarkVerified(peer.GetId(), mnauth.proRegTxHash,
+                                 dmn->pdmnState->pubKeyOperator.GetHash(dmn->pdmnState->OperatorKeyScheme()))) {
         // At the verified-inbound cap for this identity. Not a misbehavior: a legitimate
         // reconnect racing not-yet-reaped stale legs must not be banned.
         peer.fDisconnect = true;
@@ -198,7 +199,9 @@ void CMNAuth::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList&
         if (diff.removedMns.count(verifiedDmn->GetInternalId())) {
             doRemove = true;
         } else if (const auto it = diff.updatedMNs.find(verifiedDmn->GetInternalId()); it != diff.updatedMNs.end()) {
-            if ((it->second.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) && it->second.state.pubKeyOperator.GetHash() != pnode->GetVerifiedPubKeyHash()) {
+            if ((it->second.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) &&
+                it->second.state.pubKeyOperator.GetHash(it->second.state.OperatorKeyScheme()) !=
+                    pnode->GetVerifiedPubKeyHash()) {
                 doRemove = true;
             }
         }

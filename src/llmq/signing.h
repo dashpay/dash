@@ -85,7 +85,7 @@ public:
                   const uint256& _msgHash, const CBLSSignature& _sig) :
         CSigBase(_llmqType, _quorumHash, _id, _msgHash)
     {
-        const_cast<CBLSLazySignature&>(sig).Set(_sig, BLSScheme::Basic);
+        const_cast<CBLSLazySignature&>(sig).Set(_sig);
         UpdateHash();
     };
 
