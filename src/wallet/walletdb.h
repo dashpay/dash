@@ -88,6 +88,7 @@ extern const std::string MINVERSION;
 extern const std::string NAME;
 extern const std::string OLD_KEY;
 extern const std::string ORDERPOSNEXT;
+extern const std::string OWED_RESCAN;
 extern const std::string PLATFORM_DATA;
 extern const std::string POOL;
 extern const std::string PURPOSE;
@@ -236,6 +237,10 @@ public:
     //! integration (flow state, identity metadata). Opaque to the wallet.
     bool WritePlatformData(const std::string& key, const std::vector<unsigned char>& value);
     bool ErasePlatformData(const std::string& key);
+
+    //! A rescan the wallet owes from from_time, recorded under sequence.
+    bool WriteOwedRescan(uint64_t sequence, int64_t from_time);
+    bool EraseOwedRescan(uint64_t sequence);
 
     bool WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey, const SecureString& mnemonic, const SecureString& mnemonic_passphrase);
     bool WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret, const std::vector<unsigned char>& crypted_mnemonic, const std::vector<unsigned char>& crypted_mnemonic_passphrase);

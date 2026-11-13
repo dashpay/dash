@@ -4293,15 +4293,67 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         descriptor.range_start = current.range_start;
         descriptor.range_end = std::max(descriptor.range_end, current.range_end);
         descriptor.next_index = current.next_index;
+        // Held with its key and born no later: no block was scanned without it.
+        if (descriptor.creation_time >= current.creation_time && existing->HavePrivateKeys()) {
+            result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+            return result;
+        }
         descriptor.creation_time = std::min(descriptor.creation_time, current.creation_time);
     }
-    if (!AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false)) {
+    // Recorded before the chain changes: a crash in between costs a needless
+    // rescan rather than missed payments.
+    if (!AddOwedRescan(descriptor.creation_time) ||
+        !AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false)) {
         result.status = PlatformKeyStatus::IMPORT_ERROR;
         return result;
     }
+    // A held chain is not an active one, so nothing else lowers the wallet's birth to its new one.
+    MaybeUpdateBirthTime(descriptor.creation_time);
 
     result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     return result;
+}
+
+void CWallet::LoadOwedRescan(uint64_t sequence, int64_t from_time)
+{
+    AssertLockHeld(cs_wallet);
+    m_owed_rescans[sequence] = std::max<int64_t>(from_time, 0);
+    m_next_owed_rescan = std::max(m_next_owed_rescan, sequence + 1);
+}
+
+bool CWallet::AddOwedRescan(int64_t from_time)
+{
+    AssertLockHeld(cs_wallet);
+    from_time = std::max<int64_t>(from_time, 0);
+    if (!WalletBatch{GetDatabase()}.WriteOwedRescan(m_next_owed_rescan, from_time)) return false;
+    m_owed_rescans.emplace(m_next_owed_rescan++, from_time);
+    return true;
+}
+
+std::optional<int64_t> CWallet::GetOwedRescanFrom() const
+{
+    AssertLockHeld(cs_wallet);
+    std::optional<int64_t> from;
+    for (const auto& [sequence, from_time] : m_owed_rescans) {
+        if (!from || from_time < *from) from = from_time;
+    }
+    return from;
+}
+
+void CWallet::SettleOwedRescans(uint64_t sequence, int64_t covered_from)
+{
+    AssertLockHeld(cs_wallet);
+    WalletBatch batch{GetDatabase()};
+    for (auto it{m_owed_rescans.begin()}; it != m_owed_rescans.end() && it->first <= sequence;) {
+        if (it->second < covered_from) {
+            ++it;
+            continue;
+        }
+        if (!batch.EraseOwedRescan(it->first)) {
+            WalletLogPrintf("%s: could not erase owed rescan %d from the wallet database\n", __func__, it->first);
+        }
+        it = m_owed_rescans.erase(it);
+    }
 }
 
 std::vector<const Governance::Object*> CWallet::GetGovernanceObjects()

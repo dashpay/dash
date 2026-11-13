@@ -223,6 +223,38 @@ public:
         Assume(false); // unreachable
         return wallet::RescanStatus::FAILURE; // fallback for release builds
     }
+    wallet::RescanStatus rescanFromTime(int64_t from_time) override
+    {
+        from_time = std::max<int64_t>(from_time, 0);
+        WalletRescanReserver reserver(*m_wallet);
+        if (!reserver.reserve()) {
+            return wallet::RescanStatus::BUSY;
+        }
+        // Taken before looking for blocks: a chain imported later may be paid
+        // in one that arrives meanwhile.
+        const uint64_t owed{WITH_LOCK(m_wallet->cs_wallet, return m_wallet->GetOwedRescanSequence())};
+        uint256 start_hash;
+        int start_height{0};
+        auto status{CWallet::ScanResult::SUCCESS};
+        if (m_wallet->chain().findFirstBlockWithTimeAndHeight(from_time - TIMESTAMP_WINDOW, /*min_height=*/0,
+                                                              FoundBlock().hash(start_hash).height(start_height))) {
+            status = m_wallet->ScanForWalletTransactions(start_hash, start_height, /*max_height=*/std::nullopt, reserver,
+                                                         /*fUpdate=*/true, /*save_progress=*/false).status;
+        } else {
+            // No block is that recent: only the mempool can pay the key.
+            WITH_LOCK(m_wallet->cs_wallet, m_wallet->chain().requestMempoolTransactions(*m_wallet));
+        }
+        switch (status) {
+        case CWallet::ScanResult::FAILURE:
+            return wallet::RescanStatus::FAILURE;
+        case CWallet::ScanResult::USER_ABORT:
+            return wallet::RescanStatus::USER_ABORT;
+        case CWallet::ScanResult::SUCCESS:
+            break;
+        }
+        WITH_LOCK(m_wallet->cs_wallet, m_wallet->SettleOwedRescans(owed, from_time));
+        return wallet::RescanStatus::SUCCESS;
+    }
     void abortRescan() override { m_wallet->AbortRescan(); }
     std::optional<int> rescanPrunedFrom() override
     {
@@ -231,6 +263,11 @@ public:
         const int rescan_height{rescanStartHeight()};
         if (m_wallet->chain().hasBlocks(m_wallet->GetLastBlockHash(), rescan_height)) return std::nullopt;
         return rescan_height;
+    }
+    std::optional<int64_t> owedRescanFrom() override
+    {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->GetOwedRescanFrom();
     }
     void autoLockMasternodeCollaterals() override { m_wallet->AutoLockMasternodeCollaterals(); }
     bool backupWallet(const std::string& filename) override { return m_wallet->BackupWallet(filename); }
