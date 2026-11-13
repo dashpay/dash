@@ -186,7 +186,8 @@ public:
 
     [[nodiscard]] uint256 GetSignHash() const
     {
-        return BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
+        return BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash,
+                                   GetAmbientBLSScheme());
     }
 };
 } // namespace llmq

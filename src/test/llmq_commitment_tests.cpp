@@ -364,18 +364,18 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
     // Test deterministic hash generation
     uint256 hash1 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
 
     // Same inputs should produce same hash
     uint256 hash2 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
 
     // Different quorum hash should produce different hash
     uint256 hash3 = llmq::BuildCommitmentHash(TEST_PARAMS.type,
                                               GetTestQuorumHash(2), // Different
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
 
     BOOST_CHECK(hash1 != hash2); // Different pubkeys
     BOOST_CHECK(hash1 != hash3);
@@ -385,32 +385,16 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
     CBLSPublicKey fixedPubKey = CreateRandomBLSPublicKey();
     uint256 hash4 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
 
     uint256 hash5 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
 
     BOOST_CHECK(hash4 == hash5);
 }
 
 namespace {
-
-class ScopedBLSScheme
-{
-public:
-    explicit ScopedBLSScheme(bool legacy) :
-        m_prev{bls::bls_legacy_scheme.load()}
-    {
-        bls::bls_legacy_scheme.store(legacy);
-    }
-    ~ScopedBLSScheme() { bls::bls_legacy_scheme.store(m_prev); }
-    ScopedBLSScheme(const ScopedBLSScheme&) = delete;
-    ScopedBLSScheme& operator=(const ScopedBLSScheme&) = delete;
-
-private:
-    bool m_prev;
-};
 
 CBLSSecretKey SecretFromScalar(uint8_t scalar)
 {
@@ -509,18 +493,10 @@ BOOST_AUTO_TEST_CASE(commitment_mainnet_pre_v19_verifies_legacy_only)
     BOOST_CHECK_EQUAL(json["validMembers"].get_str(), "ffffffffffffffffffffffff0f");
     BOOST_CHECK_EQUAL(json["validMembersCount"].getInt<int>(), 100);
 
-    uint256 hash_legacy;
-    uint256 hash_basic;
-    {
-        ScopedBLSScheme guard(true);
-        hash_legacy = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
-                                          qc.quorumVvecHash);
-    }
-    {
-        ScopedBLSScheme guard(false);
-        hash_basic = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
-                                         qc.quorumVvecHash);
-    }
+    const uint256 hash_legacy{BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                  qc.quorumVvecHash, BLSScheme::Legacy)};
+    const uint256 hash_basic{BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                 qc.quorumVvecHash, BLSScheme::Basic)};
     BOOST_CHECK(hash_legacy != hash_basic);
     BOOST_CHECK(qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Legacy));
     BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Basic));

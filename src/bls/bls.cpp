@@ -353,7 +353,7 @@ bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<u
     }
 }
 
-bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash) const
+bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash, const BLSScheme scheme) const
 {
     if (pks.empty()) {
         return false;
@@ -366,10 +366,15 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     }
 
     try {
-        return Scheme(GetAmbientBLSScheme())->VerifySecure(vecPublicKeys, impl, bls::Bytes(hash.begin(), hash.size()));
+        return Scheme(scheme)->VerifySecure(vecPublicKeys, impl, bls::Bytes(hash.begin(), hash.size()));
     } catch (...) {
         return false;
     }
+}
+
+bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint256& hash) const
+{
+    return VerifySecureAggregated(pks, hash, GetAmbientBLSScheme());
 }
 
 bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
