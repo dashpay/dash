@@ -549,7 +549,9 @@ CTransactionRef CCoinJoinServer::SelectCollateralToCharge()
 
     std::vector<CTransactionRef> vecOffendersCollaterals;
     const PoolState state{nState};
-    const size_t nSessionCollaterals{m_session_collaterals.size()};
+    // Only the participants that sent an entry are asked to sign. A session finalized on timeout
+    // still holds the collaterals of those that did not.
+    const size_t nParticipants{state == POOL_STATE_SIGNING ? vecEntries.size() : m_session_collaterals.size()};
 
     if (state == POOL_STATE_ACCEPTING_ENTRIES) {
         for (const auto& txCollateral : m_session_collaterals.txs()) {
@@ -584,10 +586,10 @@ CTransactionRef CCoinJoinServer::SelectCollateralToCharge()
     if (vecOffendersCollaterals.empty()) return {};
 
     //mostly offending? Charge sometimes
-    if (vecOffendersCollaterals.size() >= nSessionCollaterals - 1 && GetRand<int>(/*nMax=*/100) > 33) return {};
+    if (vecOffendersCollaterals.size() >= nParticipants - 1 && GetRand<int>(/*nMax=*/100) > 33) return {};
 
     //everyone is an offender? That's not right
-    if (vecOffendersCollaterals.size() >= nSessionCollaterals) return {};
+    if (vecOffendersCollaterals.size() >= nParticipants) return {};
 
     //charge one of the offenders randomly
     Shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end(), FastRandomContext());
