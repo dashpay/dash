@@ -461,6 +461,10 @@ class BlockchainTest(BitcoinTestFramework):
         # Test with verbose=False, which should return the header as hex.
         header_hex = rpc_call(blockhash=besthash, verbose=False)
         if rpc_name == 'getblockheaders':
+            headers = node.getblockheaders(secondbesthash, 2)
+            assert_equal([h['hash'] for h in headers], [secondbesthash, besthash])
+            assert_equal(node.getblockheaders(secondbesthash, 1), headers[:1])
+            assert_equal(node.getblockheaders(secondbesthash, 2, False), [node.getblockheader(h['hash'], False) for h in headers])
             header_hex = header_hex[0]
 
         assert_is_hex_string(header_hex)
