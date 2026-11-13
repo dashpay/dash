@@ -5,6 +5,7 @@
 #ifndef BITCOIN_EVO_SPECIALTXMAN_H
 #define BITCOIN_EVO_SPECIALTXMAN_H
 
+#include <bls/scheme.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
 #include <gsl/pointers.h>
@@ -55,6 +56,8 @@ struct SpecialTxRules {
     bool evo_shares{false};
     //! A masternode's primary addresses need not be IPv4
     bool ipv4_optional{false};
+    //! Signature scheme for operator and commitment signatures in the block these rules apply to
+    BLSScheme bls_scheme{BLSScheme::Basic};
 };
 
 class CSpecialTxProcessor
@@ -199,7 +202,7 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
                      const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs);
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,
+                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs);
 bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                    const Consensus::Params& consensus_params, bool is_v24_active, TxValidationState& state,

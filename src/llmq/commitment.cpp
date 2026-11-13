@@ -31,7 +31,8 @@ CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const ui
 }
 
 bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_params,
-                                            CCheckQueueControl<utils::BlsCheck>* queue_control) const
+                                            CCheckQueueControl<utils::BlsCheck>* queue_control,
+                                            const BLSScheme scheme) const
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
@@ -55,7 +56,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
     }
 
     uint256 commitmentHash = BuildCommitmentHash(llmq_params.type, quorumHash, validMembers, quorumPublicKey,
-                                                 quorumVvecHash);
+                                                 quorumVvecHash, scheme);
     if (LogAcceptDebug(BCLog::LLMQ)) {
         std::stringstream ss3;
         for (const auto& mn : members) {
@@ -66,7 +67,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
     }
     if (llmq_params.is_single_member()) {
         LogPrintf("pubkey operator: %s\n", members[0]->pdmnState->pubKeyOperator.Get().ToString());
-        if (!membersSig.VerifyInsecure(members[0]->pdmnState->pubKeyOperator.Get(), commitmentHash)) {
+        if (!membersSig.VerifyInsecure(members[0]->pdmnState->pubKeyOperator.Get(), commitmentHash, scheme)) {
             LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid member signature\n", quorumHash.ToString());
             return false;
         }
@@ -82,10 +83,10 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
             strprintf("CFinalCommitment -- q[%s] invalid aggregated members signature", quorumHash.ToString())};
         if (queue_control) {
             std::vector<utils::BlsCheck> vChecks;
-            vChecks.emplace_back(membersSig, memberPubKeys, commitmentHash, members_id_string);
+            vChecks.emplace_back(membersSig, memberPubKeys, commitmentHash, members_id_string, scheme);
             queue_control->Add(std::move(vChecks));
         } else {
-            if (!membersSig.VerifySecureAggregated(memberPubKeys, commitmentHash)) {
+            if (!membersSig.VerifySecureAggregated(memberPubKeys, commitmentHash, scheme)) {
                 LogPrint(BCLog::LLMQ, "%s\n", members_id_string);
                 return false;
             }
@@ -96,10 +97,10 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
         std::vector<utils::BlsCheck> vChecks;
         std::vector<CBLSPublicKey> public_keys;
         public_keys.push_back(quorumPublicKey);
-        vChecks.emplace_back(quorumSig, public_keys, commitmentHash, qsig_id_string);
+        vChecks.emplace_back(quorumSig, public_keys, commitmentHash, qsig_id_string, scheme);
         queue_control->Add(std::move(vChecks));
     } else {
-        if (!quorumSig.VerifyInsecure(quorumPublicKey, commitmentHash)) {
+        if (!quorumSig.VerifyInsecure(quorumPublicKey, commitmentHash, scheme)) {
             LogPrint(BCLog::LLMQ, "%s\n", qsig_id_string);
             return false;
         }
@@ -108,7 +109,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
 }
 
 
-bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool checkSigs) const
+bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool checkSigs, const BLSScheme scheme) const
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
@@ -196,7 +197,7 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
 
     // sigs are only checked when the block is processed
     if (checkSigs) {
-        if (!VerifySignatureAsync(util_params, /*queue_control=*/nullptr)) {
+        if (!VerifySignatureAsync(util_params, /*queue_control=*/nullptr, scheme)) {
             return false;
         }
     }
@@ -288,7 +289,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CFinalCo
         return true;
     }
 
-    if (!qcTx.commitment.Verify(util_params.replace_index(pQuorumBaseBlockIndex), false)) {
+    if (!qcTx.commitment.Verify(util_params.replace_index(pQuorumBaseBlockIndex), false, BLSScheme::Basic)) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- h[%d] invalid qcTx.commitment[%s] Verify failed\n",
                  util_params.m_base_index->nHeight, qcTx.commitment.quorumHash.ToString());
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-invalid");
@@ -300,14 +301,14 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CFinalCo
 }
 
 uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash,
-                                        const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey,
-                                        const uint256& vvecHash)
+                            const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash,
+                            const BLSScheme pubkey_scheme)
 {
     CHashWriter hw(SER_GETHASH, 0);
     hw << llmqType;
     hw << blockHash;
     hw << DYNBITSET(validMembers);
-    hw << pubKey;
+    pubKey.Serialize(hw, pubkey_scheme);
     hw << vvecHash;
     return hw.GetHash();
 }

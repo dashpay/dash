@@ -333,22 +333,6 @@ BOOST_AUTO_TEST_CASE(commitment_verify_null_edge_cases)
 
 namespace {
 
-class ScopedBLSScheme
-{
-public:
-    explicit ScopedBLSScheme(bool legacy) :
-        m_prev{bls::bls_legacy_scheme.load()}
-    {
-        bls::bls_legacy_scheme.store(legacy);
-    }
-    ~ScopedBLSScheme() { bls::bls_legacy_scheme.store(m_prev); }
-    ScopedBLSScheme(const ScopedBLSScheme&) = delete;
-    ScopedBLSScheme& operator=(const ScopedBLSScheme&) = delete;
-
-private:
-    bool m_prev;
-};
-
 CBLSSecretKey SecretFromScalar(uint8_t scalar)
 {
     std::vector<uint8_t> bytes(32, 0);
@@ -446,18 +430,10 @@ BOOST_AUTO_TEST_CASE(commitment_mainnet_pre_v19_verifies_legacy_only)
     BOOST_CHECK_EQUAL(json["validMembers"].get_str(), "ffffffffffffffffffffffff0f");
     BOOST_CHECK_EQUAL(json["validMembersCount"].getInt<int>(), 100);
 
-    uint256 hash_legacy;
-    uint256 hash_basic;
-    {
-        ScopedBLSScheme guard(true);
-        hash_legacy = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
-                                          qc.quorumVvecHash);
-    }
-    {
-        ScopedBLSScheme guard(false);
-        hash_basic = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
-                                         qc.quorumVvecHash);
-    }
+    const uint256 hash_legacy{BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                  qc.quorumVvecHash, BLSScheme::Legacy)};
+    const uint256 hash_basic{BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                 qc.quorumVvecHash, BLSScheme::Basic)};
     BOOST_CHECK(hash_legacy != hash_basic);
     BOOST_CHECK(qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Legacy));
     BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Basic));

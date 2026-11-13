@@ -21,6 +21,7 @@
 #include <llmq/utils.h>
 #include <messagesigner.h>
 
+#include <bls/bls.h>
 #include <chainparams.h>
 #include <coins.h>
 #include <common/system.h>
@@ -29,6 +30,7 @@
 #include <deploymentstatus.h>
 #include <hash.h>
 #include <primitives/block.h>
+#include <util/check.h>
 #include <util/time.h>
 
 CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager& dmnman,
@@ -164,6 +166,8 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
     if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return true;
     }
+    // TODO(bls): temporary equivalence check
+    Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
     const CBLSSignature& cbtx_sig{cbTx.bestCLSignature.Get()};
 
     struct CachedChainlock {
@@ -234,6 +238,8 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
         }
         uint256 curBlockCoinbaseCLBlockHash = pAncestor->GetBlockHash();
         chainlock::ChainLockSig clsig{curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbtx_sig};
+        // TODO(bls): temporary equivalence check
+        Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
         llmq::VerifyRecSigStatus ret = chainlock::VerifyChainLock(consensus_params, chain, qman, clsig);
         if (ret != llmq::VerifyRecSigStatus::Valid) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-invalid-clsig");
@@ -270,7 +276,7 @@ bool CSpecialTxProcessor::CheckSpecialTxInner(const CChain* chain, const CTransa
         case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
             return CheckProUpRegTx(tx, pindexPrev, m_dmnman, view, m_consensus_params, rules, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
-            return CheckProUpRevTx(tx, pindexPrev, m_dmnman, m_consensus_params, rules.v24, state, check_sigs);
+            return CheckProUpRevTx(tx, pindexPrev, m_dmnman, m_consensus_params, rules, state, check_sigs);
         case TRANSACTION_PROVIDER_DISSOLVE:
             return CheckProDisTx(tx, pindexPrev, m_dmnman, m_consensus_params, rules.v24, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_SHARE:
@@ -1211,9 +1217,12 @@ static bool CheckStringSig(const ProTx& proTx, const PKHash& pkhash, TxValidatio
 }
 
 template <typename ProTx>
-static bool CheckHashSig(const ProTx& proTx, const CBLSPublicKey& pubKey, TxValidationState& state)
+static bool CheckHashSig(const ProTx& proTx, const CBLSPublicKey& pubKey, const BLSScheme scheme,
+                         TxValidationState& state)
 {
-    if (!proTx.sig.VerifyInsecure(pubKey, ::SerializeHash(proTx))) {
+    // TODO(bls): temporary equivalence check
+    Assume(scheme == GetAmbientBLSScheme());
+    if (!proTx.sig.VerifyInsecure(pubKey, ::SerializeHash(proTx), scheme)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-sig");
     }
     return true;
@@ -1544,7 +1553,7 @@ bool CheckProUpServTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> 
         // pass the state returned by the function above
         return false;
     }
-    if (check_sigs && !CheckHashSig(*opt_ptx, dmn->pdmnState->pubKeyOperator.Get(), state)) {
+    if (check_sigs && !CheckHashSig(*opt_ptx, dmn->pdmnState->pubKeyOperator.Get(), rules.bls_scheme, state)) {
         // pass the state returned by the function above
         return false;
     }
@@ -1655,10 +1664,10 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
 }
 
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,
+                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs)
 {
-    const auto opt_ptx = GetValidatedPayload<CProUpRevTx>(tx, pindexPrev, consensus_params, is_v24_active, state);
+    const auto opt_ptx = GetValidatedPayload<CProUpRevTx>(tx, pindexPrev, consensus_params, rules.v24, state);
     if (!opt_ptx) {
         // pass the state returned by the function above
         return false;
@@ -1670,7 +1679,7 @@ bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-hash");
     }
 
-    if (!IsVersionChangeValid(dmn->pdmnState->nVersion, opt_ptx->nVersion, is_v24_active, state)) {
+    if (!IsVersionChangeValid(dmn->pdmnState->nVersion, opt_ptx->nVersion, rules.v24, state)) {
         // pass the state returned by the function above
         return false;
     }
@@ -1679,7 +1688,7 @@ bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
         // pass the state returned by the function above
         return false;
     }
-    if (check_sigs && !CheckHashSig(*opt_ptx, dmn->pdmnState->pubKeyOperator.Get(), state)) {
+    if (check_sigs && !CheckHashSig(*opt_ptx, dmn->pdmnState->pubKeyOperator.Get(), rules.bls_scheme, state)) {
         // pass the state returned by the function above
         return false;
     }
