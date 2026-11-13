@@ -380,7 +380,7 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelCoinJoinSyncStatus->setVisible(fShow);
-    ui->labelTransactionsStatus->setVisible(fShow);
+    ui->labelTransactionsStatus->setVisible(fShow && !m_privacy);
 }
 
 void OverviewPage::setMonospacedFont(const QFont& f)
