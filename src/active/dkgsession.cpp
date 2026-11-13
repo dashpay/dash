@@ -6,6 +6,7 @@
 
 #include <active/masternode.h>
 #include <evo/deterministicmns.h>
+#include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionhandler.h>
@@ -23,13 +24,45 @@
 #include <cxxtimer.hpp>
 
 namespace llmq {
+namespace {
+//! About a week of mainnet blocks
+constexpr int SIGNING_HISTORY_WINDOW{4032};
+constexpr int SIGNING_HISTORY_MIN_COMMITMENTS{6};
+} // anonymous namespace
+
+std::pair<int, int> CountSignedCommitments(const SigningRecords& records, const CDeterministicMNList& mn_list,
+                                           const uint256& proTxHash)
+{
+    auto it = records.find(proTxHash);
+    const auto dmn = mn_list.GetMN(proTxHash);
+    if (it == records.end() || !dmn) {
+        return {0, 0};
+    }
+    const int cutoff{std::max(dmn->pdmnState->nRegisteredHeight, dmn->pdmnState->nPoSeRevivedHeight)};
+    int valid{0}, signed_count{0};
+    for (const auto& record : it->second) {
+        if (record.quorum_height > cutoff) {
+            ++valid;
+            signed_count += record.signed_commitment;
+        }
+    }
+    return {valid, signed_count};
+}
+
+bool HasInsufficientSigningHistory(int valid, int signed_count)
+{
+    return valid >= SIGNING_HISTORY_MIN_COMMITMENTS && 4 * signed_count <= valid;
+}
+
 ActiveDKGSession::ActiveDKGSession(CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CDKGDebugManager& dkgdbgman,
                                    CDKGSessionManager& qdkgsman, CMasternodeMetaMan& mn_metaman,
-                                   CQuorumSnapshotManager& qsnapman, const CActiveMasternodeManager& mn_activeman,
+                                   const CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
+                                   const CActiveMasternodeManager& mn_activeman,
                                    const ChainstateManager& chainman, const CSporkManager& sporkman,
                                    const CBlockIndex* base_block_index, const Consensus::LLMQParams& llmq_params) :
     CDKGSession(bls_worker, dmnman, dkgdbgman, qdkgsman, qsnapman, chainman, base_block_index, llmq_params),
     m_mn_metaman{mn_metaman},
+    m_qblockman{qblockman},
     m_mn_activeman{mn_activeman},
     m_sporkman{sporkman}
 {
@@ -281,6 +314,15 @@ void ActiveDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) co
         }
     });
 
+    const int base_height{m_quorum_base_block_index->nHeight};
+    const auto signing_records = m_qblockman.GetSigningRecords(
+        m_quorum_base_block_index->GetAncestor(base_height - base_height % params.dkgInterval), SIGNING_HISTORY_WINDOW);
+    if (!signing_records) {
+        LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSession::%s -- signing history unavailable, skipping signing-history check\n", __func__);
+    }
+    // Members of a rotated quorum keep the state they had when their quarter was built
+    const auto mn_list = m_dmnman.GetListForBlock(m_quorum_base_block_index);
+
     bool fShouldAllMembersBeConnected = IsAllMembersConnectedEnabled(params.type, m_sporkman);
     for (const auto& m : members) {
         if (m->dmn->proTxHash == myProTxHash) {
@@ -311,6 +353,14 @@ void ActiveDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) co
             m->badConnection = true;
             logger.Batch("%s is Platform PoSe banned", m->dmn->proTxHash.ToString());
         }
+        if (signing_records) {
+            if (const auto [valid, signed_count] = CountSignedCommitments(*signing_records, mn_list, m->dmn->proTxHash);
+                HasInsufficientSigningHistory(valid, signed_count)) {
+                m->badConnection = true;
+                logger.Batch("%s signed only %d of the %d recent commitments it was a valid member of",
+                             m->dmn->proTxHash.ToString(), signed_count, valid);
+            }
+        }
     }
 }
 
@@ -332,7 +382,13 @@ std::optional<CDKGComplaint> ActiveDKGSession::SendComplaint()
         if (m->bad || m->badConnection) {
             qc.badMembers[i] = true;
             badCount++;
-        } else if (m->weComplain) {
+        }
+        // A badConnection vote (bad connection, or now too little signing history) does not
+        // cancel a complaint about an invalid share. If the bad votes stay below
+        // dkgBadVotesThreshold the dealer remains a valid member, and only a complaint makes
+        // it justify, which is what lets us build our secret share and sign the commitment.
+        // Receivers count the two bitsets independently, so a member may appear in both.
+        if (!m->bad && m->weComplain) {
             qc.complainForMembers[i] = true;
             complaintCount++;
         }
@@ -540,7 +596,7 @@ std::optional<CDKGPrematureCommitment> ActiveDKGSession::SendCommitment()
         return std::nullopt;
     }
 
-    if (ShouldSimulateError(DKGError::type::COMMIT_OMIT)) {
+    if (ShouldSimulateError(DKGError::type::COMMIT_OMIT) || ShouldSimulateError(DKGError::type::COMMIT_OMIT_ALL_TYPES)) {
         logger.Batch("omitting");
         return std::nullopt;
     }
