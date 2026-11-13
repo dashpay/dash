@@ -110,7 +110,13 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
 #endif
 
     pageButtons = new QButtonGroup(this);
-    pageButtons->addButton(ui->btnMain, pageButtons->buttons().size());
+    pageButtons->addButton(ui->btnMain, TAB_MAIN);
+    pageButtons->addButton(ui->btnWallet, TAB_WALLET);
+    pageButtons->addButton(ui->btnCoinJoin, TAB_COINJOIN);
+    pageButtons->addButton(ui->btnNetwork, TAB_NETWORK);
+    pageButtons->addButton(ui->btnDisplay, TAB_DISPLAY);
+    pageButtons->addButton(ui->btnAppearance, TAB_APPEARANCE);
+
     /* Remove Wallet/CoinJoin tabs and 3rd party-URL textbox in case of -disablewallet */
     if (!m_enable_wallet) {
         ui->stackedWidgetOptions->removeWidget(ui->pageWallet);
@@ -124,16 +130,11 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
         ui->showGovernanceCycleIcon->hide();
     } else {
         ui->btnCoinJoin->setText(QString::fromStdString(gCoinJoinName));
-        pageButtons->addButton(ui->btnWallet, pageButtons->buttons().size());
-        pageButtons->addButton(ui->btnCoinJoin, pageButtons->buttons().size());
     }
-    pageButtons->addButton(ui->btnNetwork, pageButtons->buttons().size());
-    pageButtons->addButton(ui->btnDisplay, pageButtons->buttons().size());
-    pageButtons->addButton(ui->btnAppearance, pageButtons->buttons().size());
 
     connect(pageButtons, &QButtonGroup::idClicked, this, &OptionsDialog::showPage);
 
-    showPage(0);
+    showPage(TAB_MAIN);
 
 #ifdef ENABLE_EXTERNAL_SIGNER
     ui->externalSignerPath->setToolTip(ui->externalSignerPath->toolTip().arg(PACKAGE_NAME));
@@ -416,7 +417,9 @@ void OptionsDialog::showPage(int index)
     GUIUtil::setFont(vecNormal, GUIUtil::FontWeight::Normal, 16);
     GUIUtil::updateFonts();
 
-    ui->stackedWidgetOptions->setCurrentIndex(index);
+    QWidget* const pages[]{ui->pageMain, ui->pageWallet, ui->pageCoinJoin,
+                           ui->pageNetwork, ui->pageDisplay, ui->pageAppearance};
+    ui->stackedWidgetOptions->setCurrentWidget(pages[index]);
     btnActive->setChecked(true);
 }
 
