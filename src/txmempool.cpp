@@ -1261,7 +1261,10 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
             // currently backs, so that MN ceases to exist. Drop any mempool update that
             // still targets its proTxHash; such an update can never be mined afterwards.
             // removeProTxSpentCollateralConflicts only covers collateral *spends*, not reuse.
-            if (auto dmn = m_dmnman.GetListAtChainTip().GetMNByCollateral(proTx.collateralOutpoint)) {
+            // The MN's own ProRegTx replaces nothing: during a reorg the tip list still holds
+            // the disconnected chain's MN list when the new branch re-mines the registration.
+            if (auto dmn = m_dmnman.GetListAtChainTip().GetMNByCollateral(proTx.collateralOutpoint);
+                dmn && dmn->proTxHash != tx_hash) {
                 removeProTxReferences(dmn->proTxHash);
             }
         } else {
