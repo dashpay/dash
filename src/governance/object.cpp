@@ -551,7 +551,7 @@ bool CGovernanceObject::CheckSignature(const CBLSPublicKey& pubKey) const
 {
     CBLSSignature sig;
     sig.SetBytes(m_obj.vchSig, BLSScheme::Basic);
-    if (!sig.VerifyInsecure(pubKey, GetSignatureHash(), BLSScheme::Basic)) {
+    if (!sig.VerifyInsecure(pubKey, GetSignatureHash())) {
         LogPrintf("CGovernanceObject::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }

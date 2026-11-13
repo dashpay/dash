@@ -120,7 +120,7 @@ public:
             }
             const auto vvec = blsWorker.BuildQuorumVerificationVector(vvecs);
             const auto skShare = blsWorker.AggregateSecretKeys(receivedSkShares);
-            const auto sig = skShare.Sign(::SerializeHash(*vvec), BLSScheme::Basic);
+            const auto sig = skShare.Sign(::SerializeHash(*vvec));
             assert(sig.IsValid());
         });
     }
@@ -131,11 +131,11 @@ public:
         ReceiveVvecs();
         ReceiveShares(0);
         const uint256 hash = ::SerializeHash(*quorumVvec);
-        const auto sig = blsWorker.AggregateSecretKeys(receivedSkShares).Sign(hash, BLSScheme::Basic);
+        const auto sig = blsWorker.AggregateSecretKeys(receivedSkShares).Sign(hash);
 
         bench.run([&] {
             const bool valid = ::SerializeHash(*quorumVvec) == hash &&
-                               sig.VerifyInsecure(CBLSWorker::BuildPubKeyShare(quorumVvec, ids[0]), hash, BLSScheme::Basic);
+                               sig.VerifyInsecure(CBLSWorker::BuildPubKeyShare(quorumVvec, ids[0]), hash);
             assert(valid);
         });
     }

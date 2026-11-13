@@ -559,7 +559,7 @@ BOOST_AUTO_TEST_CASE(getInstantSendLock)
     const BLSScheme legacy{GetAmbientBLSScheme()};
     CBLSSecretKey sk;
     sk.MakeNewKey();
-    islock->sig.Set(sk.Sign(islock->GetRequestId(), legacy), legacy);
+    islock->sig.Set(sk.Sign(islock->GetRequestId()), legacy);
 
     isman.WriteNewISLock(::SerializeHash(*islock), islock, /*minedHeight=*/std::nullopt);
 

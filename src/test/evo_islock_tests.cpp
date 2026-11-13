@@ -65,7 +65,7 @@ struct NetInstantSendTest : TestChain100Setup {
     {
         const auto sign_hash = llmq::SignHash{params.type, islock.cycleHash, islock.GetRequestId(), islock.txid}.Get();
         const BLSScheme legacy{GetAmbientBLSScheme()};
-        islock.sig.Set(key.Sign(sign_hash, legacy), legacy);
+        islock.sig.Set(key.Sign(sign_hash), legacy);
     }
 
     std::shared_ptr<instantsend::InstantSendLock> MakeLock(const uint256& cycle_hash, const CBLSSecretKey& key,
@@ -121,7 +121,7 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
     CBLSSecretKey key;
     key.MakeNewKey();
     const BLSScheme legacy{GetAmbientBLSScheme()};
-    islock.sig.Set(key.Sign(islock.GetRequestId(), legacy), legacy);
+    islock.sig.Set(key.Sign(islock.GetRequestId()), legacy);
     auto peer = MakeTestPeer(/*id=*/1);
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
     CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};

@@ -287,16 +287,16 @@ template bool CActiveMasternodeManager::Decrypt(const CBLSIESEncryptedObject<CBL
 template bool CActiveMasternodeManager::Decrypt(const CBLSIESMultiRecipientObjects<CBLSSecretKey>& obj, size_t idx,
                                                 CBLSSecretKey& ret_obj, int version) const;
 
-[[nodiscard]] CBLSSignature CActiveMasternodeManager::Sign(const uint256& hash, const BLSScheme scheme) const
+[[nodiscard]] CBLSSignature CActiveMasternodeManager::Sign(const uint256& hash) const
 {
     AssertLockNotHeld(cs);
-    return WITH_READ_LOCK(cs, return m_operator_sk.Sign(hash, scheme));
+    return WITH_READ_LOCK(cs, return m_operator_sk.Sign(hash));
 }
 
 [[nodiscard]] std::vector<uint8_t> CActiveMasternodeManager::SignBasic(const uint256& hash) const
 {
     AssertLockNotHeld(cs);
-    auto sig = Sign(hash, BLSScheme::Basic);
+    auto sig = Sign(hash);
     assert(sig.IsValid());
     return sig.ToByteVector(BLSScheme::Basic);
 }

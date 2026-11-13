@@ -93,7 +93,6 @@ bool CDKGSession::Init(const uint256& _myProTxHash, int _quorumIndex)
     members.resize(mns.size());
     memberIds.resize(members.size());
     receivedVvecs.resize(members.size());
-    receivedVvecsLegacyScheme.resize(members.size());
     receivedSkContributions.resize(members.size());
     vecEncryptedContributions.resize(members.size());
 
@@ -221,7 +220,6 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGContribution& qc)
     if (!should_process) return inv;
 
     receivedVvecs[member->idx] = qc.vvec;
-    receivedVvecsLegacyScheme[member->idx] = qc.vvecLegacyScheme;
 
     int receivedCount = std::ranges::count_if(members, [](const auto& m) { return !m->contributions.empty(); });
 
