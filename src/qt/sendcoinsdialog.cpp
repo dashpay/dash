@@ -528,9 +528,13 @@ void SendCoinsDialog::presentPSBT(PartiallySignedTransaction& psbtx)
         if (filename.isEmpty()) {
             return;
         }
-        std::ofstream out{filename.toLocal8Bit().data(), std::ofstream::out | std::ofstream::binary};
+        std::ofstream out(GUIUtil::QStringToPath(filename), std::ofstream::out | std::ofstream::binary);
         out << ssTx.str();
         out.close();
+        if (!out) {
+            Q_EMIT message(tr("PSBT save failed"), tr("Failed to save PSBT to disk"), CClientUIInterface::MSG_ERROR);
+            break;
+        }
         //: Popup message when a PSBT has been saved to a file
         Q_EMIT message(tr("PSBT saved"), tr("PSBT saved to disk"), CClientUIInterface::MSG_INFORMATION);
         break;
