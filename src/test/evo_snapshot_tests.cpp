@@ -515,12 +515,12 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
     };
     const std::vector<std::byte> undecodable(CBLSPublicKey::SerSize, std::byte{0xff});
     for (const int version : {ProTxVersion::LegacyBLS, ProTxVersion::BasicBLS}) {
-        const bool legacy{version == ProTxVersion::LegacyBLS};
+        const BLSScheme legacy{ProTxVersion::GetBLSScheme(static_cast<uint16_t>(version))};
         auto mn{std::make_shared<CDeterministicMN>(*MN(2, 3, MnType::Regular, version, 3))};
         auto state{std::make_shared<CDeterministicMNState>(*mn->pdmnState)};
         CDataStream key_bytes{SER_DISK, CLIENT_VERSION};
         key_bytes.write(undecodable);
-        key_bytes >> CBLSLazyPublicKeyVersionWrapper(state->pubKeyOperator, legacy);
+        key_bytes >> BLSEncoded(state->pubKeyOperator, legacy);
         mn->pdmnState = state;
 
         // The lazy wrapper re-emits undecodable bytes verbatim until the key is
@@ -550,7 +550,7 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
         state_diff.fields = CDeterministicMNStateDiff::Field_nVersion | CDeterministicMNStateDiff::Field_pubKeyOperator;
         state_diff.state.nVersion = version;
         key_bytes.write(undecodable);
-        key_bytes >> CBLSLazyPublicKeyVersionWrapper(state_diff.state.pubKeyOperator, legacy);
+        key_bytes >> BLSEncoded(state_diff.state.pubKeyOperator, legacy);
         CDataStream update{SER_DISK, CLIENT_VERSION};
         WriteCompactSize(update, 0);
         WriteCompactSize(update, 1);
@@ -566,7 +566,7 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
         BOOST_REQUIRE(lazy.empty());
         auto unread_state{std::make_shared<CDeterministicMNState>(*unread->pdmnState)};
         key_bytes.write(undecodable);
-        key_bytes >> CBLSLazyPublicKeyVersionWrapper(unread_state->pubKeyOperator, legacy);
+        key_bytes >> BLSEncoded(unread_state->pubKeyOperator, legacy);
         unread->pdmnState = unread_state;
         evo::EvoSnapshot snapshot;
         snapshot.base_block_hash = H(42);
@@ -618,11 +618,11 @@ BOOST_FIXTURE_TEST_CASE(unset_mn_id_is_rejected, BasicTestingSetup)
 BOOST_FIXTURE_TEST_CASE(commitment_bls_wire_encoding_is_canonical, BasicTestingSetup)
 {
     CBLSSecretKey key;
-    BOOST_REQUIRE(key.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", false));
-    for (const bool legacy : {false, true}) {
+    BOOST_REQUIRE(key.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", BLSScheme::Basic));
+    for (const BLSScheme legacy : {BLSScheme::Basic, BLSScheme::Legacy}) {
         for (const bool indexed : {false, true}) {
             auto entry{Commitment(Consensus::LLMQType::LLMQ_TEST, 11, 51, indexed)};
-            if (legacy) {
+            if (legacy == BLSScheme::Legacy) {
                 entry.commitment.nVersion = indexed ? llmq::CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION
                                                     : llmq::CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION;
             }
@@ -636,17 +636,24 @@ BOOST_FIXTURE_TEST_CASE(commitment_bls_wire_encoding_is_canonical, BasicTestingS
                       << qc.quorumHash;
                 if (indexed) bytes << qc.quorumIndex;
                 bytes << DYNBITSET(qc.signers) << DYNBITSET(qc.validMembers)
-                      << CBLSPublicKeyVersionWrapper(qc.quorumPublicKey, opposite_field == 0 ? !legacy : legacy)
+                      << BLSEncoded(qc.quorumPublicKey,
+                                    opposite_field == 0
+                                        ? (legacy == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy)
+                                        : legacy)
                       << qc.quorumVvecHash
-                      << CBLSSignatureVersionWrapper(qc.quorumSig, opposite_field == 1 ? !legacy : legacy)
-                      << CBLSSignatureVersionWrapper(qc.membersSig, opposite_field == 2 ? !legacy : legacy)
+                      << BLSEncoded(qc.quorumSig, opposite_field == 1
+                                                      ? (legacy == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy)
+                                                      : legacy)
+                      << BLSEncoded(qc.membersSig, opposite_field == 2
+                                                       ? (legacy == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy)
+                                                       : legacy)
                       << entry.mined_block_hash;
                 return bytes;
             };
             auto canonical{encode(-1)};
             BOOST_CHECK_NO_THROW(evo::ReadMinedQuorumCommitment(canonical));
             BOOST_CHECK(canonical.empty());
-            if (legacy) continue;
+            if (legacy == BLSScheme::Legacy) continue;
             for (int field{0}; field < 3; ++field) {
                 auto bytes{encode(field)};
                 auto ordinary_input{bytes};

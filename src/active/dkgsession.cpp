@@ -32,7 +32,9 @@ ActiveDKGSession::ActiveDKGSession(CBLSWorker& bls_worker, CDeterministicMNManag
     m_mn_metaman{mn_metaman},
     m_mn_activeman{mn_activeman},
     m_sporkman{sporkman},
-    m_use_legacy_bls{!DeploymentActiveAfter(m_quorum_base_block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)}
+    m_use_legacy_bls{DeploymentActiveAfter(m_quorum_base_block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)
+                         ? BLSScheme::Basic
+                         : BLSScheme::Legacy}
 {
 }
 
@@ -166,7 +168,7 @@ void ActiveDKGSession::VerifyPendingContributions()
         }
         memberIndexes.emplace_back(idx);
         vvecs.emplace_back(receivedVvecs[idx]);
-        anyLegacyVvec |= receivedVvecsLegacyScheme[idx];
+        anyLegacyVvec |= receivedVvecsLegacyScheme[idx] == BLSScheme::Legacy;
         skContributions.emplace_back(receivedSkContributions[idx]);
         // Write here to definitely store one contribution for each member no matter if
         // our share is valid or not, could be that others are still correct

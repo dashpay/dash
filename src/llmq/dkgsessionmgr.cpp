@@ -125,7 +125,7 @@ void CDKGSessionManager::WriteVerifiedVvecContribution(Consensus::LLMQType llmqT
     CDataStream s(SER_DISK, CLIENT_VERSION);
     WriteCompactSize(s, vvec->size());
     for (auto& pubkey : *vvec) {
-        s << CBLSPublicKeyVersionWrapper(pubkey, false);
+        s << BLSEncoded(pubkey, BLSScheme::Basic);
     }
     db->Write(std::make_tuple(DB_VVEC, llmqType, pQuorumBaseBlockIndex->GetBlockHash(), proTxHash), Span{s});
 
@@ -181,7 +181,7 @@ bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, 
                 CBLSPublicKey pubkey;
                 std::vector<CBLSPublicKey> qv;
                 for ([[maybe_unused]] size_t _ : util::irange(vvec_size)) {
-                    s >> CBLSPublicKeyVersionWrapper(pubkey, false);
+                    s >> BLSEncoded(pubkey, BLSScheme::Basic);
                     qv.emplace_back(pubkey);
                 }
                 auto vvecPtr = std::make_shared<std::vector<CBLSPublicKey>>(std::move(qv));

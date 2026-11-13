@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_MASTERNODEMODEL_H
 #define BITCOIN_QT_MASTERNODEMODEL_H
 
+#include <bls/scheme.h>
 #include <evo/dmn_types.h>
 #include <interfaces/node.h>
 #include <qt/bitcoinunits.h>
@@ -74,7 +75,7 @@ private:
     std::optional<QString> m_platform_node_id{};
     std::optional<QString> m_platform_p2p_addresses{};
     std::optional<QString> m_pub_key_operator{};
-    bool m_operator_legacy_scheme{false};
+    BLSScheme m_operator_legacy_scheme{BLSScheme::Basic};
     uint16_t m_operator_reward_pct{0};
 
 public:
@@ -118,7 +119,7 @@ public:
     const QString& votingAddress() const { return m_voting_address; }
     const uint256& proTxHashRaw() const { return m_dmn->getProTxHash(); }
     std::vector<unsigned char> operatorPubKeyBytes() const;
-    QString operatorPubKey(bool legacy_scheme = false) const;
+    QString operatorPubKey(BLSScheme scheme = BLSScheme::Basic) const;
     QString coreP2PAddresses() const { return m_network_addresses.value_or(m_service); }
     QString platformP2PAddresses() const { return m_platform_p2p_addresses.value_or(QString{}); }
     QString platformHTTPSAddresses() const { return m_platform_https_addresses.value_or(QString{}); }

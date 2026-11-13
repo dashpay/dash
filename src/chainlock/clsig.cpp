@@ -88,15 +88,15 @@ public:
         // Decode exactly as the coinbase payload was always decoded: under the
         // process-wide scheme flag, including its opposite-scheme rejection. The
         // flag is part of the key so a transient value cannot leak into later calls.
-        const bool legacy = bls::bls_legacy_scheme.load();
-        const uint256 key = (CHashWriter(SER_GETHASH, 0) << Span{bytes} << legacy).GetHash();
+        const BLSScheme scheme{GetAmbientBLSScheme()};
+        const uint256 key = (CHashWriter(SER_GETHASH, 0) << Span{bytes} << (scheme == BLSScheme::Legacy)).GetHash();
         CBLSSignature sig;
         {
             LOCK(m_mutex);
             if (m_entries.get(key, sig)) return sig;
         }
         CDataStream in(Span<const uint8_t>{bytes}, SER_NETWORK, PROTOCOL_VERSION);
-        sig.Unserialize(in, legacy);
+        sig.Unserialize(in, scheme);
         if (sig.IsValid()) {
             LOCK(m_mutex);
             m_entries.insert(key, sig);

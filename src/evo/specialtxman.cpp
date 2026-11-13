@@ -89,7 +89,7 @@ static bool SetStateVersion(CDeterministicMNState& state_mn, uint16_t nVersion, 
     // while the key still needs re-encoding.
     if (state_mn.pubKeyOperator != CBLSLazyPublicKey()) {
         const CBLSPublicKey& pubkey{state_mn.pubKeyOperator.Get()};
-        state_mn.pubKeyOperator.Set(pubkey, nVersion == ProTxVersion::LegacyBLS);
+        state_mn.pubKeyOperator.Set(pubkey, ProTxVersion::GetBLSScheme(nVersion));
     }
 
     if (state_mn.nVersion == nVersion && state_mn.netInfo->CanStorePlatform() == needs_extended) {

@@ -1425,8 +1425,7 @@ std::optional<interfaces::ProviderRegistrationRequest> RegisterMasternodeWizard:
         request.voting_key = ToKeyID(*voting);
     }
 
-    if (!request.operator_key.SetHexStr(m_operator_widget->publicKeyHex().toStdString(),
-                                        /*specificLegacyScheme=*/false)) {
+    if (!request.operator_key.SetHexStr(m_operator_widget->publicKeyHex().toStdString(), BLSScheme::Basic)) {
         error = tr("The operator public key is no longer valid.");
         return std::nullopt;
     }

@@ -56,7 +56,7 @@ inline CBLSSignature CreateRandomBLSSignature()
     CBLSSecretKey sk;
     sk.MakeNewKey();
     uint256 hash = InsecureRand256();
-    return sk.Sign(hash, false);
+    return sk.Sign(hash, BLSScheme::Basic);
 }
 
 inline CFinalCommitment CreateValidCommitment(const Consensus::LLMQParams& params, const uint256& quorumHash)

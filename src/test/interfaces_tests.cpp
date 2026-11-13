@@ -435,10 +435,10 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorum)
     // The newest quorum, with the commitment's 48-byte basic-scheme key. The hash is in Core's
     // internal byte order.
     const auto found{check("newest", type, qcs.at(50).quorumHash, tip, FOUND)};
-    BOOST_CHECK(found.public_key == qcs.at(50).quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false));
+    BOOST_CHECK(found.public_key == qcs.at(50).quorumPublicKey.ToByteVector(BLSScheme::Basic));
     BOOST_CHECK_EQUAL(found.public_key.size(), 48U);
     CBLSPublicKey roundtrip;
-    roundtrip.SetBytes(found.public_key, /*specificLegacyScheme=*/false);
+    roundtrip.SetBytes(found.public_key, BLSScheme::Basic);
     BOOST_CHECK(roundtrip.IsValid());
     BOOST_CHECK(roundtrip == qcs.at(50).quorumPublicKey);
     // Without a ChainLock this node's chain is not final, so a missing quorum is not evidence yet.
@@ -556,7 +556,7 @@ BOOST_AUTO_TEST_CASE(getInstantSendLock)
     islock->inputs.emplace_back(uint256::ONE, 0);
     islock->txid = uint256::TWO;
     islock->cycleHash = InsecureRand256();
-    const bool legacy{bls::bls_legacy_scheme.load()};
+    const BLSScheme legacy{GetAmbientBLSScheme()};
     CBLSSecretKey sk;
     sk.MakeNewKey();
     islock->sig.Set(sk.Sign(islock->GetRequestId(), legacy), legacy);

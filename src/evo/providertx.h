@@ -178,17 +178,12 @@ public:
             return;
         }
 
-        READWRITE(
-                obj.nType,
-                obj.nMode,
-                obj.collateralOutpoint,
-                NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
-                                  obj.nVersion >= ProTxVersion::ExtAddr),
-                obj.keyIDOwner,
-                CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
-                obj.keyIDVoting,
-                obj.nOperatorReward
-        );
+        READWRITE(obj.nType, obj.nMode, obj.collateralOutpoint,
+                  NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
+                                    obj.nVersion >= ProTxVersion::ExtAddr),
+                  obj.keyIDOwner,
+                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), ProTxVersion::GetBLSScheme(obj.nVersion)),
+                  obj.keyIDVoting, obj.nOperatorReward);
         if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
             SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
@@ -305,9 +300,7 @@ public:
             }
         }
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(
-                    CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.sig), (obj.nVersion == ProTxVersion::LegacyBLS))
-            );
+            READWRITE(BLSEncoded(const_cast<CBLSSignature&>(obj.sig), ProTxVersion::GetBLSScheme(obj.nVersion)));
         }
     }
 
@@ -348,12 +341,9 @@ public:
             // unknown version, bail out early
             return;
         }
-        READWRITE(
-                obj.proTxHash,
-                obj.nMode,
-                CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
-                obj.keyIDVoting
-        );
+        READWRITE(obj.proTxHash, obj.nMode,
+                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), ProTxVersion::GetBLSScheme(obj.nVersion)),
+                  obj.keyIDVoting);
         if (obj.nVersion >= ProTxVersion::ExtAddr) {
             uint8_t payouts_count{0};
             SER_WRITE(obj, payouts_count = static_cast<uint8_t>(obj.payouts.size()));
@@ -423,9 +413,7 @@ public:
                 obj.inputsHash
         );
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(
-                    CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.sig), (obj.nVersion == ProTxVersion::LegacyBLS))
-            );
+            READWRITE(BLSEncoded(const_cast<CBLSSignature&>(obj.sig), ProTxVersion::GetBLSScheme(obj.nVersion)));
         }
     }
 
@@ -539,8 +527,8 @@ public:
     SERIALIZE_METHODS(CProUpSharedRegTx, obj)
     {
         READWRITE(obj.nVersion, obj.proTxHash,
-                  CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), /*legacy=*/false),
-                  obj.keyIDVoting, obj.inputsHash);
+                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), BLSScheme::Basic), obj.keyIDVoting,
+                  obj.inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
             uint8_t sig_count{0};
             SER_WRITE(obj, sig_count = static_cast<uint8_t>(obj.vchSigs.size()));

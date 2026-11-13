@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(simplifiedmns_merkleroots)
         std::vector<unsigned char> vecBytes{static_cast<unsigned char>(i)};
         vecBytes.resize(CBLSSecretKey::SerSize);
 
-        smle.pubKeyOperator.Set(CBLSSecretKey(vecBytes).GetPublicKey(), bls::bls_legacy_scheme.load());
+        smle.pubKeyOperator.Set(CBLSSecretKey(vecBytes).GetPublicKey(), GetAmbientBLSScheme());
         smle.keyIDVoting.SetHex(strprintf("%040x", i));
         smle.isValid = true;
 
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(simplifiedmns_extended_diff_share_reward)
     BOOST_CHECK_EQUAL(state->netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"), NetInfoStatus::Success);
     std::vector<unsigned char> vecBytes{1};
     vecBytes.resize(CBLSSecretKey::SerSize);
-    state->pubKeyOperator.Set(CBLSSecretKey(vecBytes).GetPublicKey(), bls::bls_legacy_scheme.load());
+    state->pubKeyOperator.Set(CBLSSecretKey(vecBytes).GetPublicKey(), GetAmbientBLSScheme());
     state->keyIDVoting = make_keyid(2);
     state->shares = CollateralShares{CCollateralShare(600 * COIN, make_p2pkh(3), CScript(), make_keyid(4)),
                                      CCollateralShare(400 * COIN, make_p2pkh(5), CScript(), make_keyid(6))};

@@ -20,7 +20,7 @@ private:
     CMasternodeMetaMan& m_mn_metaman;
     const CActiveMasternodeManager& m_mn_activeman;
     const CSporkManager& m_sporkman;
-    const bool m_use_legacy_bls{false};
+    const BLSScheme m_use_legacy_bls{BLSScheme::Basic};
 
 public:
     ActiveDKGSession() = delete;

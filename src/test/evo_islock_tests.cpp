@@ -64,7 +64,7 @@ struct NetInstantSendTest : TestChain100Setup {
     void Sign(instantsend::InstantSendLock& islock, const CBLSSecretKey& key) const
     {
         const auto sign_hash = llmq::SignHash{params.type, islock.cycleHash, islock.GetRequestId(), islock.txid}.Get();
-        const bool legacy = bls::bls_legacy_scheme.load();
+        const BLSScheme legacy{GetAmbientBLSScheme()};
         islock.sig.Set(key.Sign(sign_hash, legacy), legacy);
     }
 
@@ -120,7 +120,7 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
     islock.cycleHash = WITH_LOCK(cs_main, return chain.Genesis()->GetBlockHash());
     CBLSSecretKey key;
     key.MakeNewKey();
-    const bool legacy = bls::bls_legacy_scheme.load();
+    const BLSScheme legacy{GetAmbientBLSScheme()};
     islock.sig.Set(key.Sign(islock.GetRequestId(), legacy), legacy);
     auto peer = MakeTestPeer(/*id=*/1);
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);

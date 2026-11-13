@@ -405,8 +405,7 @@ uint256 CProRegTx::MakeSharedRegConsentHash(const CTransaction& tx) const
         hw << platformNodeID;
     }
     hw << keyIDVoting;
-    hw << CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(pubKeyOperator),
-                                          nVersion == ProTxVersion::LegacyBLS);
+    hw << BLSEncoded(const_cast<CBLSLazyPublicKey&>(pubKeyOperator), ProTxVersion::GetBLSScheme(nVersion));
     hw << nOperatorReward;
     hw << static_cast<uint8_t>(shares.size());
     for (const auto& share : shares) {

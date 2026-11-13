@@ -82,6 +82,14 @@ public:
     bool VerifyNull() const;
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
+    //! Legacy iff nVersion is one of the two legacy-BLS commitment versions.
+    [[nodiscard]] constexpr BLSScheme GetBLSScheme() const
+    {
+        return nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION
+                   ? BLSScheme::Legacy
+                   : BLSScheme::Basic;
+    }
+
     [[nodiscard]] static constexpr uint16_t GetVersion(const bool is_rotation_enabled, const bool is_basic_scheme_active)
     {
         if (is_rotation_enabled)
@@ -104,14 +112,10 @@ public:
                     obj.quorumIndex
             );
         }
-        READWRITE(
-                DYNBITSET(obj.signers),
-                DYNBITSET(obj.validMembers),
-                CBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.quorumPublicKey), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
-                obj.quorumVvecHash,
-                CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.quorumSig), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
-                CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.membersSig), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION))
-        );
+        READWRITE(DYNBITSET(obj.signers), DYNBITSET(obj.validMembers),
+                  BLSEncoded(const_cast<CBLSPublicKey&>(obj.quorumPublicKey), obj.GetBLSScheme()), obj.quorumVvecHash,
+                  BLSEncoded(const_cast<CBLSSignature&>(obj.quorumSig), obj.GetBLSScheme()),
+                  BLSEncoded(const_cast<CBLSSignature&>(obj.membersSig), obj.GetBLSScheme()));
     }
 
 public:
