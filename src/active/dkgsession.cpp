@@ -592,7 +592,7 @@ std::optional<CDKGPrematureCommitment> ActiveDKGSession::SendCommitment()
     }
 
     uint256 commitmentHash = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
-                                                 qc.quorumVvecHash);
+                                                 qc.quorumVvecHash, BLSScheme::Basic);
 
     if (lieType == 2) {
         (*commitmentHash.begin())++;
@@ -684,7 +684,7 @@ std::vector<CFinalCommitment> ActiveDKGSession::FinalizeCommitments()
         fqc.quorumIndex = isQuorumRotationEnabled ? quorumIndex : 0;
 
         uint256 commitmentHash = BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers,
-                                                     fqc.quorumPublicKey, fqc.quorumVvecHash);
+                                                     fqc.quorumPublicKey, fqc.quorumVvecHash, BLSScheme::Basic);
 
         std::vector<CBLSSignature> aggSigs;
         std::vector<CBLSPublicKey> aggPks;
@@ -720,7 +720,7 @@ std::vector<CFinalCommitment> ActiveDKGSession::FinalizeCommitments()
         t2.stop();
 
         cxxtimer::Timer t3(true);
-        if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, true)) {
+        if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, BLSScheme::Basic)) {
             logger.Batch("failed to verify final commitment");
             continue;
         }
@@ -771,7 +771,7 @@ CFinalCommitment ActiveDKGSession::FinalizeSingleCommitment()
     fqc.quorumIndex = 0;
 
     uint256 commitmentHash = BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey,
-                                                 fqc.quorumVvecHash);
+                                                 fqc.quorumVvecHash, BLSScheme::Basic);
     fqc.quorumSig = sk1.Sign(commitmentHash);
 
     fqc.membersSig = m_mn_activeman.Sign(commitmentHash);
@@ -780,7 +780,7 @@ CFinalCommitment ActiveDKGSession::FinalizeSingleCommitment()
         fqc.quorumSig = fqc.membersSig;
     }
 
-    if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, true)) {
+    if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, BLSScheme::Basic)) {
         logger.Batch("failed to verify final commitment");
         assert(false);
     }
