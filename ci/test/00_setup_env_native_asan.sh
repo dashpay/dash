@@ -8,8 +8,7 @@ export LC_ALL=C.UTF-8
 
 export CONTAINER_NAME=ci_native_asan
 export PACKAGES="clang-19 llvm-19 libclang-rt-19-dev python3-zmq qtbase5-dev qttools5-dev-tools libevent-dev libboost-dev libminiupnpc-dev libzmq3-dev libqrencode-dev"
-# Reuses the depends built for the linux64 target, which uses the defaults.
-export DEP_OPTS=""
+export NO_DEPENDS=1
 export TEST_RUNNER_EXTRA="--timeout-factor=4 -j4"  # Increase timeout because sanitizers slow down
 export CI_LIMIT_STACK_SIZE=1
 export GOAL="install"

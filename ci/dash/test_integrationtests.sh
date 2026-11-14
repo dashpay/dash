@@ -18,7 +18,9 @@ if [ "$RUN_FUNCTIONAL_TESTS" != "true" ]; then
   exit 0
 fi
 
-export LD_LIBRARY_PATH=$DEPENDS_DIR/$HOST/lib
+if [ -z "$NO_DEPENDS" ]; then
+  export LD_LIBRARY_PATH=$DEPENDS_DIR/$HOST/lib
+fi
 
 if [ "$DOWNLOAD_PREVIOUS_RELEASES" = "true" ]; then
   echo "Downloading previous releases..."
@@ -49,7 +51,7 @@ EXTRA_ARGS="--dashd-arg=-socketevents=$SOCKETEVENTS"
 
 set +e
 # shellcheck disable=SC2086
-LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib" ./test/functional/test_runner.py --ci --attempts=3 --ansi --combinedlogslen=4000 --timeout-factor="${TEST_RUNNER_TIMEOUT_FACTOR}" ${TEST_RUNNER_EXTRA} --failfast --nocleanup --tmpdir="$(pwd)/testdatadirs" $PASS_ARGS $EXTRA_ARGS
+./test/functional/test_runner.py --ci --attempts=3 --ansi --combinedlogslen=4000 --timeout-factor="${TEST_RUNNER_TIMEOUT_FACTOR}" ${TEST_RUNNER_EXTRA} --failfast --nocleanup --tmpdir="$(pwd)/testdatadirs" $PASS_ARGS $EXTRA_ARGS
 RESULT=$?
 set -e
 

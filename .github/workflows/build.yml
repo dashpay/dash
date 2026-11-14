@@ -235,9 +235,7 @@ jobs:
     name: x86_64-pc-linux-gnu
     uses: ./.github/workflows/build-depends.yml
     needs: [check-skip, container, cache-sources]
-    if: |
-      vars.SKIP_LINUX64_ASAN == '' ||
-      vars.SKIP_LINUX64_FUZZ == ''
+    if: ${{ vars.SKIP_LINUX64_FUZZ == '' }}
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
@@ -365,15 +363,11 @@ jobs:
   src-linux64_asan:
     name: linux64_asan-build
     uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container, depends-linux64]
+    needs: [check-skip, container]
     if: ${{ vars.SKIP_LINUX64_ASAN == '' }}
     with:
       build-target: linux64_asan
       container-path: ${{ needs.container.outputs.path }}
-      depends-key: ${{ needs.depends-linux64.outputs.key }}
-      depends-host: ${{ needs.depends-linux64.outputs.host }}
-      depends-dep-opts: ${{ needs.depends-linux64.outputs.dep-opts }}
-      depends-artifact: ${{ needs.depends-linux64.outputs.built-artifact }}
       runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 

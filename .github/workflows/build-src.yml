@@ -12,13 +12,15 @@ on:
         required: true
         type: string
       depends-key:
-        description: "Key needed to access cached depends"
-        required: true
+        description: "Key needed to access cached depends; empty builds against system libraries"
+        required: false
         type: string
+        default: ""
       depends-host:
         description: "Host triplet from depends build"
-        required: true
+        required: false
         type: string
+        default: ""
       depends-dep-opts:
         description: "DEP_OPTS used to build depends"
         required: false
@@ -81,6 +83,7 @@ jobs:
 
       - name: Restore depends cache
         id: depends-cache
+        if: inputs.depends-key != ''
         uses: actions/cache/restore@v5
         with:
           path: depends/built/${{ inputs.depends-host }}
@@ -91,20 +94,21 @@ jobs:
         # have read-only cache tokens (GitHub change, June 2026), so freshly
         # built depends arrive as an artifact instead of a cache entry. Also
         # covers trusted runs whose cache save was denied (save only warns).
-        if: steps.depends-cache.outputs.cache-hit != 'true' && inputs.depends-artifact != ''
+        if: inputs.depends-key != '' && steps.depends-cache.outputs.cache-hit != 'true' && inputs.depends-artifact != ''
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.depends-artifact }}
           path: depends/built/${{ inputs.depends-host }}
 
       - name: Check built depends are present
-        if: steps.depends-cache.outputs.cache-hit != 'true' && inputs.depends-artifact == ''
+        if: inputs.depends-key != '' && steps.depends-cache.outputs.cache-hit != 'true' && inputs.depends-artifact == ''
         run: |
           echo "::error::Depends cache restore missed and no built depends artifact was provided"
           exit 1
         shell: bash
 
       - name: Rebuild depends prefix
+        if: inputs.depends-key != ''
         env:
           DEPENDS_HOST: ${{ inputs.depends-host }}
           DEP_OPTS: ${{ inputs.depends-dep-opts }}
