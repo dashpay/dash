@@ -6,6 +6,7 @@
 #include <clientversion.h>
 #include <streams.h>
 #include <uint256.h>
+#include <wallet/crypter.h>
 #include <wallet/hdchain.h>
 #include <wallet/test/util.h>
 #include <wallet/test/wallet_test_fixture.h>
@@ -13,6 +14,11 @@
 #include <wallet/walletdb.h>
 
 #include <boost/test/unit_test.hpp>
+
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace wallet {
 BOOST_FIXTURE_TEST_SUITE(walletdb_tests, WalletTestingSetup)
@@ -120,6 +126,73 @@ BOOST_AUTO_TEST_CASE(walletdb_platform_data_corruption_policy)
                 DBErrors::NONCRITICAL_ERROR);
     BOOST_CHECK_EQUAL(platform_data.count("platform/identity/0"), 0U);
     BOOST_CHECK(platform_data.at("platform/intact") == std::vector<unsigned char>({0x01, 0x02}));
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_dash_record_load_policy)
+{
+    // Damage to an hdpubkey or g_object record is noncritical. An HD chain
+    // whose encryption state disagrees with its record type, or with the
+    // wallet's, is corrupt.
+    CHDChain plain_chain;
+    BOOST_REQUIRE(plain_chain.SetSeed(SecureVector(32, 0x01), /*fUpdateID=*/true));
+    CHDChain crypted_chain{plain_chain};
+    crypted_chain.SetCrypted(true);
+    const std::pair<std::string, unsigned int> mkey_key{DBKeys::MASTER_KEY, 1};
+    const std::vector<unsigned char> truncated{0x05};
+    CKey key;
+    key.MakeNewKey(/*fCompressed=*/true);
+
+    using WriteRecords = std::function<bool(DatabaseBatch&)>;
+    const std::vector<std::pair<WriteRecords, DBErrors>> rows{
+        {[&](DatabaseBatch& batch) { return batch.Write(DBKeys::HDCHAIN, plain_chain); }, DBErrors::LOAD_OK},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(DBKeys::CRYPTED_HDCHAIN, crypted_chain) && batch.Write(mkey_key, CMasterKey{});
+         }, DBErrors::LOAD_OK},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(DBKeys::HDCHAIN, plain_chain) && batch.Write(mkey_key, CMasterKey{});
+         }, DBErrors::CORRUPT},
+        {[&](DatabaseBatch& batch) { return batch.Write(DBKeys::CRYPTED_HDCHAIN, crypted_chain); }, DBErrors::CORRUPT},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(DBKeys::HDCHAIN, crypted_chain) && batch.Write(mkey_key, CMasterKey{});
+         }, DBErrors::CORRUPT},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(std::make_pair(DBKeys::HDPUBKEY, key.GetPubKey()), Span{truncated});
+         }, DBErrors::NONCRITICAL_ERROR},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(std::make_pair(DBKeys::G_OBJECT, uint256::ONE), Span{truncated});
+         }, DBErrors::NONCRITICAL_ERROR},
+    };
+    for (size_t i{0}; i < rows.size(); ++i) {
+        CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+        BOOST_REQUIRE(rows[i].first(*wallet.GetDatabase().MakeBatch()));
+        BOOST_CHECK_MESSAGE(WalletBatch(wallet.GetDatabase()).LoadWallet(&wallet) == rows[i].second, "row " << i);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_descriptor_orphan_records)
+{
+    // A descriptor cache, key or encrypted key record whose descriptor ID has
+    // no descriptor record, or is the legacy manager's ID, is not loaded. An
+    // interrupted importdescriptors can leave such records behind.
+    CExtKey root;
+    const std::vector<unsigned char> seed(32, 1);
+    root.SetSeed(MakeByteSpan(seed));
+    const CPubKey pubkey{root.key.GetPubKey()};
+    for (const bool legacy_owner : {false, true}) {
+        for (int record = 0; record < 3; ++record) {
+            CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+            const uint256 owner{legacy_owner ? wallet.GetOrCreateLegacyScriptPubKeyMan()->GetID() : uint256::TWO};
+            {
+                WalletBatch batch(wallet.GetDatabase());
+                switch (record) {
+                case 0: BOOST_REQUIRE(batch.WriteDescriptorParentCache(root.Neuter(), owner, 0)); break;
+                case 1: BOOST_REQUIRE(batch.WriteDescriptorKey(owner, pubkey, root.key.GetPrivKey(), "", "")); break;
+                case 2: BOOST_REQUIRE(batch.WriteCryptedDescriptorKey(owner, pubkey, {1}, {}, {})); break;
+                }
+            }
+            BOOST_CHECK(wallet.LoadWallet() == DBErrors::LOAD_OK);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(walletdb_read_write_deadlock)
