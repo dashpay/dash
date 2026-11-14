@@ -16,6 +16,7 @@ from test_framework.blocktools import create_block, create_coinbase
 from test_framework.messages import (
     BLOCK_HEADER_SIZE,
     COIN,
+    CMnEhf,
     COutPoint,
     CTransaction,
     CTxIn,
@@ -27,6 +28,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_greater_than_or_equal,
+    assert_raises_rpc_error,
 )
 from test_framework.wallet import (
     MiniWallet,
@@ -435,6 +437,8 @@ class RESTTest (BitcoinTestFramework):
         previous_bb_hash = self.nodes[0].getblockhash(self.nodes[0].getblockcount() - 1)
         deployment_info = self.nodes[0].getdeploymentinfo(previous_bb_hash)
         assert_equal(deployment_info, self.test_rest_request(f"/deploymentinfo/{previous_bb_hash}"))
+        genesis_hash = self.nodes[0].getblockhash(0)
+        assert_equal(self.nodes[0].getdeploymentinfo(genesis_hash)["height"], 0)
 
         non_existing_blockhash = '42759cde25462784395a337460bde75f58e73d3f08bd31fdc3507cbac856a2c4'
         resp = self.test_rest_request(f'/deploymentinfo/{non_existing_blockhash}', ret_type=RetType.OBJ, status=400)
@@ -451,12 +455,45 @@ class RESTTest (BitcoinTestFramework):
         self.nodes[0].submitheader(self.nodes[1].getblockheader(header_only_hash, False))
         resp = self.test_rest_request(f"/deploymentinfo/{header_only_hash}", ret_type=RetType.OBJ, status=500)
         assert_equal(resp.getheader('Content-Type'), 'text/plain')
-        assert_equal(resp.read().decode('utf-8').rstrip(), "failed-getehfforblock-read")
+        assert_equal(resp.read().decode().rstrip(), "MNHF signals unavailable for an invalid or unvalidated block")
         assert_equal(self.nodes[0].getbestblockhash(), tip_before_request)
         assert_equal(self.test_rest_request('/deploymentinfo'), self.nodes[0].getdeploymentinfo())
+        self.log.info("Test deployment info for stored blocks that were never connected")
+        connected_hash = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
+        assert_equal(self.nodes[0].submitblock(self.nodes[1].getblock(header_only_hash, 0)), "inconclusive")
+        assert_equal(self.nodes[0].getblock(header_only_hash)["confirmations"], -1)
+
+        def check_unvalidated(block_hash):
+            assert_raises_rpc_error(-1, "MNHF signals unavailable", self.nodes[0].getdeploymentinfo, block_hash)
+            self.test_rest_request(f"/deploymentinfo/{block_hash}", ret_type=RetType.OBJ, status=500)
+            self.nodes[0].gettxoutsetinfo()
+            assert_equal(self.nodes[0].getbestblockhash(), connected_hash)
+
+        check_unvalidated(header_only_hash)
+
+        self.log.info("Test deployment info for a stored block rejected for an out-of-range MNHF bit")
+        signal = CTransaction()
+        signal.nVersion = 3
+        signal.nType = 7
+        signal.vExtraPayload = CMnEhf(version=1, versionBit=200, quorumHash=0, quorumSig=b'\x00' * 96).serialize()
+        block = create_block(
+            tmpl=self.nodes[0].getblocktemplate(),
+            coinbase=create_coinbase(self.nodes[0].getblockcount() + 1, dip4_activated=True, v20_activated=True),
+            txlist=[signal],
+        )
+        block.solve()
+        assert_equal(self.nodes[0].submitblock(block.serialize().hex()), "bad-mnhf-nbit-out-of-bounds")
+        assert_equal(self.nodes[0].getblock(block.hash, 0), block.serialize().hex())
+        check_unvalidated(block.hash)
+        height = self.nodes[0].getblockcount()
+        self.restart_node(0)
+        assert_equal(self.nodes[0].getblockcount(), height)
+
+        self.generate(self.nodes[1], 1, sync_fun=self.no_op)
         self.connect_nodes(0, 1)
         self.sync_all()
         assert_equal(self.test_rest_request(f"/deploymentinfo/{header_only_hash}"), self.nodes[0].getdeploymentinfo(header_only_hash))
+        assert_equal(self.nodes[0].getdeploymentinfo(connected_hash)["hash"], connected_hash)
 
         self.log.info("Test rendering stored ProTx payloads with unsupported versions")
         node = self.nodes[0]

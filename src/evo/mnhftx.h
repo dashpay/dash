@@ -128,18 +128,25 @@ public:
      */
     bool UndoBlock(const CBlock& block, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
-    // Implements interface
+    // Implements interface. Only reads state stored when a block was connected, and throws if
+    // pindexPrev has none (e.g. it was never connected).
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
     bool ForceSignalDBUpdate(const CBlockIndex* tip) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+
+    /**
+     * Recompute missing state from block data, walking back from pindex to the first block whose
+     * state is stored. Throws for a block that did not pass script validation. Only for startup,
+     * inside an EvoDB transaction: pindex must be a block that was connected.
+     */
+    void RebuildSignals(const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
 
 private:
     void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
     /**
-     * This function returns list of signals available on previous block.
-     * if the signals for previous block is not available in cache it would read blocks from disk
-     * until state won't be recovered.
+     * Returns the signals stored for pindex, from the cache or evo db. Throws EvoDbMissingStateError
+     * if there are none, e.g. because the block was never connected.
      * NOTE: that some signals could expired between blocks.
      */
     Signals GetForBlock(const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);

@@ -902,6 +902,8 @@ uint256 CSpecialTxProcessor::GetDeterministicMNListHash(gsl::not_null<const CBlo
 
 void CSpecialTxProcessor::UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex) { m_dmnman.UpdatedBlockTip(pindex); }
 
+void CSpecialTxProcessor::RebuildMNHFSignals(const CBlockIndex* pindex) { m_mnhfman->RebuildSignals(pindex); }
+
 void CSpecialTxProcessor::ResetPlatformBans(const CBlock& block, const CBlockIndex& index)
 {
     AssertLockHeld(::cs_main);
@@ -1107,8 +1109,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
         }
     } catch (const EvoDbInconsistencyError& e) {
-        // Local EvoDB corruption detected below (the node is already
-        // aborting): fail with M_ERROR so the block is not marked invalid.
+        // Local EvoDB inconsistency detected below (missing or mismatched
+        // state): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
@@ -1180,8 +1182,8 @@ bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const
         }
 
     } catch (const EvoDbInconsistencyError& e) {
-        // Local EvoDB corruption detected below (the node is already
-        // aborting): fail with M_ERROR so the block is not marked invalid.
+        // Local EvoDB inconsistency detected below (missing or mismatched
+        // state): fail with M_ERROR so the block is not marked invalid.
         return state.Error(e.what());
     } catch (const std::exception& e) {
         LogPrintf("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
