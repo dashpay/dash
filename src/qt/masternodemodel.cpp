@@ -147,7 +147,7 @@ MasternodeEntry::MasternodeEntry(const interfaces::MnEntryCPtr& dmn, const QStri
     }
     if (const auto& state = json.find_value("state"); state.isObject()) {
         if (const auto& val = state.find_value("version"); val.isNum()) {
-            m_operator_legacy_scheme = ProTxVersion::GetBLSScheme(static_cast<uint16_t>(val.getInt<int>()));
+            m_operator_scheme = ProTxVersion::GetBLSScheme(static_cast<uint16_t>(val.getInt<int>()));
         }
         if (const auto& val = state.find_value("consecutivePayments"); val.isNum()) {
             m_consecutive_payments = val.getInt<int32_t>();
@@ -177,7 +177,7 @@ MasternodeEntry::~MasternodeEntry() = default;
 QString MasternodeEntry::operatorPubKey(BLSScheme scheme) const
 {
     CBLSPublicKey key;
-    if (!m_pub_key_operator || !key.SetHexStr(m_pub_key_operator->toStdString(), m_operator_legacy_scheme)) {
+    if (!m_pub_key_operator || !key.SetHexStr(m_pub_key_operator->toStdString(), m_operator_scheme)) {
         return {};
     }
     return key.IsValid() ? QString::fromStdString(key.ToString(scheme)) : QString{};
@@ -186,10 +186,10 @@ QString MasternodeEntry::operatorPubKey(BLSScheme scheme) const
 std::vector<unsigned char> MasternodeEntry::operatorPubKeyBytes() const
 {
     CBLSPublicKey key;
-    if (!m_pub_key_operator || !key.SetHexStr(m_pub_key_operator->toStdString(), m_operator_legacy_scheme)) {
+    if (!m_pub_key_operator || !key.SetHexStr(m_pub_key_operator->toStdString(), m_operator_scheme)) {
         return {};
     }
-    return key.ToByteVector(BLSScheme::Basic);
+    return key.ToByteVector();
 }
 
 QString MasternodeEntry::toHtml(int current_height, const QSet<int>& my_share_indexes,

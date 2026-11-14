@@ -2,7 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
-#include <bls/bls.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <evo/evodb.h>
@@ -115,6 +114,14 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(
         this, NoMalleation, /*reset_chainstate=*/ true));
 
+    // The background chainstate was reset to genesis before activation, so
+    // the base MN list was not derivable and no lifecycle marker may have
+    // been captured: deriving one would fabricate an empty list and poison
+    // the shared list cache for the background chainstate's later
+    // re-validation of the base region.
+    uint256 stale_hash;
+    BOOST_CHECK(!m_node.evodb->ReadSnapshotBaseMNListHash(stale_hash));
+
     // Ensure our active chain is the snapshot chainstate.
     BOOST_CHECK(WITH_LOCK(::cs_main, return chainman.IsSnapshotActive()));
 
@@ -182,77 +189,6 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     BOOST_CHECK_EQUAL(event_counter.mn_list_changed, 0);
     BOOST_CHECK_EQUAL(event_counter.chainstate_flushed, 0);
     BOOST_CHECK_EQUAL(ui_mn_list_changed, 0);
-}
-
-//! A chain whose V19 activation sits above the assumeutxo height, so the
-//! background chainstate validates pre-V19 blocks while the snapshot chainstate
-//! is already past the fork.
-struct V19AboveSnapshotSetup : public TestChain100Setup {
-    static constexpr int V19_HEIGHT{150};
-    V19AboveSnapshotSetup() :
-        TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=v19@150"}}
-    {
-    }
-};
-
-//! bls::bls_legacy_scheme is process-wide but its correct value is per-block, and
-//! ProcessSpecialTxsInBlock only ever switches legacy -> basic. ConnectBlock must
-//! therefore establish the scheme its parent left behind instead of inheriting
-//! whatever the caller held, or a background chainstate would decode historical
-//! pre-V19 BLS data under the active snapshot chainstate's basic scheme.
-BOOST_FIXTURE_TEST_CASE(chainstate_connectblock_bls_scheme, V19AboveSnapshotSetup)
-{
-    ChainstateManager& chainman = *Assert(m_node.chainman);
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
-
-    // Pretend another chainstate moved the flag past the fork, as an active
-    // post-V19 snapshot chainstate does.
-    bls::bls_legacy_scheme.store(false);
-    mineBlocks(1);
-    BOOST_CHECK_MESSAGE(bls::bls_legacy_scheme.load(),
-                        "connecting a pre-V19 block must restore the legacy scheme");
-
-    // Reach the assumeutxo height and take a snapshot, then take the snapshot
-    // chainstate past V19 so the process-wide flag is basic again.
-    mineBlocks(9);
-    BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(this, NoMalleation, /*reset_chainstate=*/true));
-    BOOST_REQUIRE(WITH_LOCK(::cs_main, return chainman.IsSnapshotActive()));
-
-    // The background chainstate was reset to genesis before activation, so
-    // the base MN list was not derivable and no lifecycle marker may have
-    // been captured: deriving one would fabricate an empty list and poison
-    // the shared list cache for the background chainstate's later
-    // re-validation of the base region.
-    uint256 stale_hash;
-    BOOST_CHECK(!m_node.evodb->ReadSnapshotBaseMNListHash(stale_hash));
-    mineBlocks(V19_HEIGHT - WITH_LOCK(::cs_main, return chainman.ActiveHeight()));
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
-
-    Chainstate& background_cs{*[&] {
-        for (Chainstate* cs : chainman.GetAll()) {
-            if (cs != &chainman.ActiveChainstate()) return cs;
-        }
-        assert(false);
-    }()};
-    BOOST_REQUIRE(WITH_LOCK(::cs_main, return background_cs.m_chain.Height()) < V19_HEIGHT - 1);
-
-    std::vector<CMutableTransaction> noTxns;
-    CScript scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
-    auto pblock = std::make_shared<const CBlock>(this->CreateBlock(noTxns, scriptPubKey, background_cs));
-    BlockValidationState state;
-    {
-        LOCK(::cs_main);
-        CBlockIndex* pindex = nullptr;
-        bool newblock = false;
-        BOOST_REQUIRE(CheckBlock(*pblock, state, Params().GetConsensus()));
-        BOOST_REQUIRE(m_node.chainman->AcceptBlock(pblock, state, &pindex, true, nullptr, &newblock));
-    }
-    BOOST_REQUIRE(background_cs.ActivateBestChain(state, pblock));
-
-    // The background chainstate validated a pre-V19 block, but only the active
-    // chainstate's tip may define the scheme its consumers see.
-    BOOST_CHECK_MESSAGE(!bls::bls_legacy_scheme.load(),
-                        "a background connect must not leave the active chain on the legacy scheme");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

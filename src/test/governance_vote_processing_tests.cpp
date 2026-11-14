@@ -21,6 +21,7 @@
 #include <primitives/transaction.h>
 #include <script/standard.h>
 #include <streams.h>
+#include <test/util/bls.h>
 #include <timedata.h>
 #include <uint256.h>
 #include <util/strencodings.h>
@@ -57,9 +58,8 @@ void SignWithVotingKey(CGovernanceVote& vote, const CKey& key)
 
 void SignWithOperatorKey(CGovernanceVote& vote, const CBLSSecretKey& key)
 {
-    // Vote signatures are always basic-scheme, regardless of the currently active BLS scheme:
-    // CGovernanceVote::CheckSignature() deserializes and verifies with legacy=false.
-    vote.SetSignature(key.Sign(vote.GetSignatureHash()).ToByteVector(BLSScheme::Basic));
+    // Vote signatures are basic. CGovernanceVote::CheckSignature() deserializes and verifies them as basic.
+    vote.SetSignature(key.Sign(vote.GetSignatureHash()).ToByteVector());
 }
 
 //! A trigger that is signed by the fixture masternode and passes IsValidLocally, but whose payload
@@ -71,7 +71,7 @@ CGovernanceObject MakeFailedTrigger(const COutPoint& mn_collateral, const CBLSSe
     CGovernanceObject govobj{uint256{}, /*nRevisionIn=*/1, creation_time, uint256{}, HexStr(data)};
     BOOST_REQUIRE(govobj.GetObjectType() == GovernanceObject::TRIGGER);
     govobj.SetMasternodeOutpoint(mn_collateral);
-    govobj.SetSignature(operator_key.Sign(govobj.GetSignatureHash()).ToByteVector(BLSScheme::Basic));
+    govobj.SetSignature(operator_key.Sign(govobj.GetSignatureHash()).ToByteVector());
     return govobj;
 }
 
@@ -255,7 +255,7 @@ BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, Governanc
     const auto old_id = tip_mn_list().GetMN(registration.GetHash())->GetInternalId();
 
     CProUpRegTx update;
-    update.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    update.nVersion = ProTxVersionForNextBlock(chainman);
     update.proTxHash = registration.GetHash();
     update.pubKeyOperator.Set(operator_key.GetPublicKey());
     update.keyIDVoting = voting_key.GetPubKey().GetID();

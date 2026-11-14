@@ -66,7 +66,6 @@ int main(int argc, char** argv)
     SapphireAutoDetect();
     SHA256AutoDetect();
     BLSInit();
-    bls::bls_legacy_scheme.store(false);
     std::string error;
     if (!argsman.ParseParameters(argc, argv, error)) {
         tfm::format(std::cerr, "Error parsing command line arguments: %s\n", error);

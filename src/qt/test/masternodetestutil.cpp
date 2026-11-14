@@ -249,7 +249,7 @@ QString FreshOperatorPubKey()
 {
     CBLSSecretKey secret;
     secret.MakeNewKey();
-    return QString::fromStdString(secret.GetPublicKey().ToString(BLSScheme::Basic));
+    return QString::fromStdString(secret.GetPublicKey().ToString());
 }
 
 } // namespace MasternodeTestUtil

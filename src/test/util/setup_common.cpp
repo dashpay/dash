@@ -76,7 +76,6 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 
-#include <bls/bls.h>
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/walletman.h>
 #include <evo/cbtx.h>
@@ -236,7 +235,6 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
         noui_connected = true;
     }
 
-    bls::bls_legacy_scheme.store(true);
     node::g_indexes_ready_to_sync = true;
 }
 
@@ -407,9 +405,7 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
                                           *m_node.special_tx);
     assert(status == node::ChainstateLoadStatus::SUCCESS);
 
-    std::tie(status, error) = VerifyLoadedChainstate(chainman, options, *Assert(m_node.evodb), [](bool bls_state) {
-            LogPrintf("LoadVerifyActivateChainstate: bls_legacy_scheme=%d\n", bls_state);
-        });
+    std::tie(status, error) = VerifyLoadedChainstate(chainman, options, *Assert(m_node.evodb));
     assert(status == node::ChainstateLoadStatus::SUCCESS);
 
     BlockValidationState state;
@@ -529,6 +525,8 @@ TestChainSetup::TestChainSetup(
             {   18, uint256S("0x79ffbee99c3f8448a5484564cba47830415dc96d1aed025576d8246dd24f1b0e") },
             /*TestChain100Setup=*/
             {  100, uint256S("0x6ffb83129c19ebdf1ae3771be6a67fe34b35f4c956326b9ba152fac1649f65ae") },
+            /*CommitmentSchemeSetup=*/
+            {  101, uint256S("0x585dcb063a3dc1b9bc6f8224814b5b12d3c5eb28bc27372c6b524c45409828aa") },
             /*TestChainV19BeforeActivationSetup=*/
             {  103, uint256S("0x13adad9565d0ca558f5675c50e3828f4354d26b64de044ebc88686056f30faab") },
             /*TestChainDIP3BeforeActivationSetup=*/

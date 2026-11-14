@@ -9,7 +9,6 @@
 #include <coins.h>
 #include <chainparamsbase.h>
 #include <consensus/params.h>
-#include <deploymentstatus.h>
 #include <logging.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
@@ -25,7 +24,6 @@
 #include <util/zstd.h>
 #include <validation.h>
 
-#include <bls/bls.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
@@ -405,8 +403,7 @@ ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSize
     return {ChainstateLoadStatus::SUCCESS, {}};
 }
 
-ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const ChainstateLoadOptions& options, CEvoDB& evodb,
-                                            std::function<void(bool)> notify_bls_state)
+ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const ChainstateLoadOptions& options, CEvoDB& evodb)
 {
     auto is_coinsview_empty = [&](Chainstate* chainstate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
         return options.reindex || options.reindex_chainstate || chainstate->CoinsTip().GetBestBlock().IsNull();
@@ -422,13 +419,6 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
                                                          "This may be due to your computer's date and time being set incorrectly. "
                                                          "Only rebuild the block database if you are sure that your computer's date and time are correct")};
             }
-            const bool v19active{DeploymentActiveAfter(tip, chainman, Consensus::DEPLOYMENT_V19)};
-            if (v19active) {
-                bls::bls_legacy_scheme.store(false);
-                // TODO: remove notify_bls_state, it's alien and irrelevant once v19 activated
-                if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());
-            }
-
             VerifyDBResult result = CVerifyDB(chainman.GetNotifications()).VerifyDB(
                 *chainstate, chainman.GetConsensus(), chainstate->CoinsDB(),
                 evodb,
@@ -448,13 +438,6 @@ ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const C
                 }
                 break;
             } // no default case, so the compiler can warn about missing cases
-
-            // VerifyDB() disconnects blocks which might result in us switching back to legacy.
-            // Make sure we use the right scheme.
-            if (v19active && bls::bls_legacy_scheme.load()) {
-                bls::bls_legacy_scheme.store(false);
-                if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());
-            }
 
             if (options.check_level >= 3) {
                 chainstate->ResetBlockFailureFlags(nullptr);

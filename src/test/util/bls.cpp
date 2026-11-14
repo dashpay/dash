@@ -5,6 +5,9 @@
 #include <test/util/bls.h>
 
 #include <dashbls/schemes.hpp>
+#include <deploymentstatus.h>
+#include <util/check.h>
+#include <validation.h>
 
 namespace {
 
@@ -25,12 +28,30 @@ CBLSSignature SignatureFromElement(const bls::G2Element& element, const BLSSchem
 
 } // namespace
 
+CBLSSecretKey SecretFromScalar(uint8_t scalar)
+{
+    std::vector<uint8_t> bytes(32, 0);
+    bytes.back() = scalar;
+    CBLSSecretKey sk;
+    sk.SetBytes(bytes);
+    Assert(sk.IsValid());
+    return sk;
+}
+
+BLSScheme SchemeForNextBlock(const ChainstateManager& chainman)
+{
+    LOCK(::cs_main);
+    return DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)
+               ? BLSScheme::Basic
+               : BLSScheme::Legacy;
+}
+
 CBLSSignature SignBLS(const CBLSSecretKey& sk, const uint256& hash, const BLSScheme scheme)
 {
     if (!sk.IsValid()) {
         return {};
     }
-    const auto sk_bytes{sk.ToBytes(BLSScheme::Basic)};
+    const auto sk_bytes{sk.ToBytes()};
     try {
         const bls::PrivateKey key{bls::PrivateKey::FromBytes(bls::Bytes(sk_bytes.data(), sk_bytes.size()), false)};
         const bls::G2Element element{Scheme(scheme).Sign(key, bls::Bytes(hash.begin(), hash.size()))};
