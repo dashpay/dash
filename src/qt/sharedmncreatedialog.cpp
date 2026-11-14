@@ -2665,7 +2665,9 @@ QString SharedMnCreateDialog::ownContributionError() const
     for (const auto& input : mine->inputs) {
         const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};
         CTxOut txout{wallet.getCoins({outpoint}).front().txout};
-        if (Coin coin; txout.IsNull() && m_node.getUnspentOutput(outpoint, coin)) txout = coin.out;
+        if (txout.IsNull()) {
+            if (const auto coin{m_node.getUnspentOutput(outpoint)}) txout = coin->out;
+        }
         if (!txout.IsNull() && wallet.isSpendable(txout.scriptPubKey)) ours += txout.nValue;
     }
     if (ours == 0) return {};
@@ -3701,8 +3703,7 @@ QString SharedMnCreateDialog::deadReason(const MnShareSession& session) const
     for (const auto& contribution : session.contributions()) {
         for (const auto& input : contribution.inputs) {
             const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};
-            Coin coin;
-            if (m_node.getUnspentOutput(outpoint, coin)) continue;
+            if (m_node.getUnspentOutput(outpoint)) continue;
             // Absence from the confirmed UTXO set proves nothing on its own:
             // another participant's unconfirmed coin looks exactly the same.
             // Only a coin this wallet tracks and reports spent is proof that
@@ -3741,8 +3742,7 @@ std::optional<CAmount> SharedMnCreateDialog::resolveInputValue(const MnShareSess
             return known.front().txout.nValue;
         }
     }
-    Coin coin;
-    if (m_node.getUnspentOutput(outpoint, coin)) return coin.out.nValue;
+    if (const auto coin{m_node.getUnspentOutput(outpoint)}) return coin->out.nValue;
     return std::nullopt;
 }
 
@@ -3777,7 +3777,9 @@ SharedMnOwnFunding SharedMnCreateDialog::ownFunding() const
         for (const auto& input : contribution.inputs) {
             const COutPoint outpoint{uint256S(input.txid.toStdString()), input.vout};
             CTxOut txout{wallet.getCoins({outpoint}).front().txout};
-            if (Coin coin; txout.IsNull() && m_node.getUnspentOutput(outpoint, coin)) txout = coin.out;
+            if (txout.IsNull()) {
+                if (const auto coin{m_node.getUnspentOutput(outpoint)}) txout = coin->out;
+            }
             if (txout.IsNull()) {
                 if (&contribution == mine) ++funding.unvalued;
                 continue;

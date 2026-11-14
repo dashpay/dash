@@ -176,10 +176,9 @@ void MasternodeFeed::fetch()
 
     dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
         CTxDestination collateralDest;
-        Coin coin;
+        const auto coin{m_client_model.node().getUnspentOutput(dmn->getCollateralOutpoint())};
         QString collateralStr = QObject::tr("UNKNOWN");
-        if (m_client_model.node().getUnspentOutput(dmn->getCollateralOutpoint(), coin) &&
-            ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
+        if (coin && ExtractDestination(coin->out.scriptPubKey, collateralDest)) {
             collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
         }
         int nNextPayment{0};

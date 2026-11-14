@@ -204,6 +204,7 @@ BITCOIN_TESTS =\
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/sock_tests.cpp \
+  test/span_tests.cpp \
   test/spork_tests.cpp \
   test/streams_tests.cpp \
   test/subsidy_tests.cpp \

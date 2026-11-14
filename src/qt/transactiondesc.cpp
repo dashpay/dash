@@ -354,12 +354,10 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         {
             COutPoint prevout = txin.prevout;
 
-            Coin prev;
-            if(node.getUnspentOutput(prevout, prev))
-            {
+            if (auto prev{node.getUnspentOutput(prevout)}) {
                 {
                     strHTML += "<li>";
-                    const CTxOut& txout = prev.out;
+                    const CTxOut& txout = prev->out;
                     CTxDestination address;
                     if (ExtractDestination(txout.scriptPubKey, address))
                     {
