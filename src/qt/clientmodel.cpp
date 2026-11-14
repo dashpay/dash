@@ -109,6 +109,8 @@ void ClientModel::stop()
 {
     unsubscribeFromCoreSignals();
 
+    m_feeds->stop();
+
     m_thread->quit();
     m_thread->wait();
 }

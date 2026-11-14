@@ -10,6 +10,7 @@
 #include <init.h>
 #include <qt/bitcoin.h>
 #include <qt/guiutil.h>
+#include <qt/optionsdialog.h>
 #include <qt/test/optiontests.h>
 #include <test/util/setup_common.h>
 
@@ -17,6 +18,7 @@
 #include <QFont>
 #include <QLabel>
 #include <QSettings>
+#include <QStackedWidget>
 #include <QTest>
 #include <QWidget>
 
@@ -324,4 +326,17 @@ void OptionTests::fontScaleSources()
 
     set_sources(none, none, none);
     GUIUtil::setFontScale(previous_scale);
+}
+
+void OptionTests::tabsWithoutWallet()
+{
+    OptionsDialog dialog{nullptr, /*enableWallet=*/false};
+    auto* pages = dialog.findChild<QStackedWidget*>("stackedWidgetOptions");
+    QVERIFY(pages);
+    dialog.setCurrentTab(OptionsDialog::TAB_NETWORK);
+    QCOMPARE(pages->currentWidget()->objectName(), QString{"pageNetwork"});
+    dialog.setCurrentTab(OptionsDialog::TAB_DISPLAY);
+    QCOMPARE(pages->currentWidget()->objectName(), QString{"pageDisplay"});
+    dialog.setCurrentTab(OptionsDialog::TAB_APPEARANCE);
+    QCOMPARE(pages->currentWidget()->objectName(), QString{"pageAppearance"});
 }
