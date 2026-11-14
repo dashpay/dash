@@ -192,7 +192,7 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
         }
     }
 
-    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, /*checkSigs=*/true)) {
+    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, BLSScheme::Basic)) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- commitment for quorum %s:%d is not valid quorumIndex[%d] nversion[%d], peer=%d\n",
                  __func__, qc.quorumHash.ToString(),
                  std23::to_underlying(qc.llmqType), qc.quorumIndex, qc.nVersion, peer.GetId());
@@ -264,9 +264,7 @@ bool CQuorumBlockProcessor::ProcessBlock(Chainstate& chainstate, const CBlock& b
     }
 
     if (fBLSChecks) {
-        const bool v19_active{
-            DeploymentActiveAfter(pindex->pprev, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
-        const BLSScheme bls_scheme{v19_active ? BLSScheme::Basic : BLSScheme::Legacy};
+        const BLSScheme bls_scheme{BLSSchemeAfter(pindex->pprev, m_chainman.GetConsensus())};
         CCheckQueueControl<utils::BlsCheck> queue_control(&m_bls_queue);
         for (const auto& [_, qc] : qcs) {
             if (qc.IsNull()) continue;
@@ -408,7 +406,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
     }
 
     // we don't validate signatures here; they already validated on previous step
-    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, /*checksigs=*/false)) {
+    if (!qc.Verify({m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex}, std::nullopt)) {
         LogPrint(BCLog::LLMQ,
                  "%s -- height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, "
                  "quorumPublicKey=%s qc verify failed.\n",

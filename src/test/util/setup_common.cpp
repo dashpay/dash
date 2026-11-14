@@ -611,10 +611,8 @@ CBlock TestChainSetup::CreateAndProcessBlock(
     return block;
 }
 
-CBlock TestChainSetup::CreateBlock(
-    const std::vector<CMutableTransaction>& txns,
-    const CScript& scriptPubKey,
-    Chainstate& chainstate)
+CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey,
+                                   Chainstate& chainstate, const std::function<void(CBlock&)>& mutate)
 {
     CBlock block = BlockAssembler(chainstate, m_node, nullptr).CreateNewBlock(scriptPubKey)->block;
 
@@ -633,6 +631,9 @@ CBlock TestChainSetup::CreateBlock(
     block.vtx.insert(block.vtx.end(), llmqCommitments.begin(), llmqCommitments.end());
     for (const CMutableTransaction& tx : txns) {
         block.vtx.push_back(MakeTransactionRef(tx));
+    }
+    if (mutate) {
+        mutate(block);
     }
 
     // Manually update CbTx as we modified the block here
