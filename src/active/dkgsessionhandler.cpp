@@ -89,7 +89,7 @@ bool ActiveDKGSessionHandler::InitNewQuorum(gsl::not_null<const CBlockIndex*> pQ
     }
 
     auto next_session = std::make_shared<ActiveDKGSession>(m_bls_worker, m_dmnman, m_dkgdbgman, m_qdkgsman,
-                                                           m_mn_metaman, m_qsnapman, m_mn_activeman, m_chainman,
+                                                           m_mn_metaman, m_qblockman, m_qsnapman, m_mn_activeman, m_chainman,
                                                            m_sporkman, pQuorumBaseBlockIndex, params);
 
     {

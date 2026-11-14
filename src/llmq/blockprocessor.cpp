@@ -4,6 +4,7 @@
 
 #include <llmq/blockprocessor.h>
 
+#include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
@@ -28,6 +29,7 @@
 
 #include <algorithm>
 #include <map>
+#include <ranges>
 #include <set>
 #include <utility>
 
@@ -841,6 +843,100 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsIndexe
         cycle++;
     }
 
+    return ret;
+}
+
+std::shared_ptr<const CQuorumBlockProcessor::ValidMemberSigners> CQuorumBlockProcessor::GetValidMemberSigners(
+    const CFinalCommitment& qc, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex) const
+{
+    const uint256 qc_hash{::SerializeHash(qc)};
+    if (auto it = m_valid_member_signers_cache.find(qc_hash); it != m_valid_member_signers_cache.end()) {
+        return it->second.second;
+    }
+
+    const auto members = utils::GetAllQuorumMembers(qc.llmqType, {m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex});
+    if (members.size() > qc.validMembers.size() || members.size() > qc.signers.size()) {
+        return nullptr;
+    }
+    auto signers = std::make_shared<ValidMemberSigners>();
+    for (size_t i = 0; i < members.size(); ++i) {
+        if (qc.validMembers[i]) {
+            signers->emplace_back(members[i]->proTxHash, qc.signers[i]);
+        }
+    }
+    m_valid_member_signers_cache.try_emplace(qc_hash, pQuorumBaseBlockIndex->nHeight, signers);
+    return signers;
+}
+
+std::shared_ptr<const SigningRecords> CQuorumBlockProcessor::GetSigningRecords(gsl::not_null<const CBlockIndex*> pindex,
+                                                                                int window) const
+{
+    // Held throughout, so that DKG sessions starting at the same block gather the records only once
+    LOCK(m_signing_records_mutex);
+    const uint256 cache_key{::SerializeHash(std::make_pair(pindex->GetBlockHash(), window))};
+    if (std::shared_ptr<const SigningRecords> cached; m_signing_records_cache.get(cache_key, cached)) {
+        return cached;
+    }
+
+    const int min_height{pindex->nHeight - window};
+    std::vector<std::pair<Consensus::LLMQType, std::vector<const CBlockIndex*>>> quorums_by_type;
+    {
+        // While pindex is on the active chain, the mined commitments until pindex are those of its chain
+        LOCK(::cs_main);
+        if (!m_chainman.ActiveChain().Contains(pindex)) {
+            return nullptr;
+        }
+        for (const auto& params : Params().GetConsensus().llmqs) {
+            if (params.is_single_member()) {
+                continue;
+            }
+            const bool rotation{IsQuorumRotationEnabled(params, pindex)};
+            const size_t max_count{static_cast<size_t>(window / params.dkgInterval + 1) *
+                                   static_cast<size_t>(rotation ? params.signingActiveQuorumCount : 1)};
+            quorums_by_type.emplace_back(params.type,
+                                         rotation ? GetMinedCommitmentsIndexedUntilBlock(params.type, pindex, max_count)
+                                                  : GetMinedCommitmentsUntilBlock(params.type, pindex, max_count));
+        }
+    }
+
+    auto ret = std::make_shared<SigningRecords>();
+    std::vector<uint256> mined_block_hashes;
+    for (const auto& [type, quorums] : quorums_by_type) {
+        // Oldest first, so that the member lists of the active quorums stay in the shared caches
+        for (const auto* pQuorumBaseBlockIndex : quorums | std::views::reverse) {
+            if (pQuorumBaseBlockIndex->nHeight <= min_height) {
+                continue;
+            }
+            const auto [qc, mined_block_hash] = GetMinedCommitment(type, pQuorumBaseBlockIndex->GetBlockHash());
+            if (qc.IsNull()) {
+                return nullptr;
+            }
+            const auto signers = GetValidMemberSigners(qc, pQuorumBaseBlockIndex);
+            if (!signers) {
+                return nullptr;
+            }
+            mined_block_hashes.emplace_back(mined_block_hash);
+            for (const auto& [proTxHash, signed_commitment] : *signers) {
+                (*ret)[proTxHash].push_back({pQuorumBaseBlockIndex->nHeight, signed_commitment});
+            }
+        }
+    }
+
+    {
+        // The commitments were read without cs_main, so a reorg may have replaced some of them since
+        LOCK(::cs_main);
+        for (const auto& hash : mined_block_hashes) {
+            const auto* mined_block = m_chainman.m_blockman.LookupBlockIndex(hash);
+            if (mined_block == nullptr || pindex->GetAncestor(mined_block->nHeight) != mined_block) {
+                return nullptr;
+            }
+        }
+    }
+
+    // Sessions of types with a longer DKG interval gather at an older block
+    std::erase_if(m_valid_member_signers_cache,
+                  [&](const auto& entry) { return entry.second.first <= min_height - window; });
+    m_signing_records_cache.insert(cache_key, ret);
     return ret;
 }
 
