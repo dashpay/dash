@@ -212,8 +212,14 @@ namespace GUIUtil
     /** Known fonts and their "selectable in UI" flag, in registration order. */
     const std::vector<std::pair<QString, /*selectable=*/bool>>& knownFonts();
 
+    /** Supported font scale range; much below the minimum text becomes unreadably small. */
+    constexpr int FONT_SCALE_MIN{-50};
+    constexpr int FONT_SCALE_MAX{100};
     void setFontScale(int font_scale);
     int fontScale();
+    /** Apply `-font-scale` from the command line, config file or settings.json.
+     *  Returns false if it is out of range (no state change in that case). */
+    bool setFontScaleFromArg();
 
     /* Weight operations expressed as caller-friendly arg ints 0..8 -- the format used by
      * `-font-weight-*` CLI args and QSettings persistence. */
