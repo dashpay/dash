@@ -8,9 +8,11 @@ EXTRA_LIBRARIES += \
   $(LIBTEST_UTIL)
 
 TEST_UTIL_H = \
+  test/util/bls.h \
   test/util/blockfilter.h \
   test/util/chainstate.h \
   test/util/coins.h \
+  test/util/evo_snapshot.h \
   test/util/json.h \
   test/util/index.h \
   test/util/llmq_tests.h \
@@ -35,6 +37,7 @@ endif # ENABLE_WALLET
 libtest_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
 libtest_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libtest_util_a_SOURCES = \
+  test/util/bls.cpp \
   test/util/blockfilter.cpp \
   test/util/index.cpp \
   test/util/coins.cpp \

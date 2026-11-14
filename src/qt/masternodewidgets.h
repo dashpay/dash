@@ -44,6 +44,9 @@ bool isP2PKHorP2SHAddress(const QString& address);
 //! translated reason in `error`
 QString freshAddress(WalletModel* wallet_model, QString& error);
 
+//! Shown when the node cannot evaluate its masternode state yet
+QString masternodeStateUnavailableText();
+
 //! Spacing tokens (px) keeping one vertical rhythm across the dialogs' pages
 constexpr int GROUP_SPACING{16}; //!< between top-level groups of a page
 constexpr int TITLE_SPACING{8};  //!< between a group's title and its body

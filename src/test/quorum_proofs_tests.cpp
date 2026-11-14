@@ -1,13 +1,15 @@
 // Copyright (c) 2025-2026 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying file COPYING.
-#include <boost/test/unit_test.hpp>
 #include <algorithm>
+#include <boost/test/unit_test.hpp>
 #include <chainlock/clsig.h>
 #include <chainparamsbase.h>
 #include <consensus/merkle.h>
 #include <context.h>
 #include <evo/cbtx.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_config.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <future>
 #include <hash.h>
@@ -168,6 +170,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
 
     void CreateHistory()
     {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
         const auto& consensus = Params().GetConsensus();
         const auto params = *Params().GetLLMQ(consensus.llmqTypeChainLocks);
         auto& chainman = *m_node.chainman;
@@ -200,12 +203,10 @@ struct QuorumProofGenerationSetup : TestingSetup {
                 });
                 BOOST_REQUIRE(match != commitments.end());
                 const size_t key = static_cast<size_t>(match - commitments.begin());
-                payload.bestCLSignature.Set(keys[key].Sign(llmq::SignHash{params.type, signer->quorumHash,
-                                                                           chainlock::GenSigRequestId(height - 1),
-                                                                           previous->GetBlockHash()}
-                                                                .Get(),
-                                                            false),
-                                            bls::bls_legacy_scheme.load());
+                payload.bestCLSignature.Set(
+                    keys[key].Sign(llmq::SignHash{params.type, signer->quorumHash,
+                                                  chainlock::GenSigRequestId(height - 1), previous->GetBlockHash()}
+                                       .Get()));
             }
             const bool mining = height == checkpoint_height - params.dkgInterval || height == checkpoint_height ||
                                 (mine_nonstandard_handoff && height == handoff_height);
@@ -323,6 +324,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
 BOOST_FIXTURE_TEST_SUITE(quorum_proofs_tests, QuorumProofsRegtestSetup)
 BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProofGenerationSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     CreateHistory();
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
@@ -347,6 +349,10 @@ BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProo
     BOOST_CHECK_THROW(Generate(0), UniValue);
     WITH_LOCK(cs_main, chain.SetTip(*tip));
 
+    // The commitment set the NORMAL view reads at the checkpoint is remembered
+    // for that view.
+    BOOST_CHECK(!builder.ActiveCommitments(checkpoint).empty());
+
     // Missing history is a hard error, not a reason to skip to another target.
     // A state read once is memoized by block hash, so start from a cold cache.
     llmq::ClearProofStateCacheForTesting();
@@ -354,9 +360,25 @@ BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProo
     BOOST_CHECK_EXCEPTION(Generate(checkpoint_height + 1), UniValue, [](const UniValue& error) {
         return error["message"].get_str().find("historical block unavailable") != std::string::npos;
     });
+
+    // A snapshot view has no quorum history at or below its base: it reads the
+    // set itself and finds it unavailable instead of being served the NORMAL one.
+    CEvoDB& evodb{*m_node.evodb};
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(evodb.CreateSnapshotGeneration(chain.Tip()->GetBlockHash(), chain.Tip()->nHeight));
+        BOOST_REQUIRE(evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(),
+                                                      std::nullopt));
+    }
+    {
+        const EvoViewScope snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK_THROW(builder.ActiveCommitments(checkpoint), BlockDataUnavailableError);
+    }
+    BOOST_REQUIRE(WITH_LOCK(cs_main, return evodb.AbandonSnapshotGeneration()));
 }
 BOOST_FIXTURE_TEST_CASE(rotating_commitment_scan_resumes_below_cached_cycles, QuorumProofGenerationSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     // A scan that finds only part of its request cached must continue below the
     // last cached quorum's base block. Resuming below its mined block would revisit
     // the commitments of that cycle mined before it.
@@ -410,6 +432,7 @@ BOOST_FIXTURE_TEST_CASE(rotating_commitment_scan_resumes_below_cached_cycles, Qu
 }
 BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGenerationSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     // A handoff must stay provable whatever shape the miner gave the mined
     // commitment, otherwise one block mined by custom software permanently
     // removes that quorum's key from every proof.

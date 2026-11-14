@@ -86,7 +86,11 @@ public:
 
     bool BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, const CBlockIndex* blockIndex,
                           const llmq::CQuorumBlockProcessor& quorum_block_processor);
-    bool BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const node::BlockManager& blockman, const CBlockIndex* blockIndex);
+    /** Collect the coinbase ChainLock each new quorum's work block certifies.
+     *  A certificate this node cannot read is an error carrying
+     *  BLOCK_DATA_UNAVAILABLE_SUFFIX, never a null signature. */
+    bool BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const node::BlockManager& blockman,
+                                  const CBlockIndex* blockIndex, std::string& error);
 
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson(bool extended = false) const;

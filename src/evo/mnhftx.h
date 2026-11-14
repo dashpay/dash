@@ -11,6 +11,7 @@
 #include <versionbits.h>
 
 #include <bls/bls.h>
+#include <evo/viewcache.h>
 #include <unordered_lru_cache.h>
 
 #include <gsl/pointers.h>
@@ -46,7 +47,7 @@ public:
     SERIALIZE_METHODS(MNHFTx, obj)
     {
         READWRITE(obj.versionBit, obj.quorumHash);
-        READWRITE(CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.sig), /*legacy=*/false));
+        READWRITE(obj.sig);
     }
 
     std::string ToString() const;
@@ -105,7 +106,8 @@ private:
     static constexpr size_t MNHFCacheSize = 1000;
     Mutex cs_cache;
     // versionBit <-> height
-    Uint256LruHashMap<Signals> mnhfCache GUARDED_BY(cs_cache){MNHFCacheSize};
+    EvoViewCache<Uint256LruHashMap<Signals>> mnhfCache GUARDED_BY(cs_cache){
+        [] { return Uint256LruHashMap<Signals>{MNHFCacheSize}; }};
 
 public:
     CMNHFManager() = delete;
@@ -131,18 +133,47 @@ public:
     // Implements interface
     Signals GetSignalsStage(const CBlockIndex* const pindexPrev) override EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
-    bool ForceSignalDBUpdate(const CBlockIndex* tip) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
-
-private:
-    void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    //! Recompute and persist the signals at `tip` under `view`, the view of
+    //! the chainstate whose tip it is. Signals a snapshot view lacks the
+    //! history for are left to be rebuilt on demand; failing to rebuild them
+    //! for NORMAL, or to read a block body, fails.
+    bool ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
+    /** Seed the signal record of a snapshot base into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedSignals(const EvoViewToken& view, const CBlockIndex* pindex, const Signals& signals)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
 
     /**
-     * This function returns list of signals available on previous block.
-     * if the signals for previous block is not available in cache it would read blocks from disk
-     * until state won't be recovered.
+     * The raw signal record of a block, before GetSignalsStage() filters it.
+     * If neither the cache nor EvoDB has it, it is rebuilt from block data,
+     * persisting the rebuilt records only inside a block-scoped transaction
+     * and, in a snapshot view, only above the base. A body the rebuild needs
+     * and this node lacks raises BlockDataUnavailableError.
      * NOTE: that some signals could expired between blocks.
      */
     Signals GetForBlock(const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+
+private:
+    /**
+     * GetForBlock(), except that with `derive_requested` the record of
+     * `pindex` itself may be derived. A snapshot view holds the record of its
+     * base and none below it; for a block on the base's chain at or below the
+     * base, the base record's signals mined up to that block are a record with
+     * the block's own stage: a signal is only ever dropped by the expiry rule,
+     * which depends on the signal alone and which GetSignalsStage() re-applies.
+     * A derived record is never cached or persisted, and never derived for a
+     * block off the base's chain, which only that branch's own records or
+     * blocks can answer, or where the view carries no base record.
+     */
+    Signals GetRecord(const CBlockIndex* pindex, bool derive_requested) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    //! The base of a snapshot view and the signal record it carries, if any.
+    std::optional<std::pair<const CBlockIndex*, Signals>> SeededBase(const EvoViewToken& view)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+
+    void AddToCache(const Signals& signals, const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);
+    //! Persist the signals at `pindex` when a block-scoped transaction can commit them.
+    void MaybePersist(const Signals& signals, const CBlockIndex* const pindex);
 
     /**
      * This function access to in-memory cache or to evo db but does not calculate anything

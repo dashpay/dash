@@ -254,8 +254,12 @@ void MasternodeList::updateRegistrationAvailability()
     }
 
     // isV24Active() takes cs_main and this runs on every block; activation is
-    // monotonic, so ask only until it is
-    if (!m_v24_active && clientModel != nullptr) m_v24_active = clientModel->node().isV24Active();
+    // monotonic, so ask only until it is. An unknown state asks again later.
+    std::optional<bool> v24_state{m_v24_active};
+    if (!m_v24_active && clientModel != nullptr) {
+        v24_state = clientModel->node().isV24Active();
+        m_v24_active = v24_state.value_or(false);
+    }
     const bool v24_active{clientModel != nullptr && m_v24_active};
     const bool can_shared{can_register && v24_active};
     ui->btnSharedMasternode->setEnabled(can_shared);
@@ -265,6 +269,8 @@ void MasternodeList::updateRegistrationAvailability()
         ui->btnSharedMasternode->setToolTip(tr("Managing shared masternodes requires a wallet with private keys."));
     } else if (clientModel == nullptr) {
         ui->btnSharedMasternode->setToolTip(tr("Shared masternode management is unavailable until the node is ready."));
+    } else if (!v24_state) {
+        ui->btnSharedMasternode->setToolTip(MasternodeWidgetUtil::masternodeStateUnavailableText());
     } else if (!v24_active) {
         ui->btnSharedMasternode->setToolTip(tr("Shared masternodes require the v24 hard fork, which is not active on this network yet."));
     } else {
@@ -478,10 +484,22 @@ const MasternodeEntry* MasternodeList::selectedEntryForDialog()
     return entry != nullptr && clientModel != nullptr && walletModel != nullptr ? entry : nullptr;
 }
 
+std::optional<interfaces::ProviderTxCapabilities> MasternodeList::providerTxCapabilities()
+{
+    auto capabilities{clientModel->node().evo().getProviderTxCapabilities()};
+    if (!capabilities) {
+        QMessageBox::warning(this, tr("Masternode state unavailable"),
+                             MasternodeWidgetUtil::masternodeStateUnavailableText());
+    }
+    return capabilities;
+}
+
 void MasternodeList::onUpdateService()
 {
     if (const auto* entry{selectedEntryForDialog()}) {
-        UpdateServiceDialog dialog(clientModel->node(), walletModel, *entry, this);
+        const auto capabilities{providerTxCapabilities()};
+        if (!capabilities) return;
+        UpdateServiceDialog dialog(clientModel->node(), walletModel, *entry, *capabilities, this);
         dialog.exec();
     }
 }
@@ -490,7 +508,9 @@ void MasternodeList::onUpdateRegistrar()
 {
     if (const auto* entry{selectedEntryForDialog()};
         entry != nullptr && walletModel->wallet().isSpendable(PKHash(entry->keyIdOwnerRaw()))) {
-        UpdateRegistrarDialog dialog(clientModel->node(), walletModel, *entry, this);
+        const auto capabilities{providerTxCapabilities()};
+        if (!capabilities) return;
+        UpdateRegistrarDialog dialog(clientModel->node(), walletModel, *entry, *capabilities, this);
         dialog.exec();
     }
 }
@@ -574,10 +594,11 @@ void MasternodeList::updateMasternodeList()
         return;
     }
 
-    std::set<COutPoint> setOutpts;
-    for (const auto& outpt : walletModel->wallet().listProTxCoins()) {
-        setOutpts.emplace(outpt);
-    }
+    // Without the wallet's collaterals ownership cannot be told; keep the
+    // current list until a later update.
+    const auto protx_coins{walletModel->wallet().listProTxCoins()};
+    if (!protx_coins) return;
+    const std::set<COutPoint> setOutpts{protx_coins->begin(), protx_coins->end()};
 
     QSet<QString> owned_mns;
     QHash<QString, int> my_share_counts;

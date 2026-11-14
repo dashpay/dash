@@ -4,6 +4,8 @@
 
 #include <evo/cbtx.h>
 
+#include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -50,8 +52,8 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_act
         }
     }
 
-    // The signature is deserialized lazily. Get() decodes it in the active scheme only and
-    // resets the wrapper on failure, which is what the eager parser did with bytes encoded
+    // The signature is deserialized lazily and is always basic. Get() resets the wrapper when
+    // the bytes are not a basic point, which is what the eager parser did with bytes encoded
     // in the opposite scheme; bytes that decode in neither scheme made it throw, so they
     // are rejected here.
     if (cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE) {
@@ -193,6 +195,32 @@ std::string CCbTx::ToString() const
         creditPoolBalance / COIN, creditPoolBalance % COIN, merkleRootAssetUnlocks.ToString());
 }
 
+std::optional<CCbTx> DecodeCbTxPayload(const CTransaction& tx)
+{
+    if (!tx.IsCoinBase() || tx.nType != TRANSACTION_COINBASE) return std::nullopt;
+    CDataStream ds(tx.vExtraPayload, SER_NETWORK, PROTOCOL_VERSION);
+    CCbTx cbtx;
+    try {
+        ds >> cbtx.nVersion >> cbtx.nHeight >> cbtx.merkleRootMNList;
+        if (cbtx.nVersion >= CCbTx::Version::MERKLE_ROOT_QUORUMS) {
+            ds >> cbtx.merkleRootQuorums;
+            if (cbtx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE) {
+                ds >> COMPACTSIZE(cbtx.bestCLHeightDiff);
+                // Decoded eagerly: bytes valid in neither scheme reject the payload.
+                CBLSSignature signature;
+                ds >> signature;
+                cbtx.bestCLSignature.Set(signature);
+                ds >> cbtx.creditPoolBalance;
+                if (cbtx.nVersion >= CCbTx::Version::MERKLE_ROOT_ASSETUNLOCKS) ds >> cbtx.merkleRootAssetUnlocks;
+            }
+        }
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+    if (!ds.empty()) return std::nullopt;
+    return cbtx;
+}
+
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const node::BlockManager& blockman, const CBlockIndex* pindex)
 {
     if (pindex == nullptr) {
@@ -204,22 +232,33 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
         return std::nullopt;
     }
 
-    CBlock block;
-    if (!blockman.ReadBlockFromDisk(block, *pindex)) {
+    const auto [have_data, block_pos]{WITH_LOCK(::cs_main, return std::make_pair(
+        (pindex->nStatus & BLOCK_HAVE_DATA) != 0, pindex->GetBlockPos()))};
+    if (!have_data) {
+        // A snapshot view lacks the bodies at or below its base, where a
+        // coinbase ChainLock that cannot be read cannot be told from none.
+        if (const auto view{EvoViewScope::InnermostAny()};
+            view && view->identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view->base_height) {
+            throw BlockDataUnavailableError(
+                strprintf("coinbase of block %s at or below the snapshot base is not available",
+                          pindex->GetBlockHash().ToString()));
+        }
         return std::nullopt;
     }
+    CBlock block;
+    if (blockman.ReadBlockFromDisk(block, block_pos) != pindex->GetBlockHash()) {
+        throw BlockDataReadError(strprintf("coinbase of block %s cannot be read", pindex->GetBlockHash().ToString()));
+    }
 
-    return GetNonNullCoinbaseChainlock(block, pindex->nHeight);
+    return GetNonNullCoinbaseChainlock(block, *pindex);
 }
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, int32_t height)
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, const CBlockIndex& index)
 {
-    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase() || block.vtx[0]->nType != TRANSACTION_COINBASE) {
-        return std::nullopt;
-    }
-    const auto payload = GetTxPayload<CCbTx>(*block.vtx[0]);
-    if (!payload || payload->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || payload->nHeight != height ||
-        !payload->bestCLSignature.Get().IsValid() || payload->bestCLHeightDiff >= static_cast<uint32_t>(height)) {
+    if (block.vtx.empty()) return std::nullopt;
+    const auto payload{DecodeCbTxPayload(*block.vtx[0])};
+    if (!payload || payload->nVersion < CCbTx::Version::CLSIG_AND_BALANCE || payload->nHeight != index.nHeight ||
+        !payload->bestCLSignature.Get().IsValid() || payload->bestCLHeightDiff >= static_cast<uint32_t>(index.nHeight)) {
         return std::nullopt;
     }
     return std::make_pair(payload->bestCLSignature.Get(), payload->bestCLHeightDiff);

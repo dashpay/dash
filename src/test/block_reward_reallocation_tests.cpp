@@ -7,6 +7,7 @@
 
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <masternode/payments.h>
 #include <util/check.h>
 #include <util/helpers.h>
@@ -48,6 +49,7 @@ BOOST_AUTO_TEST_CASE(simple_utxo_map_skips_unspendable_outputs)
 
 BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& dmnman = *Assert(m_node.dmnman);
     const auto& consensus_params = Params().GetConsensus();
 
@@ -67,7 +69,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
     {
         LOCK(cs_main);
         const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
-        dmnman.UpdatedBlockTip(tip);
+        NotifyMNListTip(dmnman, tip);
 
         BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(tx.GetHash()));
 
@@ -81,7 +83,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         LOCK(cs_main);
         const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
         BOOST_CHECK_EQUAL(tip->nHeight, 499);
-        dmnman.UpdatedBlockTip(tip);
+        NotifyMNListTip(dmnman, tip);
         BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(tx.GetHash()));
         BOOST_CHECK(tip->nHeight < Params().GetConsensus().BRRHeight);
         // Creating blocks by different ways
@@ -90,7 +92,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
     for ([[maybe_unused]] auto _ : util::irange(499)) {
         CreateAndProcessBlock({}, coinbasePubKey);
         LOCK(cs_main);
-        dmnman.UpdatedBlockTip(m_node.chainman->ActiveChain().Tip());
+        NotifyMNListTip(dmnman, m_node.chainman->ActiveChain().Tip());
     }
     BOOST_CHECK(WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Height()) < Params().GetConsensus().BRRHeight);
     CreateAndProcessBlock({}, coinbasePubKey);
@@ -100,7 +102,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         LOCK(cs_main);
         const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
         BOOST_CHECK_EQUAL(tip->nHeight, Params().GetConsensus().BRRHeight - 1);
-        dmnman.UpdatedBlockTip(tip);
+        NotifyMNListTip(dmnman, tip);
         BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(tx.GetHash()));
     }
 
@@ -112,7 +114,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         const CBlockIndex* const tip{Assert(m_node.chainman->ActiveChain().Tip())};
         const MnRewardEra era{GetMnRewardEraAfter(tip, *m_node.chainman)};
         const bool isV20Active{era != MnRewardEra::Classic};
-        dmnman.UpdatedBlockTip(tip);
+        NotifyMNListTip(dmnman, tip);
         BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(tx.GetHash()));
         const CAmount block_subsidy = GetBlockSubsidyInner(tip->nBits, tip->nHeight, consensus_params, isV20Active);
         const CAmount masternode_payment = GetMasternodePayment(tip->nHeight, block_subsidy, consensus_params, era);

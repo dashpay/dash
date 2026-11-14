@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <evo/evodb.h>
 #include <kernel/mempool_persist.h>
 
 #include <node/mempool_args.h>
@@ -37,6 +38,7 @@ void initialize_validation_load_mempool()
 FUZZ_TARGET(validation_load_mempool, .init = initialize_validation_load_mempool)
 {
     FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
+    const ActiveEvoViewScope turn{g_setup->m_node.evodb.get()};
     SetMockTime(ConsumeTime(fuzzed_data_provider));
     FuzzedFileProvider fuzzed_file_provider = ConsumeFile(fuzzed_data_provider);
 

@@ -45,11 +45,17 @@ class DumptxoutsetTest(BitcoinTestFramework):
         # UTXO snapshot hash should be deterministic based on mocked time.
         assert_equal(
             sha256sum_file(str(expected_path)).hex(),
-            '4a34cf865938252bf0bef702989955824d886f595afab596b1edac4dd31cd89f')
+            '4df75dcaea0d067537225913bb7ca3d5a6a4050909d9169b474190b1f445fb05')
 
         assert_equal(
             out['txoutset_hash'], '3baec1b74f1f02749a2b519655f84326aa903ed00bca049950efffb927ac2b1d')
         assert_equal(out['nchaintx'], 101)
+        # Before DIP3 the evo section carries no state.
+        assert_equal(out['evo']['version'], 4)
+        assert_equal(out['evo']['mn_count'], 0)
+        assert_equal(out['evo']['quorums'], [])
+        assert_equal(out['evo']['credit_history'], 0)
+        assert_equal(out['evo']['base_coinbase'], False)
 
         # Specifying a path to an existing or invalid file will fail.
         assert_raises_rpc_error(

@@ -83,10 +83,20 @@ class ProTxVersionTest(DashTestFramework):
         surviving_legacy_mn: MasternodeInfo = self.dynamically_add_masternode()
         assert surviving_legacy_mn is not None
 
+        self.log.info("Operator-signed provider transactions are refused before v19")
+        extra_legacy_mn.update_service(self.nodes[0], submit=False,
+                                       addrs_core_p2p=[f'127.0.0.1:{extra_legacy_mn.nodePort}'],
+                                       expected_assert_code=-8,
+                                       expected_assert_msg="operator-signed provider transactions need v19 to be active")
+
         mn_list_before = self.nodes[0].masternodelist()
         pubkeyoperator_list_before = set([mn_list_before[e]["pubkeyoperator"] for e in mn_list_before])
 
-        self.mine_quorum(llmq_type_name='llmq_test', llmq_type=100)
+        self.log.info("A quorum base before v19 does not start a DKG session")
+        dkg_interval = 24
+        blocks_to_dkg_start = dkg_interval - self.nodes[0].getblockcount() % dkg_interval
+        with self.mninfo[0].get_node(self).assert_debug_log(["v19 is not active"]):
+            self.generate(self.nodes[0], blocks_to_dkg_start)
 
         self.activate_by_name('v19', expected_activation_height=200)
         self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))

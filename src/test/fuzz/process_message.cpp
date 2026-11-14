@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/consensus.h>
+#include <evo/evodb.h>
 #include <net.h>
 #include <protocol.h>
 #include <script/script.h>
@@ -66,7 +67,10 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
     CNode& p2p_node = *ConsumeNodeAsUniquePtr(fuzzed_data_provider).release();
 
     connman.AddTestNode(p2p_node);
-    FillNode(fuzzed_data_provider, connman, p2p_node);
+    {
+        const ActiveEvoViewScope turn{g_setup->m_node.evodb.get()};
+        FillNode(fuzzed_data_provider, connman, p2p_node);
+    }
 
     const auto mock_time = ConsumeTime(fuzzed_data_provider);
     SetMockTime(mock_time);
@@ -81,6 +85,7 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
     bool more_work{true};
     while (more_work) {
         p2p_node.fPauseSend = false;
+        const ActiveEvoViewScope turn{g_setup->m_node.evodb.get()};
         try {
             more_work = connman.ProcessMessagesOnce(p2p_node);
         } catch (const std::ios_base::failure&) {

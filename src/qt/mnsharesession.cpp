@@ -1014,7 +1014,7 @@ bool MnShareSession::payloadMatchesEnvelope(QString& error) const
 
     const CTxDestination voting{DecodeDestination(m_terms.votingAddress.toStdString())};
     const auto* voting_pkhash{std::get_if<PKHash>(&voting)};
-    const bool operator_matches{QString::fromStdString(payload.pubKeyOperator.Get().ToString(/*specificLegacyScheme=*/false))
+    const bool operator_matches{QString::fromStdString(payload.pubKeyOperator.Get().ToString())
                                     .compare(m_terms.operatorPubKey, Qt::CaseInsensitive) == 0};
     if (!voting_pkhash || ToKeyID(*voting_pkhash) != payload.keyIDVoting ||
         !operator_matches ||

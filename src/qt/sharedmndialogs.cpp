@@ -406,8 +406,8 @@ void UpdateShareDialog::validate()
 
     if (!m_is_shared) {
         showError(tr("This masternode is not shared and has no share table."));
-    } else if (!m_v24_active) {
-        showError(SharedMnV24InactiveMessage());
+    } else if (!m_v24_active.value_or(false)) {
+        showError(SharedMnV24InactiveMessage(m_v24_active));
     } else if (m_share_combo->count() == 0) {
         showError(NoShareKeysMessage());
     } else if (!m_reward_edit->text().trimmed().isEmpty() && !problem.isEmpty()) {
@@ -418,7 +418,7 @@ void UpdateShareDialog::validate()
         clearError();
     }
 
-    setOkValid(m_v24_active && m_is_shared && has_share && problem.isEmpty() &&
+    setOkValid(m_v24_active.value_or(false) && m_is_shared && has_share && problem.isEmpty() &&
                !m_fee_source->selectedAddress().isEmpty());
 }
 
@@ -894,9 +894,9 @@ bool SharedMnDialog::gateButton(QPushButton* button) const
         button->setToolTip(tr("This wallet is watch-only and cannot sign."));
         return false;
     }
-    if (!m_v24_active) {
+    if (!m_v24_active.value_or(false)) {
         button->setEnabled(false);
-        button->setToolTip(SharedMnV24InactiveMessage());
+        button->setToolTip(SharedMnV24InactiveMessage(m_v24_active));
         return false;
     }
     return true;
@@ -1784,7 +1784,7 @@ void DissolveDialog::recordStandbySaved()
 RotateSharedKeysDialog::RotateSharedKeysDialog(interfaces::Node& node, WalletModel* wallet_model,
                                                const MasternodeEntry& entry, QWidget* parent) :
     SharedMnDialog(node, wallet_model, entry, parent),
-    m_current_operator_pubkey{entry.operatorPubKey(/*legacy_scheme=*/false)},
+    m_current_operator_pubkey{entry.operatorPubKey()},
     m_current_voting_address{entry.votingAddress()}
 {
     setWindowTitle(tr("Rotate Operator or Voting Key"));
@@ -1942,7 +1942,7 @@ QString RotateSharedKeysDialog::operatorKeyInput() const
 bool RotateSharedKeysDialog::IsValidOperatorKey(const QString& hex)
 {
     CBLSPublicKey key;
-    return key.SetHexStr(hex.toStdString(), /*specificLegacyScheme=*/false) && key.IsValid();
+    return key.SetHexStr(hex.toStdString()) && key.IsValid();
 }
 
 void RotateSharedKeysDialog::preloadEnvelope(const QString& text)
@@ -1987,8 +1987,7 @@ void RotateSharedKeysDialog::showRequestedChange()
     QStringList lines;
     if (DecodeHexTx(tx, m_collector->txHex().toStdString())) {
         if (const auto ptx{GetTxPayload<CProUpSharedRegTx>(tx)}) {
-            const QString new_operator{
-                QString::fromStdString(ptx->pubKeyOperator.Get().ToString(/*specificLegacyScheme=*/false))};
+            const QString new_operator{QString::fromStdString(ptx->pubKeyOperator.Get().ToString())};
             const QString new_voting{QString::fromStdString(EncodeDestination(PKHash(ptx->keyIDVoting)))};
             lines << tr("Operator key: %1")
                          .arg(new_operator.compare(m_current_operator_pubkey, Qt::CaseInsensitive) == 0
@@ -2048,7 +2047,7 @@ void RotateSharedKeysDialog::prepare()
     request.pro_tx_hash = m_protx_hash_raw;
     if (const QString key{operatorKeyInput()}; !key.isEmpty()) {
         CBLSPublicKey operator_key;
-        if (!operator_key.SetHexStr(key.toStdString(), /*specificLegacyScheme=*/false)) {
+        if (!operator_key.SetHexStr(key.toStdString())) {
             ShowStatusLabel(m_status_label, tr("Enter a valid operator public key."), /*error=*/true);
             return;
         }
