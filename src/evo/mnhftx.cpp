@@ -6,6 +6,7 @@
 #include <deploymentstatus.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
@@ -48,6 +49,7 @@ CMNHFManager::CMNHFManager(CEvoDB& evoDb, const node::BlockManager& blockman, co
     m_blockman{blockman},
     m_consensus_params{consensus_params}
 {
+    mnhfCache.SetOwner(evoDb);
     assert(globalInstance == nullptr);
     globalInstance = this;
 }
@@ -254,6 +256,8 @@ std::optional<CMNHFManager::Signals> CMNHFManager::ProcessBlock(const CBlock& bl
         // M_ERROR so the block is not marked invalid.
         state.Error(e.what());
         return std::nullopt;
+    } catch (const evo::LocalStateError&) {
+        throw;
     } catch (const std::exception& e) {
         LogPrintf("CMNHFManager::ProcessBlock -- failed: %s\n", e.what());
         state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-proc-mnhf-inblock");
@@ -299,9 +303,17 @@ CMNHFManager::Signals CMNHFManager::GetForBlock(const CBlockIndex* pindex)
         if (pindex_top->nHeight % 1000 == 0) {
             LogPrintf("re-index EHF signals at block %d\n", pindex_top->nHeight);
         }
+        // A body this node does not have (pruned, or below an unvalidated
+        // snapshot base), or has but cannot read, is a local state error,
+        // never the block's fault.
+        const auto [have_data, block_pos]{WITH_LOCK(::cs_main, return std::make_pair(
+            (pindex_top->nStatus & BLOCK_HAVE_DATA) != 0, pindex_top->GetBlockPos()))};
+        if (!have_data) {
+            throw BlockDataUnavailableError("failed-getehfforblock-read");
+        }
         CBlock block;
-        if (!m_blockman.ReadBlockFromDisk(block, *pindex_top)) {
-            throw std::runtime_error("failed-getehfforblock-read");
+        if (m_blockman.ReadBlockFromDisk(block, block_pos) != pindex_top->GetBlockHash()) {
+            throw BlockDataReadError("failed-getehfforblock-read");
         }
         BlockValidationState state;
         signalsTmp = ProcessBlock(block, pindex_top, false, state);
@@ -332,69 +344,92 @@ std::optional<CMNHFManager::Signals> CMNHFManager::GetFromCache(const CBlockInde
 
 
     const uint256& blockHash = pindex->GetBlockHash();
-    {
-        LOCK(cs_cache);
-        if (mnhfCache.get(blockHash, signals)) {
-            return signals;
-        }
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    if (WITH_LOCK(cs_cache, return mnhfCache.For(view).get(blockHash, signals))) {
+        MaybePersist(signals, pindex);
+        return signals;
     }
     {
         LOCK(cs_cache);
         if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) {
-            mnhfCache.insert(blockHash, signals);
+            mnhfCache.For(view).insert(blockHash, signals);
             return signals;
         }
     }
     if (m_evoDb.Read(std::make_pair(DB_SIGNALS_v2, blockHash), signals)) {
         LOCK(cs_cache);
-        mnhfCache.insert(blockHash, signals);
+        mnhfCache.For(view).insert(blockHash, signals);
         return signals;
     }
     if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_MN_RR)) {
         // before mn_rr activation we are safe
         if (m_evoDb.Read(std::make_pair(DB_SIGNALS, blockHash), signals)) {
             LOCK(cs_cache);
-            mnhfCache.insert(blockHash, signals);
+            mnhfCache.For(view).insert(blockHash, signals);
             return signals;
         }
     }
     return std::nullopt;
 }
 
-void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const pindex)
+void CMNHFManager::MaybePersist(const Signals& signals, const CBlockIndex* const pindex)
 {
-    assert(pindex != nullptr);
-    const uint256& blockHash = pindex->GetBlockHash();
-    if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20) &&
-        !m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, blockHash), signals)) {
+    // Outside a block-scoped transaction (mempool acceptance, mining, RPC) a
+    // write would never be committed and trip the clean-transaction assertion
+    // at the next root commit. The signals stay cached; GetFromCache persists
+    // them from the next transaction-scoped lookup.
+    if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20) || !m_evoDb.HasActiveTransaction()) {
+        return;
+    }
+    if (!m_evoDb.WriteDerived(std::make_pair(DB_SIGNALS_v2, pindex->GetBlockHash()), signals)) {
         // A mismatch is local EvoDB corruption, not a statement about the
         // block. Abort here: some callers (miner, RPC) never pass through a
         // validation-state catch, and the block-connect catches must not
         // translate this into a consensus rejection.
-        const std::string msg = strprintf("CMNHFManager::%s -- EvoDB MNHF state mismatch for block %s",
-                                          __func__, blockHash.ToString());
+        const std::string msg = strprintf("CMNHFManager::%s -- EvoDB MNHF state mismatch for block %s", __func__,
+                                          pindex->GetBlockHash().ToString());
         AbortNode(msg);
         throw EvoDbInconsistencyError(msg);
     }
-    {
-        LOCK(cs_cache);
-        mnhfCache.insert(blockHash, signals);
-    }
 }
 
-bool CMNHFManager::ForceSignalDBUpdate(const CBlockIndex* tip)
+void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const pindex)
 {
-    // force ehf signals db update
-    auto dbTx = m_evoDb.BeginTransaction();
+    assert(pindex != nullptr);
+    MaybePersist(signals, pindex);
+    const EvoViewToken view{m_evoDb.CurrentView()};
+    LOCK(cs_cache);
+    mnhfCache.For(view).insert(pindex->GetBlockHash(), signals);
+}
 
-    const bool last_legacy = bls::bls_legacy_scheme.load();
-    bls::bls_legacy_scheme.store(false);
-    GetSignalsStage(tip);
-    bls::bls_legacy_scheme.store(last_legacy);
+bool CMNHFManager::ForceSignalDBUpdate(const EvoViewToken& view, const CBlockIndex* tip)
+{
+    const EvoViewScope evo_view{view};
+    // force ehf signals db update
+    auto dbTx = m_evoDb.BeginTransaction(view.identity);
+
+    try {
+        GetSignalsStage(tip);
+    } catch (const evo::LocalStateError& e) {
+        // The signals are rebuilt on demand anyway. History a snapshot view
+        // lacks must not keep startup from, say, promoting a validated
+        // snapshot, which is what makes it readable. NORMAL lacks no history
+        // unless it was pruned, and no view can do without a body it has but
+        // cannot read.
+        if (view.identity == EvoDbIdentity::SNAPSHOT && !dynamic_cast<const BlockDataReadError*>(&e)) {
+            LogPrintf("CMNHFManager::%s -- skipping the EHF signal update: %s\n", __func__, e.what());
+            return true;
+        }
+        const bool missing_data{dynamic_cast<const BlockDataUnavailableError*>(&e) ||
+                                dynamic_cast<const BlockDataReadError*>(&e)};
+        LogPrintf("CMNHFManager::%s -- cannot rebuild the EHF signals at block %s: %s%s\n", __func__,
+                  tip->GetBlockHash().ToString(), e.what(), missing_data ? ". Restart with -reindex." : "");
+        return false;
+    }
 
     dbTx->Commit();
     // flush it to disk
-    if (!m_evoDb.CommitRootTransaction()) {
+    if (!m_evoDb.CommitRootTransaction(view.identity)) {
         LogPrintf("CMNHFManager::%s -- failed to commit to evoDB\n", __func__);
         return false;
     }

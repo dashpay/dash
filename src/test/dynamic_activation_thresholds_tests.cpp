@@ -6,6 +6,7 @@
 
 #include <chainparams.h>
 #include <deploymentstatus.h>
+#include <evo/evodb.h>
 #include <node/miner.h>
 #include <validation.h>
 #include <versionbits.h>
@@ -62,6 +63,7 @@ struct TestChainDATSetup : public TestChainSetup
 
     void test(int activation_index, bool check_activation_at_min)
     {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
         const auto& consensus_params = Params().GetConsensus();
         CScript coinbasePubKey = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
 

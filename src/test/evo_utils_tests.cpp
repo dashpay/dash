@@ -5,6 +5,7 @@
 #include <test/util/setup_common.h>
 
 #include <chainparams.h>
+#include <evo/evodb.h>
 #include <llmq/context.h>
 #include <llmq/utils.h>
 #include <validation.h>
@@ -76,6 +77,7 @@ BOOST_FIXTURE_TEST_CASE(utils_IsQuorumTypeEnabled_tests_mainnet, TestingSetup)
 // it, and every node connecting such a block died. It must be reported as "not enabled" instead.
 BOOST_FIXTURE_TEST_CASE(genesis_quorum_base_null_pprev_is_safe, RegTestingSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const CBlockIndex* genesis = WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip());
     BOOST_REQUIRE(genesis != nullptr);
     BOOST_REQUIRE_EQUAL(genesis->nHeight, 0);

@@ -24,6 +24,7 @@ class Chainstate;
 class CDataStream;
 class CDBBatch;
 class CDBWrapper;
+class CEvoDB;
 class CInv;
 class CTransaction;
 struct RPCResult;
@@ -81,8 +82,13 @@ public:
 
     CRecoveredSig(Consensus::LLMQType _llmqType, const uint256& _quorumHash, const uint256& _id, const uint256& _msgHash, const CBLSLazySignature& _sig) :
                   CSigBase(_llmqType, _quorumHash, _id, _msgHash), sig(_sig) {UpdateHash();};
-    CRecoveredSig(Consensus::LLMQType _llmqType, const uint256& _quorumHash, const uint256& _id, const uint256& _msgHash, const CBLSSignature& _sig) :
-                  CSigBase(_llmqType, _quorumHash, _id, _msgHash) {const_cast<CBLSLazySignature&>(sig).Set(_sig, bls::bls_legacy_scheme.load()); UpdateHash();};
+    CRecoveredSig(Consensus::LLMQType _llmqType, const uint256& _quorumHash, const uint256& _id,
+                  const uint256& _msgHash, const CBLSSignature& _sig) :
+        CSigBase(_llmqType, _quorumHash, _id, _msgHash)
+    {
+        const_cast<CBLSLazySignature&>(sig).Set(_sig);
+        UpdateHash();
+    };
 
 private:
     // only in-memory
@@ -199,6 +205,9 @@ public:
     CSigningManager(const CSigningManager&) = delete;
     CSigningManager& operator=(const CSigningManager&) = delete;
     explicit CSigningManager(const CQuorumManager& _qman, const util::DbWrapperParams& db_params, int64_t max_recsigs_age);
+
+    //! The EvoDB the quorum manager reads, for workers that bind an Evo view.
+    const CEvoDB& EvoDb() const;
     ~CSigningManager();
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pending);

@@ -12,6 +12,7 @@
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <evo/dmn_types.h>
+#include <evo/evodb.h>
 #include <evo/netinfo.h>
 #include <evo/providertx.h>
 #include <evo/specialtxman.h>
@@ -37,6 +38,7 @@ template <class T>
 void TestTxHelper(const CMutableTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
                   const std::optional<std::string>& expected_error, const ChainstateManager& chainman)
 {
+    const ActiveEvoViewScope turn{chainman.EvoDb()};
     TxValidationState dummy_state;
     auto opt_payload = GetValidatedPayload<T>(CTransaction{tx}, pindexPrev, chainman.GetConsensus(),
                                               DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24),
@@ -121,22 +123,12 @@ void trivialvalidation_runner(ChainstateManager& chainman, const std::string& js
 BOOST_AUTO_TEST_CASE(trivialvalidation_valid)
 {
     const std::string& json = json_tests::trivially_valid;
-
-    bls::bls_legacy_scheme.store(true);
-    trivialvalidation_runner(*m_node.chainman, json);
-
-    bls::bls_legacy_scheme.store(false);
     trivialvalidation_runner(*m_node.chainman, json);
 }
 
 BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
 {
     const std::string& json = json_tests::trivially_invalid;
-
-    bls::bls_legacy_scheme.store(true);
-    trivialvalidation_runner(*m_node.chainman, json);
-
-    bls::bls_legacy_scheme.store(false);
     trivialvalidation_runner(*m_node.chainman, json);
 }
 
@@ -252,7 +244,7 @@ BOOST_AUTO_TEST_CASE(proupserv_rejects_invalid_ntype)
         proReg.scriptPayout = NewP2PKHScript(payout_key);
         CBLSSecretKey operator_key;
         operator_key.MakeNewKey();
-        proReg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+        proReg.pubKeyOperator.Set(operator_key.GetPublicKey());
 
         TxValidationState state;
         BOOST_CHECK(!proReg.IsTriviallyValid(state));

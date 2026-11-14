@@ -235,10 +235,13 @@ BITCOIN_CORE_H = \
   evo/simplifiedmns.h \
   evo/smldiff.h \
   evo/snapshot.h \
+  evo/snapshot_config.h \
+  evo/snapshot_types.h \
   evo/specialtx.h \
   evo/specialtx_filter.h \
   evo/specialtxman.h \
   evo/types.h \
+  evo/viewcache.h \
   external_signer.h \
   flat-database.h \
   flatfile.h \
@@ -570,6 +573,7 @@ libbitcoin_node_a_SOURCES = \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
   evo/snapshot.cpp \
+  evo/snapshot_config.cpp \
   evo/specialtx.cpp \
   evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \
@@ -955,6 +959,7 @@ libbitcoin_consensus_a_SOURCES = \
   arith_uint256.h \
   bls/bls.cpp \
   bls/bls.h \
+  bls/scheme.h \
   consensus/amount.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
@@ -1311,6 +1316,7 @@ libdashkernel_la_SOURCES = \
   evo/providertx_util.cpp \
   evo/simplifiedmns.cpp \
   evo/smldiff.cpp \
+  evo/snapshot_config.cpp \
   evo/specialtx.cpp \
   evo/specialtx_filter.cpp \
   evo/specialtxman.cpp \

@@ -5,6 +5,8 @@
 #include <chainparams.h>
 #include <consensus/consensus.h>
 #include <evo/assetlocktx.h>
+#include <evo/evodb.h>
+#include <evo/snapshot_config.h>
 #include <evo/specialtx.h>
 #include <hash.h>
 #include <instantsend/instantsend.h>
@@ -26,7 +28,9 @@
 #include <util/strencodings.h>
 #include <validation.h>
 
+#include <limits>
 #include <string_view>
+#include <utility>
 
 #include <boost/test/unit_test.hpp>
 
@@ -64,8 +68,7 @@ struct NetInstantSendTest : TestChain100Setup {
     void Sign(instantsend::InstantSendLock& islock, const CBLSSecretKey& key) const
     {
         const auto sign_hash = llmq::SignHash{params.type, islock.cycleHash, islock.GetRequestId(), islock.txid}.Get();
-        const bool legacy = bls::bls_legacy_scheme.load();
-        islock.sig.Set(key.Sign(sign_hash, legacy), legacy);
+        islock.sig.Set(key.Sign(sign_hash));
     }
 
     std::shared_ptr<instantsend::InstantSendLock> MakeLock(const uint256& cycle_hash, const CBLSSecretKey& key,
@@ -97,6 +100,7 @@ BOOST_AUTO_TEST_SUITE(evo_islock_tests)
 
 BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
     constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
     BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
@@ -120,8 +124,7 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
     islock.cycleHash = WITH_LOCK(cs_main, return chain.Genesis()->GetBlockHash());
     CBLSSecretKey key;
     key.MakeNewKey();
-    const bool legacy = bls::bls_legacy_scheme.load();
-    islock.sig.Set(key.Sign(islock.GetRequestId(), legacy), legacy);
+    islock.sig.Set(key.Sign(islock.GetRequestId()));
     auto peer = MakeTestPeer(/*id=*/1);
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
     CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
@@ -149,6 +152,7 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
 
 BOOST_FIXTURE_TEST_CASE(missing_quorum_does_not_drop_batch, NetInstantSendTest)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     CBLSSecretKey key;
     key.MakeNewKey();
     const auto cycle_hash = AddMinedQuorum(/*height=*/24, key);
@@ -178,8 +182,49 @@ BOOST_FIXTURE_TEST_CASE(missing_quorum_does_not_drop_batch, NetInstantSendTest)
     BOOST_CHECK(sigman.FetchPendingReconstructed().empty());
 }
 
+BOOST_FIXTURE_TEST_CASE(unavailable_quorum_history_skips_only_its_lock, NetInstantSendTest)
+{
+    // Under a snapshot view, quorums mined at or below the base are in history
+    // this node does not have. The quorum at 24 is mined within 34..42.
+    CEvoDB& evodb{*m_node.evodb};
+    const CBlockIndex* base{WITH_LOCK(cs_main, return m_node.chainman->ActiveChain()[48])};
+    BOOST_REQUIRE(evodb.CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct HeightRestore {
+        int& height;
+        const int saved;
+        ~HeightRestore() { height = saved; }
+    };
+    const HeightRestore dip3_restore{consensus.DIP0003Height, std::exchange(consensus.DIP0003Height, 1)};
+    // Without DIP0024 quorums the non-rotating InstantSend type stays enabled,
+    // so a quorum of it may have been mined below the base.
+    const HeightRestore dip0024_quorums_restore{
+        consensus.DIP0024QuorumsHeight,
+        std::exchange(consensus.DIP0024QuorumsHeight, std::numeric_limits<int>::max())};
+
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto below_base = MakeLock(base->GetAncestor(24)->GetBlockHash(), key);
+    // A cycle above the base without a mined quorum, so its absence is known.
+    const auto no_quorum = MakeLock(WITH_LOCK(cs_main, return m_node.chainman->ActiveChain()[60]->GetBlockHash()), key);
+    const std::vector<instantsend::PendingISLockEntry> locks{{{1, below_base}, ::SerializeHash(*below_base)},
+                                                             {{2, no_quorum}, ::SerializeHash(*no_quorum)}};
+
+    EvoViewScope snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    Uint256HashSet failed;
+    BOOST_CHECK_NO_THROW(failed = ProcessBatch(net, params, /*offset=*/0, locks));
+    // The lock that cannot be verified is not reported as failed, which would
+    // blame its peer; the rest of the batch is still checked.
+    BOOST_CHECK(!failed.contains(locks[0].islock_hash));
+    BOOST_CHECK(failed.contains(locks[1].islock_hash));
+    BOOST_CHECK(!m_node.isman->AlreadyHave(CInv{MSG_ISDLOCK, locks[0].islock_hash}));
+}
+
 BOOST_FIXTURE_TEST_CASE(cached_recovered_sig_does_not_authenticate_other_lock, NetInstantSendTest)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     CBLSSecretKey key;
     key.MakeNewKey();
     CBLSSecretKey other_key;
@@ -268,9 +313,7 @@ BOOST_AUTO_TEST_CASE(deserialize_instantlock_from_realdata2)
         "46ceeb4405998ff7235317708f277402799ffe05258015cae9b6bae43683f992b2f50f70f8f0cb9c0f26af340b00903e93995c1345d1b2"
         "c5b697ebecdbe5811dd112e11889101dcb4553b2bc206ab304026b96c07dec4f24";
 
-    // This islock was created with non-legacy. Using legacy will result in the signature being all zeros.
-    bls::bls_legacy_scheme.store(false);
-
+    // This InstantSend lock's signature is basic. An un-annotated decode reads it as basic.
     // Convert hex string to a byte vector and deserialize.
     std::vector<unsigned char> islockData = ParseHex(islockHex);
     CDataStream ss(islockData, SER_NETWORK, PROTOCOL_VERSION);

@@ -23,6 +23,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <stddef.h>
 #include <stdint.h>
 #include <string>
@@ -149,18 +150,22 @@ class EVO
 {
 public:
     virtual ~EVO() {}
+    //! The masternode list at the chain tip, or nulls when it is not available.
     virtual std::pair<MnListPtr, const CBlockIndex*> getListAtChainTip() = 0;
-    virtual ProviderTxCapabilities getProviderTxCapabilities() = 0;
+    //! The provider transaction rules, or nullopt when this node cannot evaluate them yet.
+    virtual std::optional<ProviderTxCapabilities> getProviderTxCapabilities() = 0;
     //! Validate provider endpoints against a capability snapshot without changing node or wallet state or
     //! taking cs_main. Transaction creation validates them again against the then-active rules.
     virtual std::optional<ProviderTxError> validateProviderNetInfo(const ProviderNetInfo& net_info, MnType type,
                                                                    uint16_t version, bool ipv4_optional,
                                                                    bool optional) = 0;
     //! The first endpoint a masternode at the chain tip already uses, which a
-    //! registration with a new collateral cannot reuse. Nothing is reported for
-    //! endpoints validateProviderNetInfo refuses.
-    virtual std::optional<std::string> findProviderNetInfoInUse(const ProviderNetInfo& net_info, MnType type,
-                                                                uint16_t version, bool ipv4_optional) = 0;
+    //! registration with a new collateral cannot reuse, or nullopt when none is.
+    //! Nothing is reported for endpoints validateProviderNetInfo refuses. An
+    //! error means the masternode list could not be read, so nothing was checked.
+    virtual ProviderTxResult<std::optional<std::string>> findProviderNetInfoInUse(const ProviderNetInfo& net_info,
+                                                                                  MnType type, uint16_t version,
+                                                                                  bool ipv4_optional) = 0;
     //! Successful registration with an existing collateral leaves that coin locked,
     //! including when the signed transaction is returned without submission.
     virtual ProviderTxResult<ProviderTxSubmission> registerMasternode(Wallet& wallet,
@@ -202,13 +207,15 @@ public:
         int32_t m_no{0};
         int32_t m_yes{0};
     };
-    virtual Votes getObjVotes(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;
+    //! Vote counts against the current masternode list, or nullopt when that list is not available.
+    virtual std::optional<Votes> getObjVotes(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;
     struct UniqueVoters {
         uint16_t m_regular{0};
         uint16_t m_evo{0};
     };
-    virtual UniqueVoters getObjUniqueVoters(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;
-    virtual std::vector<CGovernanceVote> getCurrentVotes(const uint256& hash) = 0;
+    virtual std::optional<UniqueVoters> getObjUniqueVoters(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;
+    //! The current votes on an object, nullopt while the masternode list is unavailable.
+    virtual std::optional<std::vector<CGovernanceVote>> getCurrentVotes(const uint256& hash) = 0;
     virtual bool existsObj(const uint256& hash) = 0;
     virtual bool isEnabled() = 0;
     virtual bool processVoteAndRelay(const CGovernanceVote& vote, std::string& error) = 0;
@@ -218,7 +225,8 @@ public:
         int superblockmaturitywindow{0};
         int lastsuperblock{0};
         int nextsuperblock{0};
-        int fundingthreshold{0};
+        //! Absolute yes votes a proposal needs; nullopt when the masternode list is not available.
+        std::optional<int> fundingthreshold;
         CAmount governancebudget{0};
         int64_t targetSpacing{0};
         int relayRequiredConfs{1};
@@ -230,7 +238,7 @@ public:
         std::unordered_set<uint256, StaticSaltedHasher> hashes;
         CAmount allocated{0};
     };
-    virtual FundableResult getFundableProposalHashes() = 0;
+    virtual std::optional<FundableResult> getFundableProposalHashes() = 0;
     virtual std::optional<CGovernanceObject> createProposal(int32_t revision, int64_t created_time,
                                 const std::string& data_hex, std::string& error) = 0;
     virtual bool submitProposal(const uint256& parent, int32_t revision, int64_t created_time, const std::string& data_hex,
@@ -254,7 +262,8 @@ public:
         CAmount m_limit{0};
         CAmount m_locked{0};
     };
-    virtual CreditPoolCounts getCreditPoolCounts() = 0;
+    //! Nullopt when the credit pool at the tip is not available.
+    virtual std::optional<CreditPoolCounts> getCreditPoolCounts() = 0;
     struct InstantSendCounts {
         size_t m_verified{0};
         size_t m_unverified{0};
@@ -272,7 +281,8 @@ public:
         int32_t m_newest_height{0};
         int32_t m_expiry_height{0};
     };
-    virtual std::vector<QuorumInfo> getQuorumStats() = 0;
+    //! Nullopt when the quorums at the tip are not available.
+    virtual std::optional<std::vector<QuorumInfo>> getQuorumStats() = 0;
     enum class PlatformQuorumStatus { FOUND, INVALID, UNAVAILABLE };
     struct PlatformQuorumResult {
         PlatformQuorumStatus status{PlatformQuorumStatus::UNAVAILABLE};
@@ -495,8 +505,9 @@ public:
     //! Is loading blocks.
     virtual bool isLoadingBlocks() = 0;
 
-    //! Whether the v24 hard fork rules are active at the chain tip.
-    virtual bool isV24Active() = 0;
+    //! Whether the v24 hard fork rules are active at the chain tip; nullopt
+    //! when this node cannot evaluate the deployment yet.
+    virtual std::optional<bool> isV24Active() = 0;
 
     //! Set network active.
     virtual void setNetworkActive(bool active) = 0;

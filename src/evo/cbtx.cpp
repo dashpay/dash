@@ -4,6 +4,8 @@
 
 #include <evo/cbtx.h>
 
+#include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -50,8 +52,8 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_act
         }
     }
 
-    // The signature is deserialized lazily. Get() decodes it in the active scheme only and
-    // resets the wrapper on failure, which is what the eager parser did with bytes encoded
+    // The signature is deserialized lazily and is always basic. Get() resets the wrapper when
+    // the bytes are not a basic point, which is what the eager parser did with bytes encoded
     // in the opposite scheme; bytes that decode in neither scheme made it throw, so they
     // are rejected here.
     if (cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE) {
@@ -206,6 +208,15 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
 
     CBlock block;
     if (!blockman.ReadBlockFromDisk(block, *pindex)) {
+        // A snapshot view lacks the bodies at or below its base, where a
+        // coinbase ChainLock that cannot be read cannot be told from none.
+        if (const auto view{EvoViewScope::InnermostAny()};
+            view && view->identity == EvoDbIdentity::SNAPSHOT && pindex->nHeight <= view->base_height &&
+            !WITH_LOCK(::cs_main, return pindex->nStatus & BLOCK_HAVE_DATA)) {
+            throw BlockDataUnavailableError(
+                strprintf("coinbase of block %s at or below the snapshot base is not available",
+                          pindex->GetBlockHash().ToString()));
+        }
         return std::nullopt;
     }
 

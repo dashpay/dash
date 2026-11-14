@@ -98,6 +98,8 @@ src/test/spork_tests.cpp
 src/test/unordered_lru_cache_tests.cpp
 src/test/util/llmq_tests.h
 src/test/util/masternode.*
+src/test/util/bls.h
+src/test/util/bls.cpp
 src/test/governance*.cpp
 src/test/index_migration_tests.cpp
 src/unordered_lru_cache.h
@@ -114,3 +116,4 @@ src/wallet/platformkeys.*
 src/wallet/platformtypes.h
 src/wallet/test/platformkeys_tests.cpp
 src/hash_x11.h
+src/bls/scheme.h

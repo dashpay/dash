@@ -4,6 +4,7 @@
 
 #include <arith_uint256.h>
 #include <common/bloom.h>
+#include <evo/evodb.h>
 #include <governance/collateral.h>
 #include <governance/governance.h>
 #include <governance/net_governance.h>
@@ -197,6 +198,7 @@ BOOST_FIXTURE_TEST_SUITE(governance_inv_tests, GovernanceInvSetup)
 
 BOOST_AUTO_TEST_CASE(per_object_vote_sync_is_fulfilled_request_limited)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     // NetGovernance::ProcessMessage ignores MNGOVERNANCESYNC until sync is
@@ -390,6 +392,7 @@ BOOST_AUTO_TEST_CASE(governance_objects_require_peer_announcement_or_request)
 
 BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -478,6 +481,7 @@ BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
 
 BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -532,6 +536,7 @@ BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
 // survive so a retransmit after sync is still accepted (the consume happens after the sync gate).
 BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -573,6 +578,7 @@ BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
 // A vote whose parent object is unknown must prove masternode authorship before it is cached.
 BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -609,6 +615,7 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
 // happens to have arrived first.
 BOOST_AUTO_TEST_CASE(invalid_vote_is_scored_alike_with_and_without_a_parent_object)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);

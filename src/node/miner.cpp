@@ -220,6 +220,7 @@ void BlockAssembler::FillBlockPayments(CMutableTransaction& txNew, const CBlockI
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    const EvoViewScope evo_view{m_chainstate.EvoView()};
     const auto time_start{SteadyClock::now()};
 
     resetBlock();
@@ -361,7 +362,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             if (fV20Active_context) {
                 CBLSSignature best_cl_sig;
                 const bool has_best_cl{CalcCbTxBestChainlock(m_chainlocks, m_chainstate.m_blockman, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig)};
-                cbTx.bestCLSignature.Set(best_cl_sig, bls::bls_legacy_scheme.load());
+                cbTx.bestCLSignature.Set(best_cl_sig);
                 if (has_best_cl) {
                     LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());
                 } else {
@@ -819,6 +820,8 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 std::string error;
                 try {
                     if (!package_mn_list->ApplyTx(tx, state)) error = state.ToString();
+                } catch (const evo::LocalStateError&) {
+                    throw;
                 } catch (const std::runtime_error& e) {
                     // AddMN()/UpdateMN() report a unique-property conflict by throwing
                     error = e.what();

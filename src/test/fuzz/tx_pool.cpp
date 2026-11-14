@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/validation.h>
+#include <evo/evodb.h>
 #include <node/context.h>
 #include <node/mempool_args.h>
 #include <node/miner.h>
@@ -133,6 +134,7 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
     const auto& node = g_setup->m_node;
+    const ActiveEvoViewScope turn{node.evodb.get()};
     auto& chainstate{static_cast<DummyChainState&>(node.chainman->ActiveChainstate())};
 
     MockTime(fuzzed_data_provider, chainstate);
@@ -307,6 +309,7 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
 {
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
     const auto& node = g_setup->m_node;
+    const ActiveEvoViewScope turn{node.evodb.get()};
     auto& chainstate{static_cast<DummyChainState&>(node.chainman->ActiveChainstate())};
 
     MockTime(fuzzed_data_provider, chainstate);

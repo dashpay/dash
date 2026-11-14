@@ -76,7 +76,6 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 
-#include <bls/bls.h>
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/walletman.h>
 #include <evo/cbtx.h>
@@ -164,6 +163,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
             "-debug",
             "-debugexclude=libevent",
             "-debugexclude=leveldb",
+            "-checkevobinding",
         },
         extra_args);
     if (G_TEST_COMMAND_LINE_ARGUMENTS) {
@@ -226,7 +226,8 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     m_node.chainlocks = std::make_unique<chainlock::Chainlocks>(*m_node.sporkman);
     m_node.sbman = std::make_unique<governance::SuperblockManager>();
     m_node.mn_sync = std::make_unique<CMasternodeSync>(std::make_unique<NodeSyncNotifierImpl>(*m_node.connman, *m_node.netfulfilledman));
-    m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
+    m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true},
+                                                 m_node.args->GetBoolArg("-checkevobinding", false));
     m_node.dmnman = std::make_unique<CDeterministicMNManager>(*m_node.evodb, *m_node.mn_metaman);
     m_node.isman = std::make_unique<llmq::CInstantSendManager>(*m_node.sporkman, util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
 
@@ -236,7 +237,6 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
         noui_connected = true;
     }
 
-    bls::bls_legacy_scheme.store(true);
     node::g_indexes_ready_to_sync = true;
 }
 
@@ -392,7 +392,8 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
         m_node.isman.reset();
         m_node.dmnman.reset();
         m_node.evodb.reset();
-        m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
+        m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true},
+                                                 m_node.args->GetBoolArg("-checkevobinding", false));
         m_node.dmnman = std::make_unique<CDeterministicMNManager>(*m_node.evodb, *m_node.mn_metaman);
         m_node.isman = std::make_unique<llmq::CInstantSendManager>(*m_node.sporkman, util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
         m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
@@ -407,9 +408,7 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
                                           *m_node.special_tx);
     assert(status == node::ChainstateLoadStatus::SUCCESS);
 
-    std::tie(status, error) = VerifyLoadedChainstate(chainman, options, *Assert(m_node.evodb), [](bool bls_state) {
-            LogPrintf("LoadVerifyActivateChainstate: bls_legacy_scheme=%d\n", bls_state);
-        });
+    std::tie(status, error) = VerifyLoadedChainstate(chainman, options, *Assert(m_node.evodb));
     assert(status == node::ChainstateLoadStatus::SUCCESS);
 
     BlockValidationState state;
@@ -529,6 +528,8 @@ TestChainSetup::TestChainSetup(
             {   18, uint256S("0x79ffbee99c3f8448a5484564cba47830415dc96d1aed025576d8246dd24f1b0e") },
             /*TestChain100Setup=*/
             {  100, uint256S("0x6ffb83129c19ebdf1ae3771be6a67fe34b35f4c956326b9ba152fac1649f65ae") },
+            /*CommitmentSchemeSetup=*/
+            {  101, uint256S("0x585dcb063a3dc1b9bc6f8224814b5b12d3c5eb28bc27372c6b524c45409828aa") },
             /*TestChainV19BeforeActivationSetup=*/
             {  103, uint256S("0x13adad9565d0ca558f5675c50e3828f4354d26b64de044ebc88686056f30faab") },
             /*TestChainDIP3BeforeActivationSetup=*/
@@ -613,10 +614,8 @@ CBlock TestChainSetup::CreateAndProcessBlock(
     return block;
 }
 
-CBlock TestChainSetup::CreateBlock(
-    const std::vector<CMutableTransaction>& txns,
-    const CScript& scriptPubKey,
-    Chainstate& chainstate)
+CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey,
+                                   Chainstate& chainstate, const std::function<void(CBlock&)>& mutate)
 {
     CBlock block = BlockAssembler(chainstate, m_node, nullptr).CreateNewBlock(scriptPubKey)->block;
 
@@ -636,10 +635,14 @@ CBlock TestChainSetup::CreateBlock(
     for (const CMutableTransaction& tx : txns) {
         block.vtx.push_back(MakeTransactionRef(tx));
     }
+    if (mutate) {
+        mutate(block);
+    }
 
     // Manually update CbTx as we modified the block here
     if (block.vtx[0]->nType == TRANSACTION_COINBASE) {
         LOCK(cs_main);
+        const EvoViewScope evo_view{chainstate.EvoView()};
         auto cbTx = GetTxPayload<CCbTx>(*block.vtx[0]);
         Assert(cbTx.has_value());
         BlockValidationState state;
@@ -812,6 +815,13 @@ void TestChainSetup::MockMempoolMinFee(const CFeeRate& target_feerate)
     m_node.mempool->TrimToSize(0);
     assert(m_node.mempool->GetMinFee() == target_feerate);
 }
+
+void NotifyMNListTip(CDeterministicMNManager& dmnman, const CBlockIndex* tip)
+{
+    const ActiveEvoViewScope turn{&dmnman.EvoDb()};
+    dmnman.UpdatedBlockTip(Assert(tip));
+}
+
 /**
  * @returns a real block (0000000000013b8ab2cd513b0261a14096412195a72a0c4827d229dcc7e0f7af)
  *      with 9 txs.

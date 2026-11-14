@@ -7,6 +7,7 @@
 
 #include <bls/bls.h>
 #include <checkqueue.h>
+#include <evo/viewcache.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <llmq/cache.h>
 #include <llmq/params.h>
@@ -69,7 +70,7 @@ private:
 
     // Cache the block in which a commitment was mined. Membership in a
     // particular chain is checked on every call so reorgs need no cache flush.
-    mutable PerLlmqTypeCache<uint256> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
+    mutable EvoViewCache<PerLlmqTypeCache<uint256>> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
 
     // Memoizes GetQcHashes(). The whole-result cache is keyed on the set of active
     // quorum base blocks, the LRU on those base-block hashes; neither key identifies
@@ -78,10 +79,13 @@ private:
     // invalidation next to the writes it has to follow, and ties their lifetime to the
     // block index whose CBlockIndex* the outer cache stores.
     mutable Mutex m_qc_hashes_cache_mutex;
-    mutable std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable QcHashMap m_qc_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable QcIndexedHashMap m_qc_indexed_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
+    struct QcHashesCache {
+        std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached;
+        PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru;
+        QcHashMap m_qc_hashes_cached;
+        QcIndexedHashMap m_qc_indexed_hashes_cached;
+    };
+    mutable EvoViewCache<QcHashesCache> m_qc_hashes GUARDED_BY(m_qc_hashes_cache_mutex);
 
     //! A block's commitment payloads are needed by CheckSpecialTx, the masternode list update,
     //! ProcessBlock and the CbTx quorum merkle root to avoid duplicated decodes of BLS elements.

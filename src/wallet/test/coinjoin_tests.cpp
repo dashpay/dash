@@ -13,6 +13,7 @@
 #include <coinjoin/util.h>
 #include <common/system.h>
 #include <consensus/amount.h>
+#include <evo/evodb.h>
 #include <interfaces/coinjoin.h>
 #include <masternode/sync.h>
 #include <node/context.h>
@@ -234,6 +235,7 @@ public:
 
 BOOST_FIXTURE_TEST_CASE(coinjoin_maintenance_runs_for_every_wallet, CTransactionBuilderTestSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     struct RestoreOptions {
         const bool enabled{CCoinJoinClientOptions::IsEnabled()};
         const int backups{nWalletBackups};

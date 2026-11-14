@@ -12,6 +12,7 @@
 #include <coinjoin/walletman.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
 #include <net.h>
@@ -45,6 +46,7 @@ struct RegisteredMasternodeSetup : public TestChainSetup {
     RegisteredMasternodeSetup() :
         TestChainSetup(DIP3_ACTIVATION_HEIGHT - 2, ChainType::REGTEST, {"-dip3params=109:500"})
     {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
         auto utxos = BuildSimpleUtxoMap(m_coinbase_txns);
         // Activate DIP3, then register the masternode
         MineBlock({});
@@ -77,8 +79,7 @@ struct RegisteredMasternodeSetup : public TestChainSetup {
 
     static void Sign(CCoinJoinQueue& dsq, const CBLSSecretKey& key)
     {
-        dsq.vchSig = key.Sign(dsq.GetSignatureHash(), /*specificLegacyScheme=*/false)
-                         .ToByteVector(/*specificLegacyScheme=*/false);
+        dsq.vchSig = key.Sign(dsq.GetSignatureHash()).ToByteVector();
     }
 };
 
@@ -349,6 +350,7 @@ BOOST_AUTO_TEST_CASE(queuemanager_try_check_duplicate)
 #ifdef ENABLE_WALLET
 BOOST_FIXTURE_TEST_CASE(client_rejects_invalid_queues, RegisteredMasternodeSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& cj_walletman = *Assert(m_node.cj_walletman);
     const auto peer{MakePeer(/*id=*/0)};
     auto process = [&](const CCoinJoinQueue& dsq) {

@@ -825,9 +825,7 @@ std::set<size_t> CBLSWorker::FindVerificationVectorsWithSharedCoefficients(Span<
 
 void CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, const CBLSWorker::SignDoneCallback& doneCallback)
 {
-    workerPool.push([secKey, msgHash, doneCallback](int threadId) {
-        doneCallback(secKey.Sign(msgHash, bls::bls_legacy_scheme.load()));
-    });
+    workerPool.push([secKey, msgHash, doneCallback](int threadId) { doneCallback(secKey.Sign(msgHash)); });
 }
 
 void CBLSWorker::AsyncVerifySig(const CBLSSignature& sig, const CBLSPublicKey& pubKey, const uint256& msgHash,

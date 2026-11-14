@@ -5,6 +5,7 @@
 #ifndef BITCOIN_EVO_SPECIALTXMAN_H
 #define BITCOIN_EVO_SPECIALTXMAN_H
 
+#include <bls/scheme.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
 #include <gsl/pointers.h>
@@ -34,6 +35,10 @@ class TxValidationState;
 class uint256;
 struct MNListUpdates;
 
+//! Whether the calling thread is bound to `chainstate`'s Evo view (defined in
+//! validation.cpp, so callers need only this declaration).
+bool IsEvoViewBound(const Chainstate& chainstate);
+
 namespace chainlock {
 class Chainlocks;
 }
@@ -55,6 +60,9 @@ struct SpecialTxRules {
     bool evo_shares{false};
     //! A masternode's primary addresses need not be IPv4
     bool ipv4_optional{false};
+    //! Scheme for operator signatures in provider transactions. Commitment signatures are derived
+    //! by the quorum block processor from BLSSchemeAfter.
+    BLSScheme bls_scheme{BLSScheme::Basic};
 };
 
 class CSpecialTxProcessor
@@ -91,8 +99,8 @@ public:
                                   CAmount blockSubsidy, bool fJustCheck, bool fCheckCbTxMerkleRoots,
                                   BlockValidationState& state, MNListUpdates& updatesRet)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, MNListUpdates& updatesRet)
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex,
+                               MNListUpdates& updatesRet) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     void RemoveMineableCommitmentsForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
@@ -199,7 +207,7 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
                      const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs);
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,
+                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs);
 bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                    const Consensus::Params& consensus_params, bool is_v24_active, TxValidationState& state,

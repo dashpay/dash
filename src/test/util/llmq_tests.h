@@ -56,7 +56,7 @@ inline CBLSSignature CreateRandomBLSSignature()
     CBLSSecretKey sk;
     sk.MakeNewKey();
     uint256 hash = InsecureRand256();
-    return sk.Sign(hash, false);
+    return sk.Sign(hash);
 }
 
 inline CFinalCommitment CreateValidCommitment(const Consensus::LLMQParams& params, const uint256& quorumHash)
@@ -136,6 +136,9 @@ inline void WriteMinedCommitment(CEvoDB& evoDb, const CFinalCommitment& qc, cons
                                  int mined_height, int quorum_height)
 {
     assert(mined_height > 0);
+    // As the active chainstate's block connection would, unless the caller
+    // binds another view.
+    const ActiveEvoViewScope turn{&evoDb};
     evoDb.Write(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)),
                 std::make_pair(qc, mined_block_hash));
     evoDb.Write(BuildInversedHeightKey(qc.llmqType, mined_height), quorum_height);
