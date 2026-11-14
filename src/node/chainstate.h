@@ -84,8 +84,8 @@ using ChainstateLoadResult = std::tuple<ChainstateLoadStatus, bilingual_str>;
 ChainstateLoadResult LoadChainstate(ChainstateManager& chainman, const CacheSizes& cache_sizes,
                                     const ChainstateLoadOptions& options, CEvoDB& evodb,
                                     CDeterministicMNManager& dmnman, CSpecialTxProcessor& special_tx);
-ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const ChainstateLoadOptions& options, CEvoDB& evodb,
-                                            std::function<void(bool)> notify_bls_state = nullptr);
+ChainstateLoadResult VerifyLoadedChainstate(ChainstateManager& chainman, const ChainstateLoadOptions& options,
+                                            CEvoDB& evodb);
 } // namespace node
 
 #endif // BITCOIN_NODE_CHAINSTATE_H

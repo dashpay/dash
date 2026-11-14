@@ -181,23 +181,23 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
 
         LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- Received object: %s\n", strHash);
 
-        // Only accept an object if this peer announced it or we requested it from this peer. The
-        // net-layer per-peer request tracker is the authorization source (already bounded), so no
-        // separate governance-side request cache is needed. Consume only after the sync gate, so a
-        // message dropped while not synced does not burn the authorization for a later retransmit.
-        const bool announced_or_requested = WITH_LOCK(
-            ::cs_main, return m_peer_manager->PeerConsumeObjectRequest(peer.GetId(), CInv{MSG_GOVERNANCE_OBJECT, nHash}));
-        if (!announced_or_requested) {
-            LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- Received unrequested object: %s\n", strHash);
-            return;
+        // Accept only an object this peer announced or we requested from it, and consume that authorization only
+        // after the readiness gates, so an object they drop can still be accepted when it is sent again.
+        const CInv inv{MSG_GOVERNANCE_OBJECT, nHash};
+        bool valid;
+        {
+            LOCK(::cs_main);
+            // Snapshot activation can leave collateral impossible to look up since the check above
+            // cppcheck-suppress knownConditionTrueFalse
+            if (m_gov_manager.IsCollateralSourceBehind()) return;
+            if (!m_peer_manager->PeerConsumeObjectRequest(peer.GetId(), inv)) {
+                LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- Received unrequested object: %s\n", strHash);
+                return;
+            }
+            valid = m_gov_manager.ProcessObject(peer.GetLogString(), nHash, govobj);
+            if (valid) m_peer_manager->PeerForgetObjectRequest(inv);
         }
-
-        if (WITH_LOCK(::cs_main, return m_gov_manager.ProcessObject(peer.GetLogString(), nHash, govobj))) {
-            WITH_LOCK(::cs_main, m_peer_manager->PeerForgetObjectRequest(CInv{MSG_GOVERNANCE_OBJECT, nHash}));
-        } else {
-            // apply node's ban score
-            m_peer_manager->PeerMisbehaving(peer.GetId(), 20);
-        }
+        if (!valid) m_peer_manager->PeerMisbehaving(peer.GetId(), 20);
     }
 
     // A NEW GOVERNANCE OBJECT VOTE HAS ARRIVED

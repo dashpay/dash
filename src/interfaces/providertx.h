@@ -39,9 +39,9 @@ enum class ProviderTxErrorCode {
 
 struct ProviderTxError {
     ProviderTxErrorCode code{ProviderTxErrorCode::INTERNAL_ERROR};
-    bilingual_str message;
-    std::string reject_reason;
-    std::optional<TransactionError> transaction_error;
+    bilingual_str message{};
+    std::string reject_reason{};
+    std::optional<TransactionError> transaction_error{};
 };
 
 template <typename T>

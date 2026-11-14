@@ -5,6 +5,7 @@
 #include <bls/bls.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <governance/governance.h>
@@ -21,6 +22,7 @@
 #include <primitives/transaction.h>
 #include <script/standard.h>
 #include <streams.h>
+#include <test/util/bls.h>
 #include <timedata.h>
 #include <uint256.h>
 #include <util/strencodings.h>
@@ -57,10 +59,8 @@ void SignWithVotingKey(CGovernanceVote& vote, const CKey& key)
 
 void SignWithOperatorKey(CGovernanceVote& vote, const CBLSSecretKey& key)
 {
-    // Vote signatures are always basic-scheme, regardless of the currently active BLS scheme:
-    // CGovernanceVote::CheckSignature() deserializes and verifies with legacy=false.
-    vote.SetSignature(
-        key.Sign(vote.GetSignatureHash(), /*specificLegacyScheme=*/false).ToByteVector(/*specificLegacyScheme=*/false));
+    // Vote signatures are basic. CGovernanceVote::CheckSignature() deserializes and verifies them as basic.
+    vote.SetSignature(key.Sign(vote.GetSignatureHash()).ToByteVector());
 }
 
 //! A trigger that is signed by the fixture masternode and passes IsValidLocally, but whose payload
@@ -72,8 +72,7 @@ CGovernanceObject MakeFailedTrigger(const COutPoint& mn_collateral, const CBLSSe
     CGovernanceObject govobj{uint256{}, /*nRevisionIn=*/1, creation_time, uint256{}, HexStr(data)};
     BOOST_REQUIRE(govobj.GetObjectType() == GovernanceObject::TRIGGER);
     govobj.SetMasternodeOutpoint(mn_collateral);
-    govobj.SetSignature(operator_key.Sign(govobj.GetSignatureHash(), /*specificLegacyScheme=*/false)
-                            .ToByteVector(/*specificLegacyScheme=*/false));
+    govobj.SetSignature(operator_key.Sign(govobj.GetSignatureHash()).ToByteVector());
     return govobj;
 }
 
@@ -164,14 +163,18 @@ struct GovernanceVoteSetup : public TestChainSetup {
     //! rejects the raw-pubkey coinbase script, IsCollateralValid() rejects anything else).
     CScript payout_script() const { return GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())); }
 
-    CDeterministicMNList tip_mn_list() const { return m_node.dmnman->GetListAtChainTip(); }
+    CDeterministicMNList tip_mn_list() const
+    {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        return m_node.dmnman->GetListAtChainTip();
+    }
 
     void MineBlock(const std::vector<CMutableTransaction>& txns)
     {
         const CBlock block = CreateAndProcessBlock(txns, coinbase_script());
         const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
         BOOST_REQUIRE_EQUAL(tip->GetBlockHash(), block.GetHash());
-        m_node.dmnman->UpdatedBlockTip(tip);
+        NotifyMNListTip(*m_node.dmnman, tip);
         SetMockTime(GetTime() + 1);
         IndexWaitSynced(*m_node.gov_collateral_index);
     }
@@ -244,6 +247,7 @@ struct GovernanceReorgSetup : GovernanceVoteSetup {
 
 BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, GovernanceReorgSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& chainman = *m_node.chainman;
     auto& govman = *m_node.govman;
     CKey owner_key, other_owner_key, voting_key;
@@ -257,9 +261,9 @@ BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, Governanc
     const auto old_id = tip_mn_list().GetMN(registration.GetHash())->GetInternalId();
 
     CProUpRegTx update;
-    update.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    update.nVersion = ProTxVersionForNextBlock(chainman);
     update.proTxHash = registration.GetHash();
-    update.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/bls::bls_legacy_scheme);
+    update.pubKeyOperator.Set(operator_key.GetPublicKey());
     update.keyIDVoting = voting_key.GetPubKey().GetID();
     update.scriptPayout = payout_script();
     CMutableTransaction tx;
@@ -306,6 +310,7 @@ BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, Governanc
 // otherwise every vote that races ahead of its proposal is lost for good.
 BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
 
     // Build the proposal but keep it out of the manager: the vote arrives first.
@@ -362,6 +367,7 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
 // Votes are only counted if they carry a signature from a registered masternode.
 BOOST_AUTO_TEST_CASE(unsigned_and_unknown_masternode_votes_are_rejected)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
 
     const CGovernanceObject proposal{MakeProposal(uint256::ONE)};
@@ -430,6 +436,7 @@ BOOST_AUTO_TEST_CASE(unsigned_and_unknown_masternode_votes_are_rejected)
 
 BOOST_AUTO_TEST_CASE(invalid_signature_does_not_suppress_valid_vote)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
     const CGovernanceObject proposal{MakeProposal(uint256::ONE)};
     const uint256 parent_hash{proposal.GetHash()};
@@ -482,6 +489,7 @@ BOOST_AUTO_TEST_CASE(invalid_signature_does_not_suppress_valid_vote)
 // away by the 1h GOVERNANCE_UPDATE_MIN limit instead of the rule under test.
 BOOST_AUTO_TEST_CASE(proposal_funding_votes_require_the_voting_key)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
 
     const CGovernanceObject proposal{MakeProposal(uint256::ONE)};
@@ -582,6 +590,7 @@ BOOST_AUTO_TEST_CASE(legacy_governance_cache_is_discarded)
 // throttled: every one cost a BLS verification and a mapErasedGovernanceObjects entry.
 BOOST_AUTO_TEST_CASE(failed_triggers_advance_the_masternode_rate_limit)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const int64_t now{GetTime()};
     constexpr int attempts{12};
     int stored{0};
@@ -607,6 +616,7 @@ BOOST_AUTO_TEST_CASE(failed_triggers_advance_the_masternode_rate_limit)
 // would be announced, and served on GETDATA, once it aged past RELIABLE_PROPAGATION_TIME.
 BOOST_AUTO_TEST_CASE(failed_trigger_is_not_scheduled_for_deferred_relay)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const int64_t now{GetTime()};
     // Inside (now + MAX_TIME_FUTURE_DEVIATION - RELIABLE_PROPAGATION_TIME, now + MAX_TIME_FUTURE_DEVIATION],
     // i.e. 1h - 60s < offset <= 1h: accepted by MasternodeRateCheck, too new to propagate reliably.

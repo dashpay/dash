@@ -37,7 +37,7 @@ from .util import (
     get_auth_cookie,
     get_rpc_proxy,
     rpc_url,
-    wait_until_helper,
+    wait_until_helper_internal,
     p2p_port,
     get_chain_folder,
     tor_port,
@@ -312,7 +312,7 @@ class TestNode():
                 if self.version_is_at_least(180000):
                     # getmempoolinfo.loaded is available since commit
                     # 71e38b9ebcb78b3a264a4c25c7c4e373317f2a40 (version 0.18.0)
-                    wait_until_helper(lambda: rpc.getmempoolinfo()['loaded'], timeout_factor=self.timeout_factor)
+                    wait_until_helper_internal(lambda: rpc.getmempoolinfo()['loaded'], timeout_factor=self.timeout_factor)
                     # Wait for the node to finish reindex, block import, and
                     # loading the mempool. Usually importing happens fast or
                     # even "immediate" when the node is started. However, there
@@ -458,7 +458,7 @@ class TestNode():
     def wait_until_stopped(self, *, timeout=BITCOIND_PROC_WAIT_TIMEOUT, expect_error=False, **kwargs):
         if "expected_ret_code" not in kwargs:
             kwargs["expected_ret_code"] = 1 if expect_error else 0  # Whether node shutdown return EXIT_FAILURE or EXIT_SUCCESS
-        wait_until_helper(lambda: self.is_node_stopped(**kwargs), timeout=timeout, timeout_factor=self.timeout_factor)
+        wait_until_helper_internal(lambda: self.is_node_stopped(**kwargs), timeout=timeout, timeout_factor=self.timeout_factor)
 
     def kill_process(self):
         self.process.kill()
@@ -587,7 +587,7 @@ class TestNode():
 
         initial_peer_id = get_highest_peer_id()
         yield
-        wait_until_helper(lambda: get_highest_peer_id() > initial_peer_id,
+        wait_until_helper_internal(lambda: get_highest_peer_id() > initial_peer_id,
                           timeout=timeout, timeout_factor=self.timeout_factor)
 
     @contextlib.contextmanager
@@ -857,11 +857,11 @@ class TestNode():
                     if p['subver'] == p2p.strSubVer:
                         return False
             return True
-        wait_until_helper(check_peers, timeout=5)
+        wait_until_helper_internal(check_peers, timeout=5)
 
         del self.p2ps[:]
 
-        wait_until_helper(lambda: self.num_test_p2p_connections() == 0, timeout_factor=self.timeout_factor)
+        wait_until_helper_internal(lambda: self.num_test_p2p_connections() == 0, timeout_factor=self.timeout_factor)
 
 
 class TestNodeCLIAttr:

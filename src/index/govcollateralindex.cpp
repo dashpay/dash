@@ -80,11 +80,13 @@ GovCollateralIndex::~GovCollateralIndex() = default;
 
 bool GovCollateralIndex::CustomInit(const std::optional<interfaces::BlockKey>& block)
 {
+    AssertLockHeld(::cs_main);
     // BaseIndex only locks pruning once a new index has read its first block, so pruning at startup could
     // still delete the blocks it is about to read.
     if (!block) {
-        WITH_LOCK(::cs_main, m_chainstate->m_blockman.UpdatePruneLock(GetName(), node::PruneLockInfo{/*height_first=*/0}));
+        m_chainstate->m_blockman.UpdatePruneLock(GetName(), node::PruneLockInfo{/*height_first=*/0});
     }
+    m_indexed_chainstate = m_chainstate;
     return true;
 }
 
@@ -144,7 +146,13 @@ bool GovCollateralIndex::CanSync(Chainstate& chainstate) const
     return true;
 }
 
-bool GovCollateralIndex::IsCollateralSynced() const { return GetSummary().synced; }
+bool GovCollateralIndex::IsCollateralSynced() const
+{
+    // While a snapshot is validated in the background, the index follows the background chainstate.
+    LOCK(::cs_main);
+    return m_indexed_chainstate && m_indexed_chainstate == &m_indexed_chainstate->m_chainman.ActiveChainstate() &&
+           GetSummary().synced;
+}
 
 std::optional<governance::CollateralInfo> GovCollateralIndex::FindCollateral(const uint256& txid) const
 {

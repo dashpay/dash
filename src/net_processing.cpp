@@ -16,6 +16,7 @@
 #include <hash.h>
 #include <index/blockfilterindex.h>
 #include <index/txindex.h>
+#include <kernel/chain.h>
 #include <kernel/mempool_entry.h>
 #include <logging.h>
 #include <merkleblock.h>
@@ -52,6 +53,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/mnauth.h>
 #include <evo/smldiff.h>
+#include <evo/snapshot_types.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <llmq/blockprocessor.h>
@@ -585,7 +587,7 @@ public:
     }
 
     /** Overridden from CValidationInterface. */
-    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) override
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_object_request_mutex, !m_peer_mutex, !m_recent_confirmed_transactions_mutex);
     void BlockDisconnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex* pindex) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_recent_confirmed_transactions_mutex);
@@ -1098,6 +1100,38 @@ private:
      */
     void FindNextBlocksToDownload(const Peer& peer, unsigned int count, std::vector<const CBlockIndex*>& vBlocks, NodeId& nodeStaller) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
+    /** Request blocks for the background chainstate, if one is in use. */
+    void TryDownloadingHistoricalBlocks(const Peer& peer, unsigned int count, std::vector<const CBlockIndex*>& vBlocks, const CBlockIndex* from_tip, const CBlockIndex* target_block) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+
+    /**
+    * \brief Find next blocks to download from a peer after a starting block.
+    *
+    * \param vBlocks      Vector of blocks to download which will be appended to.
+    * \param peer         Peer which blocks will be downloaded from.
+    * \param state        Pointer to the state of the peer.
+    * \param pindexWalk   Pointer to the starting block to add to vBlocks.
+    * \param count        Maximum number of blocks to allow in vBlocks. No more
+    *                     blocks will be added if it reaches this size.
+    * \param nWindowEnd   Maximum height of blocks to allow in vBlocks. No
+    *                     blocks will be added above this height.
+    * \param activeChain  Optional pointer to a chain to compare against. If
+    *                     provided, any next blocks which are already contained
+    *                     in this chain will not be appended to vBlocks, but
+    *                     instead will be used to update the
+    *                     state->pindexLastCommonBlock pointer.
+    * \param nodeStaller  Optional pointer to a NodeId variable that will receive
+    *                     the ID of another peer that might be causing this peer
+    *                     to stall. This is set to the ID of the peer which
+    *                     first requested the first in-flight block in the
+    *                     download window. It is only set if vBlocks is empty at
+    *                     the end of this function call and if increasing
+    *                     nWindowEnd by 1 would cause it to be non-empty (which
+    *                     indicates the download might be stalled because every
+    *                     block in the window is in flight and no other peer is
+    *                     trying to download the next block).
+    */
+    void FindNextBlocks(std::vector<const CBlockIndex*>& vBlocks, const Peer& peer, CNodeState *state, const CBlockIndex *pindexWalk, unsigned int count, int nWindowEnd, const CChain* activeChain=nullptr, NodeId* nodeStaller=nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+
     /* Multimap used to preserve insertion order */
     typedef std::multimap<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator>> BlockDownloadMap;
     BlockDownloadMap mapBlocksInFlight GUARDED_BY(cs_main);
@@ -1112,6 +1146,11 @@ private:
     void ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc)
         EXCLUSIVE_LOCKS_REQUIRED(!m_most_recent_block_mutex, peer.m_getdata_requests_mutex, NetEventsInterface::g_msgproc_mutex)
         LOCKS_EXCLUDED(::cs_main);
+    /** Serve the requests at the front of the peer's GETDATA queue, collecting
+     *  the ones not found, or whose lookup threw, in vNotFound. */
+    void ServeGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc, std::vector<CInv>& vNotFound)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_most_recent_block_mutex, peer.m_getdata_requests_mutex,
+                                 NetEventsInterface::g_msgproc_mutex) LOCKS_EXCLUDED(::cs_main);
 
     /** Process a new block. Perform any post-processing housekeeping */
     void ProcessBlock(CNode& from, const std::shared_ptr<const CBlock>& pblock, bool force_processing);
@@ -1502,6 +1541,7 @@ void PeerManagerImpl::UpdateBlockAvailability(NodeId nodeid, const uint256 &hash
     }
 }
 
+// Logic for calculating which blocks to download from a given peer, given our current tip.
 void PeerManagerImpl::FindNextBlocksToDownload(const Peer& peer, unsigned int count, std::vector<const CBlockIndex*>& vBlocks, NodeId& nodeStaller)
 {
     if (count == 0)
@@ -1531,12 +1571,47 @@ void PeerManagerImpl::FindNextBlocksToDownload(const Peer& peer, unsigned int co
     if (state->pindexLastCommonBlock == state->pindexBestKnownBlock)
         return;
 
-    std::vector<const CBlockIndex*> vToFetch;
     const CBlockIndex *pindexWalk = state->pindexLastCommonBlock;
     // Never fetch further than the best block we know the peer has, or more than BLOCK_DOWNLOAD_WINDOW + 1 beyond the last
     // linked block we have in common with this peer. The +1 is so we can detect stalling, namely if we would be able to
     // download that next block if the window were 1 larger.
     int nWindowEnd = state->pindexLastCommonBlock->nHeight + BLOCK_DOWNLOAD_WINDOW;
+
+    FindNextBlocks(vBlocks, peer, state, pindexWalk, count, nWindowEnd, &m_chainman.ActiveChain(), &nodeStaller);
+}
+
+void PeerManagerImpl::TryDownloadingHistoricalBlocks(const Peer& peer, unsigned int count, std::vector<const CBlockIndex*>& vBlocks, const CBlockIndex *from_tip, const CBlockIndex* target_block)
+{
+    Assert(from_tip);
+    Assert(target_block);
+
+    if (vBlocks.size() >= count) {
+        return;
+    }
+
+    vBlocks.reserve(count);
+    CNodeState *state = Assert(State(peer.m_id));
+
+    if (state->pindexBestKnownBlock == nullptr || state->pindexBestKnownBlock->GetAncestor(target_block->nHeight) != target_block) {
+        // This peer can't provide us the complete series of blocks leading up to the
+        // assumeutxo snapshot base.
+        //
+        // Presumably this peer's chain has less work than our ActiveChain()'s tip, or else we
+        // will eventually crash when we try to reorg to it. Let other logic
+        // deal with whether we disconnect this peer.
+        //
+        // TODO at some point in the future, we might choose to request what blocks
+        // this peer does have from the historical chain, despite it not having a
+        // complete history beneath the snapshot base.
+        return;
+    }
+
+    FindNextBlocks(vBlocks, peer, state, from_tip, count, std::min<int>(from_tip->nHeight + BLOCK_DOWNLOAD_WINDOW, target_block->nHeight));
+}
+
+void PeerManagerImpl::FindNextBlocks(std::vector<const CBlockIndex*>& vBlocks, const Peer& peer, CNodeState *state, const CBlockIndex *pindexWalk, unsigned int count, int nWindowEnd, const CChain* activeChain, NodeId* nodeStaller)
+{
+    std::vector<const CBlockIndex*> vToFetch;
     int nMaxHeight = std::min<int>(state->pindexBestKnownBlock->nHeight, nWindowEnd + 1);
     NodeId waitingfor = -1;
     while (pindexWalk->nHeight < nMaxHeight) {
@@ -1560,8 +1635,8 @@ void PeerManagerImpl::FindNextBlocksToDownload(const Peer& peer, unsigned int co
                 // We consider the chain that this peer is on invalid.
                 return;
             }
-            if (pindex->nStatus & BLOCK_HAVE_DATA || m_chainman.ActiveChain().Contains(pindex)) {
-                if (pindex->HaveTxsDownloaded())
+            if (pindex->nStatus & BLOCK_HAVE_DATA || (activeChain && activeChain->Contains(pindex))) {
+                if (activeChain && pindex->HaveNumChainTxs())
                     state->pindexLastCommonBlock = pindex;
             } else if (!IsBlockRequested(pindex->GetBlockHash())) {
                 // The block is not already downloaded, and not yet in flight.
@@ -1569,7 +1644,7 @@ void PeerManagerImpl::FindNextBlocksToDownload(const Peer& peer, unsigned int co
                     // We reached the end of the window.
                     if (vBlocks.size() == 0 && waitingfor != peer.m_id) {
                         // We aren't able to fetch anything, but we would be if the download window was one larger.
-                        nodeStaller = waitingfor;
+                        if (nodeStaller) *nodeStaller = waitingfor;
                     }
                     return;
                 }
@@ -2209,8 +2284,31 @@ void PeerManagerImpl::StartScheduledTasks(CScheduler& scheduler)
  * block. Also save the time of the last tip update and
  * possibly reduce dynamic block stalling timeout.
  */
-void PeerManagerImpl::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
+void PeerManagerImpl::BlockConnected(
+    ChainstateRole role,
+    const std::shared_ptr<const CBlock>& pblock,
+    const CBlockIndex* pindex)
 {
+    // Update this for all chainstate roles so that we don't mistakenly see peers
+    // helping us do background IBD as having a stale tip.
+    m_last_tip_update = GetTime<std::chrono::seconds>();
+
+    // In case the dynamic timeout was doubled once or more, reduce it slowly back to its default value
+    auto stalling_timeout = m_block_stalling_timeout.load();
+    Assume(stalling_timeout >= BLOCK_STALLING_TIMEOUT_DEFAULT);
+    if (stalling_timeout != BLOCK_STALLING_TIMEOUT_DEFAULT) {
+        const auto new_timeout = std::max(std::chrono::duration_cast<std::chrono::seconds>(stalling_timeout * 0.85), BLOCK_STALLING_TIMEOUT_DEFAULT);
+        if (m_block_stalling_timeout.compare_exchange_strong(stalling_timeout, new_timeout)) {
+            LogPrint(BCLog::NET, "Decreased stalling timeout to %d seconds\n", count_seconds(new_timeout));
+        }
+    }
+
+    // The following tasks can be skipped since we don't maintain a mempool, or
+    // follow ChainLocks, for the ibd/background chainstate.
+    if (role == ChainstateRole::BACKGROUND) {
+        return;
+    }
+
     PostProcessMessage(m_clhandler.ProcessCoinbaseChainLock(*pblock, pindex, *m_llmq_ctx.qman), /*node=*/-1);
 
     // Orphans included in or conflicted by the block can never be accepted, so drop them before
@@ -2232,8 +2330,6 @@ void PeerManagerImpl::BlockConnected(const std::shared_ptr<const CBlock>& pblock
         }
     }
 
-    m_last_tip_update = GetTime<std::chrono::seconds>();
-
     {
         LOCK(m_recent_confirmed_transactions_mutex);
         for (const auto& ptx : pblock->vtx) {
@@ -2243,16 +2339,6 @@ void PeerManagerImpl::BlockConnected(const std::shared_ptr<const CBlock>& pblock
             if (IsAssetUnlockWithStableTxid(*ptx)) {
                 m_recent_confirmed_transactions.insert(ptx->GetInstanceHash());
             }
-        }
-    }
-
-    // In case the dynamic timeout was doubled once or more, reduce it slowly back to its default value
-    auto stalling_timeout = m_block_stalling_timeout.load();
-    Assume(stalling_timeout >= BLOCK_STALLING_TIMEOUT_DEFAULT);
-    if (stalling_timeout != BLOCK_STALLING_TIMEOUT_DEFAULT) {
-        const auto new_timeout = std::max(std::chrono::duration_cast<std::chrono::seconds>(stalling_timeout * 0.85), BLOCK_STALLING_TIMEOUT_DEFAULT);
-        if (m_block_stalling_timeout.compare_exchange_strong(stalling_timeout, new_timeout)) {
-            LogPrint(BCLog::NET, "Decreased stalling timeout to %d seconds\n", count_seconds(new_timeout));
         }
     }
 }
@@ -2813,7 +2899,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
         LOCK(cs_main);
         const CBlockIndex* pindex = m_chainman.m_blockman.LookupBlockIndex(inv.hash);
         if (pindex) {
-            if (pindex->HaveTxsDownloaded() && !pindex->IsValid(BLOCK_VALID_SCRIPTS) &&
+            if (pindex->HaveNumChainTxs() && !pindex->IsValid(BLOCK_VALID_SCRIPTS) &&
                     pindex->IsValid(BLOCK_VALID_TREE)) {
                 // If we have the block and all of its parents, but have not yet validated it,
                 // we might be in the middle of connecting it (ie in the unlock of cs_main
@@ -2989,14 +3075,14 @@ CTransactionRef PeerManagerImpl::FindTxForGetData(const Peer::TxRelay& tx_relay,
     return {};
 }
 
-void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc)
+void PeerManagerImpl::ServeGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc,
+                                   std::vector<CInv>& vNotFound)
 {
     AssertLockNotHeld(cs_main);
 
     auto tx_relay = peer.GetTxRelay();
 
     std::deque<CInv>::iterator it = peer.m_getdata_requests.begin();
-    std::vector<CInv> vNotFound;
     const CNetMsgMaker msgMaker(pfrom.GetCommonVersion());
 
     // Process as many TX items from the front of the getdata queue as
@@ -3010,12 +3096,14 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         if (pfrom.fPauseSend)
             break;
 
-        const CInv &inv = *it;
+        const CInv inv{*it};
 
         if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK) {
             break;
         }
-        ++it;
+        // Dequeued before it is served: a lookup that throws leaves neither
+        // this request nor the ones served before it queued.
+        it = peer.m_getdata_requests.erase(it);
 
         if (tx_relay == nullptr && NetMessageViolatesBlocksOnly(inv.GetCommand())) {
             // Note that if we receive a getdata for non-block messages
@@ -3024,6 +3112,8 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             continue;
         }
 
+        // Not found until it is served, including when a lookup throws.
+        vNotFound.push_back(inv);
         bool push = false;
         if (inv.IsGenTxMsg()) {
             CTransactionRef tx = FindTxForGetData(*tx_relay, inv.hash);
@@ -3101,23 +3191,36 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             }
         }
 
-        if (!push) {
-            vNotFound.push_back(inv);
+        if (push) {
+            vNotFound.pop_back();
         }
     }
 
     // Only process one BLOCK item per call, since they're uncommon and can be
     // expensive to process.
     if (it != peer.m_getdata_requests.end() && !pfrom.fPauseSend) {
-        const CInv &inv = *it++;
+        const CInv inv{*it};
+        it = peer.m_getdata_requests.erase(it);
         if (inv.IsGenBlkMsg()) {
             ProcessGetBlockData(pfrom, peer, inv);
         }
         // else: If the first item on the queue is an unknown type, we erase it
         // and continue processing the queue on the next call.
     }
+}
 
-    peer.m_getdata_requests.erase(peer.m_getdata_requests.begin(), it);
+void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic<bool>& interruptMsgProc)
+{
+    std::vector<CInv> vNotFound;
+    // A lookup this node's Evo state cannot answer ends the batch. The
+    // requests found missing before it, and the one that failed, have left the
+    // queue, so they are still answered: this node cannot serve them.
+    std::exception_ptr local_error;
+    try {
+        ServeGetData(pfrom, peer, interruptMsgProc, vNotFound);
+    } catch (const evo::LocalStateError&) {
+        local_error = std::current_exception();
+    }
 
     if (!vNotFound.empty()) {
         // Let the peer know that we didn't find what it asked for, so it doesn't
@@ -3134,8 +3237,9 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         // In normal operation, we often send NOTFOUND messages for parents of
         // transactions that we relay; if a peer is missing a parent, they may
         // assume we have them and request the parents from us.
-        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::NOTFOUND, vNotFound));
+        m_connman.PushMessage(&pfrom, CNetMsgMaker{pfrom.GetCommonVersion()}.Make(NetMsgType::NOTFOUND, vNotFound));
     }
+    if (local_error) std::rethrow_exception(local_error);
 }
 
 void PeerManagerImpl::SendBlockTransactions(CNode& pfrom, Peer& peer, const CBlock& block, const BlockTransactionsRequest& req) {
@@ -5736,9 +5840,16 @@ void PeerManagerImpl::ProcessMessage(
         llmq::CQuorumRotationInfo quorumRotationInfoRet;
         std::string strError;
         bool use_legacy_construction = pfrom.GetCommonVersion() < EFFICIENT_QRINFO_VERSION;;
-        const bool built{BuildQuorumRotationInfo(m_dmnman, *m_llmq_ctx.qsnapman, m_chainman, *m_llmq_ctx.qman,
-                                                 *m_llmq_ctx.quorum_block_processor, cmd, use_legacy_construction,
-                                                 quorumRotationInfoRet, strError)};
+        bool built{false};
+        try {
+            built = BuildQuorumRotationInfo(m_dmnman, *m_llmq_ctx.qsnapman, m_chainman, *m_llmq_ctx.qman,
+                                            *m_llmq_ctx.quorum_block_processor, cmd, use_legacy_construction,
+                                            quorumRotationInfoRet, strError);
+        } catch (const evo::LocalStateError& e) {
+            // This node's Evo state cannot answer: not the peer's fault, but
+            // charged below like any build that stopped partway.
+            strError = strprintf("%s %s", e.what(), BLOCK_DATA_UNAVAILABLE_SUFFIX);
+        }
         if (!pfrom.HasPermission(NetPermissionFlags::NoBan)) {
             // The token taken above paid for one diff. Charge the rest of the reply (the tip, H, the
             // target cycles and the snapshot diffs) now that its size is known. A build that failed
@@ -6899,7 +7010,20 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
         if (CanServeBlocks(*peer) && pto->CanRelay() && ((sync_blocks_and_headers_from_peer && !IsLimitedPeer(*peer)) || !m_chainman.IsInitialBlockDownload()) && state.vBlocksInFlight.size() < MAX_BLOCKS_IN_TRANSIT_PER_PEER) {
             std::vector<const CBlockIndex*> vToDownload;
             NodeId staller = -1;
-            FindNextBlocksToDownload(*peer, MAX_BLOCKS_IN_TRANSIT_PER_PEER - state.vBlocksInFlight.size(), vToDownload, staller);
+            auto get_inflight_budget = [&state]() {
+                return std::max(0, MAX_BLOCKS_IN_TRANSIT_PER_PEER - static_cast<int>(state.vBlocksInFlight.size()));
+            };
+
+            // If a snapshot chainstate is in use, we want to find its next blocks
+            // before the background chainstate to prioritize getting to network tip.
+            FindNextBlocksToDownload(*peer, get_inflight_budget(), vToDownload, staller);
+            if (m_chainman.BackgroundSyncInProgress() && !IsLimitedPeer(*peer)) {
+                TryDownloadingHistoricalBlocks(
+                    *peer,
+                    get_inflight_budget(),
+                    vToDownload, m_chainman.GetBackgroundSyncTip(),
+                    Assert(m_chainman.GetSnapshotBaseBlock()));
+            }
             for (const CBlockIndex *pindex : vToDownload) {
                 vGetData.emplace_back(MSG_BLOCK, pindex->GetBlockHash());
                 BlockRequested(pto->GetId(), *pindex);

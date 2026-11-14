@@ -31,6 +31,7 @@ public:
     uint256 confirmedHash;
     std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CBLSLazyPublicKey pubKeyOperator;
+    [[nodiscard]] BLSScheme OperatorKeyScheme() const { return ProTxVersion::GetBLSScheme(nVersion); }
     CKeyID keyIDVoting;
     bool isValid{false};
     uint16_t platformHTTPPort{0};
@@ -75,14 +76,11 @@ public:
             READWRITE(
                 obj.nVersion);
         }
-        READWRITE(
-                obj.proRegTxHash,
-                obj.confirmedHash,
-                NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
-                                  obj.nVersion >= ProTxVersion::ExtAddr),
-                CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), (obj.nVersion == ProTxVersion::LegacyBLS)),
-                obj.keyIDVoting,
-                obj.isValid);
+        READWRITE(obj.proRegTxHash, obj.confirmedHash,
+                  NetInfoSerWrapper(const_cast<std::shared_ptr<NetInfoInterface>&>(obj.netInfo),
+                                    obj.nVersion >= ProTxVersion::ExtAddr),
+                  BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.OperatorKeyScheme()),
+                  obj.keyIDVoting, obj.isValid);
         if ((s.GetType() & SER_NETWORK) && s.GetVersion() < DMN_TYPE_PROTO_VERSION) {
             return;
         }

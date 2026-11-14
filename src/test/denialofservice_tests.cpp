@@ -7,6 +7,7 @@
 #include <banman.h>
 #include <chainparams.h>
 #include <common/args.h>
+#include <evo/evodb.h>
 #include <net.h>
 #include <net_processing.h>
 #include <pubkey.h>
@@ -66,13 +67,17 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
                      ConnectionType::OUTBOUND_FULL_RELAY,
                      /*inbound_onion=*/false};
 
-    connman.Handshake(
-        /*node=*/dummyNode1,
-        /*successfully_connected=*/true,
-        /*remote_services=*/ServiceFlags(NODE_NETWORK),
-        /*local_services=*/ServiceFlags(NODE_NETWORK),
-        /*version=*/PROTOCOL_VERSION,
-        /*relay_txs=*/true);
+    {
+        // As the message handler binds a peer's turn.
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        connman.Handshake(
+            /*node=*/dummyNode1,
+            /*successfully_connected=*/true,
+            /*remote_services=*/ServiceFlags(NODE_NETWORK),
+            /*local_services=*/ServiceFlags(NODE_NETWORK),
+            /*version=*/PROTOCOL_VERSION,
+            /*relay_txs=*/true);
+    }
     TestOnlyResetTimeData();
 
     // This test requires that we have a chain with non-zero work.

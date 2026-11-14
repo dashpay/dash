@@ -104,7 +104,7 @@ protected:
     void TransactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime, uint64_t mempool_sequence) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
 private:

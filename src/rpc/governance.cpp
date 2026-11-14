@@ -79,6 +79,11 @@ static void EnsureCanSubmitProposals(const NodeContext& node, const std::string&
                                            "getindexinfo), so it can't look up proposal collateral yet. Try again "
                                            "once the index has synced.");
     }
+    if (!node.gov_collateral_index->IsCollateralSynced()) {
+        throw JSONRPCError(RPC_MISC_ERROR, "This node's governance collateral index follows the background chainstate "
+                                           "until assumeutxo snapshot validation completes and the index catches up, "
+                                           "so it can't look up proposal collateral yet. Try again then.");
+    }
 }
 
 static RPCHelpMan gobject_count()
@@ -386,8 +391,8 @@ static RPCHelpMan gobject_submit()
         const bool fMnFound = mnList.HasValidMNByCollateral(mn_activeman.GetOutPoint());
         LogPrint(BCLog::GOBJECT,
                  "gobject_submit -- pubKeyOperator = %s, outpoint = %s, params.size() = %lld, fMnFound = %d\n",
-                 mn_activeman.GetPubKey().ToString(false), mn_activeman.GetOutPoint().ToStringShort(),
-                 request.params.size(), fMnFound);
+                 mn_activeman.GetPubKey().ToString(), mn_activeman.GetOutPoint().ToStringShort(), request.params.size(),
+                 fMnFound);
     } else {
         LogPrint(BCLog::GOBJECT, "gobject_submit -- pubKeyOperator = N/A, outpoint = N/A, params.size() = %lld, fMnFound = %d\n",
                  request.params.size(),

@@ -1,7 +1,7 @@
 # assumeutxo
 
 Assumeutxo is a feature that allows fast bootstrapping of a validating dashd
-instance with a very similar security model to assumevalid.
+instance.
 
 ## Loading a snapshot
 
@@ -9,12 +9,19 @@ There is currently no canonical source for snapshots, but any downloaded snapsho
 will be checked against a hash that's been hardcoded in source code.
 
 Once you've obtained the snapshot, you can use the RPC command `loadtxoutset`
-(yet to be merged) to load it.
+to load it. `loadtxoutset` and `getchainstates` are hidden and available on
+regtest only.
+
+A masternode does not load snapshots, and a node does not start with
+`-masternodeblsprivkey` while it has a snapshot chainstate, validated or not,
+until a restart has promoted it.
 
 ### Pruning
 
-A pruned node can load a snapshot. To save space, it's possible to delete the
-snapshot file as soon as `loadtxoutset` finishes.
+A pruned node cannot load a snapshot, and a node does not start with `-prune`
+while it has a snapshot chainstate, validated or not, until a restart has
+promoted it. It's possible to delete the snapshot file as soon as
+`loadtxoutset` finishes.
 
 The minimum `-dbcache` setting is 550 MiB, but this functionality ignores that
 minimum and uses at least 1100 MiB.
@@ -25,9 +32,16 @@ downloaded snapshot).
 
 ### Indexes
 
-Indexes work but don't take advantage of this feature. They always start building
+A node with `-addressindex`, `-spentindex` or `-timestampindex` cannot load a
+snapshot, and does not start with them while it has a snapshot chainstate.
+
+Other indexes work but don't take advantage of this feature. They always start building
 from the genesis block. Once the background validation reaches the snapshot block,
 indexes will continue to build all the way to the tip.
+
+Governance waits until background validation has completed and the governance
+collateral index has caught up: until then the node neither processes nor relays
+governance objects, and `gobject prepare` and `gobject submit` refuse.
 
 For indexes that support pruning, note that no pruning will take place between
 the snapshot and the tip, until the background sync has completed - after which

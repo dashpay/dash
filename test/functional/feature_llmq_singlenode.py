@@ -18,7 +18,7 @@ from test_framework.test_framework import (
 from test_framework.util import (
     assert_raises_rpc_error,
     assert_greater_than,
-    wait_until_helper,
+    wait_until_helper_internal,
 )
 
 
@@ -62,7 +62,7 @@ class LLMQSigningTest(DashTestFramework):
         self.wait_until(lambda: self.check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout)
 
     def assert_sigs_nochange(self, hasrecsigs, isconflicting1, isconflicting2, timeout):
-        assert not wait_until_helper(lambda: not self.check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
+        assert not wait_until_helper_internal(lambda: not self.check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
 
 
     def log_connections(self):

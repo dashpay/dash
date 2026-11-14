@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_MASTERNODELIST_H
 #define BITCOIN_QT_MASTERNODELIST_H
 
+#include <interfaces/providertx.h>
 #include <qt/masternodemodel.h>
 
 #include <QHash>
@@ -17,6 +18,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <set>
 
 class ClientModel;
@@ -142,6 +144,8 @@ private:
 
     const MasternodeEntry* GetSelectedEntry();
     const MasternodeEntry* selectedEntryForDialog();
+    //! The provider transaction rules, or nullopt after telling the user they are not available yet
+    std::optional<interfaces::ProviderTxCapabilities> providerTxCapabilities();
 
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);

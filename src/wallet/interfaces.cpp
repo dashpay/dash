@@ -449,7 +449,7 @@ public:
         LOCK(m_wallet->cs_wallet);
         m_wallet->LockExistingDustOutputs();
     }
-    std::vector<COutPoint> listProTxCoins() override
+    std::optional<std::vector<COutPoint>> listProTxCoins() override
     {
         LOCK(m_wallet->cs_wallet);
         return m_wallet->ListProTxCoins();

@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/consensus.h>
+#include <evo/evodb.h>
 #include <net.h>
 #include <net_processing.h>
 #include <protocol.h>
@@ -50,7 +51,10 @@ FUZZ_TARGET(process_messages, .init = initialize_process_messages)
         peers.push_back(ConsumeNodeAsUniquePtr(fuzzed_data_provider, i).release());
         CNode& p2p_node = *peers.back();
 
-        FillNode(fuzzed_data_provider, connman, p2p_node);
+        {
+            const ActiveEvoViewScope turn{g_setup->m_node.evodb.get()};
+            FillNode(fuzzed_data_provider, connman, p2p_node);
+        }
 
         connman.AddTestNode(p2p_node);
     }
@@ -73,6 +77,7 @@ FUZZ_TARGET(process_messages, .init = initialize_process_messages)
         bool more_work{true};
         while (more_work) { // Ensure that every message is eventually processed in some way or another
             random_node.fPauseSend = false;
+            const ActiveEvoViewScope turn{g_setup->m_node.evodb.get()};
 
             try {
                 more_work = connman.ProcessMessagesOnce(random_node);

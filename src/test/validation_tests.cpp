@@ -36,17 +36,21 @@ BOOST_AUTO_TEST_CASE(test_assumeutxo)
     std::vector<int> bad_heights{0, 100, 111, 115, 209, 211};
 
     for (auto empty : bad_heights) {
-        const auto out = ExpectedAssumeutxo(empty, *params);
+        const auto out = params->AssumeutxoForHeight(empty);
         BOOST_CHECK(!out);
     }
 
-    const auto out110 = *ExpectedAssumeutxo(110, *params);
+    const auto out110 = *params->AssumeutxoForHeight(110);
     BOOST_CHECK_EQUAL(out110.hash_serialized.ToString(), "ffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f");
-    BOOST_CHECK_EQUAL(out110.nChainTx, 110U);
+    BOOST_CHECK_EQUAL(out110.nChainTx, 111U);
 
-    const auto out210 = *ExpectedAssumeutxo(200, *params);
+    const auto out110_2 = *params->AssumeutxoForBlockhash(uint256S("0x729bcb1479ff9f4968439f0276bd76bcb2de0f0720b7a16f383321f6a41cb238"));
+    BOOST_CHECK_EQUAL(out110_2.hash_serialized.ToString(), "ffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f");
+    BOOST_CHECK_EQUAL(out110_2.nChainTx, 111U);
+
+    const auto out210 = *params->AssumeutxoForHeight(200);
     BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b");
-    BOOST_CHECK_EQUAL(out210.nChainTx, 200U);
+    BOOST_CHECK_EQUAL(out210.nChainTx, 201U);
 }
 
 BOOST_AUTO_TEST_CASE(utxo_set_hash_commits_coin_height_and_coinbase)
@@ -75,6 +79,51 @@ BOOST_AUTO_TEST_CASE(utxo_set_hash_commits_coin_height_and_coinbase)
             BOOST_CHECK(hashes.insert(utxo_set_hash(hash_type, n, /*height=*/10, /*coinbase=*/true)).second);
         }
         BOOST_CHECK_EQUAL(utxo_set_hash(hash_type, /*mutated_n=*/1, /*height=*/10, /*coinbase=*/false), original);
+    }
+}
+
+//! Regtest accepts extra exact assumeutxo entries, each bound to its block.
+BOOST_AUTO_TEST_CASE(assumeutxodata_option)
+{
+    const std::string utxo_hash(64, '1');
+    const std::string evo_hash(64, '2');
+    const std::string block_hash(64, '3');
+    const auto params_for = [](const std::string& value) {
+        ArgsManager args;
+        SetupChainParamsOptions(args);
+        args.ForceSetArg("-assumeutxodata", value);
+        return CreateChainParams(args, ChainType::REGTEST);
+    };
+
+    const auto params{params_for(strprintf("219:%s:%s:230:%s", utxo_hash, evo_hash, block_hash))};
+    const auto entry{params->AssumeutxoForHeight(219)};
+    BOOST_REQUIRE(entry);
+    BOOST_CHECK_EQUAL(entry->hash_serialized.ToString(), utxo_hash);
+    BOOST_CHECK_EQUAL(entry->evo_hash.ToString(), evo_hash);
+    BOOST_CHECK_EQUAL(entry->nChainTx, 230U);
+    BOOST_CHECK_EQUAL(entry->blockhash.ToString(), block_hash);
+    // The built-in entries stay.
+    BOOST_CHECK(params->AssumeutxoForHeight(110));
+
+    // The option authorizes nothing outside regtest.
+    for (const auto& chain : {ChainType::MAIN, ChainType::TESTNET}) {
+        ArgsManager args;
+        SetupChainParamsOptions(args);
+        args.ForceSetArg("-assumeutxodata", strprintf("219:%s:%s:230:%s", utxo_hash, evo_hash, block_hash));
+        BOOST_CHECK(!CreateChainParams(args, chain)->AssumeutxoForHeight(219));
+    }
+
+    for (const std::string& invalid : {
+             strprintf("219:%s:%s:230", utxo_hash, evo_hash),
+             strprintf("0:%s:%s:230:%s", utxo_hash, evo_hash, block_hash),
+             strprintf("219:%s:%s:230:%s", std::string(64, '0'), evo_hash, block_hash),
+             strprintf("219:%s:%s:230:%s", utxo_hash, std::string(64, '0'), block_hash),
+             strprintf("219:%s:%s:0:%s", utxo_hash, evo_hash, block_hash),
+             strprintf("219:%s:%s:230:%s", utxo_hash, evo_hash, std::string(63, '3')),
+             // Height 110 already has an entry.
+             strprintf("110:%s:%s:230:%s", utxo_hash, evo_hash, block_hash),
+         }) {
+        BOOST_CHECK_THROW(params_for(invalid), std::runtime_error);
     }
 }
 
