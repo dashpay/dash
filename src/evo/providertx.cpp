@@ -350,9 +350,6 @@ bool CProRegTx::IsTriviallyValid(TxValidationState& state) const
     if (!pubKeyOperator.Get().IsValid() || keyIDVoting.IsNull()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-key-null");
     }
-    if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
-    }
     if (IsShared()) {
         if (!IsShareListTriviallyValid(shares, nEarlyPeriodBlocks, nEarlyPenalty, GetMnType(nType).collat_amount,
                                        keyIDVoting, state)) {
@@ -405,8 +402,7 @@ uint256 CProRegTx::MakeSharedRegConsentHash(const CTransaction& tx) const
         hw << platformNodeID;
     }
     hw << keyIDVoting;
-    hw << CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(pubKeyOperator),
-                                          nVersion == ProTxVersion::LegacyBLS);
+    hw << BLSEncoded(const_cast<CBLSLazyPublicKey&>(pubKeyOperator), OperatorKeyScheme());
     hw << nOperatorReward;
     hw << static_cast<uint8_t>(shares.size());
     for (const auto& share : shares) {
@@ -447,8 +443,9 @@ std::string CProRegTx::ToString() const
     return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, netInfo=%s, nOperatorReward=%f, "
                      "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s%s)\n",
                      nVersion, std23::to_underlying(nType), collateralOutpoint.ToStringShort(), netInfo->ToString(),
-                     static_cast<double>(nOperatorReward) / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(),
-                     EncodeDestination(PKHash(keyIDVoting)), payee, platformNodeID.ToString(),
+                     static_cast<double>(nOperatorReward) / 100, EncodeDestination(PKHash(keyIDOwner)),
+                     pubKeyOperator.ToString(OperatorKeyScheme()), EncodeDestination(PKHash(keyIDVoting)), payee,
+                     platformNodeID.ToString(),
                      (nVersion >= ProTxVersion::ExtAddr
                           ? ""
                           : strprintf(", platformP2PPort=%d, platformHTTPPort=%d", platformP2PPort, platformHTTPPort)));
@@ -508,9 +505,6 @@ bool CProUpRegTx::IsTriviallyValid(TxValidationState& state) const
     if (!pubKeyOperator.Get().IsValid() || keyIDVoting.IsNull()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-key-null");
     }
-    if (pubKeyOperator.IsLegacy() != (nVersion == ProTxVersion::LegacyBLS)) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
-    }
     if (!IsPayoutListTriviallyValid(GetOwnerPayouts(*this), CKeyID{}, keyIDVoting, state)) return false;
     return true;
 }
@@ -520,7 +514,8 @@ std::string CProUpRegTx::ToString() const
     const std::string payee = PayoutListToString(GetOwnerPayouts(*this));
 
     return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
-        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee);
+                     nVersion, proTxHash.ToString(), pubKeyOperator.ToString(OperatorKeyScheme()),
+                     EncodeDestination(PKHash(keyIDVoting)), payee);
 }
 
 bool CProUpRevTx::IsTriviallyValid(TxValidationState& state) const
@@ -619,9 +614,6 @@ bool CProUpSharedRegTx::IsTriviallyValid(TxValidationState& state) const
     if (!pubKeyOperator.Get().IsValid() || keyIDVoting.IsNull()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-key-null");
     }
-    if (pubKeyOperator.IsLegacy()) {
-        return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-operator-pubkey");
-    }
     if (vchSigs.empty() || vchSigs.size() > CProRegTx::MAX_SHARES) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-proupsharedreg-sig-count");
     }
@@ -631,6 +623,6 @@ bool CProUpSharedRegTx::IsTriviallyValid(TxValidationState& state) const
 std::string CProUpSharedRegTx::ToString() const
 {
     return strprintf("CProUpSharedRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, sigCount=%d)",
-        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)),
-        vchSigs.size());
+                     nVersion, proTxHash.ToString(), pubKeyOperator.ToString(OperatorKeyScheme()),
+                     EncodeDestination(PKHash(keyIDVoting)), vchSigs.size());
 }

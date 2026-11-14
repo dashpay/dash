@@ -522,9 +522,8 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock, TestChain100Setup)
 
         CBLSSecretKey sk;
         sk.MakeNewKey();
-        const bool legacy_scheme = bls::bls_legacy_scheme.load();
-        const CBLSSignature sig_a{sk.Sign(uint256::ONE, legacy_scheme)};
-        const CBLSSignature sig_b{sk.Sign(uint256::TWO, legacy_scheme)};
+        const CBLSSignature sig_a{sk.Sign(uint256::ONE)};
+        const CBLSSignature sig_b{sk.Sign(uint256::TWO)};
         BOOST_REQUIRE(sig_a.IsValid() && sig_b.IsValid() && sig_a != sig_b);
         auto make_unlock_tx = [&](uint8_t version, uint64_t index, uint32_t fee, uint32_t requested_height,
                                   const uint256& quorum_hash, const CBLSSignature& quorum_sig = CBLSSignature{}) {
@@ -673,7 +672,7 @@ BOOST_FIXTURE_TEST_CASE(evo_assetunlock_cbtx_merkle_root, BasicTestingSetup)
     // exists to cover
     CBLSSecretKey sk;
     sk.MakeNewKey();
-    block.vtx.back() = make_unlock(2, 2, 700, sk.Sign(uint256::ONE, bls::bls_legacy_scheme.load()));
+    block.vtx.back() = make_unlock(2, 2, 700, sk.Sign(uint256::ONE));
     BOOST_CHECK(block.vtx.back()->GetHash() == make_unlock(2, 2, 500)->GetHash());
     BOOST_CHECK(CalcCbTxMerkleRootAssetUnlocks(block) != root_resigned);
 }
@@ -833,6 +832,7 @@ BOOST_FIXTURE_TEST_CASE(package_asset_unlock_preserves_indirect_dependencies, Te
 
 BOOST_FIXTURE_TEST_CASE(credit_pool_snapshot_persisted_after_transactionless_construction, TestChain100Setup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     // Block assembly asks for the tip's credit pool outside any block-scoped EvoDB transaction,
     // as mempool acceptance and RPCs do. At a snapshot height that constructs and caches the
     // pool without being able to write its disk snapshot. The next block connection hits the

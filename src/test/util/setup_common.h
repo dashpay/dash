@@ -146,11 +146,11 @@ struct TestChainSetup : public TestingSetup
 
     /**
      * Create a new block with just given transactions, coinbase paying to
-     * scriptPubKey.
+     * scriptPubKey. `mutate` runs after the template is assembled and before
+     * the coinbase payload roots, merkle root and proof of work are finalised.
      */
-    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKey,
-                       Chainstate& chainstate);
+    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey,
+                       Chainstate& chainstate, const std::function<void(CBlock&)>& mutate = {});
 
     //! Mine a series of new blocks on the active chain.
     void mineBlocks(int num_blocks);
@@ -240,6 +240,12 @@ std::unique_ptr<T> MakeNoLogFileContext(const ChainType chain_type = ChainType::
 
     return std::make_unique<T>(chain_type, arguments);
 }
+
+class CBlockIndex;
+class CDeterministicMNManager;
+//! Deliver `tip` to `dmnman` as a block-tip notification does: in the active
+//! chainstate's Evo view, which a test thread does not bind on its own.
+void NotifyMNListTip(CDeterministicMNManager& dmnman, const CBlockIndex* tip);
 
 CBlock getBlock13b8a();
 

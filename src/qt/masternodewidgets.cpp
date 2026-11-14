@@ -56,6 +56,11 @@ bool isP2PKHorP2SHAddress(const QString& address)
     return std::holds_alternative<PKHash>(dest) || std::holds_alternative<ScriptHash>(dest);
 }
 
+QString masternodeStateUnavailableText()
+{
+    return QObject::tr("Masternode state is not available on this node yet. Try again later.");
+}
+
 QLabel* makeTitle(const QString& text, QWidget* parent, double point_size)
 {
     auto* label{new QLabel(text, parent)};
@@ -277,10 +282,10 @@ OperatorKeyWidget::OperatorKeyWidget(QWidget* parent) :
     // key the user may already have seen.
     CBLSSecretKey secret_key;
     secret_key.MakeNewKey();
-    auto generated_secret{secret_key.ToByteVector(/*specificLegacyScheme=*/false)};
+    auto generated_secret{secret_key.ToByteVector()};
     m_generated_secret.assign(generated_secret.begin(), generated_secret.end());
     if (!generated_secret.empty()) memory_cleanse(generated_secret.data(), generated_secret.size());
-    m_generated_public = QString::fromStdString(secret_key.GetPublicKey().ToString(/*specificLegacyScheme=*/false));
+    m_generated_public = QString::fromStdString(secret_key.GetPublicKey().ToString());
 
     m_generate_radio = new QRadioButton(tr("Generate a new operator key"), this);
     m_generate_radio->setChecked(true);
@@ -393,5 +398,5 @@ bool OperatorKeyWidget::isValid() const
 {
     if (hasGeneratedSecret()) return !m_generated_public.isEmpty();
     CBLSPublicKey pubkey;
-    return pubkey.SetHexStr(m_existing_edit->text().trimmed().toStdString(), /*specificLegacyScheme=*/false);
+    return pubkey.SetHexStr(m_existing_edit->text().trimmed().toStdString());
 }

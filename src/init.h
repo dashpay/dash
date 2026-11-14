@@ -9,6 +9,7 @@
 #include <context.h>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -69,6 +70,22 @@ bool AppInitInterfaces(node::NodeContext& node);
  * @pre Parameters should be parsed and config file should be read, AppInitLockDataDirectory should have been called.
  */
 bool AppInitMain(node::NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info = nullptr);
+/**
+ * Startup work that follows the initial block import: announce the tip,
+ * warm caches and repair EvoDB. Runs on the loadblk thread, bound to the
+ * active chainstate's Evo view.
+ */
+void FinishImportedStartup(node::NodeContext& node, const ArgsManager& args, bool skip_evodb_repair_on_reindex);
+/**
+ * Release the databases and managers a chainstate load attempt opened, once
+ * the validation events it queued have run.
+ */
+void ReleaseChainstateLoadAttempt(node::NodeContext& node);
+/**
+ * Run a node scheduler task as a round of active-chain work, bound to the
+ * active chainstate's Evo view once startup has published the Evo database.
+ */
+void RunSchedulerTask(const node::NodeContext& node, const std::function<void()>& task);
 void PrepareShutdown(node::NodeContext& node);
 
 /**

@@ -107,7 +107,8 @@ public:
     bool InitNewQuorum(gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex) EXCLUSIVE_LOCKS_REQUIRED(!cs_session);
 
     /**
-     * @param curPhase current QuorumPhase
+     * @param curPhase current QuorumPhase, or nullopt for the wait before a round starts, which waits out an
+     *                 unvalidated snapshot instead of aborting
      * @param nextPhase next QuorumPhase
      * @param expectedQuorumHash expected QuorumHash, defaults to null
      * @param shouldNotWait function that returns bool, defaults to function that returns false. If the function returns false, we will wait in the loop, if true, we don't wait

@@ -31,8 +31,7 @@ ActiveDKGSession::ActiveDKGSession(CBLSWorker& bls_worker, CDeterministicMNManag
     CDKGSession(bls_worker, dmnman, dkgdbgman, qdkgsman, qsnapman, chainman, base_block_index, llmq_params),
     m_mn_metaman{mn_metaman},
     m_mn_activeman{mn_activeman},
-    m_sporkman{sporkman},
-    m_use_legacy_bls{!DeploymentActiveAfter(m_quorum_base_block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)}
+    m_sporkman{sporkman}
 {
 }
 
@@ -125,7 +124,7 @@ std::optional<CDKGContribution> ActiveDKGSession::SendContributions()
 
     logger.Batch("encrypted contributions. time=%d", t1.count());
 
-    qc.sig = m_mn_activeman.Sign(qc.GetSignHash(), m_use_legacy_bls);
+    qc.sig = m_mn_activeman.Sign(qc.GetSignHash());
 
     logger.Flush();
 
@@ -157,7 +156,6 @@ void ActiveDKGSession::VerifyPendingContributions()
     std::vector<size_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
     std::vector<CBLSSecretKey> skContributions;
-    bool anyLegacyVvec{false};
 
     for (const auto& idx : pendingContributionVerifications) {
         const auto& m = members[idx];
@@ -166,7 +164,6 @@ void ActiveDKGSession::VerifyPendingContributions()
         }
         memberIndexes.emplace_back(idx);
         vvecs.emplace_back(receivedVvecs[idx]);
-        anyLegacyVvec |= receivedVvecsLegacyScheme[idx];
         skContributions.emplace_back(receivedSkContributions[idx]);
         // Write here to definitely store one contribution for each member no matter if
         // our share is valid or not, could be that others are still correct
@@ -184,9 +181,8 @@ void ActiveDKGSession::VerifyPendingContributions()
         return;
     }
 
-    // Weighted aggregation needs points that passed subgroup checks, which legacy-scheme deserialization skips
     auto result = blsWorker.VerifyContributionShares(myId, vvecs, skContributions, /*parallel=*/true,
-                                                     /*aggregated=*/!anyLegacyVvec);
+                                                     /*aggregated=*/true);
     if (result.size() != memberIndexes.size()) {
         logger.Batch("VerifyContributionShares returned result of size %d but size %d was expected, something is wrong", result.size(), memberIndexes.size());
         return;
@@ -348,7 +344,7 @@ std::optional<CDKGComplaint> ActiveDKGSession::SendComplaint()
 
     logger.Batch("sending complaint. badCount=%d, complaintCount=%d", badCount, complaintCount);
 
-    qc.sig = m_mn_activeman.Sign(qc.GetSignHash(), m_use_legacy_bls);
+    qc.sig = m_mn_activeman.Sign(qc.GetSignHash());
 
     logger.Flush();
 
@@ -438,7 +434,7 @@ std::optional<CDKGJustification> ActiveDKGSession::SendJustification(const Uint2
         return std::nullopt;
     }
 
-    qj.sig = m_mn_activeman.Sign(qj.GetSignHash(), m_use_legacy_bls);
+    qj.sig = m_mn_activeman.Sign(qj.GetSignHash());
 
     logger.Flush();
 
@@ -595,23 +591,24 @@ std::optional<CDKGPrematureCommitment> ActiveDKGSession::SendCommitment()
         (*qc.quorumVvecHash.begin())++;
     }
 
-    uint256 commitmentHash = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey, qc.quorumVvecHash);
+    uint256 commitmentHash = BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                 qc.quorumVvecHash, BLSScheme::Basic);
 
     if (lieType == 2) {
         (*commitmentHash.begin())++;
     }
 
-    qc.sig = m_mn_activeman.Sign(commitmentHash, m_use_legacy_bls);
-    qc.quorumSig = skShare.Sign(commitmentHash, m_use_legacy_bls);
+    qc.sig = m_mn_activeman.Sign(commitmentHash);
+    qc.quorumSig = skShare.Sign(commitmentHash);
 
     if (lieType == 3) {
-        auto buf = qc.sig.ToBytes(m_use_legacy_bls);
+        auto buf = qc.sig.ToBytes();
         buf[5]++;
-        qc.sig.SetBytes(buf, m_use_legacy_bls);
+        qc.sig.SetBytes(buf);
     } else if (lieType == 4) {
-        auto buf = qc.quorumSig.ToBytes(m_use_legacy_bls);
+        auto buf = qc.quorumSig.ToBytes();
         buf[5]++;
-        qc.quorumSig.SetBytes(buf, m_use_legacy_bls);
+        qc.quorumSig.SetBytes(buf);
     }
 
     t3.stop();
@@ -686,7 +683,8 @@ std::vector<CFinalCommitment> ActiveDKGSession::FinalizeCommitments()
         fqc.nVersion = CFinalCommitment::GetVersion(isQuorumRotationEnabled, DeploymentActiveAfter(m_quorum_base_block_index, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
         fqc.quorumIndex = isQuorumRotationEnabled ? quorumIndex : 0;
 
-        uint256 commitmentHash = BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash);
+        uint256 commitmentHash = BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers,
+                                                     fqc.quorumPublicKey, fqc.quorumVvecHash, BLSScheme::Basic);
 
         std::vector<CBLSSignature> aggSigs;
         std::vector<CBLSPublicKey> aggPks;
@@ -722,7 +720,7 @@ std::vector<CFinalCommitment> ActiveDKGSession::FinalizeCommitments()
         t2.stop();
 
         cxxtimer::Timer t3(true);
-        if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, true)) {
+        if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, BLSScheme::Basic)) {
             logger.Batch("failed to verify final commitment");
             continue;
         }
@@ -773,16 +771,16 @@ CFinalCommitment ActiveDKGSession::FinalizeSingleCommitment()
     fqc.quorumIndex = 0;
 
     uint256 commitmentHash = BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey,
-                                                 fqc.quorumVvecHash);
-    fqc.quorumSig = sk1.Sign(commitmentHash, m_use_legacy_bls);
+                                                 fqc.quorumVvecHash, BLSScheme::Basic);
+    fqc.quorumSig = sk1.Sign(commitmentHash);
 
-    fqc.membersSig = m_mn_activeman.Sign(commitmentHash, m_use_legacy_bls);
+    fqc.membersSig = m_mn_activeman.Sign(commitmentHash);
 
     if (workaround_qpublic_key) {
         fqc.quorumSig = fqc.membersSig;
     }
 
-    if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, true)) {
+    if (!fqc.Verify({m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index}, BLSScheme::Basic)) {
         logger.Batch("failed to verify final commitment");
         assert(false);
     }

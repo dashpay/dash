@@ -854,8 +854,12 @@ static RPCHelpMan getassetunlockstatuses()
                 return pTipBlockIndex->GetAncestor(best_clsig.getHeight());
             }
             // If no CL info is available, try to use CbTx CL information
-            if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(chainman.m_blockman, pTipBlockIndex)) {
-                return pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
+            const CoinbaseChainlock cbtx_best_cl{CHECK_NONFATAL(node.special_tx)->GetCoinbaseChainlock(pTipBlockIndex)};
+            if (cbtx_best_cl.status == CoinbaseChainlock::Status::UNAVAILABLE) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "coinbase ChainLock of the tip is not available");
+            }
+            if (cbtx_best_cl.status == CoinbaseChainlock::Status::CERTIFIED) {
+                return pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl.height_diff - 1);
             }
             // no CL info, no CbTx CL
             return nullptr;

@@ -16,7 +16,9 @@
 #include <deploymentstatus.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <evo/providertx_service.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtxman.h>
 #include <external_signer.h>
 #include <governance/governance.h>
@@ -91,6 +93,9 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <set>
+#include <string_view>
+#include <tuple>
 #include <utility>
 #include <variant>
 
@@ -134,6 +139,50 @@ namespace node {
 // All members of the classes in this namespace are intentionally public, as the
 // classes themselves are private.
 namespace {
+bilingual_str EvoStateUnavailableMessage()
+{
+    return _("Masternode state is not available yet. See debug.log for details.");
+}
+
+ProviderTxError UnavailableProviderTxError()
+{
+    return {.code = interfaces::ProviderTxErrorCode::INTERNAL_ERROR, .message = EvoStateUnavailableMessage()};
+}
+
+//! Set the misc warning and log `e`, once per operation and active Evo view:
+//! GUI models poll these operations, and each warning notifies the GUI.
+void ReportEvoStateUnavailable(const CEvoDB* evodb, std::string_view operation, const evo::LocalStateError& e)
+{
+    static Mutex mutex;
+    static std::set<std::tuple<std::string, const CEvoDB*, EvoDbIdentity, uint32_t>> reported;
+    const EvoViewToken view{evodb ? evodb->ActiveView() : EvoViewToken{}};
+    if (WITH_LOCK(mutex, return reported.emplace(operation, view.db, view.identity, view.generation).second)) {
+        // Without a snapshot, only pruning removes the block data Evo state is
+        // derived from.
+        const bool pruned{evodb && !evodb->HasLiveGeneration() && dynamic_cast<const BlockDataUnavailableError*>(&e)};
+        WarnLocalEvoStateUnavailable(strprintf("%s could not read it", operation), pruned);
+        uiInterface.NotifyAlertChanged();
+        LogPrintf("ERROR: %s: Evo state unavailable: %s\n", operation, e.what());
+    }
+}
+
+/** Run a GUI-facing operation that reads Evo state on the active chainstate's
+ *  view. When this node cannot provide that state, the operation reports it
+ *  and returns `on_unavailable()`: the error must not reach Qt, and callers
+ *  must not mistake it for data. */
+template <typename Fn, typename OnUnavailable>
+std::invoke_result_t<Fn&> WithActiveEvoView(const CEvoDB* evodb, std::string_view operation, Fn&& fn,
+                                            OnUnavailable&& on_unavailable)
+{
+    try {
+        const ActiveEvoViewScope evo_view{evodb};
+        return fn();
+    } catch (const evo::LocalStateError& e) {
+        ReportEvoStateUnavailable(evodb, operation, e);
+        return on_unavailable();
+    }
+}
+
 class MnEntryImpl : public MnEntry
 {
 private:
@@ -267,83 +316,128 @@ private:
 public:
     std::pair<MnListPtr, const CBlockIndex*> getListAtChainTip() override
     {
-        const auto *tip = WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip());
-        if (tip && context().dmnman) {
-            MnListImpl mnList = context().dmnman->GetListForBlock(tip);
-            if (!mnList.getBlockHash().IsNull()) {
-                mnList.setContext(m_context);
-                return {std::make_shared<MnListImpl>(mnList), tip};
-            }
-        }
-        return {nullptr, nullptr};
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::pair<MnListPtr, const CBlockIndex*> {
+                const auto* tip = WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip());
+                if (tip && context().dmnman) {
+                    MnListImpl mnList = context().dmnman->GetListForBlock(tip);
+                    if (!mnList.getBlockHash().IsNull()) {
+                        mnList.setContext(m_context);
+                        return {std::make_shared<MnListImpl>(mnList), tip};
+                    }
+                }
+                return {nullptr, nullptr};
+            },
+            [] { return std::pair<MnListPtr, const CBlockIndex*>{nullptr, nullptr}; });
     }
-    ProviderTxCapabilities getProviderTxCapabilities() override { return evo::provider::GetCapabilities(context()); }
+    std::optional<ProviderTxCapabilities> getProviderTxCapabilities() override
+    {
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<ProviderTxCapabilities> { return evo::provider::GetCapabilities(context()); },
+            [] { return std::nullopt; });
+    }
     std::optional<ProviderTxError> validateProviderNetInfo(const ProviderNetInfo& net_info, MnType type,
                                                            uint16_t version, bool ipv4_optional, bool optional) override
     {
         return evo::provider::ValidateNetInfo(net_info, type, version, ipv4_optional, optional);
     }
-    std::optional<std::string> findProviderNetInfoInUse(const ProviderNetInfo& net_info, MnType type, uint16_t version,
-                                                        bool ipv4_optional) override
+    ProviderTxResult<std::optional<std::string>> findProviderNetInfoInUse(const ProviderNetInfo& net_info, MnType type,
+                                                                          uint16_t version, bool ipv4_optional) override
     {
-        return evo::provider::FindNetInfoInUse(context(), net_info, type, version, ipv4_optional);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> ProviderTxResult<std::optional<std::string>> {
+                if (!context().dmnman) return UnavailableProviderTxError();
+                return evo::provider::FindNetInfoInUse(context(), net_info, type, version, ipv4_optional);
+            },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> registerMasternode(Wallet& wallet, const ProviderRegistrationRequest& request) override
     {
-        return evo::provider::Register(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::Register(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<PreparedProviderRegistration> prepareMasternodeRegistration(
         Wallet& wallet, const ProviderRegistrationRequest& request) override
     {
-        return evo::provider::PrepareRegistration(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&] { return evo::provider::PrepareRegistration(context(), wallet, request); }, UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> submitMasternodeRegistration(
         Wallet& wallet, const CTransactionRef& tx, const std::vector<unsigned char>& collateral_signature) override
     {
-        return evo::provider::SubmitRegistration(context(), wallet, tx, collateral_signature);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&] { return evo::provider::SubmitRegistration(context(), wallet, tx, collateral_signature); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> updateMasternodeService(Wallet& wallet,
                                                                    const ProviderUpdateServiceRequest& request) override
     {
-        return evo::provider::UpdateService(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::UpdateService(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> updateMasternodeRegistrar(Wallet& wallet,
                                                                      const ProviderUpdateRegistrarRequest& request) override
     {
-        return evo::provider::UpdateRegistrar(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::UpdateRegistrar(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> revokeMasternode(Wallet& wallet, const ProviderRevokeRequest& request) override
     {
-        return evo::provider::Revoke(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::Revoke(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<PreparedSharedRegistration> prepareSharedRegistration(const SharedRegistrationRequest& request) override
     {
-        return evo::provider::PrepareSharedRegistration(context(), request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&] { return evo::provider::PrepareSharedRegistration(context(), request); }, UnavailableProviderTxError);
     }
     ProviderTxResult<SharedSignResult> signShared(Wallet& wallet, const SharedSignRequest& request) override
     {
-        return evo::provider::SignShared(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::SignShared(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> combineShared(Wallet& wallet, const SharedCombineRequest& request) override
     {
-        return evo::provider::CombineShared(context(), &wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::CombineShared(context(), &wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> dissolveShared(Wallet& wallet, const SharedDissolveRequest& request) override
     {
-        return evo::provider::DissolveShared(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::DissolveShared(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<PreparedSharedConsent> prepareSharedDissolution(const SharedDissolvePrepareRequest& request) override
     {
-        return evo::provider::PrepareSharedDissolution(context(), request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&] { return evo::provider::PrepareSharedDissolution(context(), request); }, UnavailableProviderTxError);
     }
     ProviderTxResult<ProviderTxSubmission> updateShare(Wallet& wallet, const SharedUpdateShareRequest& request) override
     {
-        return evo::provider::UpdateShare(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__, [&] { return evo::provider::UpdateShare(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     ProviderTxResult<PreparedSharedConsent> prepareSharedRegistrarUpdate(
         Wallet& wallet, const SharedRegistrarUpdatePrepareRequest& request) override
     {
-        return evo::provider::PrepareSharedRegistrarUpdate(context(), wallet, request);
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&] { return evo::provider::PrepareSharedRegistrarUpdate(context(), wallet, request); },
+            UnavailableProviderTxError);
     }
     void setContext(NodeContext* context) override
     {
@@ -367,43 +461,58 @@ public:
             context().govman->GetAllNewerThan(objs, nMoreThanTime, include_postponed);
         }
     }
-    Votes getObjVotes(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
+    std::optional<Votes> getObjVotes(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
     {
-        Votes ret;
-        if (context().govman != nullptr && context().dmnman != nullptr) {
-            const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
-            if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
-                ret.m_abs = govobj->GetAbstainCount(tip_mn_list, vote_signal);
-                ret.m_no = govobj->GetNoCount(tip_mn_list, vote_signal);
-                ret.m_yes = govobj->GetYesCount(tip_mn_list, vote_signal);
-            } else {
-                ret.m_abs = obj.GetAbstainCount(tip_mn_list, vote_signal);
-                ret.m_no = obj.GetNoCount(tip_mn_list, vote_signal);
-                ret.m_yes = obj.GetYesCount(tip_mn_list, vote_signal);
-            }
-        }
-        return ret;
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<Votes> {
+                Votes ret;
+                if (context().govman != nullptr && context().dmnman != nullptr) {
+                    const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
+                    if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
+                        ret.m_abs = govobj->GetAbstainCount(tip_mn_list, vote_signal);
+                        ret.m_no = govobj->GetNoCount(tip_mn_list, vote_signal);
+                        ret.m_yes = govobj->GetYesCount(tip_mn_list, vote_signal);
+                    } else {
+                        ret.m_abs = obj.GetAbstainCount(tip_mn_list, vote_signal);
+                        ret.m_no = obj.GetNoCount(tip_mn_list, vote_signal);
+                        ret.m_yes = obj.GetYesCount(tip_mn_list, vote_signal);
+                    }
+                }
+                return ret;
+            },
+            [] { return std::nullopt; });
     }
-    UniqueVoters getObjUniqueVoters(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
+    std::optional<UniqueVoters> getObjUniqueVoters(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
     {
-        if (context().govman != nullptr && context().dmnman != nullptr) {
-            const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
-            if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
-                const auto count = govobj->GetUniqueVoterCount(tip_mn_list, vote_signal);
-                return {.m_regular = count.m_regular, .m_evo = count.m_evo};
-            } else {
-                const auto count = obj.GetUniqueVoterCount(tip_mn_list, vote_signal);
-                return {.m_regular = count.m_regular, .m_evo = count.m_evo};
-            }
-        }
-        return {0, 0};
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<UniqueVoters> {
+                if (context().govman != nullptr && context().dmnman != nullptr) {
+                    const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
+                    if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
+                        const auto count = govobj->GetUniqueVoterCount(tip_mn_list, vote_signal);
+                        return UniqueVoters{.m_regular = count.m_regular, .m_evo = count.m_evo};
+                    } else {
+                        const auto count = obj.GetUniqueVoterCount(tip_mn_list, vote_signal);
+                        return UniqueVoters{.m_regular = count.m_regular, .m_evo = count.m_evo};
+                    }
+                }
+                return UniqueVoters{};
+            },
+            [] { return std::nullopt; });
     }
-    std::vector<CGovernanceVote> getCurrentVotes(const uint256& hash) override
+    std::optional<std::vector<CGovernanceVote>> getCurrentVotes(const uint256& hash) override
     {
-        if (context().govman != nullptr) {
-            return context().govman->GetCurrentVotes(hash, COutPoint{});
-        }
-        return {};
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<std::vector<CGovernanceVote>> {
+                if (context().govman != nullptr) {
+                    return context().govman->GetCurrentVotes(hash, COutPoint{});
+                }
+                return std::vector<CGovernanceVote>{};
+            },
+            [] { return std::nullopt; });
     }
     bool existsObj(const uint256& hash) override
     {
@@ -421,28 +530,41 @@ public:
     }
     bool processVoteAndRelay(const CGovernanceVote& vote, std::string& error) override
     {
-        if (context().govman != nullptr) {
-            CGovernanceException exception;
-            bool result = context().govman->ProcessVoteAndRelay(vote, exception);
-            if (!result) {
-                error = exception.GetMessage();
-            }
-            return result;
-        }
-        error = "Governance manager not available";
-        return false;
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> bool {
+                if (context().govman != nullptr) {
+                    CGovernanceException exception;
+                    bool result = context().govman->ProcessVoteAndRelay(vote, exception);
+                    if (!result) {
+                        error = exception.GetMessage();
+                    }
+                    return result;
+                }
+                error = "Governance manager not available";
+                return false;
+            },
+            [&] {
+                error = EvoStateUnavailableMessage().original;
+                return false;
+            });
     }
     GovernanceInfo getGovernanceInfo() override
     {
         GovernanceInfo info;
         if (context().chainman) {
             const Consensus::Params& consensusParams = context().chainman->GetConsensus();
+            if (context().dmnman) {
+                info.fundingthreshold = WithActiveEvoView(
+                    context().evodb.get(), __func__,
+                    [&]() -> std::optional<int> {
+                        return static_cast<int>(context().dmnman->GetListAtChainTip().GetCounts().m_valid_weighted / 10);
+                    },
+                    [] { return std::nullopt; });
+            }
             LOCK(::cs_main);
             CSuperblock::GetNearestSuperblocksHeights(context().chainman->ActiveHeight(), info.lastsuperblock, info.nextsuperblock);
             info.governancebudget = CSuperblock::GetPaymentsLimit(info.nextsuperblock);
-            if (context().dmnman) {
-                info.fundingthreshold = static_cast<int>(context().dmnman->GetListAtChainTip().GetCounts().m_valid_weighted / 10);
-            }
             info.superblockcycle = consensusParams.nSuperblockCycle;
             info.superblockmaturitywindow = consensusParams.nSuperblockMaturityWindow;
             info.targetSpacing = consensusParams.nPowTargetSpacing;
@@ -467,38 +589,43 @@ public:
         }
         return std::nullopt;
     }
-    FundableResult getFundableProposalHashes() override
+    std::optional<FundableResult> getFundableProposalHashes() override
     {
-        FundableResult result;
-        if (context().govman != nullptr && context().chainman != nullptr && context().dmnman != nullptr) {
-            const auto tip_mn_list{context().dmnman->GetListAtChainTip()};
-            if (const auto proposals{context().govman->GetApprovedProposals(tip_mn_list)}; !proposals.empty()) {
-                int32_t last_sb{0}, next_sb{0};
-                CAmount budget{0};
-                {
-                    LOCK(::cs_main);
-                    CSuperblock::GetNearestSuperblocksHeights(context().chainman->ActiveHeight(), last_sb, next_sb);
-                    budget = CSuperblock::GetPaymentsLimit(next_sb);
-                }
-                for (const auto& proposal : proposals) {
-                    UniValue json = proposal->GetJSONObject();
-                    CAmount payment_amount{0};
-                    try {
-                        payment_amount = ParsePaymentAmount(json["payment_amount"].getValStr());
-                    } catch (...) {
-                        continue;
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<FundableResult> {
+                FundableResult result;
+                if (context().govman != nullptr && context().chainman != nullptr && context().dmnman != nullptr) {
+                    const auto tip_mn_list{context().dmnman->GetListAtChainTip()};
+                    if (const auto proposals{context().govman->GetApprovedProposals(tip_mn_list)}; !proposals.empty()) {
+                        int32_t last_sb{0}, next_sb{0};
+                        CAmount budget{0};
+                        {
+                            LOCK(::cs_main);
+                            CSuperblock::GetNearestSuperblocksHeights(context().chainman->ActiveHeight(), last_sb, next_sb);
+                            budget = CSuperblock::GetPaymentsLimit(next_sb);
+                        }
+                        for (const auto& proposal : proposals) {
+                            UniValue json = proposal->GetJSONObject();
+                            CAmount payment_amount{0};
+                            try {
+                                payment_amount = ParsePaymentAmount(json["payment_amount"].getValStr());
+                            } catch (...) {
+                                continue;
+                            }
+                            if (result.allocated + payment_amount > budget) {
+                                // Budget is saturated, cannot fulfill proposal
+                                continue;
+                            }
+                            result.allocated += payment_amount;
+                            result.hashes.insert(proposal->GetHash());
+                        }
+                        return result;
                     }
-                    if (result.allocated + payment_amount > budget) {
-                        // Budget is saturated, cannot fulfill proposal
-                        continue;
-                    }
-                    result.allocated += payment_amount;
-                    result.hashes.insert(proposal->GetHash());
                 }
                 return result;
-            }
-        }
-        return result;
+            },
+            [] { return std::nullopt; });
     }
     std::optional<CGovernanceObject> createProposal(int32_t revision, int64_t created_time,
                         const std::string& data_hex, std::string& error) override
@@ -511,33 +638,44 @@ public:
             error = "This node is still building its governance collateral index, so it can't submit proposals yet";
             return std::nullopt;
         }
-        CGovernanceObject govobj(uint256{}, revision, created_time, uint256{}, data_hex);
-        if (govobj.GetObjectType() != GovernanceObject::PROPOSAL) {
-            error = "Invalid object type, only proposals can be validated";
-            return std::nullopt;
-        }
-        std::string strValidationError;
-        if (!governance::ValidateProposal(data_hex, strValidationError)) {
-            error = "Invalid proposal data: " + strValidationError;
-            return std::nullopt;
-        }
-        const ChainstateManager& chainman = *Assert(context().chainman);
-        {
-            LOCK(::cs_main);
-            std::string strError;
-            if (!govobj.IsValidLocally(Assert(context().dmnman)->GetListAtChainTip(), chainman, /*collateral=*/nullptr,
-                                       strError, false)) {
-                error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<CGovernanceObject> {
+                CGovernanceObject govobj(uint256{}, revision, created_time, uint256{}, data_hex);
+                if (govobj.GetObjectType() != GovernanceObject::PROPOSAL) {
+                    error = "Invalid object type, only proposals can be validated";
+                    return std::nullopt;
+                }
+                std::string strValidationError;
+                if (!governance::ValidateProposal(data_hex, strValidationError)) {
+                    error = "Invalid proposal data: " + strValidationError;
+                    return std::nullopt;
+                }
+                const ChainstateManager& chainman = *Assert(context().chainman);
+                {
+                    LOCK(::cs_main);
+                    std::string strError;
+                    if (!govobj.IsValidLocally(Assert(context().dmnman)->GetListAtChainTip(), chainman,
+                                               /*collateral=*/nullptr, strError, false)) {
+                        error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
+                        return std::nullopt;
+                    }
+                }
+                return govobj;
+            },
+            [&] {
+                error = EvoStateUnavailableMessage().original;
                 return std::nullopt;
-            }
-        }
-        return govobj;
+            });
     }
 
     bool submitProposal(const uint256& parent, int32_t revision, int64_t created_time, const std::string& data_hex,
                         const uint256& fee_txid, std::string& out_object_hash, std::string& error) override
     {
-        if (!context().govman || !context().dmnman || !context().chainman) { error = "Governance not available"; return false; }
+        if (!context().govman || !context().dmnman || !context().chainman) {
+            error = "Governance not available";
+            return false;
+        }
         if (!context().govman->IsValid() || !context().gov_collateral_index) {
             error = "Governance is disabled on this node, so it can't submit proposals";
             return false;
@@ -546,35 +684,55 @@ public:
             error = "This node is still building its governance collateral index, so it can't submit proposals yet";
             return false;
         }
-        if(!Assert(context().mn_sync)->IsBlockchainSynced()) { error = "Client not synced"; return false; }
-        const auto mnList = Assert(context().dmnman)->GetListAtChainTip();
-        CGovernanceObject govobj(parent, revision, created_time, fee_txid, data_hex);
-        if (govobj.GetObjectType() == GovernanceObject::TRIGGER) { error = "Submission of triggers is not available"; return false; }
-        if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-            std::string strValidationError;
-            if (!governance::ValidateProposal(data_hex, strValidationError)) { error = "Invalid proposal data: " + strValidationError; return false; }
-        }
-        const CTxMemPool& mempool = *Assert(context().mempool);
-        bool fMissingConfirmations{false};
-        {
-            LOCK2(cs_main, mempool.cs);
-            std::string strError;
-            if (!govobj.IsValidLocally(mnList, *Assert(context().chainman), context().gov_collateral_index.get(),
-                                       strError, fMissingConfirmations, true) &&
-                !fMissingConfirmations) {
-                error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> bool {
+                if (!Assert(context().mn_sync)->IsBlockchainSynced()) {
+                    error = "Client not synced";
+                    return false;
+                }
+                const auto mnList = Assert(context().dmnman)->GetListAtChainTip();
+                CGovernanceObject govobj(parent, revision, created_time, fee_txid, data_hex);
+                if (govobj.GetObjectType() == GovernanceObject::TRIGGER) {
+                    error = "Submission of triggers is not available";
+                    return false;
+                }
+                if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
+                    std::string strValidationError;
+                    if (!governance::ValidateProposal(data_hex, strValidationError)) {
+                        error = "Invalid proposal data: " + strValidationError;
+                        return false;
+                    }
+                }
+                const CTxMemPool& mempool = *Assert(context().mempool);
+                bool fMissingConfirmations{false};
+                {
+                    LOCK2(cs_main, mempool.cs);
+                    std::string strError;
+                    if (!govobj.IsValidLocally(mnList, *Assert(context().chainman), context().gov_collateral_index.get(),
+                                               strError, fMissingConfirmations, true) &&
+                        !fMissingConfirmations) {
+                        error = "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError;
+                        return false;
+                    }
+                }
+                if (!Assert(context().govman)->MasternodeRateCheck(govobj)) {
+                    error = "Object creation rate limit exceeded";
+                    return false;
+                }
+                if (fMissingConfirmations) {
+                    context().govman->AddPostponedObject(govobj);
+                    context().govman->RelayObject(govobj);
+                } else {
+                    context().govman->AddGovernanceObject(govobj, "<local>");
+                }
+                out_object_hash = govobj.GetHash().ToString();
+                return true;
+            },
+            [&] {
+                error = EvoStateUnavailableMessage().original;
                 return false;
-            }
-        }
-        if (!Assert(context().govman)->MasternodeRateCheck(govobj)) { error = "Object creation rate limit exceeded"; return false; }
-        if (fMissingConfirmations) {
-            context().govman->AddPostponedObject(govobj);
-            context().govman->RelayObject(govobj);
-        } else {
-            context().govman->AddGovernanceObject(govobj, "<local>");
-        }
-        out_object_hash = govobj.GetHash().ToString();
-        return true;
+            });
     }
     void setContext(NodeContext* context) override
     {
@@ -591,22 +749,27 @@ private:
     NodeContext& context() { return *Assert(m_context); }
 
 public:
-    CreditPoolCounts getCreditPoolCounts() override
+    std::optional<CreditPoolCounts> getCreditPoolCounts() override
     {
-        CreditPoolCounts ret{};
-        if (!context().chainman || !context().special_tx) {
-            return ret;
-        }
-        const auto* pindex{WITH_LOCK(::cs_main, return context().chainman->ActiveChain().Tip())};
-        if (!pindex || !pindex->pprev) {
-            return ret;
-        }
-        auto& cpoolman{*context().special_tx->m_cpoolman};
-        const auto pool{cpoolman.GetCreditPool(pindex)};
-        ret.m_locked = pool.locked;
-        ret.m_limit = pool.currentLimit;
-        ret.m_diff = pool.locked - cpoolman.GetCreditPool(pindex->pprev).locked;
-        return ret;
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<CreditPoolCounts> {
+                CreditPoolCounts ret{};
+                if (!context().chainman || !context().special_tx) {
+                    return ret;
+                }
+                const auto* pindex{WITH_LOCK(::cs_main, return context().chainman->ActiveChain().Tip())};
+                if (!pindex || !pindex->pprev) {
+                    return ret;
+                }
+                auto& cpoolman{*context().special_tx->m_cpoolman};
+                const auto pool{cpoolman.GetCreditPool(pindex)};
+                ret.m_locked = pool.locked;
+                ret.m_limit = pool.currentLimit;
+                ret.m_diff = pool.locked - cpoolman.GetCreditPool(pindex->pprev).locked;
+                return ret;
+            },
+            [] { return std::nullopt; });
     }
     ChainLockInfo getBestChainLock() override
     {
@@ -646,48 +809,68 @@ public:
             return entry.GetTx().IsPlatformTransfer();
         }));
     }
-    std::vector<QuorumInfo> getQuorumStats() override
+    std::optional<std::vector<QuorumInfo>> getQuorumStats() override
     {
-        std::vector<QuorumInfo> stats{};
-        if (!context().llmq_ctx || !context().llmq_ctx->qman || !context().chainman) {
-            return stats;
-        }
-        const auto* pindex{WITH_LOCK(::cs_main, return context().chainman->ActiveChain().Tip())};
-        if (!pindex) {
-            return stats;
-        }
-        for (const auto& type : llmq::GetEnabledQuorumTypes(*context().chainman, pindex)) {
-            const auto llmq_params{Params().GetLLMQ(type)};
-            if (!llmq_params.has_value()) {
-                continue;
-            }
-            const auto quorums{context().llmq_ctx->qman->ScanQuorums(type, pindex, llmq_params->signingActiveQuorumCount)};
-            double health{0.0};
-            for (const auto& q : quorums) {
-                size_t numMembers = q->members.size();
-                size_t numValidMembers = q->qc->CountValidMembers();
-                health += (numMembers > 0) ? (double(numValidMembers) / double(numMembers)) : 0.0;
-            }
-            health = quorums.empty() ? 0.0 : (health / quorums.size());
-            const int32_t newest_height{(!quorums.empty() && quorums[0]->m_quorum_base_block_index)
-                ? quorums[0]->m_quorum_base_block_index->nHeight : 0};
-            const int32_t expiry_height{(newest_height > 0)
-                ? newest_height + llmq_params->signingActiveQuorumCount * llmq_params->dkgInterval
-                : 0};
-            stats.emplace_back(QuorumInfo{
-                .m_name = std::string(llmq_params->name),
-                .m_count = quorums.size(),
-                .m_health = health,
-                .m_rotates = llmq_params->useRotation,
-                .m_data_retention_blocks = llmq_params->max_store_depth(),
-                .m_newest_height = newest_height,
-                .m_expiry_height = expiry_height,
-            });
-        }
-        return stats;
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&]() -> std::optional<std::vector<QuorumInfo>> {
+                std::vector<QuorumInfo> stats{};
+                if (!context().llmq_ctx || !context().llmq_ctx->qman || !context().chainman) {
+                    return stats;
+                }
+                const auto* pindex{WITH_LOCK(::cs_main, return context().chainman->ActiveChain().Tip())};
+                if (!pindex) {
+                    return stats;
+                }
+                for (const auto& type : llmq::GetEnabledQuorumTypes(*context().chainman, pindex)) {
+                    const auto llmq_params{Params().GetLLMQ(type)};
+                    if (!llmq_params.has_value()) {
+                        continue;
+                    }
+                    const auto quorums{
+                        context().llmq_ctx->qman->ScanQuorums(type, pindex, llmq_params->signingActiveQuorumCount)};
+                    double health{0.0};
+                    for (const auto& q : quorums) {
+                        // A quorum known by its key only counts its commitment's member slots.
+                        const size_t numMembers{q->HasMembers() ? q->Members().size() : q->qc->validMembers.size()};
+                        size_t numValidMembers = q->qc->CountValidMembers();
+                        health += (numMembers > 0) ? (double(numValidMembers) / double(numMembers)) : 0.0;
+                    }
+                    health = quorums.empty() ? 0.0 : (health / quorums.size());
+                    const int32_t newest_height{(!quorums.empty() && quorums[0]->m_quorum_base_block_index)
+                                                    ? quorums[0]->m_quorum_base_block_index->nHeight
+                                                    : 0};
+                    const int32_t expiry_height{
+                        (newest_height > 0) ? newest_height + llmq_params->signingActiveQuorumCount * llmq_params->dkgInterval
+                                            : 0};
+                    stats.emplace_back(QuorumInfo{
+                        .m_name = std::string(llmq_params->name),
+                        .m_count = quorums.size(),
+                        .m_health = health,
+                        .m_rotates = llmq_params->useRotation,
+                        .m_data_retention_blocks = llmq_params->max_store_depth(),
+                        .m_newest_height = newest_height,
+                        .m_expiry_height = expiry_height,
+                    });
+                }
+                return stats;
+            },
+            [] { return std::nullopt; });
     }
     PlatformQuorumResult getPlatformQuorum(uint8_t llmq_type, const uint256& quorum_hash,
                                            uint32_t core_chain_locked_height) override
+    {
+        // Unbound, or unable to read its own Evo state, this node cannot tell.
+        return WithActiveEvoView(
+            context().evodb.get(), __func__,
+            [&] { return LookupPlatformQuorum(llmq_type, quorum_hash, core_chain_locked_height); },
+            [] { return PlatformQuorumResult{}; });
+    }
+
+private:
+    //! getPlatformQuorum in the Evo view the calling thread is bound to.
+    PlatformQuorumResult LookupPlatformQuorum(uint8_t llmq_type, const uint256& quorum_hash,
+                                              uint32_t core_chain_locked_height)
     {
         PlatformQuorumResult invalid{PlatformQuorumStatus::INVALID, {}};
         const auto type{static_cast<Consensus::LLMQType>(llmq_type)};
@@ -699,7 +882,8 @@ public:
             return invalid;
         }
         const int signed_height{static_cast<int>(core_chain_locked_height)};
-        if (!context().llmq_ctx || !context().llmq_ctx->quorum_block_processor || !context().chainman) {
+        if (!context().llmq_ctx || !context().llmq_ctx->quorum_block_processor || !context().chainman ||
+            !context().evodb) {
             return {};
         }
         // Only a ChainLock whose block is known can lock part of the active chain; the best height may
@@ -712,6 +896,11 @@ public:
         }
 
         LOCK(::cs_main);
+        // Only the active chain of the bound view can answer: a snapshot
+        // published since answers the next call.
+        if (context().evodb->ActiveView() != context().evodb->CurrentView()) {
+            return {};
+        }
         const CChain& active{context().chainman->ActiveChain()};
         const CBlockIndex* tip{active.Tip()};
         if (!tip || signed_height > tip->nHeight) {
@@ -747,8 +936,10 @@ public:
         if (!qc.quorumPublicKey.IsValid()) {
             return {};
         }
-        return {PlatformQuorumStatus::FOUND, qc.quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false)};
+        return {PlatformQuorumStatus::FOUND, qc.quorumPublicKey.ToByteVector()};
     }
+
+public:
     std::vector<uint8_t> getInstantSendLock(const uint256& txid) override
     {
         if (!context().isman) {
@@ -1163,10 +1354,15 @@ public:
         return m_context->active_ctx != nullptr;
     }
     bool isLoadingBlocks() override { return chainman().m_blockman.LoadingBlocks(); }
-    bool isV24Active() override
+    std::optional<bool> isV24Active() override
     {
-        LOCK(::cs_main);
-        return DeploymentActiveAfter(chainman().ActiveChain().Tip(), chainman(), Consensus::DEPLOYMENT_V24);
+        return WithActiveEvoView(
+            m_context->evodb.get(), __func__,
+            [&]() -> std::optional<bool> {
+                LOCK(::cs_main);
+                return DeploymentActiveAfter(chainman().ActiveChain().Tip(), chainman(), Consensus::DEPLOYMENT_V24);
+            },
+            [] { return std::nullopt; });
     }
     void setNetworkActive(bool active) override
     {
@@ -1501,21 +1697,27 @@ public:
         if (m_node.chainlocks == nullptr) return false;
         return m_node.chainlocks->HasChainLock(height, hash);
     }
-    std::vector<COutPoint> listMNCollaterials(const std::vector<std::pair<const CTransactionRef&, uint32_t>>& outputs) override
+    std::optional<std::vector<COutPoint>> listMNCollaterials(
+        const std::vector<std::pair<const CTransactionRef&, uint32_t>>& outputs) override
     {
-        const CBlockIndex *tip = WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip());
-        CDeterministicMNList mnList{};
-        if  (tip != nullptr && m_node.dmnman != nullptr) {
-            mnList = m_node.dmnman->GetListForBlock(tip);
-        }
-        std::vector<COutPoint> listRet;
-        for (const auto& [tx, index]: outputs) {
-            COutPoint nextOut{tx->GetHash(), index};
-            if (CDeterministicMNManager::IsProTxWithCollateral(tx, index) || mnList.HasMNByCollateral(nextOut)) {
-                listRet.emplace_back(nextOut);
-            }
-        }
-        return listRet;
+        return WithActiveEvoView(
+            m_node.evodb.get(), __func__,
+            [&]() -> std::optional<std::vector<COutPoint>> {
+                const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman().ActiveChain().Tip());
+                CDeterministicMNList mnList{};
+                if (tip != nullptr && m_node.dmnman != nullptr) {
+                    mnList = m_node.dmnman->GetListForBlock(tip);
+                }
+                std::vector<COutPoint> listRet;
+                for (const auto& [tx, index] : outputs) {
+                    COutPoint nextOut{tx->GetHash(), index};
+                    if (CDeterministicMNManager::IsProTxWithCollateral(tx, index) || mnList.HasMNByCollateral(nextOut)) {
+                        listRet.emplace_back(nextOut);
+                    }
+                }
+                return listRet;
+            },
+            [] { return std::nullopt; });
     }
     interfaces::CoinJoin::Loader* coinJoinLoader() override { return m_node.coinjoin_loader.get(); }
     bool findBlock(const uint256& hash, const FoundBlock& block) override
@@ -1665,10 +1867,15 @@ public:
         if (!m_node.mempool || !m_node.mempool->m_require_standard) return false;
         return !IsStandardSpecialTx(*tx, reason);
     }
-    bool isV24Active() override
+    std::optional<bool> isV24Active() override
     {
-        LOCK(::cs_main);
-        return DeploymentActiveAfter(chainman().ActiveChain().Tip(), chainman(), Consensus::DEPLOYMENT_V24);
+        return WithActiveEvoView(
+            m_node.evodb.get(), __func__,
+            [&]() -> std::optional<bool> {
+                LOCK(::cs_main);
+                return DeploymentActiveAfter(chainman().ActiveChain().Tip(), chainman(), Consensus::DEPLOYMENT_V24);
+            },
+            [] { return std::nullopt; });
     }
     bool havePruned() override
     {

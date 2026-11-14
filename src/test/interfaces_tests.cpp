@@ -6,33 +6,47 @@
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/providertx.h>
+#include <evo/snapshot_config.h>
+#include <evo/snapshot_types.h>
+#include <governance/governance.h>
+#include <governance/object.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <interfaces/chain.h>
 #include <interfaces/node.h>
+#include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/params.h>
+#include <logging.h>
 #include <script/standard.h>
 #include <spork.h>
 #include <streams.h>
+#include <sync.h>
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 #include <tinyformat.h>
 #include <util/std23.h>
 #include <util/strencodings.h>
+#include <util/translation.h>
 #include <validation.h>
 #include <version.h>
+#include <warnings.h>
 
 #include <algorithm>
 #include <chrono>
 #include <future>
 #include <map>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <variant>
+#include <vector>
 
 #include <boost/test/unit_test.hpp>
 
@@ -88,7 +102,8 @@ BOOST_AUTO_TEST_CASE(findBlock)
 BOOST_AUTO_TEST_CASE(providerTxCapabilities)
 {
     auto node{interfaces::MakeNode(m_node)};
-    const auto capabilities{node->evo().getProviderTxCapabilities()};
+    const auto capabilities{node->evo().getProviderTxCapabilities().value()};
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const uint16_t expected_version{
         WITH_LOCK(::cs_main, return DeploymentToProtxVersion(Assert(m_node.chainman)->ActiveChain().Tip(),
                                                              *Assert(m_node.chainman)))};
@@ -104,7 +119,9 @@ struct IPv4OptionalChainSetup : public TestChain100Setup {
 
 BOOST_FIXTURE_TEST_CASE(providerTxCapabilitiesIPv4Optional, IPv4OptionalChainSetup)
 {
-    BOOST_CHECK(interfaces::MakeNode(m_node)->evo().getProviderTxCapabilities().ipv4_optional);
+    const auto capabilities{interfaces::MakeNode(m_node)->evo().getProviderTxCapabilities()};
+    BOOST_REQUIRE(capabilities);
+    BOOST_CHECK(capabilities->ipv4_optional);
 }
 
 BOOST_AUTO_TEST_CASE(providerNetInfoValidationDoesNotWaitForChain)
@@ -129,6 +146,181 @@ BOOST_AUTO_TEST_CASE(providerNetInfoValidationDoesNotWaitForChain)
     holder.join();
     BOOST_CHECK(!lock_timed_out);
     BOOST_CHECK(!error);
+}
+
+// When this node cannot read its Evo state during dual operation, GUI-facing
+// operations report it through their own failure channel and the misc
+// warning; the error never reaches the caller.
+BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain().Tip())};
+    NotifyMNListTip(*Assert(m_node.dmnman), tip);
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    const auto list_unavailable{
+        [](const CBlockIndex*) { throw BlockDataUnavailableError("masternode list unavailable"); }};
+
+    // Without a snapshot, the list can be missing only because block data was
+    // pruned, and the warning says so.
+    {
+        const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(list_unavailable);
+        BOOST_CHECK(!node->evo().getListAtChainTip().first);
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(nullptr);
+        consensus.DIP0003Height = dip3_height;
+        BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Block data was pruned; restart with -reindex") !=
+                    std::string::npos);
+        SetMiscWarning(Untranslated(""));
+    }
+
+    BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+
+    // With DIP3 counted from genesis the tip's masternode list must be read
+    // from EvoDB, and that read fails as unavailable.
+    const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(list_unavailable);
+    interfaces::GOV::GovernanceInfo info;
+    BOOST_CHECK_NO_THROW(info = node->gov().getGovernanceInfo());
+    BOOST_CHECK(!info.fundingthreshold.has_value());
+    BOOST_CHECK_EQUAL(info.superblockcycle, Params().GetConsensus().nSuperblockCycle);
+    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") != std::string::npos);
+    // Polling the same operation again does not raise the warning again.
+    SetMiscWarning(Untranslated(""));
+    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(GetWarnings(/*verbose=*/true).original.find("Snapshot state unavailable") == std::string::npos);
+
+    std::optional<std::vector<COutPoint>> collaterals{std::vector<COutPoint>{}};
+    BOOST_CHECK_NO_THROW(collaterals = m_node.chain->listMNCollaterials({}));
+    BOOST_CHECK(!collaterals.has_value());
+
+    // An endpoint the masternode list cannot be checked against is not reported free.
+    const interfaces::ProviderNetInfo net_info{.core_p2p = {strprintf("1.2.3.4:%d", Params().GetDefaultPort())}, .platform_p2p = {}, .platform_https = {}};
+    const auto find_in_use{[&] {
+        return node->evo().findProviderNetInfoInUse(net_info, MnType::Regular, ProTxVersion::BasicBLS,
+                                                    /*ipv4_optional=*/false);
+    }};
+    interfaces::ProviderTxResult<std::optional<std::string>> in_use{std::optional<std::string>{}};
+    BOOST_CHECK_NO_THROW(in_use = find_in_use());
+    BOOST_CHECK(std::holds_alternative<interfaces::ProviderTxError>(in_use));
+
+    // The current votes on a known object depend on the masternode list too.
+    m_node.govman = std::make_unique<CGovernanceManager>(m_args.GetDataDirNet(), *m_node.mn_metaman, *m_node.chainman,
+                                                         *m_node.sbman, *m_node.dmnman, *m_node.mn_sync,
+                                                         /*collateral=*/nullptr);
+    const CGovernanceObject proposal{uint256(), /*nRevisionIn=*/1, GetTime(), GetRandHash(), /*strDataHexIn=*/{}};
+    m_node.govman->AddGovernanceObjectForTesting(proposal);
+    std::optional<std::vector<CGovernanceVote>> votes{std::vector<CGovernanceVote>{}};
+    BOOST_CHECK_NO_THROW(votes = node->gov().getCurrentVotes(proposal.GetHash()));
+    BOOST_CHECK(!votes.has_value());
+
+    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(nullptr);
+    consensus.DIP0003Height = dip3_height;
+
+    // Once the list can be read again, the endpoint is checked, and it is free.
+    in_use = find_in_use();
+    BOOST_REQUIRE(std::holds_alternative<std::optional<std::string>>(in_use));
+    BOOST_CHECK(!std::get<std::optional<std::string>>(in_use).has_value());
+    SetMiscWarning(Untranslated(""));
+}
+
+// Every interfaces call that reads Evo state binds the view it serves: called
+// from a thread that binds nothing, under -checkevobinding, none of them fails
+// with, or reports, an unbound access, with one view or with two.
+BOOST_AUTO_TEST_CASE(evo_reads_bind_from_an_unbound_thread)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain().Tip())};
+    NotifyMNListTip(*Assert(m_node.dmnman), tip);
+    m_node.govman = std::make_unique<CGovernanceManager>(m_args.GetDataDirNet(), *m_node.mn_metaman, *m_node.chainman,
+                                                         *m_node.sbman, *m_node.dmnman, *m_node.mn_sync,
+                                                         /*collateral=*/nullptr);
+    const CGovernanceObject proposal{uint256(), /*nRevisionIn=*/1, GetTime(), GetRandHash(), /*strDataHexIn=*/{}};
+    m_node.govman->AddGovernanceObjectForTesting(proposal);
+    const interfaces::ProviderNetInfo net_info{.core_p2p = {strprintf("1.2.3.4:%d", Params().GetDefaultPort())}, .platform_p2p = {}, .platform_https = {}};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto platform_qc{llmq::testutils::CreateValidCommitment(llmq::testutils::GetLLMQParams(platform_type),
+                                                                  tip->pprev->GetBlockHash())};
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction()};
+        llmq::testutils::WriteMinedCommitment(evodb, platform_qc, tip->GetBlockHash(), /*mined_height=*/tip->nHeight,
+                                              /*quorum_height=*/tip->nHeight - 1);
+        db_tx->Commit();
+    }
+
+    Mutex log_mutex;
+    std::vector<std::string> unbound_logged;
+    const auto log_callback{LogInstance().PushBackCallback([&](const std::string& line) {
+        if (line.find("unbound Evo access") != std::string::npos) WITH_LOCK(log_mutex, unbound_logged.push_back(line));
+    })};
+
+    // Returns the calls that threw, and, with `expect_state`, those that
+    // reported the Evo state unavailable.
+    const auto sweep = [&](bool expect_state) {
+        std::vector<std::string> failed;
+        std::thread{[&] {
+            const auto call = [&](const char* name, auto&& fn) {
+                try {
+                    if (!fn() && expect_state) failed.emplace_back(strprintf("%s: unavailable", name));
+                } catch (const std::exception& e) {
+                    failed.emplace_back(strprintf("%s: %s", name, e.what()));
+                }
+            };
+            call("getListAtChainTip", [&] { node->evo().getListAtChainTip(); return true; });
+            call("getProviderTxCapabilities", [&] { return node->evo().getProviderTxCapabilities().has_value(); });
+            call("findProviderNetInfoInUse", [&] {
+                return std::holds_alternative<std::optional<std::string>>(node->evo().findProviderNetInfoInUse(
+                    net_info, MnType::Regular, ProTxVersion::BasicBLS, /*ipv4_optional=*/false));
+            });
+            call("getAllNewerThan", [&] {
+                std::vector<CGovernanceObject> objs;
+                node->gov().getAllNewerThan(objs, 0);
+                return true;
+            });
+            call("getObjVotes", [&] { return node->gov().getObjVotes(proposal, VOTE_SIGNAL_FUNDING).has_value(); });
+            call("getObjUniqueVoters",
+                 [&] { return node->gov().getObjUniqueVoters(proposal, VOTE_SIGNAL_FUNDING).has_value(); });
+            call("getCurrentVotes", [&] { return node->gov().getCurrentVotes(proposal.GetHash()).has_value(); });
+            call("getGovernanceInfo", [&] { return node->gov().getGovernanceInfo().fundingthreshold.has_value(); });
+            call("getProposalFundedHeight", [&] { node->gov().getProposalFundedHeight(proposal.GetHash()); return true; });
+            call("getFundableProposalHashes", [&] { return node->gov().getFundableProposalHashes().has_value(); });
+            call("getBestChainLock", [&] { node->llmq().getBestChainLock(); return true; });
+            call("getCreditPoolCounts", [&] { return node->llmq().getCreditPoolCounts().has_value(); });
+            call("getInstantSendCounts", [&] { node->llmq().getInstantSendCounts(); return true; });
+            call("getPendingAssetUnlocks", [&] { node->llmq().getPendingAssetUnlocks(); return true; });
+            call("getQuorumStats", [&] { return node->llmq().getQuorumStats().has_value(); });
+            call("getPlatformQuorum", [&] {
+                return node->llmq()
+                           .getPlatformQuorum(std23::to_underlying(platform_type), platform_qc.quorumHash, tip->nHeight)
+                           .status == interfaces::LLMQ::PlatformQuorumStatus::FOUND;
+            });
+            call("getInstantSendLock", [&] { node->llmq().getInstantSendLock(GetRandHash()); return true; });
+            call("node isV24Active", [&] { return node->isV24Active().has_value(); });
+            call("masternodeSync", [&] { node->masternodeSync().isSynced(); return true; });
+            call("listMNCollaterials", [&] { return m_node.chain->listMNCollaterials({}).has_value(); });
+            call("chain isV24Active", [&] { return m_node.chain->isV24Active().has_value(); });
+        }}.join();
+        return failed;
+    };
+
+    for (const auto& failure : sweep(/*expect_state=*/true)) BOOST_ERROR("single view: " + failure);
+
+    BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+    evodb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    // The snapshot view holds no state, so its reads may report it
+    // unavailable; none may fail.
+    for (const auto& failure : sweep(/*expect_state=*/false)) BOOST_ERROR("dual views: " + failure);
+
+    LogInstance().DeleteCallback(log_callback);
+    for (const auto& line : WITH_LOCK(log_mutex, return unbound_logged)) BOOST_ERROR("unbound access: " + line);
+    SetMiscWarning(Untranslated(""));
 }
 
 BOOST_AUTO_TEST_CASE(providerNetInfoValidation)
@@ -435,10 +627,10 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorum)
     // The newest quorum, with the commitment's 48-byte basic-scheme key. The hash is in Core's
     // internal byte order.
     const auto found{check("newest", type, qcs.at(50).quorumHash, tip, FOUND)};
-    BOOST_CHECK(found.public_key == qcs.at(50).quorumPublicKey.ToByteVector(/*specificLegacyScheme=*/false));
+    BOOST_CHECK(found.public_key == qcs.at(50).quorumPublicKey.ToByteVector());
     BOOST_CHECK_EQUAL(found.public_key.size(), 48U);
     CBLSPublicKey roundtrip;
-    roundtrip.SetBytes(found.public_key, /*specificLegacyScheme=*/false);
+    roundtrip.SetBytes(found.public_key);
     BOOST_CHECK(roundtrip.IsValid());
     BOOST_CHECK(roundtrip == qcs.at(50).quorumPublicKey);
     // Without a ChainLock this node's chain is not final, so a missing quorum is not evidence yet.
@@ -543,6 +735,254 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorum)
     check("commitment record missing", type, block_60, tip, UNAVAILABLE);
 }
 
+// In a snapshot view, a quorum missing from the commitments mined above the
+// base may still have been mined at or below it. An unmined hash is invalid
+// only once the eligible window lies above the base, and only under an
+// anchoring ChainLock; a quorum mined below the height never is. A node with
+// no Evo state to read cannot tell at all.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_snapshot_view)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    constexpr auto FOUND{PlatformQuorumStatus::FOUND};
+    constexpr auto INVALID{PlatformQuorumStatus::INVALID};
+    constexpr auto UNAVAILABLE{PlatformQuorumStatus::UNAVAILABLE};
+    // With DIP3 active at the base, quorums can have been mined at or below it.
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Dip3HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~Dip3HeightRestore() { params.DIP0003Height = height; }
+    } dip3_restore{consensus, std::exchange(consensus.DIP0003Height, 1)};
+
+    // The quorum based at 40 was mined below the snapshot base at 50, where
+    // only NORMAL holds it; the snapshot view holds the ones based at 60, 70,
+    // 80 and 90, each mined one block later.
+    std::map<int, uint256> hashes;
+    const auto write_commitment{[&](int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        const CChain& active{m_node.chainman->ActiveChain()};
+        const auto qc{llmq::testutils::CreateValidCommitment(params, active[base]->GetBlockHash())};
+        llmq::testutils::WriteMinedCommitment(evodb, qc, active[base + 1]->GetBlockHash(),
+                                              /*mined_height=*/base + 1, /*quorum_height=*/base);
+        hashes.emplace(base, qc.quorumHash);
+    }};
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction()};
+        write_commitment(40);
+        db_tx->Commit();
+        const CBlockIndex* base{m_node.chainman->ActiveChain()[50]};
+        BOOST_REQUIRE(evodb.CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+    }
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(), std::nullopt));
+    evodb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        for (const int base : {60, 70, 80, 90}) write_commitment(base);
+        db_tx->Commit();
+    }
+    const uint256 unknown{InsecureRand256()};
+
+    CheckPlatformQuorum(llmq, "window above the base", type, hashes.at(90), 100, FOUND);
+    CheckPlatformQuorum(llmq, "absent, no ChainLock", type, unknown, 100, UNAVAILABLE);
+
+    RecordChainLock(*m_node.chainlocks, 100, WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
+    CheckPlatformQuorum(llmq, "absent, window above the base", type, unknown, 100, INVALID);
+    // A window reaching the base cannot be read in full, so not even a quorum
+    // in it is answered.
+    CheckPlatformQuorum(llmq, "window reaching the base", type, hashes.at(70), 75, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "absent, window reaching the base", type, unknown, 75, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "mined below the base", type, hashes.at(40), 55, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "mined below the base, out of the window", type, hashes.at(40), 100, UNAVAILABLE);
+    // A caller bound to a view other than the active chain's gets no answer
+    // about the active chain.
+    {
+        const EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CheckPlatformQuorum(llmq, "bound to another view", type, hashes.at(90), 100, UNAVAILABLE);
+    }
+
+    {
+        auto evodb_owner{std::move(m_node.evodb)};
+        CheckPlatformQuorum(llmq, "no Evo database", type, hashes.at(90), 100, UNAVAILABLE);
+        m_node.evodb = std::move(evodb_owner);
+    }
+    m_node.chainlocks->ResetChainlock();
+}
+
+namespace {
+//! A Platform quorum's commitment at `base`, mined one block later.
+struct PlatformCommitments {
+    node::NodeContext& m_node;
+    const Consensus::LLMQParams& params;
+    std::map<int, llmq::CFinalCommitment> qcs;
+
+    const llmq::CFinalCommitment& At(int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        const CChain& active{m_node.chainman->ActiveChain()};
+        return qcs.try_emplace(base, llmq::testutils::CreateValidCommitment(params, active[base]->GetBlockHash()))
+            .first->second;
+    }
+    const CBlockIndex* Mined(int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        return m_node.chainman->ActiveChain()[base + 1];
+    }
+    //! As the block connection of the view the caller binds writes it.
+    void Write(int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb, At(base), Mined(base)->GetBlockHash(), base + 1, base);
+    }
+    //! A snapshot generation based at `snapshot_base` that carries the
+    //! commitments at `carried` with `coverage`, as seeding a section does,
+    //! published and active.
+    void PublishGeneration(int snapshot_base, const std::vector<int>& carried, llmq::ScanSequenceEnd coverage)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        CEvoDB& evodb{*m_node.evodb};
+        auto& qbp{*m_node.llmq_ctx->quorum_block_processor};
+        const CBlockIndex* base_index{m_node.chainman->ActiveChain()[snapshot_base]};
+        BOOST_REQUIRE(evodb.CreateSnapshotGeneration(base_index->GetBlockHash(), base_index->nHeight));
+        const EvoViewToken view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        {
+            auto db_tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            for (const int base : carried) {
+                BOOST_REQUIRE(qbp.SeedMinedCommitment(view, params.type, At(base).quorumHash, At(base),
+                                                      Mined(base)->GetBlockHash()));
+            }
+            llmq::ScanCoverageRecord record;
+            record.ends = {static_cast<uint8_t>(coverage)};
+            BOOST_REQUIRE(qbp.SeedScanCoverage(view, params.type, record));
+            evodb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, base_index->GetBlockHash());
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        BOOST_REQUIRE(evodb.PublishSnapshotGeneration(EvoSnapshotConsensusConfig::FromParams(Params()).Fingerprint(),
+                                                      std::nullopt));
+        evodb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    }
+};
+} // namespace
+
+// A snapshot carries the newest Platform commitments at or below its base, as many as the
+// canonical selection takes (4 here, the eligible window too). Where a window is read in
+// full from them, and from what was mined above the base, an unmined hash is invalid and
+// a carried quorum that has left the window unavailable, as on NORMAL; where it reaches
+// past the oldest carried one, whose end is unknown, the window cannot be read in full, so
+// a carried quorum in it, a quorum NORMAL would find there and one nobody mined are all
+// unavailable, never invalid. After promotion NORMAL holds the whole history and decides
+// everywhere.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_carried_window)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    using enum PlatformQuorumStatus;
+    BOOST_REQUIRE_EQUAL(llmq::PlatformEligibleQuorumCount(params), 4);
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Dip3HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~Dip3HeightRestore() { params.DIP0003Height = height; }
+    } dip3_restore{consensus, std::exchange(consensus.DIP0003Height, 1)};
+
+    PlatformCommitments qcs{m_node, params, {}};
+    {
+        LOCK(::cs_main);
+        {
+            auto db_tx{evodb.BeginTransaction()};
+            for (const int base : {10, 20, 30, 40, 45}) qcs.Write(base);
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::NORMAL));
+        qcs.PublishGeneration(/*snapshot_base=*/50, {20, 30, 40, 45}, llmq::ScanSequenceEnd::UNKNOWN);
+    }
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+    RecordChainLock(*m_node.chainlocks, tip->nHeight, tip);
+    const uint256 unknown{InsecureRand256()};
+    const auto hash = [&](int base) { return qcs.qcs.at(base).quorumHash; };
+
+    CheckPlatformQuorum(llmq, "carried, newest", type, hash(45), 50, FOUND);
+    CheckPlatformQuorum(llmq, "carried, oldest in the window", type, hash(20), 50, FOUND);
+    CheckPlatformQuorum(llmq, "absent, window read from carried ones", type, unknown, 50, INVALID);
+    CheckPlatformQuorum(llmq, "carried, window past the carried floor", type, hash(30), 44, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "older than every carried one", type, hash(10), 44, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "absent, window past the carried floor", type, unknown, 44, UNAVAILABLE);
+
+    // One commitment mined above the base fills that window again.
+    {
+        LOCK(::cs_main);
+        {
+            auto db_tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            qcs.Write(60);
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    }
+    CheckPlatformQuorum(llmq, "mined above the base", type, hash(60), 62, FOUND);
+    CheckPlatformQuorum(llmq, "absent, window full again", type, unknown, 62, INVALID);
+    CheckPlatformQuorum(llmq, "carried, out of the window", type, hash(20), 62, UNAVAILABLE);
+
+    {
+        LOCK(::cs_main);
+        const uint256 snapshot_tip{m_node.chainman->ActiveChain()[50]->GetBlockHash()};
+        BOOST_REQUIRE(evodb.PrepareSnapshotPromotion(snapshot_tip));
+        BOOST_REQUIRE(evodb.PromoteSnapshotMarkers(snapshot_tip));
+        evodb.SetDefaultIdentity(EvoDbIdentity::NORMAL);
+    }
+    CheckPlatformQuorum(llmq, "promoted, older than every carried one", type, hash(10), 44, FOUND);
+    CheckPlatformQuorum(llmq, "promoted, absent", type, unknown, 44, INVALID);
+    CheckPlatformQuorum(llmq, "promoted, mined above the base", type, hash(60), 62, FOUND);
+    m_node.chainlocks->ResetChainlock();
+}
+
+// A Platform history shorter than the canonical selection is carried whole, and the section
+// records that it ends there: a window running out at the oldest carried commitment is read
+// in full, so an absent quorum is invalid at once, as on NORMAL.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_short_carried_history)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    using enum PlatformQuorumStatus;
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Dip3HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~Dip3HeightRestore() { params.DIP0003Height = height; }
+    } dip3_restore{consensus, std::exchange(consensus.DIP0003Height, 1)};
+
+    PlatformCommitments qcs{m_node, params, {}};
+    {
+        LOCK(::cs_main);
+        {
+            auto db_tx{evodb.BeginTransaction()};
+            for (const int base : {30, 40, 45}) qcs.Write(base);
+            db_tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::NORMAL));
+        qcs.PublishGeneration(/*snapshot_base=*/50, {30, 40, 45}, llmq::ScanSequenceEnd::END);
+    }
+    const uint256 unknown{InsecureRand256()};
+    CheckPlatformQuorum(llmq, "absent, no ChainLock", type, unknown, 50, UNAVAILABLE);
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
+    RecordChainLock(*m_node.chainlocks, tip->nHeight, tip);
+    CheckPlatformQuorum(llmq, "carried", type, qcs.qcs.at(30).quorumHash, 50, FOUND);
+    CheckPlatformQuorum(llmq, "absent, history ends", type, unknown, 50, INVALID);
+    CheckPlatformQuorum(llmq, "absent, earlier in the history", type, unknown, 44, INVALID);
+    m_node.chainlocks->ResetChainlock();
+}
+
 // getInstantSendLock returns the network-serialized islock for a locked txid, and an empty vector
 // both for unknown txids and while InstantSend is disabled (spork gate inside the manager).
 BOOST_AUTO_TEST_CASE(getInstantSendLock)
@@ -556,10 +996,9 @@ BOOST_AUTO_TEST_CASE(getInstantSendLock)
     islock->inputs.emplace_back(uint256::ONE, 0);
     islock->txid = uint256::TWO;
     islock->cycleHash = InsecureRand256();
-    const bool legacy{bls::bls_legacy_scheme.load()};
     CBLSSecretKey sk;
     sk.MakeNewKey();
-    islock->sig.Set(sk.Sign(islock->GetRequestId(), legacy), legacy);
+    islock->sig.Set(sk.Sign(islock->GetRequestId()));
 
     isman.WriteNewISLock(::SerializeHash(*islock), islock, /*minedHeight=*/std::nullopt);
 

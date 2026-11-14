@@ -5,6 +5,8 @@
 #ifndef BITCOIN_EVO_SPECIALTXMAN_H
 #define BITCOIN_EVO_SPECIALTXMAN_H
 
+#include <bls/bls.h>
+#include <bls/scheme.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
 #include <gsl/pointers.h>
@@ -32,7 +34,12 @@ class Chainstate;
 class CMNHFManager;
 class TxValidationState;
 class uint256;
+struct EvoViewToken;
 struct MNListUpdates;
+
+//! Whether the calling thread is bound to `chainstate`'s Evo view (defined in
+//! validation.cpp, so callers need only this declaration).
+bool IsEvoViewBound(const Chainstate& chainstate);
 
 namespace chainlock {
 class Chainlocks;
@@ -55,6 +62,24 @@ struct SpecialTxRules {
     bool evo_shares{false};
     //! A masternode's primary addresses need not be IPv4
     bool ipv4_optional{false};
+    //! Scheme for operator signatures in provider transactions. Commitment signatures are derived
+    //! by the quorum block processor from BLSSchemeAfter.
+    BLSScheme bls_scheme{BLSScheme::Basic};
+};
+
+/** The ChainLock a block's coinbase certifies, as far as this node can tell. */
+struct CoinbaseChainlock {
+    enum class Status {
+        //! The coinbase carries a non-null ChainLock.
+        CERTIFIED,
+        //! The coinbase is known to carry none (or there is no CbTx ChainLock yet).
+        NONE,
+        //! This node cannot tell: the block's data is not available to its view.
+        UNAVAILABLE,
+    };
+    Status status{Status::NONE};
+    CBLSSignature signature{};
+    uint32_t height_diff{0};
 };
 
 class CSpecialTxProcessor
@@ -66,6 +91,7 @@ public:
     const std::unique_ptr<CMNHFManager> m_mnhfman;
 
 private:
+    CEvoDB& m_evodb;
     CDeterministicMNManager& m_dmnman;
     llmq::CQuorumBlockProcessor& m_qblockman;
     llmq::CQuorumSnapshotManager& m_qsnapman;
@@ -91,8 +117,8 @@ public:
                                   CAmount blockSubsidy, bool fJustCheck, bool fCheckCbTxMerkleRoots,
                                   BlockValidationState& state, MNListUpdates& updatesRet)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, MNListUpdates& updatesRet)
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex,
+                               MNListUpdates& updatesRet) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     void RemoveMineableCommitmentsForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
@@ -112,6 +138,20 @@ public:
 
     /** Return a canonical hash of the deterministic MN list derived at a block. */
     uint256 GetDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex) const;
+    /** The ChainLock certified by `pindex`'s coinbase. At a snapshot base, in
+     *  the snapshot view, it comes from the carried coinbase. Without the
+     *  block's data the snapshot view answers UNAVAILABLE; NORMAL keeps the
+     *  legacy answer NONE. A block this node has but cannot read raises
+     *  BlockDataReadError. */
+    CoinbaseChainlock GetCoinbaseChainlock(const CBlockIndex* pindex) const;
+    /** Seed the header-proven coinbase of a snapshot base into `view`, inside
+     *  the caller's open EvoDB transaction for that view. */
+    bool SeedBaseCoinbase(const EvoViewToken& view, const CBlockIndex* base, const CTransaction& coinbase);
+
+    const Consensus::Params& ConsensusParams() const { return m_consensus_params; }
+    CDeterministicMNManager& DeterministicMNManager() { return m_dmnman; }
+    llmq::CQuorumBlockProcessor& QuorumBlockProcessor() { return m_qblockman; }
+    llmq::CQuorumSnapshotManager& QuorumSnapshotManager() { return m_qsnapman; }
 
     /** Passthrough to CDeterministicMNManager::UpdatedBlockTip */
     void UpdatedMNListTip(gsl::not_null<const CBlockIndex*> pindex);
@@ -140,6 +180,10 @@ private:
     bool CheckCreditPoolDiffForBlock(const CBlock& block, const CBlockIndex* pindex, const CCbTx& cbTx,
                                      CAmount blockSubsidy, BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
+
+/** Canonical hash of a block's deterministic MN list. An unbound list (none is
+ *  built before DIP3) hashes as the empty list bound to the block. */
+uint256 CanonicalDeterministicMNListHash(gsl::not_null<const CBlockIndex*> pindex, const CDeterministicMNList& list);
 
 /**
  * Builds the masternode list for a block one transaction at a time, with the same result as
@@ -186,8 +230,8 @@ std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<c
 
 /** Validates the bestCLSignature / bestCLHeightDiff fields embedded in a CbTx payload. */
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                            const node::BlockManager& blockman, const CChain& chain, const llmq::CQuorumManager& qman,
-                            const chainlock::Chainlocks& chainlocks, BlockValidationState& state);
+                            const CChain& chain, const llmq::CQuorumManager& qman, const chainlock::Chainlocks& chainlocks,
+                            const CSpecialTxProcessor& special_tx, BlockValidationState& state);
 
 bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                    const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,
@@ -199,7 +243,7 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
                      const CCoinsViewCache& view, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs);
 bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, bool is_v24_active,
+                     CDeterministicMNManager& dmnman, const Consensus::Params& consensus_params, SpecialTxRules rules,
                      TxValidationState& state, bool check_sigs);
 bool CheckProDisTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
                    const Consensus::Params& consensus_params, bool is_v24_active, TxValidationState& state,

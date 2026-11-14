@@ -89,8 +89,7 @@ std::vector<std::string> ToStringVector(const QStringList& entries)
 
 bool OperatorKeyMatches(const CBLSSecretKey& secret_key, const std::vector<unsigned char>& public_key)
 {
-    return secret_key.IsValid() && !public_key.empty() &&
-           secret_key.GetPublicKey().ToByteVector(/*specificLegacyScheme=*/false) == public_key;
+    return secret_key.IsValid() && !public_key.empty() && secret_key.GetPublicKey().ToByteVector() == public_key;
 }
 
 } // anonymous namespace
@@ -125,7 +124,7 @@ bool OperatorSecretWidget::isValid() const
 {
     std::string encoded{m_manual_edit->text().trimmed().toStdString()};
     CBLSSecretKey key;
-    const bool valid{key.SetHexStr(encoded, /*specificLegacyScheme=*/false)};
+    const bool valid{key.SetHexStr(encoded)};
     if (!encoded.empty()) memory_cleanse(encoded.data(), encoded.size());
     return valid;
 }
@@ -139,7 +138,7 @@ std::optional<CBLSSecretKey> OperatorSecretWidget::takeSecret()
     m_manual_edit->clear();
 
     CBLSSecretKey key;
-    const bool valid{key.SetHexStr(encoded, /*specificLegacyScheme=*/false)};
+    const bool valid{key.SetHexStr(encoded)};
     if (!encoded.empty()) memory_cleanse(encoded.data(), encoded.size());
     if (!valid) return std::nullopt;
     return key;
@@ -339,12 +338,6 @@ void MasternodeActionDialog::finishSubmission(MasternodeOperationRunner::Submiss
     accept();
 }
 
-UpdateServiceDialog::UpdateServiceDialog(interfaces::Node& node, WalletModel* wallet_model,
-                                         const MasternodeEntry& entry, QWidget* parent) :
-    UpdateServiceDialog(node, wallet_model, entry, node.evo().getProviderTxCapabilities(), parent)
-{
-}
-
 UpdateServiceDialog::UpdateServiceDialog(interfaces::Node& node, WalletModel* wallet_model, const MasternodeEntry& entry,
                                          interfaces::ProviderTxCapabilities capabilities, QWidget* parent) :
     MasternodeActionDialog(node, wallet_model, entry, parent),
@@ -517,17 +510,11 @@ void UpdateServiceDialog::submit()
 }
 
 UpdateRegistrarDialog::UpdateRegistrarDialog(interfaces::Node& node, WalletModel* wallet_model,
-                                             const MasternodeEntry& entry, QWidget* parent) :
-    UpdateRegistrarDialog(node, wallet_model, entry, node.evo().getProviderTxCapabilities(), parent)
-{
-}
-
-UpdateRegistrarDialog::UpdateRegistrarDialog(interfaces::Node& node, WalletModel* wallet_model,
                                              const MasternodeEntry& entry,
                                              interfaces::ProviderTxCapabilities capabilities, QWidget* parent) :
     MasternodeActionDialog(node, wallet_model, entry, parent),
     m_capabilities{capabilities},
-    m_initial_operator_pubkey{entry.operatorPubKey(m_capabilities.version == ProTxVersion::LegacyBLS)},
+    m_initial_operator_pubkey{entry.operatorPubKey(ProTxVersion::GetBLSScheme(m_capabilities.version))},
     m_initial_voting{entry.votingAddress()},
     m_initial_payout{entry.payoutAddresses().size() == 1 ? entry.payoutAddresses().front() : QString{}}
 {
@@ -593,7 +580,7 @@ void UpdateRegistrarDialog::validate()
     const bool any_change{operatorChanged() || votingChanged() || payoutChanged()};
     CBLSPublicKey parsed_operator;
     const bool operator_valid{
-        parsed_operator.SetHexStr(operator_pubkey.toStdString(), m_capabilities.version == ProTxVersion::LegacyBLS)};
+        parsed_operator.SetHexStr(operator_pubkey.toStdString(), ProTxVersion::GetBLSScheme(m_capabilities.version))};
     const bool ok{any_change && operator_valid && IsNonNullP2PKHAddress(m_voting_edit->text()) &&
                   (!m_payout_edit->isEnabled() || MasternodeWidgetUtil::isP2PKHorP2SHAddress(m_payout_edit->text()))};
     setOkValid(ok);
@@ -608,8 +595,8 @@ std::optional<interfaces::ProviderUpdateRegistrarRequest> UpdateRegistrarDialog:
 
     if (operatorChanged()) {
         CBLSPublicKey key;
-        const bool legacy{m_capabilities.version == ProTxVersion::LegacyBLS};
-        if (!key.SetHexStr(m_operator_pubkey_edit->text().trimmed().toStdString(), legacy)) {
+        const BLSScheme scheme{ProTxVersion::GetBLSScheme(m_capabilities.version)};
+        if (!key.SetHexStr(m_operator_pubkey_edit->text().trimmed().toStdString(), scheme)) {
             error = tr("Enter a valid operator public key for the current provider-transaction version.");
             return std::nullopt;
         }
