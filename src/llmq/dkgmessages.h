@@ -53,7 +53,7 @@ public:
         s >> quorumHash;
         s >> proTxHash;
         for (uint64_t i = 0, size = ReadCompactSize(s); i < size; i++) {
-            s >> BLSEncoded(tmp1.emplace_back(), BLSScheme::Basic);
+            s >> tmp1.emplace_back();
         }
         s >> tmp2;
         s >> sig;

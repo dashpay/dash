@@ -267,8 +267,6 @@ bool CQuorumBlockProcessor::ProcessBlock(Chainstate& chainstate, const CBlock& b
         const bool v19_active{
             DeploymentActiveAfter(pindex->pprev, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
         const BLSScheme bls_scheme{v19_active ? BLSScheme::Basic : BLSScheme::Legacy};
-        // TODO(bls): temporary equivalence check
-        Assume(bls_scheme == GetAmbientBLSScheme());
         CCheckQueueControl<utils::BlsCheck> queue_control(&m_bls_queue);
         for (const auto& [_, qc] : qcs) {
             if (qc.IsNull()) continue;

@@ -386,8 +386,8 @@ static RPCHelpMan gobject_submit()
         const bool fMnFound = mnList.HasValidMNByCollateral(mn_activeman.GetOutPoint());
         LogPrint(BCLog::GOBJECT,
                  "gobject_submit -- pubKeyOperator = %s, outpoint = %s, params.size() = %lld, fMnFound = %d\n",
-                 mn_activeman.GetPubKey().ToString(BLSScheme::Basic), mn_activeman.GetOutPoint().ToStringShort(),
-                 request.params.size(), fMnFound);
+                 mn_activeman.GetPubKey().ToString(), mn_activeman.GetOutPoint().ToStringShort(), request.params.size(),
+                 fMnFound);
     } else {
         LogPrint(BCLog::GOBJECT, "gobject_submit -- pubKeyOperator = N/A, outpoint = N/A, params.size() = %lld, fMnFound = %d\n",
                  request.params.size(),

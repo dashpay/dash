@@ -89,8 +89,7 @@ std::vector<std::string> ToStringVector(const QStringList& entries)
 
 bool OperatorKeyMatches(const CBLSSecretKey& secret_key, const std::vector<unsigned char>& public_key)
 {
-    return secret_key.IsValid() && !public_key.empty() &&
-           secret_key.GetPublicKey().ToByteVector(BLSScheme::Basic) == public_key;
+    return secret_key.IsValid() && !public_key.empty() && secret_key.GetPublicKey().ToByteVector() == public_key;
 }
 
 } // anonymous namespace
@@ -125,7 +124,7 @@ bool OperatorSecretWidget::isValid() const
 {
     std::string encoded{m_manual_edit->text().trimmed().toStdString()};
     CBLSSecretKey key;
-    const bool valid{key.SetHexStr(encoded, BLSScheme::Basic)};
+    const bool valid{key.SetHexStr(encoded)};
     if (!encoded.empty()) memory_cleanse(encoded.data(), encoded.size());
     return valid;
 }
@@ -139,7 +138,7 @@ std::optional<CBLSSecretKey> OperatorSecretWidget::takeSecret()
     m_manual_edit->clear();
 
     CBLSSecretKey key;
-    const bool valid{key.SetHexStr(encoded, BLSScheme::Basic)};
+    const bool valid{key.SetHexStr(encoded)};
     if (!encoded.empty()) memory_cleanse(encoded.data(), encoded.size());
     if (!valid) return std::nullopt;
     return key;
@@ -608,8 +607,8 @@ std::optional<interfaces::ProviderUpdateRegistrarRequest> UpdateRegistrarDialog:
 
     if (operatorChanged()) {
         CBLSPublicKey key;
-        const BLSScheme legacy{ProTxVersion::GetBLSScheme(m_capabilities.version)};
-        if (!key.SetHexStr(m_operator_pubkey_edit->text().trimmed().toStdString(), legacy)) {
+        const BLSScheme scheme{ProTxVersion::GetBLSScheme(m_capabilities.version)};
+        if (!key.SetHexStr(m_operator_pubkey_edit->text().trimmed().toStdString(), scheme)) {
             error = tr("Enter a valid operator public key for the current provider-transaction version.");
             return std::nullopt;
         }

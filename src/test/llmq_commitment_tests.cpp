@@ -2,12 +2,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/llmq_tests.h>
+#include <test/util/masternode.h>
 #include <test/util/setup_common.h>
 
 #include <chain.h>
+#include <checkqueue.h>
 #include <consensus/validation.h>
 #include <core_io.h>
+#include <deploymentstatus.h>
+#include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
@@ -15,9 +20,11 @@
 #include <logging.h>
 #include <node/context.h>
 #include <primitives/transaction.h>
+#include <script/standard.h>
 #include <streams.h>
 #include <util/check.h>
 #include <util/strencodings.h>
+#include <validation.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -364,18 +371,18 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
     // Test deterministic hash generation
     uint256 hash1 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     // Same inputs should produce same hash
     uint256 hash2 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     // Different quorum hash should produce different hash
     uint256 hash3 = llmq::BuildCommitmentHash(TEST_PARAMS.type,
                                               GetTestQuorumHash(2), // Different
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     BOOST_CHECK(hash1 != hash2); // Different pubkeys
     BOOST_CHECK(hash1 != hash3);
@@ -385,26 +392,16 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
     CBLSPublicKey fixedPubKey = CreateRandomBLSPublicKey();
     uint256 hash4 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     uint256 hash5 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2), GetAmbientBLSScheme());
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     BOOST_CHECK(hash4 == hash5);
 }
 
 namespace {
-
-CBLSSecretKey SecretFromScalar(uint8_t scalar)
-{
-    std::vector<uint8_t> bytes(32, 0);
-    bytes.back() = scalar;
-    CBLSSecretKey sk;
-    sk.SetBytes(bytes, BLSScheme::Basic);
-    BOOST_REQUIRE(sk.IsValid());
-    return sk;
-}
 
 CFinalCommitment NullSizedCommitment(uint16_t version, const CBLSPublicKey& pubkey)
 {
@@ -502,6 +499,96 @@ BOOST_AUTO_TEST_CASE(commitment_mainnet_pre_v19_verifies_legacy_only)
     BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Basic));
     BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, BLSScheme::Legacy));
     BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, BLSScheme::Basic));
+}
+
+namespace {
+
+//! v19 activates at 150, between the LLMQ_TEST quorum bases at 120 and 168, and LLMQ_TEST is cut
+//! down to one member so a single masternode can sign a commitment.
+struct CommitmentSchemeSetup : public TestChainSetup {
+    CommitmentSchemeSetup() :
+        TestChainSetup{101, ChainType::REGTEST, {"-dip3params=2:500", "-testactivationheight=v19@150", "-llmqtestparams=1:1"}}
+    {
+    }
+};
+
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(commitment_signatures_follow_the_given_scheme, CommitmentSchemeSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    auto& dmnman = *Assert(m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+
+    // Two coinbases have to be mature before a 1000 DASH collateral can be funded.
+    mineBlocks(8);
+    auto utxos = BuildSimpleUtxoMap(m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    const auto tx_reg = CreateProRegTx(chainman, utxos, /*port=*/21001, GenerateRandomAddress(), coinbaseKey, owner_key,
+                                       operator_key);
+    CreateAndProcessBlock({tx_reg}, coinbase_pk);
+    mineBlocks(168 - WITH_LOCK(::cs_main, return chainman.ActiveHeight()));
+    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+
+    const CBlockIndex* legacy_base{WITH_LOCK(::cs_main, return chainman.ActiveChain()[120])};
+    const CBlockIndex* basic_base{WITH_LOCK(::cs_main, return chainman.ActiveChain()[168])};
+    const auto& consensus = chainman.GetConsensus();
+    BOOST_REQUIRE(!DeploymentActiveAfter(legacy_base, consensus, Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(DeploymentActiveAfter(basic_base, consensus, Consensus::DEPLOYMENT_V19));
+
+    const auto llmq_params = *Assert(Params().GetLLMQ(Consensus::LLMQType::LLMQ_TEST));
+    // The commitment's version, and with it the encoding of its BLS fields, follows the quorum
+    // base. The scheme it is signed under is chosen separately.
+    auto make_commitment = [&](const CBlockIndex* base, BLSScheme sign_scheme) {
+        CFinalCommitment qc(llmq_params, base->GetBlockHash());
+        qc.nVersion = CFinalCommitment::GetVersion(/*is_rotation_enabled=*/false,
+                                                   DeploymentActiveAfter(base, consensus, Consensus::DEPLOYMENT_V19));
+        qc.quorumIndex = 0;
+        qc.signers.assign(llmq_params.size, true);
+        qc.validMembers.assign(llmq_params.size, true);
+        qc.quorumPublicKey = operator_key.GetPublicKey();
+        const uint256 hash = BuildCommitmentHash(llmq_params.type, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                 qc.quorumVvecHash, sign_scheme);
+        qc.membersSig = SignBLS(operator_key, hash, sign_scheme);
+        qc.quorumSig = qc.membersSig;
+        return qc;
+    };
+    auto verify = [&](const CBlockIndex* base, BLSScheme sign_scheme, BLSScheme verify_scheme) {
+        const UtilParameters util_params{dmnman, *Assert(m_node.llmq_ctx)->qsnapman, chainman, base};
+        const CFinalCommitment qc{make_commitment(base, sign_scheme)};
+        const bool direct{qc.Verify(util_params, /*checkSigs=*/true, verify_scheme)};
+
+        // Block validation queues the checks instead of running them inline.
+        CCheckQueue<utils::BlsCheck> queue{4};
+        CCheckQueueControl<utils::BlsCheck> control{&queue};
+        const bool queued{qc.VerifySignatureAsync(util_params, &control, verify_scheme) && control.Wait()};
+        BOOST_CHECK_EQUAL(direct, queued);
+        return direct;
+    };
+
+    struct Case {
+        const CBlockIndex* base;
+        BLSScheme sign_scheme;
+        BLSScheme verify_scheme;
+        bool expected;
+    };
+    const Case cases[]{
+        {legacy_base, BLSScheme::Legacy, BLSScheme::Legacy, true},
+        {legacy_base, BLSScheme::Legacy, BLSScheme::Basic, false},
+        {legacy_base, BLSScheme::Basic, BLSScheme::Legacy, false},
+        // A legacy-version commitment mined after v19 is verified under basic.
+        {legacy_base, BLSScheme::Basic, BLSScheme::Basic, true},
+        {basic_base, BLSScheme::Basic, BLSScheme::Basic, true},
+        {basic_base, BLSScheme::Legacy, BLSScheme::Basic, false},
+    };
+    for (const auto& c : cases) {
+        BOOST_TEST_CONTEXT("base=" << c.base->nHeight << " signed_legacy=" << (c.sign_scheme == BLSScheme::Legacy)
+                                   << " verified_legacy=" << (c.verify_scheme == BLSScheme::Legacy))
+        {
+            BOOST_CHECK_EQUAL(verify(c.base, c.sign_scheme, c.verify_scheme), c.expected);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

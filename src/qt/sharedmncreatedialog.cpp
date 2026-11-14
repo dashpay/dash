@@ -2473,7 +2473,7 @@ std::optional<interfaces::SharedRegistrationRequest> SharedMnCreateDialog::regis
     for (const QString& service : MasternodeWidgetUtil::tokenizeEndpointList(terms.coreP2PAddrs)) {
         request.net_info.core_p2p.push_back(service.toStdString());
     }
-    if (!request.operator_key.SetHexStr(terms.operatorPubKey.toStdString(), BLSScheme::Basic)) {
+    if (!request.operator_key.SetHexStr(terms.operatorPubKey.toStdString())) {
         error = tr("the operator key is not a valid BLS public key.");
         return std::nullopt;
     }

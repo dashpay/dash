@@ -121,22 +121,12 @@ void trivialvalidation_runner(ChainstateManager& chainman, const std::string& js
 BOOST_AUTO_TEST_CASE(trivialvalidation_valid)
 {
     const std::string& json = json_tests::trivially_valid;
-
-    bls::bls_legacy_scheme.store(true);
-    trivialvalidation_runner(*m_node.chainman, json);
-
-    bls::bls_legacy_scheme.store(false);
     trivialvalidation_runner(*m_node.chainman, json);
 }
 
 BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
 {
     const std::string& json = json_tests::trivially_invalid;
-
-    bls::bls_legacy_scheme.store(true);
-    trivialvalidation_runner(*m_node.chainman, json);
-
-    bls::bls_legacy_scheme.store(false);
     trivialvalidation_runner(*m_node.chainman, json);
 }
 

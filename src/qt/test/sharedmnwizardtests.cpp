@@ -96,7 +96,7 @@ MnShareSession FrozenSession(const MnShareSession& draft, const std::vector<CKey
     MnShareSession session{draft};
     CBLSSecretKey operator_secret;
     operator_secret.MakeNewKey();
-    session.terms().operatorPubKey = QString::fromStdString(operator_secret.GetPublicKey().ToString(BLSScheme::Basic));
+    session.terms().operatorPubKey = QString::fromStdString(operator_secret.GetPublicKey().ToString());
 
     const PreparedRegistration prepared{PrepareRegistration(session, operator_secret)};
     QString error;
@@ -470,7 +470,7 @@ void SharedMnWizardTests::reservingAgainKeepsEarlierReplies()
     operator_secret.MakeNewKey();
     MnShareSession draft{InvitationSession()};
     draft.setPrepareWallet(QStringLiteral("coord"));
-    draft.terms().operatorPubKey = QString::fromStdString(operator_secret.GetPublicKey().ToString(BLSScheme::Basic));
+    draft.terms().operatorPubKey = QString::fromStdString(operator_secret.GetPublicKey().ToString());
     draft.shares()[0].ownerAddress = QString::fromStdString(EncodeDestination(owner));
     draft.shares()[0].refundAddress = FreshP2PKHAddress();
 
@@ -1334,8 +1334,7 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
         CBLSSecretKey operator_secret;
         operator_secret.MakeNewKey();
         MnShareSession invitation{InvitationSession()};
-        invitation.terms().operatorPubKey = QString::fromStdString(
-            operator_secret.GetPublicKey().ToString(BLSScheme::Basic));
+        invitation.terms().operatorPubKey = QString::fromStdString(operator_secret.GetPublicKey().ToString());
         const auto lock = [&](MnShareSession session) {
             const PreparedRegistration prepared{PrepareRegistration(session, operator_secret)};
             QString lock_error;

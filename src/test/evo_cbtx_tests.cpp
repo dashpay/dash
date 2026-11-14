@@ -54,15 +54,7 @@ BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff,
     auto& qman = *Assert(m_node.llmq_ctx)->qman;
     auto& chainlocks = *Assert(m_node.chainlocks);
 
-    // Coinbase ChainLocks exist only from V20, which is never before V19, so block
-    // validation reaches this path with the process-wide scheme already basic. This
-    // fixture stops at genesis and leaves the flag legacy.
-    struct BasicScheme {
-        const bool saved{bls::bls_legacy_scheme.load()};
-        BasicScheme() { bls::bls_legacy_scheme.store(false); }
-        ~BasicScheme() { bls::bls_legacy_scheme.store(saved); }
-    } basic_scheme [[maybe_unused]];
-
+    // Coinbase ChainLocks exist only from V20, which is after V19, so this signature is basic.
     // Standalone fake block index with no predecessor, so the prevBlockCoinbaseChainlock
     // branch is skipped and the validation path under test is reached directly.
     CBlockIndex pindex;

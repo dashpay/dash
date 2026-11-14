@@ -28,7 +28,7 @@ CGovernanceVote MakeSignedVote(const CBLSSecretKey& sk, const COutPoint& outpoin
 {
     CGovernanceVote vote{outpoint, parent, signal, VOTE_OUTCOME_YES};
     vote.SetTime(time);
-    vote.SetSignature(sk.Sign(vote.GetSignatureHash()).ToByteVector(BLSScheme::Basic));
+    vote.SetSignature(sk.Sign(vote.GetSignatureHash()).ToByteVector());
     return vote;
 }
 } // namespace
