@@ -881,7 +881,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     if (m_isman && m_isman->IsWaitingForTx(hash)) {
         m_pool.removeConflicts(tx);
-        m_pool.removeProTxConflicts(tx);
+        m_pool.removeProTxConflicts(tx, m_active_chainstate.m_chain.Tip());
         m_pool.removeAssetUnlockConflicts(tx);
     } else {
         // Check for conflicts with in-memory transactions
@@ -3615,7 +3615,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
              Ticks<MillisecondsDouble>(time_chainstate) / num_blocks_total);
     // Remove conflicting transactions from the mempool.;
     if (m_mempool) {
-        m_mempool->removeForBlock(blockConnecting.vtx, pindexNew->nHeight);
+        m_mempool->removeForBlock(blockConnecting.vtx, pindexNew->nHeight, pindexNew->pprev);
         m_mempool->removeExpiredAssetUnlock(pindexNew->nHeight);
         disconnectpool.removeForBlock(blockConnecting.vtx);
     }
