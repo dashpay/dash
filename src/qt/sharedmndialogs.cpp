@@ -957,8 +957,7 @@ bool SharedMnDialog::txInputsUnspent(const QString& tx_hex, QString& error)
         return false;
     }
     for (const CTxIn& txin : tx.vin) {
-        Coin coin;
-        if (m_node.getUnspentOutput(txin.prevout, coin)) continue;
+        if (m_node.getUnspentOutput(txin.prevout)) continue;
         // Not in the confirmed UTXO set. A fee input funded from a
         // still-unconfirmed output of this wallet (e.g. fresh change selected
         // by the prepare call) is unspent and merely waiting for a
