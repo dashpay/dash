@@ -56,8 +56,8 @@ std::optional<const CSuperblock> GovernanceSigner::CreateSuperblockCandidate(int
     int nNextSuperblock;
 
     CSuperblock::GetNearestSuperblocksHeights(nHeight, nLastSuperblock, nNextSuperblock);
-    auto SBEpochTime = static_cast<int64_t>(GetTime<std::chrono::seconds>().count() +
-                                            (nNextSuperblock - nHeight) * 2.62 * 60);
+    const int64_t SBEpochTime{
+        governance::EstimateBlockTime(nNextSuperblock, nHeight, GetTime<std::chrono::seconds>().count())};
     auto governanceBudget = CSuperblock::GetPaymentsLimit(nNextSuperblock);
 
     CAmount budgetAllocated{};
