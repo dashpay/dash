@@ -16,7 +16,7 @@ from test_framework.test_framework import BitcoinTestFramework
 NODE_COMPACT_FILTERS = (1 << 6)
 
 # Constants
-BASIC_FILTER_INDEX = 'basic filter index'
+BASIC_FILTER_INDEX = 'basic block filter index'
 
 
 class MasternodeParamsTest(BitcoinTestFramework):
@@ -50,15 +50,11 @@ class MasternodeParamsTest(BitcoinTestFramework):
 
         # Masternode should have peerblockfilters enabled
         services = int(node1.getnetworkinfo()['localservices'], 16)
-        self.log.info(f"Masternode services: {hex(services)}, has COMPACT_FILTERS: {services & NODE_COMPACT_FILTERS != 0}")
+        assert services & NODE_COMPACT_FILTERS
 
         # Check blockfilterindex
         index_info = node1.getindexinfo()
-        self.log.info(f"Masternode indexes: {list(index_info.keys())}")
-
-        # For now, just check that the node started successfully with masternode key
-        # The actual filter enabling might require the node to be fully synced
-        assert node1.getblockcount() >= 0  # Basic check that node is running
+        assert BASIC_FILTER_INDEX in index_info
 
         self.log.info("Test that masternode refuses settings that silently skip its duties")
         self.stop_node(1)

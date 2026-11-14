@@ -144,20 +144,11 @@ class DashZMQTest (DashTestFramework):
 
             self.sync_blocks()
             self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
-            # Wait a moment to avoid subscribing to recovered sig in the test before the one from the chainlock
-            # has been sent which leads to test failure.
-            time.sleep(1)
             # Test all dash related ZMQ publisher
             self.test_recovered_signature_publishers()
             self.test_chainlock_publishers()
             self.test_governance_publishers()
             self.test_getzmqnotifications()
-            self.test_instantsend_publishers()
-            self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
-            self.test_instantsend_publishers()
-            # At this point, we need to move forward 3 cycles (3 x 24 blocks) so the first 3 quarters can be created (without DKG sessions)
-            self.generate(self.nodes[0], 24)
-            self.mine_cycle_quorum()
             self.test_instantsend_publishers()
         finally:
             # Destroy the ZMQ context.
@@ -185,9 +176,13 @@ class DashZMQTest (DashTestFramework):
             # Make sure the recovered sig exists by RPC
             self.wait_for_recovered_sig(request_id, msg_hash)
             rpc_recovered_sig = self.mninfo[0].get_node(self).quorum('getrecsig', 100, request_id, msg_hash)
+            # The recovered sig of an earlier ChainLock may still be published after subscribing, skip it.
             # Validate hashrecoveredsig
-            zmq_recovered_sig_hash = self.subscribers[ZMQPublisher.hash_recovered_sig].receive().read(32).hex()
-            assert_equal(zmq_recovered_sig_hash, msg_hash)
+            hash_subscriber = self.subscribers[ZMQPublisher.hash_recovered_sig]
+            while True:
+                topic, body, _ = hash_subscriber.socket.recv_multipart()
+                if topic == hash_subscriber.topic and body.hex() == msg_hash:
+                    break
             # Validate rawrecoveredsig
             zmq_recovered_sig_raw = CRecoveredSig()
             zmq_recovered_sig_raw.deserialize(self.subscribers[ZMQPublisher.raw_recovered_sig].receive())

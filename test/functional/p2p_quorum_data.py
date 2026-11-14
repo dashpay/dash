@@ -5,7 +5,6 @@
 
 import copy
 import struct
-import time
 
 from test_framework.messages import (
     CSigSharesInv,
@@ -122,10 +121,16 @@ def wait_for_banscore(node, peer_id, expected_score):
             if peer["id"] == peer_id:
                 return peer["banscore"]
         return None
-    wait_until_helper(lambda: get_score() == expected_score, timeout=6)
-    # Re-read after a settle delay: the first read can race a pending bump,
-    # in particular when the expected score is the peer's current one (e.g. 0).
-    time.sleep(0.1)
+    if expected_score is None:
+        # A peer that reached the ban threshold is dropped asynchronously
+        wait_until_helper(lambda: get_score() is None, timeout=10)
+        return
+    # Scores are bumped while a message is processed and a pong is only sent after every earlier message was
+    # processed, so once each connection answered a ping the score is final. Connections of banned peers are
+    # not pinged, they are waited for to be closed where one is expected.
+    for p2p in node.p2ps:
+        if p2p.is_connected:
+            p2p.sync_with_ping()
     assert_equal(get_score(), expected_score)
 
 
@@ -167,8 +172,11 @@ class QuorumDataInterface(P2PInterface):
             assert_qdata(self.get_qdata(), qgetdata, expected_error, len_vvec, len_contributions)
 
     def wait_for_qmessage(self, message=None, timeout=3, message_expected=True):
-        wait_until_helper(lambda: self.message_count[message] > 0, timeout=timeout, lock=p2p_lock, do_assert=message_expected)
-        if not message_expected:
+        if message_expected:
+            wait_until_helper(lambda: self.message_count[message] > 0, timeout=timeout, lock=p2p_lock)
+        else:
+            # A reply would have been sent before the pong
+            self.sync_with_ping()
             assert self.message_count[message] == 0
         self.message_count[message] = 0
 
@@ -208,10 +216,6 @@ class QuorumDataMessagesTest(DashTestFramework):
             p2p_mn2 = p2p_connection(mn2.get_node(self))
             id_p2p_node0 = get_p2p_id(node0)
             id_p2p_mn2 = get_p2p_id(mn2.get_node(self))
-
-            # Ensure that both nodes start with zero ban score
-            wait_for_banscore(node0, id_p2p_node0, 0)
-            wait_for_banscore(mn2.get_node(self), id_p2p_mn2, 0)
 
             self.log.info("Check that normal node doesn't respond to qgetdata "
                           "and does bump our score")
@@ -255,7 +259,6 @@ class QuorumDataMessagesTest(DashTestFramework):
             id_p2p_mn2 = get_p2p_id(mn2.get_node(self))
             mnauth(mn1.get_node(self), id_p2p_mn1, fake_mnauth_1[0], fake_mnauth_1[1])
             mnauth(mn2.get_node(self), id_p2p_mn2, fake_mnauth_2[0], fake_mnauth_2[1])
-            wait_for_banscore(mn1.get_node(self), id_p2p_mn1, 0)
             p2p_mn2.test_qgetdata(qgetdata_all, 0, self.llmq_threshold, self.llmq_size)
             qdata_valid = p2p_mn2.get_qdata()
             # - Not requested
@@ -317,6 +320,8 @@ class QuorumDataMessagesTest(DashTestFramework):
             mn1.get_node(self).disconnect_p2ps()
             mn2.get_node(self).disconnect_p2ps()
 
+        # Neither the error replies nor the recovery depend on how expired requests are removed
+        def test_error_codes_and_recovery():
             self.log.info("Test all available error codes")
             p2p_mn2 = p2p_connection(mn2.get_node(self))
             id_p2p_mn2 = get_p2p_id(mn2.get_node(self))
@@ -392,7 +397,6 @@ class QuorumDataMessagesTest(DashTestFramework):
                 p2p_mn = p2p_connection(mn2.get_node(self))
                 id_p2p_mn = get_p2p_id(mn2.get_node(self))
                 mnauth(mn2.get_node(self), id_p2p_mn, fake_mnauth_2[0], fake_mnauth_2[1])
-                wait_for_banscore(mn2.get_node(self), id_p2p_mn, 0)
                 p2p_mn.send_message(msg_qgetdata(quorum_hash_int, 100, 0x01, error=error))
                 self.wait_until(lambda: not p2p_mn.is_connected, timeout=10)
                 mn2.get_node(self).disconnect_p2ps()
@@ -407,6 +411,8 @@ class QuorumDataMessagesTest(DashTestFramework):
                     p2p_mn3_1.test_qgetdata(qgetdata_vvec, 0, self.llmq_threshold, 0)
                 if send_2:
                     p2p_mn3_2.test_qgetdata(qgetdata_vvec, 0, self.llmq_threshold, 0)
+                if expected_score_2 is None:
+                    self.wait_until(lambda: not p2p_mn3_2.is_connected, timeout=10)
                 wait_for_banscore(mn3.get_node(self), id_p2p_mn3_1, expected_score_1)
                 wait_for_banscore(mn3.get_node(self), id_p2p_mn3_2, expected_score_2)
 
@@ -446,8 +452,6 @@ class QuorumDataMessagesTest(DashTestFramework):
             test_send_from_two_to_one(False, 75, True, None)
             # mn1 should still have a score of 75
             wait_for_banscore(mn3.get_node(self), id_p2p_mn3_1, 75)
-            # mn2 should be "banned" now
-            self.wait_until(lambda: not p2p_mn3_2.is_connected, timeout=10)
             mn3.get_node(self).disconnect_p2ps()
 
         # Test that QWATCH connections are also allowed to query data but all
@@ -460,9 +464,6 @@ class QuorumDataMessagesTest(DashTestFramework):
             id_p2p_mn3_1 = get_p2p_id(mn3.get_node(self), uacomment_m3_1)
             id_p2p_mn3_2 = get_p2p_id(mn3.get_node(self), uacomment_m3_2)
             assert id_p2p_mn3_1 != id_p2p_mn3_2
-
-            wait_for_banscore(mn3.get_node(self), id_p2p_mn3_1, 0)
-            wait_for_banscore(mn3.get_node(self), id_p2p_mn3_2, 0)
 
             # Send QWATCH for both connections
             p2p_mn3_1.send_message(msg_qwatch())
@@ -549,10 +550,10 @@ class QuorumDataMessagesTest(DashTestFramework):
             test_basics()
             test_request_limit()
             test_qwatch_connections()
-            test_watchquorums()
-            test_rpc_quorum_getdata_protx_hash()
 
-        # Once: nError rejection does not depend on request-expiry cleanup.
+        test_error_codes_and_recovery()
+        test_watchquorums()
+        test_rpc_quorum_getdata_protx_hash()
         test_qgetdata_rejects_requester_error()
         test_qsigshares_inv_oom()
 

@@ -132,8 +132,12 @@ class P2PDSTXTest(BitcoinTestFramework):
             peer_unbalanced.send_and_ping(msg_dstx(unbalanced))
 
         self.log.info("Mine to the last pre-V24 block")
-        # Advance one block at a time so we stop on the exact boundary tip: v24 rules are
-        # enforced for the next block but not yet at our tip.
+        # Advance the last blocks one at a time so we stop on the exact boundary tip: v24 rules
+        # are enforced for the next block but not yet at our tip.
+        batch = V24_ACTIVATION_HEIGHT - 10 - node.getblockcount()
+        self.bump_mocktime(156 * batch, update_schedulers=False)
+        self.generate(node, batch)
+        assert not softfork_active(node, "v24")
         while not softfork_active(node, "v24"):
             self.bump_mocktime(156)
             self.generate(node, 1)

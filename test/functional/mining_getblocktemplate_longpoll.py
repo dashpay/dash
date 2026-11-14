@@ -2,14 +2,16 @@
 # Copyright (c) 2014-2020 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test longpolling with getblocktemplate."""
+"""Test longpolling with getblocktemplate.
 
-import random
+The mempool-triggered return, which needs a real minute, is in
+mining_getblocktemplate_longpoll_mempool.py.
+"""
+
 import threading
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import get_rpc_proxy
-from test_framework.wallet import MiniWallet
 
 
 class LongpollThread(threading.Thread):
@@ -31,7 +33,6 @@ class GetBlockTemplateLPTest(BitcoinTestFramework):
         self.supports_cli = False
 
     def run_test(self):
-        self.log.info("Warning: this test will take about 70 seconds in the best case. Be patient.")
         self.log.info("Test that longpollid doesn't change between successive getblocktemplate() invocations if nothing else happens")
         self.generate(self.nodes[0], 10)
         template = self.nodes[0].getblocktemplate()
@@ -50,7 +51,6 @@ class GetBlockTemplateLPTest(BitcoinTestFramework):
         thr.join(5)  # wait 5 seconds or until thread exits
         assert thr.is_alive()
 
-        self.miniwallet = MiniWallet(self.nodes[0])
         self.log.info("Test that longpoll will terminate if another node generates a block")
         self.generate(self.nodes[1], 1)  # generate a block on another node
         # check that thread will exit now that new transaction entered mempool
@@ -64,19 +64,6 @@ class GetBlockTemplateLPTest(BitcoinTestFramework):
         self.generate(self.nodes[0], 1)  # generate a block on own node
         thr.join(5)  # wait 5 seconds or until thread exits
         assert not thr.is_alive()
-
-        self.log.info("Test that introducing a new transaction into the mempool will terminate the longpoll")
-        thr = LongpollThread(self.nodes[0])
-        with self.nodes[0].assert_debug_log(["Received a POST request for / from"], timeout=3):
-            thr.start()
-        # generate a transaction and submit it
-        self.miniwallet.send_self_transfer(from_node=random.choice(self.nodes))
-        # after one minute, every 10 seconds the mempool is probed, so in 80 seconds it should have returned
-
-        def check():
-            self.bump_mocktime(1)
-            return not thr.is_alive()
-        self.wait_until(check, timeout=60 + 20)
 
 if __name__ == '__main__':
     GetBlockTemplateLPTest().main()

@@ -81,27 +81,28 @@ class InstantSendTest(DashTestFramework):
         connected_nodes = self.nodes.copy()
         del connected_nodes[self.isolated_idx]
         self.wait_for_instantlock(is_id, nodes=connected_nodes)
-        # send doublespend transaction to isolated node
+        # send doublespend transaction to isolated node, whose clock missed the bumps made while waiting for the lock
+        isolated.setmocktime(self.mocktime)
         dblspnd_txid = isolated.sendrawtransaction(dblspnd_tx['hex'])
-        # generate block on isolated node with doublespend transaction
+        # a transaction without a lock is not mined until it is 10 minutes old
         self.bump_mocktime(599)
-        wrong_early_block = self.generate(isolated, 1, sync_fun=self.no_op)[0]
-        assert not "confirmation" in isolated.getrawtransaction(dblspnd_txid, 1)
-        isolated.invalidateblock(wrong_early_block)
+        early_block = self.generate(isolated, 1, sync_fun=self.no_op)[0]
+        assert dblspnd_txid not in isolated.getblock(early_block)["tx"]
+        assert dblspnd_txid in isolated.getrawmempool()
+        isolated.invalidateblock(early_block)
+        # generate block on isolated node with doublespend transaction
         self.bump_mocktime(1)
         wrong_block = self.generate(isolated, 1, sync_fun=self.no_op)[0]
         assert_equal(isolated.getrawtransaction(dblspnd_txid, 1)["confirmations"], 1)
         # connect isolated block to network
         self.reconnect_isolated_node(self.isolated_idx, 0)
-        # check doublespend block is rejected by other nodes
-        timeout = 10
-        for idx, node in enumerate(self.nodes):
-            if idx == self.isolated_idx:
-                continue
-            res = node.waitforblock(wrong_block, timeout)
-            assert res['hash'] != wrong_block
-            # wait for long time only for first node
-            timeout = 1
+        # check doublespend block is rejected
+        self.wait_until(lambda: any(tip["hash"] == wrong_block and tip["status"] == "invalid"
+                                    for tip in self.nodes[0].getchaintips()))
+        self.sync_blocks([n for n in self.nodes if n is not isolated])
+        for node in self.nodes:
+            if node is not isolated:
+                assert node.getbestblockhash() != wrong_block
         # send coins back to the controller node without waiting for confirmations
         receiver.sendtoaddress(self.nodes[0].getnewaddress(), 0.9, "", "", True)
         assert_equal(receiver.getwalletinfo()["balance"], 0)

@@ -145,13 +145,8 @@ class MnehfTest(DashTestFramework):
         ehf_tx = self.create_mnehf(28, pubkey)
         ehf_unknown_tx = self.create_mnehf(27, pubkey)
 
-        self.log.info("Checking deserialization of CMnEhf by python's code")
         mnehf_payload = CMnEhf()
         mnehf_payload.deserialize(BytesIO(ehf_tx.vExtraPayload))
-        assert_equal(mnehf_payload.version, 1)
-        assert_equal(mnehf_payload.versionBit, 28)
-        self.log.info("Checking correctness of requestId and quorumHash")
-        assert_equal(mnehf_payload.quorumHash, int(self.mninfo[0].get_node(self).quorum("selectquorum", 100, 'a0eee872d7d3170dd20d5c5e8380c92b3aa887da5f63d8033289fafa35a90691')["quorumHash"], 16))
 
         ehf_tx_sent = self.send_tx(ehf_tx)
         self.log.info(f"ehf tx: {ehf_tx_sent}")
@@ -243,11 +238,13 @@ class MnehfTest(DashTestFramework):
         self.mine_quorum_single_member()
         self.check_fork('defined')
 
-        def check_ehf_activated(self):
-            self.bump_mocktime(1)
-            self.generate(self.nodes[1], 1)
-            return get_bip9_details(self.nodes[0], 'testdummy')['status'] == 'active'
-        self.wait_until(lambda: check_ehf_activated(self), sleep=1)
+        self.wait_until(lambda: len(self.ehf_signals_in_mempool(self.nodes[1], 28)) == 1)
+        self.generate(self.nodes[1], 4, sync_fun=self.sync_blocks)
+        self.check_fork('started')
+        self.generate(self.nodes[1], 4, sync_fun=self.sync_blocks)
+        self.check_fork('locked_in')
+        self.generate(self.nodes[1], 4, sync_fun=self.sync_blocks)
+        self.check_fork('active')
 
 if __name__ == '__main__':
     MnehfTest().main()

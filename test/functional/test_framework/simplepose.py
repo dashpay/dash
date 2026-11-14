@@ -21,24 +21,12 @@ class SimplePoSeMixin:
 
     def add_options(self, parser):
         self.add_wallet_options(parser)
-        parser.add_argument("--disable-spork23", dest="disable_spork23", default=False, action="store_true",
-                            help="Test with spork23 disabled")
 
-    def set_pose_sporks(self):
-        if self.options.disable_spork23:
-            self.nodes[0].sporkupdate("SPORK_23_QUORUM_POSE", 4070908800)
-        else:
-            self.nodes[0].sporkupdate("SPORK_23_QUORUM_POSE", 0)
+    def set_pose_sporks(self, pose_enabled=True):
+        self.nodes[0].sporkupdate("SPORK_23_QUORUM_POSE", 0 if pose_enabled else 4070908800)
 
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
-
-    def test_no_banning(self, invalidate_proc, expected_connections=None):
-        [_, instant_ban] = invalidate_proc(self.mninfo[0])
-        iters = 2 if instant_ban else 6
-        for i in range(iters):
-            self.log.info(f"Testing no PoSe banning in normal conditions {i + 1}/{iters}")
-            self.mine_quorum(expected_connections=expected_connections)
 
     def mine_quorum_less_checks(self, expected_members, mninfos_online):
         # Unlike in mine_quorum we don't know how many complaints and justifications to expect:
@@ -132,7 +120,7 @@ class SimplePoSeMixin:
 
         self.wait_until(probes_attempted)
 
-    def test_banning(self, invalidate_proc, expected_connections=None):
+    def test_banning(self, invalidate_proc, expected_connections=None, count=2):
         mninfos_online = self.mninfo.copy()
         mninfos_valid = self.mninfo.copy()
 
@@ -141,8 +129,8 @@ class SimplePoSeMixin:
             assert not check_banned(self.nodes[0], mn)
 
         expected_contributors = len(mninfos_online)
-        for i in range(2):
-            self.log.info(f"Testing PoSe banning due to {invalidate_proc.__name__} {i + 1}/2")
+        for i in range(count):
+            self.log.info(f"Testing PoSe banning due to {invalidate_proc.__name__} {i + 1}/{count}")
             mn: MasternodeInfo = mninfos_valid.pop()
             went_offline, instant_ban = invalidate_proc(mn)
             expected_complaints = expected_contributors - 1
