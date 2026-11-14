@@ -22,6 +22,7 @@
 
 class AutoFile;
 class BlockValidationState;
+class CAutoFile;
 class CBlock;
 class CBlockUndo;
 class CChainParams;
@@ -114,7 +115,7 @@ private:
     FlatFileSeq BlockFileSeq() const;
     FlatFileSeq UndoFileSeq() const;
 
-    FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false) const;
+    CAutoFile OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false) const;
 
     bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const;
     /** Size field of the record already stored at pos */
@@ -262,7 +263,7 @@ public:
     void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** Open a block file (blk?????.dat) */
-    FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly = false) const;
+    CAutoFile OpenBlockFile(const FlatFilePos& pos, bool fReadOnly = false) const;
 
     /** Translation to a filesystem path */
     fs::path GetBlockPosFilename(const FlatFilePos& pos) const;

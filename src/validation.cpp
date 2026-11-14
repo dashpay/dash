@@ -18,6 +18,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <checkqueue.h>
+#include <clientversion.h>
 #include <common/args.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
@@ -749,6 +750,7 @@ private:
     // Enforce package mempool ancestor/descendant limits (distinct from individual
     // ancestor/descendant limits done in PreChecks).
     bool PackageMempoolChecks(const std::vector<CTransactionRef>& txns,
+                              int64_t total_vsize,
                               PackageValidationState& package_state) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
 
     // Admitting an asset unlock evicts every other mempool claimant of its withdrawal index along
@@ -1137,6 +1139,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 }
 
 bool MemPoolAccept::PackageMempoolChecks(const std::vector<CTransactionRef>& txns,
+                                         const int64_t total_vsize,
                                          PackageValidationState& package_state)
 {
     AssertLockHeld(cs_main);
@@ -1146,7 +1149,7 @@ bool MemPoolAccept::PackageMempoolChecks(const std::vector<CTransactionRef>& txn
     assert(std::all_of(txns.cbegin(), txns.cend(), [this](const auto& tx)
                        { return !m_pool.exists(tx->GetHash());}));
 
-    auto result = m_pool.CheckPackageLimits(txns);
+    auto result = m_pool.CheckPackageLimits(txns, total_vsize);
     if (!result) {
         // This is a package-wide error, separate from an individual transaction error.
         return package_state.Invalid(PackageValidationResult::PCKG_POLICY, "package-mempool-limits", util::ErrorString(result).original);
@@ -1509,6 +1512,12 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
     // Transactions must meet two minimum feerates: the mempool minimum fee and min relay fee.
     // For transactions consisting of exactly one child and its parents, it suffices to use the
     // package feerate (total modified fees / total size) to check this requirement.
+    // Note that this is an aggregate feerate; this function has not checked that there are transactions
+    // too low feerate to pay for themselves, or that the child transactions are higher feerate than
+    // their parents. Using aggregate feerate may allow "parents pay for child" behavior and permit
+    // a child that is below mempool minimum feerate. To avoid these behaviors, callers of
+    // AcceptMultipleTransactions need to restrict txns topology (e.g. to ancestor sets) and check
+    // the feerates of individuals and subsets.
     const auto m_total_vsize = std::accumulate(workspaces.cbegin(), workspaces.cend(), int64_t{0},
         [](int64_t sum, auto& ws) { return sum + ws.m_vsize; });
     const auto m_total_modified_fees = std::accumulate(workspaces.cbegin(), workspaces.cend(), CAmount{0},
@@ -1525,7 +1534,7 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
     // because it's unnecessary. Also, CPFP carve out can increase the limit for individual
     // transactions, but this exemption is not extended to packages in CheckPackageLimits().
     std::string err_string;
-    if (txns.size() > 1 && !PackageMempoolChecks(txns, package_state)) {
+    if (txns.size() > 1 && !PackageMempoolChecks(txns, m_total_vsize, package_state)) {
         return PackageMempoolAcceptResult(package_state, std::move(results));
     }
 
@@ -5626,7 +5635,7 @@ bool Chainstate::LoadGenesisBlock()
 }
 
 void ChainstateManager::LoadExternalBlockFile(
-    FILE* fileIn,
+    CAutoFile& file_in,
     FlatFilePos* dbp,
     std::multimap<uint256, FlatFilePos>* blocks_with_unknown_parent)
 {
@@ -5640,8 +5649,7 @@ void ChainstateManager::LoadExternalBlockFile(
     int skipped_compressed{0};
     try {
         unsigned int nMaxBlockSize = MaxBlockSize();
-        // This takes over fileIn and calls fclose() on it in the BufferedFile destructor
-        BufferedFile blkdat{fileIn, 2 * nMaxBlockSize, nMaxBlockSize + 8, CLIENT_VERSION};
+        BufferedFile blkdat{file_in, 2 * nMaxBlockSize, nMaxBlockSize + 8};
         // nRewind indicates where to resume scanning in case something goes wrong,
         // such as a block fails to deserialize.
         uint64_t nRewind = blkdat.GetPos();
