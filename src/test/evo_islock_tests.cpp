@@ -47,7 +47,7 @@ struct NetInstantSendTest : TestChain100Setup {
     static Uint256HashSet ProcessBatch(NetInstantSend& net, const Consensus::LLMQParams& params, int offset,
                                        const std::vector<instantsend::PendingISLockEntry>& locks)
     {
-        return net.ProcessPendingInstantSendLocks(params, offset, /*ban=*/true, locks);
+        return net.ProcessPendingInstantSendLocks(params, offset, /*ban=*/offset != 0, locks);
     }
 
     // Returns the cycle hash of a quorum whose base block is at `height`. Mining a block afterwards drops it.
