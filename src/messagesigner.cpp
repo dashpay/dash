@@ -24,7 +24,7 @@ bool CMessageSigner::GetKeysFromSecret(const std::string& strSecret, CKey& keyRe
 
 bool CMessageSigner::SignMessage(const std::string& strMessage, std::vector<unsigned char>& vchSigRet, const CKey& key)
 {
-    CHashWriter ss(SER_GETHASH, 0);
+    HashWriter ss{};
     ss << MESSAGE_MAGIC;
     ss << strMessage;
 
@@ -38,7 +38,7 @@ bool CMessageSigner::VerifyMessage(const CPubKey& pubkey, const std::vector<unsi
 
 bool CMessageSigner::VerifyMessage(const CKeyID& keyID, const std::vector<unsigned char>& vchSig, const std::string& strMessage, std::string& strErrorRet)
 {
-    CHashWriter ss(SER_GETHASH, 0);
+    HashWriter ss{};
     ss << MESSAGE_MAGIC;
     ss << strMessage;
 

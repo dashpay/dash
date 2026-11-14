@@ -34,6 +34,7 @@ class CBlockIndex;
 class CDeterministicMNList;
 class ChainstateManager;
 class CTxMemPool;
+class SigHashWriter;
 
 namespace chainlock {
 class Chainlocks;
@@ -273,7 +274,7 @@ public:
     SERIALIZE_METHODS(CCoinJoinQueue, obj)
     {
         READWRITE(obj.nDenom, obj.m_protxHash, obj.nTime, obj.fReady);
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(obj.vchSig);
         }
     }
@@ -328,7 +329,7 @@ public:
     {
         READWRITE(obj.tx, obj.m_protxHash);
 
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(obj.vchSig);
         }
         READWRITE(obj.sigTime);

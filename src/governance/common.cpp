@@ -26,7 +26,7 @@ uint256 Object::GetHash() const
 
     // CREATE HASH OF ALL IMPORTANT PIECES OF DATA
 
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    HashWriter ss{};
     ss << hashParent;
     ss << revision;
     ss << time;

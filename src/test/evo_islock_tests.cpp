@@ -217,7 +217,7 @@ BOOST_FIXTURE_TEST_CASE(cached_recovered_sig_does_not_authenticate_other_lock, N
 
 uint256 CalculateRequestId(const std::vector<COutPoint>& inputs)
 {
-    CHashWriter hw(SER_GETHASH, 0);
+    HashWriter hw{};
     hw << std::string_view("islock");
     hw << inputs;
     return hw.GetHash();

@@ -303,8 +303,7 @@ bool ComputeSharedSignHash(SharedSigCollector::Kind kind, const QString& pro_tx_
         error = QCoreApplication::translate("SharedSigCollector", "The transaction updates a different masternode.");
         return false;
     }
-    // SER_GETHASH serialization excludes the signature vector
-    hash = ::SerializeHash(*opt_ptx);
+    hash = ::SerializeSigHash(*opt_ptx);
     return true;
 }
 

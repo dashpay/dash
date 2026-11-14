@@ -13,7 +13,7 @@ namespace llmq {
 
 SignHash::SignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash)
 {
-    CHashWriter h(SER_GETHASH, 0);
+    HashWriter h{};
     h << llmqType;
     h << quorumHash;
     h << id;

@@ -19,7 +19,7 @@ const std::string DB_QUORUM_QUORUM_VVEC = "q_Qqvvec";
 
 uint256 MakeQuorumKey(const CQuorum& q)
 {
-    CHashWriter hw(SER_NETWORK, 0);
+    HashWriter hw{};
     hw << q.params.type;
     hw << q.qc->quorumHash;
     for (const auto& dmn : q.members) {
@@ -212,7 +212,7 @@ void CQuorum::WriteContributions(CDBWrapper& db) const
 bool CQuorum::ReadContributions(const CDBWrapper& db)
 {
     uint256 dbKey = MakeQuorumKey(*this);
-    CDataStream s(SER_DISK, CLIENT_VERSION);
+    DataStream s{};
 
     if (!db.ReadDataStream(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), s)) {
         return false;

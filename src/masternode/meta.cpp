@@ -257,4 +257,4 @@ std::string MasternodeMetaStore::ToString() const
                      metaInfos.size(), nDsqCount, m_used_masternodes.size());
 }
 
-uint256 PlatformBanMessage::GetHash() const { return ::SerializeHash(*this); }
+uint256 PlatformBanMessage::GetHash() const { return ::SerializeSigHash(*this); }

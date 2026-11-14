@@ -89,7 +89,7 @@ public:
         // process-wide scheme flag, including its opposite-scheme rejection. The
         // flag is part of the key so a transient value cannot leak into later calls.
         const bool legacy = bls::bls_legacy_scheme.load();
-        const uint256 key = (CHashWriter(SER_GETHASH, 0) << Span{bytes} << legacy).GetHash();
+        const uint256 key = (HashWriter{} << Span{bytes} << legacy).GetHash();
         CBLSSignature sig;
         {
             LOCK(m_mutex);

@@ -371,7 +371,7 @@ void EnqueueOwn(CDKGPendingMessages& pending, const uint256& own_protx, const Me
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << msg;
     auto pm = std::make_shared<CDataStream>(std::move(ds));
-    CHashWriter hw(SER_GETHASH, 0);
+    HashWriter hw{};
     hw.write(AsWritableBytes(Span{*pm}));
     pending.PushPendingMessage(/*from=*/-1, own_protx, std::move(pm), hw.GetHash());
 }
@@ -626,7 +626,7 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
     Assume(inv_type != 0); // guarded by the early-return above
 
     auto pm = std::make_shared<CDataStream>(std::move(vRecv));
-    CHashWriter hw(SER_GETHASH, 0);
+    HashWriter hw{};
     hw.write(AsWritableBytes(Span{*pm}));
     const uint256 hash = hw.GetHash();
 
