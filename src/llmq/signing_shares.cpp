@@ -302,7 +302,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSe
     }
     const uint256 signHash = ann.buildSignHash().Get();
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
-    timeSeenForSessions.try_emplace(signHash, GetTime<std::chrono::seconds>().count());
+    m_session_table.OnAnnounced(signHash, GetTime<std::chrono::seconds>().count());
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.getSessionId());
     session.recvSessionId = ann.getSessionId();
@@ -678,8 +678,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::ProcessSigShare(const CSigShar
             sigSharesQueuedToAnnounce.Add(sigShare.GetKey(), true);
         }
 
-        // Update the time we've seen the last sigShare
-        timeSeenForSessions[sigShare.GetSignHash()] = GetTime<std::chrono::seconds>().count();
+        m_session_table.OnShareAdded(sigShare.GetSignHash(), GetTime<std::chrono::seconds>().count());
 
         // don't announce and wait for other nodes to request this share and directly send it to them
         // there is no way the other nodes know about this share as this is the one created on this node
@@ -1059,7 +1058,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
     auto curTime = GetTime<std::chrono::milliseconds>().count();
     const uint256 myProTxHash{m_mn_activeman.GetProTxHash()};
 
-    for (auto& [_, signedSession] : signedSessions) {
+    for (auto& signedSession : m_session_table.OwnShares()) {
         const auto& quorum = *signedSession.quorum;
         if (!IsAllMembersConnectedEnabled(quorum.params.type, m_sporkman)) {
             continue;
@@ -1344,11 +1343,13 @@ void CSigSharesManager::Cleanup()
         return;
     }
 
-    // This map is first filled with all quorums found in all sig shares. Then we remove all inactive quorums and
-    // loop through all sig shares again to find the ones belonging to the inactive quorums. We then delete the
-    // sessions belonging to the sig shares. At the same time, we use this map as a cache when we later need to resolve
-    // quorumHash -> quorumPtr (as GetQuorum() requires cs_main, leading to deadlocks with cs held)
+    // This map is first filled with all quorums found in all sig shares. Then we move all inactive or unresolvable
+    // quorums to inactiveQuorums and loop through all sig shares again to delete the sessions belonging to them. cs is
+    // not held in between, so a sig share for a quorum that was not checked can appear; only checked quorums are swept.
+    // We also use this map as a cache when we later need to resolve quorumHash -> quorumPtr (as GetQuorum() requires
+    // cs_main, leading to deadlocks with cs held)
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
+    std::unordered_set<std::pair<Consensus::LLMQType, uint256>, StaticSaltedHasher> inactiveQuorums;
 
     {
         LOCK(cs);
@@ -1367,6 +1368,7 @@ void CSigSharesManager::Cleanup()
                 continue;
             }
         }
+        inactiveQuorums.emplace(it->first);
         it = quorums.erase(it);
     }
 
@@ -1374,8 +1376,8 @@ void CSigSharesManager::Cleanup()
         // Now delete sessions which are for inactive quorums
         LOCK(cs);
         Uint256HashSet inactiveQuorumSessions;
-        sigShares.ForEach([&quorums, &inactiveQuorumSessions](const SigShareKey&, const CSigShare& sigShare) {
-            if (quorums.count(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash())) == 0) {
+        sigShares.ForEach([&inactiveQuorums, &inactiveQuorumSessions](const SigShareKey&, const CSigShare& sigShare) {
+            if (inactiveQuorums.count(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash())) != 0) {
                 inactiveQuorumSessions.emplace(sigShare.GetSignHash());
             }
         });
@@ -1389,16 +1391,8 @@ void CSigSharesManager::Cleanup()
 
         // Remove sessions which were successfully recovered
         Uint256HashSet doneSessions;
-        sigShares.ForEach([&doneSessions, this](const SigShareKey&, const CSigShare& sigShare) {
-            if (doneSessions.count(sigShare.GetSignHash()) != 0) {
-                return;
-            }
-            if (sigman.HasRecoveredSigForSession(sigShare.GetSignHash())) {
-                doneSessions.emplace(sigShare.GetSignHash());
-            }
-        });
-        for (const auto& [signHash, _] : timeSeenForSessions) {
-            if (doneSessions.count(signHash) == 0 && sigman.HasRecoveredSigForSession(signHash)) {
+        for (const auto& signHash : m_session_table.SignHashes()) {
+            if (sigman.HasRecoveredSigForSession(signHash)) {
                 doneSessions.emplace(signHash);
             }
         }
@@ -1407,14 +1401,8 @@ void CSigSharesManager::Cleanup()
         }
 
         // Remove sessions which timed out
-        Uint256HashSet timeoutSessions;
-        int64_t now = GetTime<std::chrono::seconds>().count();
-        for (const auto& [signHash, lastSeenTime] : timeSeenForSessions) {
-            if (now - lastSeenTime >= SESSION_NEW_SHARES_TIMEOUT) {
-                timeoutSessions.emplace(signHash);
-            }
-        }
-        for (const auto& signHash : timeoutSessions) {
+        const int64_t now = GetTime<std::chrono::seconds>().count();
+        for (const auto& signHash : m_session_table.CollectTimedOut(now, SESSION_NEW_SHARES_TIMEOUT)) {
 
             if (const size_t count = sigShares.CountForSignHash(signHash); count > 0) {
                 const auto* m = sigShares.GetAllForSignHash(signHash);
@@ -1488,8 +1476,7 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
     sigSharesRequested.EraseAllForSignHash(signHash);
     sigSharesQueuedToAnnounce.EraseAllForSignHash(signHash);
     sigShares.EraseAllForSignHash(signHash);
-    signedSessions.erase(signHash);
-    timeSeenForSessions.erase(signHash);
+    m_session_table.Erase(signHash);
 }
 
 void CSigSharesManager::RemoveNodesIf(std::function<bool(NodeId)> predicate)
@@ -1558,7 +1545,11 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::SignAndProcessSingleShare(Pend
         if (IsAllMembersConnectedEnabled(work.quorum->params.type, m_sporkman)) {
             const uint256 signHash{sigShare.GetSignHash()};
             LOCK(cs);
-            signedSessions[signHash] = CSignedSession{std::move(sigShare), work.quorum};
+            if (!m_session_table.SetOwnShare(signHash, CSignedSession{std::move(sigShare), work.quorum})) {
+                LogPrint(BCLog::LLMQ_SIGS, /* Continued */
+                         "CSigSharesManager::%s -- signing session ended, not pushing own sigShare. signHash=%s\n",
+                         __func__, signHash.ToString());
+            }
         }
         return rs;
     }
