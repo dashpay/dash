@@ -4,7 +4,6 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the dash specific ZMQ notification interfaces."""
 
-import configparser
 from enum import Enum
 import io
 import json
@@ -130,9 +129,6 @@ class DashZMQTest (DashTestFramework):
 
     def run_test(self):
         self.subscribers = {}
-        # Check that dashd has been built with ZMQ enabled.
-        config = configparser.ConfigParser()
-        config.read_file(open(self.options.configfile))
         import zmq
 
         try:
