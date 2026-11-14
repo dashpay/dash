@@ -134,5 +134,49 @@ class RPCMasternodeTest(DashTestFramework):
                                 self.nodes[0].masternode, "payments", spend_blockhash)
         self.nodes[0].getblockcount()
 
+        self.log.info("test that `masternode connect` opens a masternode connection rather than a probe")
+        mn_a, mn_b = self.mninfo[0], self.mninfo[1]
+        node_a, node_b = mn_a.get_node(self), mn_b.get_node(self)
+        self.wait_until(lambda: all(n.masternode("status")["state"] == "READY" for n in (node_a, node_b)))
+
+        def mn_peers(node):
+            return [p for p in node.getpeerinfo() if p["masternode"]]
+
+        def mn_link():
+            """Direction of the only masternode connection between A and B, once both ends have verified it"""
+            peers_a, peers_b = mn_peers(node_a), mn_peers(node_b)
+            if len(peers_a) != 1 or len(peers_b) != 1:
+                return None
+            peer_a, peer_b = peers_a[0], peers_b[0]
+            if peer_a.get("verified_proregtx_hash") != mn_b.proTxHash or peer_b.get("verified_proregtx_hash") != mn_a.proTxHash:
+                return None
+            if peer_a["inbound"] == peer_b["inbound"]:
+                return None
+            return "B->A" if peer_a["inbound"] else "A->B"
+
+        assert_equal(mn_peers(node_a), [])
+        assert_equal(mn_peers(node_b), [])
+        assert_equal(node_a.masternode("connect", f"127.0.0.1:{mn_b.nodePort}"), "successfully connected")
+        # A probe sends no MNAUTH and is dropped as soon as the peer's arrives, so neither side would verify it
+        self.wait_until(lambda: mn_link() == "A->B")
+
+        self.log.info("test that a second masternode connection between the same pair converges to one")
+        # Which side logs the duplicate depends on the deterministic outbound order of the two masternodes;
+        # only one of them is sure to see both connections verified
+        dup_logs = [(node, node.debug_log_size(mode="rb"), f"Masternode {peer_protx} has already verified as peer".encode())
+                    for node, peer_protx in ((node_a, mn_b.proTxHash), (node_b, mn_a.proTxHash))]
+
+        def resolved_duplicate():
+            for node, size, msg in dup_logs:
+                with open(node.debug_log_path, "rb") as dl:
+                    dl.seek(size)
+                    if msg in dl.read():
+                        return True
+            return False
+
+        assert_equal(node_b.masternode("connect", f"127.0.0.1:{mn_a.nodePort}"), "successfully connected")
+        self.wait_until(resolved_duplicate)
+        self.wait_until(lambda: mn_link() is not None)
+
 if __name__ == '__main__':
     RPCMasternodeTest().main()
