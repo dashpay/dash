@@ -2253,10 +2253,10 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
         WITH_LOCK(cs_wallet, chain().requestMempoolTransactions(*this));
     }
     ShowProgress(strprintf("%s " + _("Rescanning…").translated, GetDisplayName()), 100); // hide progress dialog in GUI
-    if (block_height && fAbortRescan) {
+    if (fAbortRescan) {
         WalletLogPrintf("Rescan aborted at block %d. Progress=%f\n", block_height, progress_current);
         result.status = ScanResult::USER_ABORT;
-    } else if (block_height && chain().shutdownRequested()) {
+    } else if (chain().shutdownRequested()) {
         WalletLogPrintf("Rescan interrupted by shutdown request at block %d. Progress=%f\n", block_height, progress_current);
         result.status = ScanResult::USER_ABORT;
     } else {
