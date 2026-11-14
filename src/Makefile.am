@@ -1459,12 +1459,15 @@ CLEANFILES += wallet/*.gcda wallet/*.gcno
 CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
 CLEANFILES += dashbls/src/*.gcda dashbls/src/*.gcno dashbls/depends/mimalloc/src/*.gcda dashbls/depends/mimalloc/src/*.gcno
+CLEANFILES += blst/src/*.gcda blst/src/*.gcno blst/build/*.gcda blst/build/*.gcno
 CLEANFILES += obj/build.h
 
 IMMER_DIST = immer/immer
 LIBDASHBLS_DIST = dashbls
+BLST_DIST = blst/LICENSE blst/README.md blst/build blst/src
 
 EXTRA_DIST = \
+  $(BLST_DIST)    \
   $(CTAES_DIST)   \
   $(IMMER_DIST)   \
   $(LIBDASHBLS_DIST)

@@ -3,15 +3,18 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 LIBDASHBLS_INT = dashbls/libdashbls.la
+LIBBLST_INT = blst/libblst.la
 
-noinst_LTLIBRARIES += $(LIBDASHBLS_INT)
+noinst_LTLIBRARIES += $(LIBDASHBLS_INT) $(LIBBLST_INT)
 if USE_MIMALLOC
 LIBMIMALLOC_INT = dashbls/libmimalloc-secure.la
 noinst_LTLIBRARIES += $(LIBMIMALLOC_INT)
 endif
 
-# What consumers link, dependents first: dashbls -> mimalloc -> blst (from depends)
-LIBDASHBLS = $(LIBDASHBLS_INT) $(LIBMIMALLOC_INT) $(BLST_LIBS)
+# What consumers link, dependents first: dashbls -> mimalloc -> blst
+LIBDASHBLS = $(LIBDASHBLS_INT) $(LIBMIMALLOC_INT) $(LIBBLST_INT)
+
+BLST_CPPFLAGS = -isystem$(srcdir)/blst/bindings
 
 # Flags for consumers of the library
 DASHBLS_CPPFLAGS = -isystem$(srcdir)/dashbls/include $(BLST_CPPFLAGS)
@@ -95,6 +98,22 @@ dashbls_libmimalloc_secure_la_SOURCES = \
 dashbls_libmimalloc_secure_la_CPPFLAGS = $(AM_CPPFLAGS) $(MIMALLOC_CPPFLAGS_INT)
 dashbls_libmimalloc_secure_la_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -static
 dashbls_libmimalloc_secure_la_LDFLAGS = $(AM_LDFLAGS) -static
+
+# server.c #includes the rest of blst's C sources; assembly.S selects the
+# assembly for the host. __BLST_PORTABLE__ picks the ADX code paths at runtime
+# instead of from the builder's CPU, which keeps the build reproducible.
+blst_libblst_la_SOURCES = \
+  blst/bindings/blst.h \
+  blst/bindings/blst_aux.h \
+  blst/src/server.c
+if USE_BLST_ASM
+blst_libblst_la_SOURCES += blst/build/assembly.S
+endif
+
+blst_libblst_la_CPPFLAGS = $(AM_CPPFLAGS) -D__BLST_PORTABLE__ $(BLST_CPPFLAGS_INT)
+blst_libblst_la_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -fno-builtin -static
+blst_libblst_la_CCASFLAGS = $(AM_CCASFLAGS) -static
+blst_libblst_la_LDFLAGS = $(AM_LDFLAGS) -static
 
 if ENABLE_TESTS
 if !ENABLE_FUZZ

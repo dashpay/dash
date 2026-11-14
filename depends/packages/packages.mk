@@ -1,4 +1,4 @@
-packages:=backtrace blst
+packages:=backtrace
 
 boost_packages = boost
 
