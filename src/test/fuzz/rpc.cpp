@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <base58.h>
+#include <governance/governance.h>
 #include <key.h>
 #include <key_io.h>
 #include <primitives/block.h>
@@ -41,6 +42,9 @@ namespace {
 struct RPCFuzzTestingSetup : public TestingSetup {
     RPCFuzzTestingSetup(const ChainType chain_type, const std::vector<const char*>& extra_args) : TestingSetup{chain_type, extra_args}
     {
+        m_node.govman = std::make_unique<CGovernanceManager>(m_args.GetDataDirNet(), *m_node.mn_metaman,
+                                                             *m_node.chainman, *m_node.sbman, *m_node.dmnman,
+                                                             *m_node.mn_sync, /*collateral=*/nullptr);
     }
 
     void CallRPC(const std::string& rpc_method, const std::vector<std::string>& arguments)
@@ -49,7 +53,15 @@ struct RPCFuzzTestingSetup : public TestingSetup {
         request.context = m_node;
         request.strMethod = rpc_method;
         try {
-            request.params = RPCConvertValues(rpc_method, arguments);
+            const auto subcommand_pos = rpc_method.find(' ');
+            if (subcommand_pos == std::string::npos) {
+                request.params = RPCConvertValues(rpc_method, arguments);
+            } else {
+                request.strMethod = rpc_method.substr(0, subcommand_pos);
+                std::vector<std::string> subcommand_arguments{rpc_method.substr(subcommand_pos + 1)};
+                subcommand_arguments.insert(subcommand_arguments.end(), arguments.begin(), arguments.end());
+                request.params = RPCConvertValues(request.strMethod, subcommand_arguments);
+            }
         } catch (const std::runtime_error&) {
             return;
         }
@@ -72,25 +84,42 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "addconnection",  // avoid DNS lookups
     "addnode",        // avoid DNS lookups
     "addpeeraddress", // avoid DNS lookups
+    "debug", // changes global log categories
     "dumptxoutset",   // avoid writing to disk
     "dumpwallet", // avoid writing to disk
     "enumeratesigners",
     "echoipc",              // avoid assertion failure (Assertion `"EnsureAnyNodeContext(request.context).init" && check' failed.)
+    "evodb repair",         // avoid repairing/rewriting EvoDB state
     "generatetoaddress",    // avoid prohibitively slow execution (when `num_blocks` is large)
     "generatetodescriptor", // avoid prohibitively slow execution (when `nblocks` is large)
     "gettxoutproof",        // avoid prohibitively slow execution
+    "gobject", // may dispatch to gobject submit
+    "gobject submit", // changes governance state
     "importmempool", // avoid reading from disk
     "importwallet", // avoid reading from disk
     "loadwallet",   // avoid reading from disk
+    "masternode", // may dispatch to masternode connect
+    "masternode connect",   // avoid network activity / DNS lookups
+    "mnauth", // changes peer authentication state
+    "mnsync", // changes masternode sync state
+    "quorum", // may dispatch to quorum dkgsimerror
+    "quorum dkgsimerror", // changes global DKG error rates
     "savemempool",           // disabled as a precautionary measure: may take a file path argument in the future
     "setban",                // avoid DNS lookups
+    "sporkupdate", // changes spork state
     "stop",                  // avoid shutdown state
+    "submitchainlock", // changes ChainLock state
+    "voteraw", // changes governance votes
 };
 
 // RPC commands which are safe for fuzzing.
 const std::vector<std::string> RPC_COMMANDS_SAFE_FOR_FUZZING{
     "analyzepsbt",
+    "bls",
+    "bls fromsecret",
+    "bls generate",
     "clearbanned",
+    "cleardiscouraged",
     "combinepsbt",
     "combinerawtransaction",
     "converttopsbt",
@@ -107,33 +136,49 @@ const std::vector<std::string> RPC_COMMANDS_SAFE_FOR_FUZZING{
     "echojson",
     "estimaterawfee",
     "estimatesmartfee",
+    "evodb verify",
     "finalizepsbt",
     "generate",
     "generateblock",
     "getaddednodeinfo",
+    "getaddressbalance",
+    "getaddressdeltas",
+    "getaddressmempool",
+    "getaddresstxids",
+    "getaddressutxos",
     "getaddrmaninfo",
+    "getassetunlockstatuses",
     "getbestblockhash",
+    "getbestchainlock",
     "getblock",
     "getblockchaininfo",
     "getblockcount",
     "getblockfilter",
+    "getblockfrompeer",
     "getblockhash",
+    "getblockhashes",
     "getblockheader",
+    "getblockheaders",
     "getblockstats",
     "getblocktemplate",
+    "getchainlockbyheight",
     "getchaintips",
     "getchaintxstats",
+    "getcoinjoininfo",
     "getconnectioncount",
+    "getcreditpoolinfo",
     "getdeploymentinfo",
     "getdescriptorinfo",
     "getdifficulty",
+    "getgovernanceinfo",
     "getindexinfo",
+    "getislocks",
     "getmemoryinfo",
     "getmempoolancestors",
     "getmempooldescendants",
     "getmempoolentry",
-    "gettxspendingprevout",
     "getmempoolinfo",
+    "getmerkleblocks",
     "getmininginfo",
     "getnettotals",
     "getnetworkhashps",
@@ -141,23 +186,62 @@ const std::vector<std::string> RPC_COMMANDS_SAFE_FOR_FUZZING{
     "getnodeaddresses",
     "getpeerinfo",
     "getprioritisedtransactions",
+    "getquorumproofchain",
     "getrawaddrman",
     "getrawmempool",
     "getrawtransaction",
+    "getrawtransactionmulti",
     "getrpcinfo",
+    "getspecialtxes",
+    "getspentinfo",
+    "getsuperblockbudget",
+    "gettxchainlocks",
     "gettxout",
     "gettxoutsetinfo",
     "gettxspendingprevout",
+    "gobject check",
+    "gobject count",
+    "gobject deserialize",
+    "gobject diff",
+    "gobject get",
+    "gobject getcurrentvotes",
+    "gobject list",
     "help",
     "invalidateblock",
     "joinpsbts",
     "listbanned",
     "logging",
+    "masternode count",
+    "masternode list",
+    "masternode payments",
+    "masternode status",
+    "masternode winners",
+    "masternodelist",
     "mockscheduler",
     "ping",
     "preciousblock",
     "prioritisetransaction",
+    "protx",
+    "protx diff",
+    "protx info",
+    "protx list",
+    "protx listdiff",
     "pruneblockchain",
+    "quorum dkginfo",
+    "quorum dkgstatus",
+    "quorum getdata",
+    "quorum getrecsig",
+    "quorum hasrecsig",
+    "quorum info",
+    "quorum isconflicting",
+    "quorum list",
+    "quorum listextended",
+    "quorum memberof",
+    "quorum platformsign",
+    "quorum rotationinfo",
+    "quorum selectquorum",
+    "quorum sign",
+    "quorum verify",
     "reconsiderblock",
     "scanblocks",
     "scantxoutset",
@@ -168,6 +252,7 @@ const std::vector<std::string> RPC_COMMANDS_SAFE_FOR_FUZZING{
     "setnetworkactive",
     "signmessagewithprivkey",
     "signrawtransactionwithkey",
+    "spork",
     "submitblock",
     "submitheader",
     "submitpackage",
@@ -177,7 +262,10 @@ const std::vector<std::string> RPC_COMMANDS_SAFE_FOR_FUZZING{
     "utxoupdatepsbt",
     "validateaddress",
     "verifychain",
+    "verifychainlock",
+    "verifyislock",
     "verifymessage",
+    "verifyquorumproofchain",
     "verifytxoutproof",
     "waitforblock",
     "waitforblockheight",
