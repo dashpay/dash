@@ -21,7 +21,6 @@
 #include <llmq/utils.h>
 #include <messagesigner.h>
 
-#include <bls/bls.h>
 #include <chainparams.h>
 #include <coins.h>
 #include <common/system.h>
@@ -30,7 +29,6 @@
 #include <deploymentstatus.h>
 #include <hash.h>
 #include <primitives/block.h>
-#include <util/check.h>
 #include <util/time.h>
 
 CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager& dmnman,
@@ -154,8 +152,6 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
     if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
         return true;
     }
-    // TODO(bls): temporary equivalence check
-    Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
     const CBLSSignature& cbtx_sig{cbTx.bestCLSignature.Get()};
 
     struct CachedChainlock {
@@ -226,8 +222,6 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
         }
         uint256 curBlockCoinbaseCLBlockHash = pAncestor->GetBlockHash();
         chainlock::ChainLockSig clsig{curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbtx_sig};
-        // TODO(bls): temporary equivalence check
-        Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
         llmq::VerifyRecSigStatus ret = chainlock::VerifyChainLock(consensus_params, chain, qman, clsig);
         if (ret != llmq::VerifyRecSigStatus::Valid) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-invalid-clsig");
@@ -1088,13 +1082,6 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
         nTimeMnehf += nTime8 - nTime7;
         LogPrint(BCLog::BENCHMARK, "      - m_mnhfman->ProcessBlock: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime8 - nTime7),
                  Ticks<SecondsDouble>(nTimeMnehf));
-
-        if (DeploymentActiveAfter(pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && bls::bls_legacy_scheme.load()) {
-            // NOTE: The block next to the activation is the one that is using new rules.
-            // V19 activated just activated, so we must switch to the new rules here.
-            bls::bls_legacy_scheme.store(false);
-            LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
-        }
     } catch (const EvoDbInconsistencyError& e) {
         // Local EvoDB corruption detected below (the node is already
         // aborting): fail with M_ERROR so the block is not marked invalid.
@@ -1111,16 +1098,7 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, co
 {
     AssertLockHeld(::cs_main);
 
-    auto bls_legacy_scheme = bls::bls_legacy_scheme.load();
-
     try {
-        if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && !bls_legacy_scheme) {
-            // NOTE: The block next to the activation is the one that is using new rules.
-            // Removing the activation block here, so we must switch back to the old rules.
-            bls::bls_legacy_scheme.store(true);
-            LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
-        }
-
         if (!m_mnhfman->UndoBlock(block, pindex)) {
             return false;
         }
@@ -1133,8 +1111,6 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const Chainstate& chainstate, co
             return false;
         }
     } catch (const std::exception& e) {
-        bls::bls_legacy_scheme.store(bls_legacy_scheme);
-        LogPrintf("CSpecialTxProcessor::%s -- bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
         LogError("CSpecialTxProcessor::%s -- FAILURE! %s\n", __func__, e.what());
         return false;
     }
@@ -1203,8 +1179,6 @@ template <typename ProTx>
 static bool CheckHashSig(const ProTx& proTx, const CBLSPublicKey& pubKey, const BLSScheme scheme,
                          TxValidationState& state)
 {
-    // TODO(bls): temporary equivalence check
-    Assume(scheme == GetAmbientBLSScheme());
     if (!proTx.sig.VerifyInsecure(pubKey, ::SerializeHash(proTx), scheme)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-sig");
     }

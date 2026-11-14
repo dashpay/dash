@@ -2,7 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bls/bls.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <evo/evodb.h>
@@ -13,7 +12,6 @@
 #include <llmq/signhash.h>
 #include <node/blockstorage.h>
 #include <shutdown.h>
-#include <util/check.h>
 #include <util/std23.h>
 
 #include <chain.h>
@@ -113,8 +111,6 @@ static bool CheckMNHFTxImpl(const node::BlockManager& blockman, GetQuorum&& get_
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-type");
     }
 
-    // TODO(bls): temporary equivalence check
-    Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
     const auto opt_mnhfTx = GetTxPayload<MNHFTxPayload>(tx);
     if (!opt_mnhfTx) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-payload");
@@ -153,8 +149,6 @@ static bool CheckMNHFTxImpl(const node::BlockManager& blockman, GetQuorum&& get_
     }
 
     const llmq::SignHash signHash{llmqType, quorum->qc->quorumHash, mnhfTx.GetRequestId(), msgHash};
-    // TODO(bls): temporary equivalence check
-    Assume(GetAmbientBLSScheme() == BLSScheme::Basic);
     if (!mnhfTx.signal.sig.VerifyInsecure(quorum->qc->quorumPublicKey, signHash.Get())) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-mnhf-invalid");
     }
@@ -393,10 +387,7 @@ bool CMNHFManager::ForceSignalDBUpdate(const CBlockIndex* tip)
     // force ehf signals db update
     auto dbTx = m_evoDb.BeginTransaction();
 
-    const bool last_legacy = bls::bls_legacy_scheme.load();
-    bls::bls_legacy_scheme.store(false);
     GetSignalsStage(tip);
-    bls::bls_legacy_scheme.store(last_legacy);
 
     dbTx->Commit();
     // flush it to disk

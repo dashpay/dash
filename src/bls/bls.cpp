@@ -14,10 +14,6 @@
 #include <cassert>
 #include <cstring>
 
-namespace bls {
-    std::atomic<bool> bls_legacy_scheme = std::atomic<bool>(true);
-}
-
 static const std::unique_ptr<bls::CoreMPL> pSchemeLegacy{std::make_unique<bls::LegacySchemeMPL>()};
 static const std::unique_ptr<bls::CoreMPL> pScheme(std::make_unique<bls::BasicSchemeMPL>());
 
@@ -130,7 +126,7 @@ CBLSSignature CBLSSecretKey::Sign(const uint256& hash) const
 
     CBLSSignature sigRet;
     try {
-        sigRet.impl = Scheme(BLSScheme::Basic)->Sign(impl, bls::Bytes(hash.begin(), hash.size()));
+        sigRet.impl = pScheme->Sign(impl, bls::Bytes(hash.begin(), hash.size()));
         sigRet.fValid = true;
     } catch (...) {
         sigRet.fValid = false;
@@ -283,8 +279,7 @@ CBLSSignature CBLSSignature::AggregateSecure(Span<CBLSSignature> sigs,
 
     CBLSSignature ret;
     try {
-        ret.impl =
-            Scheme(BLSScheme::Basic)->AggregateSecure(vecPublicKeys, vecSignatures, bls::Bytes(hash.begin(), hash.size()));
+        ret.impl = pScheme->AggregateSecure(vecPublicKeys, vecSignatures, bls::Bytes(hash.begin(), hash.size()));
         ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
@@ -342,7 +337,7 @@ bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<u
     }
 
     try {
-        return Scheme(BLSScheme::Basic)->AggregateVerify(pubKeyVec, hashes2, impl);
+        return pScheme->AggregateVerify(pubKeyVec, hashes2, impl);
     } catch (...) {
         return false;
     }

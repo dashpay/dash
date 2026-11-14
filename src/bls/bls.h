@@ -18,16 +18,24 @@
 #include <dashbls/threshold.hpp>
 
 #include <array>
-#include <atomic>
 #include <mutex>
 #include <ranges>
 #include <type_traits>
 
-namespace bls {
-    extern std::atomic<bool> bls_legacy_scheme;
-}
+struct CBLSIdImplicit;
 
-inline BLSScheme GetAmbientBLSScheme() { return bls::bls_legacy_scheme.load() ? BLSScheme::Legacy : BLSScheme::Basic; }
+//! Public keys and signatures are encoded under a scheme. Secret keys and ids are not.
+template <typename Impl>
+struct BLSHasScheme : std::true_type {};
+
+template <>
+struct BLSHasScheme<bls::PrivateKey> : std::false_type {};
+
+template <>
+struct BLSHasScheme<CBLSIdImplicit> : std::false_type {};
+
+//! Stands in for the scheme argument of types that have no scheme, so that none can be passed.
+struct BLSNoScheme {};
 
 // reversed BLS12-381
 constexpr int BLS_CURVE_ID_SIZE{32};
@@ -52,6 +60,10 @@ protected:
 
 public:
     static constexpr size_t SerSize = _SerSize;
+    using SchemeArg = std::conditional_t<BLSHasScheme<ImplType>::value, BLSScheme, BLSNoScheme>;
+    //! BLSScheme::Basic for keys and signatures.
+    static constexpr SchemeArg DEFAULT_SCHEME{};
+    static_assert(BLSScheme{} == BLSScheme::Basic);
 
     explicit CBLSWrapper() = default;
 
@@ -96,7 +108,7 @@ public:
         *(static_cast<C*>(this)) = C();
     }
 
-    void SetBytes(Span<const uint8_t> vecBytes, const BLSScheme scheme)
+    void SetBytes(Span<const uint8_t> vecBytes, [[maybe_unused]] SchemeArg scheme = DEFAULT_SCHEME)
     {
         if (vecBytes.size() != SerSize) {
             Reset();
@@ -107,7 +119,14 @@ public:
             Reset();
         } else {
             try {
-                impl = ImplType::FromBytes(bls::Bytes(vecBytes.data(), vecBytes.size()), scheme == BLSScheme::Legacy);
+                if constexpr (BLSHasScheme<ImplType>::value) {
+                    impl = ImplType::FromBytes(bls::Bytes(vecBytes.data(), vecBytes.size()), scheme == BLSScheme::Legacy);
+                } else if constexpr (std::is_same_v<ImplType, bls::PrivateKey>) {
+                    // Out-of-range scalars are rejected rather than reduced.
+                    impl = ImplType::FromBytes(bls::Bytes(vecBytes.data(), vecBytes.size()), /*modOrder=*/false);
+                } else {
+                    impl = ImplType::FromBytes(vecBytes.data());
+                }
                 if (impl == ImplType()) {
                     Reset();
                     cachedHash.SetNull();
@@ -121,27 +140,27 @@ public:
         cachedHash.SetNull();
     }
 
-    std::vector<uint8_t> ToByteVector(const BLSScheme scheme) const
+    std::vector<uint8_t> ToByteVector([[maybe_unused]] SchemeArg scheme = DEFAULT_SCHEME) const
     {
         if (!fValid) {
             return std::vector<uint8_t>(SerSize, 0);
         }
-        if constexpr (std::is_same_v<ImplType, bls::PrivateKey>) {
-            return impl.Serialize();
-        } else {
+        if constexpr (BLSHasScheme<ImplType>::value) {
             return impl.Serialize(scheme == BLSScheme::Legacy);
+        } else {
+            return impl.Serialize();
         }
     }
 
-    std::array<uint8_t, SerSize> ToBytes(const BLSScheme scheme) const
+    std::array<uint8_t, SerSize> ToBytes([[maybe_unused]] SchemeArg scheme = DEFAULT_SCHEME) const
     {
         if (!fValid) {
             return std::array<uint8_t, SerSize>{};
         }
-        if constexpr (std::is_same_v<ImplType, bls::PrivateKey>) {
-            return impl.SerializeToArray();
-        } else {
+        if constexpr (BLSHasScheme<ImplType>::value) {
             return impl.SerializeToArray(scheme == BLSScheme::Legacy);
+        } else {
+            return impl.SerializeToArray();
         }
     }
 
@@ -153,7 +172,7 @@ public:
         return cachedHash;
     }
 
-    bool SetHexStr(const std::string& str, const BLSScheme scheme)
+    bool SetHexStr(const std::string& str, SchemeArg scheme = DEFAULT_SCHEME)
     {
         if (!IsHex(str)) {
             Reset();
@@ -175,48 +194,33 @@ public:
     }
 
     template <typename Stream>
-    inline void Serialize(Stream& s, const BLSScheme scheme) const
+    inline void Serialize(Stream& s, SchemeArg scheme = DEFAULT_SCHEME) const
     {
         const auto bytes{ToBytes(scheme)};
         s.write(AsBytes(Span{bytes.data(), SerSize}));
     }
 
     template <typename Stream>
-    inline void Serialize(Stream& s) const
-    {
-        Serialize(s, GetAmbientBLSScheme());
-    }
-
-    template <typename Stream>
-    inline void Unserialize(Stream& s, const BLSScheme scheme)
+    inline void Unserialize(Stream& s, SchemeArg scheme = DEFAULT_SCHEME)
     {
         std::array<uint8_t, SerSize> vecBytes{};
         s.read(AsWritableBytes(Span{vecBytes.data(), SerSize}));
         SetBytes(vecBytes, scheme);
-
-        if (!CheckMalleable(vecBytes, scheme)) {
-            // If CheckMalleable failed with scheme, we need to try again with the opposite scheme.
-            // Probably we received the BLS object sent with legacy scheme, but in the meanwhile the fork activated.
+        if (CheckMalleable(vecBytes, scheme)) return;
+        if constexpr (BLSHasScheme<ImplType>::value) {
+            // The bytes may be a valid encoding under the other scheme. Such an object is not kept:
+            // it reads as invalid instead of failing the whole deserialization.
             const BLSScheme opposite{scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy};
             SetBytes(vecBytes, opposite);
-            if (!CheckMalleable(vecBytes, opposite)) {
-                // Both attempts failed
-                throw std::ios_base::failure("malleable BLS object");
-            } else {
-                // Indeed the received vecBytes was in opposite scheme. But we can't keep it (mixing with the new scheme will lead to undefined behavior)
-                // Therefore, resetting current object (basically marking it as invalid).
+            if (CheckMalleable(vecBytes, opposite)) {
                 Reset();
+                return;
             }
         }
+        throw std::ios_base::failure("malleable BLS object");
     }
 
-    template <typename Stream>
-    inline void Unserialize(Stream& s)
-    {
-        Unserialize(s, GetAmbientBLSScheme());
-    }
-
-    inline bool CheckMalleable(Span<uint8_t> vecBytes, const BLSScheme scheme) const
+    inline bool CheckMalleable(Span<uint8_t> vecBytes, const SchemeArg scheme) const
     {
         const auto bytes{ToBytes(scheme)};
         if (memcmp(vecBytes.data(), bytes.data(), SerSize)) {
@@ -228,13 +232,7 @@ public:
         return true;
     }
 
-    inline std::string ToString(const BLSScheme scheme) const
-    {
-        auto buf = ToBytes(scheme);
-        return HexStr(buf);
-    }
-
-    inline std::string ToString() const { return ToString(GetAmbientBLSScheme()); }
+    inline std::string ToString(SchemeArg scheme = DEFAULT_SCHEME) const { return HexStr(ToBytes(scheme)); }
 };
 
 struct CBLSIdImplicit : public uint256
@@ -245,17 +243,14 @@ struct CBLSIdImplicit : public uint256
     {
         memcpy(begin(), id.begin(), sizeof(uint256));
     }
-    static CBLSIdImplicit FromBytes(const uint8_t* buffer, const bool fLegacy)
+    static CBLSIdImplicit FromBytes(const uint8_t* buffer)
     {
         CBLSIdImplicit instance;
         memcpy(instance.begin(), buffer, sizeof(CBLSIdImplicit));
         return instance;
     }
-    [[nodiscard]] std::vector<uint8_t> Serialize(const bool fLegacy) const
-    {
-        return {begin(), end()};
-    }
-    [[nodiscard]] std::array<uint8_t, 32> SerializeToArray(const bool fLegacy) const { return m_data; }
+    [[nodiscard]] std::vector<uint8_t> Serialize() const { return {begin(), end()}; }
+    [[nodiscard]] std::array<uint8_t, 32> SerializeToArray() const { return m_data; }
 };
 
 class CBLSId : public CBLSWrapper<CBLSIdImplicit, BLS_CURVE_ID_SIZE, CBLSId>
@@ -270,6 +265,17 @@ public:
     explicit CBLSId(const uint256& nHash);
 };
 
+//! A non-dependent requires-expression turns a bad conversion into a hard error, so the
+//! negative checks are instantiated through a template.
+template <typename T>
+constexpr bool BLSToBytesTakesScheme = requires(T& obj) { obj.ToBytes(BLSScheme::Basic); };
+template <typename T>
+constexpr bool BLSSetBytesTakesScheme = requires(T& obj, Span<const uint8_t> bytes) {
+    obj.SetBytes(bytes, BLSScheme::Legacy);
+};
+
+static_assert(!BLSToBytesTakesScheme<CBLSId>);
+
 //! CBLSSecretKey is invariant to BLS scheme for Creation / Serialization / Deserialization
 class CBLSSecretKey : public CBLSWrapper<bls::PrivateKey, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>
 {
@@ -280,11 +286,7 @@ public:
     using CBLSWrapper::CBLSWrapper;
 
     CBLSSecretKey() = default;
-    explicit CBLSSecretKey(Span<const unsigned char> vecBytes)
-    {
-        // Basic selects dashbls' modOrder == false, which this constructor has always passed.
-        SetBytes(vecBytes, BLSScheme::Basic);
-    }
+    explicit CBLSSecretKey(Span<const unsigned char> vecBytes) { SetBytes(vecBytes); }
     CBLSSecretKey(const CBLSSecretKey&) = default;
     CBLSSecretKey& operator=(const CBLSSecretKey&) = default;
 
@@ -302,6 +304,8 @@ public:
     [[nodiscard]] CBLSPublicKey GetPublicKey() const;
     [[nodiscard]] CBLSSignature Sign(const uint256& hash) const;
 };
+
+static_assert(!BLSSetBytesTakesScheme<CBLSSecretKey>);
 
 class CBLSPublicKey : public CBLSWrapper<bls::G1Element, BLS_CURVE_PUBKEY_SIZE, CBLSPublicKey>
 {
@@ -352,9 +356,6 @@ public:
     }
 };
 
-template <typename T>
-BLSEncoded(T&, BLSScheme) -> BLSEncoded<T>;
-
 class CBLSSignature : public CBLSWrapper<bls::G2Element, BLS_CURVE_SIG_SIZE, CBLSSignature>
 {
     friend class CBLSSecretKey;
@@ -365,7 +366,10 @@ public:
     using CBLSWrapper::CBLSWrapper;
 
     CBLSSignature() = default;
-    explicit CBLSSignature(Span<const unsigned char> bytes, BLSScheme scheme) { SetBytes(bytes, scheme); }
+    explicit CBLSSignature(Span<const unsigned char> bytes, BLSScheme scheme = BLSScheme::Basic)
+    {
+        SetBytes(bytes, scheme);
+    }
     CBLSSignature(const CBLSSignature&) = default;
     CBLSSignature& operator=(const CBLSSignature&) = default;
 
@@ -477,8 +481,6 @@ protected:
         return ret;
     }
 
-    std::string ToStringAs(const BLSScheme scheme) const { return Get().ToString(scheme); }
-
 public:
     CBLSLazyWrapper() = default;
 
@@ -578,7 +580,7 @@ public:
 
     uint256 GetHash() const { return CBLSLazyWrapper::GetHashAs(BLSScheme::Basic); }
 
-    std::string ToString() const { return ToStringAs(BLSScheme::Basic); }
+    std::string ToString() const { return CBLSLazyWrapper::Get().ToString(); }
 };
 
 //! A public key is encoded under the scheme its owner's version selects, so every encoding names one.
@@ -601,7 +603,7 @@ public:
 
     uint256 GetHash(const BLSScheme scheme) const { return CBLSLazyWrapper::GetHashAs(scheme); }
 
-    std::string ToString(const BLSScheme scheme) const { return ToStringAs(scheme); }
+    std::string ToString(const BLSScheme scheme) const { return CBLSLazyWrapper::Get().ToString(scheme); }
 };
 
 using BLSVerificationVectorPtr = std::shared_ptr<std::vector<CBLSPublicKey>>;

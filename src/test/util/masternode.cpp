@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/masternode.h>
 
 #include <bls/bls.h>
@@ -102,7 +103,7 @@ CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXO
     operator_key_ret.MakeNewKey();
 
     CProRegTx pro_tx;
-    pro_tx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    pro_tx.nVersion = ProTxVersionForNextBlock(chainman);
     pro_tx.netInfo = NetInfoInterface::MakeNetInfo(pro_tx.nVersion);
     pro_tx.collateralOutpoint.n = 0;
     Assert(pro_tx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)) == NetInfoStatus::Success);

@@ -143,15 +143,7 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
     BOOST_CHECK(!after_disconnect.Find(activation + 65, activation + 65));
     BOOST_REQUIRE(after_disconnect.Find(activation + 1, activation + 1));
 
-    // What a carrier says must not depend on the process-wide BLS scheme flag at
-    // the time it is first read, because the answer is kept for the process.
     chainlock::ClearCoinbaseChainLockCacheForTesting();
-    const bool scheme = bls::bls_legacy_scheme.load();
-    bls::bls_legacy_scheme.store(!scheme);
-    const auto under_other = chainlock::CoinbaseChainLockReader(chain.Tip(), m_node.chainman->m_blockman).Read(activation + 40);
-    bls::bls_legacy_scheme.store(scheme);
-    BOOST_REQUIRE(under_other);
-    BOOST_CHECK_EQUAL(under_other->height, activation + 1);
     const auto after = chainlock::CoinbaseChainLockReader(chain.Tip(), m_node.chainman->m_blockman).Read(activation + 40);
     BOOST_REQUIRE(after);
     BOOST_CHECK(after->Signed().getSig() == signature);

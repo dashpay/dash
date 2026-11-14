@@ -435,10 +435,10 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorum)
     // The newest quorum, with the commitment's 48-byte basic-scheme key. The hash is in Core's
     // internal byte order.
     const auto found{check("newest", type, qcs.at(50).quorumHash, tip, FOUND)};
-    BOOST_CHECK(found.public_key == qcs.at(50).quorumPublicKey.ToByteVector(BLSScheme::Basic));
+    BOOST_CHECK(found.public_key == qcs.at(50).quorumPublicKey.ToByteVector());
     BOOST_CHECK_EQUAL(found.public_key.size(), 48U);
     CBLSPublicKey roundtrip;
-    roundtrip.SetBytes(found.public_key, BLSScheme::Basic);
+    roundtrip.SetBytes(found.public_key);
     BOOST_CHECK(roundtrip.IsValid());
     BOOST_CHECK(roundtrip == qcs.at(50).quorumPublicKey);
     // Without a ChainLock this node's chain is not final, so a missing quorum is not evidence yet.

@@ -93,7 +93,7 @@ public:
             if (m_entries.get(key, sig)) return sig;
         }
         CDataStream in(Span<const uint8_t>{bytes}, SER_NETWORK, PROTOCOL_VERSION);
-        sig.Unserialize(in, BLSScheme::Basic);
+        sig.Unserialize(in);
         if (sig.IsValid()) {
             LOCK(m_mutex);
             m_entries.insert(key, sig);

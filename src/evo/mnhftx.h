@@ -46,7 +46,7 @@ public:
     SERIALIZE_METHODS(MNHFTx, obj)
     {
         READWRITE(obj.versionBit, obj.quorumHash);
-        READWRITE(BLSEncoded(const_cast<CBLSSignature&>(obj.sig), BLSScheme::Basic));
+        READWRITE(obj.sig);
     }
 
     std::string ToString() const;

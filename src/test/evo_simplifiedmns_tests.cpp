@@ -18,12 +18,11 @@ BOOST_FIXTURE_TEST_SUITE(evo_simplifiedmns_tests, RegTestingSetup)
 
 BOOST_AUTO_TEST_CASE(simplifiedmns_merkleroots)
 {
-    //TODO: Provide raw data for basic scheme as well
-    bls::bls_legacy_scheme.store(true);
+    // Historical merkle root for legacy-encoded entries.
     std::vector<std::unique_ptr<CSimplifiedMNListEntry>> entries;
     for (size_t i = 1; i < 16; i++) {
         CSimplifiedMNListEntry smle;
-        smle.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+        smle.nVersion = ProTxVersion::LegacyBLS;
         smle.netInfo = NetInfoInterface::MakeNetInfo(smle.nVersion);
         smle.proRegTxHash.SetHex(strprintf("%064x", i));
         smle.confirmedHash.SetHex(strprintf("%064x", i));
@@ -79,8 +78,6 @@ BOOST_AUTO_TEST_CASE(simplifiedmns_merkleroots)
 
 BOOST_AUTO_TEST_CASE(simplifiedmns_extended_diff_share_reward)
 {
-    bls::bls_legacy_scheme.store(false);
-
     auto make_keyid = [](uint8_t i) {
         CKeyID ret;
         ret.SetHex(strprintf("%040x", i));

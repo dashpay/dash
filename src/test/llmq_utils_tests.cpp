@@ -2,11 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <checkqueue.h>
 #include <consensus/params.h>
 #include <dbwrapper.h>
 #include <llmq/context.h>
@@ -452,6 +454,47 @@ BOOST_AUTO_TEST_CASE(sig_share_batch_verifier_judges_each_sender_by_its_own_shar
         verifier.Verify();
         BOOST_CHECK(verifier.badSources == expected_bad_sources);
     }
+}
+
+BOOST_AUTO_TEST_CASE(bls_check_runs_under_the_scheme_it_was_given)
+{
+    // ConnectBlock builds commitment checks with the block's scheme, and
+    // CCheckQueue runs them on other threads.
+    CCheckQueue<utils::BlsCheck> queue{/*nBatchSizeIn=*/1};
+    queue.StartWorkerThreads(/*threads_num=*/2);
+    const uint256 msg_hash{GetRandHash()};
+    std::vector<CBLSSecretKey> sks(3);
+    std::vector<CBLSPublicKey> pks;
+    for (auto& sk : sks) {
+        sk.MakeNewKey();
+        pks.push_back(sk.GetPublicKey());
+    }
+    for (const BLSScheme signed_scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
+        const BLSScheme other_scheme{signed_scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy};
+        std::vector<CBLSSignature> sigs;
+        sigs.reserve(sks.size());
+        for (const auto& sk : sks) {
+            sigs.push_back(SignBLS(sk, msg_hash, signed_scheme));
+        }
+        const CBLSSignature members_sig{AggregateSecureBLS(sigs, pks, msg_hash, signed_scheme)};
+        const auto build = [&](BLSScheme scheme) {
+            std::vector<utils::BlsCheck> checks;
+            checks.emplace_back(sigs[0], std::vector<CBLSPublicKey>{pks[0]}, msg_hash, "quorum sig", scheme);
+            checks.emplace_back(members_sig, pks, msg_hash, "members sig", scheme);
+            return checks;
+        };
+        const auto run = [&](std::vector<utils::BlsCheck> checks) {
+            CCheckQueueControl<utils::BlsCheck> control{&queue};
+            control.Add(std::move(checks));
+            return control.Wait();
+        };
+        BOOST_CHECK(run(build(signed_scheme)));
+        // One at a time, so neither check's rejection masks the other's
+        for (const auto& check : build(other_scheme)) {
+            BOOST_CHECK(!run({check}));
+        }
+    }
+    queue.StopWorkerThreads();
 }
 
 BOOST_AUTO_TEST_CASE(batched_sig_shares_rejects_oversized_inner_vector)

@@ -80,7 +80,7 @@ MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_s
 
     if (!mnauth.sig.IsValid()) {
         LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- invalid mnauth for protx=%s with sig=%s\n",
-                 mnauth.proRegTxHash.ToString(), mnauth.sig.ToString(BLSScheme::Basic));
+                 mnauth.proRegTxHash.ToString(), mnauth.sig.ToString());
         return MisbehavingError{100, "invalid mnauth signature"};
     }
 

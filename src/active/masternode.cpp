@@ -298,7 +298,7 @@ template bool CActiveMasternodeManager::Decrypt(const CBLSIESMultiRecipientObjec
     AssertLockNotHeld(cs);
     auto sig = Sign(hash);
     assert(sig.IsValid());
-    return sig.ToByteVector(BLSScheme::Basic);
+    return sig.ToByteVector();
 }
 
 // We need to pass a copy as opposed to a const ref because BLSEncoded

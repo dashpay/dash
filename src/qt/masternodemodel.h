@@ -75,7 +75,7 @@ private:
     std::optional<QString> m_platform_node_id{};
     std::optional<QString> m_platform_p2p_addresses{};
     std::optional<QString> m_pub_key_operator{};
-    BLSScheme m_operator_legacy_scheme{BLSScheme::Basic};
+    BLSScheme m_operator_scheme{BLSScheme::Basic};
     uint16_t m_operator_reward_pct{0};
 
 public:
@@ -134,9 +134,8 @@ public:
         return std::tie(m_banned, m_last_paid_height, m_next_payment_height, m_pose_penalty, m_consecutive_payments,
                         m_pose_ban_height, m_pose_revived_height, m_service_key, m_service, m_operator_reward_pct,
                         m_operator_reward, m_operator_payout_address, m_payout_address, m_payout_addresses,
-                        m_voting_address, m_pub_key_operator, m_operator_legacy_scheme, m_network_addresses,
-                        m_platform_node_id, m_platform_p2p_addresses, m_platform_https_addresses,
-                        m_shares_fingerprint);
+                        m_voting_address, m_pub_key_operator, m_operator_scheme, m_network_addresses,
+                        m_platform_node_id, m_platform_p2p_addresses, m_platform_https_addresses, m_shares_fingerprint);
     }
     QString toHtml(int current_height = 0, const QSet<int>& my_share_indexes = {},
                    BitcoinUnits::Unit unit = BitcoinUnits::Unit::DASH) const;

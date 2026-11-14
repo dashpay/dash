@@ -32,12 +32,9 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_deterministic_test)
     uint256 vvecHash = GetTestQuorumHash(2);
 
     // Generate hash multiple times with same inputs
-    uint256 hash1 = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash,
-                                        GetAmbientBLSScheme());
-    uint256 hash2 = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash,
-                                        GetAmbientBLSScheme());
-    uint256 hash3 = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash,
-                                        GetAmbientBLSScheme());
+    uint256 hash1 = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash, BLSScheme::Basic);
+    uint256 hash2 = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash, BLSScheme::Basic);
+    uint256 hash3 = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash, BLSScheme::Basic);
 
     // All hashes should be identical (deterministic)
     BOOST_CHECK(hash1 == hash2);
@@ -54,39 +51,37 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_sensitivity_test)
     CBLSPublicKey quorumPubKey = CreateRandomBLSPublicKey();
     uint256 vvecHash = GetTestQuorumHash(2);
 
-    uint256 baseHash = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash,
-                                           GetAmbientBLSScheme());
+    uint256 baseHash = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, vvecHash, BLSScheme::Basic);
 
     // Test sensitivity to llmqType change
     uint256 hashDiffType = BuildCommitmentHash(TEST_PARAMS_ALT.type, // Different type
-                                               quorumHash, validMembers, quorumPubKey, vvecHash, GetAmbientBLSScheme());
+                                               quorumHash, validMembers, quorumPubKey, vvecHash, BLSScheme::Basic);
     BOOST_CHECK(baseHash != hashDiffType);
 
     // Test sensitivity to quorumHash change
     uint256 hashDiffQuorum = BuildCommitmentHash(llmqType,
                                                  GetTestQuorumHash(99), // Different quorum hash
-                                                 validMembers, quorumPubKey, vvecHash, GetAmbientBLSScheme());
+                                                 validMembers, quorumPubKey, vvecHash, BLSScheme::Basic);
     BOOST_CHECK(baseHash != hashDiffQuorum);
 
     // Test sensitivity to validMembers change
     std::vector<bool> differentMembers = CreateBitVector(5, {0, 1, 2}); // One less member
     uint256 hashDiffMembers = BuildCommitmentHash(llmqType, quorumHash,
                                                   differentMembers, // Different valid members
-                                                  quorumPubKey, vvecHash, GetAmbientBLSScheme());
+                                                  quorumPubKey, vvecHash, BLSScheme::Basic);
     BOOST_CHECK(baseHash != hashDiffMembers);
 
     // Test sensitivity to quorumPubKey change
     CBLSPublicKey differentPubKey = CreateRandomBLSPublicKey();
     uint256 hashDiffPubKey = BuildCommitmentHash(llmqType, quorumHash, validMembers,
                                                  differentPubKey, // Different public key
-                                                 vvecHash, GetAmbientBLSScheme());
+                                                 vvecHash, BLSScheme::Basic);
     BOOST_CHECK(baseHash != hashDiffPubKey);
 
     // Test sensitivity to vvecHash change
     uint256 hashDiffVvec = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey,
-                                               GetTestQuorumHash(99) // Different vvec hash
-                                               ,
-                                               GetAmbientBLSScheme());
+                                               GetTestQuorumHash(99), // Different vvec hash
+                                               BLSScheme::Basic);
     BOOST_CHECK(baseHash != hashDiffVvec);
 }
 
@@ -95,21 +90,19 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_edge_cases_test)
     // Test with empty valid members
     std::vector<bool> emptyMembers;
     uint256 hashEmpty = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), emptyMembers,
-                                            CreateRandomBLSPublicKey(), GetTestQuorumHash(2), GetAmbientBLSScheme());
+                                            CreateRandomBLSPublicKey(), GetTestQuorumHash(2), BLSScheme::Basic);
     BOOST_CHECK(!hashEmpty.IsNull());
 
     // Test with all members valid
     std::vector<bool> allValid(100, true);
     uint256 hashAllValid = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), allValid,
-                                               CreateRandomBLSPublicKey(), GetTestQuorumHash(2),
-                                               GetAmbientBLSScheme());
+                                               CreateRandomBLSPublicKey(), GetTestQuorumHash(2), BLSScheme::Basic);
     BOOST_CHECK(!hashAllValid.IsNull());
 
     // Test with no members valid
     std::vector<bool> noneValid(100, false);
     uint256 hashNoneValid = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), noneValid,
-                                                CreateRandomBLSPublicKey(), GetTestQuorumHash(2),
-                                                GetAmbientBLSScheme());
+                                                CreateRandomBLSPublicKey(), GetTestQuorumHash(2), BLSScheme::Basic);
     BOOST_CHECK(!hashNoneValid.IsNull());
 
     // All three should produce different hashes
@@ -124,14 +117,14 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_null_inputs_test)
     uint256 hashNullQuorum = BuildCommitmentHash(TEST_PARAMS.type,
                                                  uint256(), // Null hash
                                                  CreateBitVector(5, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                                 GetTestQuorumHash(1), GetAmbientBLSScheme());
+                                                 GetTestQuorumHash(1), BLSScheme::Basic);
     BOOST_CHECK(!hashNullQuorum.IsNull());
 
     // Test with invalid (but serializable) public key
     CBLSPublicKey invalidPubKey;
     uint256 hashInvalidKey = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), CreateBitVector(5, {0, 1, 2}),
                                                  invalidPubKey, // Invalid key
-                                                 GetTestQuorumHash(2), GetAmbientBLSScheme());
+                                                 GetTestQuorumHash(2), BLSScheme::Basic);
     BOOST_CHECK(!hashInvalidKey.IsNull());
 
     // Test with null vvec hash
@@ -139,7 +132,7 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_null_inputs_test)
                                                CreateRandomBLSPublicKey(),
                                                uint256() // Null hash
                                                ,
-                                               GetAmbientBLSScheme());
+                                               BLSScheme::Basic);
     BOOST_CHECK(!hashNullVvec.IsNull());
 
     // All should produce different hashes
@@ -159,16 +152,14 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_large_data_test)
     }
 
     uint256 hashLarge = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), largeValidMembers,
-                                            CreateRandomBLSPublicKey(), GetTestQuorumHash(2),
-                                            GetAmbientBLSScheme());
+                                            CreateRandomBLSPublicKey(), GetTestQuorumHash(2), BLSScheme::Basic);
 
     BOOST_CHECK(!hashLarge.IsNull());
 
     // Slightly different pattern should produce different hash
     largeValidMembers[0] = !largeValidMembers[0];
     uint256 hashLargeDiff = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), largeValidMembers,
-                                                CreateRandomBLSPublicKey(), GetTestQuorumHash(2),
-                                                GetAmbientBLSScheme());
+                                                CreateRandomBLSPublicKey(), GetTestQuorumHash(2), BLSScheme::Basic);
 
     BOOST_CHECK(!hashLargeDiff.IsNull());
     BOOST_CHECK(hashLarge != hashLargeDiff);
@@ -194,8 +185,7 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_bit_pattern_test)
 
     std::vector<uint256> hashes;
     for (const auto& pattern : patterns) {
-        uint256 hash = BuildCommitmentHash(llmqType, quorumHash, pattern, quorumPubKey, vvecHash,
-                                           GetAmbientBLSScheme());
+        uint256 hash = BuildCommitmentHash(llmqType, quorumHash, pattern, quorumPubKey, vvecHash, BLSScheme::Basic);
         hashes.push_back(hash);
         BOOST_CHECK(!hash.IsNull());
     }

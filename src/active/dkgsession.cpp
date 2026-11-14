@@ -602,13 +602,13 @@ std::optional<CDKGPrematureCommitment> ActiveDKGSession::SendCommitment()
     qc.quorumSig = skShare.Sign(commitmentHash);
 
     if (lieType == 3) {
-        auto buf = qc.sig.ToBytes(BLSScheme::Basic);
+        auto buf = qc.sig.ToBytes();
         buf[5]++;
-        qc.sig.SetBytes(buf, BLSScheme::Basic);
+        qc.sig.SetBytes(buf);
     } else if (lieType == 4) {
-        auto buf = qc.quorumSig.ToBytes(BLSScheme::Basic);
+        auto buf = qc.quorumSig.ToBytes();
         buf[5]++;
-        qc.quorumSig.SetBytes(buf, BLSScheme::Basic);
+        qc.quorumSig.SetBytes(buf);
     }
 
     t3.stop();

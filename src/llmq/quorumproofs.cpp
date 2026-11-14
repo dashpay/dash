@@ -118,14 +118,14 @@ static ProofTransaction ReadTransaction(CDataStream& in)
 static void WriteCertificate(CDataStream& out, const ProofCertificate& cert)
 {
     out << cert.height << cert.header;
-    cert.signature.Serialize(out, BLSScheme::Basic);
+    cert.signature.Serialize(out);
 }
 
 static ProofCertificate ReadCertificate(CDataStream& in)
 {
     ProofCertificate cert;
     in >> cert.height >> cert.header;
-    cert.signature.Unserialize(in, BLSScheme::Basic);
+    cert.signature.Unserialize(in);
     return cert;
 }
 
@@ -311,8 +311,8 @@ bool ProofCertificate::Verify(const CFinalCommitment& signer, uint32_t minimum, 
     // signature themselves. A quorum hash or signed message alone is insufficient.
     CHashWriter writer(SER_GETHASH, 0);
     writer << hash.Get();
-    signer.quorumPublicKey.Serialize(writer, BLSScheme::Basic);
-    signature.Serialize(writer, BLSScheme::Basic);
+    signer.quorumPublicKey.Serialize(writer);
+    signature.Serialize(writer);
     const auto key = writer.GetHash();
     static ProofCache<bool, 16384> cache;
     bool valid{false};
