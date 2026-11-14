@@ -56,7 +56,8 @@ struct SpecialTxRules {
     bool evo_shares{false};
     //! A masternode's primary addresses need not be IPv4
     bool ipv4_optional{false};
-    //! Signature scheme for operator and commitment signatures in the block these rules apply to
+    //! Scheme for operator signatures in provider transactions. Commitment signatures are derived
+    //! by the quorum block processor from BLSSchemeAfter.
     BLSScheme bls_scheme{BLSScheme::Basic};
 };
 

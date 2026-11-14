@@ -5,9 +5,13 @@
 #ifndef BITCOIN_TEST_UTIL_MINING_H
 #define BITCOIN_TEST_UTIL_MINING_H
 
+#include <consensus/validation.h>
 #include <node/miner.h>
+#include <uint256.h>
+#include <validationinterface.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,6 +22,20 @@ class CScript;
 namespace node {
 struct NodeContext;
 } // namespace node
+
+/** Records BlockChecked for one block hash. */
+struct BlockValidationStateCatcher : public CValidationInterface {
+    const uint256 m_hash;
+    std::optional<BlockValidationState> m_state;
+
+    explicit BlockValidationStateCatcher(const uint256& hash) :
+        m_hash{hash}
+    {
+    }
+
+protected:
+    void BlockChecked(const CBlock& block, const BlockValidationState& state) override;
+};
 
 /** Create a blockchain, starting from genesis */
 std::vector<std::shared_ptr<CBlock>> CreateBlockChain(size_t total_height, const CChainParams& params);

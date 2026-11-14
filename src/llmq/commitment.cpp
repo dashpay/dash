@@ -109,7 +109,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
 }
 
 
-bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool checkSigs, const BLSScheme scheme) const
+bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, const std::optional<BLSScheme> sig_scheme) const
 {
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     if (!llmq_params_opt.has_value()) {
@@ -195,11 +195,8 @@ bool CFinalCommitment::Verify(const llmq::UtilParameters& util_params, bool chec
         }
     }
 
-    // sigs are only checked when the block is processed
-    if (checkSigs) {
-        if (!VerifySignatureAsync(util_params, /*queue_control=*/nullptr, scheme)) {
-            return false;
-        }
+    if (sig_scheme && !VerifySignatureAsync(util_params, /*queue_control=*/nullptr, *sig_scheme)) {
+        return false;
     }
 
     LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] VALID QUORUM\n", quorumHash.ToString());
@@ -289,7 +286,7 @@ bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CFinalCo
         return true;
     }
 
-    if (!qcTx.commitment.Verify(util_params.replace_index(pQuorumBaseBlockIndex), false)) {
+    if (!qcTx.commitment.Verify(util_params.replace_index(pQuorumBaseBlockIndex), std::nullopt)) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- h[%d] invalid qcTx.commitment[%s] Verify failed\n",
                  util_params.m_base_index->nHeight, qcTx.commitment.quorumHash.ToString());
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-qc-invalid");

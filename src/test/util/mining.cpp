@@ -99,21 +99,11 @@ std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coi
     return PrepareBlock(node, coinbase_scriptPubKey, assembler_options);
 }
 
-struct BlockValidationStateCatcher : public CValidationInterface {
-    const uint256 m_hash;
-    std::optional<BlockValidationState> m_state;
-
-    BlockValidationStateCatcher(const uint256& hash)
-        : m_hash{hash},
-          m_state{} {}
-
-protected:
-    void BlockChecked(const CBlock& block, const BlockValidationState& state) override
-    {
-        if (block.GetHash() != m_hash) return;
-        m_state = state;
-    }
-};
+void BlockValidationStateCatcher::BlockChecked(const CBlock& block, const BlockValidationState& state)
+{
+    if (block.GetHash() != m_hash) return;
+    m_state = state;
+}
 
 COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
 {
