@@ -113,3 +113,17 @@ dashbls_runtest_LDADD = $(LIBDASHBLS)
 dashbls_runtest_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS) -static
 endif
 endif
+
+if ENABLE_BENCH
+if !ENABLE_FUZZ
+noinst_PROGRAMS += dashbls/runbench
+
+dashbls_runbench_SOURCES = \
+  dashbls/src/test-bench.cpp \
+  dashbls/include/dashbls/test-utils.hpp
+dashbls_runbench_CPPFLAGS = $(AM_CPPFLAGS) $(DASHBLS_CPPFLAGS_INT)
+dashbls_runbench_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+dashbls_runbench_LDADD = $(LIBDASHBLS)
+dashbls_runbench_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS) -static
+endif
+endif
