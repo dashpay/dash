@@ -82,7 +82,9 @@
 #include <warnings.h>
 
 #include <coinjoin/options.h>
+#include <evo/assetlocktx.h>
 #include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <governance/vote.h>
 
 #include <algorithm>
@@ -4301,6 +4303,39 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
     }
 
     result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+    return result;
+}
+
+PlatformKeyResult<std::vector<AssetLockFunding>> CWallet::ListAssetLockFundings(const std::vector<AssetLockFundingKey>& keys) const
+{
+    LOCK(cs_wallet);
+    PlatformKeyResult<std::vector<AssetLockFunding>> result;
+    result.status = PlatformKeyStatus::SUCCESS;
+    std::map<CScript, AssetLockFundingKey> scripts;
+    for (const auto& key : keys) {
+        platformkeys::ExtKey256 derived;
+        result.status = DerivePlatformKey(std::visit([](const auto& k) { return PlatformKeyRequest{k}; }, key), derived);
+        if (result.status != PlatformKeyStatus::SUCCESS) return result;
+        scripts.emplace(GetScriptForDestination(PKHash{derived.key.GetPubKey()}), key);
+    }
+
+    for (const auto& [_, wtx] : wtxOrdered) {
+        if (wtx->tx->nType != TRANSACTION_ASSET_LOCK) continue;
+        const auto payload{GetTxPayload<CAssetLockPayload>(*wtx->tx)};
+        if (!payload) continue;
+        AssetLockFundingStatus status{AssetLockFundingStatus::ACTIVE};
+        if (wtx->isConflicted()) {
+            status = AssetLockFundingStatus::CONFLICTED;
+        } else if (wtx->isAbandoned()) {
+            status = AssetLockFundingStatus::INACTIVE;
+        }
+        const auto& credits{payload->getCreditOutputs()};
+        for (uint32_t index{0}; index < credits.size(); ++index) {
+            const auto it{scripts.find(credits[index].scriptPubKey)};
+            if (it == scripts.end()) continue;
+            result.value.push_back({wtx->GetHash(), index, it->second, credits[index].nValue, status});
+        }
+    }
     return result;
 }
 
