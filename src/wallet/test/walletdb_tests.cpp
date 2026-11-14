@@ -4,8 +4,15 @@
 
 #include <test/util/setup_common.h>
 #include <clientversion.h>
+#include <hash.h>
+#include <key_io.h>
+#include <script/descriptor.h>
 #include <streams.h>
 #include <uint256.h>
+#include <util/message.h>
+#include <util/strencodings.h>
+#include <wallet/bip39.h>
+#include <wallet/crypter.h>
 #include <wallet/hdchain.h>
 #include <wallet/test/util.h>
 #include <wallet/test/wallet_test_fixture.h>
@@ -13,6 +20,11 @@
 #include <wallet/walletdb.h>
 
 #include <boost/test/unit_test.hpp>
+
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace wallet {
 BOOST_FIXTURE_TEST_SUITE(walletdb_tests, WalletTestingSetup)
@@ -32,20 +44,16 @@ BOOST_AUTO_TEST_CASE(walletdb_readkeyvalue)
     BOOST_CHECK_THROW(ssValue >> dummy, std::ios_base::failure);
 }
 
-// Helper: build a key/value stream pair for an HD chain DB record and run ReadKeyValue.
+// Helper: build the value stream for an HD chain DB record and run LoadHDChain.
 static bool TryReadHDChainRecord(CWallet& wallet, const std::string& dbKey, bool fCrypted, std::string& strErrOut)
 {
     CHDChain chain;
     chain.SetCrypted(fCrypted);
 
-    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
     CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-    ssKey << dbKey;
     ssValue << chain;
 
-    std::string strType;
-    LOCK(wallet.cs_wallet);
-    return ReadKeyValue(&wallet, ssKey, ssValue, strType, strErrOut);
+    return LoadHDChain(&wallet, ssValue, strErrOut, /*crypted=*/dbKey == DBKeys::CRYPTED_HDCHAIN);
 }
 
 BOOST_AUTO_TEST_CASE(walletdb_hdchain_type_mismatch)
@@ -86,30 +94,6 @@ BOOST_AUTO_TEST_CASE(walletdb_platform_data_records)
     records = m_wallet.GetPlatformData("platform/identity/");
     BOOST_CHECK_EQUAL(records.size(), 1U);
     BOOST_CHECK_EQUAL(records.count("platform/identity/0"), 0U);
-
-    // The wallet-load path (ReadKeyValue) must populate the same map.
-    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-    CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-    ssKey << std::make_pair(DBKeys::PLATFORM_DATA, std::string{"platform/loaded"});
-    ssValue << value_a;
-    std::string strType, strErr;
-    BOOST_CHECK(ReadKeyValue(&m_wallet, ssKey, ssValue, strType, strErr));
-    BOOST_CHECK_EQUAL(strType, DBKeys::PLATFORM_DATA);
-    BOOST_CHECK(m_wallet.GetPlatformData("platform/loaded").at("platform/loaded") == value_a);
-
-    // A truncated value must fail the read and identify PLATFORM_DATA as the
-    // failing type so LoadWallet() can classify the damage as noncritical.
-    CDataStream ssGood(SER_DISK, CLIENT_VERSION);
-    ssGood << value_a;
-    CDataStream ssBadKey(SER_DISK, CLIENT_VERSION);
-    CDataStream ssBadValue(SER_DISK, CLIENT_VERSION);
-    ssBadKey << std::make_pair(DBKeys::PLATFORM_DATA, std::string{"platform/corrupt"});
-    ssBadValue.write({ssGood.data(), ssGood.size() - 1});
-    strType.clear();
-    strErr.clear();
-    BOOST_CHECK(!ReadKeyValue(&m_wallet, ssBadKey, ssBadValue, strType, strErr));
-    BOOST_CHECK_EQUAL(strType, DBKeys::PLATFORM_DATA);
-    BOOST_CHECK(m_wallet.GetPlatformData("platform/corrupt").empty());
 }
 
 //! Load a wallet whose database holds a PLATFORM_DATA record under
@@ -150,6 +134,73 @@ BOOST_AUTO_TEST_CASE(walletdb_platform_data_corruption_policy)
     BOOST_CHECK(platform_data.at("platform/intact") == std::vector<unsigned char>({0x01, 0x02}));
 }
 
+BOOST_AUTO_TEST_CASE(walletdb_dash_record_load_policy)
+{
+    // Damage to an hdpubkey or g_object record is noncritical. An HD chain
+    // whose encryption state disagrees with its record type, or with the
+    // wallet's, is corrupt.
+    CHDChain plain_chain;
+    BOOST_REQUIRE(plain_chain.SetSeed(SecureVector(32, 0x01), /*fUpdateID=*/true));
+    CHDChain crypted_chain{plain_chain};
+    crypted_chain.SetCrypted(true);
+    const std::pair<std::string, unsigned int> mkey_key{DBKeys::MASTER_KEY, 1};
+    const std::vector<unsigned char> truncated{0x05};
+    CKey key;
+    key.MakeNewKey(/*fCompressed=*/true);
+
+    using WriteRecords = std::function<bool(DatabaseBatch&)>;
+    const std::vector<std::pair<WriteRecords, DBErrors>> rows{
+        {[&](DatabaseBatch& batch) { return batch.Write(DBKeys::HDCHAIN, plain_chain); }, DBErrors::LOAD_OK},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(DBKeys::CRYPTED_HDCHAIN, crypted_chain) && batch.Write(mkey_key, CMasterKey{});
+         }, DBErrors::LOAD_OK},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(DBKeys::HDCHAIN, plain_chain) && batch.Write(mkey_key, CMasterKey{});
+         }, DBErrors::CORRUPT},
+        {[&](DatabaseBatch& batch) { return batch.Write(DBKeys::CRYPTED_HDCHAIN, crypted_chain); }, DBErrors::CORRUPT},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(DBKeys::HDCHAIN, crypted_chain) && batch.Write(mkey_key, CMasterKey{});
+         }, DBErrors::CORRUPT},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(std::make_pair(DBKeys::HDPUBKEY, key.GetPubKey()), Span{truncated});
+         }, DBErrors::NONCRITICAL_ERROR},
+        {[&](DatabaseBatch& batch) {
+             return batch.Write(std::make_pair(DBKeys::G_OBJECT, uint256::ONE), Span{truncated});
+         }, DBErrors::NONCRITICAL_ERROR},
+    };
+    for (size_t i{0}; i < rows.size(); ++i) {
+        CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+        BOOST_REQUIRE(rows[i].first(*wallet.GetDatabase().MakeBatch()));
+        BOOST_CHECK_MESSAGE(WalletBatch(wallet.GetDatabase()).LoadWallet(&wallet) == rows[i].second, "row " << i);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_descriptor_orphan_records)
+{
+    // A descriptor cache, key or encrypted key record whose descriptor ID has
+    // no descriptor record, or is the legacy manager's ID, is not loaded. An
+    // interrupted importdescriptors can leave such records behind.
+    CExtKey root;
+    const std::vector<unsigned char> seed(32, 1);
+    root.SetSeed(MakeByteSpan(seed));
+    const CPubKey pubkey{root.key.GetPubKey()};
+    for (const bool legacy_owner : {false, true}) {
+        for (int record = 0; record < 3; ++record) {
+            CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+            const uint256 owner{legacy_owner ? wallet.GetOrCreateLegacyScriptPubKeyMan()->GetID() : uint256::TWO};
+            {
+                WalletBatch batch(wallet.GetDatabase());
+                switch (record) {
+                case 0: BOOST_REQUIRE(batch.WriteDescriptorParentCache(root.Neuter(), owner, 0)); break;
+                case 1: BOOST_REQUIRE(batch.WriteDescriptorKey(owner, pubkey, root.key.GetPrivKey(), "", "")); break;
+                case 2: BOOST_REQUIRE(batch.WriteCryptedDescriptorKey(owner, pubkey, {1}, {}, {})); break;
+                }
+            }
+            BOOST_CHECK(wallet.LoadWallet() == DBErrors::LOAD_OK);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(walletdb_read_write_deadlock)
 {
     // Exercises a db read write operation that shouldn't deadlock.
@@ -173,6 +224,59 @@ BOOST_AUTO_TEST_CASE(walletdb_read_write_deadlock)
 
         // Now delete all records, which performs a read write operation.
         BOOST_CHECK(wallet->GetLegacyScriptPubKeyMan()->DeleteRecords());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_unreadable_tx_record)
+{
+    CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+    const std::vector<unsigned char> truncated{0x05};
+    BOOST_REQUIRE(wallet.GetDatabase().MakeBatch()->Write(std::make_pair(DBKeys::TX, uint256::ONE), Span{truncated}));
+    BOOST_CHECK(wallet.LoadWallet() == DBErrors::CORRUPT);
+}
+
+BOOST_AUTO_TEST_CASE(walletdb_descriptor_mnemonic_consistency)
+{
+    const SecureString mnemonic{"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"};
+    const SecureString passphrase{"recovery passphrase"};
+    SecureVector seed;
+    CMnemonic::ToSeed(mnemonic, passphrase, seed);
+    CExtKey root;
+    root.SetSeed(MakeByteSpan(seed));
+    const CPubKey pubkey{root.key.GetPubKey()};
+    const CPrivKey privkey{root.key.GetPrivKey()};
+    enum class Record { NO_MNEMONIC, MATCHING, MISMATCHED };
+    for (const Record record : {Record::NO_MNEMONIC, Record::MATCHING, Record::MISMATCHED}) {
+        CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+        FlatSigningProvider provider;
+        std::string error;
+        auto parsed{Parse("pkh(" + HexStr(pubkey) + ")", provider, error, false)};
+        BOOST_REQUIRE_MESSAGE(parsed, error);
+        WalletDescriptor descriptor(std::move(parsed), 0, 0, 1, 0);
+        {
+            WalletBatch batch(wallet.GetDatabase());
+            BOOST_REQUIRE(batch.WriteWalletFlags(WALLET_FLAG_DESCRIPTORS));
+            BOOST_REQUIRE(batch.WriteDescriptor(descriptor.id, descriptor));
+            if (record == Record::NO_MNEMONIC) {
+                // Records written before mnemonics were stored end after the key hash.
+                std::vector<unsigned char> key_bytes(pubkey.begin(), pubkey.end());
+                key_bytes.insert(key_bytes.end(), privkey.begin(), privkey.end());
+                BOOST_REQUIRE(wallet.GetDatabase().MakeBatch()->Write(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(descriptor.id, pubkey)), std::make_pair(privkey, Hash(key_bytes))));
+            } else {
+                BOOST_REQUIRE(batch.WriteDescriptorKey(descriptor.id, pubkey, privkey, mnemonic, record == Record::MATCHING ? passphrase : SecureString{"wrong passphrase"}));
+            }
+        }
+        const auto result{wallet.LoadWallet()};
+        if (record == Record::MISMATCHED) {
+            BOOST_CHECK(result == DBErrors::CORRUPT);
+            continue;
+        }
+        BOOST_REQUIRE(result == DBErrors::LOAD_OK);
+        LOCK(wallet.cs_wallet);
+        BOOST_CHECK(wallet.IsMine(GetScriptForDestination(PKHash(pubkey))) == ISMINE_SPENDABLE);
+        std::string signature;
+        BOOST_CHECK(wallet.SignMessage("descriptor load regression", PKHash(pubkey), signature) == SigningResult::OK);
+        BOOST_CHECK(MessageVerify(EncodeDestination(PKHash(pubkey)), signature, "descriptor load regression") == MessageVerificationResult::OK);
     }
 }
 
