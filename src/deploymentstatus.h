@@ -34,6 +34,7 @@ inline bool DeploymentActiveAfter(const CBlockIndex* pindexPrev, const Consensus
 /** The BLS scheme in force for the block after pindexPrev. */
 inline BLSScheme BLSSchemeAfter(const CBlockIndex* pindexPrev, const Consensus::Params& params)
 {
+    // NOLINTNEXTLINE(bls-legacy-scheme)
     return DeploymentActiveAfter(pindexPrev, params, Consensus::DEPLOYMENT_V19) ? BLSScheme::Basic : BLSScheme::Legacy;
 }
 

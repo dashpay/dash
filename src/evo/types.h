@@ -39,7 +39,7 @@ enum : uint16_t {
 /** Scheme used to encode BLS data in a provider transaction or MN state of this version. */
 [[nodiscard]] constexpr BLSScheme GetBLSScheme(uint16_t version)
 {
-    return version == LegacyBLS ? BLSScheme::Legacy : BLSScheme::Basic;
+    return version == LegacyBLS ? BLSScheme::Legacy : BLSScheme::Basic; // NOLINT(bls-legacy-scheme)
 }
 
 } // namespace ProTxVersion

@@ -486,7 +486,7 @@ public:
         if (!pubkey.IsValid()) return false;
         CBLSLazyPublicKey wrapped;
         wrapped.Set(pubkey);
-        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
+        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) { // NOLINT(bls-legacy-scheme)
             const OperatorKeySlot slot{wrapped, scheme};
             if (!HasUniqueProperty(slot)) continue;
             const auto holder = GetUniquePropertyMN(slot);

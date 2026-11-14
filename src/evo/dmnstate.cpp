@@ -39,6 +39,7 @@ void CDeterministicMNStateDiffLegacy::MaterializeOperatorKeyFromBytes()
     }
     // No version in the diff: hold the raw bytes under legacy until the masternode's version
     // is known. A present version selects the scheme those bytes are decoded with.
+    // NOLINTNEXTLINE(bls-legacy-scheme)
     const BLSScheme scheme{(fields & LegacyField_nVersion) ? state.OperatorKeyScheme() : BLSScheme::Legacy};
     CDataStream stream{Span<const uint8_t>{pubKeyOperatorBytes}, SER_DISK, CLIENT_VERSION};
     state.pubKeyOperator.Unserialize(stream, scheme);

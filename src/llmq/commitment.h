@@ -88,7 +88,7 @@ public:
     [[nodiscard]] constexpr BLSScheme GetBLSScheme() const
     {
         return nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION
-                   ? BLSScheme::Legacy
+                   ? BLSScheme::Legacy // NOLINT(bls-legacy-scheme)
                    : BLSScheme::Basic;
     }
 

@@ -1625,7 +1625,7 @@ bool CTxMemPool::existsProviderTxCrossSchemeConflict(const CTransaction& tx) con
         if (!pubkey.IsValid()) return false;
         CBLSLazyPublicKey wrapped;
         wrapped.Set(pubkey);
-        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
+        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) { // NOLINT(bls-legacy-scheme)
             auto it = mapProTxBlsPubKeyHashes.find(wrapped.GetHash(scheme));
             if (it == mapProTxBlsPubKeyHashes.end()) continue;
             auto txit = mapTx.find(it->second);
