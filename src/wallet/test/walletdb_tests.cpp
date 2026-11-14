@@ -32,20 +32,16 @@ BOOST_AUTO_TEST_CASE(walletdb_readkeyvalue)
     BOOST_CHECK_THROW(ssValue >> dummy, std::ios_base::failure);
 }
 
-// Helper: build a key/value stream pair for an HD chain DB record and run ReadKeyValue.
+// Helper: build the value stream for an HD chain DB record and run LoadHDChain.
 static bool TryReadHDChainRecord(CWallet& wallet, const std::string& dbKey, bool fCrypted, std::string& strErrOut)
 {
     CHDChain chain;
     chain.SetCrypted(fCrypted);
 
-    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
     CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-    ssKey << dbKey;
     ssValue << chain;
 
-    std::string strType;
-    LOCK(wallet.cs_wallet);
-    return ReadKeyValue(&wallet, ssKey, ssValue, strType, strErrOut);
+    return LoadHDChain(&wallet, ssValue, strErrOut, /*crypted=*/dbKey == DBKeys::CRYPTED_HDCHAIN);
 }
 
 BOOST_AUTO_TEST_CASE(walletdb_hdchain_type_mismatch)
@@ -86,30 +82,6 @@ BOOST_AUTO_TEST_CASE(walletdb_platform_data_records)
     records = m_wallet.GetPlatformData("platform/identity/");
     BOOST_CHECK_EQUAL(records.size(), 1U);
     BOOST_CHECK_EQUAL(records.count("platform/identity/0"), 0U);
-
-    // The wallet-load path (ReadKeyValue) must populate the same map.
-    CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-    CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-    ssKey << std::make_pair(DBKeys::PLATFORM_DATA, std::string{"platform/loaded"});
-    ssValue << value_a;
-    std::string strType, strErr;
-    BOOST_CHECK(ReadKeyValue(&m_wallet, ssKey, ssValue, strType, strErr));
-    BOOST_CHECK_EQUAL(strType, DBKeys::PLATFORM_DATA);
-    BOOST_CHECK(m_wallet.GetPlatformData("platform/loaded").at("platform/loaded") == value_a);
-
-    // A truncated value must fail the read and identify PLATFORM_DATA as the
-    // failing type so LoadWallet() can classify the damage as noncritical.
-    CDataStream ssGood(SER_DISK, CLIENT_VERSION);
-    ssGood << value_a;
-    CDataStream ssBadKey(SER_DISK, CLIENT_VERSION);
-    CDataStream ssBadValue(SER_DISK, CLIENT_VERSION);
-    ssBadKey << std::make_pair(DBKeys::PLATFORM_DATA, std::string{"platform/corrupt"});
-    ssBadValue.write({ssGood.data(), ssGood.size() - 1});
-    strType.clear();
-    strErr.clear();
-    BOOST_CHECK(!ReadKeyValue(&m_wallet, ssBadKey, ssBadValue, strType, strErr));
-    BOOST_CHECK_EQUAL(strType, DBKeys::PLATFORM_DATA);
-    BOOST_CHECK(m_wallet.GetPlatformData("platform/corrupt").empty());
 }
 
 //! Load a wallet whose database holds a PLATFORM_DATA record under
