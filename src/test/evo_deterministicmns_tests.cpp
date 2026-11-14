@@ -1685,6 +1685,11 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
         BOOST_CHECK_EQUAL(testPool.size(), 1U);
         BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_reg_replace)));
 
+        // A block connecting the MN's own ProRegTx while the tip list still contains the MN
+        // (the new branch of a reorg re-mining it) replaces nothing and must keep the update.
+        testPool.removeForBlock({MakeTransactionRef(tx_reg)}, tip_height() + 1);
+        BOOST_CHECK(testPool.exists(tx_up_serv.GetHash()));
+
         // existsProviderTxConflict only gates our own acceptance; it cannot stop a miner from
         // confirming the replacement. Once that block arrives, removeForBlock must evict the
         // now-unmineable update, otherwise it lingers and stalls our own block assembly.
