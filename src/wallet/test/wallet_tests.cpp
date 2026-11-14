@@ -216,6 +216,23 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
     m_node.chainman->m_blockman.UnlinkPrunedFiles({file_number});
     BOOST_CHECK(rescan_pruned_from() == std::optional<int>{0});
 
+    // A rescan that cannot read every block it needs fails, and the rescan
+    // owed from before the pruned blocks stays owed.
+    {
+        const auto wallet{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase())};
+        {
+            LOCK(wallet->cs_wallet);
+            wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+            wallet->SetLastBlockProcessed(newTip->nHeight, newTip->GetBlockHash());
+            BOOST_REQUIRE(wallet->AddOwedRescan(0));
+        }
+        AddKey(*wallet, coinbaseKey);
+        WalletContext context;
+        const auto iface{interfaces::MakeWallet(context, wallet)};
+        BOOST_CHECK(iface->rescanFromTime(0) == RescanStatus::FAILURE);
+        BOOST_CHECK(iface->owedRescanFrom() == std::optional<int64_t>{0});
+    }
+
     // Verify ScanForWalletTransactions only picks transactions in the new block
     // file.
     {

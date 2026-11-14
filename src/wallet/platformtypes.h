@@ -63,7 +63,9 @@ struct FriendshipKeychainRequest {
     uint32_t account{0};
     uint256 local_id;
     uint256 remote_id;
-    int64_t birth_time{0}; //!< 0 means unknown/genesis.
+    //! UNIX time in seconds, as a descriptor's creation time (Platform's
+    //! $createdAt is in milliseconds); 0 means unknown, i.e. genesis.
+    int64_t birth_time{0};
 };
 
 struct FriendshipXpub {
