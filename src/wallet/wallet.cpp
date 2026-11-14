@@ -2684,7 +2684,8 @@ DBErrors CWallet::LoadWallet()
         assert(m_internal_spk_managers == nullptr);
     }
 
-    if (HaveChain()) {
+    // A transaction record that could not be read leaves an entry without a transaction.
+    if (nLoadWalletRet != DBErrors::CORRUPT && HaveChain()) {
         const std::optional<int> tip_height = chain().getHeight();
         if (tip_height) {
             SetLastBlockProcessedInMem(*tip_height, chain().getBlockHash(*tip_height));

@@ -227,6 +227,14 @@ BOOST_AUTO_TEST_CASE(walletdb_read_write_deadlock)
     }
 }
 
+BOOST_AUTO_TEST_CASE(walletdb_unreadable_tx_record)
+{
+    CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+    const std::vector<unsigned char> truncated{0x05};
+    BOOST_REQUIRE(wallet.GetDatabase().MakeBatch()->Write(std::make_pair(DBKeys::TX, uint256::ONE), Span{truncated}));
+    BOOST_CHECK(wallet.LoadWallet() == DBErrors::CORRUPT);
+}
+
 BOOST_AUTO_TEST_CASE(walletdb_descriptor_mnemonic_consistency)
 {
     const SecureString mnemonic{"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"};
