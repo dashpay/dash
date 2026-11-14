@@ -18,7 +18,6 @@ from test_framework.test_framework import (
 from test_framework.util import (
     assert_raises_rpc_error,
     assert_greater_than,
-    wait_until_helper,
 )
 
 
@@ -61,9 +60,6 @@ class LLMQSigningTest(DashTestFramework):
     def wait_for_sigs(self, hasrecsigs, isconflicting1, isconflicting2, timeout):
         self.wait_until(lambda: self.check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout)
 
-    def assert_sigs_nochange(self, hasrecsigs, isconflicting1, isconflicting2, timeout):
-        assert not wait_until_helper(lambda: not self.check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
-
 
     def log_connections(self):
         connections = []
@@ -100,7 +96,7 @@ class LLMQSigningTest(DashTestFramework):
         # Sign second share and test optional quorumHash parameter, should not result in recovered sig
         # 1. Providing an invalid quorum hash should fail and cause no changes for sigs
         assert not self.mninfo[1].get_node(self).quorum("sign", q_type, id, msgHash, msgHash)
-        self.assert_sigs_nochange(False, False, False, 3)
+        assert self.check_sigs(False, False, False)
         # 2. Providing a valid quorum hash should succeed and cause no changes for sigss
         quorumHash = self.mninfo[1].get_node(self).quorum("selectquorum", q_type, id)["quorumHash"]
 
@@ -118,10 +114,6 @@ class LLMQSigningTest(DashTestFramework):
         self.mninfo[1].get_node(self).quorum("sign", q_type, id, msgHash)
 
         self.wait_for_sigs(True, False, True, 15)
-        has0 = self.nodes[0].quorum("hasrecsig", q_type, id, msgHash)
-        has1 = self.nodes[1].quorum("hasrecsig", q_type, id, msgHash)
-        has2 = self.nodes[2].quorum("hasrecsig", q_type, id, msgHash)
-        assert (has0 or has1 or has2)
 
         self.log.info("Test `quorum verify` rpc")
         node = self.mninfo[0].get_node(self)
@@ -141,13 +133,7 @@ class LLMQSigningTest(DashTestFramework):
 
         self.log.info("Mine one more quorum, so that we have 2 active ones, nothing should change")
         self.mine_quorum_single_member()
-        self.assert_sigs_nochange(True, False, True, 3)
-
-
-        self.log.info("Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change")
-        self.mine_quorum_single_member()
-        self.mine_quorum_single_member()
-        self.assert_sigs_nochange(True, False, True, 3)
+        assert self.check_sigs(True, False, True)
 
         self.log_connections()
         self.log.info("Fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid")

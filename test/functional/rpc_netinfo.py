@@ -230,8 +230,6 @@ class NetInfoTest(BitcoinTestFramework):
         # Need to destroy masternodes as the next test will be re-creating them
         self.node_evo.destroy_mn(self)
         self.node_two.destroy_mn(self)
-        self.restart_node(self.node_evo.mn.nodeIdx, extra_args=evo_extra_args)
-        self.reconnect_nodes()
         self.log.info("Test unique properties map duplication checks")
         self.test_uniqueness()
 

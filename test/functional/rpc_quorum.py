@@ -39,7 +39,6 @@ class RPCMasternodeTest(DashTestFramework):
         assert_equal(node.quorum("dkginfo", other)["active_dkgs"], sum(not d["known"] for d in other_upcoming))
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
-        self.mine_until_mns_confirmed_for_next_dkg()
         quorum_hash = self.mine_quorum_single_member()
 
         quorum_info = self.nodes[0].quorum("info", 100, quorum_hash)

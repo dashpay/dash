@@ -98,6 +98,7 @@ TEST_FRAMEWORK_MODULES = [
 EXTENDED_SCRIPTS = [
     # These tests are not run by default.
     # Longest test should go first, to favor running tests in parallel
+    'mining_getblocktemplate_longpoll_mempool.py',
     'feature_pruning.py', # NOTE: Prune mode is incompatible with -txindex, should work with governance validation disabled though.
     'feature_dbcrash.py',
     'feature_index_prune.py',
@@ -112,8 +113,9 @@ BASE_SCRIPTS = [
     'feature_fee_estimation.py',
     'feature_block.py', # NOTE: needs dash_hash to pass
     # vv Tests less than 2m vv
-    'mining_getblocktemplate_longpoll.py', # FIXME: "socket.error: [Errno 54] Connection reset by peer" on my Mac, same as https://github.com/bitcoin/bitcoin/issues/6651
     'feature_maxuploadtarget.py',
+    'feature_config_args.py',
+    'p2p_dns_seeds.py',
     'mempool_updatefromblock.py',
     'mempool_persist.py --descriptors',
     'p2p_quorum_data.py',
@@ -122,6 +124,7 @@ BASE_SCRIPTS = [
     'p2p_instantsend.py',
     'feature_protx_version.py',
     'feature_asset_locks.py', # NOTE: needs dash_hash to pass
+    'feature_asset_locks_v24.py', # NOTE: needs dash_hash to pass
     'feature_llmq_signing.py', # NOTE: needs dash_hash to pass
     'feature_llmq_is_retroactive.py', # NOTE: needs dash_hash to pass
     'feature_llmq_is_retroactive_session_timeout.py', # NOTE: needs dash_hash to pass
@@ -131,7 +134,6 @@ BASE_SCRIPTS = [
     'feature_masternode_payout_shares.py',
     'feature_masternode_shares.py',
     'feature_llmq_signing.py --spork21', # NOTE: needs dash_hash to pass
-    'feature_llmq_simplepose.py --disable-spork23', # NOTE: needs dash_hash to pass
     'feature_llmq_simplepose_capabilities.py --disable-spork23', # NOTE: needs dash_hash to pass
     'feature_llmq_rotation.py', # NOTE: needs dash_hash to pass
     'feature_llmq_evo.py', # NOTE: needs dash_hash to pass
@@ -147,13 +149,34 @@ BASE_SCRIPTS = [
     'feature_masternode_params_devnet.py', # NOTE: needs dash_hash to pass
     'feature_governance.py --descriptors',
     'feature_governance_cl.py --descriptors',
+    'feature_governance_pruned.py --descriptors',
     'feature_governance_trigger_voting.py --descriptors',
     'rpc_verifyislock.py',
     'feature_dip3_deterministicmns.py --descriptors', # NOTE: needs dash_hash to pass
     'feature_notifications.py',
     # vv Tests less than 60s vv
-    'feature_config_args.py',
     'mining_basic.py',
+    'rpc_blockchain.py --v2transport',
+    'rpc_net.py --v1transport',
+    'rpc_blockchain.py --v1transport',
+    'rpc_net.py --v2transport',
+    'p2p_compactblocks_hb.py --v1transport',
+    'p2p_compactblocks_hb.py --v2transport',
+    'p2p_permissions.py',
+    'feature_addressindex.py',
+    'rpc_netinfo.py',
+    'rpc_getblockfrompeer.py',
+    'feature_init.py',
+    'p2p_invalid_tx.py --v2transport',
+    'wallet_upgradetohd.py --legacy-wallet',
+    'wallet_upgradetohd.py --descriptors',
+    'feature_minchainwork.py',
+    'p2p_addr_relay.py',
+    'p2p_v2_misbehaving.py',
+    'mempool_accept.py',
+    'p2p_node_network_limited.py --v1transport',
+    'p2p_node_network_limited.py --v2transport',
+    'mining_getblocktemplate_longpoll.py',
     'wallet_dust_protection.py --legacy-wallet',
     'wallet_dust_protection.py --descriptors',
     'rpc_psbt.py --legacy-wallet',
@@ -177,7 +200,6 @@ BASE_SCRIPTS = [
     'wallet_multiwallet.py --legacy-wallet',
     'wallet_multiwallet.py --descriptors',
     'wallet_multiwallet.py --usecli',
-    'p2p_dns_seeds.py',
     'wallet_groups.py --legacy-wallet',
     'wallet_groups.py --descriptors',
     'p2p_blockfilters.py',
@@ -265,28 +287,19 @@ BASE_SCRIPTS = [
     'wallet_transactiontime_rescan.py --descriptors',
     'wallet_transactiontime_rescan.py --legacy-wallet',
     'p2p_addrv2_relay.py',
-    'p2p_compactblocks_hb.py --v1transport',
-    'p2p_compactblocks_hb.py --v2transport',
     'p2p_disconnect_ban.py --v1transport',
     'p2p_disconnect_ban.py --v2transport',
     'feature_posix_fs_permissions.py',
-    'feature_addressindex.py',
     'feature_timestampindex.py',
     'feature_spentindex.py',
     'rpc_decodescript.py',
-    'rpc_blockchain.py --v1transport',
-    'rpc_blockchain.py --v2transport',
     'rpc_deprecated.py',
     'wallet_disable.py',
     'wallet_change_address.py --legacy-wallet',
     'wallet_change_address.py --descriptors',
-    'p2p_addr_relay.py',
     'p2p_getaddr_caching.py',
     'p2p_getdata.py',
     'p2p_addrfetch.py',
-    'rpc_net.py --v1transport',
-    'rpc_net.py --v2transport',
-    'rpc_netinfo.py',
     'wallet_keypool.py --legacy-wallet',
     'wallet_keypool_hd.py --legacy-wallet',
     'wallet_keypool_hd.py --descriptors',
@@ -302,10 +315,8 @@ BASE_SCRIPTS = [
     'p2p_invalid_block.py --v1transport',
     'p2p_invalid_block.py --v2transport',
     'p2p_invalid_tx.py --v1transport',
-    'p2p_invalid_tx.py --v2transport',
     'p2p_v2_transport.py',
     'p2p_v2_encrypted.py',
-    'p2p_v2_misbehaving.py',
     'example_test.py',
     'wallet_txn_doublespend.py --legacy-wallet',
     'wallet_multisig_descriptor_psbt.py --descriptors',
@@ -315,7 +326,6 @@ BASE_SCRIPTS = [
     'wallet_txn_clone.py --mineblock',
     'rpc_getblockfilter.py',
     'rpc_getmerkleblocks.py',
-    'rpc_getblockfrompeer.py',
     'rpc_invalidateblock.py',
     'feature_txindex.py',
     'feature_utxo_set_hash.py',
@@ -340,7 +350,6 @@ BASE_SCRIPTS = [
     'wallet_balance.py --descriptors',
     'p2p_initial_headers_sync.py',
     'feature_nulldummy.py',
-    'mempool_accept.py',
     'mempool_expiry.py',
     'wallet_import_with_label.py --legacy-wallet',
     'wallet_upgradewallet.py --legacy-wallet',
@@ -365,8 +374,6 @@ BASE_SCRIPTS = [
     'feature_bind_port_externalip.py',
     'wallet_encryption.py --legacy-wallet',
     'wallet_encryption.py --descriptors',
-    'wallet_upgradetohd.py --legacy-wallet',
-    'wallet_upgradetohd.py --descriptors',
     'feature_dersig.py',
     'feature_cltv.py',
     'feature_new_quorum_type_activation.py',
@@ -379,7 +386,6 @@ BASE_SCRIPTS = [
     'wallet_fallbackfee.py --legacy-wallet',
     'wallet_fallbackfee.py --descriptors',
     'rpc_dumptxoutset.py',
-    'feature_minchainwork.py',
     'rpc_estimatefee.py',
     'p2p_unrequested_blocks.py', # NOTE: needs dash_hash to pass
     'feature_shutdown.py',
@@ -398,7 +404,6 @@ BASE_SCRIPTS = [
     'rpc_external_queue.py',
     'rpc_wipewallettxes.py',
     'feature_uacomment.py',
-    'feature_init.py',
     'wallet_coinbase_category.py --legacy-wallet',
     'wallet_coinbase_category.py --descriptors',
     'feature_filelock.py',
@@ -429,9 +434,6 @@ BASE_SCRIPTS = [
     'feature_coinstatsindex.py',
     'wallet_orphanedreward.py',
     'wallet_timelock.py',
-    'p2p_node_network_limited.py --v1transport',
-    'p2p_node_network_limited.py --v2transport',
-    'p2p_permissions.py',
     'feature_blocksdir.py',
     'wallet_startup.py',
     'feature_remove_pruned_files_on_startup.py',

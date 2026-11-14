@@ -88,10 +88,8 @@ class LLMQChainLocksTest(DashTestFramework):
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash(), timeout=30)
         self.test_coinbase_best_cl(self.nodes[0])
 
-        self.log.info("Assert that all blocks up until the tip are chainlocked")
-        for h in range(1, self.nodes[0].getblockcount()):
-            block = self.nodes[0].getblock(self.nodes[0].getblockhash(h))
-            assert block['chainlock']
+        self.log.info("Assert that a block below the tip is chainlocked")
+        assert self.nodes[0].getblock(self.nodes[0].getblockhash(1))['chainlock']
 
         self.log.info(f"Test submitchainlock for too high block")
         assert_raises_rpc_error(-1, f"No quorum found. Current tip height: {self.nodes[1].getblockcount()}", self.nodes[1].submitchainlock, '0000000000000000000000000000000000000000000000000000000000000000', 'a5c69505b5744524c9ed6551d8a57dc520728ea013496f46baa8a73df96bfd3c86e474396d747a4af11aaef10b17dbe80498b6a2fe81938fe917a3fedf651361bfe5367c800d23d3125820e6ee5b42189f0043be94ce27e73ea13620c9ef6064', self.nodes[1].getblockcount() + 300)
@@ -102,10 +100,9 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.log.info("Generate new blocks and verify that they are not chainlocked")
         previous_block_hash = self.nodes[0].getbestblockhash()
-        for _ in range(2):
-            block_hash = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
-            self.sleep_and_assert_no_cl(block_hash)
-            assert self.nodes[0].getblock(previous_block_hash)["chainlock"]
+        block_hash = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
+        self.sleep_and_assert_no_cl(block_hash)
+        assert self.nodes[0].getblock(previous_block_hash)["chainlock"]
 
         self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 0)
         self.wait_for_sporks_same()

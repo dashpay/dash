@@ -138,6 +138,7 @@ class StatsTest(BitcoinTestFramework):
         server.start()
         self.restart_node(0, extra_args=[f'-statshost=udp://{host}', '-statsbatchsize=0', '-statsduration=0', '-statsperiod=5', '-reindex'])
         server.assert_msg_received("CheckBlock_us")
+        self.nodes[0].mockscheduler(5)
         server.assert_msg_received("network.difficulty:")
         wallet = MiniWallet(self.nodes[0])
         utxo = wallet.get_utxo()

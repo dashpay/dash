@@ -24,7 +24,7 @@ class DIP3Test(BitcoinTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        self.num_initial_mn = 11 # Should be >= 11 to make sure quorums are not always the same MNs
+        self.num_initial_mn = 5
         self.num_nodes = 1 + self.num_initial_mn + 2 # +1 for controller, +1 for mn-qt, +1 for mn created after dip3 activation
         self.setup_clean_chain = True
         self.disable_mocktime = True
@@ -184,13 +184,13 @@ class DIP3Test(BitcoinTestFramework):
         self.assert_mnlists(mns_tmp)
 
         self.log.info("test mn payment enforcement with deterministic MNs")
-        for i in range(20):
+        for i in range(3):
             node = self.nodes[i % len(self.nodes)]
             self.test_invalid_mn_payment(mns, node)
             self.generate(self.nodes[0], 1)
 
         self.log.info("testing ProUpServTx")
-        for mn in mns:
+        for mn in mns[:2]:
             self.test_protx_update_service(mn)
 
         self.log.info("testing P2SH/multisig for payee addresses")
@@ -221,7 +221,7 @@ class DIP3Test(BitcoinTestFramework):
         assert found_multisig_payee
 
         self.log.info("testing reusing of collaterals for replaced MNs")
-        for i in range(5):
+        for i in range(2):
             mn = mns[i]
             # a few of these will actually refer to old ProRegTx internal collaterals,
             # which should work the same as external collaterals

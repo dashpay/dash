@@ -35,7 +35,6 @@ class RPCVerifyChainLockTest(DashTestFramework):
         node1 = self.nodes[1]
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
-        self.mine_until_mns_confirmed_for_next_dkg()
         self.mine_quorum_single_member()
         self.wait_for_chainlocked_block(node0, self.generate(node0, 1, sync_fun=self.no_op)[0])
         chainlock = node0.getbestchainlock()
