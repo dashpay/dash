@@ -615,11 +615,13 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuoru
 namespace utils {
 BlsCheck::BlsCheck() = default;
 
-BlsCheck::BlsCheck(CBLSSignature sig, std::vector<CBLSPublicKey> pubkeys, uint256 msg_hash, std::string id_string) :
+BlsCheck::BlsCheck(CBLSSignature sig, std::vector<CBLSPublicKey> pubkeys, uint256 msg_hash, std::string id_string,
+                   BLSScheme scheme) :
     m_sig(sig),
     m_pubkeys(std::move(pubkeys)),
     m_msg_hash(msg_hash),
-    m_id_string(std::move(id_string))
+    m_id_string(std::move(id_string)),
+    m_scheme(scheme)
 {
 }
 
@@ -628,12 +630,12 @@ BlsCheck::~BlsCheck() = default;
 bool BlsCheck::operator()()
 {
     if (m_pubkeys.size() > 1) {
-        if (!m_sig.VerifySecureAggregated(m_pubkeys, m_msg_hash)) {
+        if (!m_sig.VerifySecureAggregated(m_pubkeys, m_msg_hash, m_scheme)) {
             LogPrint(BCLog::LLMQ, "%s\n", m_id_string);
             return false;
         }
     } else if (m_pubkeys.size() == 1) {
-        if (!m_sig.VerifyInsecure(m_pubkeys.back(), m_msg_hash)) {
+        if (!m_sig.VerifyInsecure(m_pubkeys.back(), m_msg_hash, m_scheme)) {
             LogPrint(BCLog::LLMQ, "%s\n", m_id_string);
             return false;
         }
@@ -651,6 +653,7 @@ void BlsCheck::swap(BlsCheck& obj) noexcept
     std::swap(m_pubkeys, obj.m_pubkeys);
     std::swap(m_msg_hash, obj.m_msg_hash);
     std::swap(m_id_string, obj.m_id_string);
+    std::swap(m_scheme, obj.m_scheme);
 }
 
 std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlock(

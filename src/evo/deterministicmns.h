@@ -130,6 +130,17 @@ inline void SerReadWrite(Stream& s, immer::map<K, T, Hash, Equal>& obj, ActionUn
 }
 
 
+//! An operator key together with the encoding it is registered under. Uniqueness is per
+//! encoding: the same key under legacy and under basic occupies two slots.
+using OperatorKeySlot = BLSEncoded<const CBLSLazyPublicKey>;
+
+//! The slot an operator key occupies given the payload or state that owns it.
+template <typename Owner>
+OperatorKeySlot OperatorKeySlotOf(const Owner& owner)
+{
+    return {owner.pubKeyOperator, owner.OperatorKeyScheme()};
+}
+
 class CDeterministicMNList
 {
 private:
@@ -460,11 +471,9 @@ public:
      * Is this operator public key already held by a masternode other than `self`, under *either* BLS
      * encoding?
      *
-     * mnUniquePropertyMap is keyed by GetUniquePropertyHash(), which serializes its argument, and a
-     * BLS key serializes differently under the legacy and basic schemes. So one public key sits in
-     * one of two possible slots and a single lookup sees only one of them, which is why operator key
-     * uniqueness is otherwise enforced per encoding rather than per key. There are exactly two
-     * schemes, so probing both is O(1) rather than a scan.
+     * mnUniquePropertyMap is keyed by the hash of an operator key's bytes under one scheme. The
+     * same point occupies a different slot under the other scheme, so a single lookup sees only
+     * one of them. There are exactly two schemes, so probing both is O(1) rather than a scan.
      *
      * Both slots are probed even when one resolves to `self`: where a cross-scheme duplicate pair
      * already exists, returning early on a self-match would miss the other member.
@@ -475,11 +484,12 @@ public:
     [[nodiscard]] bool HasOperatorKeyUnderAnyScheme(const CBLSPublicKey& pubkey, const uint256& self) const
     {
         if (!pubkey.IsValid()) return false;
-        for (const bool legacy_scheme : {true, false}) {
-            CBLSLazyPublicKey wrapped;
-            wrapped.Set(pubkey, legacy_scheme);
-            if (!HasUniqueProperty(wrapped)) continue;
-            const auto holder = GetUniquePropertyMN(wrapped);
+        CBLSLazyPublicKey wrapped;
+        wrapped.Set(pubkey);
+        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) { // NOLINT(bls-legacy-scheme)
+            const OperatorKeySlot slot{wrapped, scheme};
+            if (!HasUniqueProperty(slot)) continue;
+            const auto holder = GetUniquePropertyMN(slot);
             if (holder && holder->proTxHash != self) return true;
         }
         return false;
@@ -532,6 +542,7 @@ private:
 #define DMNL_NO_TEMPLATE(name) \
     static_assert(!std::is_same_v<std::decay_t<T>, name>, "GetUniquePropertyHash cannot be templated against " #name)
         DMNL_NO_TEMPLATE(CBLSPublicKey);
+        DMNL_NO_TEMPLATE(CBLSLazyPublicKey);
         DMNL_NO_TEMPLATE(ExtNetInfo);
         DMNL_NO_TEMPLATE(MnNetInfo);
         DMNL_NO_TEMPLATE(NetInfoEntry);
@@ -549,11 +560,35 @@ private:
             return ::SerializeHash(v, /*nType=*/SER_GETHASH, /*nVersion=*/PROTOCOL_VERSION);
         }
     }
+    [[nodiscard]] static uint256 GetUniquePropertyHash(const OperatorKeySlot& slot)
+    {
+        // Hash of the 48 key bytes under slot.scheme: GetHash writes those bytes to
+        // CHashWriter(SER_GETHASH, PROTOCOL_VERSION), matching SerializeHash of the key
+        // serialized under that scheme.
+        return slot.obj.GetHash(slot.scheme);
+    }
+    template <typename T>
+    [[nodiscard]] static bool IsNullUniqueProperty(const T& value)
+    {
+        return value == T{};
+    }
+    [[nodiscard]] static bool IsNullUniqueProperty(const OperatorKeySlot& slot)
+    {
+        return slot.obj == CBLSLazyPublicKey();
+    }
+    template <typename T>
+    [[nodiscard]] static bool SameUniqueProperty(const T& a, const T& b)
+    {
+        return a == b;
+    }
+    [[nodiscard]] static bool SameUniqueProperty(const OperatorKeySlot& a, const OperatorKeySlot& b)
+    {
+        return GetUniquePropertyHash(a) == GetUniquePropertyHash(b);
+    }
     template <typename T>
     [[nodiscard]] bool AddUniqueProperty(const CDeterministicMN& dmn, const T& v)
     {
-        static const T nullValue{};
-        if (v == nullValue) {
+        if (IsNullUniqueProperty(v)) {
             return false;
         }
 
@@ -572,8 +607,7 @@ private:
     template <typename T>
     [[nodiscard]] bool DeleteUniqueProperty(const CDeterministicMN& dmn, const T& oldValue)
     {
-        static const T nullValue{};
-        if (oldValue == nullValue) {
+        if (IsNullUniqueProperty(oldValue)) {
             return false;
         }
 
@@ -592,25 +626,15 @@ private:
     template <typename T>
     [[nodiscard]] bool UpdateUniqueProperty(const CDeterministicMN& dmn, const T& oldValue, const T& newValue)
     {
-        // A BLS operator key can keep the same point while its serialized encoding (legacy<->basic)
-        // changes on a version transition. The map is keyed by GetUniquePropertyHash(), so only that
-        // hash reveals the entry must be re-keyed to the new scheme; CBLSLazyPublicKey::operator==
-        // compares the point and ignores the scheme, so it would wrongly short-circuit. Compare the
-        // serialized hashes for BLS keys and the plain value for every other unique property.
-        if constexpr (std::is_same_v<std::decay_t<T>, CBLSLazyPublicKey>) {
-            if (GetUniquePropertyHash(oldValue) == GetUniquePropertyHash(newValue)) {
-                return true;
-            }
-        } else if (oldValue == newValue) {
+        if (SameUniqueProperty(oldValue, newValue)) {
             return true;
         }
-        static const T nullValue{};
 
-        if (oldValue != nullValue && !DeleteUniqueProperty(dmn, oldValue)) {
+        if (!IsNullUniqueProperty(oldValue) && !DeleteUniqueProperty(dmn, oldValue)) {
             return false;
         }
 
-        if (newValue != nullValue && !AddUniqueProperty(dmn, newValue)) {
+        if (!IsNullUniqueProperty(newValue) && !AddUniqueProperty(dmn, newValue)) {
             return false;
         }
         return true;

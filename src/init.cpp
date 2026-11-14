@@ -2139,9 +2139,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 LogWarning("pruned datadir may not have more than %d blocks; only checking available blocks\n",
                            chainman.GetParams().MinBlocksToKeep());
             }
-            std::tie(status, error) = catch_exceptions([&]{ return VerifyLoadedChainstate(chainman, options, *Assert(node.evodb), [](bool bls_state) {
-                        LogPrintf("AppInitMain: bls_legacy_scheme=%d\n", bls_state);
-                        });});
+            std::tie(status, error) = catch_exceptions(
+                [&] { return VerifyLoadedChainstate(chainman, options, *Assert(node.evodb)); });
             if (status == node::ChainstateLoadStatus::SUCCESS) {
                 fLoaded = true;
                 LogPrintf(" block index %15dms\n", Ticks<std::chrono::milliseconds>(SteadyClock::now() - load_block_index_start_time));

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -77,10 +78,19 @@ public:
     }
 
     bool VerifySignatureAsync(const llmq::UtilParameters& util_params,
-                              CCheckQueueControl<utils::BlsCheck>* queue_control) const;
-    bool Verify(const llmq::UtilParameters& util_params, bool checkSigs) const;
+                              CCheckQueueControl<utils::BlsCheck>* queue_control, BLSScheme scheme) const;
+    //! std::nullopt skips signature verification; a value verifies signatures under that scheme.
+    bool Verify(const llmq::UtilParameters& util_params, std::optional<BLSScheme> sig_scheme) const;
     bool VerifyNull() const;
     bool VerifySizes(const Consensus::LLMQParams& params) const;
+
+    //! Legacy iff nVersion is one of the two legacy-BLS commitment versions.
+    [[nodiscard]] constexpr BLSScheme GetBLSScheme() const
+    {
+        return nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION
+                   ? BLSScheme::Legacy // NOLINT(bls-legacy-scheme)
+                   : BLSScheme::Basic;
+    }
 
     [[nodiscard]] static constexpr uint16_t GetVersion(const bool is_rotation_enabled, const bool is_basic_scheme_active)
     {
@@ -104,14 +114,10 @@ public:
                     obj.quorumIndex
             );
         }
-        READWRITE(
-                DYNBITSET(obj.signers),
-                DYNBITSET(obj.validMembers),
-                CBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.quorumPublicKey), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
-                obj.quorumVvecHash,
-                CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.quorumSig), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
-                CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.membersSig), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION))
-        );
+        READWRITE(DYNBITSET(obj.signers), DYNBITSET(obj.validMembers),
+                  BLSEncoded(const_cast<CBLSPublicKey&>(obj.quorumPublicKey), obj.GetBLSScheme()), obj.quorumVvecHash,
+                  BLSEncoded(const_cast<CBLSSignature&>(obj.quorumSig), obj.GetBLSScheme()),
+                  BLSEncoded(const_cast<CBLSSignature&>(obj.membersSig), obj.GetBLSScheme()));
     }
 
 public:
@@ -166,7 +172,8 @@ public:
 
 bool CheckLLMQCommitment(const llmq::UtilParameters& util_params, const CFinalCommitmentTxPayload& qcTx, TxValidationState& state);
 
-uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash);
+uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers,
+                            const CBLSPublicKey& pubKey, const uint256& vvecHash, BLSScheme pubkey_scheme);
 
 } // namespace llmq
 

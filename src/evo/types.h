@@ -5,6 +5,8 @@
 #ifndef BITCOIN_EVO_TYPES_H
 #define BITCOIN_EVO_TYPES_H
 
+#include <bls/scheme.h>
+
 #include <cstdint>
 #include <memory>
 
@@ -32,6 +34,12 @@ enum : uint16_t {
         return ProTxVersion::BasicBLS;
     }
     return ProTxVersion::LegacyBLS;
+}
+
+/** Scheme used to encode BLS data in a provider transaction or MN state of this version. */
+[[nodiscard]] constexpr BLSScheme GetBLSScheme(uint16_t version)
+{
+    return version == LegacyBLS ? BLSScheme::Legacy : BLSScheme::Basic; // NOLINT(bls-legacy-scheme)
 }
 
 } // namespace ProTxVersion

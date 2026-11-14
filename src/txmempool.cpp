@@ -611,6 +611,12 @@ void CTxMemPool::removeSpentIndex(const uint256 txhash)
     }
 }
 
+/** Hash of an operator key under the scheme its owner encodes it with. */
+static uint256 ProTxOperatorKeyHash(const auto& owner)
+{
+    return owner.pubKeyOperator.GetHash(owner.OperatorKeyScheme());
+}
+
 /** The amount the credit pool charges for an asset unlock: its outputs plus its fee. */
 static CAmount GetAssetUnlockAmount(const CTransaction& tx, const CAssetUnlockPayload& payload)
 {
@@ -638,7 +644,7 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
         } else {
             mapProTxPubKeyIDs.emplace(proTx.keyIDOwner, tx_hash);
         }
-        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx_hash);
+        mapProTxBlsPubKeyHashes.emplace(ProTxOperatorKeyHash(proTx), tx_hash);
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull()) {
             mapProTxPlatformNodeIDs.emplace(proTx.platformNodeID, tx_hash);
         }
@@ -652,7 +658,7 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
         mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
         // Without a masternode to take the key from, any registrar update evicts it
         if (auto dmn = m_dmnman.GetListAtChainTip().GetMN(proTx.proTxHash)) {
-            newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
+            newit->validForProTxKey = ProTxOperatorKeyHash(*dmn->pdmnState);
         }
         for (const auto& entry : proTx.netInfo->GetEntries()) {
             mapProTxAddresses.emplace(entry, tx_hash);
@@ -663,9 +669,9 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
         auto proTx = *Assert(GetTxPayload<CProUpRegTx>(tx));
         mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
-        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx_hash);
+        mapProTxBlsPubKeyHashes.emplace(ProTxOperatorKeyHash(proTx), tx_hash);
         auto dmn = Assert(m_dmnman.GetListAtChainTip().GetMN(proTx.proTxHash));
-        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
+        newit->validForProTxKey = ProTxOperatorKeyHash(*dmn->pdmnState);
         if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
             newit->isKeyChangeProTx = true;
         }
@@ -673,7 +679,7 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
         auto proTx = *Assert(GetTxPayload<CProUpRevTx>(tx));
         mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
         auto dmn = Assert(m_dmnman.GetListAtChainTip().GetMN(proTx.proTxHash));
-        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
+        newit->validForProTxKey = ProTxOperatorKeyHash(*dmn->pdmnState);
         if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
             newit->isKeyChangeProTx = true;
         }
@@ -702,7 +708,7 @@ void CTxMemPool::addUncheckedProTx(indexed_transaction_set::iterator& newit, con
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
         auto proTx = *Assert(GetTxPayload<CProUpSharedRegTx>(tx));
         mapProTxRefs.emplace(proTx.proTxHash, tx_hash);
-        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx_hash);
+        mapProTxBlsPubKeyHashes.emplace(ProTxOperatorKeyHash(proTx), tx_hash);
         auto dmn = Assert(m_dmnman.GetListAtChainTip().GetMN(proTx.proTxHash));
         if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
             newit->isKeyChangeProTx = true;
@@ -789,7 +795,7 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
         } else {
             mapProTxPubKeyIDs.erase(proTx.keyIDOwner);
         }
-        mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
+        mapProTxBlsPubKeyHashes.erase(ProTxOperatorKeyHash(proTx));
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull()) {
             mapProTxPlatformNodeIDs.erase(proTx.platformNodeID);
         }
@@ -807,7 +813,7 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
         auto proTx = *Assert(GetTxPayload<CProUpRegTx>(tx));
         eraseProTxRef(proTx.proTxHash, tx_hash);
-        mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
+        mapProTxBlsPubKeyHashes.erase(ProTxOperatorKeyHash(proTx));
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
         auto proTx = *Assert(GetTxPayload<CProUpRevTx>(tx));
         eraseProTxRef(proTx.proTxHash, tx_hash);
@@ -834,7 +840,7 @@ void CTxMemPool::removeUncheckedProTx(const CTransaction& tx)
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR) {
         auto proTx = *Assert(GetTxPayload<CProUpSharedRegTx>(tx));
         eraseProTxRef(proTx.proTxHash, tx_hash);
-        mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
+        mapProTxBlsPubKeyHashes.erase(ProTxOperatorKeyHash(proTx));
     }
 }
 
@@ -1019,10 +1025,10 @@ void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CKeyID
     }
 }
 
-void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CBLSLazyPublicKey &pubKey)
+void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction& tx, const uint256& pubKeyHash)
 {
-    if (mapProTxBlsPubKeyHashes.count(pubKey.GetHash())) {
-        uint256 conflictHash = mapProTxBlsPubKeyHashes[pubKey.GetHash()];
+    if (mapProTxBlsPubKeyHashes.count(pubKeyHash)) {
+        uint256 conflictHash = mapProTxBlsPubKeyHashes[pubKeyHash];
         if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
             removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
         }
@@ -1251,7 +1257,7 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
         } else {
             removeProTxPubKeyConflicts(tx, proTx.keyIDOwner);
         }
-        removeProTxPubKeyConflicts(tx, proTx.pubKeyOperator);
+        removeProTxPubKeyConflicts(tx, ProTxOperatorKeyHash(proTx));
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull()) {
             removeProTxPlatformNodeIDConflicts(tx, proTx.platformNodeID);
         }
@@ -1292,8 +1298,9 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
             return;
         }
 
-        removeProTxPubKeyConflicts(tx, opt_proTx->pubKeyOperator);
-        removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(opt_proTx->pubKeyOperator));
+        const uint256 operator_key_hash{ProTxOperatorKeyHash(*opt_proTx)};
+        removeProTxPubKeyConflicts(tx, operator_key_hash);
+        removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, operator_key_hash);
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
         const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
         if (!opt_proTx) {
@@ -1309,8 +1316,9 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
             return;
         }
 
-        removeProTxPubKeyConflicts(tx, opt_proTx->pubKeyOperator);
-        removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(opt_proTx->pubKeyOperator));
+        const uint256 operator_key_hash{ProTxOperatorKeyHash(*opt_proTx)};
+        removeProTxPubKeyConflicts(tx, operator_key_hash);
+        removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, operator_key_hash);
         removeProTxVotingPayeeConflicts(opt_proTx->proTxHash, opt_proTx->keyIDVoting, TRANSACTION_PROVIDER_UPDATE_SHARE);
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
         const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);
@@ -1615,10 +1623,10 @@ bool CTxMemPool::existsProviderTxCrossSchemeConflict(const CTransaction& tx) con
         AssertLockHeld(cs);
         const CBLSPublicKey& pubkey{key.Get()};
         if (!pubkey.IsValid()) return false;
-        for (const bool legacy_scheme : {true, false}) {
-            CBLSLazyPublicKey wrapped;
-            wrapped.Set(pubkey, legacy_scheme);
-            auto it = mapProTxBlsPubKeyHashes.find(wrapped.GetHash());
+        CBLSLazyPublicKey wrapped;
+        wrapped.Set(pubkey);
+        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) { // NOLINT(bls-legacy-scheme)
+            auto it = mapProTxBlsPubKeyHashes.find(wrapped.GetHash(scheme));
             if (it == mapProTxBlsPubKeyHashes.end()) continue;
             auto txit = mapTx.find(it->second);
             if (txit == mapTx.end()) continue;
@@ -1721,10 +1729,11 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
                     return true;
                 }
             }
-            if (mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
+            if (mapProTxBlsPubKeyHashes.count(ProTxOperatorKeyHash(proTx))) {
                 return true;
             }
-        } else if (isOwnerOrPlatformNodeIDClaimed(proTx.keyIDOwner) || mapProTxBlsPubKeyHashes.count(proTx.pubKeyOperator.GetHash())) {
+        } else if (isOwnerOrPlatformNodeIDClaimed(proTx.keyIDOwner) ||
+                   mapProTxBlsPubKeyHashes.count(ProTxOperatorKeyHash(proTx))) {
             return true;
         }
         if (proTx.nType == MnType::Evo && !proTx.platformNodeID.IsNull() && isOwnerOrPlatformNodeIDClaimed(proTx.platformNodeID)) {
@@ -1801,7 +1810,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             }
         }
 
-        auto it = mapProTxBlsPubKeyHashes.find(proTx.pubKeyOperator.GetHash());
+        auto it = mapProTxBlsPubKeyHashes.find(ProTxOperatorKeyHash(proTx));
         return it != mapProTxBlsPubKeyHashes.end() && it->second != proTx.proTxHash;
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
         const auto opt_proTx = GetTxPayload<CProUpRevTx>(tx);
@@ -1866,7 +1875,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             }
         }
 
-        auto it = mapProTxBlsPubKeyHashes.find(proTx.pubKeyOperator.GetHash());
+        auto it = mapProTxBlsPubKeyHashes.find(ProTxOperatorKeyHash(proTx));
         return it != mapProTxBlsPubKeyHashes.end() && it->second != proTx.proTxHash;
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
         const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);

@@ -241,8 +241,11 @@ Be extra careful around:
 - governance object and superblock payment logic;
 - EvoDB, credit-pool, asset-lock, and Platform integration code;
 - network-message serialization, checksums, and partial-send paths;
-- BLS scheme transitions across connect, disconnect, undo, and activation
-  boundaries;
+- BLS schemes: an unnamed scheme is basic; legacy is selected by a payload's
+  version (encoding) or by the block being validated (signature verification).
+  Uniqueness checks also probe both encodings, and RPC or log code may print or
+  parse a key or signature in either one. See "BLS schemes" in
+  `doc/developer-notes.md`;
 - future DKG/quorum prediction, which must evaluate quorum availability at the
   relevant future work/cycle base instead of only the current tip;
 - time, mocktime, scheduler, and interrupt/shutdown behavior.

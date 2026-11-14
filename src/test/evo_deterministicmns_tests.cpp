@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/masternode.h>
 #include <test/util/setup_common.h>
 
@@ -9,6 +10,7 @@
 #include <clientversion.h>
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
+#include <core_io.h>
 #include <deploymentstatus.h>
 #include <evo/assetlocktx.h>
 #include <evo/cbtx.h>
@@ -37,10 +39,12 @@
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <util/std23.h>
+#include <util/strencodings.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
 #include <map>
 #include <optional>
 #include <set>
@@ -54,6 +58,17 @@ static bool IsV24Active(const ChainstateManager& chainman) EXCLUSIVE_LOCKS_REQUI
 static SpecialTxRules TipRules(const ChainstateManager& chainman) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     return GetSpecialTxRules(chainman.ActiveChain().Tip(), chainman);
+}
+
+/** The operator key is stored under the scheme its state's version selects. */
+static void CheckOperatorKeyEncoding(const CDeterministicMNState& state, const CBLSPublicKey& expected)
+{
+    const BLSScheme scheme{state.OperatorKeyScheme()};
+    CDataStream stored{SER_DISK, CLIENT_VERSION};
+    state.pubKeyOperator.Serialize(stored, scheme);
+    const auto encoded{expected.ToBytes(scheme)};
+    const std::string encoded_bytes{reinterpret_cast<const char*>(encoded.data()), encoded.size()};
+    BOOST_CHECK_EQUAL(stored.str(), encoded_bytes);
 }
 
 static CMutableTransaction CreateSpendTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, const CScript& scriptPayout, CAmount amount, const CKey& coinbaseKey)
@@ -78,13 +93,13 @@ static COutPoint GetCollateralOutpoint(const CMutableTransaction& tx)
 static CMutableTransaction CreateProRegTxExternalCollateral(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port, const COutPoint& collateralOutpoint, const CScript& scriptPayout, const CKey& ownerKey, const CBLSSecretKey& operatorKey, const CKey& collateralKey, const CKey& coinbaseKey)
 {
     CProRegTx proTx;
-    proTx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    proTx.nVersion = ProTxVersionForNextBlock(chainman);
     proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
     BOOST_CHECK_EQUAL(proTx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)),
                       NetInfoStatus::Success);
     proTx.collateralOutpoint = collateralOutpoint;
     proTx.keyIDOwner = ownerKey.GetPubKey().GetID();
-    proTx.pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
+    proTx.pubKeyOperator.Set(operatorKey.GetPublicKey());
     proTx.keyIDVoting = ownerKey.GetPubKey().GetID();
     proTx.scriptPayout = scriptPayout;
 
@@ -101,11 +116,14 @@ static CMutableTransaction CreateProRegTxExternalCollateral(const ChainstateMana
     return tx;
 }
 
-static CMutableTransaction CreateProUpServTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, const uint256& proTxHash, const CBLSSecretKey& operatorKey, int port, const CScript& scriptOperatorPayout, const CKey& coinbaseKey,
-                                             uint16_t version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false), CAmount fee = 0)
+static CMutableTransaction CreateProUpServTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos,
+                                             const uint256& proTxHash, const CBLSSecretKey& operatorKey, int port,
+                                             const CScript& scriptOperatorPayout, const CKey& coinbaseKey,
+                                             std::optional<uint16_t> version = std::nullopt, CAmount fee = 0,
+                                             std::optional<BLSScheme> sig_scheme = std::nullopt)
 {
     CProUpServTx proTx;
-    proTx.nVersion = version;
+    proTx.nVersion = version.value_or(ProTxVersionForNextBlock(chainman));
     proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
     proTx.proTxHash = proTxHash;
     BOOST_CHECK_EQUAL(proTx.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)),
@@ -118,20 +136,23 @@ static CMutableTransaction CreateProUpServTx(const ChainstateManager& chainman, 
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
     tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = operatorKey.Sign(::SerializeHash(proTx), bls::bls_legacy_scheme);
+    proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), sig_scheme.value_or(SchemeForNextBlock(chainman)));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, coinbaseKey);
 
     return tx;
 }
 
-static CMutableTransaction CreateProUpRegTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, const uint256& proTxHash, const CKey& mnKey, const CBLSPublicKey& pubKeyOperator, const CKeyID& keyIDVoting, const CScript& scriptPayout, const CKey& coinbaseKey,
-                                            uint16_t version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false), CAmount fee = 0)
+static CMutableTransaction CreateProUpRegTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos,
+                                            const uint256& proTxHash, const CKey& mnKey,
+                                            const CBLSPublicKey& pubKeyOperator, const CKeyID& keyIDVoting,
+                                            const CScript& scriptPayout, const CKey& coinbaseKey,
+                                            std::optional<uint16_t> version = std::nullopt, CAmount fee = 0)
 {
     CProUpRegTx proTx;
-    proTx.nVersion = version;
+    proTx.nVersion = version.value_or(ProTxVersionForNextBlock(chainman));
     proTx.proTxHash = proTxHash;
-    proTx.pubKeyOperator.Set(pubKeyOperator, /*specificLegacyScheme=*/version == ProTxVersion::LegacyBLS);
+    proTx.pubKeyOperator.Set(pubKeyOperator);
     proTx.keyIDVoting = keyIDVoting;
     proTx.scriptPayout = scriptPayout;
 
@@ -155,7 +176,7 @@ static CMutableTransaction CreateProUpRevTx(const ChainstateManager& chainman, S
                                             CAmount fee = 0)
 {
     CProUpRevTx proTx;
-    proTx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    proTx.nVersion = ProTxVersionForNextBlock(chainman);
     proTx.proTxHash = proTxHash;
 
     CMutableTransaction tx;
@@ -164,7 +185,7 @@ static CMutableTransaction CreateProUpRevTx(const ChainstateManager& chainman, S
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
     tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = operatorKey.Sign(::SerializeHash(proTx), bls::bls_legacy_scheme);
+    proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), SchemeForNextBlock(chainman));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, coinbaseKey);
 
@@ -404,7 +425,6 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     CKey owner_key;
@@ -424,7 +444,6 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
         sync_dmn_tip();
     }
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24));
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
 
     const auto payoutScript = GenerateRandomAddress();
     auto tx_upreg = CreateProUpRegTx(chainman, utxos, proTxHash, owner_key,
@@ -456,7 +475,7 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     BOOST_REQUIRE(dmn);
     BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript2);
     BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
-    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
+    CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key_new.GetPublicKey());
     BOOST_REQUIRE(dmn->pdmnState->IsBanned());
 
     CBLSSecretKey operator_key_legacy;
@@ -465,7 +484,7 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     CProUpRegTx proTxLegacy;
     proTxLegacy.nVersion = ProTxVersion::LegacyBLS;
     proTxLegacy.proTxHash = proTxHash;
-    proTxLegacy.pubKeyOperator.Set(operator_key_legacy.GetPublicKey(), /*specificLegacyScheme=*/true);
+    proTxLegacy.pubKeyOperator.Set(operator_key_legacy.GetPublicKey());
     proTxLegacy.keyIDVoting = owner_key.GetPubKey().GetID();
     proTxLegacy.scriptPayout = payoutScript3;
 
@@ -490,7 +509,7 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     // key with the legacy scheme. This must match already-deployed consensus; version-bump hardening
     // only applies once v24 is active.
     BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
-    BOOST_CHECK(dmn->pdmnState->pubKeyOperator.IsLegacy());
+    CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key_legacy.GetPublicKey());
     BOOST_CHECK(dmn->pdmnState->pubKeyOperator.Get() == operator_key_legacy.GetPublicKey());
 };
 
@@ -525,13 +544,12 @@ void FuncProUpRegTxV3OnLegacyValid(TestChainSetup& setup)
     }
     BOOST_REQUIRE(DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
     BOOST_REQUIRE(DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24));
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
     BOOST_REQUIRE_EQUAL(dmnman.GetListAtChainTip().GetMN(proTxHash)->pdmnState->nVersion, ProTxVersion::LegacyBLS);
 
     CProUpRegTx proTx;
     proTx.nVersion = ProTxVersion::ExtAddr;
     proTx.proTxHash = proTxHash;
-    proTx.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    proTx.pubKeyOperator.Set(operator_key.GetPublicKey());
     proTx.keyIDVoting = owner_key.GetPubKey().GetID();
     proTx.payouts = {{GenerateRandomAddress(), MasternodePayoutShare::MAX_REWARD}};
 
@@ -573,7 +591,6 @@ void FuncProUpRegTxV2CannotBypassV3PayoutCollateralReuse(TestChainSetup& setup)
     }
     BOOST_REQUIRE(DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
     BOOST_REQUIRE(DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24));
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     CKey owner_key;
@@ -596,7 +613,7 @@ void FuncProUpRegTxV2CannotBypassV3PayoutCollateralReuse(TestChainSetup& setup)
     pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
     BOOST_CHECK_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"), NetInfoStatus::Success);
     pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
-    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg.keyIDVoting = owner_key.GetPubKey().GetID();
     pro_reg.payouts = {{script_payout, MasternodePayoutShare::MAX_REWARD}};
     pro_reg.collateralOutpoint = GetCollateralOutpoint(tx_collateral);
@@ -664,7 +681,6 @@ void FuncMNPaymentMultiplicityV24Boundary(TestChainSetup& setup)
     BOOST_REQUIRE(DeploymentActiveAfter(tip_index(), consensus, Consensus::DEPLOYMENT_V19));
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), consensus, Consensus::DEPLOYMENT_MN_RR));
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24));
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
 
@@ -697,7 +713,7 @@ void FuncMNPaymentMultiplicityV24Boundary(TestChainSetup& setup)
     // Legacy MnNetInfo (v2) on regtest must not use the mainnet port; a small port works.
     BOOST_CHECK_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:1"), NetInfoStatus::Success);
     pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
-    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg.keyIDVoting = owner_key.GetPubKey().GetID();
     pro_reg.nOperatorReward = 5000; // 50%
     pro_reg.scriptPayout = shared_script;
@@ -741,7 +757,7 @@ void FuncMNPaymentMultiplicityV24Boundary(TestChainSetup& setup)
     const auto spent_ups = FundTransaction(chainman, tx_ups, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
                                            1 * COIN);
     pro_ups.inputsHash = CalcTxInputsHash(CTransaction(tx_ups));
-    pro_ups.sig = operator_key.Sign(::SerializeHash(pro_ups), bls::bls_legacy_scheme);
+    pro_ups.sig = SignBLS(operator_key, ::SerializeHash(pro_ups), SchemeForNextBlock(chainman));
     SetTxPayload(tx_ups, pro_ups);
     SignTransaction(tx_ups, spent_ups, setup.coinbaseKey);
     setup.CreateAndProcessBlock({tx_ups}, coinbase_pk);
@@ -872,7 +888,7 @@ static CTransaction BuildExtNetInfoProRegTx(std::shared_ptr<NetInfoInterface> ne
     pro_reg.nVersion = ProTxVersion::ExtAddr;
     pro_reg.netInfo = std::move(net_info);
     pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
-    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg.keyIDVoting = owner_key.GetPubKey().GetID();
     pro_reg.payouts = {{GenerateRandomAddress(), MasternodePayoutShare::MAX_REWARD}};
 
@@ -898,7 +914,6 @@ void FuncProRegTxRejectsInvalidDeserializedExtNetInfo(TestChainSetup& setup)
     }
     BOOST_REQUIRE(DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
     BOOST_REQUIRE(DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24));
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
 
     auto check_reject_reason = [&](std::shared_ptr<NetInfoInterface> net_info, const std::string& reject_reason) {
         TxValidationState state;
@@ -1157,7 +1172,7 @@ void FuncProUpServInvalidNType(TestChainSetup& setup)
 
     auto make_proupserv = [&](MnType nType) {
         CProUpServTx proTx;
-        proTx.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+        proTx.nVersion = ProTxVersionForNextBlock(chainman);
         proTx.nType = nType;
         proTx.netInfo = NetInfoInterface::MakeNetInfo(proTx.nVersion);
         proTx.proTxHash = proTxHash;
@@ -1180,7 +1195,7 @@ void FuncProUpServInvalidNType(TestChainSetup& setup)
         BOOST_REQUIRE(tx.vout[0].nValue > 10000);
         tx.vout[0].nValue -= 10000;
         proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-        proTx.sig = operatorKey.Sign(::SerializeHash(proTx), bls::bls_legacy_scheme);
+        proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), SchemeForNextBlock(chainman));
         SetTxPayload(tx, proTx);
         SignTransaction(tx, spent, setup.coinbaseKey);
         return tx;
@@ -1378,12 +1393,12 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     tx_child.vout.emplace_back(0, scriptPayout); // value assigned by the grind loop below
 
     CProUpServTx payload;
-    payload.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    payload.nVersion = ProTxVersionForNextBlock(chainman);
     payload.netInfo = NetInfoInterface::MakeNetInfo(payload.nVersion);
     payload.proTxHash = proTxHash;
     BOOST_REQUIRE_EQUAL(payload.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:3"), NetInfoStatus::Success);
     payload.inputsHash = CalcTxInputsHash(CTransaction(tx_child));
-    payload.sig = operatorKey.Sign(::SerializeHash(payload), bls::bls_legacy_scheme);
+    payload.sig = SignBLS(operatorKey, ::SerializeHash(payload), SchemeForNextBlock(chainman));
     SetTxPayload(tx_child, payload);
 
     // Grind the child's output value until the parent's txid sorts before the child's: the
@@ -1442,7 +1457,7 @@ static CTransaction CreateExtAddrProRegTx(MnType type, const MasternodePayoutSha
     pro_reg.nType = type;
     pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
     pro_reg.collateralOutpoint.n = 0;
-    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg.keyIDVoting = GenerateRandomKey().GetPubKey().GetID();
     if (type == MnType::Evo) {
         pro_reg.platformNodeID = uint160{Span{GetRandHash()}.first(uint160::size())};
@@ -1796,7 +1811,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChange(TestChainSetup& setup)
     newOperatorKey.MakeNewKey();
     const CAmount low_fee{1000};
     const CAmount high_fee{100000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     auto tx_serv = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/3, CScript(), setup.coinbaseKey,
                                      version, low_fee);
     // Takes the address of the other masternode, so it cannot be mined at all
@@ -1871,7 +1886,7 @@ void FuncTestMempoolRejectsUnorderableServiceUpdate(TestChainSetup& setup)
     newOperatorKey.MakeNewKey();
     otherNewOperatorKey.MakeNewKey();
     const CAmount fee{100000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     auto tx_key_change = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, newOperatorKey.GetPublicKey(),
                                           ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey, version, fee);
     auto tx_other_key_change = CreateProUpRegTx(chainman, utxos, tx_other_reg.GetHash(), otherOwnerKey,
@@ -1945,7 +1960,7 @@ void FuncTestMinerServiceUpdateBeforeReorgedKeyChange(TestChainSetup& setup)
     newOperatorKey.MakeNewKey();
     const CAmount low_fee{1000};
     const CAmount high_fee{100000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     auto tx_key_change = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, newOperatorKey.GetPublicKey(),
                                           ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey, version,
                                           high_fee);
@@ -2000,7 +2015,7 @@ void FuncTestMinerServiceUpdateBeforeKeyChangeSurvivingReorg(TestChainSetup& set
     newOperatorKey.MakeNewKey();
     const CAmount low_fee{1000};
     const CAmount high_fee{100000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     auto tx_key_change = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, newOperatorKey.GetPublicKey(),
                                           ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey, version,
                                           high_fee);
@@ -2053,7 +2068,7 @@ void FuncTestMinerServiceUpdateNeverAfterKeyChange(TestChainSetup& setup)
     CBLSSecretKey newOperatorKey;
     newOperatorKey.MakeNewKey();
     const CAmount fee{100000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     auto tx_key_change = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, newOperatorKey.GetPublicKey(),
                                           ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey, version, fee);
     auto tx_same_key = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, operatorKey.GetPublicKey(),
@@ -2109,7 +2124,7 @@ void FuncTestMinerKeyChangeNotHeldBackAfterReorg(TestChainSetup& setup)
     CBLSSecretKey otherNewOperatorKey;
     newOperatorKey.MakeNewKey();
     otherNewOperatorKey.MakeNewKey();
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     auto tx_other_key_change = CreateProUpRegTx(chainman, utxos, tx_other_reg.GetHash(), otherOwnerKey,
                                                 otherNewOperatorKey.GetPublicKey(), otherOwnerKey.GetPubKey().GetID(),
                                                 scriptPayout, setup.coinbaseKey, version, /*fee=*/0);
@@ -2170,7 +2185,7 @@ void FuncTestMinerServiceUpdateWithParentBeforeKeyChange(TestChainSetup& setup, 
     newOperatorKey.MakeNewKey();
     const CAmount low_fee{1000};
     const CAmount high_fee{100000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     CMutableTransaction tx_parent;
     const auto parent_coins = FundTransaction(chainman, tx_parent, utxos, coinbase_pkh, 1 * COIN);
     tx_parent.vout.back().nValue -= low_fee;
@@ -2232,7 +2247,7 @@ void FuncTestMinerKeyChangeNotHeldBackByServiceUpdates(TestChainSetup& setup)
     newOperatorKey.MakeNewKey();
     const CAmount low_fee{1000};
     const CAmount high_fee{100000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     auto tx_serv1 = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/2, CScript(), setup.coinbaseKey,
                                       version, low_fee);
     auto tx_serv2 = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/3, CScript(), setup.coinbaseKey,
@@ -2289,7 +2304,7 @@ void FuncTestMinerKeyChangeNotHeldBackByOtherKeyChange(TestChainSetup& setup)
     newOperatorKeyA.MakeNewKey();
     newOperatorKeyB.MakeNewKey();
     const CAmount low_fee{1000};
-    const auto version = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+    const auto version = ProTxVersionForNextBlock(chainman);
     std::vector<CMutableTransaction> serv_a;
     for (uint16_t port = 3; port < 7; ++port) {
         serv_a.push_back(CreateProUpServTx(chainman, utxos, proTxHashA, operatorKeyA, port, CScript(),
@@ -2328,7 +2343,7 @@ void FuncTestMinerKeyChangeNotHeldBackByOtherKeyChange(TestChainSetup& setup)
     }
 }
 
-void FuncVerifyDB(TestChainSetup& setup)
+void FuncVerifyDB(TestChainSetup& setup, int blocks_after_revoke = 0)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
     auto& dmnman = *Assert(setup.m_node.dmnman);
@@ -2387,13 +2402,18 @@ void FuncVerifyDB(TestChainSetup& setup)
     BOOST_CHECK_EQUAL(block->GetHash(), tip_hash());
     BOOST_REQUIRE(!dmnman.GetListAtChainTip().HasMN(tx_reg_hash));
 
+    for (int i = 0; i < blocks_after_revoke; ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        sync_dmn_tip();
+    }
+
     // Verify db consistency
     LOCK(cs_main);
     BOOST_REQUIRE(CVerifyDB(chainman.GetNotifications()).VerifyDB(chainman.ActiveChainstate(), Params().GetConsensus(),
-                                       chainman.ActiveChainstate().CoinsTip(), *(setup.m_node.evodb), 4, 2) == VerifyDBResult::SUCCESS);
+                                       chainman.ActiveChainstate().CoinsTip(), *(setup.m_node.evodb), 4, 2 + blocks_after_revoke) == VerifyDBResult::SUCCESS);
 }
 
-static CDeterministicMNCPtr create_mock_mn(uint64_t internal_id)
+static CDeterministicMNCPtr create_mock_mn(uint64_t internal_id, uint16_t version)
 {
     // Create a mock MN
     CKey ownerKey;
@@ -2402,12 +2422,12 @@ static CDeterministicMNCPtr create_mock_mn(uint64_t internal_id)
     operatorKey.MakeNewKey();
 
     auto dmnState = std::make_shared<CDeterministicMNState>();
+    dmnState->nVersion = version;
     dmnState->confirmedHash = GetRandHash();
     dmnState->keyIDOwner = ownerKey.GetPubKey().GetID();
-    dmnState->pubKeyOperator.Set(operatorKey.GetPublicKey(), bls::bls_legacy_scheme.load());
+    dmnState->pubKeyOperator.Set(operatorKey.GetPublicKey());
     dmnState->keyIDVoting = ownerKey.GetPubKey().GetID();
-    dmnState->netInfo = NetInfoInterface::MakeNetInfo(
-        ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false));
+    dmnState->netInfo = NetInfoInterface::MakeNetInfo(version);
     BOOST_CHECK_EQUAL(dmnState->netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:1"), NetInfoStatus::Success);
 
     auto dmn = std::make_shared<CDeterministicMN>(internal_id, MnType::Regular);
@@ -2442,7 +2462,7 @@ static void SmlCache(TestChainSetup& setup)
     mn_list_2 = emptyList;
     BOOST_CHECK(sml_empty == mn_list_2.to_sml());
 
-    auto dmn = create_mock_mn(1);
+    auto dmn = create_mock_mn(1, ProTxVersionForNextBlock(*Assert(setup.m_node.chainman)));
 
     // Add MN - should invalidate cache
     mn_list_1.AddMN(dmn, true);
@@ -2478,7 +2498,7 @@ static void SmlCache(TestChainSetup& setup)
 
     // Test 2: Update with different SML entry data - cache SHOULD be invalidated
     auto changedState = std::make_shared<CDeterministicMNState>(*unchangedState);
-    changedState->pubKeyOperator.Set(CBLSPublicKey{}, bls::bls_legacy_scheme.load());
+    changedState->pubKeyOperator.Set(CBLSPublicKey{});
     mn_list_1.UpdateMN(*dmn, changedState);
 
     // Cache should be invalidated since SML entry changed
@@ -2605,18 +2625,17 @@ struct TestChainV24PendingSetup : public TestChainV24SignalBeforeV19Setup {
         }
         assert(IsV19Active());
         assert(!IsV24Active());
-        assert(!bls::bls_legacy_scheme.load());
     }
 };
 
-// DIP3 can only be activated with legacy scheme (v19 is activated later)
+// DIP3 activation is before v19, so operator keys registered here use the legacy encoding.
 BOOST_AUTO_TEST_CASE(dip3_activation_legacy)
 {
     TestChainDIP3BeforeActivationSetup setup;
     FuncDIP3Activation(setup);
 }
 
-// V19 can only be activated with legacy scheme
+// The block that activates v19 is still checked under the legacy scheme; the next block is basic.
 BOOST_AUTO_TEST_CASE(v19_activation_legacy)
 {
     TestChainV19BeforeActivationSetup setup;
@@ -2630,10 +2649,12 @@ static void CheckListRoundTrips(CDeterministicMNManager& dmnman, const std::stri
 {
     const auto live = dmnman.GetListAtChainTip();
     live.ForEachMN(false, [&](const CDeterministicMN& dmn) {
-        BOOST_CHECK_MESSAGE(dmn.pdmnState->pubKeyOperator == CBLSLazyPublicKey() ||
-                            dmn.pdmnState->pubKeyOperator.IsLegacy() ==
-                                (dmn.pdmnState->nVersion == ProTxVersion::LegacyBLS),
-                            what << ": key scheme contradicts state version for " << dmn.proTxHash.ToString());
+        BOOST_CHECK(dmn.pdmnState->OperatorKeyScheme() ==
+                    ProTxVersion::GetBLSScheme(static_cast<uint16_t>(dmn.pdmnState->nVersion)));
+        if (dmn.pdmnState->pubKeyOperator != CBLSLazyPublicKey()) {
+            BOOST_CHECK_MESSAGE(live.HasUniqueProperty(OperatorKeySlotOf(*dmn.pdmnState)),
+                                what << ": operator key missing from its scheme slot for " << dmn.proTxHash.ToString());
+        }
     });
     CDataStream ds(SER_DISK, CLIENT_VERSION);
     ds << live;
@@ -2647,7 +2668,6 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
 
     // Victim A: legacy, holding operator key K.
@@ -2670,7 +2690,7 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
     pro_reg_b.collateralOutpoint.n = 0;
     BOOST_REQUIRE_EQUAL(pro_reg_b.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.2:20003"), NetInfoStatus::Success);
     pro_reg_b.keyIDOwner = owner_key_b.GetPubKey().GetID();
-    pro_reg_b.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg_b.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg_b.keyIDVoting = owner_key_b.GetPubKey().GetID();
     pro_reg_b.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_reg_b;
@@ -2702,7 +2722,7 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
         const auto spent = FundTransaction(chainman, tx, utxos,
                                            GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
         ups.inputsHash = CalcTxInputsHash(CTransaction(tx));
-        ups.sig = operator_key.Sign(::SerializeHash(ups), bls::bls_legacy_scheme);
+        ups.sig = SignBLS(operator_key, ::SerializeHash(ups), SchemeForNextBlock(chainman));
         SetTxPayload(tx, ups);
         SignTransaction(tx, spent, setup.coinbaseKey);
         TxValidationState st;
@@ -2717,7 +2737,7 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
         CProUpRegTx upreg;
         upreg.nVersion = ProTxVersion::BasicBLS;
         upreg.proTxHash = proTxHashA;
-        upreg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+        upreg.pubKeyOperator.Set(operator_key.GetPublicKey());
         upreg.keyIDVoting = owner_key_a.GetPubKey().GetID();
         upreg.scriptPayout = GenerateRandomAddress();
         CMutableTransaction tx;
@@ -2743,7 +2763,6 @@ void FuncProUpServTxMigratesLegacy(TestChainV24SignalBeforeV19Setup& setup)
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
     CKey owner_key;
     CBLSSecretKey operator_key;
@@ -2773,7 +2792,7 @@ void FuncProUpServTxMigratesLegacy(TestChainV24SignalBeforeV19Setup& setup)
     const auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
     BOOST_REQUIRE(dmn);
     BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
-    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
+    CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key.GetPublicKey());
     BOOST_CHECK(!dmn->pdmnState->IsBanned());
     // Same underlying key, and the list round-trips (key re-encoded, so a reloaded node decodes the
     // same operator key an online node built).
@@ -2815,7 +2834,6 @@ void FuncPlatformHTTPSAddrsViaNodeInterface(TestChainV24SignalBeforeV19Setup& se
 
     setup.MineToV19();
     BOOST_REQUIRE(!setup.IsV24Active());
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
 
     // Regular masternode: no Platform endpoints to export.
     CKey regular_owner_key;
@@ -2842,7 +2860,7 @@ void FuncPlatformHTTPSAddrsViaNodeInterface(TestChainV24SignalBeforeV19Setup& se
     pro_reg.platformP2PPort = 20101;
     pro_reg.platformHTTPPort = 20102;
     pro_reg.keyIDOwner = evo_owner_key.GetPubKey().GetID();
-    pro_reg.pubKeyOperator.Set(evo_operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    pro_reg.pubKeyOperator.Set(evo_operator_key.GetPublicKey());
     pro_reg.keyIDVoting = evo_owner_key.GetPubKey().GetID();
     pro_reg.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_reg_evo;
@@ -2883,7 +2901,7 @@ void FuncPlatformHTTPSAddrsViaNodeInterface(TestChainV24SignalBeforeV19Setup& se
                         NetInfoStatus::Success);
     pro_reg2.platformNodeID.SetHex("445566778899aabbccddeeff0011223344556677");
     pro_reg2.keyIDOwner = evo2_owner_key.GetPubKey().GetID();
-    pro_reg2.pubKeyOperator.Set(evo2_operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg2.pubKeyOperator.Set(evo2_operator_key.GetPublicKey());
     pro_reg2.keyIDVoting = evo2_owner_key.GetPubKey().GetID();
     pro_reg2.payouts = {{GenerateRandomAddress(), MasternodePayoutShare::MAX_REWARD}};
     CMutableTransaction tx_reg_evo2;
@@ -2968,7 +2986,7 @@ static uint256 RegisterBasicEvoNode(TestChainV24SignalBeforeV19Setup& setup, con
     pro_reg.platformP2PPort = 20301;
     pro_reg.platformHTTPPort = platform_http_port;
     pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
-    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg.keyIDVoting = owner_key.GetPubKey().GetID();
     pro_reg.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx;
@@ -2991,7 +3009,7 @@ static CMutableTransaction CreateExtAddrProUpRegTx(TestChainV24SignalBeforeV19Se
     CProUpRegTx proTx;
     proTx.nVersion = ProTxVersion::ExtAddr;
     proTx.proTxHash = proTxHash;
-    proTx.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    proTx.pubKeyOperator.Set(operator_key.GetPublicKey());
     proTx.keyIDVoting = owner_key.GetPubKey().GetID();
     proTx.payouts = std::move(payouts);
     CMutableTransaction tx;
@@ -3032,7 +3050,7 @@ static CMutableTransaction CreateEvoProUpServTx(TestChainV24SignalBeforeV19Setup
     const auto spent = FundTransaction(setup.chainman, tx, setup.utxos,
                                        GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = operator_key.Sign(::SerializeHash(proTx), /*specificLegacyScheme=*/false);
+    proTx.sig = operator_key.Sign(::SerializeHash(proTx));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, setup.coinbaseKey);
     return tx;
@@ -3277,7 +3295,6 @@ void FuncSameMnSameBlockVersionCrossingKeyRotation(TestChainV24SignalBeforeV19Se
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
     CKey owner_key;
     CBLSSecretKey operator_key_old;
@@ -3344,20 +3361,16 @@ void FuncSameMnSameBlockVersionCrossingKeyRotation(TestChainV24SignalBeforeV19Se
     if (rebuilt) {
         const auto dmn = mn_list_ret.GetMN(proTxHash);
         BOOST_REQUIRE(dmn);
-        BOOST_CHECK_MESSAGE(dmn->pdmnState->pubKeyOperator == CBLSLazyPublicKey() ||
-                            dmn->pdmnState->pubKeyOperator.IsLegacy() ==
-                                (dmn->pdmnState->nVersion == ProTxVersion::LegacyBLS),
-                            "DESYNC: nVersion=" << dmn->pdmnState->nVersion << " but key IsLegacy()="
-                                                << dmn->pdmnState->pubKeyOperator.IsLegacy());
+        CheckOperatorKeyEncoding(*dmn->pdmnState, key2.GetPublicKey());
         CDataStream ds(SER_DISK, CLIENT_VERSION);
         ds << mn_list_ret;
         CDeterministicMNList reloaded;
         ds >> reloaded;
         BOOST_CHECK_MESSAGE(mn_list_ret.IsEqual(reloaded), "DESYNC: live list != serialized-and-reloaded list");
-        // The stored key must still represent the point tx2 rotated to. If SetLegacy() left legacy
-        // bytes under a basic flag, Get() decodes them under the wrong scheme and yields a different
-        // point -- an operator key nobody can sign for (the MN is bricked), even if flag/version and
-        // the serialized bytes are self-consistent.
+        // The stored key must still represent the point tx2 rotated to. If a version change
+        // left the old encoding in place, Get() decodes those bytes under the wrong scheme and
+        // yields a different point -- an operator key nobody can sign for (the MN is bricked),
+        // even if the version and the serialized bytes are self-consistent.
         BOOST_CHECK_MESSAGE(dmn->pdmnState->pubKeyOperator.Get() == key2.GetPublicKey(),
                             "CORRUPT KEY (online): stored operator key decodes to a different point than tx2 set");
         // The decisive check: a node that reloaded this list from disk decodes the stored bytes fresh.
@@ -3378,14 +3391,13 @@ void FuncSameMnSameBlockVersionCrossingKeyRotation(TestChainV24SignalBeforeV19Se
 // The same masternode, twice in one block. Each transaction is checked against pindexPrev, where the
 // key is still the original, so both look like genuine rotations and pass. But the rebuild computes
 // operator_changed against the list as rebuilt so far, where the first transaction has already
-// stored the new key -- and operator== ignores the encoding, so the second looks like a no-op, skips
-// SetLegacy(), and yet still raises the version. That is bug A recreated from inside a single block.
+// stored the new key -- and operator== ignores the encoding, so the second looks like a no-op
+// and yet still raises the version. That is bug A recreated from inside a single block.
 void FuncSameMnSameBlockMigrationConsistent(TestChainV24SignalBeforeV19Setup& setup)
 {
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
     CKey owner_key;
     CBLSSecretKey operator_key_old;
@@ -3443,7 +3455,7 @@ void FuncSameMnSameBlockMigrationConsistent(TestChainV24SignalBeforeV19Setup& se
     const auto dmn = mn_list_ret.GetMN(proTxHash);
     BOOST_REQUIRE(dmn);
     BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
-    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
+    CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key_new.GetPublicKey());
     // Online and reloaded decode the same operator key -- no reconstruction-history divergence.
     BOOST_CHECK(dmn->pdmnState->pubKeyOperator.Get() == operator_key_new.GetPublicKey());
     CDataStream ds(SER_DISK, CLIENT_VERSION);
@@ -3466,7 +3478,6 @@ void FuncPreV24CrossSchemePairCannotBecomeResident(TestChainV24SignalBeforeV19Se
     auto& dmnman = setup.dmnman;
     const auto& coinbase_pk = setup.coinbase_pk;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
 
     CKey owner_key_a;
@@ -3490,7 +3501,7 @@ void FuncPreV24CrossSchemePairCannotBecomeResident(TestChainV24SignalBeforeV19Se
     pro_reg_b.collateralOutpoint.n = 0;
     BOOST_REQUIRE_EQUAL(pro_reg_b.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.2:20301"), NetInfoStatus::Success);
     pro_reg_b.keyIDOwner = owner_key_b.GetPubKey().GetID();
-    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey());
     pro_reg_b.keyIDVoting = owner_key_b.GetPubKey().GetID();
     pro_reg_b.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_reg_b;
@@ -3561,7 +3572,6 @@ void FuncSameBlockCrossSchemeKeyPairRejected(TestChainV24SignalBeforeV19Setup& s
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
 
     CKey owner_key_a;
@@ -3584,7 +3594,7 @@ void FuncSameBlockCrossSchemeKeyPairRejected(TestChainV24SignalBeforeV19Setup& s
     pro_reg_b.collateralOutpoint.n = 0;
     BOOST_REQUIRE_EQUAL(pro_reg_b.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.2:20201"), NetInfoStatus::Success);
     pro_reg_b.keyIDOwner = owner_key_b.GetPubKey().GetID();
-    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey());
     pro_reg_b.keyIDVoting = owner_key_b.GetPubKey().GetID();
     pro_reg_b.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_reg_b;
@@ -3660,7 +3670,6 @@ void FuncMempoolRejectsCrossSchemeKeyRace(TestChainV24SignalBeforeV19Setup& setu
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
 
     // MN-A stays legacy; MN-B is registered basic after v24. Both keep their own keys for now.
@@ -3684,7 +3693,7 @@ void FuncMempoolRejectsCrossSchemeKeyRace(TestChainV24SignalBeforeV19Setup& setu
     pro_reg_b.collateralOutpoint.n = 0;
     BOOST_REQUIRE_EQUAL(pro_reg_b.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.2:20101"), NetInfoStatus::Success);
     pro_reg_b.keyIDOwner = owner_key_b.GetPubKey().GetID();
-    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey());
     pro_reg_b.keyIDVoting = owner_key_b.GetPubKey().GetID();
     pro_reg_b.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_reg_b;
@@ -3751,7 +3760,6 @@ void FuncProUpRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& 
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
 
     // MN-A registers pre-v19: legacy scheme, and stays legacy.
@@ -3763,7 +3771,6 @@ void FuncProUpRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& 
     setup.ProcessBlock({tx_reg_a});
 
     setup.MineToV24();
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
     BOOST_REQUIRE_EQUAL(dmnman.GetListAtChainTip().GetMN(proTxHashA)->pdmnState->nVersion, ProTxVersion::LegacyBLS);
 
     // MN-B registers post-v24 with its own fresh basic key.
@@ -3777,7 +3784,7 @@ void FuncProUpRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& 
     pro_reg_b.collateralOutpoint.n = 0;
     BOOST_REQUIRE_EQUAL(pro_reg_b.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.2:20001"), NetInfoStatus::Success);
     pro_reg_b.keyIDOwner = owner_key_b.GetPubKey().GetID();
-    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg_b.pubKeyOperator.Set(operator_key_b.GetPublicKey());
     pro_reg_b.keyIDVoting = owner_key_b.GetPubKey().GetID();
     pro_reg_b.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_reg_b;
@@ -3841,14 +3848,14 @@ void FuncProRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& se
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
     CKey owner_key_a;
     CBLSSecretKey operator_key;
     auto tx_reg_a = CreateProRegTx(chainman, utxos, 19999, GenerateRandomAddress(), setup.coinbaseKey, owner_key_a,
                                    operator_key);
     setup.ProcessBlock({tx_reg_a});
-    BOOST_REQUIRE(dmnman.GetListAtChainTip().GetMN(tx_reg_a.GetHash())->pdmnState->pubKeyOperator.IsLegacy());
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().GetMN(tx_reg_a.GetHash())->pdmnState->OperatorKeyScheme() == BLSScheme::Legacy);
+    CheckOperatorKeyEncoding(*dmnman.GetListAtChainTip().GetMN(tx_reg_a.GetHash())->pdmnState, operator_key.GetPublicKey());
 
     int port{20000};
     auto build_proreg = [&](const CBLSPublicKey& op_pubkey, uint16_t version) {
@@ -3862,7 +3869,7 @@ void FuncProRegTxRejectsCrossSchemeKeyReuse(TestChainV24SignalBeforeV19Setup& se
                             NetInfoStatus::Success);
         ++port;
         pro_reg.keyIDOwner = owner_key_b.GetPubKey().GetID();
-        pro_reg.pubKeyOperator.Set(op_pubkey, /*specificLegacyScheme=*/version == ProTxVersion::LegacyBLS);
+        pro_reg.pubKeyOperator.Set(op_pubkey);
         pro_reg.keyIDVoting = owner_key_b.GetPubKey().GetID();
         pro_reg.scriptPayout = GenerateRandomAddress();
         CMutableTransaction tx;
@@ -3935,7 +3942,6 @@ void FuncHasOperatorKeyUnderAnyScheme(TestChainSetup& setup)
     auto& dmnman = *Assert(setup.m_node.dmnman);
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     CKey owner_key;
     CBLSSecretKey operator_key;
@@ -3949,10 +3955,12 @@ void FuncHasOperatorKeyUnderAnyScheme(TestChainSetup& setup)
     const auto dmn = list.GetMN(proTxHash);
     BOOST_REQUIRE(dmn);
     // Stored legacy-encoded, so a plain lookup under the basic encoding misses it...
-    BOOST_REQUIRE(dmn->pdmnState->pubKeyOperator.IsLegacy());
+    BOOST_REQUIRE(dmn->pdmnState->OperatorKeyScheme() == BLSScheme::Legacy);
+    CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key.GetPublicKey());
     CBLSLazyPublicKey basic_wrapped;
-    basic_wrapped.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
-    BOOST_REQUIRE(!list.HasUniqueProperty(basic_wrapped));
+    basic_wrapped.Set(operator_key.GetPublicKey());
+    BOOST_REQUIRE(!list.HasUniqueProperty(OperatorKeySlot{basic_wrapped, BLSScheme::Basic}));
+    BOOST_REQUIRE(list.HasUniqueProperty(OperatorKeySlot{basic_wrapped, BLSScheme::Legacy}));
     // ...which is exactly the gap the helper closes.
     BOOST_CHECK(list.HasOperatorKeyUnderAnyScheme(operator_key.GetPublicKey(), uint256()));
     // The holder itself is excluded when asked.
@@ -3977,7 +3985,6 @@ void FuncPreV24BehaviourUnchanged(TestChainSetup& setup)
     const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
 
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
 
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     CKey owner_key;
@@ -3994,7 +4001,6 @@ void FuncPreV24BehaviourUnchanged(TestChainSetup& setup)
     }
     // v19 active, v24 inactive: this is mainnet's configuration today.
     BOOST_REQUIRE(!DeploymentActiveAfter(tip_index(), chainman, Consensus::DEPLOYMENT_V24));
-    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
 
     // A BasicBLS service update on a legacy masternode: rejected post-v24 by Component 1.
     auto tx_ups = CreateProUpServTx(chainman, utxos, proTxHash, operator_key, 19998, CScript(), setup.coinbaseKey);
@@ -4014,7 +4020,7 @@ void FuncPreV24BehaviourUnchanged(TestChainSetup& setup)
     CProUpRegTx pro_upreg;
     pro_upreg.nVersion = ProTxVersion::BasicBLS;
     pro_upreg.proTxHash = proTxHash;
-    pro_upreg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_upreg.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_upreg.keyIDVoting = owner_key.GetPubKey().GetID();
     pro_upreg.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_upreg;
@@ -4042,7 +4048,7 @@ void FuncPreV24BehaviourUnchanged(TestChainSetup& setup)
     const auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
     BOOST_REQUIRE(dmn);
     BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
-    BOOST_CHECK(dmn->pdmnState->pubKeyOperator.IsLegacy());
+    CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key.GetPublicKey());
     CheckListRoundTrips(dmnman, "pre-v24 after same-key ProUpRegTx");
 };
 
@@ -4056,7 +4062,6 @@ void FuncStaleSpecialTxDoesNotPoisonTemplate(TestChainV24SignalBeforeV19Setup& s
     auto& dmnman = setup.dmnman;
     const auto& coinbase_pk = setup.coinbase_pk;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
     CKey owner_key;
     CBLSSecretKey operator_key;
@@ -4080,7 +4085,7 @@ void FuncStaleSpecialTxDoesNotPoisonTemplate(TestChainV24SignalBeforeV19Setup& s
     pro_reg_b.collateralOutpoint.n = 0;
     BOOST_REQUIRE_EQUAL(pro_reg_b.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.2:20002"), NetInfoStatus::Success);
     pro_reg_b.keyIDOwner = owner_key_b.GetPubKey().GetID();
-    pro_reg_b.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg_b.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg_b.keyIDVoting = owner_key_b.GetPubKey().GetID();
     pro_reg_b.scriptPayout = GenerateRandomAddress();
     CMutableTransaction tx_stale;
@@ -4149,7 +4154,7 @@ void FuncTemplateSkipsConflictingProviderPackage(TestChainSetup& setup)
         CBLSSecretKey operator_key;
         operator_key.MakeNewKey();
         CProRegTx pro_reg;
-        pro_reg.nVersion = ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false);
+        pro_reg.nVersion = ProTxVersionForNextBlock(chainman);
         pro_reg.netInfo = NetInfoInterface::MakeNetInfo(pro_reg.nVersion);
         pro_reg.collateralOutpoint.n = 0;
         BOOST_REQUIRE_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, strprintf("1.1.1.1:%d", port)),
@@ -4161,7 +4166,7 @@ void FuncTemplateSkipsConflictingProviderPackage(TestChainSetup& setup)
             pro_reg.platformHTTPPort = port + 2000;
         }
         pro_reg.keyIDOwner = owner.GetPubKey().GetID();
-        pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+        pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey());
         pro_reg.keyIDVoting = owner.GetPubKey().GetID();
         pro_reg.scriptPayout = coinbase_script;
         CMutableTransaction tx;
@@ -4281,7 +4286,6 @@ void FuncProUpRegTxMigratesLegacySameKey(TestChainV24SignalBeforeV19Setup& setup
     auto& chainman = setup.chainman;
     auto& dmnman = setup.dmnman;
 
-    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
     auto& utxos = setup.utxos;
     CKey owner_key;
     CBLSSecretKey operator_key;
@@ -4315,7 +4319,7 @@ void FuncProUpRegTxMigratesLegacySameKey(TestChainV24SignalBeforeV19Setup& setup
         const auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
         BOOST_REQUIRE(dmn);
         BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
-        BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
+        CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key.GetPublicKey());
         BOOST_CHECK(!dmn->pdmnState->IsBanned());
         BOOST_CHECK(dmn->pdmnState->pubKeyOperator.Get() == operator_key.GetPublicKey());
         CheckListRoundTrips(dmnman, "after same-key legacy->basic migration");
@@ -4344,7 +4348,7 @@ void FuncProUpRegTxMigratesLegacySameKey(TestChainV24SignalBeforeV19Setup& setup
         setup.ProcessBlock({tx});
         const auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
         BOOST_REQUIRE(dmn);
-        BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.IsLegacy());
+        CheckOperatorKeyEncoding(*dmn->pdmnState, new_operator_key.GetPublicKey());
         BOOST_CHECK(dmn->pdmnState->IsBanned());
         CheckListRoundTrips(dmnman, "after new-key rotation");
     }
@@ -4405,9 +4409,9 @@ BOOST_AUTO_TEST_CASE(statediff_captures_operator_key_reencoding)
     // decode to different keys under each scheme, so the encoded bytes (and GetHash()) do not change.
     const auto same_bytes{ParseHex("991ffe06346a3652cb5f26e614ad9c57b2651405c64712beb45c0b8c870e86fab7fa47a77bb66d1d6d79ce95c40150fc")};
     CBLSPublicKey same_bytes_legacy;
-    same_bytes_legacy.SetBytes(same_bytes, /*specificLegacyScheme=*/true);
+    same_bytes_legacy.SetBytes(same_bytes, BLSScheme::Legacy);
     CBLSPublicKey same_bytes_basic;
-    same_bytes_basic.SetBytes(same_bytes, /*specificLegacyScheme=*/false);
+    same_bytes_basic.SetBytes(same_bytes);
     BOOST_REQUIRE(same_bytes_legacy.IsValid() && same_bytes_basic.IsValid());
     BOOST_REQUIRE(same_bytes_legacy != same_bytes_basic);
 
@@ -4425,12 +4429,12 @@ BOOST_AUTO_TEST_CASE(statediff_captures_operator_key_reencoding)
         {
             CDeterministicMNState a;
             a.nVersion = ProTxVersion::LegacyBLS;
-            a.pubKeyOperator.Set(c.legacy_key, /*specificLegacyScheme=*/true);
+            a.pubKeyOperator.Set(c.legacy_key);
             a.netInfo = NetInfoInterface::MakeNetInfo(a.nVersion);
 
             CDeterministicMNState b{a};
             b.nVersion = ProTxVersion::BasicBLS;
-            b.pubKeyOperator.Set(c.basic_key, /*specificLegacyScheme=*/false);
+            b.pubKeyOperator.Set(c.basic_key);
 
             CDeterministicMNStateDiff diff{a, b};
             CDataStream ds(SER_DISK, CLIENT_VERSION);
@@ -4442,11 +4446,206 @@ BOOST_AUTO_TEST_CASE(statediff_captures_operator_key_reencoding)
             diff2.ApplyToState(reconstructed);
 
             BOOST_CHECK_EQUAL(reconstructed.nVersion, ProTxVersion::BasicBLS);
-            BOOST_CHECK(!reconstructed.pubKeyOperator.IsLegacy());
+            CheckOperatorKeyEncoding(reconstructed, c.basic_key);
             BOOST_CHECK(reconstructed.pubKeyOperator.Get() == c.basic_key);
-            BOOST_CHECK(::SerializeHash(reconstructed.pubKeyOperator) == ::SerializeHash(b.pubKeyOperator));
+            BOOST_CHECK(reconstructed.pubKeyOperator.GetHash(reconstructed.OperatorKeyScheme()) ==
+                        b.pubKeyOperator.GetHash(b.OperatorKeyScheme()));
         }
     }
+
+    {
+        BOOST_TEST_CONTEXT("different operator key")
+        {
+            CBLSSecretKey other;
+            other.MakeNewKey();
+            CDeterministicMNState changed_from;
+            changed_from.nVersion = ProTxVersion::LegacyBLS;
+            changed_from.pubKeyOperator.Set(sk.GetPublicKey());
+            changed_from.netInfo = NetInfoInterface::MakeNetInfo(changed_from.nVersion);
+            CDeterministicMNState changed_to{changed_from};
+            changed_to.pubKeyOperator.Set(other.GetPublicKey());
+            const CDeterministicMNStateDiff diff{changed_from, changed_to};
+            BOOST_CHECK(diff.fields & CDeterministicMNStateDiff::Field_pubKeyOperator);
+        }
+    }
+    {
+        BOOST_TEST_CONTEXT("unchanged operator key")
+        {
+            CDeterministicMNState unchanged;
+            unchanged.nVersion = ProTxVersion::LegacyBLS;
+            unchanged.pubKeyOperator.Set(sk.GetPublicKey());
+            unchanged.netInfo = NetInfoInterface::MakeNetInfo(unchanged.nVersion);
+            const CDeterministicMNState copy{unchanged};
+            const CDeterministicMNStateDiff diff{unchanged, copy};
+            BOOST_CHECK((diff.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) == 0);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(proupserv_mainnet_pre_v19_verifies_legacy_only)
+{
+    // Mainnet height 1898717, txid b227237ecf56d44e5f1cc69ae87e73a75c80a9c1cc6959faad4232fd22f5efc5.
+    const std::string raw_tx =
+        "030002000176aae4e31867298db9e95e158f97603cd304c502a3298a5e655207bd72f84af5000000006a473044022002233382e7c2c48e"
+        "e382404a961ae592310806b7817bb85dfd7e7a8dd4029bf602205d5b5a513e1ae44af571cf84752f13ebd93f8e304711f589860e56a779"
+        "c3ff7e012103b40af40be1b2a12d9a7296c990750878832d146fd686b5776a9fd4d961820a3afeffffff01a6820100000000001976a914"
+        "56e5b213afbc7879e9932223f1f18a6e3606d5bf88ac00000000b5010086bda1a615c1d3c1f57ff42a3ea4fc4236eb9c3693350ca31272"
+        "9abf7c72b89400000000000000000000ffff6c3daa8b270f007e82b17db3f564a6b8051b49b6d3f0d08ac019ee30a09ecc6216678d39d7"
+        "a363805c989927a85cdcfc41b0c8afa06635682d1639544de64301d5d6bb16e5f4ef1c2c2cc702fdd84a6853f60631cd5b540355a09ff0"
+        "d293a1547ad021c0d09baa8e305b55e4cea97a4f3a555e3330ed999833242dcd823cc07b781ccfef03a75c";
+    CMutableTransaction mtx;
+    BOOST_REQUIRE(DecodeHexTx(mtx, raw_tx));
+    const auto payload = GetTxPayload<CProUpServTx>(CTransaction{mtx});
+    BOOST_REQUIRE(payload);
+    CBLSPublicKey operator_key;
+    BOOST_REQUIRE(operator_key.SetHexStr("1379c53e87019f8a6082ef5083f66955e65a646412721d557be40b4ab4014fa95066c4e627bbf"
+                                         "a7bd77b4ccb8d37cc05",
+                                         BLSScheme::Legacy));
+    const uint256 hash{::SerializeHash(*payload)};
+    BOOST_CHECK(payload->sig.VerifyInsecure(operator_key, hash, BLSScheme::Legacy));
+    BOOST_CHECK(!payload->sig.VerifyInsecure(operator_key, hash, BLSScheme::Basic));
+}
+
+void FuncProUpServSignatureFollowsBlockHeight(TestChainV19BeforeActivationSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto sync_tip = [&] { dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip())); };
+    auto v19_next = [&] {
+        return WITH_LOCK(::cs_main, return DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(),
+                                                                 Consensus::DEPLOYMENT_V19));
+    };
+
+    // The fixture stops five blocks before the block whose connect switches the scheme.
+    // Register before that block so the pre-switch checks still see a legacy tip.
+    for (int i = 0; i < 3; ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        sync_tip();
+    }
+    BOOST_REQUIRE(!v19_next());
+
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    auto tx_reg = CreateProRegTx(chainman, utxos, /*port=*/21001, GenerateRandomAddress(), setup.coinbaseKey, owner_key,
+                                 operator_key);
+    const uint256 proTxHash{tx_reg.GetHash()};
+    setup.CreateAndProcessBlock({tx_reg}, coinbase_pk);
+    sync_tip();
+    const auto registered = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(registered);
+    BOOST_REQUIRE(registered->pdmnState->nVersion == ProTxVersion::LegacyBLS);
+
+    int port{21002};
+    auto make_upserv = [&](BLSScheme sign_scheme) {
+        auto tx = CreateProUpServTx(chainman, utxos, proTxHash, operator_key, port++, CScript(), setup.coinbaseKey,
+                                    ProTxVersion::LegacyBLS, /*fee=*/0, sign_scheme);
+        if (tx.vout.size() >= 2) {
+            utxos.emplace(COutPoint(tx.GetHash(), tx.vout.size() - 1), Coin(tx.vout.back(), /*nHeightIn=*/1, false));
+        }
+        return tx;
+    };
+    auto check = [&](const CMutableTransaction& tx) {
+        TxValidationState state;
+        LOCK(cs_main);
+        const bool ok = CheckProUpServTx(CTransaction(tx), chainman.ActiveChain().Tip(), dmnman,
+                                         chainman.GetConsensus(), TipRules(chainman), state, /*check_sigs=*/true);
+        return std::pair<bool, std::string>{ok, state.GetRejectReason()};
+    };
+    auto expect = [&](BLSScheme sign_scheme, bool accepted) {
+        const auto [ok, reason] = check(make_upserv(sign_scheme));
+        BOOST_CHECK_MESSAGE(ok == accepted, reason);
+        if (!accepted) {
+            BOOST_CHECK_EQUAL(reason, "bad-protx-sig");
+        }
+    };
+
+    expect(BLSScheme::Legacy, true);
+    expect(BLSScheme::Basic, false);
+
+    setup.CreateAndProcessBlock({}, coinbase_pk);
+    sync_tip();
+    BOOST_REQUIRE(v19_next());
+    BOOST_REQUIRE(dmnman.GetListAtChainTip().GetMN(proTxHash)->pdmnState->nVersion == ProTxVersion::LegacyBLS);
+
+    // A v1 update built after v19 is signed basic and still accepted: the
+    // payload version only selects the encoding, and the block selects verification.
+    expect(BLSScheme::Basic, true);
+    expect(BLSScheme::Legacy, false);
+
+    // Disconnecting the activating block puts the next block back under the legacy scheme.
+    BlockValidationState inv_state;
+    BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(inv_state,
+                                                              WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip())));
+    sync_tip();
+    BOOST_REQUIRE(!v19_next());
+    expect(BLSScheme::Legacy, true);
+    expect(BLSScheme::Basic, false);
+}
+
+BOOST_AUTO_TEST_CASE(proupserv_signature_scheme_follows_block_height)
+{
+    TestChainV19BeforeActivationSetup setup;
+    FuncProUpServSignatureFollowsBlockHeight(setup);
+}
+
+BOOST_AUTO_TEST_CASE(operator_key_uniqueness_is_per_encoding)
+{
+    CBLSSecretKey key_p;
+    key_p.MakeNewKey();
+    CBLSSecretKey key_q;
+    key_q.MakeNewKey();
+    const CBLSPublicKey p = key_p.GetPublicKey();
+    const CBLSPublicKey q = key_q.GetPublicKey();
+
+    auto make_mn = [](uint64_t internal_id, uint8_t tag, const CBLSPublicKey& pubkey, BLSScheme scheme) {
+        auto state = std::make_shared<CDeterministicMNState>();
+        state->nVersion = scheme == BLSScheme::Legacy ? ProTxVersion::LegacyBLS : ProTxVersion::BasicBLS;
+        state->pubKeyOperator.Set(pubkey);
+        uint160 owner_id;
+        owner_id.begin()[0] = tag;
+        state->keyIDOwner = CKeyID{owner_id};
+        state->keyIDVoting = state->keyIDOwner;
+        state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+        auto dmn = std::make_shared<CDeterministicMN>(internal_id);
+        uint256 protx;
+        protx.begin()[0] = tag;
+        dmn->proTxHash = protx;
+        dmn->collateralOutpoint = COutPoint(protx, 1);
+        dmn->pdmnState = std::move(state);
+        return dmn;
+    };
+
+    CDeterministicMNList list;
+    const auto mn_p = make_mn(1, 1, p, BLSScheme::Legacy);
+    const auto mn_q = make_mn(2, 2, q, BLSScheme::Basic);
+    list.AddMN(mn_p);
+    list.AddMN(mn_q);
+    CheckOperatorKeyEncoding(*mn_p->pdmnState, p);
+    CheckOperatorKeyEncoding(*mn_q->pdmnState, q);
+    BOOST_REQUIRE(mn_p->pdmnState->OperatorKeyScheme() == BLSScheme::Legacy);
+    BOOST_REQUIRE(mn_q->pdmnState->OperatorKeyScheme() == BLSScheme::Basic);
+
+    auto expect_found = [&](const CBLSPublicKey& pubkey, BLSScheme scheme, const uint256& protx) {
+        CBLSLazyPublicKey wrapped;
+        wrapped.Set(pubkey);
+        const OperatorKeySlot slot{wrapped, scheme};
+        BOOST_CHECK_EQUAL(list.HasUniqueProperty(slot), !protx.IsNull());
+        const auto found = list.GetUniquePropertyMN(slot);
+        if (protx.IsNull()) {
+            BOOST_CHECK(!found);
+        } else {
+            BOOST_REQUIRE(found);
+            BOOST_CHECK(found->proTxHash == protx);
+        }
+    };
+    expect_found(p, BLSScheme::Legacy, mn_p->proTxHash);
+    expect_found(p, BLSScheme::Basic, uint256());
+    expect_found(q, BLSScheme::Basic, mn_q->proTxHash);
+    expect_found(q, BLSScheme::Legacy, uint256());
+    BOOST_CHECK(list.HasOperatorKeyUnderAnyScheme(p, uint256()));
+    BOOST_CHECK(list.HasOperatorKeyUnderAnyScheme(q, uint256()));
 }
 
 BOOST_AUTO_TEST_CASE(has_operator_key_under_any_scheme)
@@ -4631,11 +4830,26 @@ BOOST_AUTO_TEST_CASE(test_miner_key_change_not_held_back_by_other_key_change)
     FuncTestMinerKeyChangeNotHeldBackByOtherKeyChange(setup);
 }
 
-//This one can be started only with legacy scheme, since inside undo block will switch it back to legacy resulting into an inconsistency
 BOOST_AUTO_TEST_CASE(verify_db_legacy)
 {
     TestChainDIP3Setup setup;
     FuncVerifyDB(setup);
+}
+
+// The revocation is mined with a legacy operator signature. The check starts from a tip past
+// v19, so it disconnects across the activation and has to reconnect that block under legacy.
+BOOST_AUTO_TEST_CASE(verify_db_across_v19)
+{
+    TestChainV19BeforeActivationSetup setup;
+    const int blocks_after_revoke{4};
+    FuncVerifyDB(setup, blocks_after_revoke);
+
+    const auto& chainman = *Assert(setup.m_node.chainman);
+    LOCK(::cs_main);
+    const CBlockIndex* tip = chainman.ActiveChain().Tip();
+    const CBlockIndex* before_revoke = tip->GetAncestor(tip->nHeight - blocks_after_revoke - 1);
+    BOOST_CHECK(!DeploymentActiveAfter(before_revoke, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_CHECK(DeploymentActiveAfter(tip, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
 }
 
 BOOST_AUTO_TEST_CASE(test_sml_cache_legacy)
@@ -4797,8 +5011,14 @@ BOOST_AUTO_TEST_CASE(migration_logic_validation)
     legacyDiff.state.nVersion = ProTxVersion::BasicBLS;
     CBLSSecretKey sk;
     sk.MakeNewKey();
-    legacyDiff.state.pubKeyOperator.Set(sk.GetPublicKey(), false);
-    BOOST_CHECK(!legacyDiff.state.pubKeyOperator.IsLegacy());
+    legacyDiff.state.pubKeyOperator.Set(sk.GetPublicKey());
+    {
+        std::vector<unsigned char> raw;
+        CVectorWriter writer{SER_DISK, CLIENT_VERSION, raw, 0};
+        legacyDiff.state.pubKeyOperator.Serialize(writer, legacyDiff.state.OperatorKeyScheme());
+        BOOST_REQUIRE_EQUAL(raw.size(), legacyDiff.pubKeyOperatorBytes.size());
+        std::copy(raw.begin(), raw.end(), legacyDiff.pubKeyOperatorBytes.begin());
+    }
     legacyDiff.state.netInfo = NetInfoInterface::MakeNetInfo(ProTxVersion::BasicBLS);
     BOOST_CHECK(!legacyDiff.state.IsBanned());
     legacyDiff.state.BanIfNotBanned(2367316);
@@ -4811,11 +5031,11 @@ BOOST_AUTO_TEST_CASE(migration_logic_validation)
     ss << legacyDiff;
 
     CDeterministicMNStateDiffLegacy legacyDeserializer(deserialize, ss);
+    BOOST_CHECK(std::equal(legacyDeserializer.pubKeyOperatorBytes.begin(), legacyDeserializer.pubKeyOperatorBytes.end(),
+                           legacyDiff.pubKeyOperatorBytes.begin()));
     CDeterministicMNStateDiff convertedDiff = legacyDeserializer.ToNewFormat();
-    BOOST_CHECK(!legacyDiff.state.pubKeyOperator.IsLegacy());
-    BOOST_CHECK(convertedDiff.state.pubKeyOperator.IsLegacy());
-    convertedDiff.state.pubKeyOperator.SetLegacy(false);
-    BOOST_CHECK(!convertedDiff.state.pubKeyOperator.IsLegacy());
+    CheckOperatorKeyEncoding(convertedDiff.state, sk.GetPublicKey());
+    BOOST_CHECK(convertedDiff.state.OperatorKeyScheme() == BLSScheme::Basic);
 
     // Verify conversion worked correctly
     uint32_t expectedNewFields = CDeterministicMNStateDiff::Field_nVersion |       // 0x0001
@@ -4827,7 +5047,213 @@ BOOST_AUTO_TEST_CASE(migration_logic_validation)
     BOOST_CHECK_EQUAL(convertedDiff.state.nVersion, legacyDiff.state.nVersion);
     BOOST_CHECK_EQUAL(convertedDiff.state.GetBannedHeight(), legacyDiff.state.GetBannedHeight());
     BOOST_CHECK(convertedDiff.state.pubKeyOperator.Get() == legacyDiff.state.pubKeyOperator.Get());
-    BOOST_CHECK_EQUAL(convertedDiff.state.pubKeyOperator.ToString(), legacyDiff.state.pubKeyOperator.ToString());
+    BOOST_CHECK_EQUAL(convertedDiff.state.pubKeyOperator.ToString(convertedDiff.state.OperatorKeyScheme()),
+                      legacyDiff.state.pubKeyOperator.ToString(legacyDiff.state.OperatorKeyScheme()));
+}
+
+static void ExpectEncoding(const std::string& stored, const char* present_hex, const char* absent_hex)
+{
+    const auto present = ParseHex(present_hex);
+    const auto absent = ParseHex(absent_hex);
+    BOOST_REQUIRE_EQUAL(present.size(), CBLSPublicKey::SerSize);
+    BOOST_REQUIRE_EQUAL(absent.size(), CBLSPublicKey::SerSize);
+    const std::string present_bytes{reinterpret_cast<const char*>(present.data()), present.size()};
+    const std::string absent_bytes{reinterpret_cast<const char*>(absent.data()), absent.size()};
+    BOOST_CHECK(stored.find(present_bytes) != std::string::npos);
+    BOOST_CHECK(stored.find(absent_bytes) == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(operator_key_stored_encoding_follows_version)
+{
+    const CBLSPublicKey pk{SecretFromScalar(1).GetPublicKey()};
+    const auto check = [&](uint16_t version, const char* present, const char* absent) {
+        CDeterministicMNState state;
+        state.nVersion = version;
+        state.pubKeyOperator.Set(pk);
+        state.netInfo = NetInfoInterface::MakeNetInfo(version);
+        CDataStream state_bytes{SER_DISK, CLIENT_VERSION};
+        state_bytes << state;
+        ExpectEncoding(state_bytes.str(), present, absent);
+
+        CDeterministicMNState previous;
+        previous.nVersion = version;
+        previous.netInfo = NetInfoInterface::MakeNetInfo(version);
+        const CDeterministicMNStateDiff diff{previous, state};
+        CDataStream diff_bytes{SER_DISK, CLIENT_VERSION};
+        diff_bytes << diff;
+        ExpectEncoding(diff_bytes.str(), present, absent);
+    };
+    check(ProTxVersion::LegacyBLS, PK1_LEG, PK1_BAS);
+    check(ProTxVersion::BasicBLS, PK1_BAS, PK1_LEG);
+}
+
+BOOST_AUTO_TEST_CASE(legacy_diff_operator_key_keeps_its_bytes)
+{
+    // MigrateLegacyDiffs rebuilds its snapshot from the legacy diffs themselves, starting empty at
+    // DIP3 and requiring one diff per height until the first gap. These diffs register the
+    // masternodes, then update their operator keys.
+    TestChainDIP3BeforeActivationSetup setup;
+    const CScript coinbase_pk{GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey())};
+    auto& chainman{*Assert(setup.m_node.chainman)};
+    auto& dmnman{*Assert(setup.m_node.dmnman)};
+    while (WITH_LOCK(::cs_main, return chainman.ActiveHeight()) < 113) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+    }
+
+    constexpr uint32_t legacy_operator_key{0x0200};
+    constexpr uint32_t legacy_version{0x40000};
+    constexpr int add_height{110};
+    // PK1_BAS is the basic encoding of scalar 1 and also a canonical legacy encoding of a different
+    // point, so the versioned update and the basic update cannot hold it at the same time.
+    constexpr int versioned_height{111};
+    constexpr int drop_versioned_height{112};
+    constexpr int unversioned_height{113};
+    // On-disk key prefixes of DB_LIST_DIFF_LEGACY and DB_LIST_DIFF.
+    const std::string legacy_db_key{"dmn_D3"};
+    const std::string diff_db_key{"dmn_D4"};
+    const CBLSPublicKey scalar_one{SecretFromScalar(1).GetPublicKey()};
+    CBLSPublicKey legacy_of_bas;
+    legacy_of_bas.SetBytes(ParseHex(PK1_BAS), BLSScheme::Legacy);
+    BOOST_REQUIRE(legacy_of_bas.IsValid());
+    BOOST_REQUIRE(legacy_of_bas != scalar_one);
+
+    struct Registered {
+        uint64_t id;
+        uint8_t tag;
+        uint16_t version;
+    };
+    const Registered registered[]{
+        {1, 1, ProTxVersion::LegacyBLS},
+        {2, 2, ProTxVersion::BasicBLS},
+        // Basic, so a diff that instead carries LegacyBLS is distinguishable from this version.
+        {3, 3, ProTxVersion::BasicBLS},
+    };
+
+    struct LegacyListDiff {
+        std::vector<CDeterministicMNCPtr> added;
+        std::vector<std::pair<uint64_t, CDeterministicMNStateDiffLegacy>> updated;
+        std::vector<uint64_t> removed;
+
+        void Serialize(CDataStream& s) const
+        {
+            WriteCompactSize(s, added.size());
+            for (const auto& dmn : added) {
+                s << *dmn;
+            }
+            WriteCompactSize(s, updated.size());
+            for (const auto& [id, diff] : updated) {
+                WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(s, id);
+                diff.Serialize(s);
+            }
+            WriteCompactSize(s, removed.size());
+            for (const auto id : removed) {
+                WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(s, id);
+            }
+        }
+    };
+
+    auto make_registered = [](const Registered& mn) {
+        auto state{std::make_shared<CDeterministicMNState>()};
+        state->nVersion = mn.version;
+        state->netInfo = NetInfoInterface::MakeNetInfo(mn.version);
+        uint160 owner{};
+        owner.begin()[0] = mn.tag;
+        state->keyIDOwner = CKeyID{owner};
+        state->keyIDVoting = state->keyIDOwner;
+        auto dmn{std::make_shared<CDeterministicMN>(mn.id)};
+        uint256 protx{};
+        protx.begin()[0] = mn.tag;
+        dmn->proTxHash = protx;
+        dmn->collateralOutpoint = COutPoint{protx, 0};
+        dmn->pdmnState = std::move(state);
+        return dmn;
+    };
+    auto legacy_update = [](const char* raw_hex, bool version_field, uint16_t version) {
+        CDeterministicMNStateDiffLegacy legacy;
+        legacy.fields = legacy_operator_key;
+        if (version_field) {
+            legacy.fields |= legacy_version;
+            legacy.state.nVersion = version;
+        }
+        const auto raw{ParseHex(raw_hex)};
+        BOOST_REQUIRE_EQUAL(raw.size(), legacy.pubKeyOperatorBytes.size());
+        std::copy(raw.begin(), raw.end(), legacy.pubKeyOperatorBytes.begin());
+        return legacy;
+    };
+
+    const int dip3{chainman.GetConsensus().DIP0003Height};
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip())};
+    BOOST_REQUIRE(DeploymentActiveAt(*tip, chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003));
+    BOOST_REQUIRE_EQUAL(dip3, DIP3_ACTIVATION_HEIGHT);
+
+    // Block connection leaves the chain's diffs in the unflushed EvoDB root transaction.
+    // Commit it first so migration's own commit cannot write those diffs back over the converted ones.
+    {
+        LOCK(::cs_main);
+        BOOST_REQUIRE(setup.m_node.evodb->CommitRootTransaction());
+    }
+
+    CDBBatch batch{setup.m_node.evodb->GetRawDB()};
+    for (int height{dip3}; height <= tip->nHeight; ++height) {
+        const CBlockIndex* index{tip->GetAncestor(height)};
+        LegacyListDiff diff;
+        if (height == add_height) {
+            for (const auto& mn : registered) {
+                diff.added.push_back(make_registered(mn));
+            }
+        } else if (height == versioned_height) {
+            diff.updated.emplace_back(3, legacy_update(PK1_BAS, /*version_field=*/true, ProTxVersion::LegacyBLS));
+        } else if (height == drop_versioned_height) {
+            diff.removed.push_back(3);
+        } else if (height == unversioned_height) {
+            diff.updated.emplace_back(1, legacy_update(PK1_LEG, /*version_field=*/false, 0));
+            diff.updated.emplace_back(2, legacy_update(PK1_BAS, /*version_field=*/false, 0));
+        }
+        batch.Write(std::make_pair(legacy_db_key, index->GetBlockHash()), diff);
+    }
+    BOOST_REQUIRE(setup.m_node.evodb->GetRawDB().WriteBatch(batch));
+    {
+        LOCK(::cs_main);
+        BOOST_REQUIRE(dmnman.MigrateLegacyDiffs(tip));
+    }
+
+    auto read_diff = [&](int height) {
+        CDeterministicMNListDiff stored;
+        const uint256 hash{tip->GetAncestor(height)->GetBlockHash()};
+        BOOST_REQUIRE(setup.m_node.evodb->GetRawDB().Read(std::make_pair(diff_db_key, hash), stored));
+        BOOST_REQUIRE(!setup.m_node.evodb->GetRawDB().Exists(std::make_pair(legacy_db_key, hash)));
+        return stored;
+    };
+    const auto versioned{read_diff(versioned_height)};
+    const auto unversioned{read_diff(unversioned_height)};
+
+    struct Expectation {
+        const CDeterministicMNListDiff* stored;
+        uint64_t id;
+        const char* raw_hex;
+        const char* absent_hex;
+        CBLSPublicKey point;
+        uint16_t version;
+    };
+    const Expectation expected[]{
+        {&unversioned, 1, PK1_LEG, PK1_BAS, scalar_one, ProTxVersion::LegacyBLS},
+        {&unversioned, 2, PK1_BAS, PK1_LEG, scalar_one, ProTxVersion::BasicBLS},
+        {&versioned, 3, PK1_BAS, PK1_LEG, legacy_of_bas, ProTxVersion::LegacyBLS},
+    };
+    for (const auto& row : expected) {
+        const auto found{row.stored->updatedMNs.find(row.id)};
+        BOOST_REQUIRE(found != row.stored->updatedMNs.end());
+        const auto& diff{found->second};
+        BOOST_CHECK_EQUAL(diff.state.nVersion, row.version);
+        BOOST_CHECK(diff.state.OperatorKeyScheme() == ProTxVersion::GetBLSScheme(row.version));
+        BOOST_CHECK(diff.state.pubKeyOperator.Get() == row.point);
+        const auto encoded{diff.state.pubKeyOperator.Get().ToBytes(diff.state.OperatorKeyScheme())};
+        const auto raw{ParseHex(row.raw_hex)};
+        BOOST_CHECK_EQUAL_COLLECTIONS(encoded.begin(), encoded.end(), raw.begin(), raw.end());
+        CDataStream bytes{SER_DISK, CLIENT_VERSION};
+        bytes << diff;
+        ExpectEncoding(bytes.str(), row.raw_hex, row.absent_hex);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
@@ -4850,7 +5276,7 @@ BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
     BOOST_REQUIRE_EQUAL(pro_reg.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:1"), NetInfoStatus::Success);
     pro_reg.keyIDOwner = owner_key.GetPubKey().GetID();
     pro_reg.keyIDVoting = pro_reg.keyIDOwner;
-    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey(), /*specificLegacyScheme=*/false);
+    pro_reg.pubKeyOperator.Set(operator_key.GetPublicKey());
     pro_reg.scriptPayout = GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey()));
     pro_reg.collateralOutpoint.n = 0;
     pro_reg.platformNodeID.SetHex("00112233445566778899aabbccddeeff00112233");
@@ -4890,7 +5316,7 @@ BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
     tx_serv.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     const auto serv_spent = FundTransaction(chainman, tx_serv, setup.utxos, pro_reg.scriptPayout, COIN);
     pro_serv.inputsHash = CalcTxInputsHash(CTransaction(tx_serv));
-    pro_serv.sig = operator_key.Sign(::SerializeHash(pro_serv), /*specificLegacyScheme=*/false);
+    pro_serv.sig = operator_key.Sign(::SerializeHash(pro_serv));
     SetTxPayload(tx_serv, pro_serv);
     SignTransaction(tx_serv, serv_spent, setup.coinbaseKey);
     const CBlock good = setup.CreateBlock({tx_serv}, setup.coinbase_pk, chainman.ActiveChainstate());

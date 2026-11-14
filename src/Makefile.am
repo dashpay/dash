@@ -955,6 +955,7 @@ libbitcoin_consensus_a_SOURCES = \
   arith_uint256.h \
   bls/bls.cpp \
   bls/bls.h \
+  bls/scheme.h \
   consensus/amount.h \
   consensus/merkle.cpp \
   consensus/merkle.h \

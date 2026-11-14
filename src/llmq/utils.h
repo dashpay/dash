@@ -59,10 +59,12 @@ struct BlsCheck {
     std::vector<CBLSPublicKey> m_pubkeys;
     uint256 m_msg_hash;
     std::string m_id_string;
+    BLSScheme m_scheme{BLSScheme::Basic};
 
 public:
     BlsCheck();
-    BlsCheck(CBLSSignature sig, std::vector<CBLSPublicKey> pubkeys, uint256 msg_hash, std::string id_string);
+    BlsCheck(CBLSSignature sig, std::vector<CBLSPublicKey> pubkeys, uint256 msg_hash, std::string id_string,
+             BLSScheme scheme);
     ~BlsCheck();
 
     bool operator()();

@@ -50,8 +50,8 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_act
         }
     }
 
-    // The signature is deserialized lazily. Get() decodes it in the active scheme only and
-    // resets the wrapper on failure, which is what the eager parser did with bytes encoded
+    // The signature is deserialized lazily and is always basic. Get() resets the wrapper when
+    // the bytes are not a basic point, which is what the eager parser did with bytes encoded
     // in the opposite scheme; bytes that decode in neither scheme made it throw, so they
     // are rejected here.
     if (cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE) {

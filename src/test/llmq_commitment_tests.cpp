@@ -2,21 +2,32 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/llmq_tests.h>
+#include <test/util/masternode.h>
+#include <test/util/mining.h>
 #include <test/util/setup_common.h>
 
 #include <chain.h>
+#include <checkqueue.h>
 #include <consensus/validation.h>
+#include <core_io.h>
+#include <deploymentstatus.h>
+#include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
+#include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/utils.h>
 #include <logging.h>
 #include <node/context.h>
 #include <primitives/transaction.h>
+#include <script/standard.h>
 #include <streams.h>
 #include <util/check.h>
 #include <util/strencodings.h>
+#include <validation.h>
+#include <validationinterface.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -363,18 +374,18 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
     // Test deterministic hash generation
     uint256 hash1 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     // Same inputs should produce same hash
     uint256 hash2 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     // Different quorum hash should produce different hash
     uint256 hash3 = llmq::BuildCommitmentHash(TEST_PARAMS.type,
                                               GetTestQuorumHash(2), // Different
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     BOOST_CHECK(hash1 != hash2); // Different pubkeys
     BOOST_CHECK(hash1 != hash3);
@@ -384,13 +395,294 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
     CBLSPublicKey fixedPubKey = CreateRandomBLSPublicKey();
     uint256 hash4 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     uint256 hash5 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
                                               CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2));
+                                              GetTestQuorumHash(2), BLSScheme::Basic);
 
     BOOST_CHECK(hash4 == hash5);
+}
+
+namespace {
+
+CFinalCommitment NullSizedCommitment(uint16_t version, const CBLSPublicKey& pubkey)
+{
+    const auto params = Params().GetLLMQ(Consensus::LLMQType::LLMQ_50_60);
+    BOOST_REQUIRE(params);
+    CFinalCommitment commitment;
+    commitment.nVersion = version;
+    commitment.llmqType = params->type;
+    commitment.signers.assign(params->size, false);
+    commitment.validMembers.assign(params->size, false);
+    commitment.quorumPublicKey = pubkey;
+    return commitment;
+}
+
+CFinalCommitment RoundTripWithVersion(const CFinalCommitment& commitment, uint16_t wire_version)
+{
+    std::vector<unsigned char> buf;
+    CVectorWriter ds(SER_NETWORK, PROTOCOL_VERSION, buf, 0);
+    ds << commitment;
+    BOOST_REQUIRE_GE(buf.size(), 2U);
+    BOOST_REQUIRE_EQUAL(buf[0], static_cast<unsigned char>(commitment.nVersion));
+    BOOST_REQUIRE_EQUAL(buf[1], 0);
+    buf[0] = static_cast<unsigned char>(wire_version);
+    buf[1] = static_cast<unsigned char>(wire_version >> 8);
+    CDataStream in(buf, SER_NETWORK, PROTOCOL_VERSION);
+    CFinalCommitment out;
+    BOOST_CHECK_NO_THROW(in >> out);
+    BOOST_CHECK(in.empty());
+    return out;
+}
+
+} // namespace
+
+BOOST_AUTO_TEST_CASE(commitment_opposite_scheme_pubkey_deserializes_null)
+{
+    // Scalar 1's legacy encoding is canonical only under legacy. A basic-version
+    // commitment carrying those bytes must drop the key instead of throwing.
+    const auto legacy_only = NullSizedCommitment(CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION,
+                                                 SecretFromScalar(1).GetPublicKey());
+    const auto as_basic = RoundTripWithVersion(legacy_only, CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION);
+    BOOST_CHECK(!as_basic.quorumPublicKey.IsValid());
+    BOOST_CHECK(!as_basic.quorumSig.IsValid());
+    BOOST_CHECK(!as_basic.membersSig.IsValid());
+    BOOST_CHECK(as_basic.IsNull());
+    BOOST_CHECK(as_basic.VerifyNull());
+
+    // Scalar 2's basic encoding is canonical only under basic. Mirror case.
+    const auto basic_only = NullSizedCommitment(CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION,
+                                                SecretFromScalar(2).GetPublicKey());
+    const auto as_legacy = RoundTripWithVersion(basic_only, CFinalCommitment::LEGACY_BLS_NON_INDEXED_QUORUM_VERSION);
+    BOOST_CHECK(!as_legacy.quorumPublicKey.IsValid());
+    BOOST_CHECK(!as_legacy.quorumSig.IsValid());
+    BOOST_CHECK(!as_legacy.membersSig.IsValid());
+    BOOST_CHECK(as_legacy.IsNull());
+    BOOST_CHECK(as_legacy.VerifyNull());
+}
+
+BOOST_AUTO_TEST_CASE(commitment_mainnet_pre_v19_verifies_legacy_only)
+{
+    // Mainnet height 1898412, txid 2f9731e46562f18dd1b135b14433b3927e4d3ccc0fb89ecdf27ec8532b44b8d0.
+    const std::string raw_tx =
+        "03000600000000000000fd55010100acf71c00010004ecf84b2fa47aa7a68074c6002e40d27650465704c0e386700f0000000000000064"
+        "ffffffffffffffffffffffff0f64ffffffffffffffffffffffff0f0ee6b155297c084fd6ae7a1551ed69587479c8210007fd86275723a5"
+        "f1ea9816faa80da16d18563489e450b9e6fbbb880e1334987cccb3bda273adc5e9d0c335d664e9bb25208ac80e304c1fcdf207db827bd1"
+        "63b2a93ea99df01c01c4fb892fe1207ec35f126fc0fe6e52698f59d5005f03af5b0aafd109822d3e1ba616c63a0f0fb3081c4b615696cd"
+        "f2b28af910790b89791ebad4b747607195f91b95d4b60596c69aee3845cc49ff4818323d358f806458face507e60f8412792251a7d5b9b"
+        "edd62cb27dd48378dd97b52e585845b7c7fa9fe54afe024fb5ca481e38b5d10dd928dd3b459d0057cda002b52d4819f3e37b4cf2a1319d"
+        "a0c4142aff6d244109907c9757fed010503d746c4a6ec6e7";
+    CMutableTransaction mtx;
+    BOOST_REQUIRE(DecodeHexTx(mtx, raw_tx));
+    const auto payload = GetTxPayload<CFinalCommitmentTxPayload>(CTransaction{mtx});
+    BOOST_REQUIRE(payload);
+    const auto& qc = payload->commitment;
+    const auto json = qc.ToJson();
+    BOOST_CHECK_EQUAL(payload->nHeight, 1898412U);
+    BOOST_CHECK_EQUAL(json["version"].getInt<int>(), 1);
+    BOOST_CHECK_EQUAL(json["llmqType"].getInt<int>(), 4);
+    BOOST_CHECK_EQUAL(json["quorumHash"].get_str(), "000000000000000f7086e3c00457465076d2402e00c67480a6a77aa42f4bf8ec");
+    BOOST_CHECK_EQUAL(json["quorumPublicKey"].get_str(), "0ee6b155297c084fd6ae7a1551ed69587479c8210007fd86275723a5f1ea9"
+                                                         "816faa80da16d18563489e450b9e6fbbb88");
+    BOOST_CHECK_EQUAL(json["quorumVvecHash"].get_str(),
+                      "db07f2cd1f4c300ec88a2025bbe964d635c3d0e9c5ad73a2bdb3cc7c9834130e");
+    BOOST_CHECK_EQUAL(json["quorumSig"].get_str(), "827bd163b2a93ea99df01c01c4fb892fe1207ec35f126fc0fe6e52698f59d5005f0"
+                                                   "3af5b0aafd109822d3e1ba616c63a0f0fb3081c4b615696cdf2b28af910790b8979"
+                                                   "1ebad4b747607195f91b95d4b60596c69aee3845cc49ff4818323d358f");
+    BOOST_CHECK_EQUAL(json["validMembers"].get_str(), "ffffffffffffffffffffffff0f");
+    BOOST_CHECK_EQUAL(json["validMembersCount"].getInt<int>(), 100);
+
+    const uint256 hash_legacy{BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                  qc.quorumVvecHash, BLSScheme::Legacy)};
+    const uint256 hash_basic{BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey,
+                                                 qc.quorumVvecHash, BLSScheme::Basic)};
+    BOOST_CHECK(hash_legacy != hash_basic);
+    BOOST_CHECK(qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Legacy));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_legacy, BLSScheme::Basic));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, BLSScheme::Legacy));
+    BOOST_CHECK(!qc.quorumSig.VerifyInsecure(qc.quorumPublicKey, hash_basic, BLSScheme::Basic));
+}
+
+namespace {
+
+//! v19 activates at 150, between the LLMQ_TEST quorum bases at 120 and 168, and LLMQ_TEST is cut
+//! down to one member so a single masternode can sign a commitment. The base chain is the
+//! checkpointed 101 blocks; registration is mined afterwards.
+struct CommitmentSchemeSetup : public TestChainSetup {
+    CBLSSecretKey operator_key;
+
+    CommitmentSchemeSetup() :
+        TestChainSetup{101, ChainType::REGTEST, {"-dip3params=2:500", "-testactivationheight=v19@150", "-llmqtestparams=1:1"}}
+    {
+        // Two coinbases have to be mature before a 1000 DASH collateral can be funded.
+        mineBlocks(8);
+        auto utxos = BuildSimpleUtxoMap(m_coinbase_txns);
+        CKey owner_key;
+        const auto tx_reg = CreateProRegTx(*Assert(m_node.chainman), utxos, /*port=*/21001, GenerateRandomAddress(),
+                                           coinbaseKey, owner_key, operator_key);
+        CreateAndProcessBlock({tx_reg}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    }
+
+    //! Member and quorum signatures are chosen separately. Passing the same scheme for both matches
+    //! a commitment signed entirely under one scheme.
+    CFinalCommitment MakeCommitment(const CBlockIndex* base, BLSScheme member_scheme, BLSScheme quorum_scheme) const
+    {
+        const auto& chainman = *Assert(m_node.chainman);
+        const auto& consensus = chainman.GetConsensus();
+        const auto llmq_params = *Assert(Params().GetLLMQ(Consensus::LLMQType::LLMQ_TEST));
+        CFinalCommitment qc(llmq_params, base->GetBlockHash());
+        qc.nVersion = CFinalCommitment::GetVersion(/*is_rotation_enabled=*/false,
+                                                   DeploymentActiveAfter(base, consensus, Consensus::DEPLOYMENT_V19));
+        qc.quorumIndex = 0;
+        qc.signers.assign(llmq_params.size, true);
+        qc.validMembers.assign(llmq_params.size, true);
+        qc.quorumPublicKey = operator_key.GetPublicKey();
+        const uint256 member_hash = BuildCommitmentHash(llmq_params.type, qc.quorumHash, qc.validMembers,
+                                                        qc.quorumPublicKey, qc.quorumVvecHash, member_scheme);
+        const uint256 quorum_hash = BuildCommitmentHash(llmq_params.type, qc.quorumHash, qc.validMembers,
+                                                        qc.quorumPublicKey, qc.quorumVvecHash, quorum_scheme);
+        qc.membersSig = SignBLS(operator_key, member_hash, member_scheme);
+        qc.quorumSig = SignBLS(operator_key, quorum_hash, quorum_scheme);
+        return qc;
+    }
+};
+
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(commitment_signatures_follow_the_given_scheme, CommitmentSchemeSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    auto& dmnman = *Assert(m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+
+    mineBlocks(168 - WITH_LOCK(::cs_main, return chainman.ActiveHeight()));
+    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+
+    const CBlockIndex* legacy_base{WITH_LOCK(::cs_main, return chainman.ActiveChain()[120])};
+    const CBlockIndex* basic_base{WITH_LOCK(::cs_main, return chainman.ActiveChain()[168])};
+    const auto& consensus = chainman.GetConsensus();
+    BOOST_REQUIRE(!DeploymentActiveAfter(legacy_base, consensus, Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(DeploymentActiveAfter(basic_base, consensus, Consensus::DEPLOYMENT_V19));
+
+    // The commitment's version, and with it the encoding of its BLS fields, follows the quorum
+    // base. The scheme it is signed under is chosen separately.
+    auto verify = [&](const CBlockIndex* base, BLSScheme sign_scheme, BLSScheme verify_scheme) {
+        const UtilParameters util_params{dmnman, *Assert(m_node.llmq_ctx)->qsnapman, chainman, base};
+        const CFinalCommitment qc{MakeCommitment(base, sign_scheme, sign_scheme)};
+        const bool direct{qc.Verify(util_params, verify_scheme)};
+
+        // Block validation queues the checks instead of running them inline.
+        CCheckQueue<utils::BlsCheck> queue{4};
+        CCheckQueueControl<utils::BlsCheck> control{&queue};
+        const bool queued{qc.VerifySignatureAsync(util_params, &control, verify_scheme) && control.Wait()};
+        BOOST_CHECK_EQUAL(direct, queued);
+        return direct;
+    };
+
+    struct Case {
+        const CBlockIndex* base;
+        BLSScheme sign_scheme;
+        BLSScheme verify_scheme;
+        bool expected;
+    };
+    const Case cases[]{
+        {legacy_base, BLSScheme::Legacy, BLSScheme::Legacy, true},
+        {legacy_base, BLSScheme::Legacy, BLSScheme::Basic, false},
+        {legacy_base, BLSScheme::Basic, BLSScheme::Legacy, false},
+        // A legacy-version commitment mined after v19 is verified under basic.
+        {legacy_base, BLSScheme::Basic, BLSScheme::Basic, true},
+        {basic_base, BLSScheme::Basic, BLSScheme::Basic, true},
+        {basic_base, BLSScheme::Legacy, BLSScheme::Basic, false},
+    };
+    for (const auto& c : cases) {
+        BOOST_TEST_CONTEXT("base=" << c.base->nHeight << " signed_legacy=" << (c.sign_scheme == BLSScheme::Legacy)
+                                   << " verified_legacy=" << (c.verify_scheme == BLSScheme::Legacy))
+        {
+            BOOST_CHECK_EQUAL(verify(c.base, c.sign_scheme, c.verify_scheme), c.expected);
+        }
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(mined_commitment_scheme_follows_the_block, CommitmentSchemeSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    auto& dmnman = *Assert(m_node.dmnman);
+    auto& qblockman = *Assert(m_node.llmq_ctx->quorum_block_processor);
+    const CScript coinbase_pk = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+    const auto& consensus = chainman.GetConsensus();
+
+    const auto tip_height = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveHeight()); };
+    mineBlocks(129 - tip_height());
+    BOOST_REQUIRE_EQUAL(tip_height(), 129);
+    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+
+    // A size-1 quorum checks the member signature inline and returns before queueing the quorum
+    // signature. ProcessBlock only fails the block from the queue, so the member signature is made
+    // under the block scheme and the quorum signature is the one under test.
+    // A wrong-scheme commitment is spliced into the assembler's block. It is never cached, so a
+    // rejected fully-signed commitment cannot block the good one.
+    auto reject_reason = [&](const CFinalCommitment& qc) {
+        const int height = tip_height() + 1;
+        bool replaced = false;
+        CBlock block = CreateBlock({}, coinbase_pk, chainman.ActiveChainstate(), [&](CBlock& assembled) {
+            for (auto& tx : assembled.vtx) {
+                if (!tx->IsSpecialTxVersion() || tx->nType != TRANSACTION_QUORUM_COMMITMENT) continue;
+                const auto payload = GetTxPayload<CFinalCommitmentTxPayload>(*tx);
+                if (!payload || payload->commitment.llmqType != Consensus::LLMQType::LLMQ_TEST) continue;
+                CFinalCommitmentTxPayload next;
+                next.nVersion = CFinalCommitmentTxPayload::CURRENT_VERSION;
+                next.nHeight = height;
+                next.commitment = qc;
+                CMutableTransaction mtx{*tx};
+                SetTxPayload(mtx, next);
+                tx = MakeTransactionRef(std::move(mtx));
+                replaced = true;
+                break;
+            }
+        });
+        BOOST_REQUIRE(replaced);
+
+        const auto shared = std::make_shared<const CBlock>(block);
+        BlockValidationStateCatcher catcher{shared->GetHash()};
+        const int tip = tip_height();
+        RegisterValidationInterface(&catcher);
+        chainman.ProcessNewBlock(shared, /*force_processing=*/true, /*new_block=*/nullptr);
+        UnregisterValidationInterface(&catcher);
+        SyncWithValidationInterfaceQueue();
+        BOOST_CHECK_EQUAL(tip_height(), tip);
+        BOOST_REQUIRE(catcher.m_state);
+        return catcher.m_state->GetRejectReason();
+    };
+
+    const auto accept = [&](const CFinalCommitment& qc, const CBlockIndex* base) {
+        BOOST_REQUIRE(qblockman.AddMineableCommitment(qc));
+        const int tip = tip_height();
+        CreateAndProcessBlock({}, coinbase_pk);
+        BOOST_CHECK_EQUAL(tip_height(), tip + 1);
+        BOOST_CHECK(WITH_LOCK(::cs_main,
+                              return qblockman.HasMinedCommitment(Consensus::LLMQType::LLMQ_TEST, base->GetBlockHash())));
+    };
+
+    const CBlockIndex* base_120{WITH_LOCK(::cs_main, return chainman.ActiveChain()[120])};
+    BOOST_REQUIRE(!DeploymentActiveAfter(base_120, consensus, Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(BLSSchemeAfter(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), consensus) == BLSScheme::Legacy);
+    BOOST_CHECK_EQUAL(reject_reason(MakeCommitment(base_120, BLSScheme::Legacy, BLSScheme::Basic)), "bad-qc-invalid");
+    BOOST_CHECK(!WITH_LOCK(::cs_main, return qblockman.HasMinedCommitment(Consensus::LLMQType::LLMQ_TEST,
+                                                                          base_120->GetBlockHash())));
+    accept(MakeCommitment(base_120, BLSScheme::Legacy, BLSScheme::Legacy), base_120);
+
+    mineBlocks(153 - tip_height());
+    BOOST_REQUIRE_EQUAL(tip_height(), 153);
+    dmnman.UpdatedBlockTip(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
+    const CBlockIndex* base_144{WITH_LOCK(::cs_main, return chainman.ActiveChain()[144])};
+    BOOST_REQUIRE(!DeploymentActiveAfter(base_144, consensus, Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(BLSSchemeAfter(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), consensus) == BLSScheme::Basic);
+    const auto basic_signed = MakeCommitment(base_144, BLSScheme::Basic, BLSScheme::Basic);
+    BOOST_CHECK_EQUAL(basic_signed.nVersion,
+                      CFinalCommitment::GetVersion(/*is_rotation_enabled=*/false, /*is_basic_scheme_active=*/false));
+    BOOST_CHECK_EQUAL(reject_reason(MakeCommitment(base_144, BLSScheme::Basic, BLSScheme::Legacy)), "bad-qc-invalid");
+    accept(basic_signed, base_144);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
