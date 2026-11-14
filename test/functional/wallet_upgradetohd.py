@@ -214,6 +214,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         assert_raises_rpc_error(-13, "Error: Wallet encrypted but passphrase not supplied to RPC.", node.upgradetohd, mnemonic[0])
         assert_raises_rpc_error(-14, "Error: The wallet passphrase entered was incorrect", node.upgradetohd, mnemonic[0], "", "111")
         assert node.upgradetohd(mnemonic[0], "", walletpass)
+        assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", node.bls, 'operatorkey')
         if not self.options.descriptors:
             assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", node.dumphdinfo)
         else:
@@ -245,6 +246,21 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         w11 = node.get_wallet_rpc("wallet-11")
         w11.upgradetohd(custom_mnemonic)
         assert_equal(11, w11.getbalance())
+
+        self.log.info("Operator keys derive from the restored mnemonic in order and are retrievable by index; legacy wallets are refused")
+        if self.options.descriptors:
+            key_0 = w11.bls('operatorkey')
+            assert_equal(key_0, {
+                'index': 0,
+                'secret': '60a5ae2824bf8dcd7b37b751b73ba419d0ebfe6f6f58aaf6a26eaa9ec43fd686',
+                'public': 'a5776ac29c3f02a57157d05303248615ce4676a8fc06e61602ecc5cf3d6c0ecbf6a438edd5b6f3d51941cea51894065b',
+                'scheme': 'basic',
+            })
+            assert_equal(w11.bls('operatorkey')['secret'], '51a5ec2e84ef20a7ab8cb6b7d591711604973abc2528ebb7cd2ae835833eb1c5')
+            assert_equal(w11.bls('operatorkey', 0), key_0)
+            assert_raises_rpc_error(-8, "operator key 5 has not been issued by this wallet", w11.bls, 'operatorkey', 5)
+        else:
+            assert_raises_rpc_error(-4, "Operator keys need a descriptor wallet", w11.bls, 'operatorkey')
         w11.unloadwallet()
 
         node.createwallet("wallet-12", blank=True)
@@ -254,6 +270,9 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         assert_equal(get_mnemonic(w12)[0], custom_mnemonic)
         assert_equal(get_mnemonic(w12)[1], "custom-passphrase")
         assert_equal(12, w12.getbalance())
+        if self.options.descriptors:
+            self.log.info("The mnemonic passphrase changes the operator keys")
+            assert_equal(w12.bls('operatorkey')['secret'], '6ab36f50b340904e85d52fbab8223459b1d0b415ac950d7c02eb2b1503d808a4')
         w12.unloadwallet()
 
         self.log.info("Check if null character at the end of mnemonic-passphrase matters")
