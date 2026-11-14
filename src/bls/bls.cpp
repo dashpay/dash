@@ -440,7 +440,7 @@ static void secure_free(void* p)
 
     uint8_t* ptr = reinterpret_cast<uint8_t*>(p) - sizeof(size_t);
     size_t n = *reinterpret_cast<size_t*>(ptr);
-    return get_secure_allocator().deallocate(ptr, n);
+    return get_secure_allocator().deallocate(ptr, n + sizeof(size_t));
 }
 #endif
 

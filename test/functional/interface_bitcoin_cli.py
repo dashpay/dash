@@ -78,6 +78,9 @@ class TestBitcoinCli(BitcoinTestFramework):
 
     def run_test(self):
         """Main test logic"""
+        self.log.info("Test -printcrashinfo")
+        assert_equal(self.nodes[0].cli('-printcrashinfo=invalid').send_cli(), 'Error while deserializing crash info')
+
         self.generate(self.nodes[0], BLOCKS)
 
         self.log.info("Compare responses from getblockchaininfo RPC and `dash-cli getblockchaininfo`")

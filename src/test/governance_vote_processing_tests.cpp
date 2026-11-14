@@ -28,6 +28,7 @@
 #include <util/time.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <version.h>
 
 #include <test/util/index.h>
 #include <test/util/masternode.h>
@@ -339,10 +340,16 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
     BOOST_CHECK_EQUAL(govman.GetCurrentVotes(parent_hash, mn_collateral).size(), 1U);
     BOOST_CHECK(govman.GetOrphanVoteObjectHashes().empty());
-    // Known gap, pinned here so a fix has to update this test: CheckOrphanVotes() applies the
-    // vote to the object but never indexes it in cmapVoteToObject, so the vote inv it relays
-    // during the replay cannot be served to a peer that requests it.
-    BOOST_CHECK(!govman.HaveVoteForHash(vote.GetHash()));
+    BOOST_CHECK(govman.HaveVoteForHash(vote.GetHash()));
+    CDataStream serialized_vote{SER_NETWORK, PROTOCOL_VERSION};
+    BOOST_CHECK(govman.SerializeVoteForHash(vote.GetHash(), serialized_vote));
+    if (!serialized_vote.empty()) {
+        CGovernanceVote served_vote;
+        serialized_vote >> served_vote;
+        BOOST_CHECK_EQUAL(served_vote.GetHash(), vote.GetHash());
+        BOOST_CHECK(served_vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
+        BOOST_CHECK(serialized_vote.empty());
+    }
 
     // A peer re-sending the same vote must not be punished for it.
     CGovernanceException replay_exception;

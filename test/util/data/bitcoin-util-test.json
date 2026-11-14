@@ -1,4 +1,9 @@
 [
+  { "exec": "./dash-tx",
+    "args": ["-printcrashinfo=invalid"],
+    "return_code": 0,
+    "description": "Print crash information and exit successfully"
+  },
   { "exec": "./dash-util",
     "args": ["foo"],
     "return_code": 1,

@@ -5,8 +5,17 @@
 """Tests around dash governance."""
 
 import json
+import struct
 
-from test_framework.messages import uint256_to_string
+from test_framework.messages import (
+    MSG_GOVERNANCE_OBJECT,
+    MSG_GOVERNANCE_OBJECT_VOTE,
+    msg_generic,
+    ser_string,
+    ser_uint256,
+    uint256_to_string,
+)
+from test_framework.p2p import P2PInterface, p2p_lock
 from test_framework.test_framework import (
     DashTestFramework,
     MasternodeInfo,
@@ -15,6 +24,18 @@ from test_framework.governance import have_trigger_for_height, prepare_object
 from test_framework.util import assert_equal, satoshi_round
 
 GOVERNANCE_UPDATE_MIN = 60 * 60 # src/governance/object.h
+
+
+class GovernanceSyncPeer(P2PInterface):
+    def __init__(self):
+        super().__init__()
+        self.governance_invs = set()
+
+    def on_inv(self, message):
+        for inv in message.inv:
+            if inv.type in (MSG_GOVERNANCE_OBJECT, MSG_GOVERNANCE_OBJECT_VOTE):
+                self.governance_invs.add((inv.type, inv.hash))
+
 
 class DashGovernanceTest (DashTestFramework):
     def add_options(self, parser):
@@ -57,6 +78,28 @@ class DashGovernanceTest (DashTestFramework):
                     assert False
 
         assert_equal(payments_found, 2)
+
+    def check_govsync_is_peer_local(self):
+        node = self.nodes[0]
+        self.log.info("Governance sync inventories go only to the requesting peer")
+        # Flush ordinary announcements before connecting peers that have never seen these inventories.
+        self.bump_mocktime(1)
+        for object_hash, inv_type, expected_hashes in (
+            (0, MSG_GOVERNANCE_OBJECT, {int(h, 16) for h in node.gobject("list")}),
+            (int(self.p0_hash, 16), MSG_GOVERNANCE_OBJECT_VOTE,
+             {int(h, 16) for h in node.gobject("getcurrentvotes", self.p0_hash)}),
+        ):
+            assert expected_hashes
+            requester = node.add_p2p_connection(GovernanceSyncPeer())
+            bystander = node.add_p2p_connection(GovernanceSyncPeer())
+            # A one-byte, all-zero bloom filter requests every vote and is distinct from an object fetch.
+            bloom_filter = ser_string(b"\x00") + struct.pack("<IIB", 1, 0, 0)
+            requester.send_and_ping(msg_generic(b"govsync", ser_uint256(object_hash) + bloom_filter))
+            requester.wait_until(lambda: requester.governance_invs == {(inv_type, h) for h in expected_hashes})
+            bystander.sync_with_ping()
+            with p2p_lock:
+                assert_equal(bystander.governance_invs, set())
+            node.disconnect_p2ps()
 
     def run_test(self):
         self.log.info("Start testing...")
@@ -166,6 +209,8 @@ class DashGovernanceTest (DashTestFramework):
         assert_equal(self.nodes[0].gobject("get", self.p2_hash)["FundingResult"]["NoCount"], 2)
         self.wait_until(lambda: self.nodes[1].gobject("get", self.p2_hash)["FundingResult"]["YesCount"] == self.mn_count - 2, timeout = 5)
         self.wait_until(lambda: self.nodes[1].gobject("get", self.p2_hash)["FundingResult"]["NoCount"] == 2, timeout = 5)
+
+        self.check_govsync_is_peer_local()
 
         assert_equal(len(self.nodes[0].gobject("list", "valid", "triggers")), 0)
         # 5 nodes voted on 3 proposals so we expect to see 15 votes total
