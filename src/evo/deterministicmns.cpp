@@ -1107,7 +1107,7 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
                 (stateDiff.fields & CDeterministicMNStateDiff::Field_nVersion) != 0) {
                 continue;
             }
-            BLSScheme scheme{BLSScheme::Legacy};
+            BLSScheme scheme{BLSScheme::Legacy}; // NOLINT(bls-legacy-scheme)
             if (const auto dmn = snapshot.GetMNByInternalId(internalId)) {
                 scheme = dmn->pdmnState->OperatorKeyScheme();
             } else if (const auto added = std::find_if(legacyDiff.addedMNs.begin(), legacyDiff.addedMNs.end(),
@@ -1119,6 +1119,7 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
             } else {
                 throw std::runtime_error(strprintf("%s: can't find an updated masternode, id=%d", __func__, internalId));
             }
+            // NOLINTNEXTLINE(bls-legacy-scheme)
             ReinterpretOperatorKey(stateDiff.state.pubKeyOperator, BLSScheme::Legacy, scheme);
         }
 

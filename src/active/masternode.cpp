@@ -59,6 +59,7 @@ CActiveMasternodeManager::CActiveMasternodeManager(CConnman& connman, CDetermini
 {
     assert(sk.IsValid()); /* We can assume pk is valid if sk is valid */
     LogPrintf("MASTERNODE:\n  blsPubKeyOperator legacy: %s\n  blsPubKeyOperator basic: %s\n",
+              // NOLINTNEXTLINE(bls-legacy-scheme)
               m_operator_pk.ToString(BLSScheme::Legacy), m_operator_pk.ToString(BLSScheme::Basic));
 }
 

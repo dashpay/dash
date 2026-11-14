@@ -406,6 +406,7 @@ static CKeyID ParsePubKeyIDFromAddress(const std::string& strAddress, const std:
 static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string& paramName, bool specific_legacy_bls_scheme)
 {
     CBLSPublicKey pubKey;
+    // NOLINTNEXTLINE(bls-legacy-scheme)
     if (!pubKey.SetHexStr(hexKey, specific_legacy_bls_scheme ? BLSScheme::Legacy : BLSScheme::Basic)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS public key, not %s", paramName, hexKey));
     }
@@ -2434,6 +2435,7 @@ static RPCHelpMan bls_generate()
             }
             UniValue ret(UniValue::VOBJ);
             ret.pushKV("secret", sk.ToString());
+            // NOLINTNEXTLINE(bls-legacy-scheme)
             ret.pushKV("public", sk.GetPublicKey().ToString(legacy ? BLSScheme::Legacy : BLSScheme::Basic));
             std::string bls_scheme_str = legacy ? "legacy" : "basic";
             ret.pushKV("scheme", bls_scheme_str);
@@ -2470,6 +2472,7 @@ static RPCHelpMan bls_fromsecret()
             CBLSSecretKey sk = ParseBLSSecretKey(request.params[0].get_str(), "secretKey");
             UniValue ret(UniValue::VOBJ);
             ret.pushKV("secret", sk.ToString());
+            // NOLINTNEXTLINE(bls-legacy-scheme)
             ret.pushKV("public", sk.GetPublicKey().ToString(legacy ? BLSScheme::Legacy : BLSScheme::Basic));
             std::string bls_scheme_str = legacy ? "legacy" : "basic";
             ret.pushKV("scheme", bls_scheme_str);

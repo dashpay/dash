@@ -1268,7 +1268,7 @@ static RPCHelpMan verifychainlock()
         }
     } else {
         if (!sig.SetHexStr(request.params[1].get_str(), BLSScheme::Basic) &&
-            !sig.SetHexStr(request.params[1].get_str(), BLSScheme::Legacy)) {
+            !sig.SetHexStr(request.params[1].get_str(), BLSScheme::Legacy)) { // NOLINT(bls-legacy-scheme)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
         }
     }
@@ -1388,7 +1388,7 @@ static RPCHelpMan submitchainlock()
 
     CBLSSignature sig;
     if (!sig.SetHexStr(request.params[1].get_str(), BLSScheme::Basic) &&
-        !sig.SetHexStr(request.params[1].get_str(), BLSScheme::Legacy)) {
+        !sig.SetHexStr(request.params[1].get_str(), BLSScheme::Legacy)) { // NOLINT(bls-legacy-scheme)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
     }
 
