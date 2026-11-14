@@ -550,8 +550,8 @@ void CGovernanceObject::SetSignature(Span<const uint8_t> sig)
 bool CGovernanceObject::CheckSignature(const CBLSPublicKey& pubKey) const
 {
     CBLSSignature sig;
-    sig.SetBytes(m_obj.vchSig, false);
-    if (!sig.VerifyInsecure(pubKey, GetSignatureHash(), false)) {
+    sig.SetBytes(m_obj.vchSig);
+    if (!sig.VerifyInsecure(pubKey, GetSignatureHash())) {
         LogPrintf("CGovernanceObject::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
@@ -747,7 +747,8 @@ bool CGovernanceObject::IsValidLocally(const CDeterministicMNList& tip_mn_list, 
 
         // Check that we have a valid MN signature
         if (!CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
-            strError = "Invalid masternode signature for: " + strOutpoint + ", pubkey = " + dmn->pdmnState->pubKeyOperator.ToString();
+            strError = "Invalid masternode signature for: " + strOutpoint +
+                       ", pubkey = " + dmn->pdmnState->pubKeyOperator.ToString(dmn->pdmnState->OperatorKeyScheme());
             return false;
         }
 

@@ -886,30 +886,32 @@ void CGovernanceManager::CheckPostponedObjects()
     AssertLockNotHeld(cs_relay);
     if (!m_mn_sync.IsSynced()) return;
 
-    // Check postponed proposals
-    for (auto it = mapPostponedObjects.begin(); it != mapPostponedObjects.end();) {
-        const uint256& nHash = it->first;
-        auto& govobj = *Assert(it->second);
+    // Check postponed proposals, unless their collateral can't be looked up yet: a failed lookup drops them
+    if (!IsCollateralSourceBehind()) {
+        for (auto it = mapPostponedObjects.begin(); it != mapPostponedObjects.end();) {
+            const uint256& nHash = it->first;
+            auto& govobj = *Assert(it->second);
 
-        assert(govobj.GetObjectType() != GovernanceObject::TRIGGER);
+            assert(govobj.GetObjectType() != GovernanceObject::TRIGGER);
 
-        std::string strError;
-        bool fMissingConfirmations;
-        if (govobj.IsCollateralValid(m_collateral, m_chainman, strError, fMissingConfirmations)) {
-            if (govobj.IsValidLocally(m_dmnman.GetListAtChainTip(), m_chainman, /*collateral=*/nullptr, strError, false)) {
-                AddGovernanceObjectInternal(govobj, "<postponed>");
-            } else {
-                LogPrint(BCLog::GOBJECT, "CGovernanceManager::CheckPostponedObjects -- %s invalid\n", nHash.ToString());
+            std::string strError;
+            bool fMissingConfirmations;
+            if (govobj.IsCollateralValid(m_collateral, m_chainman, strError, fMissingConfirmations)) {
+                if (govobj.IsValidLocally(m_dmnman.GetListAtChainTip(), m_chainman, /*collateral=*/nullptr, strError, false)) {
+                    AddGovernanceObjectInternal(govobj, "<postponed>");
+                } else {
+                    LogPrint(BCLog::GOBJECT, "CGovernanceManager::CheckPostponedObjects -- %s invalid\n", nHash.ToString());
+                }
+
+            } else if (fMissingConfirmations) {
+                // wait for more confirmations
+                ++it;
+                continue;
             }
 
-        } else if (fMissingConfirmations) {
-            // wait for more confirmations
-            ++it;
-            continue;
+            // remove processed or invalid object from the queue
+            mapPostponedObjects.erase(it++);
         }
-
-        // remove processed or invalid object from the queue
-        mapPostponedObjects.erase(it++);
     }
 
 

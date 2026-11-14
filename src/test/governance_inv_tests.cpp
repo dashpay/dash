@@ -4,6 +4,7 @@
 
 #include <arith_uint256.h>
 #include <common/bloom.h>
+#include <evo/evodb.h>
 #include <governance/collateral.h>
 #include <governance/governance.h>
 #include <governance/net_governance.h>
@@ -40,8 +41,15 @@ namespace {
 //! Knows no collateral, like a synced index on a chain without fee burns
 struct EmptyCollateralSource final : public governance::CollateralSource {
     std::atomic<bool> synced{true};
+    //! While not negative, how many more queries report synced before the source reports behind
+    mutable std::atomic<int> synced_queries{-1};
 
-    bool IsCollateralSynced() const override { return synced; }
+    bool IsCollateralSynced() const override
+    {
+        int left{synced_queries};
+        while (left > 0 && !synced_queries.compare_exchange_weak(left, left - 1)) {}
+        return left < 0 ? synced.load() : left > 0;
+    }
     std::optional<governance::CollateralInfo> FindCollateral(const uint256&) const override { return std::nullopt; }
 };
 
@@ -197,6 +205,7 @@ BOOST_FIXTURE_TEST_SUITE(governance_inv_tests, GovernanceInvSetup)
 
 BOOST_AUTO_TEST_CASE(per_object_vote_sync_is_fulfilled_request_limited)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     // NetGovernance::ProcessMessage ignores MNGOVERNANCESYNC until sync is
@@ -390,6 +399,7 @@ BOOST_AUTO_TEST_CASE(governance_objects_require_peer_announcement_or_request)
 
 BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -465,6 +475,15 @@ BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
     }
     m_node.peerman->SendMessages(peer.get());
     BOOST_CHECK_EQUAL(CountQueuedInventory(*peer, object_inv, NetMsgType::GETDATA), 1U);
+
+    // A snapshot activation after the message gate leaves the index behind: the object is dropped without penalty
+    m_collateral.synced_queries = 1;
+    ProcessGovernanceObject(net_gov, *peer, govobj);
+    BOOST_CHECK(!m_node.govman->HaveObjectForHash(govobj.GetHash()));
+    BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 0);
+    m_collateral.synced_queries = -1;
+
+    // The request survived that, so the object sent again is processed
     ProcessGovernanceObject(net_gov, *peer, govobj);
     BOOST_CHECK(!m_node.govman->HaveObjectForHash(govobj.GetHash()));
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 20);
@@ -478,6 +497,7 @@ BOOST_AUTO_TEST_CASE(governance_objects_wait_for_the_collateral_index)
 
 BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -532,6 +552,7 @@ BOOST_AUTO_TEST_CASE(governance_votes_require_peer_announcement_or_request)
 // survive so a retransmit after sync is still accepted (the consume happens after the sync gate).
 BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -573,6 +594,7 @@ BOOST_AUTO_TEST_CASE(governance_vote_authorization_survives_unsynced_drop)
 // A vote whose parent object is unknown must prove masternode authorship before it is cached.
 BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);
@@ -609,6 +631,7 @@ BOOST_AUTO_TEST_CASE(orphan_votes_require_a_valid_masternode_signature)
 // happens to have arrived first.
 BOOST_AUTO_TEST_CASE(invalid_vote_is_scored_alike_with_and_without_a_parent_object)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto& chainman = static_cast<TestChainstateManager&>(*m_node.chainman);

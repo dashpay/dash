@@ -315,8 +315,7 @@ static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::str
 {
     CBLSSecretKey secKey;
 
-    // Actually, bool flag for bls::PrivateKey has other meaning (modOrder)
-    if (!secKey.SetHexStr(hexKey, false)) {
+    if (!secKey.SetHexStr(hexKey)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS secret key", paramName));
     }
     return secKey;
@@ -407,7 +406,7 @@ static CKeyID ParsePubKeyIDFromAddress(const std::string& strAddress, const std:
 static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string& paramName, bool specific_legacy_bls_scheme)
 {
     CBLSPublicKey pubKey;
-    if (!pubKey.SetHexStr(hexKey, specific_legacy_bls_scheme)) {
+    if (!pubKey.SetHexStr(hexKey, specific_legacy_bls_scheme ? BLSScheme::Legacy : BLSScheme::Basic)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS public key, not %s", paramName, hexKey));
     }
     return pubKey;
@@ -1718,10 +1717,11 @@ static RPCHelpMan protx_list()
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
         }
 
-        std::set<COutPoint> setOutpts;
-        for (const auto& outpt : wallet->ListProTxCoins()) {
-            setOutpts.emplace(outpt);
+        const auto protx_coins{wallet->ListProTxCoins()};
+        if (!protx_coins) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Masternode list is not available yet");
         }
+        const std::set<COutPoint> setOutpts{protx_coins->begin(), protx_coins->end()};
 
         CDeterministicMNList mnList = dmnman.GetListForBlock(chainman.ActiveChain()[height]);
         mnList.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
@@ -2426,17 +2426,17 @@ static RPCHelpMan bls_generate()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
             CBLSSecretKey sk;
             sk.MakeNewKey();
-            bool bls_legacy_scheme{false};
+            bool legacy{false};
             if (!request.params[0].isNull()) {
                 if (!IsDeprecatedRPCEnabled("legacy_mn")) {
                     throw std::runtime_error("DEPRECATED: Pass config option -deprecatedrpc=legacy_mn to set this argument");
                 }
-                bls_legacy_scheme = ParseBoolV(request.params[0], "bls_legacy_scheme");
+                legacy = ParseBoolV(request.params[0], "legacy");
             }
             UniValue ret(UniValue::VOBJ);
             ret.pushKV("secret", sk.ToString());
-            ret.pushKV("public", sk.GetPublicKey().ToString(bls_legacy_scheme));
-            std::string bls_scheme_str = bls_legacy_scheme ? "legacy" : "basic";
+            ret.pushKV("public", sk.GetPublicKey().ToString(legacy ? BLSScheme::Legacy : BLSScheme::Basic));
+            std::string bls_scheme_str = legacy ? "legacy" : "basic";
             ret.pushKV("scheme", bls_scheme_str);
             return ret;
         },
@@ -2464,15 +2464,15 @@ static RPCHelpMan bls_fromsecret()
         RPCExamples{
             HelpExampleCli("bls fromsecret", "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
-            bool bls_legacy_scheme{false};
+            bool legacy{false};
             if (!request.params[1].isNull()) {
-                bls_legacy_scheme = ParseBoolV(request.params[1], "bls_legacy_scheme");
+                legacy = ParseBoolV(request.params[1], "legacy");
             }
             CBLSSecretKey sk = ParseBLSSecretKey(request.params[0].get_str(), "secretKey");
             UniValue ret(UniValue::VOBJ);
             ret.pushKV("secret", sk.ToString());
-            ret.pushKV("public", sk.GetPublicKey().ToString(bls_legacy_scheme));
-            std::string bls_scheme_str = bls_legacy_scheme ? "legacy" : "basic";
+            ret.pushKV("public", sk.GetPublicKey().ToString(legacy ? BLSScheme::Legacy : BLSScheme::Basic));
+            std::string bls_scheme_str = legacy ? "legacy" : "basic";
             ret.pushKV("scheme", bls_scheme_str);
             return ret;
         },

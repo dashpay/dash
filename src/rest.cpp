@@ -11,10 +11,11 @@
 
 #include <blockfilter.h>
 #include <chain.h>
-#include <chainparams.h>
 #include <chainlock/chainlock.h>
+#include <chainparams.h>
 #include <context.h>
 #include <core_io.h>
+#include <evo/evodb.h>
 #include <httpserver.h>
 #include <index/blockfilterindex.h>
 #include <index/txindex.h>
@@ -1066,7 +1067,17 @@ static const struct {
 void StartREST(const CoreContext& context)
 {
     for (const auto& up : uri_prefixes) {
-        auto handler = [context, up](HTTPRequest* req, const std::string& prefix) { return up.handler(context, req, prefix); };
+        auto handler = [context, up](HTTPRequest* req, const std::string& prefix) {
+            // Like an RPC call, a REST request serves the active chain, and
+            // this node's Evo state failing it is a local error.
+            const auto* node{GetContext<node::NodeContext>(context)};
+            try {
+                const ActiveEvoViewScope evo_view{node ? node->evodb_for_dispatch.load() : nullptr};
+                return up.handler(context, req, prefix);
+            } catch (const evo::LocalStateError& e) {
+                return RESTERR(req, HTTP_INTERNAL_SERVER_ERROR, e.what());
+            }
+        };
         RegisterHTTPHandler(up.prefix, false, handler);
     }
 }

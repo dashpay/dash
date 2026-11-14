@@ -391,7 +391,7 @@ bool PreVerifyBatchedSigShares(const CSigSharesNodeState::SessionInfo& session, 
             return false;
         }
 
-        if (quorumMember >= session.quorum->members.size()) {
+        if (quorumMember >= session.quorum->Members().size()) {
             LogPrint(BCLog::LLMQ_SIGS, "%s -- quorumMember out of bounds\n", __func__);
             return false;
         }
@@ -477,7 +477,7 @@ bool CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
         return true;
     }
 
-    if (sigShare.getQuorumMember() >= quorum->members.size()) {
+    if (sigShare.getQuorumMember() >= quorum->Members().size()) {
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorumMember out of bounds\n", __func__);
         return false;
     }
@@ -742,7 +742,7 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
         for (auto it = sigSharesForSignHash->begin(); it != sigSharesForSignHash->end() && sigSharesForRecovery.size() < static_cast<size_t>(quorum.params.threshold); ++it) {
             const auto& sigShare = it->second;
             sigSharesForRecovery.emplace_back(sigShare.sigShare.Get());
-            idsForRecovery.emplace_back(quorum.members[sigShare.getQuorumMember()]->proTxHash);
+            idsForRecovery.emplace_back(quorum.Members()[sigShare.getQuorumMember()]->proTxHash);
         }
 
         // check if we can recover the final signature
@@ -787,8 +787,8 @@ std::shared_ptr<CRecoveredSig> CSigSharesManager::TryRecoverSig(const CQuorum& q
 std::vector<CDeterministicMNCPtr> CSigSharesManager::GetRecoveryMemberOrder(const CQuorum& quorum, const uint256& id)
 {
     std::vector<std::pair<uint256, CDeterministicMNCPtr>> v;
-    v.reserve(quorum.members.size());
-    for (const auto& dmn : quorum.members) {
+    v.reserve(quorum.Members().size());
+    for (const auto& dmn : quorum.Members()) {
         auto h = ::SerializeHash(std::make_pair(dmn->proTxHash, id));
         v.emplace_back(h, dmn);
     }
@@ -1426,9 +1426,9 @@ void CSigSharesManager::Cleanup()
                 if (LogAcceptDebug(BCLog::LLMQ_SIGS)) {
                     if (const auto quorumIt = quorums.find(std::make_pair(oneSigShare.getLlmqType(), oneSigShare.getQuorumHash())); quorumIt != quorums.end()) {
                         const auto& quorum = quorumIt->second;
-                        for (const auto i : util::irange(quorum->members.size())) {
+                        for (const auto i : util::irange(quorum->Members().size())) {
                             if (m->count(static_cast<uint16_t>(i)) == 0) {
-                                const auto& dmn = quorum->members[i];
+                                const auto& dmn = quorum->Members()[i];
                                 strMissingMembers += strprintf("\n  %s", dmn->proTxHash.ToString());
                             }
                         }
@@ -1592,8 +1592,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShareForSingleMember(const 
 
     // TODO: This one should be SIGN by QUORUM key, not by OPERATOR key
     // see TODO in CDKGSession::FinalizeSingleCommitment for details
-    auto bls_scheme = bls::bls_legacy_scheme.load();
-    sigShare.sigShare.Set(m_mn_activeman.Sign(signHash, bls_scheme), bls_scheme);
+    sigShare.sigShare.Set(m_mn_activeman.Sign(signHash));
 
     if (!sigShare.sigShare.Get().IsValid()) {
         LogPrintf("CSigSharesManager::%s -- failed to sign sigShare. signHash=%s, id=%s, msgHash=%s, time=%s\n",
@@ -1647,8 +1646,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorum& quorum
     CSigShare sigShare(quorum.params.type, quorum.qc->quorumHash, id, msgHash, static_cast<uint16_t>(memberIdx), {});
     uint256 signHash = sigShare.buildSignHash().Get();
 
-    auto bls_scheme = bls::bls_legacy_scheme.load();
-    sigShare.sigShare.Set(skShare.Sign(signHash, bls_scheme), bls_scheme);
+    sigShare.sigShare.Set(skShare.Sign(signHash));
     if (!sigShare.sigShare.Get().IsValid()) {
         LogPrintf("CSigSharesManager::%s -- failed to sign sigShare. signHash=%s, id=%s, msgHash=%s, time=%s\n", __func__,
                   signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), t.count());

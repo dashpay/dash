@@ -27,13 +27,14 @@ protected:
 
 private:
     const std::unique_ptr<DB> m_db;
+    const Chainstate* m_indexed_chainstate GUARDED_BY(::cs_main){nullptr};
 
     bool AllowPrune() const override { return true; }
 
 protected:
     bool WritesEagerly() const override { return true; }
 
-    bool CustomInit(const std::optional<interfaces::BlockKey>& block) override;
+    bool CustomInit(const std::optional<interfaces::BlockKey>& block) override EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     bool CustomAppend(const interfaces::BlockInfo& block) override;
 

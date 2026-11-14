@@ -173,7 +173,8 @@ static RPCHelpMan quorum_list_extended()
 
         auto quorums = llmq_ctx.qman->ScanQuorums(type, pblockindex, llmq_params.signingActiveQuorumCount);
         for (const auto& q : quorums) {
-            size_t num_members = q->members.size();
+            // A quorum known by its key only counts its commitment's member slots.
+            const size_t num_members{q->HasMembers() ? q->Members().size() : q->qc->validMembers.size()};
             size_t num_valid_members = std::count_if(q->qc->validMembers.begin(), q->qc->validMembers.begin() + num_members, [](auto val){return val;});
             double health_ratio = num_members > 0 ? static_cast<double>(num_valid_members) / static_cast<double>(num_members) : 0.0;
             std::stringstream ss;
@@ -224,19 +225,19 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
 
     if (includeMembers) {
         UniValue membersArr(UniValue::VARR);
-        for (size_t i = 0; i < quorum.members.size(); i++) {
-            const auto& dmn = quorum.members[i];
+        for (size_t i = 0; i < quorum.Members().size(); i++) {
+            const auto& dmn = quorum.Members()[i];
             UniValue mo(UniValue::VOBJ);
             mo.pushKV("proTxHash", dmn->proTxHash.ToString());
             if (IsDeprecatedRPCEnabled("service")) {
                 mo.pushKV("service", dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
             }
             mo.pushKV("addresses", GetNetInfoWithLegacyFields(*dmn->pdmnState, dmn->nType));
-            mo.pushKV("pubKeyOperator", dmn->pdmnState->pubKeyOperator.ToString());
+            mo.pushKV("pubKeyOperator", dmn->pdmnState->pubKeyOperator.ToString(dmn->pdmnState->OperatorKeyScheme()));
             mo.pushKV("valid", static_cast<bool>(quorum.qc->validMembers[i]));
             if (quorum.qc->validMembers[i]) {
                 if (quorum.params.is_single_member()) {
-                    mo.pushKV("pubKeyShare", dmn->pdmnState->pubKeyOperator.ToString());
+                    mo.pushKV("pubKeyShare", dmn->pdmnState->pubKeyOperator.ToString(dmn->pdmnState->OperatorKeyScheme()));
                 } else {
                     CBLSPublicKey pubKey = quorum.GetPubKeyShare(i);
                     if (pubKey.IsValid()) {
@@ -701,9 +702,8 @@ static RPCHelpMan quorum_verify()
     const uint256 id(ParseHashV(request.params[1], "id"));
     const uint256 msgHash(ParseHashV(request.params[2], "msgHash"));
 
-    const bool use_bls_legacy = bls::bls_legacy_scheme.load();
     CBLSSignature sig;
-    if (!sig.SetHexStr(request.params[3].get_str(), use_bls_legacy)) {
+    if (!sig.SetHexStr(request.params[3].get_str())) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
     }
 
@@ -1263,14 +1263,13 @@ static RPCHelpMan verifychainlock()
 
     CBLSSignature sig;
     if (pIndex) {
-        const bool use_legacy_signature{!DeploymentActiveAfter(pIndex, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
-        if (!sig.SetHexStr(request.params[1].get_str(), use_legacy_signature)) {
+        const BLSScheme scheme{BLSSchemeAfter(pIndex, chainman.GetConsensus())};
+        if (!sig.SetHexStr(request.params[1].get_str(), scheme)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
         }
     } else {
-        if (!sig.SetHexStr(request.params[1].get_str(), false) &&
-                !sig.SetHexStr(request.params[1].get_str(), true)
-        ) {
+        if (!sig.SetHexStr(request.params[1].get_str(), BLSScheme::Basic) &&
+            !sig.SetHexStr(request.params[1].get_str(), BLSScheme::Legacy)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
         }
     }
@@ -1345,8 +1344,8 @@ static RPCHelpMan verifyislock()
     }
 
     CBLSSignature sig;
-    const bool use_bls_legacy{!DeploymentActiveAfter(pBlockIndex, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
-    if (!sig.SetHexStr(request.params[2].get_str(), use_bls_legacy)) {
+    const BLSScheme scheme{BLSSchemeAfter(pBlockIndex, chainman.GetConsensus())};
+    if (!sig.SetHexStr(request.params[2].get_str(), scheme)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
     }
 
@@ -1389,8 +1388,9 @@ static RPCHelpMan submitchainlock()
     if (nBlockHeight <= bestCLHeight) return bestCLHeight;
 
     CBLSSignature sig;
-    if (!sig.SetHexStr(request.params[1].get_str(), false) && !sig.SetHexStr(request.params[1].get_str(), true)) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
+    if (!sig.SetHexStr(request.params[1].get_str(), BLSScheme::Basic) &&
+        !sig.SetHexStr(request.params[1].get_str(), BLSScheme::Legacy)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
     }
 
     const ChainstateManager& chainman = EnsureChainman(node);

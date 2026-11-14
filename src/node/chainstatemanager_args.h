@@ -13,6 +13,9 @@ class ArgsManager;
 struct bilingual_str;
 
 namespace node {
+//! Whether -addressindex, -spentindex or -timestampindex is enabled.
+bool LegacyIndexesEnabled(const ArgsManager& args);
+
 [[nodiscard]] std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, ChainstateManager::Options& opts);
 } // namespace node
 

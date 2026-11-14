@@ -109,6 +109,7 @@ BASE_SCRIPTS = [
     # Longest test should go first, to favor running tests in parallel
     'feature_llmq_data_recovery.py',
     # vv Tests less than 5m vv
+    'feature_assumeutxo_dash.py',
     'feature_fee_estimation.py',
     'feature_block.py', # NOTE: needs dash_hash to pass
     # vv Tests less than 2m vv
@@ -403,6 +404,9 @@ BASE_SCRIPTS = [
     'wallet_coinbase_category.py --descriptors',
     'feature_filelock.py',
     'feature_loadblock.py',
+    'feature_assumeutxo.py',
+    'wallet_assumeutxo.py --descriptors',
+    'feature_assumeutxo_refusals.py',
     'p2p_dos_header_tree.py',
     'p2p_add_connections.py',
     'feature_bind_port_discover.py',

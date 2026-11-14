@@ -18,6 +18,7 @@ Developer Notes
         - [DEBUG_LOCKORDER](#debug_lockorder)
         - [DEBUG_LOCKCONTENTION](#debug_lockcontention)
         - [Assertions and Checks](#assertions-and-checks)
+        - [BLS schemes](#bls-schemes)
         - [Valgrind suppressions file](#valgrind-suppressions-file)
         - [Compiling for test coverage](#compiling-for-test-coverage)
         - [Performance profiling with perf](#performance-profiling-with-perf)
@@ -501,6 +502,36 @@ reject (misbehaving peer, `state.Invalid(...)`, early return) rather than
 assert; use `Assume` for our *own* bookkeeping while still handling the
 violated case; and reserve `assert` for the narrow spot where continuing would
 corrupt EvoDB, the block index, or the wallet.
+
+### BLS schemes
+
+BLS public keys and signatures have two encodings and two signature schemes: the
+legacy one used before v19, and the basic one used since. Which one applies is a
+property of the data or of the block, never of the node:
+
+- A call that names no scheme is basic. That is the right choice for everything
+  that is not historical: P2P messages, DKG, signing, ChainLocks, InstantSend,
+  governance, and any new payload or message.
+- The encoding of a key or signature inside a versioned structure follows that
+  structure's version. Use the helper of its owner (`ProTxVersion::GetBLSScheme()`,
+  `CFinalCommitment::GetBLSScheme()`, `OperatorKeyScheme()`) rather than comparing
+  versions inline.
+- The scheme a signature in a block is *verified* under follows the block, not the
+  version of the payload carrying it: `BLSSchemeAfter(pindexPrev, params)`, which
+  provider transaction checks receive as `SpecialTxRules::bls_scheme`. A
+  legacy-encoded payload mined after v19 is verified under basic.
+- Production code cannot sign under the legacy scheme. Tests that need a legacy
+  signature for historical validation use `SignBLS()` from `test/util/bls.h`.
+- An operator key (`CBLSLazyPublicKey`) has no encoding of its own, so
+  serializing, hashing or printing one always names the scheme, taken from the
+  payload or masternode state that owns it.
+- Two other kinds of code name legacy explicitly: operator-key uniqueness
+  checks, which probe both encodings, and RPC or log code that prints or parses
+  a key or signature in either encoding.
+
+`test/lint/lint-bls-scheme.py` lists the files that may name `BLSScheme::Legacy`:
+version and block selection, those uniqueness probes, legacy-diff migration, and
+the RPC or log code that prints or parses either encoding.
 
 ### Valgrind suppressions file
 

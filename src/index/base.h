@@ -19,6 +19,7 @@
 class CBlock;
 class CBlockIndex;
 class Chainstate;
+class ChainstateManager;
 namespace node {
 class BlockManager;
 } // namespace node
@@ -36,6 +37,11 @@ struct IndexSummary {
  * Base class for indices of blockchain data. This implements
  * CValidationInterface and ensures blocks are indexed sequentially according
  * to their position in the active chain.
+ *
+ * In the presence of multiple chainstates (i.e. if a UTXO snapshot is loaded),
+ * only the background "IBD" chainstate will be indexed to avoid building the
+ * index out of order. When the background chainstate completes validation, the
+ * index will be reinitialized and indexing will continue.
  */
 class BaseIndex : public CValidationInterface
 {
@@ -115,11 +121,11 @@ protected:
     Chainstate* m_chainstate{nullptr};
     const std::string m_name;
 
-    void BlockConnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
 
     void BlockDisconnected(const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
 
-    void ChainStateFlushed(const CBlockLocator& locator) override;
+    void ChainStateFlushed(ChainstateRole role, const CBlockLocator& locator) override;
 
     /// Initialize internal state from the database and block index.
     [[nodiscard]] virtual bool CustomInit(const std::optional<interfaces::BlockKey>& block) { return true; }
@@ -153,9 +159,6 @@ protected:
 
     virtual DB& GetDB() const = 0;
 
-    /// Get the name of the index for display in logs.
-    const std::string& GetName() const LIFETIMEBOUND { return m_name; }
-
     /// Trigger a fatal index error and initiate shutdown.
     static void FatalErrorImpl(const std::string& message);
 
@@ -172,6 +175,9 @@ public:
     BaseIndex(std::unique_ptr<interfaces::Chain> chain, std::string name);
     /// Destructor interrupts sync thread if running and blocks until it exits.
     virtual ~BaseIndex();
+
+    /// Get the name of the index for display in logs.
+    const std::string& GetName() const LIFETIMEBOUND { return m_name; }
 
     /// Blocks the current thread until the index is caught up to the current
     /// state of the block chain. This only blocks if the index has gotten in

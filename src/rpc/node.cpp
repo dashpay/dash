@@ -319,7 +319,7 @@ static RPCHelpMan mnauth()
     }
 
     CBLSPublicKey publicKey;
-    publicKey.SetHexStr(request.params[2].get_str(), /*specificLegacyScheme=*/false);
+    publicKey.SetHexStr(request.params[2].get_str());
     if (!publicKey.IsValid()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "publicKey invalid");
     }

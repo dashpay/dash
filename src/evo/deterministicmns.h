@@ -7,7 +7,9 @@
 
 #include <evo/dmn_types.h>
 #include <evo/dmnstate.h>
+#include <evo/snapshot_types.h>
 #include <evo/types.h>
+#include <evo/viewcache.h>
 
 #include <arith_uint256.h>
 #include <clientversion.h>
@@ -21,6 +23,7 @@
 #include <immer/map.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
@@ -129,6 +132,20 @@ inline void SerReadWrite(Stream& s, immer::map<K, T, Hash, Equal>& obj, ActionUn
     ::UnserializeImmerMap(s, obj);
 }
 
+
+//! An operator key together with the encoding it is registered under. Uniqueness is per
+//! encoding: the same key under legacy and under basic occupies two slots.
+struct OperatorKeySlot {
+    const CBLSLazyPublicKey& key;
+    BLSScheme scheme;
+};
+
+//! The slot an operator key occupies given the payload or state that owns it.
+template <typename Owner>
+OperatorKeySlot OperatorKeySlotOf(const Owner& owner)
+{
+    return {owner.pubKeyOperator, owner.OperatorKeyScheme()};
+}
 
 class CDeterministicMNList
 {
@@ -460,11 +477,9 @@ public:
      * Is this operator public key already held by a masternode other than `self`, under *either* BLS
      * encoding?
      *
-     * mnUniquePropertyMap is keyed by GetUniquePropertyHash(), which serializes its argument, and a
-     * BLS key serializes differently under the legacy and basic schemes. So one public key sits in
-     * one of two possible slots and a single lookup sees only one of them, which is why operator key
-     * uniqueness is otherwise enforced per encoding rather than per key. There are exactly two
-     * schemes, so probing both is O(1) rather than a scan.
+     * mnUniquePropertyMap is keyed by the hash of an operator key's bytes under one scheme. The
+     * same point occupies a different slot under the other scheme, so a single lookup sees only
+     * one of them. There are exactly two schemes, so probing both is O(1) rather than a scan.
      *
      * Both slots are probed even when one resolves to `self`: where a cross-scheme duplicate pair
      * already exists, returning early on a self-match would miss the other member.
@@ -475,11 +490,12 @@ public:
     [[nodiscard]] bool HasOperatorKeyUnderAnyScheme(const CBLSPublicKey& pubkey, const uint256& self) const
     {
         if (!pubkey.IsValid()) return false;
-        for (const bool legacy_scheme : {true, false}) {
-            CBLSLazyPublicKey wrapped;
-            wrapped.Set(pubkey, legacy_scheme);
-            if (!HasUniqueProperty(wrapped)) continue;
-            const auto holder = GetUniquePropertyMN(wrapped);
+        CBLSLazyPublicKey wrapped;
+        wrapped.Set(pubkey);
+        for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
+            const OperatorKeySlot slot{wrapped, scheme};
+            if (!HasUniqueProperty(slot)) continue;
+            const auto holder = GetUniquePropertyMN(slot);
             if (holder && holder->proTxHash != self) return true;
         }
         return false;
@@ -532,6 +548,7 @@ private:
 #define DMNL_NO_TEMPLATE(name) \
     static_assert(!std::is_same_v<std::decay_t<T>, name>, "GetUniquePropertyHash cannot be templated against " #name)
         DMNL_NO_TEMPLATE(CBLSPublicKey);
+        DMNL_NO_TEMPLATE(CBLSLazyPublicKey);
         DMNL_NO_TEMPLATE(ExtNetInfo);
         DMNL_NO_TEMPLATE(MnNetInfo);
         DMNL_NO_TEMPLATE(NetInfoEntry);
@@ -549,11 +566,35 @@ private:
             return ::SerializeHash(v, /*nType=*/SER_GETHASH, /*nVersion=*/PROTOCOL_VERSION);
         }
     }
+    [[nodiscard]] static uint256 GetUniquePropertyHash(const OperatorKeySlot& slot)
+    {
+        // Hash of the 48 key bytes under slot.scheme: GetHash writes those bytes to
+        // CHashWriter(SER_GETHASH, PROTOCOL_VERSION), matching SerializeHash of the key
+        // serialized under that scheme.
+        return slot.key.GetHash(slot.scheme);
+    }
+    template <typename T>
+    [[nodiscard]] static bool IsNullUniqueProperty(const T& value)
+    {
+        return value == T{};
+    }
+    [[nodiscard]] static bool IsNullUniqueProperty(const OperatorKeySlot& slot)
+    {
+        return slot.key == CBLSLazyPublicKey();
+    }
+    template <typename T>
+    [[nodiscard]] static bool SameUniqueProperty(const T& a, const T& b)
+    {
+        return a == b;
+    }
+    [[nodiscard]] static bool SameUniqueProperty(const OperatorKeySlot& a, const OperatorKeySlot& b)
+    {
+        return GetUniquePropertyHash(a) == GetUniquePropertyHash(b);
+    }
     template <typename T>
     [[nodiscard]] bool AddUniqueProperty(const CDeterministicMN& dmn, const T& v)
     {
-        static const T nullValue{};
-        if (v == nullValue) {
+        if (IsNullUniqueProperty(v)) {
             return false;
         }
 
@@ -572,8 +613,7 @@ private:
     template <typename T>
     [[nodiscard]] bool DeleteUniqueProperty(const CDeterministicMN& dmn, const T& oldValue)
     {
-        static const T nullValue{};
-        if (oldValue == nullValue) {
+        if (IsNullUniqueProperty(oldValue)) {
             return false;
         }
 
@@ -592,25 +632,15 @@ private:
     template <typename T>
     [[nodiscard]] bool UpdateUniqueProperty(const CDeterministicMN& dmn, const T& oldValue, const T& newValue)
     {
-        // A BLS operator key can keep the same point while its serialized encoding (legacy<->basic)
-        // changes on a version transition. The map is keyed by GetUniquePropertyHash(), so only that
-        // hash reveals the entry must be re-keyed to the new scheme; CBLSLazyPublicKey::operator==
-        // compares the point and ignores the scheme, so it would wrongly short-circuit. Compare the
-        // serialized hashes for BLS keys and the plain value for every other unique property.
-        if constexpr (std::is_same_v<std::decay_t<T>, CBLSLazyPublicKey>) {
-            if (GetUniquePropertyHash(oldValue) == GetUniquePropertyHash(newValue)) {
-                return true;
-            }
-        } else if (oldValue == newValue) {
+        if (SameUniqueProperty(oldValue, newValue)) {
             return true;
         }
-        static const T nullValue{};
 
-        if (oldValue != nullValue && !DeleteUniqueProperty(dmn, oldValue)) {
+        if (!IsNullUniqueProperty(oldValue) && !DeleteUniqueProperty(dmn, oldValue)) {
             return false;
         }
 
-        if (newValue != nullValue && !AddUniqueProperty(dmn, newValue)) {
+        if (!IsNullUniqueProperty(newValue) && !AddUniqueProperty(dmn, newValue)) {
             return false;
         }
         return true;
@@ -747,18 +777,9 @@ struct MNListUpdates
 inline constexpr std::string_view BLOCK_DATA_UNAVAILABLE_SUFFIX{
     "is not available (pruned or below an unvalidated snapshot base)"};
 
-/** Thrown when the masternode list for a block cannot be reconstructed because
- *  the data is not on this node yet (pruned, or below an unvalidated snapshot
- *  base, or pending in another chainstate's unflushed EvoDB overlay). Distinct
- *  from the plain std::runtime_error that CDeterministicMNList::ApplyDiff
- *  raises for genuine local corruption, which must never be swallowed.
- *  The message carries BLOCK_DATA_UNAVAILABLE_SUFFIX, matched by
- *  IsBlockDataUnavailableError(). */
-class BlockDataUnavailableError : public std::runtime_error
-{
-public:
-    using std::runtime_error::runtime_error;
-};
+//! Whether two encoded masternode lists hold the same masternodes, internal
+//! ids and registration counter, however their maps are laid out.
+bool EncodedMNListsCanonicallyEqual(Span<const std::byte> a, Span<const std::byte> b);
 
 class CDeterministicMNManager
 {
@@ -779,10 +800,22 @@ private:
     CEvoDB& m_evoDb;
     CMasternodeMetaMan& m_mn_metaman;
 
-    Uint256HashMap<CDeterministicMNList> mnListsCache GUARDED_BY(cs);
-    Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache GUARDED_BY(cs);
-    const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
-    const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
+    //! Lists and diffs derived under one Evo view, with the view's own tip and
+    //! initial-snapshot anchor.
+    struct ViewState {
+        Uint256HashMap<CDeterministicMNList> mnListsCache;
+        Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache;
+        const CBlockIndex* tipIndex{nullptr};
+        const CBlockIndex* m_initial_snapshot_index{nullptr};
+        //! Highest block this view connected. Bounds the cache of a view that
+        //! is not active, and so never learns a tip from UpdatedBlockTip.
+        int processed_height{-1};
+    };
+    EvoViewCache<ViewState> m_views GUARDED_BY(cs);
+    std::function<void(const CBlockIndex*)> m_list_snapshot_miss_hook GUARDED_BY(cs);
+
+    //! The partition of the calling operation's Evo view.
+    ViewState& View() EXCLUSIVE_LOCKS_REQUIRED(cs) { return m_views.For(m_evoDb.CurrentView()); }
 
 public:
     CDeterministicMNManager() = delete;
@@ -805,14 +838,46 @@ public:
 
     CDeterministicMNList GetListForBlock(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs) {
         LOCK(cs);
-        return GetListForBlockInternal(pindex);
+        return GetListForBlockInternal(pindex, View());
     };
     CDeterministicMNList GetListAtChainTip() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    /** Seed a canonical full list into `view`, inside the caller's open EvoDB
+     *  transaction for that view. */
+    bool SeedListForBlock(const EvoViewToken& view, const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! The EvoDB this manager reads, for callers that bind an Evo view.
+    const CEvoDB& EvoDb() const { return m_evoDb; }
 
     void SetListForBlockForTesting(const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         LOCK(cs);
-        mnListsCache.insert_or_assign(list.GetBlockHash(), list);
+        View().mnListsCache.insert_or_assign(list.GetBlockHash(), list);
+    }
+
+    /** Test-only hook invoked whenever a list lookup misses both the cache and
+     *  the stored full lists, before diff-chain reconstruction. */
+    void SetListSnapshotMissHookForTesting(std::function<void(const CBlockIndex*)> hook) EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        m_list_snapshot_miss_hook = std::move(hook);
+    }
+
+    //! Heights of the lists cached for the current view.
+    std::vector<int> CachedListHeightsForTesting() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        std::vector<int> heights;
+        for (const auto& [_, list] : View().mnListsCache) {
+            heights.push_back(list.GetHeight());
+        }
+        return heights;
+    }
+
+    //! The tip the current view was last told of.
+    const CBlockIndex* TipForTesting() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return View().tipIndex;
     }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
@@ -851,8 +916,9 @@ public:
     [[nodiscard]] bool MigrateLegacyDiffs(const CBlockIndex* const tip_index) EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
 
 private:
-    void CleanupCache(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    static void CleanupCache(ViewState& view, int nHeight);
+    CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex, ViewState& view)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     // Helper methods for RecalculateAndRepairDiffs
     static std::vector<const CBlockIndex*> CollectSnapshotBlocks(const CBlockIndex* start_index,

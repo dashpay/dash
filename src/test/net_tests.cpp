@@ -9,6 +9,7 @@
 #include <clientversion.h>
 #include <common/args.h>
 #include <compat/compat.h>
+#include <evo/evodb.h>
 #include <key.h>
 #include <net.h>
 #include <net_processing.h>
@@ -1185,6 +1186,7 @@ BOOST_AUTO_TEST_CASE(LocalAddress_BasicLifecycle)
 
 BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     // Tests the following scenario:

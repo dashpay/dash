@@ -57,6 +57,7 @@ class BanMan;
 class CConnman;
 class CDeterministicMNList;
 class CDeterministicMNManager;
+class CEvoDB;
 class CMasternodeMetaMan;
 class CMasternodeSync;
 class CNode;
@@ -1549,6 +1550,11 @@ public:
     //! that peer during `net_processing.cpp:PushNodeVersion()`.
     ServiceFlags GetLocalServices() const;
 
+    //! Updates the local services that this node advertises to other peers
+    //! during connection handshake.
+    void AddLocalServices(ServiceFlags services) { nLocalServices = ServiceFlags(nLocalServices | services); };
+    void RemoveLocalServices(ServiceFlags services) { nLocalServices = ServiceFlags(nLocalServices & ~services); }
+
     uint64_t GetMaxOutboundTarget() const EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex);
     std::chrono::seconds GetMaxOutboundTimeframe() const;
 
@@ -1629,7 +1635,14 @@ private:
     void ThreadOpenConnections(const std::vector<std::string> connect, CDeterministicMNManager& dmnman)
         EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_added_nodes_mutex, !m_nodes_mutex, !m_reconnections_mutex,
                                  !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
-    void ThreadMessageHandler() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
+    void ThreadMessageHandler(const CEvoDB& evodb) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
+    /** One message-handler turn for a peer: receive (its queued requests,
+     *  orphans to reconsider, then its next message) and, if `send`, send.
+     *  Both halves are bound to the active Evo view. A local Evo state error
+     *  ends the half it occurs in, never the thread, and the sends still run
+     *  after receiving stopped early. Returns whether the peer has more work. */
+    bool ServicePeer(const CEvoDB& evodb, CNode& node, bool send)
+        EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex, !m_nodes_mutex, !mutexMsgProc);
     void ThreadI2PAcceptIncoming(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);
     void AcceptConnection(const ListenSocket& hListenSocket, CMasternodeSync& mn_sync)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);
@@ -1886,11 +1899,12 @@ private:
      * This data is replicated in each Peer instance we create.
      *
      * This data is not marked const, but after being set it should not
-     * change.
+     * change. Unless AssumeUTXO is started, in which case, the peer
+     * will be limited until the background chain sync finishes.
      *
      * \sa Peer::our_services
      */
-    ServiceFlags nLocalServices;
+    std::atomic<ServiceFlags> nLocalServices;
 
     std::unique_ptr<CSemaphore> semOutbound;
     std::unique_ptr<CSemaphore> semAddnode;

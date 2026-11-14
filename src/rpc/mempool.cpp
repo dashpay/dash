@@ -205,7 +205,8 @@ static RPCHelpMan testmempoolaccept()
             for (const auto& tx : txns) {
                 UniValue result_inner(UniValue::VOBJ);
                 result_inner.pushKV("txid", tx->GetHash().GetHex());
-                if (package_result.m_state.GetResult() == PackageValidationResult::PCKG_POLICY) {
+                if (package_result.m_state.GetResult() == PackageValidationResult::PCKG_POLICY ||
+                    package_result.m_state.GetResult() == PackageValidationResult::PCKG_MEMPOOL_ERROR) {
                     result_inner.pushKV("package-error", package_result.m_state.GetRejectReason());
                 }
                 auto it = package_result.m_tx_results.find(tx->GetHash());
