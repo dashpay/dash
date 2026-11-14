@@ -1282,6 +1282,12 @@ Current subtrees include:
 - src/dashbls
   - Upstream at https://github.com/dashpay/bls-signatures ; maintained by Dash Core contributors.
 
+- src/blst
+  - Upstream at https://github.com/supranational/blst ; maintained by Supranational. The BLS12-381
+    backend of src/dashbls, pulled from release tags with `git subtree pull --squash`.
+  - **Note**: Dash carries one local change, in `src/blst/src/vect.h`, so that its C implementation (selected by
+    `--with-asm=no`, as in the MSan build) also works on x86_64 and aarch64. Check that it survives each update.
+
 - src/immer
   - Upstream at https://github.com/arximboldi/immer ; provides the immutable containers used by the deterministic masternode list.
 

@@ -4,6 +4,7 @@
       "include_only_existing_source": true,
       "paths_to_include": [],
       "paths_to_exclude": [
+        "src/blst",
         "src/crc32c",
         "src/crypto/ctaes",
         "src/crypto/x11",

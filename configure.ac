@@ -113,6 +113,9 @@ LT_PREREQ([2.4.2])
 dnl Libtool init checks.
 LT_INIT([pic-only win32-dll])
 
+dnl Assembler for src/blst/build/assembly.S
+AM_PROG_AS
+
 dnl Check/return PATH for base programs.
 AC_PATH_TOOL([AR], [ar])
 AC_PATH_TOOL([GCOV], [gcov])
@@ -178,6 +181,13 @@ AC_ARG_ENABLE([mimalloc],
   [use malloc instead of mimalloc for BLS secret memory until BLSInit() installs the locked pool (default is mimalloc)])],
   [use_mimalloc=$enableval],
   [use_mimalloc=yes])
+
+dnl Also passed on to secp256k1's configure, which accepts more values.
+AC_ARG_WITH([asm],
+  [AS_HELP_STRING([--with-asm=no],
+  [build secp256k1 and blst without hand-written assembly (default is auto)])],
+  [use_asm=$withval],
+  [use_asm=auto])
 
 AC_ARG_ENABLE(tests,
     AS_HELP_STRING([--disable-tests],[do not compile tests (default is to compile)]),
@@ -1578,12 +1588,26 @@ if test "$use_natpmp" != "no"; then
   CPPFLAGS="$TEMP_CPPFLAGS"
 fi
 
-dnl Check for blst (required by src/dashbls)
-TEMP_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $BLST_CPPFLAGS"
-AC_CHECK_HEADERS([blst.h], [], [AC_MSG_ERROR([blst headers missing])])
-AC_CHECK_LIB([blst], [blst_p1_compress], [BLST_LIBS="$BLST_LIBS -lblst"], [AC_MSG_ERROR([libblst missing])], [$BLST_LIBS])
-CPPFLAGS="$TEMP_CPPFLAGS"
+dnl src/blst ships assembly for x86_64 and aarch64 only. Like its build.sh,
+dnl select the C implementation on every other target, or with --with-asm=no.
+dnl The assembly is then left out entirely, as it would define the same symbols
+dnl as the C implementation.
+AC_LANG_PUSH([C])
+AC_MSG_CHECKING([whether to use blst assembly])
+use_blst_asm=no
+if test "$use_asm" != "no"; then
+  AC_PREPROC_IFELSE([AC_LANG_SOURCE([[
+    #if (!defined(__x86_64__) && !defined(__aarch64__)) || defined(__BLST_NO_ASM__)
+    #error "blst assembly not used"
+    #endif
+    ]])],
+    [use_blst_asm=yes])
+fi
+AC_MSG_RESULT([$use_blst_asm])
+if test "$use_blst_asm" = "no"; then
+  BLST_CPPFLAGS_INT="-D__BLST_NO_ASM__"
+fi
+AC_LANG_POP([C])
 
 if test "$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_bitcoin_util$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench$enable_fuzz_binary" = "nonononononononono"; then
   use_boost=no
@@ -2018,6 +2042,7 @@ AM_CONDITIONAL([ENABLE_ARM_CRC], [test "$enable_arm_crc" = "yes"])
 AM_CONDITIONAL([ENABLE_ARM_NEON], [test "$enable_arm_neon" = "yes"])
 AM_CONDITIONAL([ENABLE_ARM_SHANI], [test "$enable_arm_shani" = "yes"])
 AM_CONDITIONAL([WORDS_BIGENDIAN], [test "$ac_cv_c_bigendian" = "yes"])
+AM_CONDITIONAL([USE_BLST_ASM], [test "$use_blst_asm" = "yes"])
 AM_CONDITIONAL([USE_MIMALLOC], [test "$use_mimalloc" = "yes"])
 AM_CONDITIONAL([USE_NATPMP], [test "$use_natpmp" = "yes"])
 AM_CONDITIONAL([USE_UPNP], [test "$use_upnp" = "yes"])
@@ -2094,8 +2119,7 @@ AC_SUBST(MINIUPNPC_LIBS)
 AC_SUBST(BACKTRACE_FLAGS)
 AC_SUBST(BACKTRACE_LDFLAGS)
 AC_SUBST(BACKTRACE_LIBS)
-AC_SUBST(BLST_CPPFLAGS)
-AC_SUBST(BLST_LIBS)
+AC_SUBST(BLST_CPPFLAGS_INT)
 AC_SUBST(NATPMP_CPPFLAGS)
 AC_SUBST(NATPMP_LIBS)
 AC_SUBST(DSYMUTIL_FLAT)
