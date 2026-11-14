@@ -8,16 +8,18 @@ thread queue, wallet balance.
 Running
 ---------------------
 
-For benchmarking, you only need to compile `dash_bench`.  The bench runner
-warns if you configure with `--enable-debug`, but consider if building without
+For benchmarking, you only need to build the `bench_bitcoin` target (which
+produces `bench_dash`). The bench runner warns if you configure with
+`-DCMAKE_BUILD_TYPE=Debug`, but consider if building without
 it will impact the benchmark(s) you are interested in by unlatching log printers
 and lock analysis.
 
-    make -C src dash_bench
+    cmake -B build -DBUILD_BENCH=ON
+    cmake --build build --target bench_bitcoin
 
 After compiling Dash Core, the benchmarks can be run with:
 
-    src/bench/bench_dash
+    build/src/bench/bench_dash
 
 The output will look similar to:
 ```
@@ -39,7 +41,7 @@ The output will look similar to:
 Help
 ---------------------
 
-    src/bench/bench_dash -?
+    build/src/bench/bench_dash -?
 
 To print the various options, like listing the benchmarks without running them
 or using a regex filter to only run certain benchmarks.
@@ -62,7 +64,7 @@ inventories whose hashes are absent locally and clear the request state after
 every iteration. Use an optimized build to measure CPU cost; debug builds
 additionally enable expensive container and lock-order checks.
 
-    src/bench/bench_dash -filter='InventoryBatch.*' -min-time=5000
+    build/src/bench/bench_dash -filter='InventoryBatch.*' -min-time=5000
 
 Going Further
 --------------------

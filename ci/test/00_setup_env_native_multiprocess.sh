@@ -32,10 +32,10 @@ export DEP_OPTS="MULTIPROCESS=1 CC=clang-19 CXX=clang++-19"
 export RUN_TIDY=true
 export GOAL="install"
 export TEST_RUNNER_EXTRA="--v2transport"
-export BITCOIN_CONFIG="--enable-debug CC=clang-19 CXX=clang++-19" # Use clang to avoid OOM
-# Additional flags for RUN_TIDY. -O0 only for C++: depends' -O2 comes after the debug -O0, so Dash
-# code needs it here, while the C code (secp256k1, most of X11) is left at depends' -O2
-export BITCOIN_CONFIG="${BITCOIN_CONFIG} --disable-hardening CFLAGS='-g0' CXXFLAGS='-O0 -g0 -Wno-error=documentation'"
-# --enable-debug turns on the lock-order and lock-contention tracking; they cost a third and ~3% of dashd CPU on this -O0 build
-export BITCOIN_CONFIG="${BITCOIN_CONFIG} CPPFLAGS='-UDEBUG_LOCKORDER -UDEBUG_LOCKCONTENTION'"
+export BITCOIN_CONFIG="-DCMAKE_BUILD_TYPE=Debug"
+# Additional flags for RUN_TIDY. -O0 only for C++, while the C code (secp256k1, most of X11) stays at -O2
+export BITCOIN_CONFIG="${BITCOIN_CONFIG} -DENABLE_HARDENING=OFF -DCMAKE_C_FLAGS_DEBUG='-O2 -g0' -DCMAKE_CXX_FLAGS_DEBUG='-ftrapv -O0 -g0'"
+export BITCOIN_CONFIG="${BITCOIN_CONFIG} -DAPPEND_CXXFLAGS='-Wno-error=documentation'"
+# The Debug build turns on the lock-order and lock-contention tracking; they cost a third and ~3% of dashd CPU on this -O0 build
+export BITCOIN_CONFIG="${BITCOIN_CONFIG} -DAPPEND_CPPFLAGS='-UDEBUG_LOCKORDER -UDEBUG_LOCKCONTENTION'"
 export BITCOIND=dash-node  # Used in functional tests

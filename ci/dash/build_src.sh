@@ -15,52 +15,35 @@ unset CC CXX DISPLAY;
 
 ccache --zero-stats
 
-if [ -n "$CONFIG_SHELL" ]; then
-  export CONFIG_SHELL="$CONFIG_SHELL"
-fi
+BUILD_DIR="build-ci/dashcore-${BUILD_TARGET}"
 
-BITCOIN_CONFIG_ALL="--enable-external-signer --disable-dependency-tracking --bindir=$BASE_OUTDIR/bin --libdir=$BASE_OUTDIR/lib"
+BITCOIN_CONFIG_ALL="-DBUILD_BENCH=ON -DBUILD_FUZZ_BINARY=ON -DENABLE_EXTERNAL_SIGNER=ON"
 if [ -z "$NO_DEPENDS" ]; then
-  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} --prefix=$DEPENDS_DIR/$HOST"
-else
-  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} --prefix=$BASE_OUTDIR"
+  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} -DCMAKE_TOOLCHAIN_FILE=${DEPENDS_DIR}/${HOST}/toolchain.cmake"
 fi
+BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} -DCMAKE_INSTALL_PREFIX=${BASE_OUTDIR}"
 if [ -z "$NO_WERROR" ]; then
-  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} --enable-werror"
+  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} -DWERROR=ON"
 fi
-
-( test -n "$CONFIG_SHELL" && eval '"$CONFIG_SHELL" -c "./autogen.sh"' ) || ./autogen.sh
+if [ "${RUN_TIDY}" = "true" ]; then
+  BITCOIN_CONFIG_ALL="${BITCOIN_CONFIG_ALL} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+fi
 
 rm -rf build-ci
-mkdir build-ci
-cd build-ci
+mkdir -p "${BUILD_DIR}"
 
-bash -c "../configure $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG" || ( cat config.log && false)
-make distdir VERSION="$BUILD_TARGET"
+bash -c "cmake -S . -B ${BUILD_DIR} $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG" || ( cat "${BUILD_DIR}/CMakeFiles/CMakeConfigureLog.yaml" && false )
 
-cd "dashcore-$BUILD_TARGET"
-bash -c "./configure $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG" || ( cat config.log && false)
-
-# This step influences compilation and therefore will always be a part of the
-# compile step
-if [ "${RUN_TIDY}" = "true" ]; then
-  MAYBE_BEAR="bear --config src/.bear-tidy-config"
-  MAYBE_TOKEN="--"
-fi
-
-bash -c "${MAYBE_BEAR} ${MAYBE_TOKEN} make ${MAKEJOBS} ${GOAL}" || ( echo "Build failure. Verbose build follows." && make "$GOAL" V=1 ; false )
+bash -c "cmake --build ${BUILD_DIR} ${MAKEJOBS} --target all ${GOAL}" || ( echo "Build failure. Verbose build follows." && cmake --build "${BUILD_DIR}" --target all ${GOAL} --verbose ; false )
 
 ccache --version | head -n 1 && ccache --show-stats
 
-# A standard library header path in an executable means a source location was
-# captured inside one, which both misreports where a failure came from and, on
-# darwin, embeds a path that differs between builders.
 if [ "${RUN_STDLIB_PATH_CHECK}" = "true" ]; then
-  make -C src --jobs=1 check-stdlib-paths
+  cmake --build "${BUILD_DIR}" --target check-stdlib-paths
 fi
 
 if [ "${RUN_CHECK_NO_RUST}" = "true" ]; then
-  "${BASE_ROOT_DIR}/contrib/devtools/check-no-rust.py" src/dashd src/dash-cli src/dash-tx src/dash-util src/dash-wallet src/bench/bench_dash src/test/fuzz/fuzz
+  ( cd "${BUILD_DIR}" && "${BASE_ROOT_DIR}/contrib/devtools/check-no-rust.py" src/dashd src/dash-cli src/dash-tx src/dash-util src/dash-wallet src/bench/bench_dash src/test/fuzz/fuzz )
 fi
 
 if [ -n "$USE_VALGRIND" ]; then

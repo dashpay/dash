@@ -265,12 +265,18 @@ details.
 
   - `guix` build commands as in `guix shell --cores="$JOBS"`
   - `make` as in `make --jobs="$JOBS"`
+  - `cmake` as in `cmake --build build -j "$JOBS"`
   - `xargs` as in `xargs -P"$JOBS"`
 
   See [here](#controlling-the-number-of-threads-used-by-guix-build-commands) for
   more details.
 
   _(defaults to the value of `nproc` outside the container)_
+
+* _**CONFIGFLAGS**_
+
+  Additional CMake configuration options, for example
+  `CONFIGFLAGS="-DENABLE_CRASH_HOOKS=ON"`. Options are separated by whitespace.
 
 * _**SOURCE_DATE_EPOCH**_
 

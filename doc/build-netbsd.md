@@ -14,11 +14,11 @@ Install the required dependencies the usual way you [install software on NetBSD]
 The example commands below use `pkgin`.
 
 ```bash
-pkgin install autoconf automake libtool pkg-config git gmake boost libevent zstd
+pkgin install cmake pkg-config git gmake boost libevent zstd
 
 ```
 
-NetBSD may ship with an older version of `gcc` than is needed to build C++20 (GCC 11.1+ is required). You should install a newer `gcc` and pass it to the configure script.
+NetBSD may ship with an older version of `gcc` than is needed to build C++20 (GCC 11.1+ is required). You should install a newer `gcc` and select it when configuring with CMake.
 
 For example, grab `gcc12`:
 ```
@@ -27,11 +27,9 @@ pkgin install gcc12
 
 Then, when configuring, pass the following:
 ```bash
-./configure
-    ...
-    CC="/usr/pkg/gcc12/bin/gcc" \
-    CXX="/usr/pkg/gcc12/bin/g++" \
-    ...
+cmake -B build \
+    -DCMAKE_C_COMPILER="/usr/pkg/gcc12/bin/gcc" \
+    -DCMAKE_CXX_COMPILER="/usr/pkg/gcc12/bin/g++"
 ```
 
 See [dependencies.md](dependencies.md) for a complete overview.
@@ -68,13 +66,14 @@ pkgin install db4
 
 #### GUI Dependencies
 
-Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, we need to install `qt5`.
+Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, install `qt5` and pass `-DBUILD_GUI=ON` to CMake.
 
 ```bash
 pkgin install qt5
 ```
 
-The GUI can encode addresses in a QR Code. To build in QR support for the GUI, install `qrencode`.
+The GUI can encode addresses in a QR Code. Install `qrencode`, or pass
+`-DWITH_QRENCODE=OFF` to disable this feature.
 
 ```bash
 pkgin install qrencode
@@ -91,8 +90,6 @@ pkgin install python312
 
 ### Building Dash Core
 
-**Note**: Use `gmake` (the non-GNU `make` will exit with an error).
-
 
 ### 1. Configuration
 
@@ -100,19 +97,16 @@ There are many ways to configure Dash Core. Here is an example that
 explicitly disables the wallet and GUI:
 
 ```bash
-./autogen.sh
-./configure --without-wallet --with-gui=no \
-    CPPFLAGS="-I/usr/pkg/include" \
-    MAKE=gmake
+cmake -B build -DENABLE_WALLET=OFF -DBUILD_GUI=OFF
 ```
 
-For a full list of configuration options, see the output of `./configure --help`
+For a full list of configuration options, run `cmake -B build -LH`.
 
 ### 2. Compile
 
 Build and run the tests:
 
 ```bash
-gmake # use "-j N" here for N parallel jobs
-gmake check # Run tests if Python 3 is available
+cmake --build build     # use "-j N" for N parallel jobs
+ctest --test-dir build  # Some tests require Python 3
 ```

@@ -66,9 +66,11 @@ darwin_STRIP=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-strip")
 # `env` as the compiler and the absolute clang path as a second source
 # file), so an unconditional prefix silently disables ccache for every
 # darwin compile. Unlike upstream (bitcoin#30451, which dropped the prefix
-# entirely), our Guix environment still sets these variables.
+# entirely), our Guix environment still sets these variables. `env` is named
+# by its full path because CMake's OBJCXX compiler lookup does not search
+# PATH for the first word of the compiler command.
 ifneq ($(origin C_INCLUDE_PATH) $(origin CPLUS_INCLUDE_PATH),undefined undefined)
-darwin_env_unset=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH
+darwin_env_unset=$(shell command -v env) -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH
 endif
 
 darwin_CC=$(darwin_env_unset) $(clang_prog) --target=$(host) \

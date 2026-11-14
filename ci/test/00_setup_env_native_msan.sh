@@ -21,20 +21,18 @@ export MSAN_AND_LIBCXX_FLAGS="${MSAN_FLAGS} ${LIBCXX_FLAGS}"
 # assembly, which MSan cannot see through.
 export DEP_OPTS="DEBUG=1 NO_BDB=1 NO_QT=1 NO_UPNP=1 NO_NATPMP=1 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}' CPPFLAGS='-D__BLST_NO_ASM__'"
 export GOAL="install"
-# CC/CXX/CFLAGS/CXXFLAGS are repeated here rather than left to depends'
-# config.site. Upstream dropped them in bitcoin#29800 because its
-# ci/test/03_test_script.sh sets CONFIG_SITE explicitly (bitcoin#26683);
-# ci/dash/build_src.sh still uses the older --prefix form, and this is the only
-# target whose compiler differs from the system default, so nothing else in
-# Dash's CI exercises that hand-off.
+# The compilers and flags come from DEP_OPTS through depends' toolchain file.
 # _FORTIFY_SOURCE is not compatible with MSAN.
-# --with-asm=no keeps secp256k1 off hand-written assembly, which MSan cannot
-# see through.
-# --disable-mimalloc selects the plain malloc secure allocator; mimalloc seeds
+# depends' toolchain file applies its DEBUG=1 defines to Debug builds only, so
+# repeat the libc++ debug hardening mode here to keep it on in this build.
+# SECP256K1_ASM=OFF keeps secp256k1 off hand-written assembly, which MSan
+# cannot see through.
+# ENABLE_MIMALLOC=OFF selects the plain malloc secure allocator; mimalloc seeds
 # itself with a raw getrandom syscall before main(), which MSan cannot track.
-export BITCOIN_CONFIG="--with-sanitizers=memory --with-gui=no --without-bdb --with-sqlite \
---with-asm=no --disable-mimalloc \
-CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}' \
-CPPFLAGS='-U_FORTIFY_SOURCE'"
+export BITCOIN_CONFIG="\
+ -DSANITIZERS=memory -DBUILD_GUI=OFF -DWITH_BDB=OFF -DWITH_SQLITE=ON \
+ -DSECP256K1_ASM=OFF -DENABLE_MIMALLOC=OFF \
+ -DAPPEND_CPPFLAGS='-U_FORTIFY_SOURCE -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG' \
+"
 export USE_MEMORY_SANITIZER="true"
 export TEST_RUNNER_TIMEOUT_FACTOR=40

@@ -30,7 +30,7 @@ Short version, in order of preference:
   be": a violation means someone has a bug worth investigating, but execution
   stays well-defined. A negative rate-limit counter is the archetype - somebody
   decremented twice, we may be more DoS-exposed than intended, but nothing is
-  corrupt. It aborts in `--enable-debug` and `--enable-fuzz` builds (CI's
+  corrupt. It aborts in `Debug` and `BUILD_FOR_FUZZING=ON` builds (CI's
   `linux64_multiprocess` and fuzz jobs) while a failure is silent in release,
   so it must never take down a production node. The expression is always
   evaluated.
@@ -88,40 +88,35 @@ Use portable parallelism in examples. Linux-only CPU-count helpers are not
 available on every supported developer host.
 
 ```bash
-./autogen.sh
-
 JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)"
 JOBS="$(( JOBS > 1 ? JOBS - 1 : 1 ))"
 
 make -C depends -j"$JOBS"
 
-# Use the depends prefix printed for your platform, for example
-# depends/x86_64-pc-linux-gnu or depends/aarch64-apple-darwin24.3.0.
-./configure --prefix="$(pwd)/depends/[platform-triplet]"
-
-make -j"$JOBS"
+# Use the toolchain generated for your platform, for example
+# depends/x86_64-pc-linux-gnu/toolchain.cmake.
+cmake -B build --toolchain depends/[platform-triplet]/toolchain.cmake
+cmake --build build -j"$JOBS"
 ```
 
-Useful developer configure flags:
+Useful developer configuration options:
 
 ```bash
-./configure --prefix="$(pwd)/depends/[platform-triplet]" \
-            --disable-hardening \
-            --enable-crash-hooks \
-            --enable-debug \
-            --enable-reduce-exports \
-            --enable-stacktraces \
-            --enable-suppress-external-warnings \
-            --enable-werror
+cmake -B build --toolchain depends/[platform-triplet]/toolchain.cmake \
+      -DENABLE_HARDENING=OFF \
+      -DENABLE_CRASH_HOOKS=ON \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DREDUCE_EXPORTS=ON \
+      -DENABLE_STACKTRACES=ON \
+      -DWERROR=ON
 ```
 
 To generate `compile_commands.json` or run clang-tidy, see
 `doc/developer-notes.md` under "Running clang-tidy".
 
 When adding, removing, or renaming C++ source files, update the build system in
-the same change. Most source/test files need `src/Makefile.am` or
-`src/Makefile.test.include` updates, and new Dash-specific files must also be
-appended to `test/util/data/non-backported.txt`.
+the same change. Update the relevant `CMakeLists.txt`, and new Dash-specific
+files must also be appended to `test/util/data/non-backported.txt`.
 
 ## Writing Tests
 
@@ -141,20 +136,20 @@ Choose tests based on the files touched.
 
 ```bash
 # All unit tests
-make check
+ctest --test-dir build
 
 # One Boost test suite or case
-./src/test/test_dash --run_test=getarg_tests
+./build/src/test/test_dash --run_test=getarg_tests
 
 # All functional tests
-test/functional/test_runner.py
+build/test/functional/test_runner.py
 
 # One functional test
-test/functional/test_runner.py wallet_hd.py
+build/test/functional/test_runner.py wallet_hd.py
 
 # Parallel functional tests
 JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)"
-test/functional/test_runner.py -j"$JOBS"
+build/test/functional/test_runner.py -j"$JOBS"
 
 # Lint
 test/lint/all-lint.py
@@ -271,19 +266,19 @@ Be extra careful around:
 
 ```bash
 # Run dashd with broad logging
-./src/dashd -debug=all -printtoconsole
+./build/src/dashd -debug=all -printtoconsole
 
 # Run a functional test against a custom binary
-test/functional/test_runner.py --dashd=/path/to/dashd wallet_hd.py
+build/test/functional/test_runner.py --dashd=/path/to/dashd wallet_hd.py
 
 # Keep failed functional-test datadirs
-test/functional/test_runner.py --nocleanup --tracerpc -l DEBUG wallet_hd.py
+build/test/functional/test_runner.py --nocleanup --tracerpc -l DEBUG wallet_hd.py
 
 # Debug a unit-test binary
-gdb ./src/test/test_dash
+gdb ./build/src/test/test_dash
 
 # Profile a functional test
-test/functional/test_runner.py --perf wallet_hd.py
+build/test/functional/test_runner.py --perf wallet_hd.py
 perf report -i /path/to/datadir/test.perf.data --stdio | c++filt
 ```
 

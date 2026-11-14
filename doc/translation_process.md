@@ -16,10 +16,11 @@ We use automated scripts to help extract translations in both Qt, and non-Qt sou
 
 `src/qt/locale/dash_en.ts` is treated in a special way. It is used as the source for all other translations. Whenever a string in the source code is changed, this file must be updated to reflect those changes. A custom script is used to extract strings from the non-Qt parts. This script makes use of `gettext`, so make sure that utility is installed (ie, `apt-get install gettext` on Ubuntu/Debian). Once this has been updated, `lupdate` (included in the Qt SDK) is used to update `dash_en.ts`.
 
-To automatically regenerate the `dash_en.ts` file, run the following commands:
+To automatically regenerate the `dash_en.ts` file, configure a GUI build and
+run the following commands from the source root:
 ```sh
-cd src/
-make translate
+cmake -B build -DBUILD_GUI=ON
+cmake --build build --target translate
 ```
 
 **Example Qt translation**
@@ -59,8 +60,9 @@ To assist in updating translations, we have created a script to help.
 1. `python contrib/devtools/update-translations.py`
 
 It fetches the translations, post-processes them, `git add`s new files from
-`src/qt/locale/` and regenerates `src/qt/dash_locale.qrc` and
-`src/Makefile.qt_locale.include`.
+`src/qt/locale/` and regenerates `src/qt/dash_locale.qrc`. CMake discovers
+`src/qt/locale/*.ts` when configuring, so run `cmake -B build` again after
+adding or removing translations.
 
 **Do not directly download translations** one by one from the Transifex website, as we do a few post-processing steps before committing the translations.
 

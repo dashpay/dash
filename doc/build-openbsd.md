@@ -10,9 +10,9 @@ This guide describes how to build dashd, command-line utilities, and GUI on Open
 Run the following as root to install the base dependencies for building.
 
 ```bash
-pkg_add bash git gmake libevent libtool boost zstd
-# Select the newest version of the following packages:
-pkg_add autoconf automake python
+pkg_add cmake git gmake libevent boost zstd
+# Select Python 3.10 or newer:
+pkg_add python
 ```
 
 See [dependencies.md](dependencies.md) for a complete overview.
@@ -58,25 +58,14 @@ export BDB_PREFIX="/path/to/dash/depends/x86_64-unknown-openbsd"
 #### GUI Dependencies
 ###### Qt5
 
-Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, Qt 5 is required.
+Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, Qt 5 is required. Pass `-DBUILD_GUI=ON` to CMake.
+Install libqrencode for QR code support, or pass `-DWITH_QRENCODE=OFF`.
 
 ```bash
 pkg_add qt5
 ```
 
 ## Building Dash Core
-
-**Important**: Use `gmake` (the non-GNU `make` will exit with an error).
-
-Preparation:
-```bash
-
-# Adapt the following for the version you installed (major.minor only):
-export AUTOCONF_VERSION=2.71
-export AUTOMAKE_VERSION=1.16
-
-./autogen.sh
-```
 
 ### 1. Configuration
 
@@ -86,25 +75,22 @@ There are many ways to configure Dash Core, here are a few common examples:
 This enables the GUI and descriptor wallet support, assuming `sqlite` and `qt5` are installed.
 
 ```bash
-./configure MAKE=gmake
+cmake -B build -DBUILD_GUI=ON
 ```
 
 ##### Descriptor & Legacy Wallet. No GUI:
 This enables support for both wallet types and disables the GUI:
 
 ```bash
-./configure --with-gui=no \
-    BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" \
-    BDB_CFLAGS="-I${BDB_PREFIX}/include" \
-    MAKE=gmake
+cmake -B build -DBUILD_GUI=OFF -DWITH_BDB=ON \
+    -DBerkeleyDB_INCLUDE_DIR:PATH="${BDB_PREFIX}/include"
 ```
 
 ### 2. Compile
-**Important**: Use `gmake` (the non-GNU `make` will exit with an error).
 
 ```bash
-gmake # use "-j N" for N parallel jobs
-gmake check # Run tests if Python 3 is available
+cmake --build build     # use "-j N" for N parallel jobs
+ctest --test-dir build  # Some tests require Python 3
 ```
 
 ## Resource limits

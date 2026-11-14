@@ -25,7 +25,7 @@ We are going to first create an `offline_wallet` on the offline host. We will th
 1. On the offline machine create a wallet named `offline_wallet` secured by a wallet `passphrase`. This wallet will contain private keys and must remain unconnected to any networks at all times.
 
 ```sh
-[offline]$ ./src/dash-cli -testnet -named createwallet \
+[offline]$ ./build/src/dash-cli -testnet -named createwallet \
                 wallet_name="offline_wallet" \
                 passphrase="** enter passphrase **"
 
@@ -40,7 +40,7 @@ We are going to first create an `offline_wallet` on the offline host. We will th
 2. Export the public key-only descriptors from the offline host to a JSON file named `descriptors.json`. We use `jq` here to extract the `.descriptors` field from the full RPC response.
 
 ```sh
-[offline]$ ./src/dash-cli -testnet -rpcwallet="offline_wallet" listdescriptors \
+[offline]$ ./build/src/dash-cli -testnet -rpcwallet="offline_wallet" listdescriptors \
              | jq -r '.descriptors' \
              >> /path/to/descriptors.json
 ```
@@ -58,7 +58,7 @@ The `watch_only_wallet` wallet will be used to track and validate incoming trans
 > `disable_private_keys` indicates that the wallet should refuse to import private keys, i.e. will be a dedicated watch-only wallet.
 
 ```sh
-[online]$ ./src/dash-cli -testnet -named createwallet \
+[online]$ ./build/src/dash-cli -testnet -named createwallet \
               wallet_name="watch_only_wallet" \
               disable_private_keys=true
 
@@ -70,7 +70,7 @@ The `watch_only_wallet` wallet will be used to track and validate incoming trans
 2. Import the `offline_wallet`s public key descriptors to the online `watch_only_wallet` using the `descriptors.json` file created on the offline wallet.
 
 ```sh
-[online]$ ./src/dash-cli -testnet -rpcwallet="watch_only_wallet" importdescriptors "$(cat /path/to/descriptors.json)"
+[online]$ ./build/src/dash-cli -testnet -rpcwallet="watch_only_wallet" importdescriptors "$(cat /path/to/descriptors.json)"
 
 [
   {
@@ -94,7 +94,7 @@ At this point, it's important to understand that both the `offline_wallet` and o
 1. Generate an address to receive coins. You can use _either_ the `offline_wallet` or the online `watch_only_wallet` to generate this address, as they will produce the same addresses. For the sake of this guide, we'll use the online `watch_only_wallet` to generate the address.
 
 ```sh
-[online]$ ./src/dash-cli -testnet -rpcwallet="watch_only_wallet" getnewaddress
+[online]$ ./build/src/dash-cli -testnet -rpcwallet="watch_only_wallet" getnewaddress
 
 <receiving address>
 ```
@@ -104,7 +104,7 @@ At this point, it's important to understand that both the `offline_wallet` and o
 3. Confirm that coins were received using the online `watch_only_wallet`. Note that the transaction may take a few moments before being received on your local node, depending on its connectivity. Just re-run the command periodically until the transaction is received.
 
 ```sh
-[online]$ ./src/dash-cli -testnet -rpcwallet="watch_only_wallet" listunspent
+[online]$ ./build/src/dash-cli -testnet -rpcwallet="watch_only_wallet" listunspent
 
 [
   {
@@ -133,7 +133,7 @@ At this point, it's important to understand that both the `offline_wallet` and o
 2. Create a funded but unsigned PSBT to the destination address with the online `watch_only_wallet` by using `send [{"address":amount},...]` and export the unsigned PSBT to a file `funded_psbt.txt` for easy portability to the `offline_wallet` for signing:
 
 ```sh
-[online]$ ./src/dash-cli -testnet -rpcwallet="watch_only_wallet" send \
+[online]$ ./build/src/dash-cli -testnet -rpcwallet="watch_only_wallet" send \
               '{"<destination address>": 0.009}' \
               | jq -r '.psbt' \
               >> /path/to/funded_psbt.txt
@@ -150,13 +150,13 @@ cHNidP8B...
 Decode and analyze the unsigned PSBT on the `offline_wallet` using the `funded_psbt.txt` file:
 
 ```sh
-[offline]$ ./src/dash-cli -testnet decodepsbt $(cat /path/to/funded_psbt.txt)
+[offline]$ ./build/src/dash-cli -testnet decodepsbt $(cat /path/to/funded_psbt.txt)
 
 {
     ...
 }
 
-[offline]$ ./src/dash-cli -testnet analyzepsbt $(cat /path/to/funded_psbt.txt)
+[offline]$ ./build/src/dash-cli -testnet analyzepsbt $(cat /path/to/funded_psbt.txt)
 
 {
   "inputs": [
@@ -187,13 +187,13 @@ Notice that the analysis of the PSBT shows that "signatures" are missing and sho
 Use the walletpassphrase command to unlock the `offline_wallet` with the passphrase. You should specify the passphrase and a timeout (in seconds) for how long you want the wallet to remain unlocked.
 
 ```sh
-[offline]$ ./src/dash-cli -testnet -rpcwallet="offline_wallet" walletpassphrase "** enter passphrase **" 60
+[offline]$ ./build/src/dash-cli -testnet -rpcwallet="offline_wallet" walletpassphrase "** enter passphrase **" 60
 ```
 
 2. Process, sign and finalize the PSBT on the `offline_wallet` using the `walletprocesspsbt` command, saving the output to a file `final_psbt.txt`.
 
  ```sh
-[offline]$ ./src/dash-cli -testnet -rpcwallet="offline_wallet" walletprocesspsbt \
+[offline]$ ./build/src/dash-cli -testnet -rpcwallet="offline_wallet" walletprocesspsbt \
                 $(cat /path/to/funded_psbt.txt) \
                 | jq -r .hex \
                 >> /path/to/final_psbt.txt
@@ -203,7 +203,7 @@ Use the walletpassphrase command to unlock the `offline_wallet` with the passphr
 Broadcast the funded, signed and finalized PSBT `final_psbt.txt` using `sendrawtransaction` with an online node:
 
 ```sh
-[online]$ ./src/dash-cli -testnet sendrawtransaction $(cat /path/to/final_psbt.txt)
+[online]$ ./build/src/dash-cli -testnet sendrawtransaction $(cat /path/to/final_psbt.txt)
 
 <txid>
 ```
@@ -213,7 +213,7 @@ Broadcast the funded, signed and finalized PSBT `final_psbt.txt` using `sendrawt
 Confirm the updated balance of the offline wallet using the `watch_only_wallet`.
 
 ```sh
-[online]$ ./src/dash-cli -testnet -rpcwallet="watch_only_wallet" getbalances
+[online]$ ./build/src/dash-cli -testnet -rpcwallet="watch_only_wallet" getbalances
 
 {
   "mine": {
@@ -232,7 +232,7 @@ Confirm the updated balance of the offline wallet using the `watch_only_wallet`.
 You can also show transactions related to the wallet using `listtransactions`
 
 ```sh
-[online]$ ./src/dash-cli -testnet -rpcwallet="watch_only_wallet" listtransactions
+[online]$ ./build/src/dash-cli -testnet -rpcwallet="watch_only_wallet" listtransactions
 
 {
     ...

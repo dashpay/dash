@@ -8,10 +8,9 @@ To Build
 ---------------------
 
 ```sh
-./autogen.sh
-./configure
-make # use "-j N" for N parallel jobs
-make install # optional
+cmake -B build
+cmake --build build    # use "-j N" for N parallel jobs
+cmake --install build  # optional
 ```
 
 See below for instructions on how to [install the dependencies on popular Linux
@@ -22,11 +21,11 @@ distributions](#linux-distribution-specific-instructions), or the
 
 C++ compilers are memory-hungry. It is recommended to have at least 1.5 GB of
 memory available when compiling Dash Core. On systems with less, gcc can be
-tuned to conserve memory with additional CXXFLAGS:
+tuned to conserve memory with additional `CMAKE_CXX_FLAGS`:
 
 
 ```sh
-./configure CXXFLAGS="--param ggc-min-expand=1 --param ggc-min-heapsize=32768"
+cmake -B build -DCMAKE_CXX_FLAGS="--param ggc-min-expand=1 --param ggc-min-heapsize=32768"
 ```
 
 
@@ -39,7 +38,7 @@ tuned to conserve memory with additional CXXFLAGS:
 Build requirements:
 
 ```sh
-sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils bison python3
+sudo apt-get install build-essential cmake pkg-config python3
 ```
 
 Now, you can either build from self-compiled [depends](#dependencies) or install the required dependencies:
@@ -60,27 +59,27 @@ sudo apt-get install libsqlite3-dev
 Berkeley DB is only required for the legacy wallet. Ubuntu and Debian have their own `libdb-dev` and `libdb++-dev` packages,
 but these will install Berkeley DB 5.3 or later. This will break binary wallet compatibility with the distributed
 executables, which are based on BerkeleyDB 4.8. If you do not care about wallet compatibility, pass
-`--with-incompatible-bdb` to configure. Otherwise, you can build Berkeley DB [yourself](#berkeley-db).
+`-DWITH_BDB=ON -DWARN_INCOMPATIBLE_BDB=OFF` to CMake. Otherwise, you can build Berkeley DB [yourself](#berkeley-db).
 
 To build Dash Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
-zstd compresses block and undo files on disk (see: `--with-zstd`, package `libzstd-dev`
+zstd compresses block and undo files on disk (see: `-DWITH_ZSTD=ON`, package `libzstd-dev`
 on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
 contain compressed records.
 
-Optional port mapping libraries (see: `--with-miniupnpc` and `--with-natpmp`):
+Optional port mapping libraries (see: `-DWITH_MINIUPNPC=ON` and `-DWITH_NATPMP=ON`):
 
 ```sh
 sudo apt-get install libminiupnpc-dev libnatpmp-dev
 ```
 
-ZMQ dependencies (provides ZMQ API):
+ZMQ dependencies (enable notifications with `-DWITH_ZMQ=ON`):
 
 ```sh
 sudo apt-get install libzmq3-dev
 ```
 
-User-Space, Statically Defined Tracing (USDT) dependencies:
+User-Space, Statically Defined Tracing (USDT) dependencies (enable with `-DWITH_USDT=ON`):
 
 ```sh
 sudo apt install systemtap-sdt-dev
@@ -88,9 +87,8 @@ sudo apt install systemtap-sdt-dev
 
 GUI dependencies:
 
-If you want to build dash-qt, make sure that the required packages for Qt development
-are installed. Qt 5 is necessary to build the GUI.
-To build without GUI pass `--without-gui`.
+To build dash-qt, install the required Qt 5 development packages and pass
+`-DBUILD_GUI=ON` to CMake. The GUI is disabled by default.
 
 To build with Qt 5 you need the following:
 
@@ -104,14 +102,14 @@ Additionally, to support Wayland protocol for modern desktop environments:
 sudo apt-get install qtwayland5
 ```
 
-libqrencode (optional) can be installed with:
+For QR encoding support, install libqrencode:
 
 ```sh
 sudo apt-get install libqrencode-dev
 ```
 
-Once these are installed, they will be found by configure and a dash-qt executable will be
-built by default.
+QR encoding is enabled when building the GUI. If libqrencode is not installed,
+pass `-DWITH_QRENCODE=OFF` to disable QR encoding.
 
 
 ### Fedora
@@ -121,7 +119,7 @@ built by default.
 Build requirements:
 
 ```sh
-sudo dnf install gcc-c++ libtool make autoconf automake python3
+sudo dnf install gcc-c++ cmake make pkgconf-pkg-config python3
 ```
 
 Now, you can either build from self-compiled [depends](#dependencies) or install the required dependencies:
@@ -130,7 +128,7 @@ Now, you can either build from self-compiled [depends](#dependencies) or install
 sudo dnf install libevent-devel boost-devel
 ```
 
-Note: Fedora repositories do not include libbacktrace. To build Dash Core without stack trace support, configure with `--disable-stacktraces`.
+Note: Fedora repositories do not include libbacktrace. To build Dash Core without stack trace support, configure with `-DENABLE_STACKTRACES=OFF`.
 
 SQLite is required for the descriptor wallet:
 
@@ -141,27 +139,27 @@ sudo dnf install sqlite-devel
 Berkeley DB is only required for the legacy wallet. Fedora releases have only `libdb-devel` and `libdb-cxx-devel` packages, but these will install
 Berkeley DB 5.3 or later. This will break binary wallet compatibility with the distributed executables, which
 are based on Berkeley DB 4.8. If you do not care about wallet compatibility,
-pass `--with-incompatible-bdb` to configure. Otherwise, you can build Berkeley DB [yourself](#berkeley-db).
+pass `-DWITH_BDB=ON -DWARN_INCOMPATIBLE_BDB=OFF` to CMake. Otherwise, you can build Berkeley DB [yourself](#berkeley-db).
 
 To build Dash Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
-zstd compresses block and undo files on disk (see: `--with-zstd`, package `libzstd-dev`
+zstd compresses block and undo files on disk (see: `-DWITH_ZSTD=ON`, package `libzstd-dev`
 on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
 contain compressed records.
 
-Optional port mapping libraries (see: `--with-miniupnpc` and `--with-natpmp`):
+Optional port mapping libraries (see: `-DWITH_MINIUPNPC=ON` and `-DWITH_NATPMP=ON`):
 
 ```sh
 sudo dnf install miniupnpc-devel libnatpmp-devel
 ```
 
-ZMQ dependencies (provides ZMQ API):
+ZMQ dependencies (enable notifications with `-DWITH_ZMQ=ON`):
 
 ```sh
 sudo dnf install zeromq-devel
 ```
 
-User-Space, Statically Defined Tracing (USDT) dependencies:
+User-Space, Statically Defined Tracing (USDT) dependencies (enable with `-DWITH_USDT=ON`):
 
 ```sh
 sudo dnf install systemtap-sdt-devel
@@ -169,9 +167,8 @@ sudo dnf install systemtap-sdt-devel
 
 GUI dependencies:
 
-If you want to build dash-qt, make sure that the required packages for Qt development
-are installed. Qt 5 is necessary to build the GUI.
-To build without GUI pass `--without-gui`.
+To build dash-qt, install the required Qt 5 development packages and pass
+`-DBUILD_GUI=ON` to CMake. The GUI is disabled by default.
 
 To build with Qt 5 you need the following:
 
@@ -185,14 +182,14 @@ Additionally, to support Wayland protocol for modern desktop environments:
 sudo dnf install qt5-qtwayland
 ```
 
-libqrencode (optional) can be installed with:
+For QR encoding support, install libqrencode:
 
 ```sh
 sudo dnf install qrencode-devel
 ```
 
-Once these are installed, they will be found by configure and a dash-qt executable will be
-built by default.
+QR encoding is enabled when building the GUI. If libqrencode is not installed,
+pass `-DWITH_QRENCODE=OFF` to disable QR encoding.
 
 ## Dependencies
 
@@ -214,9 +211,8 @@ and configure using the following:
 ```bash
 export BDB_PREFIX="/path/to/dash/depends/x86_64-pc-linux-gnu"
 
-./configure \
-    BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" \
-    BDB_CFLAGS="-I${BDB_PREFIX}/include"
+cmake -B build -DWITH_BDB=ON \
+    -DBerkeleyDB_INCLUDE_DIR:PATH="${BDB_PREFIX}/include"
 ```
 
 **Note**: Make sure that `BDB_PREFIX` is an absolute path.
@@ -228,18 +224,18 @@ Disable-wallet mode
 When the intention is to only run a P2P node, without a wallet, Dash Core can
 be compiled in disable-wallet mode with:
 
-    ./configure --disable-wallet
+    cmake -B build -DENABLE_WALLET=OFF
 
 In this case there is no dependency on SQLite or Berkeley DB.
 
 Mining is also possible in disable-wallet mode using the `getblocktemplate` RPC call.
 
-Additional Configure Flags
+Additional Configuration Options
 --------------------------
-A list of additional configure flags can be displayed with:
+A list of configuration options can be displayed with:
 
 ```sh
-./configure --help
+cmake -B build -LH
 ```
 
 
@@ -248,13 +244,13 @@ Setup and Build Example: Arch Linux
 This example lists the steps necessary to setup and build a command line only distribution of the latest changes on Arch Linux:
 
 ```sh
-pacman --sync --needed autoconf automake base-devel boost cmake gcc git libbacktrace libevent libtool make patch pkgconf python sqlite zstd
+pacman --sync --needed base-devel boost cmake gcc git libbacktrace libevent make pkgconf python sqlite zstd
 git clone https://github.com/dashpay/dash.git
 cd dash/
-./autogen.sh
-./configure
-make check
-./src/dashd
+cmake -B build
+cmake --build build
+ctest --test-dir build
+./build/src/dashd
 ```
 
 If you intend to work with legacy Berkeley DB wallets, see [Berkeley DB](#berkeley-db) section.

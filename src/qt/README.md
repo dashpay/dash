@@ -6,12 +6,12 @@ The current precise version for Qt 5 is specified in [qt.mk](/depends/packages/q
 
 See build instructions: [Unix](/doc/build-unix.md), [macOS](/doc/build-osx.md), [Windows](/doc/build-windows.md), [FreeBSD](/doc/build-freebsd.md), [NetBSD](/doc/build-netbsd.md), [OpenBSD](/doc/build-openbsd.md)
 
-When following your systems build instructions, make sure to install the `Qt` dependencies.
+When following your systems build instructions, install the `Qt` dependencies and configure CMake with `-DBUILD_GUI=ON`.
 
 To run:
 
 ```sh
-./src/qt/dash-qt
+./build/src/qt/dash-qt
 ```
 
 ## Files and Directories
@@ -100,12 +100,12 @@ sudo apt-get install qtcreator
 #### Setup Qt Creator
 
 1. Make sure you've installed all dependencies specified in your systems build instructions
-2. Follow the compile instructions for your system, run `./configure` with the `--enable-debug` flag
-3. Start Qt Creator. At the start page, do: `New` -> `Import Project` -> `Import Existing Project`
-4. Enter `dash-qt` as the Project Name and enter the absolute path to `src/qt` as Location
-5. Check over the file selection, you may need to select the `forms` directory (necessary if you intend to edit *.ui files)
-6. Confirm the `Summary` page
-7. In the `Projects` tab, select `Manage Kits...`
+2. Follow the compile instructions for your system, configure with `cmake -B build -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Debug`
+3. Start Qt Creator and open the top-level `CMakeLists.txt` using `File` -> `Open File or Project...`
+4. Select a kit with the compiler and debugger you intend to use
+5. Set the build directory to the `build` directory configured above
+6. Check that the CMake configuration includes `BUILD_GUI=ON` and `CMAKE_BUILD_TYPE=Debug`
+7. In the `Projects` tab, select `Manage Kits...` if you need to adjust the kit
 
  **macOS**
  - Under `Kits`: select the default "Desktop" kit
@@ -120,6 +120,6 @@ sudo apt-get install qtcreator
  - Under `Compilers`: select `"GCC (x86 64bit in /usr/bin)"`
  - Under `Debuggers`: select `"GDB"` as debugger
 
-8. While in the `Projects` tab, ensure that you have the `dash-qt` executable specified under `Run`
- - If the executable is not specified: click `"Choose..."`, navigate to `src/qt`, and select `dash-qt`
+8. While in the `Projects` tab, select the `bitcoin-qt` target under `Run` (its executable is named `dash-qt`)
+ - If the executable is not specified: click `"Choose..."`, navigate to `build/src/qt`, and select `dash-qt`
 9. You're all set! Start developing, building, and debugging the Dash Core GUI
