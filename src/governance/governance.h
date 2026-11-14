@@ -10,16 +10,19 @@
 #include <governance/vote.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <primitives/transaction.h>
+#include <serialize.h>
 #include <sync.h>
 #include <util/fs.h>
 #include <util/time.h>
 
 #include <atomic>
+#include <chrono>
 #include <limits>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 class CBloomFilter;
@@ -59,8 +62,76 @@ struct OrphanVote {
 
 inline bool operator<(const OrphanVote& lhs, const OrphanVote& rhs)
 {
+    // Equal signed fields may arrive authenticated by different voting/operator keys.
+    if (lhs.vote == rhs.vote) return lhs.vote.GetSignatureSize() < rhs.vote.GetSignatureSize();
     return lhs.vote < rhs.vote;
 }
+
+// Orphan votes are not scarce: one masternode key can sign any number of votes naming parents that
+// do not exist. Each masternode is therefore limited to its own share of the cache, and the cache as
+// a whole holds about 40 MB at most (roughly 800 bytes per entry). Filling it takes the keys of 500
+// masternodes, because only recently signed votes are held.
+static constexpr size_t MAX_ORPHAN_VOTES{50'000};
+static constexpr size_t MAX_ORPHAN_VOTES_PER_MN{100};
+// A vote stays valid for as long as its masternode's key does, so anyone can replay a masternode's
+// old votes for objects we no longer have. Only recent votes are held as orphans, or such replays
+// would use up the masternode's share of the orphan cache.
+static constexpr std::chrono::seconds MAX_ORPHAN_VOTE_AGE{std::chrono::hours{1}};
+
+/** Votes waiting for their parent object, keyed by parent hash, with the oldest evicted once the
+ *  cache is full and each masternode limited to a share of it. */
+class OrphanVoteCache
+{
+public:
+    explicit OrphanVoteCache(size_t max_total, size_t max_per_mn);
+
+    /** Returns whether the vote is held, either newly or because it already was. A new vote is
+     *  dropped if its masternode already holds max_per_mn orphan votes. */
+    [[nodiscard]] bool Insert(const uint256& parent_hash, const OrphanVote& orphan_vote);
+    void Erase(const uint256& parent_hash, const OrphanVote& orphan_vote);
+    void EraseExpired(NodeSeconds now);
+    void GetAll(const uint256& parent_hash, std::vector<OrphanVote>& orphan_votes);
+    void Clear();
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        s << m_cache;
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        // Read entry by entry rather than adopt the stored cache: a file from an earlier version can
+        // hold a million entries. They are stored newest first, so keep the newest that fit the
+        // bounds, skipping those ProcessVote() would not hold, then insert them oldest first.
+        using Stored = CacheMultiMap<uint256, OrphanVote>;
+        Stored::size_type stored_capacity;
+        s >> stored_capacity;
+        Clear();
+        const auto now{Now<NodeSeconds>()};
+        std::vector<Stored::item_t> kept;
+        std::map<COutPoint, size_t> kept_per_mn;
+        for (uint64_t remaining{ReadCompactSize(s)}; remaining > 0; --remaining) {
+            Stored::item_t item;
+            s >> item;
+            if (item.value.expiration < now || item.value.vote.Time() < now - MAX_ORPHAN_VOTE_AGE) continue;
+            if (kept.size() >= m_cache.GetMaxSize()) continue;
+            if (size_t& count{kept_per_mn[item.value.vote.GetMasternodeOutpoint()]}; count < m_max_per_mn) {
+                ++count;
+                kept.push_back(std::move(item));
+            }
+        }
+        for (auto it = kept.rbegin(); it != kept.rend(); ++it) {
+            (void)Insert(it->key, it->value);
+        }
+    }
+
+private:
+    const size_t m_max_per_mn;
+    CacheMultiMap<uint256, OrphanVote> m_cache;
+    std::map<COutPoint, size_t> m_count_per_mn;
+};
 } // namespace governance
 
 static constexpr int RATE_BUFFER_SIZE = 5;
@@ -176,7 +247,6 @@ protected:
     };
 
     using txout_m_t = std::map<COutPoint, last_object_rec>;
-    using vote_cmm_t = CacheMultiMap<uint256, governance::OrphanVote>;
 
 protected:
     static constexpr int MAX_CACHE_SIZE = 1000000;
@@ -192,7 +262,7 @@ protected:
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
     std::map<uint256, int64_t> mapErasedGovernanceObjects GUARDED_BY(cs_store);
-    vote_cmm_t cmmapOrphanVotes GUARDED_BY(cs_store);
+    governance::OrphanVoteCache m_orphan_votes GUARDED_BY(cs_store);
     txout_m_t mapLastMasternodeObject GUARDED_BY(cs_store);
     // used to check for changed voting keys
     std::shared_ptr<CDeterministicMNList> lastMNListForVotingKeys GUARDED_BY(cs_store);
@@ -207,7 +277,7 @@ public:
         LOCK(cs_store);
         s   << SERIALIZATION_VERSION_STRING
             << mapErasedGovernanceObjects
-            << cmmapOrphanVotes
+            << m_orphan_votes
             << mapObjects
             << mapLastMasternodeObject
             << *lastMNListForVotingKeys;
@@ -226,7 +296,7 @@ public:
         }
 
         s   >> mapErasedGovernanceObjects
-            >> cmmapOrphanVotes
+            >> m_orphan_votes
             >> mapObjects
             >> mapLastMasternodeObject
             >> *lastMNListForVotingKeys;
@@ -337,8 +407,6 @@ public:
      *  running collateral or chain validation. */
     void AddGovernanceObjectForTesting(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    /** Test-only helper: caches a vote as an orphan of its parent without validating it. */
-    void AddOrphanVoteForTesting(const CGovernanceVote& vote) EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
     // Thread-safe accessors
     bool HaveObjectForHash(const uint256& nHash) const
@@ -365,13 +433,6 @@ public:
     // Used by NetGovernance
     std::vector<CInv> FetchRelayInventory() EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
     void CheckAndRemove() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    /** Upper bound on the orphan parent hashes GetOrphanVoteObjectHashes() returns per call. Each one is
-     *  re-requested from every peer, and one masternode key can sign votes for any number of invented
-     *  parent hashes. */
-    static constexpr size_t MAX_ORPHAN_OBJECT_REQUESTS{100};
-    /** Get hashes of governance objects for which we have orphan votes, at most
-     *  MAX_ORPHAN_OBJECT_REQUESTS of them chosen at random. Also cleans up expired orphans. */
-    [[nodiscard]] std::vector<uint256> GetOrphanVoteObjectHashes() EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     std::pair<std::vector<uint256>, std::vector<uint256>> FetchGovernanceObjectVotes(
         size_t peers_per_hash_max, int64_t now, std::map<uint256, std::map<CService, int64_t>>& map_asked_recently) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -387,7 +448,8 @@ public:
 
     CDeterministicMNManager& GetMNManager();
     /** Process a governance vote. Returns true on success.
-     *  If the vote is for an unknown object (orphan), hashToRequest is set to the object hash. */
+     *  If the vote is for an unknown object (orphan) and is held until that object arrives,
+     *  hashToRequest is set to the object hash. */
     bool ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception, uint256& hashToRequest)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
