@@ -145,6 +145,7 @@ public:
     }
 
     void SetSignature(const std::vector<unsigned char>& vchSigIn) { vchSig = vchSigIn; }
+    size_t GetSignatureSize() const { return vchSig.size(); }
 
     bool CheckSignature(const CKeyID& keyID) const;
     bool CheckSignature(const CBLSPublicKey& pubKey) const;

@@ -338,6 +338,16 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     // Requiring validity up front turns that diffuse failure into one pointed at the setup.
     BOOST_REQUIRE(vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
 
+    auto process_other = [&](const CGovernanceVote& other_vote) {
+        CGovernanceException other_exception;
+        uint256 other_hash_to_request;
+        BOOST_CHECK(!govman.ProcessVote(other_vote, other_exception, other_hash_to_request));
+        return other_hash_to_request;
+    };
+    CGovernanceVote funding_by_operator{vote};
+    SignWithOperatorKey(funding_by_operator, mn_operator_key);
+    BOOST_CHECK_EQUAL(process_other(funding_by_operator), parent_hash);
+
     CGovernanceException exception;
     uint256 hash_to_request;
     BOOST_CHECK(!govman.ProcessVote(vote, exception, hash_to_request));
@@ -345,6 +355,12 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_CHECK_EQUAL(exception.GetNodePenalty(), 0);
     // The caller uses this to ask the sending peer for the missing object.
     BOOST_CHECK_EQUAL(hash_to_request, parent_hash);
+
+    // Other votes for the same parent are held too, including the operator key's signature of the
+    // same fields, which arrived first but cannot count as a funding vote.
+    CGovernanceVote valid_vote{MakeVote(parent_hash, VOTE_SIGNAL_VALID, VOTE_OUTCOME_YES)};
+    SignWithOperatorKey(valid_vote, mn_operator_key);
+    BOOST_CHECK_EQUAL(process_other(valid_vote), parent_hash);
 
     const uint256 collateral_hash{ConfirmProposalCollateral(parent_hash)};
     CGovernanceObject proposal{MakeProposal(collateral_hash)};
@@ -356,7 +372,8 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     auto stored = govman.FindConstGovernanceObject(parent_hash);
     BOOST_REQUIRE(stored != nullptr);
     BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_FUNDING), 1);
-    BOOST_CHECK_EQUAL(govman.GetCurrentVotes(parent_hash, mn_collateral).size(), 1U);
+    BOOST_CHECK_EQUAL(stored->GetAbsoluteYesCount(tip_mn_list(), VOTE_SIGNAL_VALID), 1);
+    BOOST_CHECK_EQUAL(govman.GetCurrentVotes(parent_hash, mn_collateral).size(), 2U);
     BOOST_CHECK(govman.HaveVoteForHash(vote.GetHash()));
     CDataStream serialized_vote{SER_NETWORK, PROTOCOL_VERSION};
     BOOST_CHECK(govman.SerializeVoteForHash(vote.GetHash(), serialized_vote));
