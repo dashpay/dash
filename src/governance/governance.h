@@ -67,9 +67,13 @@ inline bool operator<(const OrphanVote& lhs, const OrphanVote& rhs)
 // Orphan votes are not scarce: one masternode key can sign any number of votes naming parents that
 // do not exist. Each masternode is therefore limited to its own share of the cache, and the cache as
 // a whole holds about 40 MB at most (roughly 800 bytes per entry). Filling it takes the keys of 500
-// masternodes, because only recently signed votes are held (see ProcessVote).
+// masternodes, because only recently signed votes are held.
 static constexpr size_t MAX_ORPHAN_VOTES{50'000};
 static constexpr size_t MAX_ORPHAN_VOTES_PER_MN{100};
+// A vote stays valid for as long as its masternode's key does, so anyone can replay a masternode's
+// old votes for objects we no longer have. Only recent votes are held as orphans, or such replays
+// would use up the masternode's share of the orphan cache.
+static constexpr std::chrono::seconds MAX_ORPHAN_VOTE_AGE{std::chrono::hours{1}};
 
 /** Votes waiting for their parent object, keyed by parent hash, with the oldest evicted once the
  *  cache is full and each masternode limited to a share of it. */
@@ -95,17 +99,27 @@ public:
     template <typename Stream>
     void Unserialize(Stream& s)
     {
-        // Re-insert rather than adopt the stored cache: the file carries the capacity of whichever
-        // version wrote it, and not the per-masternode counts. Oldest first, to keep the order.
-        // Skip expired entries, which earlier versions kept while unsynced, so they cannot take up a
-        // masternode's share ahead of its live votes.
-        CacheMultiMap<uint256, OrphanVote> stored;
-        s >> stored;
+        // Read entry by entry rather than adopt the stored cache: a file from an earlier version can
+        // hold a million entries. They are stored newest first, so keep the newest that fit the
+        // bounds, skipping those ProcessVote() would not hold, then insert them oldest first.
+        using Stored = CacheMultiMap<uint256, OrphanVote>;
+        Stored::size_type stored_capacity;
+        s >> stored_capacity;
         Clear();
         const auto now{Now<NodeSeconds>()};
-        const auto& items = stored.GetItemList();
-        for (auto it = items.rbegin(); it != items.rend(); ++it) {
-            if (it->value.expiration < now) continue;
+        std::vector<Stored::item_t> kept;
+        std::map<COutPoint, size_t> kept_per_mn;
+        for (uint64_t remaining{ReadCompactSize(s)}; remaining > 0; --remaining) {
+            Stored::item_t item;
+            s >> item;
+            if (item.value.expiration < now || item.value.vote.Time() < now - MAX_ORPHAN_VOTE_AGE) continue;
+            if (kept.size() >= m_cache.GetMaxSize()) continue;
+            if (size_t& count{kept_per_mn[item.value.vote.GetMasternodeOutpoint()]}; count < m_max_per_mn) {
+                ++count;
+                kept.push_back(std::move(item));
+            }
+        }
+        for (auto it = kept.rbegin(); it != kept.rend(); ++it) {
             (void)Insert(it->key, it->value);
         }
     }

@@ -516,6 +516,53 @@ BOOST_FIXTURE_TEST_CASE(orphan_vote_eviction_frees_the_masternode_share, BasicTe
     BOOST_CHECK(insert(first_mn, 4));
 }
 
+// Earlier versions stored up to a million orphan votes with no per-masternode share. Loading such a
+// file keeps the newest entries that fit the bounded cache, and drops expired and old votes.
+BOOST_FIXTURE_TEST_CASE(legacy_orphan_votes_load_within_the_bounds, BasicTestingSetup)
+{
+    const auto now{Now<NodeSeconds>()};
+    const COutPoint first_mn{uint256::ONE, 0};
+    const COutPoint second_mn{uint256::ONE, 1};
+    CacheMultiMap<uint256, governance::OrphanVote> legacy{1'000'000};
+    auto add = [&](const COutPoint& mn, uint64_t parent, std::chrono::seconds age, NodeSeconds expiration) {
+        CGovernanceVote vote{mn, ArithToUint256(parent), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES};
+        vote.SetTime(now - age);
+        legacy.Insert(vote.GetParentHash(), governance::OrphanVote{vote, expiration});
+    };
+    const auto live{now + 5min};
+    add(second_mn, 1, 0s, live);
+    add(first_mn, 2, 0s, live);
+    add(first_mn, 3, 0s, live);
+    add(first_mn, 4, 0s, live);
+    add(second_mn, 5, 0s, now - 1s);
+    add(second_mn, 6, governance::MAX_ORPHAN_VOTE_AGE + 1s, live);
+
+    CDataStream stream{SER_DISK, CLIENT_VERSION};
+    stream << legacy;
+    governance::OrphanVoteCache cache{/*max_total=*/3, /*max_per_mn=*/2};
+    stream >> cache;
+    BOOST_CHECK(stream.empty());
+
+    auto held = [&](uint64_t parent) {
+        std::vector<governance::OrphanVote> votes;
+        cache.GetAll(ArithToUint256(parent), votes);
+        return !votes.empty();
+    };
+    BOOST_CHECK(held(1));
+    BOOST_CHECK(!held(2));
+    BOOST_CHECK(held(3));
+    BOOST_CHECK(held(4));
+    BOOST_CHECK(!held(5));
+    BOOST_CHECK(!held(6));
+
+    // The loaded entries keep their order: the oldest is still the first to be evicted.
+    const CGovernanceVote newer{second_mn, ArithToUint256(7), VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES};
+    BOOST_CHECK(cache.Insert(newer.GetParentHash(), governance::OrphanVote{newer, live}));
+    BOOST_CHECK(!held(1));
+    BOOST_CHECK(held(3));
+    BOOST_CHECK(held(4));
+}
+
 // Votes are only counted if they carry a signature from a registered masternode.
 BOOST_AUTO_TEST_CASE(unsigned_and_unknown_masternode_votes_are_rejected)
 {

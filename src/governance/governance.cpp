@@ -36,10 +36,6 @@ const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceMa
 namespace {
 constexpr std::chrono::seconds GOVERNANCE_DELETION_DELAY{10min};
 constexpr std::chrono::seconds GOVERNANCE_ORPHAN_EXPIRATION_TIME{10min};
-// A vote stays valid for as long as its masternode's key does, so anyone can replay a masternode's
-// old votes for objects we no longer have. Only recent votes are held as orphans, or such replays
-// would use up the masternode's share of the orphan cache.
-constexpr std::chrono::seconds MAX_ORPHAN_VOTE_AGE{1h};
 constexpr std::chrono::seconds MAX_TIME_FUTURE_DEVIATION{1h};
 // Margin below MAX_TIME_FUTURE_DEVIATION so lagging-clock peers don't reject near-limit objects.
 constexpr std::chrono::seconds RELIABLE_PROPAGATION_TIME{60};
@@ -917,7 +913,7 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
         // which routinely happens during governance sync. Misbehaviour scores never decay.
         exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_WARNING);
         const auto now{Now<NodeSeconds>()};
-        if (vote.Time() < now - MAX_ORPHAN_VOTE_AGE) {
+        if (vote.Time() < now - governance::MAX_ORPHAN_VOTE_AGE) {
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- vote %s is too old to hold as an orphan\n", __func__,
                      nHashVote.ToString());
         } else if (m_orphan_votes.Insert(nHashGovobj,
