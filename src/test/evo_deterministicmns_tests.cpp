@@ -1353,7 +1353,7 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
     // Check mempool as if a new block with tx_reg_ds was connected instead of the old one with tx_reg
     std::vector<CTransactionRef> block_reorg;
     block_reorg.emplace_back(std::make_shared<CTransaction>(tx_reg_ds));
-    testPool.removeForBlock(block_reorg, nHeight + 2);
+    testPool.removeForBlock(block_reorg, nHeight + 2, chainman.ActiveChain().Tip());
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 }
 
@@ -1428,7 +1428,7 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
 
     // Pre-fix this aborted the process instead of returning.
     std::vector<CTransactionRef> block_txs{std::make_shared<CTransaction>(tx_revoke)};
-    testPool.removeForBlock(block_txs, chainman.ActiveChain().Height() + 1);
+    testPool.removeForBlock(block_txs, chainman.ActiveChain().Height() + 1, chainman.ActiveChain().Tip());
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 }
 
@@ -1543,11 +1543,11 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_reg1)));
 
     // A confirmed claim evicts the pending claim of the same value in the other field
-    testPool.removeForBlock({MakeTransactionRef(tx_reg1)}, chainman.ActiveChain().Height() + 1);
+    testPool.removeForBlock({MakeTransactionRef(tx_reg1)}, chainman.ActiveChain().Height() + 1, chainman.ActiveChain().Tip());
     BOOST_CHECK(!testPool.exists(tx_platform_reg.GetHash()));
 
     testPool.addUnchecked(entry.FromTx(tx_reg1));
-    testPool.removeForBlock({MakeTransactionRef(tx_platform_reg)}, chainman.ActiveChain().Height() + 1);
+    testPool.removeForBlock({MakeTransactionRef(tx_platform_reg)}, chainman.ActiveChain().Height() + 1, chainman.ActiveChain().Tip());
     BOOST_CHECK(!testPool.exists(tx_reg1.GetHash()));
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 
@@ -1569,7 +1569,7 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_evo)));
     BOOST_CHECK(testPool.existsProviderTxConflict(tx_shared_on_evo));
     BOOST_CHECK(!testPool.existsProviderTxConflict(make_shared(uint160{Span{GetRandHash()}.first(uint160::size())})));
-    testPool.removeForBlock({MakeTransactionRef(tx_shared_on_evo)}, chainman.ActiveChain().Height() + 1);
+    testPool.removeForBlock({MakeTransactionRef(tx_shared_on_evo)}, chainman.ActiveChain().Height() + 1, chainman.ActiveChain().Tip());
     BOOST_CHECK(!testPool.exists(tx_evo.GetHash()));
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 
@@ -1587,7 +1587,7 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_shared)));
     BOOST_CHECK(testPool.existsProviderTxConflict(tx_evo_on_share));
     BOOST_CHECK(!testPool.existsProviderTxConflict(make_evo()));
-    testPool.removeForBlock({MakeTransactionRef(tx_evo_on_share)}, chainman.ActiveChain().Height() + 1);
+    testPool.removeForBlock({MakeTransactionRef(tx_evo_on_share)}, chainman.ActiveChain().Height() + 1, chainman.ActiveChain().Tip());
     BOOST_CHECK(!testPool.exists(tx_shared.GetHash()));
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 
@@ -1599,7 +1599,7 @@ void FuncTestMempoolDualProregtx(TestChainSetup& setup)
     const auto tx_same_value = with_platform_node_id(tx_evo_base, uint160{Assert(GetTxPayload<CProRegTx>(tx_evo_base))->keyIDOwner});
     BOOST_CHECK(!testPool.existsProviderTxConflict(tx_same_value));
     testPool.addUnchecked(entry.FromTx(MakeTransactionRef(tx_same_value)));
-    testPool.removeForBlock({MakeTransactionRef(tx_same_value)}, chainman.ActiveChain().Height() + 1);
+    testPool.removeForBlock({MakeTransactionRef(tx_same_value)}, chainman.ActiveChain().Height() + 1, chainman.ActiveChain().Tip());
     BOOST_CHECK(testPool.exists(tx_pending.GetHash()));
 }
 
@@ -1700,12 +1700,17 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
         BOOST_CHECK_EQUAL(testPool.size(), 1U);
         BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_reg_replace)));
 
+        // A reorg re-mining the MN's own ProRegTx connects it on the block before the registration,
+        // whose list has no MN on that collateral yet: nothing is replaced and the update stays.
+        testPool.removeForBlock({MakeTransactionRef(tx_reg)}, tip_height(), chainman.ActiveChain().Tip()->pprev);
+        BOOST_CHECK(testPool.exists(tx_up_serv.GetHash()));
+
         // existsProviderTxConflict only gates our own acceptance; it cannot stop a miner from
         // confirming the replacement. Once that block arrives, removeForBlock must evict the
         // now-unmineable update, otherwise it lingers and stalls our own block assembly.
         std::vector<CTransactionRef> connected{MakeTransactionRef(CMutableTransaction()),
                                                MakeTransactionRef(tx_reg_replace)};
-        testPool.removeForBlock(connected, tip_height() + 1);
+        testPool.removeForBlock(connected, tip_height() + 1, chainman.ActiveChain().Tip());
         BOOST_CHECK_EQUAL(testPool.size(), 0U);
     }
 
@@ -1731,10 +1736,10 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
         // confirmed ProUpReg that keeps it, and across a spend of anything but the collateral.
         testPool.addUnchecked(entry.FromTx(tx_up_serv));
         testPool.addUnchecked(entry.FromTx(tx_up_rev));
-        testPool.removeForBlock({MakeTransactionRef(tx_up_reg), MakeTransactionRef(tx_spend_other)}, tip_height() + 1);
+        testPool.removeForBlock({MakeTransactionRef(tx_up_reg), MakeTransactionRef(tx_spend_other)}, tip_height() + 1, chainman.ActiveChain().Tip());
         BOOST_CHECK_EQUAL(testPool.size(), 2U);
 
-        testPool.removeForBlock({MakeTransactionRef(tx_up_reg_new_key)}, tip_height() + 1);
+        testPool.removeForBlock({MakeTransactionRef(tx_up_reg_new_key)}, tip_height() + 1, chainman.ActiveChain().Tip());
         BOOST_CHECK_EQUAL(testPool.size(), 0U);
 
         // Spending the collateral removes the MN, and no update of any kind can be mined after that.
@@ -1742,7 +1747,7 @@ void FuncTestMempoolProRegReplacementUpdateConflict(TestChainSetup& setup)
         testPool.addUnchecked(entry.FromTx(tx_up_reg));
         testPool.addUnchecked(entry.FromTx(tx_up_rev));
         BOOST_CHECK_EQUAL(testPool.size(), 3U);
-        testPool.removeForBlock({MakeTransactionRef(tx_spend_collateral)}, tip_height() + 1);
+        testPool.removeForBlock({MakeTransactionRef(tx_spend_collateral)}, tip_height() + 1, chainman.ActiveChain().Tip());
         BOOST_CHECK_EQUAL(testPool.size(), 0U);
     }
 }

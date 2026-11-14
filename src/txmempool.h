@@ -193,7 +193,9 @@ struct descendant_score {};
 struct entry_time {};
 struct ancestor_score {};
 
+class CBlockIndex;
 class CBlockPolicyEstimator;
+class CDeterministicMNList;
 class CDeterministicMNManager;
 
 namespace llmq {
@@ -513,13 +515,15 @@ public:
      *  (collateral spent, or collateral reused by a replacement ProRegTx), since such TXs can never
      *  be mined afterwards and would abort block assembly with "bad-protx-hash". */
     void removeProTxReferences(const uint256& proTxHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeProTxSpentCollateralConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeProTxSpentCollateralConflicts(const CTransaction &tx, const CDeterministicMNList& mnList) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxKeyChangedConflicts(const CTransaction &tx, const uint256& proTxHash, const uint256& newKeyHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Remove pending TXs of refType for proTxHash that pair the P2PKH destination of keyIDVoting with a
      *  share reward script: ProUpShareTxs paying it, or ProUpSharedRegTxs setting it as the voting key. */
     void removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeProTxConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** @param[in] pindex_prev  Block that tx is mined on top of; nullptr for the genesis block.
+     *                          Its masternode list decides which masternodes tx removes. */
+    void removeProTxConflicts(const CTransaction &tx, const CBlockIndex* pindex_prev) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight, const CBlockIndex* pindex_prev) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeExpiredAssetUnlock(int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** If entry changes or revokes the operator key a masternode has at the chain tip, return that
      *  masternode. Decided against the current list rather than isKeyChangeProTx, which records the list
