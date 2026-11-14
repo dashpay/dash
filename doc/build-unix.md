@@ -51,6 +51,8 @@ sudo apt-get install libbacktrace-dev libevent-dev libboost-dev
 Note: libbacktrace-dev is available in Debian 13 (Trixie) and Ubuntu 25.04+.
 For older releases, use the /depends/README.md which includes all required libraries.
 
+blst is required and not packaged by Debian or Ubuntu; build it as described in [blst](#blst).
+
 SQLite is required for the descriptor wallet:
 
 ```sh
@@ -132,6 +134,8 @@ sudo dnf install libevent-devel boost-devel
 
 Note: Fedora repositories do not include libbacktrace. To build Dash Core without stack trace support, configure with `--disable-stacktraces`.
 
+blst is required and not packaged by Fedora; build it as described in [blst](#blst).
+
 SQLite is required for the descriptor wallet:
 
 ```sh
@@ -200,6 +204,28 @@ See [dependencies.md](dependencies.md) for a complete overview, and
 [depends](/depends/README.md) on how to compile them yourself, if you wish to
 not use the packages of your Linux distribution.
 
+### blst
+
+[blst](https://github.com/supranational/blst) is required. Some distributions do not package it, so build it yourself:
+```bash
+curl -fLO https://github.com/supranational/blst/archive/refs/tags/v0.3.17.tar.gz && \
+echo "c3fef37b566b67419703b2bbb648e15176276af9a880c22aa8f5f2e8cecc2e4d  v0.3.17.tar.gz" | sha256sum -c && \
+tar -xzf v0.3.17.tar.gz && \
+(cd blst-0.3.17 && ./build.sh -D__BLST_PORTABLE__)
+```
+`-D__BLST_PORTABLE__` makes blst pick its ADX code path at run time, as the depends build does. Without it the library uses ADX whenever the build machine has it, and the resulting binaries crash with an illegal instruction on CPUs that lack it.
+
+and configure from the Dash Core source directory using the following:
+```bash
+export BLST_DIR="/path/to/blst-0.3.17"
+
+./configure \
+    BLST_CPPFLAGS="-I${BLST_DIR}/bindings" \
+    LDFLAGS="-L${BLST_DIR}"
+```
+
+**Note**: Make sure that `BLST_DIR` is an absolute path.
+
 ### Berkeley DB
 
 The legacy wallet uses Berkeley DB. To ensure backwards compatibility it is
@@ -256,5 +282,7 @@ cd dash/
 make check
 ./src/dashd
 ```
+
+blst is not in the Arch Linux repositories; build it as described in the [blst](#blst) section and pass its paths to `./configure`.
 
 If you intend to work with legacy Berkeley DB wallets, see [Berkeley DB](#berkeley-db) section.
