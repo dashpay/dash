@@ -77,6 +77,7 @@ check_source_date_epoch
 # The codesignature git worktree should not be dirty
 ################
 
+git -C "$DETACHED_SIGS_REPO" update-index -q --refresh
 if ! git -C "$DETACHED_SIGS_REPO" diff-index --quiet HEAD -- && [ -z "$FORCE_DIRTY_WORKTREE" ]; then
     cat << EOF
 ERR: The DETACHED CODESIGNATURE git worktree is dirty, which may lead to broken builds.
