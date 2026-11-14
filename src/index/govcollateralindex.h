@@ -33,6 +33,9 @@ private:
 protected:
     bool WritesEagerly() const override { return true; }
 
+    // A collateral only confirms while its block is on the active chain
+    bool IgnoresEntriesOffActiveChain() const override { return true; }
+
     bool CustomInit(const std::optional<interfaces::BlockKey>& block) override;
 
     bool CustomAppend(const interfaces::BlockInfo& block) override;
