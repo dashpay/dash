@@ -1,0 +1,306 @@
+name: build
+
+on:
+  push:
+    branches:
+    - '**'
+  workflow_dispatch:
+    branches:
+    - '**'
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  rust-n-go:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm, macos-latest ]
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Get date
+      id: get-date
+      run: echo "date=$(date -u +%Y-%m)" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          **/Cargo.lock
+          **/bindings/rust/target
+          ~/.wasmtime
+        key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ steps.get-date.outputs.date }}
+
+    - name: Environment
+      shell: bash
+      run: |
+        lscpu 2>/dev/null && echo --- || true
+        sysctl hw 2>/dev/null && echo --- || true
+        env | sort
+
+    - name: Install Wasmtime
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: if [ ! -d ~/.wasmtime/bin ]; then curl https://wasmtime.dev/install.sh -sSf | bash; fi
+
+    - name: Rust
+      shell: bash
+      run: |
+        rustc --version --verbose
+        export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+        cd bindings/rust
+        sed "s/^crit/#crit/" Cargo.toml > Cargo.$$.toml && \
+        mv Cargo.$$.toml Cargo.toml
+        if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            cargo update
+        fi
+        cargo test --release
+        echo '--- test portable'
+        echo
+        cargo test --release --features=portable
+        echo '--- test no-threads'
+        echo
+        cargo test --release --features=no-threads
+        echo '--- test serde-secret'
+        echo
+        cargo test --release --features=serde-secret
+        echo '--- test no_std'
+        echo
+        echo 'set -e'                                       > ulimit-s
+        echo 'export RUST_MIN_STACK=$(($1 * 1024)); shift'  >> ulimit-s
+        echo 'exec "$@"'                                    >> ulimit-s
+        triplet=`rustc -vV | awk '/host:/ {print $2}' | tr 'a-z-' 'A-Z_'`
+        stack_size=`[ $RUNNER_OS = "Windows" ] && echo 65 || echo 56`
+        env BLST_TEST_NO_STD= \
+            CARGO_TARGET_${triplet}_RUNNER="bash ulimit-s $stack_size" \
+            cargo test --release
+        if [ -x ~/.wasmtime/bin/wasmtime ]; then
+            echo '--- test wasm32-wasip1'
+            echo
+            rustup target add wasm32-wasip1
+            env CARGO_TARGET_WASM32_WASIP1_RUNNER=~/.wasmtime/bin/wasmtime \
+                cargo test --release --target=wasm32-wasip1
+            cargo clean -p blst --release --target=wasm32-wasip1
+            echo
+        fi
+        if [ $RUNNER_OS = "Linux" ]; then
+            if [ `uname -p` = "x86_64" ]; then
+                echo '--- test -mlvi-hardening'
+                echo
+                env CC=clang CFLAGS="-mlvi-hardening -D__SGX_LVI_HARDENING__" \
+                    cargo test --release
+                echo '--- build x86_64-fortanix-unknown-sgx'
+                echo
+                rustup target add x86_64-fortanix-unknown-sgx
+                cargo test --no-run --release --target=x86_64-fortanix-unknown-sgx
+                cargo clean -p blst --release --target=x86_64-fortanix-unknown-sgx
+                echo
+            fi
+            echo '--- dry-run publish'
+            echo
+            ./publish.sh --dry-run
+        elif [ $RUNNER_OS = "macOS" ]; then
+            if [ $RUNNER_ARCH = "ARM64" ]; then
+                echo '--- test x86_64-apple-darwin'
+                echo
+                rustup target add x86_64-apple-darwin
+                cargo test --release --target=x86_64-apple-darwin
+                cargo clean -p blst --release --target=x86_64-apple-darwin
+                echo
+            else
+                echo '--- build aarch64-apple-darwin'
+                echo
+                rustup target add aarch64-apple-darwin
+                cargo test --no-run --release --target=aarch64-apple-darwin
+                cargo clean -p blst --release --target=aarch64-apple-darwin
+                echo
+            fi
+            echo '--- build aarch64-apple-ios'
+            echo
+            rustup target add aarch64-apple-ios
+            env IPHONEOS_DEPLOYMENT_TARGET=10.0 \
+                cargo test --no-run --release --target=aarch64-apple-ios
+            cargo clean -p blst --release --target=aarch64-apple-ios
+            echo
+        elif [ $RUNNER_OS = "Windows" -a $RUNNER_ARCH = "X64" ]; then
+            if which clang-cl > /dev/null 2>&1; then
+                echo '-- test i686-pc-windows-msvc'
+                echo
+                rustup target add i686-pc-windows-msvc
+                cargo test --release --target=i686-pc-windows-msvc
+                cargo clean -p blst --release --target=i686-pc-windows-msvc
+                echo
+            fi
+            echo '-- test x86_64-pc-windows-gnu'
+            echo
+            rustup target add x86_64-pc-windows-gnu
+            cargo test --release --target=x86_64-pc-windows-gnu
+            cargo clean -p blst --release --target=x86_64-pc-windows-gnu
+            echo
+        fi
+        echo
+        echo '--- cargo clippy'
+        echo
+        echo 'msrv = "1.56"' > .clippy.toml
+        cargo clippy --release
+        cargo clean -p blst
+        cargo clean -p blst --release
+        rm -rf target/.rustc_info.json
+        rm -rf target/package
+        rm -rf target/{debug,release}/incremental
+        rm -rf target/*/{debug,release}/incremental
+        rm -rf ~/.cargo/registry/src
+        rm -rf ~/.cargo/registry/index/*/.cache
+        mkdir -p ~/.wasmtime
+
+    - name: Go
+      if: ${{ runner.os != 'Windows' || runner.arch != 'ARM64' }}
+      shell: bash
+      run: |
+        go version 2>/dev/null || exit 0
+        if ! (grep -q -e '^flags.*\badx\b' /proc/cpuinfo) 2>/dev/null; then
+            export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+        fi
+        cd bindings/go
+        go test -test.v
+
+  misc-ubuntu-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: actions/cache@v5
+      with:
+        path: ~/swig
+        key: ${{ runner.os }}-swig-github
+
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: 11
+
+    - uses: actions/setup-node@v6
+      with:
+        node-version: '20.x'
+
+    - name: Environment
+      run: |
+        lscpu
+        echo ---
+        env | sort
+
+    - name: Python
+      run: if [ -x bindings/python/run.me ]; then bindings/python/run.me; fi
+
+    - name: Java
+      run: if [ -x bindings/java/run.me ]; then bindings/java/run.me; fi
+
+    - name: Node.js
+      run: |
+        node_js=bindings/node.js
+        if [ -x $node_js/run.me ]; then
+            if [ ! -x ~/swig/bin/swig ]; then
+              ( git clone --branch v4.3.0 https://github.com/swig/swig;
+                cd swig;
+                ./autogen.sh;
+                ./configure --prefix=$HOME/swig;
+                make;
+                make install;
+                (cd ~/swig/share/swig && ln -s `ls` current)
+              )
+            fi
+            env PATH=~/swig/bin:$PATH SWIG_LIB=~/swig/share/swig/current \
+                $node_js/run.me
+            (cd $node_js; npm install node-addon-api && rm blst_wrap.cpp)
+            env PATH=~/swig/bin:$PATH SWIG_LIB=~/swig/share/swig/current \
+                $node_js/run.me
+        fi
+    - name: node-gyp
+      run: |
+        node_js=bindings/node.js
+        if [ -f $node_js/binding.gyp -a -f $node_js/blst_wrap.cpp ]; then
+            npm install --global node-gyp || true
+            if which node-gyp > /dev/null 2>&1; then
+              ( export PATH=~/swig/bin:$PATH SWIG_LIB=~/swig/share/swig/current;
+                cd $node_js;
+                node-gyp configure;
+                node-gyp build;
+                env NODE_PATH=build/Release: node runnable.js;
+              )
+            fi
+        fi
+    - name: TypeScript
+      run: |
+        node_js=bindings/node.js
+        if [ -f $node_js/blst.hpp.ts -a -f $node_js/blst.node ]; then
+            npm install --global typescript || true
+            if which tsc > /dev/null 2>&1; then
+              ( cd $node_js;
+                npm install @types/node;
+                tsc runnable.ts --ignoreConfig --types node --module commonjs;
+                env NODE_PATH=.: node runnable.js;
+              )
+           fi
+        fi
+
+    - name: Emscripten
+      uses: docker://emscripten/emsdk
+      with:
+        args: >
+          bindings/emscripten/run.me -O2
+
+    - name: C#
+      run: |
+        if [ -x bindings/c#/run.me ]; then
+            bindings/c#/run.me;
+            if which dotnet > /dev/null 2>&1; then
+                cd bindings/c#
+                [ -f libblst.dll.so ] || ../../build.sh -dll
+                dotnet run -c Release
+            fi
+        fi
+
+    - uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cache/zig
+          ~/zig-x86_64-linux-*
+          ~/.wasmtime
+        key: ${{ runner.os }}-zig-github
+
+    - name: Zig
+      run: |
+        which minisign > /dev/null 2>&1 || sudo apt-get -y install minisign
+        curl https://ziglang.org/download/community-mirrors.txt -sSfo mirrors.txt && \
+        for ver in 0.14.1 0.16.0; do (
+            base_dir=zig-x86_64-linux-$ver
+            if [ ! -d ~/$base_dir ]; then
+                mirror=`shuf -n 1 mirrors.txt`
+                curl $mirror/$base_dir.tar.xz -sSfo $base_dir.tar.xz && \
+                curl https://ziglang.org/download/$ver/$base_dir.tar.xz.minisig -sSfo $base_dir.minisig && \
+                minisign -V -P "RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U" \
+                         -x $base_dir.minisig -m $base_dir.tar.xz -q || \
+                (rm -f $base_dir.* && echo "$ver download failure")
+                if [ -f $base_dir.tar.xz ]; then
+                    unxz -c $base_dir.tar.xz | tar xf - --directory ~
+                    rm $base_dir.*
+                fi
+            fi
+            if [ -x ~/$base_dir/zig ]; then
+                echo "--- test $base_dir"
+                PATH=~/$base_dir:$PATH
+                zig build test --summary new
+                echo '--- test wasm32-wasi'
+                if [ ! -d ~/.wasmtime ]; then
+                    curl https://wasmtime.dev/install.sh -sSf | bash
+                fi
+                PATH=~/.wasmtime/bin:$PATH
+                zig build test -Dtarget=wasm32-wasi -fwasmtime --summary new
+            fi
+        ); done
