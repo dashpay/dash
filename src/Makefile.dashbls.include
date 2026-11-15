@@ -54,10 +54,15 @@ dashbls_libdashbls_la_SOURCES = \
   dashbls/src/elements.cpp \
   dashbls/src/extendedprivatekey.cpp \
   dashbls/src/extendedpublickey.cpp \
+  dashbls/src/hdkeys.cpp \
+  dashbls/src/hkdf.cpp \
   dashbls/src/legacy.cpp \
   dashbls/src/privatekey.cpp \
   dashbls/src/schemes.cpp \
-  dashbls/src/threshold.cpp
+  dashbls/src/secure.cpp \
+  dashbls/src/secure.h \
+  dashbls/src/threshold.cpp \
+  dashbls/src/util.cpp
 
 dashbls_libdashbls_la_CPPFLAGS = $(AM_CPPFLAGS) $(DASHBLS_CPPFLAGS_INT)
 
@@ -105,8 +110,10 @@ check_PROGRAMS += $(DASHBLS_RUNTEST)
 dashbls_runtest_SOURCES = \
   dashbls/src/test.cpp \
   dashbls/src/test-vectors.hpp \
+  dashbls/test/test_secure.cpp \
   dashbls/depends/catch2/include/catch2/catch.hpp
 dashbls_runtest_CPPFLAGS = $(AM_CPPFLAGS) $(DASHBLS_CPPFLAGS_INT) -isystem$(srcdir)/dashbls/depends/catch2/include
+dashbls_runtest_CPPFLAGS += -I$(srcdir)/dashbls/src
 dashbls_runtest_CPPFLAGS += -DDASHBLS_REFERENCE_VECTORS=\"$(abs_srcdir)/dashbls/test-vectors/reference.txt\"
 dashbls_runtest_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 dashbls_runtest_LDADD = $(LIBDASHBLS)
