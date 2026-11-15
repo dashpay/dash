@@ -36,9 +36,6 @@ class BLS {
  public:
     static const size_t MESSAGE_HASH_LEN = 32;
 
-    // Initializes the BLS library (called automatically)
-    static bool Init();
-
     static void SetSecureAllocator(Util::SecureAllocCallback allocCb, Util::SecureFreeCallback freeCb);
 };
 } // end namespace bls

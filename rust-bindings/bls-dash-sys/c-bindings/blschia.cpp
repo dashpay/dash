@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdexcept>
 #include <string>
 #include <stdlib.h>
 #include "bls.hpp"
+#include "secure.h"
 #include "error.h"
 #include "blschia.h"
 
@@ -22,21 +24,25 @@
 
 std::string gErrMsg;
 
-void SecFree(void *p) {
-    bls::Util::SecFree(p);
+void SecFree(void *p, size_t nBytes) {
+    bls::util::SecFree(p, nBytes);
 }
 
 void** AllocPtrArray(size_t len) {
-    // caller to free
-    return (void**)bls::Util::SecAlloc<uint8_t>(sizeof(void*) * len);
+    try {
+        return bls::util::SecAlloc<void*>(len);
+    } catch (const std::exception& ex) {
+        gErrMsg = ex.what();
+        return nullptr;
+    }
 }
 
 void SetPtrArray(void** arrPtr, void* elemPtr, int index) {
     arrPtr[index] = elemPtr;
 }
 
-void FreePtrArray(void** inPtr) {
-    bls::Util::SecFree(inPtr);
+void FreePtrArray(void** inPtr, size_t len) {
+    bls::util::SecFree(inPtr, sizeof(void*) * len);
 }
 
 void* GetPtrAtIndex(void** arrPtr, int index) {
@@ -44,7 +50,12 @@ void* GetPtrAtIndex(void** arrPtr, int index) {
 }
 
 uint8_t* SecAllocBytes(size_t len) {
-    return (uint8_t*)bls::Util::SecAlloc<uint8_t>(sizeof(uint8_t) * len);
+    try {
+        return bls::util::SecAlloc<uint8_t>(len);
+    } catch (const std::exception& ex) {
+        gErrMsg = ex.what();
+        return nullptr;
+    }
 }
 
 void* GetAddressAtIndex(uint8_t* ptr, int index) {

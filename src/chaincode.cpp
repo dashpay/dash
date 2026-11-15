@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "bls.hpp"
+#include "secure.h"
 
 #include <cstring>
 
@@ -29,6 +30,16 @@ ChainCode ChainCode::FromBytes(const Bytes& bytes) {
 
 ChainCode::ChainCode(const ChainCode &cc) : chainCode(cc.chainCode) {}
 
+ChainCode& ChainCode::operator=(const ChainCode &cc) {
+    // Every byte is overwritten, so nothing of the old value survives.
+    chainCode = cc.chainCode;
+    return *this;
+}
+
+ChainCode::~ChainCode() {
+    util::SecureWipe(chainCode.data(), chainCode.size());
+}
+
 // Comparator implementation.
 bool operator==(ChainCode const &a,  ChainCode const &b) {
     return a.chainCode == b.chainCode;
@@ -39,9 +50,9 @@ bool operator!=(ChainCode const &a,  ChainCode const &b) {
 }
 
 std::ostream &operator<<(std::ostream &os, ChainCode const &s) {
-    uint8_t buffer[ChainCode::SIZE];
-    s.Serialize(buffer);
-    return os << Util::HexStr(buffer, ChainCode::SIZE);
+    util::SecVector<uint8_t> buffer(ChainCode::SIZE);
+    s.Serialize(buffer.data());
+    return os << Util::HexStr(buffer.data(), buffer.size());
 }
 
 void ChainCode::Serialize(uint8_t *buffer) const {

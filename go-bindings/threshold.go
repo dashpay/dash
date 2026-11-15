@@ -67,7 +67,7 @@ func ThresholdPrivateKeyShare(sks []*PrivateKey, hash Hash) (*PrivateKey, error)
 	cHashPtr := C.CBytes(hash[:])
 	defer C.free(cHashPtr)
 	cArrPtr := cAllocPrivKeys(sks...)
-	defer C.FreePtrArray(cArrPtr)
+	defer C.FreePtrArray(cArrPtr, C.size_t(len(sks)))
 	var cDidErr C.bool
 	sk := PrivateKey{
 		val: C.CThresholdPrivateKeyShare(cArrPtr, C.size_t(len(sks)), cHashPtr, &cDidErr),
@@ -87,7 +87,7 @@ func ThresholdPublicKeyShare(pks []*G1Element, hash Hash) (*G1Element, error) {
 	cHashPtr := C.CBytes(hash[:])
 	defer C.free(cHashPtr)
 	cArrPtr := cAllocPubKeys(pks...)
-	defer C.FreePtrArray(cArrPtr)
+	defer C.FreePtrArray(cArrPtr, C.size_t(len(pks)))
 	var cDidErr C.bool
 	pk := G1Element{
 		val: C.CThresholdPublicKeyShare(cArrPtr, C.size_t(len(pks)), cHashPtr, &cDidErr),
@@ -107,7 +107,7 @@ func ThresholdSignatureShare(sigs []*G2Element, hash Hash) (*G2Element, error) {
 	cHashPtr := C.CBytes(hash[:])
 	defer C.free(cHashPtr)
 	cArrPtr := cAllocSigs(sigs...)
-	defer C.FreePtrArray(cArrPtr)
+	defer C.FreePtrArray(cArrPtr, C.size_t(len(sigs)))
 	var cDidErr C.bool
 	sig := G2Element{
 		val: C.CThresholdSignatureShare(cArrPtr, C.size_t(len(sigs)), cHashPtr, &cDidErr),
@@ -125,9 +125,10 @@ func ThresholdSignatureShare(sigs []*G2Element, hash Hash) (*G2Element, error) {
 // this function is a binding of bls::Threshold::PrivateKeyRecover
 func ThresholdPrivateKeyRecover(sks []*PrivateKey, hashes []Hash) (*PrivateKey, error) {
 	cArrPtr := cAllocPrivKeys(sks...)
-	defer C.FreePtrArray(cArrPtr)
+	defer C.FreePtrArray(cArrPtr, C.size_t(len(sks)))
 	cHashArrPtr := cAllocHashes(hashes)
-	defer C.FreePtrArray(cHashArrPtr)
+	defer C.FreePtrArray(cHashArrPtr, C.size_t(len(hashes)))
+	defer cFreeElems(cHashArrPtr, len(hashes))
 	var cDidErr C.bool
 	sk := PrivateKey{
 		val: C.CThresholdPrivateKeyRecover(
@@ -151,9 +152,10 @@ func ThresholdPrivateKeyRecover(sks []*PrivateKey, hashes []Hash) (*PrivateKey, 
 // this function is a binding of bls::Threshold::PublicKeyRecover
 func ThresholdPublicKeyRecover(pks []*G1Element, hashes []Hash) (*G1Element, error) {
 	cArrPtr := cAllocPubKeys(pks...)
-	defer C.FreePtrArray(cArrPtr)
+	defer C.FreePtrArray(cArrPtr, C.size_t(len(pks)))
 	cHashArrPtr := cAllocHashes(hashes)
-	defer C.FreePtrArray(cHashArrPtr)
+	defer C.FreePtrArray(cHashArrPtr, C.size_t(len(hashes)))
+	defer cFreeElems(cHashArrPtr, len(hashes))
 	var cDidErr C.bool
 	pk := G1Element{
 		val: C.CThresholdPublicKeyRecover(
@@ -177,9 +179,10 @@ func ThresholdPublicKeyRecover(pks []*G1Element, hashes []Hash) (*G1Element, err
 // this function is a binding of bls::Threshold::SignatureRecover
 func ThresholdSignatureRecover(sigs []*G2Element, hashes []Hash) (*G2Element, error) {
 	cArrPtr := cAllocSigs(sigs...)
-	defer C.FreePtrArray(cArrPtr)
+	defer C.FreePtrArray(cArrPtr, C.size_t(len(sigs)))
 	cHashArrPtr := cAllocHashes(hashes)
-	defer C.FreePtrArray(cHashArrPtr)
+	defer C.FreePtrArray(cHashArrPtr, C.size_t(len(hashes)))
+	defer cFreeElems(cHashArrPtr, len(hashes))
 	var cDidErr C.bool
 	sig := G2Element{
 		val: C.CThresholdSignatureRecover(
@@ -224,6 +227,9 @@ func ThresholdVerify(pk *G1Element, hash Hash, sig *G2Element) bool {
 
 func cAllocHashes(hashes []Hash) *unsafe.Pointer {
 	cArrPtr := C.AllocPtrArray(C.size_t(len(hashes)))
+	if cArrPtr == nil {
+		panic(secAllocFailed())
+	}
 	for i, hash := range hashes {
 		C.SetPtrArray(cArrPtr, unsafe.Pointer(C.CBytes(hash[:])), C.int(i))
 	}

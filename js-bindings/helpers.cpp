@@ -14,6 +14,8 @@
 
 #include "./helpers.h"
 
+#include <iterator>
+
 namespace helpers {
     val toUint8Array(std::vector<uint8_t> vec) {
         val arr = helpers::toJSArray<uint8_t>(vec);

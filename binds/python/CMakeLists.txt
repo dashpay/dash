@@ -16,6 +16,7 @@ set_target_properties(dashbls_py PROPERTIES OUTPUT_NAME dashbls)
 target_include_directories(dashbls_py PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../src
 )
 target_link_libraries(dashbls_py PRIVATE dashbls)
 

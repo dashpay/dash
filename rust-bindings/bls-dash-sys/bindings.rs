@@ -92,7 +92,7 @@ extern "C" {
 
     pub fn PrivateKeySizeBytes() -> usize;
 
-    pub fn SecFree(p: *mut ::std::os::raw::c_void);
+    pub fn SecFree(p: *mut ::std::os::raw::c_void, nBytes: usize);
 
     pub fn AllocPtrArray(len: usize) -> *mut *mut ::std::os::raw::c_void;
 
@@ -102,7 +102,7 @@ extern "C" {
         index: ::std::os::raw::c_int,
     );
 
-    pub fn FreePtrArray(inPtr: *mut *mut ::std::os::raw::c_void);
+    pub fn FreePtrArray(inPtr: *mut *mut ::std::os::raw::c_void, len: usize);
 
     pub fn GetPtrAtIndex(
         arrPtr: *mut *mut ::std::os::raw::c_void,

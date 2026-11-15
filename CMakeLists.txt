@@ -45,7 +45,7 @@ add_subdirectory(depends/mimalloc)
 
 include(FetchContent)
 
-set(BLST_GIT_TAG "a8cd361c9f671577aeab3f074098443af92a53fc")
+set(BLST_GIT_TAG "54e6e55674722fc2797ebb4bbb71b26d881eb4b8") # v0.3.17
 set(BLST_REPOSITORY "https://github.com/supranational/blst")
 
 message(STATUS "blst will be built from: ${BLST_GIT_TAG} and repository ${BLST_REPOSITORY}")

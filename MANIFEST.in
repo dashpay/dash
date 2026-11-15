@@ -16,14 +16,6 @@ prune depends/mimalloc/docs
 prune depends/mimalloc/ide
 prune depends/mimalloc/test
 prune depends/mimalloc/contrib
-prune depends/relic/.github
-prune depends/relic/art
-prune depends/relic/bench
-prune depends/relic/demo
-prune depends/relic/doc
-prune depends/relic/preset
-prune depends/relic/test
-prune depends/relic/tools
 
 # dot{dir,file}s
 prune .github

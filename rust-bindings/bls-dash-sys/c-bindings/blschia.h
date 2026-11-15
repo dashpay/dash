@@ -23,14 +23,14 @@ extern "C" {
 #endif
 
 // Export the BLS SecFree method
-void SecFree(void *p);
+void SecFree(void *p, size_t nBytes);
 
 typedef void** carr;
 
 // Additional C++ helper funcs for allocations
 void** AllocPtrArray(size_t len);
 void SetPtrArray(void **arrPtr, void *elemPtr, int index);
-void FreePtrArray(void **inPtr);
+void FreePtrArray(void **inPtr, size_t len);
 void* GetPtrAtIndex(void **arrPtr, int index);
 
 // Allocates an array of bytes with size of passed in len argument

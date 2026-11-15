@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "bls.hpp"
+#include "secure.h"
 
 namespace bls {
 
@@ -39,41 +40,43 @@ ExtendedPublicKey ExtendedPublicKey::PublicChild(uint32_t i, const bool fLegacy)
     if (depth >= 255) {
         throw std::logic_error("Cannot go further than 255 levels");
     }
-    uint8_t ILeft[PrivateKey::PRIVATE_KEY_SIZE];
-    uint8_t IRight[ChainCode::SIZE];
+    util::SecVector<uint8_t> ILeft(PrivateKey::PRIVATE_KEY_SIZE);
+    util::SecVector<uint8_t> IRight(ChainCode::SIZE);
 
     // Chain code is used as hmac key
-    uint8_t hmacKey[ChainCode::SIZE];
-    chainCode.Serialize(hmacKey);
+    util::SecVector<uint8_t> hmacKey(ChainCode::SIZE);
+    chainCode.Serialize(hmacKey.data());
 
     // Public key serialization, i serialization, and one 0 or 1 byte
     size_t inputLen = G1Element::SIZE + 4 + 1;
 
     // Hmac input includes sk or pk, int i, and byte with 0 or 1
-    uint8_t hmacInput[G1Element::SIZE + 4 + 1];
+    util::SecVector<uint8_t> hmacInput(inputLen);
 
     // Fill the input with the required data
     auto vecG1 = pk.Serialize(fLegacy);
-    memcpy(hmacInput, vecG1.data(), vecG1.size());
+    memcpy(hmacInput.data(), vecG1.data(), vecG1.size());
 
     hmacInput[inputLen - 1] = 0;
-    Util::IntToFourBytes(hmacInput + G1Element::SIZE, i);
+    Util::IntToFourBytes(hmacInput.data() + G1Element::SIZE, i);
 
-    Util::md_hmac(ILeft, hmacInput, inputLen,
-                    hmacKey, ChainCode::SIZE);
+    Util::md_hmac(ILeft.data(), hmacInput.data(), inputLen,
+                    hmacKey.data(), ChainCode::SIZE);
 
     // Change 1 byte to generate a different sequence for chaincode
     hmacInput[inputLen - 1] = 1;
 
-    Util::md_hmac(IRight, hmacInput, inputLen,
-                    hmacKey, ChainCode::SIZE);
+    Util::md_hmac(IRight.data(), hmacInput.data(), inputLen,
+                    hmacKey.data(), ChainCode::SIZE);
 
-    PrivateKey leftSk = PrivateKey::FromBytes(Bytes(ILeft, PrivateKey::PRIVATE_KEY_SIZE), true);
+    PrivateKey leftSk =
+        PrivateKey::FromBytes(Bytes(ILeft.data(), ILeft.size()), true);
     G1Element newPk = pk + leftSk.GetG1Element();
 
     ExtendedPublicKey epk(version, depth + 1,
                           GetPublicKey().GetFingerprint(), i,
-                          ChainCode::FromBytes(Bytes(IRight, ChainCode::SIZE)),
+                          ChainCode::FromBytes(
+                              Bytes(IRight.data(), IRight.size())),
                           newPk);
 
     return epk;
