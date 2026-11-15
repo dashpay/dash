@@ -353,11 +353,16 @@ class AddressIndexTest(BitcoinTestFramework):
         self.restart_node(3, ["-addressindex=0"])
         node.invalidateblock(orphan_block)
         new_address = getnewdestination()[2]
-        self.generatetoaddress(node, 2, new_address, sync_fun=self.no_op)
+        block_hashes = self.generatetoaddress(node, 2, new_address, sync_fun=self.no_op)
+        # Greater-than-zero would pass if only one of the two blocks was indexed.
+        paid = sum(vout["valueSat"]
+                   for block_hash in block_hashes
+                   for vout in node.getblock(block_hash, 2)["tx"][0]["vout"]
+                   if vout["scriptPubKey"].get("address") == new_address)
 
         self.restart_node(3, ["-addressindex"])
         self.wait_index_synced(node)
-        assert_greater_than(node.getaddressbalance(new_address)["received"], 0)
+        assert_equal(node.getaddressbalance(new_address)["received"], paid)
         assert_equal(node.getaddressbalance(orphan_address)["received"], 0)
         assert_equal(node.getaddresstxids(orphan_address), [])
 
