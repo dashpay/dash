@@ -51,117 +51,61 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_construction_test)
 
 BOOST_AUTO_TEST_CASE(quorum_snapshot_serialization_test)
 {
-    // Test with various configurations
     std::vector<bool> activeMembers = CreateBitVector(10, {0, 2, 4, 6, 8});
-    auto skipMode = SnapshotSkipMode::MODE_SKIPPING_ENTRIES;
-    std::vector<int> skipList = {10, 20, 30};
+    const auto skipMode = SnapshotSkipMode::MODE_SKIPPING_ENTRIES;
+    const std::vector<int> skipList = {10, 20, 30};
 
     CQuorumSnapshot snapshot(activeMembers, skipMode, skipList);
+    BOOST_CHECK(TestSerializationRoundtrip(snapshot));
 
-    // Test serialization roundtrip
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << snapshot;
-
     CQuorumSnapshot deserialized;
     ss >> deserialized;
-
     BOOST_CHECK(deserialized.activeQuorumMembers == snapshot.activeQuorumMembers);
     BOOST_CHECK_EQUAL(deserialized.mnSkipListMode, snapshot.mnSkipListMode);
     BOOST_CHECK(deserialized.mnSkipList == snapshot.mnSkipList);
-}
 
-BOOST_AUTO_TEST_CASE(quorum_snapshot_skip_modes_test)
-{
-    // Test all skip modes
-    constexpr std::array<SnapshotSkipMode, 4> skipModes{
-        SnapshotSkipMode::MODE_NO_SKIPPING,
-        SnapshotSkipMode::MODE_SKIPPING_ENTRIES,
-        SnapshotSkipMode::MODE_NO_SKIPPING_ENTRIES,
-        SnapshotSkipMode::MODE_ALL_SKIPPED
-    };
-
-    for (auto mode : skipModes) {
-        CQuorumSnapshot snapshot({true, false, true}, mode, {1, 2, 3});
-
-        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-        ss << snapshot;
-
-        CQuorumSnapshot deserialized;
-        ss >> deserialized;
-
-        BOOST_CHECK_EQUAL(deserialized.mnSkipListMode, mode);
-    }
-}
-
-BOOST_AUTO_TEST_CASE(quorum_snapshot_large_data_test)
-{
-    // Test with large quorum (400 members)
-    std::vector<bool> largeActiveMembers(400);
-    // Create pattern: every 3rd member is inactive
-    for (size_t i = 0; i < largeActiveMembers.size(); i++) {
-        largeActiveMembers[i] = (i % 3 != 0);
+    for (const auto mode : {SnapshotSkipMode::MODE_NO_SKIPPING, SnapshotSkipMode::MODE_SKIPPING_ENTRIES,
+                            SnapshotSkipMode::MODE_NO_SKIPPING_ENTRIES, SnapshotSkipMode::MODE_ALL_SKIPPED}) {
+        CQuorumSnapshot mode_snapshot({true, false, true}, mode, {1, 2, 3});
+        CDataStream mode_stream(SER_NETWORK, PROTOCOL_VERSION);
+        mode_stream << mode_snapshot;
+        CQuorumSnapshot mode_out;
+        mode_stream >> mode_out;
+        BOOST_CHECK_EQUAL(mode_out.mnSkipListMode, mode);
     }
 
-    // Create large skip list
-    std::vector<int> largeSkipList;
-    largeSkipList.reserve(100);
-    for (int i = 0; i < 100; i++) {
-        largeSkipList.push_back(i * 4);
+    std::vector<bool> large_members(400);
+    for (size_t i = 0; i < large_members.size(); ++i) {
+        large_members[i] = (i % 3 != 0);
     }
+    std::vector<int> large_skip;
+    large_skip.reserve(100);
+    for (int i = 0; i < 100; ++i) {
+        large_skip.push_back(i * 4);
+    }
+    const CQuorumSnapshot large(large_members, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, large_skip);
+    CDataStream large_stream(SER_NETWORK, PROTOCOL_VERSION);
+    large_stream << large;
+    CQuorumSnapshot large_out;
+    large_stream >> large_out;
+    BOOST_CHECK(large_out.activeQuorumMembers == large_members);
+    BOOST_CHECK(large_out.mnSkipList == large_skip);
 
-    CQuorumSnapshot snapshot(largeActiveMembers, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, largeSkipList);
-
-    // Test serialization with large data
-    // Test serialization manually instead of using roundtrip helper
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-    ss << snapshot;
-    CQuorumSnapshot deserialized;
-    ss >> deserialized;
-    BOOST_CHECK_EQUAL(deserialized.activeQuorumMembers.size(), 400);
-    BOOST_CHECK_EQUAL(deserialized.mnSkipList.size(), 100);
-}
-
-BOOST_AUTO_TEST_CASE(quorum_snapshot_empty_data_test)
-{
-    // Test with empty data
-    CQuorumSnapshot emptySnapshot({}, SnapshotSkipMode::MODE_NO_SKIPPING, {});
-
-    // Test serialization roundtrip
-    BOOST_CHECK(TestSerializationRoundtrip(emptySnapshot));
-
-    // Test with empty active members but non-empty skip list
-    CQuorumSnapshot snapshot1({}, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, {1, 2, 3});
-    BOOST_CHECK(TestSerializationRoundtrip(snapshot1));
-
-    // Test with non-empty active members but empty skip list
-    CQuorumSnapshot snapshot2({true, false, true}, SnapshotSkipMode::MODE_NO_SKIPPING, {});
-    BOOST_CHECK(TestSerializationRoundtrip(snapshot2));
-}
-
-BOOST_AUTO_TEST_CASE(quorum_snapshot_bit_serialization_test)
-{
-    // Test bit vector serialization edge cases
-
-    // Test single bit
-    CQuorumSnapshot snapshot1({true}, SnapshotSkipMode::MODE_NO_SKIPPING, {});
-    BOOST_CHECK(TestSerializationRoundtrip(snapshot1));
-
-    // Test 8 bits (full byte)
-    CQuorumSnapshot snapshot8(std::vector<bool>(8, true), SnapshotSkipMode::MODE_NO_SKIPPING, {});
-    BOOST_CHECK(TestSerializationRoundtrip(snapshot8));
-
-    // Test 9 bits (more than one byte)
-    CQuorumSnapshot snapshot9(std::vector<bool>(9, false), SnapshotSkipMode::MODE_NO_SKIPPING, {});
-    snapshot9.activeQuorumMembers[8] = true; // Set last bit
-    BOOST_CHECK(TestSerializationRoundtrip(snapshot9));
-
-    // Test alternating pattern
+    BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot({}, SnapshotSkipMode::MODE_NO_SKIPPING, {})));
+    BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot({}, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, {1, 2, 3})));
+    BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot({true, false, true}, SnapshotSkipMode::MODE_NO_SKIPPING, {})));
+    BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot({true}, SnapshotSkipMode::MODE_NO_SKIPPING, {})));
+    BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot(std::vector<bool>(8, true), SnapshotSkipMode::MODE_NO_SKIPPING, {})));
+    std::vector<bool> nine(9, false);
+    nine[8] = true;
+    BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot(nine, SnapshotSkipMode::MODE_NO_SKIPPING, {})));
     std::vector<bool> alternating(16);
-    for (size_t i = 0; i < alternating.size(); i++) {
+    for (size_t i = 0; i < alternating.size(); ++i) {
         alternating[i] = (i % 2 == 0);
     }
-    CQuorumSnapshot snapshotAlt(alternating, SnapshotSkipMode::MODE_NO_SKIPPING, {});
-    BOOST_CHECK(TestSerializationRoundtrip(snapshotAlt));
+    BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot(alternating, SnapshotSkipMode::MODE_NO_SKIPPING, {})));
 }
 
 BOOST_AUTO_TEST_CASE(quorum_rotation_info_construction_test)

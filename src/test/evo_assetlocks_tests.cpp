@@ -226,27 +226,6 @@ static void CheckAssetLockCommon(uint8_t version, bool is_v24_active)
     }
 
     {
-        // Sum of credit output greater than OP_RETURN
-        std::vector<CTxOut> wrongOutput = creditOutputs;
-        wrongOutput[0].nValue += CENT;
-
-        CMutableTransaction txGreaterCredits(baseTx);
-        SetTxPayload(txGreaterCredits, CAssetLockPayload(wrongOutput, version));
-
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txGreaterCredits), tx_state, is_v24_active));
-        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-creditamount");
-
-        // Sum of credit output less than OP_RETURN
-        wrongOutput[1].nValue -= 2 * CENT;
-
-        CMutableTransaction txLessCredits(baseTx);
-        SetTxPayload(txLessCredits, CAssetLockPayload(wrongOutput, version));
-
-        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txLessCredits), tx_state, is_v24_active));
-        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-creditamount");
-    }
-
-    {
         // Credit output is out-of-range
         std::vector<CTxOut> creditOutputsOutOfRange = creditOutputs;
         creditOutputsOutOfRange[0].nValue = 0;

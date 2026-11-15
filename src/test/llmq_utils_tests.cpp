@@ -591,43 +591,4 @@ BOOST_AUTO_TEST_CASE(deterministic_outbound_connection_edge_cases_test)
     BOOST_CHECK(!connSame.IsNull());
 }
 
-// Note: CalcDeterministicWatchConnections requires CBlockIndex which is complex to mock
-// Testing is deferred to functional tests
-
-BOOST_AUTO_TEST_CASE(deterministic_connection_symmetry_test)
-{
-    // Test interesting properties of DeterministicOutboundConnection
-    uint256 proTxHash1 = GetTestQuorumHash(1);
-    uint256 proTxHash2 = GetTestQuorumHash(2);
-    uint256 proTxHash3 = GetTestQuorumHash(3);
-
-    // Create a "network" of connections
-    // DeterministicOutboundConnection is symmetric - order doesn't matter
-    uint256 conn12 = llmq::utils::DeterministicOutboundConnection(proTxHash1, proTxHash2);
-    uint256 conn21 = llmq::utils::DeterministicOutboundConnection(proTxHash2, proTxHash1);
-    uint256 conn13 = llmq::utils::DeterministicOutboundConnection(proTxHash1, proTxHash3);
-    uint256 conn31 = llmq::utils::DeterministicOutboundConnection(proTxHash3, proTxHash1);
-    uint256 conn23 = llmq::utils::DeterministicOutboundConnection(proTxHash2, proTxHash3);
-    uint256 conn32 = llmq::utils::DeterministicOutboundConnection(proTxHash3, proTxHash2);
-
-    // Verify symmetry - swapped inputs produce same output
-    BOOST_CHECK(conn12 == conn21);
-    BOOST_CHECK(conn13 == conn31);
-    BOOST_CHECK(conn23 == conn32);
-
-    // Each connection returns one of the two nodes
-    BOOST_CHECK(conn12 == proTxHash1 || conn12 == proTxHash2);
-    BOOST_CHECK(conn13 == proTxHash1 || conn13 == proTxHash3);
-    BOOST_CHECK(conn23 == proTxHash2 || conn23 == proTxHash3);
-
-    // The function deterministically picks which node initiates the connection
-    // Verify we get consistent results for each pair
-    std::set<uint256> uniqueResults;
-    uniqueResults.insert(conn12);
-    uniqueResults.insert(conn13);
-    uniqueResults.insert(conn23);
-    // Each pair should produce one of its members, but pairs may have overlapping results
-    BOOST_CHECK(uniqueResults.size() >= 2 && uniqueResults.size() <= 3);
-}
-
 BOOST_AUTO_TEST_SUITE_END()

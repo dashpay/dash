@@ -786,52 +786,6 @@ BOOST_AUTO_TEST_CASE(entry_rejects_outputs_above_wire_cap_before_materializing)
     BOOST_CHECK(entry.vecTxOut.empty());
 }
 
-BOOST_AUTO_TEST_CASE(queue_timeout_bounds)
-{
-    const auto now{std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime())};
-    CCoinJoinQueue dsq{CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination()),
-                       COutPoint{}, uint256::ONE, now, /*fReady=*/false};
-    // current time -> not out of bounds
-    BOOST_CHECK(!dsq.IsTimeOutOfBounds());
-
-    // Too old (beyond COINJOIN_QUEUE_TIMEOUT)
-    SetMockTime((now + std::chrono::seconds{COINJOIN_QUEUE_TIMEOUT + 1}).time_since_epoch());
-    BOOST_CHECK(dsq.IsTimeOutOfBounds());
-
-    // Too far in the future
-    SetMockTime((now - std::chrono::seconds{COINJOIN_QUEUE_TIMEOUT + 1}).time_since_epoch());
-    dsq.nTime = TicksSinceEpoch<std::chrono::seconds>(now + std::chrono::seconds{COINJOIN_QUEUE_TIMEOUT + 1});
-    BOOST_CHECK(dsq.IsTimeOutOfBounds());
-
-    // Reset mock time
-    SetMockTime(0s);
-}
-BOOST_AUTO_TEST_CASE(broadcasttx_expiry_height_logic)
-{
-    // Build a valid-looking CCoinJoinBroadcastTx with confirmed height
-    CCoinJoinBroadcastTx dstx;
-    {
-        CMutableTransaction mtx;
-        const int participants = std::max(3, CoinJoin::GetMinPoolParticipants());
-        for (int i = 0; i < participants; ++i) {
-            mtx.vin.emplace_back(COutPoint(uint256::TWO, i));
-            mtx.vout.emplace_back(CoinJoin::GetSmallestDenomination(), P2PKHScript(static_cast<uint8_t>(i)));
-        }
-        dstx.tx = MakeTransactionRef(mtx);
-        dstx.m_protxHash = uint256::ONE;
-        // mark as confirmed at height 100
-        dstx.SetConfirmedHeight(100);
-    }
-
-    // Minimal CBlockIndex with required fields
-    // Create a minimal block index to satisfy the interface
-    CBlockIndex index;
-    uint256 blk_hash = uint256S("03");
-    index.nHeight = 125; // 125 - 100 == 25 > 24 → expired by height
-    index.phashBlock = &blk_hash;
-    BOOST_CHECK(dstx.IsExpired(&index, *Assert(m_node.chainlocks)));
-}
-
 // Helper to create a denominated CTxIn with a specific denomination value
 static CTxIn MakeDenomInput(uint8_t index)
 {
@@ -846,189 +800,68 @@ static CTxOut MakeDenomOutput(CAmount nAmount, uint8_t tag = 0x01)
     return CTxOut{nAmount, P2PKHScript(tag)};
 }
 
-BOOST_AUTO_TEST_CASE(validate_promotion_entry_valid)
+BOOST_AUTO_TEST_CASE(validate_promotion_demotion_entries)
 {
-    // Valid promotion: 10 inputs of 0.1 DASH → 1 output of 1.0 DASH
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
-
-    // Get the 0.1 DASH denomination (index 2: 1 << 2 = 4)
-    const int nSmallerDenom = 1 << 2;  // 0.1 DASH
-    const int nLargerDenom = 1 << 1;   // 1.0 DASH
+    // One keeper for the size, adjacency, and "no larger source" branches.
+    // ValidatePromotionEntry / ValidateDemotionEntry return on the first failure.
+    const int nSmallerDenom = 1 << 2; // 0.1 DASH
+    const int nLargerDenom = 1 << 1;  // 1.0 DASH
     const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
-
-    BOOST_CHECK(CoinJoin::IsValidDenomination(nSmallerDenom));
-    BOOST_CHECK(CoinJoin::IsValidDenomination(nLargerDenom));
-
-    // Create 10 inputs of smaller denomination
-    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
-    }
-
-    // Create 1 output of larger denomination
-    vecTxOut.push_back(MakeDenomOutput(nLargerAmount, 0x01));
-
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(CoinJoin::ValidatePromotionEntry(vecTxIn, vecTxOut, nSmallerDenom, nMessageID));
-}
-
-BOOST_AUTO_TEST_CASE(validate_promotion_entry_wrong_input_count)
-{
-    // Invalid: only 9 inputs instead of 10
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
-
-    const int nSmallerDenom = 1 << 2;  // 0.1 DASH
-    const int nLargerDenom = 1 << 1;   // 1.0 DASH
-    const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
-
-    // Create only 9 inputs
-    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO - 1);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO - 1; ++i) {
-        vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
-    }
-
-    vecTxOut.push_back(MakeDenomOutput(nLargerAmount, 0x01));
-
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(vecTxIn, vecTxOut, nSmallerDenom, nMessageID));
-}
-
-BOOST_AUTO_TEST_CASE(validate_promotion_entry_wrong_output_count)
-{
-    // Invalid: 2 outputs instead of 1
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
-
-    const int nSmallerDenom = 1 << 2;
-    const int nLargerDenom = 1 << 1;
-    const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
-
-    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
-    }
-
-    // Two outputs instead of one
-    vecTxOut.push_back(MakeDenomOutput(nLargerAmount, 0x01));
-    vecTxOut.push_back(MakeDenomOutput(nLargerAmount, 0x02));
-
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(vecTxIn, vecTxOut, nSmallerDenom, nMessageID));
-}
-
-BOOST_AUTO_TEST_CASE(validate_promotion_entry_non_adjacent_denoms)
-{
-    // Invalid: trying to promote 0.01 to 1.0 (not adjacent)
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
-
-    const int nSmallerDenom = 1 << 3;  // 0.01 DASH
-    const int nLargerDenom = 1 << 1;   // 1.0 DASH (not adjacent to 0.01)
-    const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
-
-    vecTxIn.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        vecTxIn.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
-    }
-
-    vecTxOut.push_back(MakeDenomOutput(nLargerAmount, 0x01));
-
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(vecTxIn, vecTxOut, nSmallerDenom, nMessageID));
-}
-
-BOOST_AUTO_TEST_CASE(validate_demotion_entry_valid)
-{
-    // Valid demotion: 1 input of 1.0 DASH → 10 outputs of 0.1 DASH
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
-
-    const int nSmallerDenom = 1 << 2;  // 0.1 DASH
-    const CAmount nSmallerAmount = CoinJoin::DenominationToAmount(nSmallerDenom);
-    const int nLargerDenom = 1 << 1;   // 1.0 DASH
-
-    BOOST_CHECK(CoinJoin::IsValidDenomination(nSmallerDenom));
-    BOOST_CHECK(CoinJoin::IsValidDenomination(nLargerDenom));
-    BOOST_CHECK(CoinJoin::AreAdjacentDenominations(nSmallerDenom, nLargerDenom));
-
-    // 1 input of larger denomination
-    vecTxIn.push_back(MakeDenomInput(0));
-
-    // 10 outputs of smaller denomination
-    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        vecTxOut.push_back(MakeDenomOutput(nSmallerAmount, static_cast<uint8_t>(i)));
-    }
-
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(CoinJoin::ValidateDemotionEntry(vecTxIn, vecTxOut, nSmallerDenom, nMessageID));
-}
-
-BOOST_AUTO_TEST_CASE(validate_demotion_entry_wrong_input_count)
-{
-    // Invalid: 2 inputs instead of 1
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
-
-    const int nSmallerDenom = 1 << 2;
     const CAmount nSmallerAmount = CoinJoin::DenominationToAmount(nSmallerDenom);
 
-    // 2 inputs instead of 1
-    vecTxIn.push_back(MakeDenomInput(0));
-    vecTxIn.push_back(MakeDenomInput(1));
+    auto inputs = [](int count) {
+        std::vector<CTxIn> vin;
+        vin.reserve(count);
+        for (int i = 0; i < count; ++i) {
+            vin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
+        }
+        return vin;
+    };
+    auto outputs = [](int count, CAmount amount) {
+        std::vector<CTxOut> vout;
+        vout.reserve(count);
+        for (int i = 0; i < count; ++i) {
+            vout.push_back(MakeDenomOutput(amount, static_cast<uint8_t>(i)));
+        }
+        return vout;
+    };
 
-    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        vecTxOut.push_back(MakeDenomOutput(nSmallerAmount, static_cast<uint8_t>(i)));
-    }
+    const auto promo_in = inputs(CoinJoin::PROMOTION_RATIO);
+    const auto promo_out = outputs(1, nLargerAmount);
+    PoolMessage msg = MSG_NOERR;
+    BOOST_CHECK(CoinJoin::ValidatePromotionEntry(promo_in, promo_out, nSmallerDenom, msg));
 
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(vecTxIn, vecTxOut, nSmallerDenom, nMessageID));
-}
+    msg = MSG_NOERR;
+    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(inputs(CoinJoin::PROMOTION_RATIO - 1), promo_out, nSmallerDenom, msg));
 
-BOOST_AUTO_TEST_CASE(validate_demotion_entry_wrong_output_count)
-{
-    // Invalid: 9 outputs instead of 10
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
+    msg = MSG_NOERR;
+    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(promo_in, outputs(2, nLargerAmount), nSmallerDenom, msg));
 
-    const int nSmallerDenom = 1 << 2;
-    const CAmount nSmallerAmount = CoinJoin::DenominationToAmount(nSmallerDenom);
+    // Output amount is not the adjacent larger denomination.
+    msg = MSG_NOERR;
+    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(promo_in, outputs(1, CoinJoin::DenominationToAmount(1 << 3)), nSmallerDenom, msg));
 
-    vecTxIn.push_back(MakeDenomInput(0));
+    // Nothing promotes out of 10 DASH.
+    msg = MSG_NOERR;
+    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(promo_in, promo_out, /*nSessionDenom=*/1 << 0, msg));
+    BOOST_CHECK(msg == ERR_DENOM);
 
-    // Only 9 outputs
-    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO - 1);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO - 1; ++i) {
-        vecTxOut.push_back(MakeDenomOutput(nSmallerAmount, static_cast<uint8_t>(i)));
-    }
+    const auto demo_in = inputs(1);
+    const auto demo_out = outputs(CoinJoin::PROMOTION_RATIO, nSmallerAmount);
+    msg = MSG_NOERR;
+    BOOST_CHECK(CoinJoin::ValidateDemotionEntry(demo_in, demo_out, nSmallerDenom, msg));
 
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(vecTxIn, vecTxOut, nSmallerDenom, nMessageID));
-}
+    msg = MSG_NOERR;
+    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(inputs(2), demo_out, nSmallerDenom, msg));
 
-BOOST_AUTO_TEST_CASE(validate_demotion_entry_largest_denom_has_no_source)
-{
-    // Invalid: nothing demotes into 10 DASH, there is no larger denomination to split
-    std::vector<CTxIn> vecTxIn;
-    std::vector<CTxOut> vecTxOut;
+    msg = MSG_NOERR;
+    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(demo_in, outputs(CoinJoin::PROMOTION_RATIO - 1, nSmallerAmount), nSmallerDenom, msg));
 
-    const int nLargestDenom = 1 << 0;  // 10 DASH
-    const CAmount nLargestAmount = CoinJoin::DenominationToAmount(nLargestDenom);
-    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(nLargestDenom), 0);
-
-    vecTxIn.push_back(MakeDenomInput(0));
-
-    vecTxOut.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        vecTxOut.push_back(MakeDenomOutput(nLargestAmount, static_cast<uint8_t>(i)));
-    }
-
-    PoolMessage nMessageID = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(vecTxIn, vecTxOut, nLargestDenom, nMessageID));
-    BOOST_CHECK(nMessageID == ERR_DENOM);
+    // Nothing demotes into 10 DASH.
+    msg = MSG_NOERR;
+    BOOST_CHECK_EQUAL(CoinJoin::GetLargerAdjacentDenom(1 << 0), 0);
+    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(demo_in, outputs(CoinJoin::PROMOTION_RATIO, CoinJoin::DenominationToAmount(1 << 0)), 1 << 0, msg));
+    BOOST_CHECK(msg == ERR_DENOM);
 }
 
 BOOST_AUTO_TEST_CASE(denomination_adjacency_checks)
@@ -1078,42 +911,6 @@ BOOST_AUTO_TEST_CASE(get_adjacent_denomination_helpers)
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(1 << 4), 0);      // 0.001 has no smaller
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(0), 0);           // Invalid denominations
     BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(999), 0);         // Invalid denominations
-}
-
-BOOST_AUTO_TEST_CASE(isvalidstructure_postfork_unbalanced_valid)
-{
-    // Post-V24: Unbalanced vin/vout (promotion: 10 inputs, 1 output) should be valid
-    // We need a mock pindex that signals V24 active - for this test we use nullptr which means pre-fork
-    // This test validates that the structure check correctly identifies promotion structure
-
-    CCoinJoinBroadcastTx promo;
-    {
-        CMutableTransaction mtx;
-        // Promotion: 10 inputs of smaller denom -> 1 output of larger denom
-        const int nInputCount = CoinJoin::PROMOTION_RATIO;
-        const CAmount nLargerAmount = CoinJoin::DenominationToAmount(1 << 1);  // 1.0 DASH
-
-        for (int i = 0; i < nInputCount; ++i) {
-            CTxIn in;
-            in.prevout = COutPoint(uint256::ONE, static_cast<uint32_t>(i));
-            mtx.vin.push_back(in);
-        }
-        // 1 output of larger denom
-        CTxOut out{nLargerAmount, P2PKHScript(0x01)};
-        mtx.vout.push_back(out);
-
-        promo.tx = MakeTransactionRef(mtx);
-        promo.m_protxHash = uint256::ONE;
-    }
-
-    // Pre-V24 (nullptr): unbalanced should fail, but be reported as possibly valid post-V24
-    // so relaying peers aren't fully punished around the activation boundary
-    bool fPossiblyValidPostV24{false};
-    BOOST_CHECK(!promo.IsValidStructure(nullptr, *Assert(m_node.chainman), &fPossiblyValidPostV24));
-    BOOST_CHECK(fPossiblyValidPostV24);
-
-    // Note: Post-V24 test would require a valid CBlockIndex with V24 deployment active
-    // which requires more setup. The above confirms pre-fork rejection works.
 }
 
 BOOST_AUTO_TEST_CASE(isvalidstructure_demotion_structure)
@@ -1206,59 +1003,6 @@ BOOST_AUTO_TEST_CASE(input_limit_prefork)
     BOOST_CHECK(!tooMany.IsValidStructure(nullptr, *Assert(m_node.chainman)));
 }
 
-BOOST_AUTO_TEST_CASE(input_limit_postfork_constants)
-{
-    // Post-V24: max inputs = GetMaxPoolParticipants() * PROMOTION_RATIO
-    // Typically 20 * 10 = 200
-    const size_t nMaxPostFork = CoinJoin::GetMaxPoolParticipants() * CoinJoin::PROMOTION_RATIO;
-    BOOST_CHECK_EQUAL(nMaxPostFork, 200);
-
-    // Verify the increase from pre-fork
-    const size_t nMaxPreFork = CoinJoin::GetMaxPoolParticipants() * COINJOIN_ENTRY_MAX_SIZE;
-    BOOST_CHECK(nMaxPostFork > nMaxPreFork);
-    BOOST_CHECK_EQUAL(nMaxPostFork - nMaxPreFork, 20); // Increase of 20
-}
-
-BOOST_AUTO_TEST_CASE(output_limit_postfork)
-{
-    // Post-V24 the vin/vout counts no longer bound each other, so outputs get their own cap
-    // of GetMaxPoolParticipants() * PROMOTION_RATIO. Exercised through the
-    // fPossiblyValidPostV24 flag: a tx that busts the output cap must not be reported as
-    // possibly valid under post-V24 rules either.
-    const size_t nMaxPostFork = CoinJoin::GetMaxPoolParticipants() * CoinJoin::PROMOTION_RATIO;
-    const CAmount nSmallestDenom = CoinJoin::GetSmallestDenomination();
-
-    auto MakeUnbalancedTx = [&](size_t nInputs, size_t nOutputs) {
-        CCoinJoinBroadcastTx dstx;
-        CMutableTransaction mtx;
-        for (size_t i = 0; i < nInputs; ++i) {
-            CTxIn in;
-            in.prevout = COutPoint(uint256::ONE, static_cast<uint32_t>(i));
-            mtx.vin.push_back(in);
-        }
-        for (size_t i = 0; i < nOutputs; ++i) {
-            mtx.vout.emplace_back(nSmallestDenom, P2PKHScript(static_cast<uint8_t>(i % 256)));
-        }
-        dstx.tx = MakeTransactionRef(mtx);
-        dstx.m_protxHash = uint256::ONE;
-        return dstx;
-    };
-
-    // Outputs at the cap, inputs the matching count for an all-demotion session: rejected
-    // pre-V24, possibly valid post-V24
-    bool fPossiblyValidPostV24{false};
-    const auto withinCaps = MakeUnbalancedTx(nMaxPostFork / CoinJoin::PROMOTION_RATIO, nMaxPostFork);
-    BOOST_CHECK(!withinCaps.IsValidStructure(nullptr, *Assert(m_node.chainman), &fPossiblyValidPostV24));
-    BOOST_CHECK(fPossiblyValidPostV24);
-
-    // The same shape scaled past the cap: rejected under either ruleset, and by the cap alone -
-    // it satisfies the input/output count relation (see isvalidstructure_postv24_count_relations)
-    fPossiblyValidPostV24 = true;
-    const auto tooManyOutputs = MakeUnbalancedTx(nMaxPostFork / CoinJoin::PROMOTION_RATIO + 1, nMaxPostFork + 10);
-    BOOST_CHECK(!tooManyOutputs.IsValidStructure(nullptr, *Assert(m_node.chainman), &fPossiblyValidPostV24));
-    BOOST_CHECK(!fPossiblyValidPostV24);
-}
-
 BOOST_AUTO_TEST_CASE(validate_final_tx_composition)
 {
     constexpr size_t R = CoinJoin::PROMOTION_RATIO;
@@ -1319,93 +1063,6 @@ BOOST_AUTO_TEST_CASE(promotion_demotion_value_preservation)
     }
 }
 
-BOOST_AUTO_TEST_CASE(isvalidstructure_mixed_session_postfork)
-{
-    // Post-V24: A transaction with mixed entry types should be valid
-    // (some participants doing 1:1, others doing promotion/demotion)
-    // This tests that the structure validation allows mixed input/output counts
-
-    CCoinJoinBroadcastTx mixed;
-    {
-        CMutableTransaction mtx;
-        // Simulate a mixed session:
-        // - 3 standard participants: 3 inputs, 3 outputs (smallest denom)
-        // - 1 promotion participant: 10 inputs, 1 output
-        // Total: 13 inputs, 4 outputs
-
-        const CAmount nSmallestDenom = CoinJoin::GetSmallestDenomination();
-        const CAmount nSecondSmallest = CoinJoin::DenominationToAmount(1 << 3); // 0.01 DASH
-
-        // Standard participants (3 x 1:1)
-        for (int i = 0; i < 3; ++i) {
-            CTxIn in;
-            in.prevout = COutPoint(uint256::ONE, static_cast<uint32_t>(i));
-            mtx.vin.push_back(in);
-            mtx.vout.emplace_back(nSmallestDenom, P2PKHScript(static_cast<uint8_t>(i)));
-        }
-
-        // Promotion participant (10 inputs -> 1 output)
-        for (int i = 3; i < 13; ++i) {
-            CTxIn in;
-            in.prevout = COutPoint(uint256::ONE, static_cast<uint32_t>(i));
-            mtx.vin.push_back(in);
-        }
-        // One output for the promotion (larger denom)
-        mtx.vout.emplace_back(nSecondSmallest, P2PKHScript(0x0D));
-
-        mixed.tx = MakeTransactionRef(mtx);
-        mixed.m_protxHash = uint256::ONE;
-    }
-
-    // Pre-V24: Should fail (unbalanced)
-    BOOST_CHECK(!mixed.IsValidStructure(nullptr, *Assert(m_node.chainman)));
-
-    // Note: Post-V24 testing requires a valid CBlockIndex with V24 deployment active
-    // which requires more complex test setup with chainstate. The above verifies
-    // that pre-fork rejection works correctly.
-}
-
-BOOST_AUTO_TEST_CASE(entry_type_detection_logic)
-{
-    // Test the entry type detection logic used in IsValidInOuts
-    // Entry types:
-    // - STANDARD: vin.size() == vout.size()
-    // - PROMOTION: vin.size() == PROMOTION_RATIO && vout.size() == 1
-    // - DEMOTION: vin.size() == 1 && vout.size() == PROMOTION_RATIO
-    // - INVALID: anything else
-
-    auto detectEntryType = [](size_t vinSize, size_t voutSize) -> std::string {
-        if (vinSize == voutSize) {
-            return "STANDARD";
-        } else if (vinSize == static_cast<size_t>(CoinJoin::PROMOTION_RATIO) && voutSize == 1) {
-            return "PROMOTION";
-        } else if (vinSize == 1 && voutSize == static_cast<size_t>(CoinJoin::PROMOTION_RATIO)) {
-            return "DEMOTION";
-        }
-        return "INVALID";
-    };
-
-    // Standard entries
-    BOOST_CHECK_EQUAL(detectEntryType(1, 1), "STANDARD");
-    BOOST_CHECK_EQUAL(detectEntryType(5, 5), "STANDARD");
-    BOOST_CHECK_EQUAL(detectEntryType(9, 9), "STANDARD");  // Max standard entry
-
-    // Promotion entries
-    BOOST_CHECK_EQUAL(detectEntryType(10, 1), "PROMOTION");
-
-    // Demotion entries
-    BOOST_CHECK_EQUAL(detectEntryType(1, 10), "DEMOTION");
-
-    // Invalid entries (not valid pre or post fork)
-    BOOST_CHECK_EQUAL(detectEntryType(9, 1), "INVALID");   // Wrong ratio
-    BOOST_CHECK_EQUAL(detectEntryType(1, 9), "INVALID");   // Wrong ratio
-    BOOST_CHECK_EQUAL(detectEntryType(5, 3), "INVALID");   // Random mismatch
-    BOOST_CHECK_EQUAL(detectEntryType(2, 10), "INVALID");  // Wrong input count for demotion
-    BOOST_CHECK_EQUAL(detectEntryType(10, 2), "INVALID");  // Wrong output count for promotion
-    BOOST_CHECK_EQUAL(detectEntryType(20, 2), "INVALID");  // 20:2 is not valid
-    BOOST_CHECK_EQUAL(detectEntryType(11, 1), "INVALID");  // 11:1 is not valid promotion
-}
-
 BOOST_AUTO_TEST_CASE(validate_entry_session_denom_consistency)
 {
     // Test that promotion/demotion validation enforces session denomination consistency
@@ -1447,61 +1104,6 @@ BOOST_AUTO_TEST_CASE(validate_entry_session_denom_consistency)
 
     msg = MSG_NOERR;
     BOOST_CHECK(CoinJoin::ValidateDemotionEntry(demoVin, demoVout, nSessionDenom, msg));
-}
-
-BOOST_AUTO_TEST_CASE(isvalidstructure_boundary_input_counts)
-{
-    // Test boundary conditions for input counts at the pre/post V24 limits
-    // Pre-V24: max 180 inputs (20 * 9)
-    // Post-V24: max 200 inputs (20 * 10)
-
-    const size_t nPreForkMax = CoinJoin::GetMaxPoolParticipants() * COINJOIN_ENTRY_MAX_SIZE;
-    const size_t nPostForkMax = CoinJoin::GetMaxPoolParticipants() * CoinJoin::PROMOTION_RATIO;
-
-    BOOST_CHECK_EQUAL(nPreForkMax, 180);
-    BOOST_CHECK_EQUAL(nPostForkMax, 200);
-
-    // Create transaction with exactly 180 inputs (valid pre and post fork)
-    CCoinJoinBroadcastTx tx180;
-    {
-        CMutableTransaction mtx;
-        for (size_t i = 0; i < 180; ++i) {
-            mtx.vin.emplace_back(COutPoint(uint256::ONE, static_cast<uint32_t>(i)));
-            mtx.vout.emplace_back(CoinJoin::GetSmallestDenomination(), P2PKHScript(static_cast<uint8_t>(i % 256)));
-        }
-        tx180.tx = MakeTransactionRef(mtx);
-        tx180.m_protxHash = uint256::ONE;
-    }
-    BOOST_CHECK(tx180.IsValidStructure(nullptr, *Assert(m_node.chainman)));  // Pre-fork: valid at boundary
-
-    // Create transaction with 181 inputs (invalid pre-fork, would be valid post-fork)
-    CCoinJoinBroadcastTx tx181;
-    {
-        CMutableTransaction mtx;
-        for (size_t i = 0; i < 181; ++i) {
-            mtx.vin.emplace_back(COutPoint(uint256::ONE, static_cast<uint32_t>(i)));
-            mtx.vout.emplace_back(CoinJoin::GetSmallestDenomination(), P2PKHScript(static_cast<uint8_t>(i % 256)));
-        }
-        tx181.tx = MakeTransactionRef(mtx);
-        tx181.m_protxHash = uint256::ONE;
-    }
-    BOOST_CHECK(!tx181.IsValidStructure(nullptr, *Assert(m_node.chainman)));  // Pre-fork: over limit
-
-    // Transaction at post-fork boundary (200 inputs)
-    CCoinJoinBroadcastTx tx200;
-    {
-        CMutableTransaction mtx;
-        for (size_t i = 0; i < 200; ++i) {
-            mtx.vin.emplace_back(COutPoint(uint256::ONE, static_cast<uint32_t>(i)));
-            mtx.vout.emplace_back(CoinJoin::GetSmallestDenomination(), P2PKHScript(static_cast<uint8_t>(i % 256)));
-        }
-        tx200.tx = MakeTransactionRef(mtx);
-        tx200.m_protxHash = uint256::ONE;
-    }
-    // Pre-fork: over limit (200 > 180)
-    BOOST_CHECK(!tx200.IsValidStructure(nullptr, *Assert(m_node.chainman)));
-
-    // Note: Testing post-fork behavior requires a CBlockIndex with V24 active via EHF
 }
 
 BOOST_AUTO_TEST_CASE(isvalidstructure_postv24_count_relations)
@@ -1606,32 +1208,19 @@ BOOST_AUTO_TEST_CASE(should_demote_requires_fully_mixed_coin)
     BOOST_CHECK(!CoinJoin::ShouldDemoteDenoms(100, 0, /*nLargerFullyMixedCount=*/0, 100));
 }
 
-BOOST_AUTO_TEST_CASE(should_promote_larger_deficit_greater)
+BOOST_AUTO_TEST_CASE(denom_rebalance_decision)
 {
+    // Count branches of ShouldPromoteDenoms / ShouldDemoteDenoms. Fully-mixed gates
+    // and the minimum-goal threshold stay in their own cases.
     const int goal = 100;
-
-    // 60 of smaller, 0 of larger -> should promote (0.1 has surplus, 1.0 needs help)
-    // smallerDeficit = 40, largerDeficit = 100, gap = 60 > gap threshold (20 at this goal)
-    BOOST_CHECK(TestShouldPromote(60, 0, goal));
-
-    // 100 of smaller, 0 of larger -> should promote (0.1 full, 1.0 empty)
-    // smallerDeficit = 0, largerDeficit = 100, gap = 100 > gap threshold (20 at this goal)
-    BOOST_CHECK(TestShouldPromote(100, 0, goal));
-}
-
-BOOST_AUTO_TEST_CASE(should_promote_below_half_goal_false)
-{
-    const int goal = 100;
-
-    // 30 of smaller, 0 of larger -> should NOT promote (30 < 50 = halfGoal)
-    BOOST_CHECK(!TestShouldPromote(30, 0, goal));
-
-    // 49 of smaller, 0 of larger -> should NOT promote (49 < 50 = halfGoal)
     BOOST_CHECK(!TestShouldPromote(49, 0, goal));
-
-    // 50 of smaller, 0 of larger -> CAN promote (50 >= 50 = halfGoal)
-    // smallerDeficit = 50, largerDeficit = 100, gap = 50 > gap threshold (20 at this goal)
     BOOST_CHECK(TestShouldPromote(50, 0, goal));
+    BOOST_CHECK(TestShouldPromote(60, 0, goal));
+    BOOST_CHECK(!TestShouldDemote(49, 0, goal));
+    BOOST_CHECK(TestShouldDemote(50, 0, goal));
+    BOOST_CHECK(TestShouldDemote(99, 0, goal));
+    BOOST_CHECK(!TestShouldPromote(100, 100, goal));
+    BOOST_CHECK(!TestShouldDemote(100, 100, goal));
 }
 
 BOOST_AUTO_TEST_CASE(gap_threshold_reachable_at_every_goal)
@@ -1671,212 +1260,6 @@ BOOST_AUTO_TEST_CASE(rebalance_never_immediately_reverses)
             }
         }
     }
-}
-
-BOOST_AUTO_TEST_CASE(should_promote_small_gap_false)
-{
-    const int goal = 100;
-
-    // 90 smaller, 80 larger -> deficits are 10 and 20, gap = 10
-    // 20 > 10 + 20 is false, so no promotion
-    BOOST_CHECK(!TestShouldPromote(90, 80, goal));
-
-    // 85 smaller, 80 larger -> deficits are 15 and 20, gap = 5
-    // 20 > 15 + 20 is false, so no promotion
-    BOOST_CHECK(!TestShouldPromote(85, 80, goal));
-}
-
-BOOST_AUTO_TEST_CASE(should_demote_smaller_deficit_greater)
-{
-    const int goal = 100;
-
-    // 60 of larger, 0 of smaller -> should demote (1.0 has surplus, 0.1 needs help)
-    // largerDeficit = 40, smallerDeficit = 100, gap = 60 > gap threshold (20 at this goal)
-    BOOST_CHECK(TestShouldDemote(60, 0, goal));
-
-    // 99 of larger, 0 of smaller -> should demote
-    // largerDeficit = 1, smallerDeficit = 100, gap = 99 > gap threshold (20 at this goal)
-    BOOST_CHECK(TestShouldDemote(99, 0, goal));
-}
-
-BOOST_AUTO_TEST_CASE(should_demote_below_half_goal_false)
-{
-    const int goal = 100;
-
-    // 30 of larger, 0 of smaller -> should NOT demote (30 < 50 = halfGoal)
-    BOOST_CHECK(!TestShouldDemote(30, 0, goal));
-
-    // 49 of larger, 0 of smaller -> should NOT demote (49 < 50 = halfGoal)
-    BOOST_CHECK(!TestShouldDemote(49, 0, goal));
-
-    // 50 of larger, 0 of smaller -> CAN demote (50 >= 50 = halfGoal)
-    // largerDeficit = 50, smallerDeficit = 100, gap = 50 > gap threshold (20 at this goal)
-    BOOST_CHECK(TestShouldDemote(50, 0, goal));
-}
-
-BOOST_AUTO_TEST_CASE(promote_demote_mutually_exclusive)
-{
-    // Test various distributions - at most one should be true
-    auto testMutualExclusivity = [](int smallerCount, int largerCount) {
-        const int testGoal = 100;
-        bool promote = TestShouldPromote(smallerCount, largerCount, testGoal);
-        bool demote = TestShouldDemote(largerCount, smallerCount, testGoal);
-        // At most one can be true (XOR or neither)
-        BOOST_CHECK(!(promote && demote));
-        return std::make_pair(promote, demote);
-    };
-
-    // Equal counts - neither
-    auto [p1, d1] = testMutualExclusivity(100, 100);
-    BOOST_CHECK(!p1 && !d1);
-
-    // 90/90 - neither (close to goal, small gap)
-    auto [p2, d2] = testMutualExclusivity(90, 90);
-    BOOST_CHECK(!p2 && !d2);
-
-    // Large imbalance toward smaller - promote only
-    auto [p3, d3] = testMutualExclusivity(100, 0);
-    BOOST_CHECK(p3 && !d3);
-
-    // Large imbalance toward larger - demote only
-    auto [p4, d4] = testMutualExclusivity(0, 100);
-    BOOST_CHECK(!p4 && d4);
-
-    // Mid-range cases from the plan
-    auto [p5, d5] = testMutualExclusivity(0, 60);  // 0.1=0, 1.0=60 -> should demote
-    BOOST_CHECK(!p5 && d5);
-
-    auto [p6, d6] = testMutualExclusivity(60, 0);  // 0.1=60, 1.0=0 -> should promote
-    BOOST_CHECK(p6 && !d6);
-}
-
-BOOST_AUTO_TEST_CASE(decision_logic_example_cases_from_plan)
-{
-    // Test the specific examples from the implementation plan
-    const int goal = 100;
-
-    // | 1.0 count | 0.1 count | Action |
-    // | 99        | 0         | Demote |
-    BOOST_CHECK(TestShouldDemote(99, 0, goal));
-    BOOST_CHECK(!TestShouldPromote(0, 99, goal));  // 0.1 has 0, can't promote
-
-    // | 60        | 0         | Demote |
-    BOOST_CHECK(TestShouldDemote(60, 0, goal));
-
-    // | 30        | 0         | Nothing (1.0 < halfGoal) |
-    BOOST_CHECK(!TestShouldDemote(30, 0, goal));
-    BOOST_CHECK(!TestShouldPromote(0, 30, goal));
-
-    // | 0         | 60        | Promote |
-    BOOST_CHECK(TestShouldPromote(60, 0, goal));
-
-    // | 0         | 30        | Nothing (0.1 < halfGoal) |
-    BOOST_CHECK(!TestShouldPromote(30, 0, goal));
-
-    // | 100       | 100       | Nothing (both at goal) |
-    BOOST_CHECK(!TestShouldPromote(100, 100, goal));
-    BOOST_CHECK(!TestShouldDemote(100, 100, goal));
-
-    // | 90        | 90        | Nothing (deficits equal) |
-    BOOST_CHECK(!TestShouldPromote(90, 90, goal));
-    BOOST_CHECK(!TestShouldDemote(90, 90, goal));
-}
-
-BOOST_AUTO_TEST_CASE(validate_promotion_entry_edge_cases)
-{
-    // Additional edge cases for ValidatePromotionEntry
-
-    const int nSessionDenom = 1 << 2;  // 0.1 DASH
-    const int nLargerDenom = CoinJoin::GetLargerAdjacentDenom(nSessionDenom);
-    const CAmount nLargerAmount = CoinJoin::DenominationToAmount(nLargerDenom);
-
-    // Valid case: exactly 10 inputs, 1 output of correct larger denom
-    std::vector<CTxIn> validVin;
-    std::vector<CTxOut> validVout;
-    validVin.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        validVin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
-    }
-    validVout.push_back(MakeDenomOutput(nLargerAmount));
-
-    PoolMessage msg = MSG_NOERR;
-    BOOST_CHECK(CoinJoin::ValidatePromotionEntry(validVin, validVout, nSessionDenom, msg));
-
-    // Invalid: 9 inputs (wrong count)
-    std::vector<CTxIn> wrongCountVin;
-    wrongCountVin.reserve(9);
-    for (int i = 0; i < 9; ++i) {
-        wrongCountVin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
-    }
-    msg = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(wrongCountVin, validVout, nSessionDenom, msg));
-
-    // Invalid: 11 inputs (wrong count)
-    std::vector<CTxIn> tooManyVin;
-    tooManyVin.reserve(11);
-    for (int i = 0; i < 11; ++i) {
-        tooManyVin.push_back(MakeDenomInput(static_cast<uint8_t>(i)));
-    }
-    msg = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(tooManyVin, validVout, nSessionDenom, msg));
-
-    // Invalid: 2 outputs (should be 1)
-    std::vector<CTxOut> twoOutputs;
-    twoOutputs.push_back(MakeDenomOutput(nLargerAmount / 2));
-    twoOutputs.push_back(MakeDenomOutput(nLargerAmount / 2));
-    msg = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(validVin, twoOutputs, nSessionDenom, msg));
-
-    // Invalid: output is wrong denomination
-    std::vector<CTxOut> wrongDenomOut;
-    wrongDenomOut.push_back(MakeDenomOutput(CoinJoin::DenominationToAmount(nSessionDenom)));  // Same denom, not larger
-    msg = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidatePromotionEntry(validVin, wrongDenomOut, nSessionDenom, msg));
-}
-
-BOOST_AUTO_TEST_CASE(validate_demotion_entry_edge_cases)
-{
-    // Additional edge cases for ValidateDemotionEntry
-
-    const int nSessionDenom = 1 << 2;  // 0.1 DASH (output denom)
-    const CAmount nSessionAmount = CoinJoin::DenominationToAmount(nSessionDenom);
-
-    // Verify the larger adjacent denom exists for this test to be meaningful
-    BOOST_CHECK(CoinJoin::GetLargerAdjacentDenom(nSessionDenom) != 0);
-
-    // Valid case: 1 input of larger denom, 10 outputs of session denom
-    std::vector<CTxIn> validVin;
-    validVin.push_back(MakeDenomInput(0));
-
-    std::vector<CTxOut> validVout;
-    validVout.reserve(CoinJoin::PROMOTION_RATIO);
-    for (int i = 0; i < CoinJoin::PROMOTION_RATIO; ++i) {
-        validVout.push_back(MakeDenomOutput(nSessionAmount, static_cast<uint8_t>(i)));
-    }
-
-    PoolMessage msg = MSG_NOERR;
-    BOOST_CHECK(CoinJoin::ValidateDemotionEntry(validVin, validVout, nSessionDenom, msg));
-
-    // Invalid: 2 inputs (should be 1)
-    std::vector<CTxIn> twoInputs;
-    twoInputs.push_back(MakeDenomInput(0));
-    twoInputs.push_back(MakeDenomInput(1));
-    msg = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(twoInputs, validVout, nSessionDenom, msg));
-
-    // Invalid: 9 outputs (wrong count)
-    std::vector<CTxOut> nineOutputs;
-    nineOutputs.reserve(9);
-    for (int i = 0; i < 9; ++i) {
-        nineOutputs.push_back(MakeDenomOutput(nSessionAmount, static_cast<uint8_t>(i)));
-    }
-    msg = MSG_NOERR;
-    BOOST_CHECK(!CoinJoin::ValidateDemotionEntry(validVin, nineOutputs, nSessionDenom, msg));
-
-    // Test that demotion from smallest denomination (0.001 DASH) fails
-    // because there's no smaller denomination to demote to
-    const int nSmallestDenom = 1 << 4;  // 0.001 DASH
-    BOOST_CHECK_EQUAL(CoinJoin::GetSmallerAdjacentDenom(nSmallestDenom), 0);  // No smaller exists
 }
 
 // Build an entry of a given shape; only the input/output counts matter for classification

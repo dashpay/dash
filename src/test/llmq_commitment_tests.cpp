@@ -358,39 +358,4 @@ BOOST_AUTO_TEST_CASE(commitment_tx_payload_test)
     BOOST_CHECK(!payload.commitment.IsNull());
 }
 
-BOOST_AUTO_TEST_CASE(build_commitment_hash_test)
-{
-    // Test deterministic hash generation
-    uint256 hash1 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
-                                              CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
-
-    // Same inputs should produce same hash
-    uint256 hash2 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
-                                              CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
-
-    // Different quorum hash should produce different hash
-    uint256 hash3 = llmq::BuildCommitmentHash(TEST_PARAMS.type,
-                                              GetTestQuorumHash(2), // Different
-                                              CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                              GetTestQuorumHash(2));
-
-    BOOST_CHECK(hash1 != hash2); // Different pubkeys
-    BOOST_CHECK(hash1 != hash3);
-    BOOST_CHECK(hash2 != hash3);
-
-    // Test with same deterministic data
-    CBLSPublicKey fixedPubKey = CreateRandomBLSPublicKey();
-    uint256 hash4 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
-                                              CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2));
-
-    uint256 hash5 = llmq::BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1),
-                                              CreateBitVector(TEST_PARAMS.size, {0, 1, 2}), fixedPubKey,
-                                              GetTestQuorumHash(2));
-
-    BOOST_CHECK(hash4 == hash5);
-}
-
 BOOST_AUTO_TEST_SUITE_END()

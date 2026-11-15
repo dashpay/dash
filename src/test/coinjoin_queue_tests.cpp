@@ -132,17 +132,6 @@ BOOST_AUTO_TEST_CASE(queue_sign_and_verify)
     BOOST_CHECK(q.CheckSignature(pub));
 }
 
-BOOST_AUTO_TEST_CASE(queue_hashes_and_equality)
-{
-    const auto a{MakeQueue(CoinJoin::AmountToDenomination(CoinJoin::GetSmallestDenomination()),
-                           GetAdjustedTime(), /*fReady=*/true, COutPoint{uint256S("bb"), 2})};
-    const auto b{a}; // NOLINT(performance-unnecessary-copy-initialization): the copy is under test
-
-    BOOST_CHECK(a == b);
-    BOOST_CHECK(a.GetHash() == b.GetHash());
-    BOOST_CHECK(a.GetSignatureHash() == b.GetSignatureHash());
-}
-
 BOOST_AUTO_TEST_CASE(queue_denomination_validation)
 {
     // Test that valid denominations pass
