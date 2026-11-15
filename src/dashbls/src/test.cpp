@@ -17,6 +17,7 @@
 #include <thread>
 
 #include "bls.hpp"
+#include "secure.h"
 #include <catch2/catch.hpp>
 
 #include "test-utils.hpp"
@@ -173,7 +174,6 @@ TEST_CASE("class PrivateKey")
         G2Element g2 = pk1.GetG2Element();
         PrivateKey pk2 = std::move(pk1);
         REQUIRE_THROWS(PrivateKey(pk1));
-        REQUIRE_THROWS(pk1 = pk2);
         REQUIRE_THROWS(pk1.GetG1Element());
         REQUIRE_THROWS(pk1.GetG2Element());
         REQUIRE_THROWS(g1 * pk1);
@@ -189,6 +189,10 @@ TEST_CASE("class PrivateKey")
         REQUIRE_THROWS(pk1.Serialize());
         REQUIRE_THROWS(
             pk1.SignG2(buffer, sizeof(buffer), buffer, sizeof(buffer)));
+
+        // A moved-from key can still be given a value.
+        REQUIRE_NOTHROW(pk1 = pk2);
+        REQUIRE(pk1 == pk2);
     }
 }
 
@@ -569,12 +573,12 @@ TEST_CASE("Error handling")
     {
         vector<uint8_t> seed(32, 0x10);
         PrivateKey sk1 = BasicSchemeMPL().KeyGen(seed);
-        uint8_t* skData = Util::SecAlloc<uint8_t>(G2Element::SIZE);
+        uint8_t* skData = util::SecAlloc<uint8_t>(G2Element::SIZE);
         sk1.Serialize(skData);
         skData[0] = 255;
         REQUIRE_THROWS(
             PrivateKey::FromBytes(Bytes(skData, PrivateKey::PRIVATE_KEY_SIZE)));
-        Util::SecFree(skData);
+        util::SecFree(skData, G2Element::SIZE);
     }
 
     SECTION("Should throw on a bad public key")
@@ -624,6 +628,19 @@ TEST_CASE("Util tests")
         REQUIRE(result[3] == expected[3]);
         uint32_t again = Util::FourBytesToInt(result);
         REQUIRE(again == x);
+    }
+
+    SECTION("Should accept either case of the hex prefix")
+    {
+        const vector<uint8_t> expected{0xab, 0xcd};
+        REQUIRE(Util::HexToBytes("0xabcd") == expected);
+        REQUIRE(Util::HexToBytes("0Xabcd") == expected);
+    }
+
+    SECTION("Should read a set top bit without sign extension")
+    {
+        const uint8_t bytes[4] = {0xff, 0x00, 0x00, 0x80};
+        REQUIRE(Util::FourBytesToInt(bytes) == 0xff000080u);
     }
 }
 
@@ -700,7 +717,7 @@ TEST_CASE("Signature tests")
         PrivateKey sk1 = BasicSchemeMPL().KeyGen(seed);
         G1Element pk1 = sk1.GetG1Element();
 
-        uint8_t* skData = Util::SecAlloc<uint8_t>(G2Element::SIZE);
+        uint8_t* skData = util::SecAlloc<uint8_t>(G2Element::SIZE);
         sk1.Serialize(skData);
         PrivateKey sk2 =
             PrivateKey::FromBytes(Bytes(skData, PrivateKey::PRIVATE_KEY_SIZE));
@@ -719,7 +736,7 @@ TEST_CASE("Signature tests")
         REQUIRE(sig1 == sig2);
 
         REQUIRE(BasicSchemeMPL().Verify(pk2, message1, sig2));
-        Util::SecFree(skData);
+        util::SecFree(skData, G2Element::SIZE);
     }
 
     SECTION("Should not verify aggregate with same message under BasicScheme")

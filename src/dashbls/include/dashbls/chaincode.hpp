@@ -29,6 +29,8 @@ class ChainCode {
     static ChainCode FromBytes(const Bytes& bytes);
 
     ChainCode(const ChainCode &cc);
+    ChainCode& operator=(const ChainCode &cc);
+    ~ChainCode();
 
     // Comparator implementation.
     friend bool operator==(ChainCode const &a,  ChainCode const &b);

@@ -44,6 +44,8 @@ if [ "${VERB}" = "create" ]; then
     ".libs"
     # Test binaries that only the unit tests, run before bundling, need
     "src/bench/bench_dash"
+    "src/dashbls/runbench"
+    "src/dashbls/runtest"
     "src/qt/test/test_dash-qt"
     "src/test/fuzz/fuzz"
     "src/test/test_dash"

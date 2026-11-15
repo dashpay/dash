@@ -46,7 +46,6 @@ RUN set -ex; \
     jq \
     libbz2-dev \
     libevent-dev \
-    libgmp-dev \
     liblzma-dev \
     libminiupnpc-dev \
     libnatpmp-dev \

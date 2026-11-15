@@ -18,6 +18,7 @@
 
 #include "bls.hpp"
 #include "legacy.hpp"
+#include "secure.h"
 
 namespace bls {
 
@@ -28,17 +29,16 @@ PrivateKey PrivateKey::FromSeedBIP32(const Bytes& seed) {
     const uint8_t hmacKey[] = {66, 76, 83, 32, 112, 114, 105, 118, 97, 116, 101,
                                32, 107, 101, 121, 32, 115, 101, 101, 100};
 
-    auto* hash = Util::SecAlloc<uint8_t>(
-        PrivateKey::PRIVATE_KEY_SIZE);
+    util::SecVector<uint8_t> hash(PrivateKey::PRIVATE_KEY_SIZE);
 
     // Hash the seed into sk
-    Util::md_hmac(hash, seed.begin(), seed.size(), hmacKey, sizeof(hmacKey));
+    Util::md_hmac(hash.data(), seed.begin(), seed.size(), hmacKey,
+                  sizeof(hmacKey));
 
     // Make sure private key is less than the curve order
     PrivateKey k;
-    blst_scalar_from_be_bytes(k.keydata, hash, PrivateKey::PRIVATE_KEY_SIZE);
+    blst_scalar_from_be_bytes(k.keydata, hash.data(), hash.size());
 
-    Util::SecFree(hash);
     return k;
 }
 
@@ -104,7 +104,7 @@ PrivateKey::~PrivateKey() { DeallocateKeyData(); }
 void PrivateKey::DeallocateKeyData()
 {
     if (keydata != nullptr) {
-        Util::SecFree(keydata);
+        util::SecFree(keydata, sizeof(blst_scalar));
         keydata = nullptr;
     }
     InvalidateCaches();
@@ -118,8 +118,13 @@ void PrivateKey::InvalidateCaches()
 
 PrivateKey &PrivateKey::operator=(const PrivateKey &other)
 {
-    CheckKeyData();
     other.CheckKeyData();
+    if (this == &other) {
+        return *this;
+    }
+    if (keydata == nullptr) {
+        AllocateKeyData();
+    }
     InvalidateCaches();
     memcpy(keydata, other.keydata, sizeof(blst_scalar));
     return *this;
@@ -127,6 +132,9 @@ PrivateKey &PrivateKey::operator=(const PrivateKey &other)
 
 PrivateKey &PrivateKey::operator=(PrivateKey &&other)
 {
+    if (this == &other) {
+        return *this;
+    }
     DeallocateKeyData();
     keydata = std::exchange(other.keydata, nullptr);
     other.InvalidateCaches();
@@ -137,11 +145,10 @@ const G1Element &PrivateKey::GetG1Element() const
 {
     if (!fG1CacheValid) {
         CheckKeyData();
-        blst_p1 *p = Util::SecAlloc<blst_p1>(1);
-        blst_sk_to_pk_in_g1(p, keydata);
+        util::SecPtr<blst_p1> p = util::SecMake<blst_p1>();
+        blst_sk_to_pk_in_g1(p.get(), keydata);
 
         g1Cache = G1Element::FromNative(*p);
-        Util::SecFree(p);
         fG1CacheValid = true;
     }
     return g1Cache;
@@ -151,11 +158,10 @@ const G2Element &PrivateKey::GetG2Element() const
 {
     if (!fG2CacheValid) {
         CheckKeyData();
-        blst_p2 *q = Util::SecAlloc<blst_p2>(1);
-        blst_sk_to_pk_in_g2(q, keydata);
+        util::SecPtr<blst_p2> q = util::SecMake<blst_p2>();
+        blst_sk_to_pk_in_g2(q.get(), keydata);
 
         g2Cache = G2Element::FromNative(*q);
-        Util::SecFree(q);
         fG2CacheValid = true;
     }
     return g2Cache;
@@ -170,15 +176,12 @@ G1Element operator*(const G1Element &a, const PrivateKey &k)
 {
     k.CheckKeyData();
 
-    blst_p1 *ans = Util::SecAlloc<blst_p1>(1);
-    a.ToNative(ans);
-    byte *bte = Util::SecAlloc<byte>(32);
-    blst_lendian_from_scalar(bte, k.keydata);
-    blst_p1_mult(ans, ans, bte, 256);
-    G1Element ret = G1Element::FromNative(*ans);
-    Util::SecFree(ans);
-    Util::SecFree(bte);
-    return ret;
+    util::SecPtr<blst_p1> ans = util::SecMake<blst_p1>();
+    a.ToNative(ans.get());
+    util::SecVector<byte> bte(32);
+    blst_lendian_from_scalar(bte.data(), k.keydata);
+    blst_p1_mult(ans.get(), ans.get(), bte.data(), 256);
+    return G1Element::FromNative(*ans);
 }
 
 G1Element operator*(const PrivateKey &k, const G1Element &a) { return a * k; }
@@ -186,15 +189,12 @@ G1Element operator*(const PrivateKey &k, const G1Element &a) { return a * k; }
 G2Element operator*(const G2Element &a, const PrivateKey &k)
 {
     k.CheckKeyData();
-    blst_p2 *ans = Util::SecAlloc<blst_p2>(1);
-    a.ToNative(ans);
-    byte *bte = Util::SecAlloc<byte>(32);
-    blst_lendian_from_scalar(bte, k.keydata);
-    blst_p2_mult(ans, ans, bte, 256);
-    G2Element ret = G2Element::FromNative(*ans);
-    Util::SecFree(ans);
-    Util::SecFree(bte);
-    return ret;
+    util::SecPtr<blst_p2> ans = util::SecMake<blst_p2>();
+    a.ToNative(ans.get());
+    util::SecVector<byte> bte(32);
+    blst_lendian_from_scalar(bte.data(), k.keydata);
+    blst_p2_mult(ans.get(), ans.get(), bte.data(), 256);
+    return G2Element::FromNative(*ans);
 }
 
 G2Element operator*(const PrivateKey &k, const G2Element &a) { return a * k; }
@@ -212,15 +212,12 @@ PrivateKey operator*(const blst_scalar& a, const PrivateKey& k) { return k * a; 
 G2Element PrivateKey::GetG2Power(const G2Element &element) const
 {
     CheckKeyData();
-    blst_p2 *q = Util::SecAlloc<blst_p2>(1);
-    element.ToNative(q);
-    byte *bte = Util::SecAlloc<byte>(32);
-    blst_lendian_from_scalar(bte, keydata);
-    blst_p2_mult(q, q, bte, 255);
-    const G2Element ret = G2Element::FromNative(*q);
-    Util::SecFree(q);
-    Util::SecFree(bte);
-    return ret;
+    util::SecPtr<blst_p2> q = util::SecMake<blst_p2>();
+    element.ToNative(q.get());
+    util::SecVector<byte> bte(32);
+    blst_lendian_from_scalar(bte.data(), keydata);
+    blst_p2_mult(q.get(), q.get(), bte.data(), 255);
+    return G2Element::FromNative(*q);
 }
 
 PrivateKey PrivateKey::Aggregate(std::vector<PrivateKey> const &privateKeys)
@@ -295,22 +292,20 @@ G2Element PrivateKey::SignG2(
         throw std::invalid_argument("legacy signing requires a 32-byte message hash");
     }
 
-    blst_p2 *pt = Util::SecAlloc<blst_p2>(1);
+    util::SecPtr<blst_p2> pt = util::SecMake<blst_p2>();
     if (fLegacy) {
-        ep2_map_legacy(pt, msg, len);
+        ep2_map_legacy(pt.get(), msg, len);
     } else {
-        blst_hash_to_g2(pt, msg, len, dst, dst_len, nullptr, 0);
+        blst_hash_to_g2(pt.get(), msg, len, dst, dst_len, nullptr, 0);
     }
-    blst_sign_pk_in_g1(pt, pt, keydata);
-    G2Element ret = G2Element::FromNative(*pt);
-    Util::SecFree(pt);
-    return ret;
+    blst_sign_pk_in_g1(pt.get(), pt.get(), keydata);
+    return G2Element::FromNative(*pt);
 }
 
 void PrivateKey::AllocateKeyData()
 {
     assert(!keydata);
-    keydata = Util::SecAlloc<blst_scalar>(1);
+    keydata = util::SecAlloc<blst_scalar>(1);
     memset(keydata, 0x00, sizeof(blst_scalar));
 }
 
