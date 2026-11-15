@@ -49,15 +49,6 @@ class AddressIndexTest(BitcoinTestFramework):
         self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
-        self.log.info("Test that settings can be disabled and re-enabled...")
-        self.restart_node(1, ["-addressindex=0"])
-        self.connect_nodes(0, 1)
-        self.sync_all()
-        # AddressIndex is now async, so it can be enabled without -reindex
-        self.restart_node(1, ["-addressindex"])
-        self.connect_nodes(0, 1)
-        self.sync_all()
-
         self.log.info("Mining blocks...")
         mining_address = self.nodes[0].getnewaddress()
         self.generatetoaddress(self.nodes[0], 105, mining_address)
@@ -361,10 +352,17 @@ class AddressIndexTest(BitcoinTestFramework):
 
         self.restart_node(3, ["-addressindex=0"])
         node.invalidateblock(orphan_block)
-        self.generatetoaddress(node, 2, getnewdestination()[2], sync_fun=self.no_op)
+        new_address = getnewdestination()[2]
+        block_hashes = self.generatetoaddress(node, 2, new_address, sync_fun=self.no_op)
+        # Greater-than-zero would pass if only one of the two blocks was indexed.
+        paid = sum(vout["valueSat"]
+                   for block_hash in block_hashes
+                   for vout in node.getblock(block_hash, 2)["tx"][0]["vout"]
+                   if vout["scriptPubKey"].get("address") == new_address)
 
         self.restart_node(3, ["-addressindex"])
         self.wait_index_synced(node)
+        assert_equal(node.getaddressbalance(new_address)["received"], paid)
         assert_equal(node.getaddressbalance(orphan_address)["received"], 0)
         assert_equal(node.getaddresstxids(orphan_address), [])
 
