@@ -20,7 +20,7 @@ if [ ! -d "${SDK_PATH}/${XCODE_ARCHIVE}" ]; then
     if [ ! -f "${XCODE_AR_PATH}" ]; then
         echo "Downloading macOS SDK..."
         mkdir -p "${SDK_SOURCES}"
-        curl --location --fail "${SDK_URL}/${XCODE_ARCHIVE}.tar" -o "${XCODE_AR_PATH}"
+        curl --location --fail --retry 3 "${SDK_URL}/${XCODE_ARCHIVE}.tar" -o "${XCODE_AR_PATH}"
     fi
     echo "Verifying macOS SDK..."
     if [ "$(sha256sum "${XCODE_AR_PATH}" | cut -d' ' -f1)" != "${XCODE_AR_HASH}" ]; then
