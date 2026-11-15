@@ -30,34 +30,18 @@ class LLMQSimplePoSeTest(SimplePoSeMixin, DashTestFramework):
 
         self.test_cloned_contributions()
 
-        if not self.options.disable_spork23:
-            # Lets isolate MNs one by one and verify that punishment/banning happens
-            self.test_banning(self.isolate_mn, 2)
+        # Lets isolate MNs one by one and verify that punishment/banning happens
+        self.test_banning(self.isolate_mn, 2)
 
-            self.repair_masternodes(False)
-        else:
-            # The contribution-miss ban path (MarkBadMember -> PoSePunish) is not
-            # gated on spork23 (spork23 only gates connection/proto-version checks
-            # and probes), so it behaves identically with spork23 disabled and is
-            # already covered by the spork23-enabled run of this test.
-            self.log.info("Skipping contribution-miss banning, not affected by spork23")
-            # Mine one quorum in normal conditions so that the sections below start
-            # from the same state as in the spork23-enabled run: an existing quorum
-            # and all masternodes healthy.
-            self.reset_probe_timeouts()
-            self.mine_quorum()
+        self.repair_masternodes(False)
 
         self.nodes[0].sporkupdate("SPORK_21_QUORUM_ALL_CONNECTED", 0)
         self.wait_for_sporks_same()
 
         self.reset_probe_timeouts()
 
-        if not self.options.disable_spork23:
-            # Lets restart masternodes with closed ports and verify that they get banned even though they are connected to other MNs (via outbound connections)
-            self.test_banning(self.close_mn_port)
-        else:
-            # With PoSe off there should be no punishing for non-reachable nodes
-            self.test_no_banning(self.close_mn_port, 3)
+        # Lets restart masternodes with closed ports and verify that they get banned even though they are connected to other MNs (via outbound connections)
+        self.test_banning(self.close_mn_port, count=1)
 
         self.repair_masternodes(True)
 

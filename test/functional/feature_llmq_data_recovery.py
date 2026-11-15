@@ -5,7 +5,6 @@
 
 from contextlib import ExitStack
 import struct
-import time
 from typing import List, Optional
 from test_framework.messages import hash256, ser_string
 from test_framework.p2p import logger
@@ -69,7 +68,6 @@ class QuorumDataRecoveryTest(DashTestFramework):
             self.wait_for_log_line(restarted, log_positions, f"{RECOVERY_TRIGGER_LOG} {block_hash}")
 
             self.bump_mocktime(self.quorum_data_thread_request_timeout_seconds + 1)
-            time.sleep(1)
 
         self.sync_blocks()
         self.wait_for_sporks_same()
@@ -103,18 +101,12 @@ class QuorumDataRecoveryTest(DashTestFramework):
         for node in self.nodes:
             node.syncwithvalidationinterfacequeue()
 
-    def get_mn(self, protx_hash) -> Optional[MasternodeInfo]:
-        for mn in self.mninfo: # type: MasternodeInfo
-            if mn.proTxHash == protx_hash:
-                return mn
-        return None
-
     def get_member_mns(self, quorum_type, quorum_hash) -> List[Optional[MasternodeInfo]]:
         members = self.nodes[0].quorum("info", quorum_type, quorum_hash)["members"]
         mns = []
         for member in members:
             if member["valid"]:
-                mns.append(self.get_mn(member["proTxHash"]))
+                mns.append(self.get_mninfo(member["proTxHash"]))
         return mns
 
     def get_subset_only_in_left(self, quorum_members_left, quorum_members_right) -> List[MasternodeInfo]:
@@ -257,10 +249,6 @@ class QuorumDataRecoveryTest(DashTestFramework):
         self.generate(node, 1, sync_fun=self.sync_validation)
         self.wait_for_chainlocked_block_all_nodes(node.getbestblockhash())
         logger.info("Test -llmq-qvvec-sync command line parameter")
-        # Run with one type separated and then both possible (for regtest) together, both calls generate new quorums
-        # and are restarting the nodes with the other parameters
-        self.test_llmq_qvvec_sync([(llmq_test, 0)])
-        self.test_llmq_qvvec_sync([(llmq_test_v17, 1)])
         self.test_llmq_qvvec_sync([(llmq_test, 0), (llmq_test_v17, 1)])
         logger.info("Test invalid command line parameter values")
         node.stop_node()

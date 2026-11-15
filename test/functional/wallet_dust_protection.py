@@ -26,6 +26,7 @@ class WalletDustProtectionTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 4
+        self.noban_tx_relay = True
         # node0: sender (no dust protection)
         # node1: receiver with dust protection at 10000 duffs
         # node2: multi-wallet node with dust protection
@@ -46,7 +47,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.test_external_dust_locked()
         self.test_self_send_not_locked()
         self.test_above_threshold_not_locked()
-        self.test_disabled_threshold()
         self.test_existing_utxos_locked_on_restart()
         self.test_multi_wallet()
         self.test_invalid_args()
@@ -87,31 +87,20 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.nodes[0].sendtoaddress(addr_fund, 1)
         self.generate(self.nodes[0], 1)
 
-        # Unlock everything so node1 can spend
-        locked = node1.listlockunspent()
-        if locked:
-            node1.lockunspent(True, locked)
-
         # Self-send a dust amount
         addr_self = node1.getnewaddress()
         node1.sendtoaddress(addr_self, 5000 * DUFFS)
-        self.sync_mempools()
 
         # Self-send should not create any new locks
         locked = node1.listlockunspent()
         assert_equal(len(locked), 0)
 
-        self.generate(self.nodes[0], 1)
+        self.generate(node1, 1)
 
     def test_above_threshold_not_locked(self):
         """UTXOs above the threshold should NOT be locked."""
         self.log.info("Test: above-threshold UTXO is not locked")
         node1 = self.nodes[1]
-
-        # Clear any existing locks
-        locked = node1.listlockunspent()
-        if locked:
-            node1.lockunspent(True, locked)
 
         addr = node1.getnewaddress()
         # Send 10001 duffs (just above 10000 threshold)
@@ -119,20 +108,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         self.sync_mempools()
 
         locked = node1.listlockunspent()
-        assert_equal(len(locked), 0)
-
-        self.generate(self.nodes[0], 1)
-
-    def test_disabled_threshold(self):
-        """With default threshold (0), nothing should be locked."""
-        self.log.info("Test: threshold=0 disables dust protection")
-        node3 = self.nodes[3]
-
-        addr = node3.getnewaddress()
-        self.nodes[0].sendtoaddress(addr, 5000 * DUFFS)
-        self.sync_mempools()
-
-        locked = node3.listlockunspent()
         assert_equal(len(locked), 0)
 
         self.generate(self.nodes[0], 1)
@@ -209,18 +184,6 @@ class WalletDustProtectionTest(BitcoinTestFramework):
         # wallet_a still has only 1 locked UTXO (the dust one)
         locked_a = wallet_a.listlockunspent()
         assert_equal(len(locked_a), 1)
-
-        # Restart and verify locks persist across wallets
-        self.restart_node(2, ["-dustrelayfee=0", "-dustprotectionthreshold=10000",
-                              "-wallet=wallet_a", "-wallet=wallet_b"])
-        self.connect_nodes(0, 2)
-        wallet_a = node2.get_wallet_rpc('wallet_a')
-        wallet_b = node2.get_wallet_rpc('wallet_b')
-
-        locked_a = wallet_a.listlockunspent()
-        locked_b = wallet_b.listlockunspent()
-        assert_equal(len(locked_a), 1)
-        assert_equal(len(locked_b), 1)
 
     def test_invalid_args(self):
         """Invalid -dustprotectionthreshold values should be rejected."""

@@ -37,8 +37,6 @@ class RPCVerifyISLockTest(DashTestFramework):
         self.wait_for_sporks_same()
 
         self.mine_cycle_quorum()
-        self.bump_mocktime(1)
-        self.generate(self.nodes[0], 8, sync_fun=self.sync_blocks)
 
         txid = node.sendtoaddress(node.getnewaddress(), 1)
         self.wait_for_instantlock(txid, nodes=[node])
@@ -61,8 +59,6 @@ class RPCVerifyISLockTest(DashTestFramework):
         # Mined, should ignore higher maxHeight
         assert node.verifyislock(request_id, txid, rec_sig, node.getblockcount() + 100)
 
-        # Mine one more cycle of rotated quorums
-        self.mine_cycle_quorum()
         # Create an ISLOCK using an active quorum which will be replaced when a new cycle happens
         request_id = None
         utxos = node.listunspent()

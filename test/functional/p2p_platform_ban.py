@@ -13,16 +13,12 @@ from test_framework.util import wait_until_helper
 
 import struct
 
-class PlatformBanInterface(P2PInterface):
-    def __init__(self):
-        super().__init__()
-
-
 class PlatformBanMessagesTest(DashTestFramework):
     def add_options(self, parser):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
+        self.noban_tx_relay = True
         self.set_dash_test_params(1, 0, [[]], evo_count=3)
 
     def skip_test_if_missing_module(self):
@@ -47,8 +43,6 @@ class PlatformBanMessagesTest(DashTestFramework):
         # regardless of where in the cycle the tip is
         self.generate(self.nodes[0], 10, sync_fun=self.no_op)
 
-        self.mempool_size = 0
-
         self.mine_quorum(llmq_type_name='llmq_test_platform', llmq_type=106)
 
         self.log.info("Create and sign platform-ban message for mn-0")
@@ -68,7 +62,7 @@ class PlatformBanMessagesTest(DashTestFramework):
         msg.sig = bytearray.fromhex(recsig["sig"])
 
         self.log.info("Platform ban message is created and signed")
-        p2p_node2 = self.mninfo[2].get_node(self).add_p2p_connection(PlatformBanInterface())
+        p2p_node2 = self.mninfo[2].get_node(self).add_p2p_connection(P2PInterface())
         p2p_node2.send_message(msg)
         wait_until_helper(lambda: p2p_node2.message_count["platformban"] > 0, timeout=10, lock=p2p_lock)
         p2p_node2.message_count["platformban"] = 0
@@ -83,7 +77,7 @@ class PlatformBanMessagesTest(DashTestFramework):
         mninfos_valid = self.mninfo.copy()[1:]
         self.mine_quorum(llmq_type_name='llmq_test_platform', expected_members=2, expected_connections=1, expected_contributions=2, expected_commitments=2, llmq_type=106, mninfos_valid=mninfos_valid)
 
-        p2p_node = node.add_p2p_connection(PlatformBanInterface())
+        p2p_node = node.add_p2p_connection(P2PInterface())
         p2p_node.send_message(msg)
         self.mine_quorum(llmq_type_name='llmq_test_platform', expected_members=2, expected_connections=1, expected_contributions=2, expected_commitments=2, llmq_type=106, mninfos_valid=mninfos_valid)
         assert self.check_banned(self.mninfo[0])
