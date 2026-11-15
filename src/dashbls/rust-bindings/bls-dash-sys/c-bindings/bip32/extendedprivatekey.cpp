@@ -1,10 +1,13 @@
 #include "extendedprivatekey.h"
 
-#include <vector>
-
 #include "../blschia.h"
 #include "../error.h"
+
 #include "bls.hpp"
+#include "secure.h"
+
+#include <stdexcept>
+#include <vector>
 
 BIP32ExtendedPrivateKey BIP32ExtendedPrivateKeyFromBytes(const void* data, size_t len, bool* didErr)
 {
@@ -62,11 +65,15 @@ BIP32ChainCode BIP32ExtendedPrivateKeyGetChainCode(const BIP32ExtendedPrivateKey
 void* BIP32ExtendedPrivateKeySerialize(const BIP32ExtendedPrivateKey sk)
 {
     const bls::ExtendedPrivateKey* skPtr = (bls::ExtendedPrivateKey*)sk;
-    uint8_t* buffer =
-        bls::Util::SecAlloc<uint8_t>(bls::ExtendedPrivateKey::SIZE);
-    skPtr->Serialize(buffer);
-
-    return (void*)buffer;
+    try {
+        bls::util::SecPtr<uint8_t> buffer =
+            bls::util::SecMake<uint8_t>(bls::ExtendedPrivateKey::SIZE);
+        skPtr->Serialize(buffer.get());
+        return (void*)buffer.release();
+    } catch (const std::exception& ex) {
+        gErrMsg = ex.what();
+        return nullptr;
+    }
 }
 
 bool BIP32ExtendedPrivateKeyIsEqual(

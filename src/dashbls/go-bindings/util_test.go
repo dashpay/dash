@@ -47,3 +47,11 @@ func errContain(err error, want string) bool {
 	}
 	return strings.Contains(err.Error(), want)
 }
+
+func TestPrivateKeyFromBytesEmpty(t *testing.T) {
+	for _, data := range [][]byte{nil, {}} {
+		sk, err := PrivateKeyFromBytes(data, false)
+		assert.Nil(t, sk)
+		assert.Error(t, err)
+	}
+}

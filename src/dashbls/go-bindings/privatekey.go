@@ -33,7 +33,7 @@ type PrivateKey struct {
 // this method allocates the new bls::PrivateKey object and keeps its pointer
 func PrivateKeyFromBytes(data []byte, modOrder bool) (*PrivateKey, error) {
 	cBytesPtr := cAllocBytes(data)
-	defer C.SecFree(cBytesPtr)
+	defer C.SecFree(cBytesPtr, C.size_t(len(data)))
 	var cDidErr C.bool
 	sk := PrivateKey{
 		val: C.CPrivateKeyFromBytes(cBytesPtr, C.size_t(len(data)), C.bool(modOrder), &cDidErr),
@@ -91,7 +91,10 @@ func (sk *PrivateKey) G2Power(el *G2Element) *G2Element {
 // this method is a binding of the bls::PrivateKey::Serialize
 func (sk *PrivateKey) Serialize() []byte {
 	ptr := C.CPrivateKeySerialize(sk.val)
-	defer C.SecFree(ptr)
+	if ptr == nil {
+		panic("dashbls: private key serialization failed: " + errFromC().Error())
+	}
+	defer C.SecFree(ptr, C.CPrivateKeySizeBytes())
 	bytes := C.GoBytes(ptr, C.int(C.CPrivateKeySizeBytes()))
 	runtime.KeepAlive(sk)
 	return bytes
@@ -101,7 +104,7 @@ func (sk *PrivateKey) Serialize() []byte {
 // this method is a binding of the bls::PrivateKey::Aggregate
 func PrivateKeyAggregate(sks ...*PrivateKey) *PrivateKey {
 	cPrivKeyArrPtr := cAllocPrivKeys(sks...)
-	defer C.FreePtrArray(cPrivKeyArrPtr)
+	defer C.FreePtrArray(cPrivKeyArrPtr, C.size_t(len(sks)))
 	sk := PrivateKey{
 		val: C.CPrivateKeyAggregate(cPrivKeyArrPtr, C.size_t(len(sks))),
 	}

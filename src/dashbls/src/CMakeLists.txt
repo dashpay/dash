@@ -3,15 +3,19 @@ source_group("SrcHeaders" FILES ${HEADERS})
 
 list(APPEND bls_sources
   ${HEADERS}
-  privatekey.cpp
   bls.cpp
   chaincode.cpp
   elements.cpp
   extendedprivatekey.cpp
   extendedpublickey.cpp
+  hdkeys.cpp
+  hkdf.cpp
   legacy.cpp
+  privatekey.cpp
   schemes.cpp
+  secure.cpp
   threshold.cpp
+  util.cpp
   ${blst_SOURCE_DIR}/src/server.c
 )
 
@@ -64,7 +68,10 @@ install(FILES $<TARGET_FILE:dashbls> DESTINATION lib)
 if(BUILD_BLS_TESTS)
   include(${CMAKE_CURRENT_SOURCE_DIR}/../depends/catch2/CMakeLists.txt)
 
-  add_executable(runtest test.cpp)
+  add_executable(runtest
+    ${CMAKE_CURRENT_SOURCE_DIR}/test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../test/test_secure.cpp)
+  target_include_directories(runtest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   if(EMSCRIPTEN)
     target_link_options(runtest PRIVATE "-sEXPORTED_FUNCTIONS=_malloc")
   endif()

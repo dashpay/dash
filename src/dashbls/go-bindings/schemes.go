@@ -128,7 +128,7 @@ func (s *coreMPL) Verify(pk *G1Element, msg []byte, sig *G2Element) bool {
 // this method is a binding of bls::CoreMPL::AggregatePubKeys
 func (s *coreMPL) AggregatePubKeys(pks ...*G1Element) *G1Element {
 	cPkArrPtr := cAllocPubKeys(pks...)
-	defer C.FreePtrArray(cPkArrPtr)
+	defer C.FreePtrArray(cPkArrPtr, C.size_t(len(pks)))
 	aggSig := G1Element{
 		val: C.CCoreMPLAggregatePubKeys(s.val, cPkArrPtr, C.size_t(len(pks))),
 	}
@@ -143,7 +143,7 @@ func (s *coreMPL) AggregatePubKeys(pks ...*G1Element) *G1Element {
 // this method is a binding of bls::CoreMPL::AggregateSigs
 func (s *coreMPL) AggregateSigs(sigs ...*G2Element) *G2Element {
 	cSigArrPtr := cAllocSigs(sigs...)
-	defer C.FreePtrArray(cSigArrPtr)
+	defer C.FreePtrArray(cSigArrPtr, C.size_t(len(sigs)))
 	aggSig := G2Element{
 		val: C.CCoreMPLAggregateSigs(s.val, cSigArrPtr, C.size_t(len(sigs))),
 	}
@@ -194,9 +194,10 @@ func (s *coreMPL) DeriveChildPkUnhardened(el *G1Element, index int) *G1Element {
 // this method is a binding of bls::CoreMPL::AggregateVerify
 func (s *coreMPL) AggregateVerify(pks []*G1Element, msgs [][]byte, sig *G2Element) bool {
 	cPkArrPtr := cAllocPubKeys(pks...)
-	defer C.FreePtrArray(cPkArrPtr)
+	defer C.FreePtrArray(cPkArrPtr, C.size_t(len(pks)))
 	cMsgArrPtr, msgLens := cAllocMsgs(msgs)
-	defer C.FreePtrArray(cMsgArrPtr)
+	defer C.FreePtrArray(cMsgArrPtr, C.size_t(len(msgs)))
+	defer cFreeElems(cMsgArrPtr, len(msgs))
 	val := C.CCoreMPLAggregateVerify(
 		s.val,
 		cPkArrPtr,
@@ -233,9 +234,10 @@ func NewBasicSchemeMPL() *BasicSchemeMPL {
 // this method is a binding of bls::BasicSchemeMPL::AggregateVerify
 func (s *BasicSchemeMPL) AggregateVerify(pks []*G1Element, msgs [][]byte, sig *G2Element) bool {
 	cPkArrPtr := cAllocPubKeys(pks...)
-	defer C.FreePtrArray(cPkArrPtr)
+	defer C.FreePtrArray(cPkArrPtr, C.size_t(len(pks)))
 	cMsgArrPtr, msgLens := cAllocMsgs(msgs)
-	defer C.FreePtrArray(cMsgArrPtr)
+	defer C.FreePtrArray(cMsgArrPtr, C.size_t(len(msgs)))
+	defer cFreeElems(cMsgArrPtr, len(msgs))
 	val := C.CBasicSchemeMPLAggregateVerify(
 		s.val,
 		cPkArrPtr,
@@ -291,8 +293,10 @@ func (s *AugSchemeMPL) Sign(sk *PrivateKey, msg []byte) *G2Element {
 // SignPrepend is used for prepending different message
 // this method is a binding of bls::AugSchemeMPL::Sign
 func (s *AugSchemeMPL) SignPrepend(sk *PrivateKey, msg []byte, prepPk *G1Element) *G2Element {
+	cMsgPtr := C.CBytes(msg)
+	defer C.free(cMsgPtr)
 	sig := G2Element{
-		val: C.CAugSchemeMPLSignPrepend(s.val, sk.val, C.CBytes(msg), C.size_t(len(msg)), prepPk.val),
+		val: C.CAugSchemeMPLSignPrepend(s.val, sk.val, cMsgPtr, C.size_t(len(msg)), prepPk.val),
 	}
 	runtime.SetFinalizer(&sig, func(sig *G2Element) { sig.free() })
 	runtime.KeepAlive(s)
@@ -317,9 +321,10 @@ func (s *AugSchemeMPL) Verify(pk *G1Element, msg []byte, sig *G2Element) bool {
 // this method is a binding of bls::AugSchemeMPL::AggregateVerify
 func (s *AugSchemeMPL) AggregateVerify(pks []*G1Element, msgs [][]byte, sig *G2Element) bool {
 	cPkArrPtr := cAllocPubKeys(pks...)
-	defer C.FreePtrArray(cPkArrPtr)
+	defer C.FreePtrArray(cPkArrPtr, C.size_t(len(pks)))
 	cMsgArrPtr, msgLens := cAllocMsgs(msgs)
-	defer C.FreePtrArray(cMsgArrPtr)
+	defer C.FreePtrArray(cMsgArrPtr, C.size_t(len(msgs)))
+	defer cFreeElems(cMsgArrPtr, len(msgs))
 	val := C.CAugSchemeMPLAggregateVerify(
 		s.val,
 		cPkArrPtr,
@@ -384,8 +389,9 @@ func (s *PopSchemeMPL) PopVerify(pk *G1Element, sig *G2Element) bool {
 // this method is a binding of bls::PopSchemeMPL::FastAggregateVerify
 func (s *PopSchemeMPL) FastAggregateVerify(pks []*G1Element, msg []byte, sig *G2Element) bool {
 	msgPtr := C.CBytes(msg)
+	defer C.free(msgPtr)
 	cPkArrPtr := cAllocPubKeys(pks...)
-	defer C.FreePtrArray(cPkArrPtr)
+	defer C.FreePtrArray(cPkArrPtr, C.size_t(len(pks)))
 	isVerified := C.CPopSchemeMPLFastAggregateVerify(
 		s.val,
 		cPkArrPtr,
@@ -407,6 +413,9 @@ func (s *PopSchemeMPL) free() {
 
 func cAllocPubKeys(pks ...*G1Element) *unsafe.Pointer {
 	arr := C.AllocPtrArray(C.size_t(len(pks)))
+	if arr == nil {
+		panic(secAllocFailed())
+	}
 	for i, pk := range pks {
 		C.SetPtrArray(arr, unsafe.Pointer(pk.val), C.int(i))
 	}

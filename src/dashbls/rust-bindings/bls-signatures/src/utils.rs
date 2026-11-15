@@ -40,6 +40,11 @@ impl SecureBox {
     }
 
     pub(crate) unsafe fn from_ptr(ptr: *mut u8, len: usize) -> Self {
+        assert!(
+            !ptr.is_null(),
+            "secure allocation failed in the C binding: {}",
+            String::from_utf8_lossy(CStr::from_ptr(GetLastErrorMsg()).to_bytes())
+        );
         SecureBox {
             c_sec_alloc: ptr,
             len,
@@ -66,6 +71,6 @@ impl Deref for SecureBox {
 
 impl Drop for SecureBox {
     fn drop(&mut self) {
-        unsafe { SecFree(self.as_mut_ptr()) }
+        unsafe { SecFree(self.as_mut_ptr(), self.len) }
     }
 }

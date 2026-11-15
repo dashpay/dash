@@ -23,7 +23,9 @@ endif
 CGO_CXXFLAGS ?= "\
 -I$(CURR_DIR)../build/_deps/blst-src/bindings \
 -I$(CURR_DIR)../depends/mimalloc/include \
--I$(CURR_DIR)../include"
+-I$(CURR_DIR)../include \
+-I$(CURR_DIR)../include/dashbls \
+-I$(CURR_DIR)../src"
 
 CGO_LDFLAGS ?= "\
 -L$(CURR_DIR)../build/src -ldashbls \
