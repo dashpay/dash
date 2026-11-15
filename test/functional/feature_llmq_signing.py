@@ -178,8 +178,9 @@ class LLMQSigningTest(DashTestFramework):
 
         recsig_time = self.mocktime
 
-        # The quorum that signed is inactive now, which must not affect the recovered sigs: they only age out by time
-        assert check_sigs(True, False, True)
+        # The quorum that signed is inactive now, which must not affect the recovered sigs: they only age out by time.
+        # mine_quorum does not wait for the recovered signature to reach every masternode.
+        wait_for_sigs(True, False, True, 15)
         assert check_sigs(True, False, True, sig_id=first_id)
 
         # fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid
