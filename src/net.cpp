@@ -1947,7 +1947,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         return;
     }
 
-    if (!sock->IsSelectable(/*is_select=*/::g_socket_events_mode == SocketEventsMode::Select)) {
+    if (!sock->IsSelectable()) {
         LogPrintf("%s: non-selectable socket\n", strDropped);
         return;
     }
@@ -2453,7 +2453,7 @@ void CConnman::SocketHandler(CMasternodeSync& mn_sync)
         bool ok{false};
         const auto wait_many = [&] {
             if (is_lt) {
-                ok = !events_per_sock.empty() && Sock::WaitManyInternal(timeout, events_per_sock, SocketEventsParams{socketEventsMode});
+                ok = !events_per_sock.empty() && events_per_sock.begin()->first->WaitMany(timeout, events_per_sock);
             } else {
                 ok = Assert(m_edge_trig_events)->Wait(timeout, events_per_sock);
             }

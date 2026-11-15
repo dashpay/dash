@@ -40,21 +40,6 @@ enum class SocketEventsMode : int8_t {
     Unknown = -1
 };
 
-struct SocketEventsParams
-{
-    SocketEventsParams() = delete;
-    SocketEventsParams(SocketEventsMode event_mode) :
-        m_event_mode{event_mode}
-    {
-        assert(m_event_mode != SocketEventsMode::Unknown);
-    }
-    ~SocketEventsParams() = default;
-
-public:
-    /* Choice of API to use in Sock::Wait{,Many}() */
-    SocketEventsMode m_event_mode{SocketEventsMode::Unknown};
-};
-
 /* Converts SocketEventsMode value to string with additional check to report modes not compiled for as unknown */
 constexpr std::string_view SEMToString(const SocketEventsMode val) {
     switch (val) {
@@ -260,7 +245,7 @@ public:
      * Check if the underlying socket can be used for `select(2)` (or the `Wait()` method).
      * @return true if selectable
      */
-    [[nodiscard]] virtual bool IsSelectable(bool is_select) const;
+    [[nodiscard]] virtual bool IsSelectable() const;
 
     using Event = uint8_t;
 
@@ -284,7 +269,6 @@ public:
      * Wait for readiness for input (recv) or output (send).
      * @param[in] timeout Wait this much for at least one of the requested events to occur.
      * @param[in] requested Wait for those events, bitwise-or of `RECV` and `SEND`.
-     * @param[in] event_params Wait using the API specified.
      * @param[out] occurred If not nullptr and the function returns `true`, then this
      * indicates which of the requested events occurred (`ERR` will be added, even if
      * not requested, if an exceptional event occurs on the socket).
@@ -293,7 +277,6 @@ public:
      */
     [[nodiscard]] virtual bool Wait(std::chrono::milliseconds timeout,
                                     Event requested,
-                                    SocketEventsParams event_params,
                                     Event* occurred = nullptr) const;
     /**
      * Auxiliary requested/occurred events to wait for in `WaitMany()`.
@@ -344,23 +327,7 @@ public:
      * false otherwise
      */
     [[nodiscard]] virtual bool WaitMany(std::chrono::milliseconds timeout,
-                                        EventsPerSock& events_per_sock,
-                                        SocketEventsParams event_params) const;
-
-    /**
-     * WaitMany() without a Sock object to call it on. We keep around the virtual WaitMany to allow
-     * mockability in tests, so keep in mind that using WaitManyInternal *bypasses* any override for
-     * WaitMany.
-     */
-    static bool WaitManyInternal(std::chrono::milliseconds timeout,
-                                 EventsPerSock& events_per_sock,
-                                 SocketEventsParams event_params);
-#ifdef USE_POLL
-    static bool WaitManyPoll(std::chrono::milliseconds timeout,
-                             EventsPerSock& events_per_sock);
-#endif /* USE_POLL */
-    static bool WaitManySelect(std::chrono::milliseconds timeout,
-                               EventsPerSock& events_per_sock);
+                                        EventsPerSock& events_per_sock) const;
 
     /* Higher level, convenience, methods. These may throw. */
 

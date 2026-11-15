@@ -375,12 +375,12 @@ bool FuzzedSock::SetNonBlocking() const
     return true;
 }
 
-bool FuzzedSock::IsSelectable(bool is_select) const
+bool FuzzedSock::IsSelectable() const
 {
     return m_selectable;
 }
 
-bool FuzzedSock::Wait(std::chrono::milliseconds timeout, Event requested, SocketEventsParams event_params, Event* occurred) const
+bool FuzzedSock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
 {
     constexpr std::array wait_errnos{
         EBADF,
@@ -400,7 +400,7 @@ bool FuzzedSock::Wait(std::chrono::milliseconds timeout, Event requested, Socket
     return true;
 }
 
-bool FuzzedSock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, SocketEventsParams event_params) const
+bool FuzzedSock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock) const
 {
     for (auto& [sock, events] : events_per_sock) {
         (void)sock;

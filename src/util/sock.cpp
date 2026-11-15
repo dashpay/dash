@@ -200,12 +200,12 @@ bool Sock::SetNonBlocking() const
     return true;
 }
 
-bool Sock::IsSelectable(bool is_select) const
+bool Sock::IsSelectable() const
 {
-    return IsSelectableSocket(m_socket, is_select);
+    return IsSelectableSocket(m_socket, /*is_select=*/::g_socket_events_mode == SocketEventsMode::Select);
 }
 
-bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, SocketEventsParams event_params, Event* occurred) const
+bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
 {
     // We need a `shared_ptr` owning `this` for `WaitMany()`, but don't want
     // `this` to be destroyed when the `shared_ptr` goes out of scope at the
@@ -214,19 +214,7 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, SocketEvents
 
     EventsPerSock events_per_sock{std::make_pair(shared, Events{requested})};
 
-    // We need to ensure we are only using a level-triggered mode because we are expecting
-    // a direct correlation between the events reported and the one socket we are querying
-    if (const auto sem = event_params.m_event_mode; sem != SocketEventsMode::Poll && sem != SocketEventsMode::Select) {
-        // We will use a compatible fallback events mode if we didn't specify a valid option
-        event_params = SocketEventsParams{
-#ifdef USE_POLL
-            SocketEventsMode::Poll
-#else
-            SocketEventsMode::Select
-#endif /* USE_POLL */
-        };
-    }
-    if (!WaitMany(timeout, events_per_sock, event_params)) {
+    if (!WaitMany(timeout, events_per_sock)) {
         return false;
     }
 
@@ -237,74 +225,48 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, SocketEvents
     return true;
 }
 
-bool Sock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, SocketEventsParams event_params) const
+bool Sock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock) const
 {
-    return WaitManyInternal(timeout, events_per_sock, event_params);
-}
-
-bool Sock::WaitManyInternal(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, SocketEventsParams event_params)
-{
-    switch (event_params.m_event_mode)
-    {
 #ifdef USE_POLL
-        case SocketEventsMode::Poll:
-            return WaitManyPoll(timeout, events_per_sock);
+    // The edge-triggered modes are served by EdgeTriggeredEvents and use poll(2) here.
+    if (::g_socket_events_mode != SocketEventsMode::Select) {
+        std::vector<pollfd> pfds;
+        for (const auto& [sock, events] : events_per_sock) {
+            pfds.emplace_back();
+            auto& pfd = pfds.back();
+            pfd.fd = sock->m_socket;
+            if (events.requested & RECV) {
+                pfd.events |= POLLIN;
+            }
+            if (events.requested & SEND) {
+                pfd.events |= POLLOUT;
+            }
+        }
+
+        if (poll(pfds.data(), pfds.size(), count_milliseconds(timeout)) == SOCKET_ERROR) {
+            return false;
+        }
+
+        assert(pfds.size() == events_per_sock.size());
+        size_t i{0};
+        for (auto& [sock, events] : events_per_sock) {
+            assert(sock->m_socket == static_cast<SOCKET>(pfds[i].fd));
+            events.occurred = 0;
+            if (pfds[i].revents & POLLIN) {
+                events.occurred |= RECV;
+            }
+            if (pfds[i].revents & POLLOUT) {
+                events.occurred |= SEND;
+            }
+            if (pfds[i].revents & (POLLERR | POLLHUP)) {
+                events.occurred |= ERR;
+            }
+            ++i;
+        }
+
+        return true;
+    }
 #endif /* USE_POLL */
-        case SocketEventsMode::Select:
-            return WaitManySelect(timeout, events_per_sock);
-        default:
-            assert(false);
-    }
-}
-
-#ifdef USE_POLL
-bool Sock::WaitManyPoll(std::chrono::milliseconds timeout,
-                        EventsPerSock& events_per_sock)
-{
-    if (events_per_sock.empty()) return true;
-
-    std::vector<pollfd> pfds;
-    for (const auto& [sock, events] : events_per_sock) {
-        pfds.emplace_back();
-        auto& pfd = pfds.back();
-        pfd.fd = sock->m_socket;
-        if (events.requested & RECV) {
-            pfd.events |= POLLIN;
-        }
-        if (events.requested & SEND) {
-            pfd.events |= POLLOUT;
-        }
-    }
-
-    if (poll(pfds.data(), pfds.size(), count_milliseconds(timeout)) == SOCKET_ERROR) {
-        return false;
-    }
-
-    assert(pfds.size() == events_per_sock.size());
-    size_t i{0};
-    for (auto& [sock, events] : events_per_sock) {
-        assert(sock->m_socket == static_cast<SOCKET>(pfds[i].fd));
-        events.occurred = 0;
-        if (pfds[i].revents & POLLIN) {
-            events.occurred |= RECV;
-        }
-        if (pfds[i].revents & POLLOUT) {
-            events.occurred |= SEND;
-        }
-        if (pfds[i].revents & (POLLERR | POLLHUP)) {
-            events.occurred |= ERR;
-        }
-        ++i;
-    }
-
-    return true;
-}
-#endif /* USE_POLL */
-
-bool Sock::WaitManySelect(std::chrono::milliseconds timeout,
-                          EventsPerSock& events_per_sock)
-{
-    if (events_per_sock.empty()) return true;
 
     fd_set recv;
     fd_set send;
@@ -315,7 +277,7 @@ bool Sock::WaitManySelect(std::chrono::milliseconds timeout,
     SOCKET socket_max{0};
 
     for (const auto& [sock, events] : events_per_sock) {
-        if (!sock->IsSelectable(/*is_select=*/true)) {
+        if (!IsSelectableSocket(sock->m_socket, /*is_select=*/true)) {
             return false;
         }
         const auto& s = sock->m_socket;
@@ -391,7 +353,7 @@ void Sock::SendComplete(const std::string& data,
         // Wait for a short while (or the socket to become ready for sending) before retrying
         // if nothing was sent.
         const auto wait_time = std::min(deadline - now, std::chrono::milliseconds{MAX_WAIT_FOR_IO});
-        (void)Wait(wait_time, SEND, SocketEventsParams{::g_socket_events_mode});
+        (void)Wait(wait_time, SEND);
     }
 }
 
@@ -474,7 +436,7 @@ std::string Sock::RecvUntilTerminator(uint8_t terminator,
 
         // Wait for a short while (or the socket to become ready for reading) before retrying.
         const auto wait_time = std::min(deadline - now, std::chrono::milliseconds{MAX_WAIT_FOR_IO});
-        (void)Wait(wait_time, RECV, SocketEventsParams{::g_socket_events_mode});
+        (void)Wait(wait_time, RECV);
     }
 }
 

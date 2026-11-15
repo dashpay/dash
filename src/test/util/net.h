@@ -207,11 +207,10 @@ public:
 
     bool SetNonBlocking() const override { return true; }
 
-    bool IsSelectable(bool is_select) const override { return true; }
+    bool IsSelectable() const override { return true; }
 
     bool Wait(std::chrono::milliseconds timeout,
               Event requested,
-              SocketEventsParams event_params,
               Event* occurred = nullptr) const override
     {
         if (occurred != nullptr) {
@@ -221,8 +220,7 @@ public:
     }
 
     bool WaitMany(std::chrono::milliseconds timeout,
-                  EventsPerSock& events_per_sock,
-                  SocketEventsParams event_params) const override
+                  EventsPerSock& events_per_sock) const override
     {
         for (auto& [sock, events] : events_per_sock) {
             (void)sock;
