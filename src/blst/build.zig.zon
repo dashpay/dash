@@ -1,0 +1,13 @@
+.{
+    .name = .blst,
+    .version = "0.3.17",
+    .minimum_zig_version = "0.14.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "bindings/zig",
+        "src",
+        "build",
+    },
+    .fingerprint = 0xa2dc4dc0fe0d65a5,
+}
