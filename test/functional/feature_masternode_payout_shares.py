@@ -8,9 +8,11 @@ from test_framework.blocktools import create_block, create_coinbase
 from test_framework.messages import CTxOut, tx_from_hex
 from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework, MasternodeInfo, p2p_port
-from test_framework.util import assert_equal, softfork_active
+from test_framework.util import assert_equal
 
-V24_ACTIVATION_THRESHOLD = 100
+# setup_nodes mines through coinbase maturity (height ~109) before run_test.
+# The deployment has to still be pending so activate_by_name can bring v24 in.
+V24_ACTIVATION_THRESHOLD = 200
 
 
 def payout_address_rewards(payouts):
@@ -27,9 +29,7 @@ class MasternodePayoutSharesTest(DashTestFramework):
         ]])
 
     def activate_v24(self):
-        while not softfork_active(self.nodes[0], "v24"):
-            self.bump_mocktime(50)
-            self.generate(self.nodes[0], 50, sync_fun=self.no_op)
+        self.activate_by_name("v24")
 
     def build_block(self, node, tamper=None):
         """Build a block extending the tip whose coinbase pays exactly the template's
