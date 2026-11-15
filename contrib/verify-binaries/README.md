@@ -22,8 +22,7 @@ You can obtain these keys by
 
 #### Usage
 
-This script attempts to download the checksum file (`SHA256SUMS`) and corresponding
-signature file `SHA256SUMS.asc` from GitHub releases (`https://github.com/dashpay/dash/releases`)
+This script attempts to download the clearsigned checksum file `SHA256SUMS.asc` from GitHub releases (`https://github.com/dashpay/dash/releases`)
 and `https://dashcore-binaries.thepasta.org`.
 
 It first checks if the checksum file is valid based upon a plurality of signatures, and
@@ -74,7 +73,8 @@ If you do not want to keep the downloaded binaries, specify the cleanup option.
 ./contrib/verify-binaries/verify.py pub --cleanup 22.0.0
 ```
 
-Use the bin subcommand to verify all files listed in a local checksum file
+Use the bin subcommand to verify all files listed in a local checksum file. `SHA256SUMS`
+is extracted from the clearsigned `SHA256SUMS.asc` next to it.
 
 ```sh
 ./contrib/verify-binaries/verify.py bin SHA256SUMS

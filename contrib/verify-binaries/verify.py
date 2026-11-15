@@ -4,9 +4,8 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Script for verifying Dash Core release binaries.
 
-This script attempts to download the sum file SHA256SUMS and corresponding
-signature file SHA256SUMS.asc from github.com and
-dashcore-binaries.thepasta.org and compares them.
+This script attempts to download the clearsigned sum file SHA256SUMS.asc
+from github.com and dashcore-binaries.thepasta.org and compares them.
 
 The sum-signature file is signed by a number of builder keys. This script
 ensures that there is a minimum threshold of signatures from pubkeys that
@@ -137,12 +136,11 @@ def download_lines_with_urllib(url) -> t.Tuple[bool, t.List[str]]:
 def verify_with_gpg(
     filename,
     signature_filename,
-    output_filename: t.Optional[str] = None
 ) -> t.Tuple[int, str]:
     with tempfile.NamedTemporaryFile() as status_file:
         args = [
-            'gpg', '--yes', '--verify', '--verify-options', 'show-primary-uid-only', "--status-file", status_file.name,
-            '--output', output_filename if output_filename else '', signature_filename, filename]
+            'gpg', '--yes', '--decrypt', '--verify-options', 'show-primary-uid-only', "--status-file", status_file.name,
+            '--output', filename, signature_filename]
 
         env = dict(os.environ, LANGUAGE='en')
         result = subprocess.run(args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=env)
@@ -475,7 +473,7 @@ def verify_published_handler(args: argparse.Namespace) -> ReturnCode:
     # determine remote dir dependent on provided version string
     try:
         version_base, version_rc, os_filter = parse_version_string(args.version)
-        version_tuple = [int(i) for i in version_base.split('.')]
+        [int(i) for i in version_base.split('.')]
     except Exception as e:
         log.debug(e)
         log.error(f"unable to parse version; expected format is {VERSION_FORMAT}")
@@ -484,7 +482,6 @@ def verify_published_handler(args: argparse.Namespace) -> ReturnCode:
 
     remote_dir = f"{VERSIONPREFIX}{version_base}{f'-{version_rc}' if version_rc else ''}/"
     remote_sigs_path = remote_dir + SIGNATUREFILENAME
-    remote_sums_path = remote_dir + SUMS_FILENAME
 
     # create working directory
     os.makedirs(WORKINGDIR, exist_ok=True)
@@ -496,17 +493,6 @@ def verify_published_handler(args: argparse.Namespace) -> ReturnCode:
         hosts, remote_sigs_path, SIGNATUREFILENAME, args.require_all_hosts)
     if got_sig_status != ReturnCode.SUCCESS:
         return got_sig_status
-
-    # Multi-sig verification is available after 22.0.
-    if version_tuple[0] < 22:
-        log.error("Version too old - single sig not supported. Use a previous "
-                  "version of this script from the repo.")
-        return ReturnCode.BAD_VERSION
-
-    got_sums_status = get_files_from_hosts_and_compare(
-        hosts, remote_sums_path, SUMS_FILENAME, args.require_all_hosts)
-    if got_sums_status != ReturnCode.SUCCESS:
-        return got_sums_status
 
     # Verify the signature on the SHA256SUMS file
     sigs_status, good_trusted, good_untrusted, unknown, bad = verify_shasums_signature(SIGNATUREFILENAME, SUMS_FILENAME, args)
@@ -709,7 +695,7 @@ def main():
     bin_parser = subparsers.add_parser("bin", help="Verify local binaries.")
     bin_parser.set_defaults(func=verify_binaries_handler)
     bin_parser.add_argument("--sums-sig-file", "-s", help="Path to the SHA256SUMS.asc file to verify")
-    bin_parser.add_argument("sums_file", help="Path to the SHA256SUMS file to verify")
+    bin_parser.add_argument("sums_file", help="Path the SHA256SUMS file is extracted to from the clearsigned SHA256SUMS.asc")
     bin_parser.add_argument(
         "binary", nargs="*",
         help="Path to a binary distribution file to verify. Can be specified multiple times for multiple files to verify."
