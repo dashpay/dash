@@ -874,52 +874,27 @@ public:
 // Define a type alias for our lazy wrapper instantiated with DummyBLS.
 using LazyDummyBLS = CBLSLazyWrapper<DummyBLS>;
 
-// Test 1: Two default (unset) wrappers should compare equal.
-BOOST_AUTO_TEST_CASE(test_default_equality)
-{
-    LazyDummyBLS lazy1;
-    LazyDummyBLS lazy2;
-    // Neither instance has been set, so they represent the default/null object.
-    BOOST_CHECK(lazy1 == lazy2);
-}
-
-// Test 2: A default wrapper and one initialized with a nonzero DummyBLS should compare unequal.
-BOOST_AUTO_TEST_CASE(test_non_default_vs_default)
-{
-    LazyDummyBLS lazy_default;
-    LazyDummyBLS lazy_set;
-    DummyBLS obj;
-    obj.data = {1, 0, 0, 0}; // nonzero data makes the object valid
-    lazy_set.Set(obj, false);
-    BOOST_CHECK(!(lazy_default == lazy_set));
-    BOOST_CHECK(lazy_default != lazy_set);
-}
-
-// Test 2: A default wrapper and one initialized with a nonzero DummyBLS should compare unequal.
-BOOST_AUTO_TEST_CASE(test_non_default_vs_different)
-{
-    LazyDummyBLS lazy_a;
-    LazyDummyBLS lazy_b;
-    DummyBLS obj;
-    obj.data = {1, 2, 3, 4}; // nonzero data makes the object valid
-    lazy_a.Set(obj, false);
-    obj.data = {2, 2, 3, 4}; // nonzero data makes the object valid
-    lazy_b.Set(obj, false);
-    BOOST_CHECK(lazy_a != lazy_b);
-}
-
-// Test 3: Two wrappers set with the same underlying DummyBLS value compare equal.
+// Unset wrappers compare equal, a set wrapper differs from unset and from a
+// different value, and two wrappers set to the same value compare equal.
 BOOST_AUTO_TEST_CASE(test_equality_same_value)
 {
     LazyDummyBLS lazy1;
     LazyDummyBLS lazy2;
     BOOST_CHECK(lazy1 == lazy2);
+
     DummyBLS obj;
     obj.data = {5, 6, 7, 8};
     lazy1.Set(obj, false);
     BOOST_CHECK(lazy1 != lazy2);
+    BOOST_CHECK(!(lazy1 == lazy2));
+
     lazy2.Set(obj, false);
     BOOST_CHECK(lazy1 == lazy2);
+
+    obj.data = {2, 2, 3, 4};
+    LazyDummyBLS lazy_other;
+    lazy_other.Set(obj, false);
+    BOOST_CHECK(lazy1 != lazy_other);
 }
 
 // Test 4: Serialization and unserialization preserve the wrapped value.

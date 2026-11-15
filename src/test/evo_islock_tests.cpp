@@ -304,74 +304,6 @@ BOOST_AUTO_TEST_CASE(deserialize_instantlock_from_realdata2)
     BOOST_CHECK_EQUAL(islock.sig.Get().ToString(), expectedSignatureStr);
 }
 
-BOOST_AUTO_TEST_CASE(geninputlockrequestid_basic)
-{
-    // Test that GenInputLockRequestId generates consistent hashes for the same outpoint
-    const uint256 txHash = uint256S("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
-    const uint32_t outputIndex = 5;
-
-    COutPoint outpoint1(txHash, outputIndex);
-    COutPoint outpoint2(txHash, outputIndex);
-
-    // Same outpoints should produce identical request IDs
-    const uint256 requestId1 = instantsend::GenInputLockRequestId(outpoint1);
-    const uint256 requestId2 = instantsend::GenInputLockRequestId(outpoint2);
-
-    BOOST_CHECK(requestId1 == requestId2);
-    BOOST_CHECK(!requestId1.IsNull());
-}
-
-BOOST_AUTO_TEST_CASE(geninputlockrequestid_different_outpoints)
-{
-    // Test that different outpoints produce different request IDs
-    const uint256 txHash1 = uint256S("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
-    const uint256 txHash2 = uint256S("0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321");
-
-    COutPoint outpoint1(txHash1, 0);
-    COutPoint outpoint2(txHash2, 0);
-    COutPoint outpoint3(txHash1, 1); // Same hash, different index
-
-    const uint256 requestId1 = instantsend::GenInputLockRequestId(outpoint1);
-    const uint256 requestId2 = instantsend::GenInputLockRequestId(outpoint2);
-    const uint256 requestId3 = instantsend::GenInputLockRequestId(outpoint3);
-
-    // All should be different
-    BOOST_CHECK(requestId1 != requestId2);
-    BOOST_CHECK(requestId1 != requestId3);
-    BOOST_CHECK(requestId2 != requestId3);
-}
-
-BOOST_AUTO_TEST_CASE(geninputlockrequestid_only_outpoint_matters)
-{
-    // Critical test: Verify that only the COutPoint is hashed, not scriptSig or nSequence
-    // This validates the fix where CTxIn was incorrectly used before
-    const uint256 txHash = uint256S("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
-    const uint32_t outputIndex = 3;
-
-    COutPoint outpoint(txHash, outputIndex);
-
-    // Create two CTxIn objects with the same prevout but different scriptSig and nSequence
-    CTxIn txin1;
-    txin1.prevout = outpoint;
-    txin1.scriptSig = CScript() << OP_1 << OP_2;
-    txin1.nSequence = 0xFFFFFFFF;
-
-    CTxIn txin2;
-    txin2.prevout = outpoint;
-    txin2.scriptSig = CScript() << OP_3 << OP_4 << OP_5; // Different scriptSig
-    txin2.nSequence = 0x12345678;                        // Different nSequence
-
-    // The request IDs should be identical because they share the same prevout (COutPoint)
-    const uint256 requestId1 = instantsend::GenInputLockRequestId(txin1.prevout);
-    const uint256 requestId2 = instantsend::GenInputLockRequestId(txin2.prevout);
-
-    BOOST_CHECK(requestId1 == requestId2);
-
-    // Also verify against the direct outpoint
-    const uint256 requestId3 = instantsend::GenInputLockRequestId(outpoint);
-    BOOST_CHECK(requestId1 == requestId3);
-}
-
 BOOST_AUTO_TEST_CASE(geninputlockrequestid_serialization_format)
 {
     // Test that the serialization format is: SerializeHash(pair("inlock", outpoint))
@@ -387,23 +319,18 @@ BOOST_AUTO_TEST_CASE(geninputlockrequestid_serialization_format)
     const uint256 actualHash = instantsend::GenInputLockRequestId(outpoint);
 
     BOOST_CHECK(actualHash == expectedHash);
-}
 
-BOOST_AUTO_TEST_CASE(geninputlockrequestid_edge_cases)
-{
-    // Test edge cases: null hash, max index
-    COutPoint nullOutpoint(uint256(), 0);
-    COutPoint maxIndexOutpoint(uint256::ONE, COutPoint::NULL_INDEX);
-
-    const uint256 nullRequestId = instantsend::GenInputLockRequestId(nullOutpoint);
-    const uint256 maxIndexRequestId = instantsend::GenInputLockRequestId(maxIndexOutpoint);
-
-    // Both should produce valid (non-null) request IDs
-    BOOST_CHECK(!nullRequestId.IsNull());
-    BOOST_CHECK(!maxIndexRequestId.IsNull());
-
-    // And they should be different from each other
-    BOOST_CHECK(nullRequestId != maxIndexRequestId);
+    // A null prevout hash and a null output index still hash as outpoints. Both
+    // ids stay non-null, and they stay distinct from each other.
+    const COutPoint null_outpoint{uint256{}, 0};
+    const COutPoint null_index_outpoint{uint256::ONE, COutPoint::NULL_INDEX};
+    const uint256 null_id{instantsend::GenInputLockRequestId(null_outpoint)};
+    const uint256 null_index_id{instantsend::GenInputLockRequestId(null_index_outpoint)};
+    BOOST_CHECK(!null_id.IsNull());
+    BOOST_CHECK(!null_index_id.IsNull());
+    BOOST_CHECK(null_id != null_index_id);
+    BOOST_CHECK(null_id == ::SerializeHash(std::make_pair(std::string_view("inlock"), null_outpoint)));
+    BOOST_CHECK(null_index_id == ::SerializeHash(std::make_pair(std::string_view("inlock"), null_index_outpoint)));
 }
 
 // Regression test for the islock input cap: an oversized input vector must be

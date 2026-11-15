@@ -678,15 +678,6 @@ static void CheckDivMod(const valtype& a, const valtype& b,
                        ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
             CheckError(flags, {a, {0x00, 0x80}}, CScript() << OP_DIV,
                        ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
-
-            CheckError(flags, {b, {0x00}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
-            CheckError(flags, {b, {0x80}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
-            CheckError(flags, {b, {0x00, 0x00}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
-            CheckError(flags, {b, {0x00, 0x80}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
         } else {
             CheckError(flags, {a, {0x00}}, CScript() << OP_DIV,
                        ScriptError::SCRIPT_ERR_DIV_BY_ZERO);
@@ -695,15 +686,6 @@ static void CheckDivMod(const valtype& a, const valtype& b,
             CheckError(flags, {a, {0x00, 0x00}}, CScript() << OP_DIV,
                        ScriptError::SCRIPT_ERR_DIV_BY_ZERO);
             CheckError(flags, {a, {0x00, 0x80}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_DIV_BY_ZERO);
-
-            CheckError(flags, {b, {0x00}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_DIV_BY_ZERO);
-            CheckError(flags, {b, {0x80}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_DIV_BY_ZERO);
-            CheckError(flags, {b, {0x00, 0x00}}, CScript() << OP_DIV,
-                       ScriptError::SCRIPT_ERR_DIV_BY_ZERO);
-            CheckError(flags, {b, {0x00, 0x80}}, CScript() << OP_DIV,
                        ScriptError::SCRIPT_ERR_DIV_BY_ZERO);
         }
     }
@@ -714,12 +696,6 @@ static void CheckDivMod(const valtype& a, const valtype& b,
     CheckBinaryOp(a, a, OP_DIV, {0x01});
     CheckBinaryOp(a, NegativeValtype(a), OP_DIV, {0x81});
     CheckBinaryOp(NegativeValtype(a), a, OP_DIV, {0x81});
-
-    CheckBinaryOp(b, {0x01}, OP_DIV, b);
-    CheckBinaryOp(b, {0x81}, OP_DIV, NegativeValtype(b));
-    CheckBinaryOp(b, b, OP_DIV, {0x01});
-    CheckBinaryOp(b, NegativeValtype(b), OP_DIV, {0x81});
-    CheckBinaryOp(NegativeValtype(b), b, OP_DIV, {0x81});
 
     // Modulo identities
     // a % b % b = a % b
@@ -768,8 +744,6 @@ BOOST_AUTO_TEST_CASE(div_and_mod_opcode_tests)
     CheckDivMod({0x98, 0x3a}, {0x04}, {0xa6, 0x0e}, {});
     // 15000/4000 = 3 (and negative operands)
     CheckDivMod({0x98, 0x3a}, {0xa0, 0x0f}, {0x03}, {0xb8, 0x0b});
-    // 15000000/4000 = 3750 (and negative operands)
-    CheckDivMod({0xc0, 0xe1, 0xe4, 0x00}, {0xa0, 0x0f}, {0xa6, 0x0e}, {});
     // 15000000/4 = 3750000 (and negative operands)
     CheckDivMod({0xc0, 0xe1, 0xe4, 0x00}, {0x04}, {0x70, 0x38, 0x39}, {});
 

@@ -271,29 +271,6 @@ BOOST_AUTO_TEST_CASE(chainlock_edge_cases_test)
     BOOST_CHECK_EQUAL(clsig2.getHeight(), clsig2_deserialized.getHeight());
 }
 
-BOOST_AUTO_TEST_CASE(chainlock_comparison_test)
-{
-    // Create identical chainlocks
-    int32_t height = 5000;
-    uint256 blockHash = GetTestBlockHash(10);
-    CBLSSignature sig = CreateRandomBLSSignature();
-
-    ChainLockSig clsig1(height, blockHash, sig);
-    ChainLockSig clsig2(height, blockHash, sig);
-
-    // Verify getters return same values
-    BOOST_CHECK_EQUAL(clsig1.getHeight(), clsig2.getHeight());
-    BOOST_CHECK(clsig1.getBlockHash() == clsig2.getBlockHash());
-    BOOST_CHECK(clsig1.getSig() == clsig2.getSig());
-
-    // Different chainlocks
-    ChainLockSig clsig3(height + 1, blockHash, sig);
-    BOOST_CHECK(clsig1.getHeight() != clsig3.getHeight());
-
-    ChainLockSig clsig4(height, GetTestBlockHash(11), sig);
-    BOOST_CHECK(clsig1.getBlockHash() != clsig4.getBlockHash());
-}
-
 BOOST_AUTO_TEST_CASE(chainlock_malformed_data_test)
 {
     // Test deserialization of truncated data

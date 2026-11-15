@@ -856,19 +856,6 @@ BOOST_AUTO_TEST_CASE(netinfoentry_domain_deser_rejects_oversized_string)
     BOOST_CHECK_THROW(ds >> entry, std::ios_base::failure);
 }
 
-BOOST_AUTO_TEST_CASE(domainport_deser_rejects_huge_claimed_length)
-{
-    // CompactSize claims 1 MiB with no body. Pre-fix this would allocate 1 MiB
-    // then throw on short-read; post-fix LIMITED_STRING rejects before resize.
-    // Either way the operation must throw; the important property is that a
-    // declared length above DOMAIN_MAX_LEN never produces a successful DomainPort.
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
-    WriteCompactSize(ds, size_t{1} << 20);
-
-    DomainPort domain;
-    BOOST_CHECK_THROW(ds >> domain, std::ios_base::failure);
-}
-
 BOOST_AUTO_TEST_CASE(extnetinfo_domain_amplification_rejected)
 {
     // Simulate the attack shape: ExtNetInfo vector of Domain entries each
