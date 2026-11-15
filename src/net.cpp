@@ -2026,13 +2026,11 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         LOCK(m_nodes_mutex);
         m_nodes.push_back(pnode);
     }
-    {
-        LOCK(pnode->m_sock_mutex);
-        if (fLogIPs) {
-            LogPrint(BCLog::NET_NETCONN, "connection from %s accepted, sock=%d, peer=%d\n", addr.ToStringAddrPort(), pnode->m_sock->Get(), pnode->GetId());
-        } else {
-            LogPrint(BCLog::NET_NETCONN, "connection accepted, sock=%d, peer=%d\n", pnode->m_sock->Get(), pnode->GetId());
-        }
+
+    if (fLogIPs) {
+        LogPrint(BCLog::NET_NETCONN, "connection from %s accepted, peer=%d\n", addr.ToStringAddrPort(), pnode->GetId());
+    } else {
+        LogPrint(BCLog::NET_NETCONN, "connection accepted, peer=%d\n", pnode->GetId());
     }
     {
         LOCK2(cs_mapSocketToNode, pnode->m_sock_mutex);
@@ -2630,7 +2628,7 @@ size_t CConnman::SocketRecvData(CNode *pnode)
         LOCK(pnode->m_sock_mutex);
         if (!pnode->m_sock)
             return 0;
-        nBytes = recv(pnode->m_sock->Get(), (char*)pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
+        nBytes = pnode->m_sock->Recv(pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
         if (nBytes < 0 && WSAGetLastError() == WSAEWOULDBLOCK) {
             pnode->fHasRecvData = false;
         }
@@ -3660,10 +3658,7 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         return;
     }
 
-    {
-        LOCK(pnode->m_sock_mutex);
-        LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- successfully connected to %s, sock=%d, peer=%d\n", __func__, getIpStr(), pnode->m_sock->Get(), pnode->GetId());
-    }
+    LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- successfully connected to %s, peer=%d\n", __func__, getIpStr(), pnode->GetId());
 
     pnode->grantOutbound = std::move(grant_outbound);
 
