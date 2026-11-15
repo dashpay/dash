@@ -40,14 +40,14 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         self.log.info("Recover non-HD wallet to check different upgrade paths")
         node = self.nodes[0]
         self.stop_node(0)
-        shutil.copyfile(os.path.join(node.datadir, "non_hd.bak"), os.path.join(node.chain_path, self.default_wallet_name, self.wallet_data_filename))
+        shutil.copyfile(os.path.join(node.datadir_path, "non_hd.bak"), os.path.join(node.chain_path, self.default_wallet_name, self.wallet_data_filename))
         self.start_node(0)
         if not self.options.descriptors:
             assert 'hdchainid' not in node.getwalletinfo()
 
     def run_test(self):
         node = self.nodes[0]
-        node.backupwallet(os.path.join(node.datadir, "non_hd.bak"))
+        node.backupwallet(os.path.join(node.datadir_path, "non_hd.bak"))
 
         self.log.info("No mnemonic, no mnemonic passphrase, no wallet passphrase")
         assert 'hdchainid' not in node.getwalletinfo()

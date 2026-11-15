@@ -96,7 +96,7 @@ bool CRecoveredSigsDb::ReadRecoveredSig(Consensus::LLMQType llmqType, const uint
 {
     auto k = std::make_tuple(std::string("rs_r"), llmqType, id);
 
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     if (!db->ReadDataStream(k, ds)) {
         return false;
     }
@@ -239,7 +239,7 @@ struct RecoveredSigMarker {
 
 std::optional<RecoveredSigMarker> ReadRecoveredSigMarker(const CDBWrapper& db, const std::string& prefix, const uint256& hash)
 {
-    CDataStream value{SER_DISK, CLIENT_VERSION};
+    DataStream value{};
     if (!db.ReadDataStream(std::make_pair(prefix, hash), value)) return std::nullopt;
     RecoveredSigMarker marker;
     try {

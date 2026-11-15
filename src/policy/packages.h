@@ -18,14 +18,15 @@ static constexpr uint32_t MAX_PACKAGE_COUNT{25};
 static constexpr uint32_t MAX_PACKAGE_SIZE{101};
 static_assert(MAX_PACKAGE_SIZE * 1000 >= MAX_STANDARD_TX_SIZE);
 
-// If a package is submitted, it must be within the mempool's ancestor/descendant limits. Since a
-// submitted package must be child-with-unconfirmed-parents (all of the transactions are an ancestor
+// If a package is to be evaluated, it must be at least as large as the mempool's ancestor/descendant limits,
+// otherwise transactions that would be individually accepted may be rejected in a package erroneously.
+// Since a submitted package must be child-with-unconfirmed-parents (all of the transactions are an ancestor
 // of the child), package limits are ultimately bounded by mempool package limits. Ensure that the
 // defaults reflect this constraint.
 static_assert(DEFAULT_DESCENDANT_LIMIT >= MAX_PACKAGE_COUNT);
 static_assert(DEFAULT_ANCESTOR_LIMIT >= MAX_PACKAGE_COUNT);
-static_assert(DEFAULT_ANCESTOR_SIZE_LIMIT_KVB >= MAX_PACKAGE_SIZE);
-static_assert(DEFAULT_DESCENDANT_SIZE_LIMIT_KVB >= MAX_PACKAGE_SIZE);
+static_assert(MAX_PACKAGE_SIZE >= DEFAULT_ANCESTOR_SIZE_LIMIT_KVB);
+static_assert(MAX_PACKAGE_SIZE >= DEFAULT_DESCENDANT_SIZE_LIMIT_KVB);
 
 /** A "reason" why a package was invalid. It may be that one or more of the included
  * transactions is invalid or the package itself violates our rules.
@@ -58,4 +59,8 @@ bool CheckPackage(const Package& txns, PackageValidationState& state);
  */
 bool IsChildWithParents(const Package& package);
 
+/** Context-free check that a package IsChildWithParents() and none of the parents depend on each
+ * other (the package is a "tree").
+ */
+bool IsChildWithParentsTree(const Package& package);
 #endif // BITCOIN_POLICY_PACKAGES_H

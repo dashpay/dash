@@ -73,14 +73,7 @@ public:
         READWRITE(obj.collateralOutpoint);
         READWRITE(obj.nOperatorReward);
         READWRITE(obj.pdmnState);
-        // We can't know if we are serialising for the Disk or for the Network here (s.GetType() is not accessible)
-        // Therefore if s.GetVersion() == CLIENT_VERSION -> Then we know we are serialising for the Disk
-        // Otherwise, we can safely check with protocol versioning logic so we won't break old clients
-        if (s.GetVersion() == CLIENT_VERSION || s.GetVersion() >= DMN_TYPE_PROTO_VERSION) {
-            READWRITE(obj.nType);
-        } else {
-            SER_READ(obj, obj.nType = MnType::Regular);
-        }
+        READWRITE(obj.nType);
     }
 
     [[nodiscard]] bool HasInternalId() const { return internalId != std::numeric_limits<uint64_t>::max(); }

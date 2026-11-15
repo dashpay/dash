@@ -109,8 +109,8 @@ class WalletDumpTest(BitcoinTestFramework):
         destination = node.get_wallet_rpc('electrum_destination')
         addresses = [source.getnewaddress() for _ in range(4)]
         secrets = [source.dumpprivkey(address) for address in addresses]
-        json_file = os.path.join(node.datadir, 'electrum.json')
-        csv_file = os.path.join(node.datadir, 'electrum.csv')
+        json_file = os.path.join(node.datadir_path, 'electrum.json')
+        csv_file = os.path.join(node.datadir_path, 'electrum.csv')
         with open(json_file, 'wb') as f:
             f.write(json.dumps({addresses[0]: secrets[0]}).encode() + b'\x00trailing bytes')
         assert_raises_rpc_error(-3, 'Cannot parse Electrum wallet export file', destination.importelectrumwallet, json_file)
@@ -136,8 +136,8 @@ class WalletDumpTest(BitcoinTestFramework):
         self.test_electrum_import()
         self.nodes[0].createwallet("dump")
 
-        wallet_unenc_dump = os.path.join(self.nodes[0].datadir, "wallet.unencrypted.dump")
-        wallet_enc_dump = os.path.join(self.nodes[0].datadir, "wallet.encrypted.dump")
+        wallet_unenc_dump = self.nodes[0].datadir_path / "wallet.unencrypted.dump"
+        wallet_enc_dump = self.nodes[0].datadir_path / "wallet.encrypted.dump"
 
         # generate 20 addresses to compare against the dump
         test_addr_count = 20
@@ -175,7 +175,7 @@ class WalletDumpTest(BitcoinTestFramework):
 
         self.log.info('Dump unencrypted wallet')
         result = self.nodes[0].dumpwallet(wallet_unenc_dump)
-        assert_equal(result['filename'], wallet_unenc_dump)
+        assert_equal(result['filename'], str(wallet_unenc_dump))
 
         found_comments, found_addr, found_script_addr, found_addr_chg, found_addr_rsv, hd_master_addr_unenc = \
             read_dump(wallet_unenc_dump, addrs, script_addrs, None)
@@ -239,7 +239,7 @@ class WalletDumpTest(BitcoinTestFramework):
         w3.sendtoaddress(w3.getnewaddress(), 10)
         w3.unloadwallet()
         self.nodes[0].loadwallet("w3")
-        w3.dumpwallet(os.path.join(self.nodes[0].datadir, "w3.dump"))
+        w3.dumpwallet(self.nodes[0].datadir_path / "w3.dump")
 
 if __name__ == '__main__':
     WalletDumpTest().main()

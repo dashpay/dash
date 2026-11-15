@@ -118,7 +118,7 @@ BOOST_FIXTURE_TEST_CASE(package_validation_tests, TestChain100NoDIP0001Setup)
 
     // A single, giant transaction submitted through ProcessNewPackage fails on single tx policy.
     CTransactionRef giant_ptx = create_placeholder_tx(999, 999);
-    BOOST_CHECK(GetVirtualTransactionSize(*giant_ptx) > MAX_PACKAGE_SIZE * 1000);
+    BOOST_CHECK(GetVirtualTransactionSize(*giant_ptx) > DEFAULT_ANCESTOR_SIZE_LIMIT_KVB * 1000);
     auto result_single_large = ProcessNewPackage(m_node.chainman->ActiveChainstate(), *m_node.mempool, {giant_ptx}, /*test_accept=*/true);
     BOOST_CHECK(result_single_large.m_state.IsInvalid());
     BOOST_CHECK_EQUAL(result_single_large.m_state.GetResult(), PackageValidationResult::PCKG_TX);
@@ -156,6 +156,7 @@ BOOST_FIXTURE_TEST_CASE(noncontextual_package_tests, TestChain100NoDIP0001Setup)
         BOOST_CHECK_EQUAL(state.GetResult(), PackageValidationResult::PCKG_POLICY);
         BOOST_CHECK_EQUAL(state.GetRejectReason(), "package-not-sorted");
         BOOST_CHECK(IsChildWithParents({tx_parent, tx_child}));
+        BOOST_CHECK(IsChildWithParentsTree({tx_parent, tx_child}));
     }
 
     // 24 Parents and 1 Child
@@ -181,6 +182,7 @@ BOOST_FIXTURE_TEST_CASE(noncontextual_package_tests, TestChain100NoDIP0001Setup)
         PackageValidationState state;
         BOOST_CHECK(CheckPackage(package, state));
         BOOST_CHECK(IsChildWithParents(package));
+        BOOST_CHECK(IsChildWithParentsTree(package));
 
         package.erase(package.begin());
         BOOST_CHECK(IsChildWithParents(package));
@@ -213,6 +215,7 @@ BOOST_FIXTURE_TEST_CASE(noncontextual_package_tests, TestChain100NoDIP0001Setup)
         BOOST_CHECK(IsChildWithParents({tx_parent, tx_parent_also_child}));
         BOOST_CHECK(IsChildWithParents({tx_parent, tx_child}));
         BOOST_CHECK(IsChildWithParents({tx_parent, tx_parent_also_child, tx_child}));
+        BOOST_CHECK(!IsChildWithParentsTree({tx_parent, tx_parent_also_child, tx_child}));
         // IsChildWithParents does not detect unsorted parents.
         BOOST_CHECK(IsChildWithParents({tx_parent_also_child, tx_parent, tx_child}));
         BOOST_CHECK(CheckPackage({tx_parent, tx_parent_also_child, tx_child}, state));
