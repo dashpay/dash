@@ -1963,23 +1963,6 @@ private:
     std::unique_ptr<EdgeTriggeredEvents> m_edge_trig_events{nullptr};
     std::unique_ptr<WakeupPipe> m_wakeup_pipe{nullptr};
 
-    SOCKET GetModeFileDescriptor()
-    {
-        if (m_edge_trig_events) {
-            return static_cast<SOCKET>(m_edge_trig_events->GetFileDescriptor());
-        }
-        return INVALID_SOCKET;
-    }
-
-    SocketEventsParams::wrap_fn ToggleWakeupPipe = [&](std::function<void()>&& func)
-    {
-        if (m_wakeup_pipe) {
-            m_wakeup_pipe->Toggle(func);
-        } else {
-            func();
-        }
-    };
-
     Mutex cs_sendable_receivable_nodes;
     std::unordered_map<NodeId, CNode*> mapReceivableNodes GUARDED_BY(cs_sendable_receivable_nodes);
     std::unordered_map<NodeId, CNode*> mapSendableNodes GUARDED_BY(cs_sendable_receivable_nodes);

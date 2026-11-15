@@ -559,7 +559,7 @@ void CNode::CloseSocketDisconnect(CConnman* connman)
     }
 
     if (connman->m_edge_trig_events) {
-        connman->m_edge_trig_events->UnregisterEvents(m_sock->Get());
+        connman->m_edge_trig_events->UnregisterEvents(m_sock);
     }
 
     LogPrint(BCLog::NET, "disconnecting peer=%d\n", id);
@@ -2034,7 +2034,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
     {
         LOCK(pnode->m_sock_mutex);
         if (m_edge_trig_events) {
-            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock->Get())) {
+            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock)) {
                 LogPrint(BCLog::NET, "EdgeTriggeredEvents::RegisterEvents() failed\n");
             }
         }
@@ -2365,7 +2365,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
     Sock::EventsPerSock events_per_sock;
 
     for (const ListenSocket& hListenSocket : vhListenSocket) {
-        events_per_sock.emplace(hListenSocket.sock->Get(), Sock::Events{Sock::RECV});
+        events_per_sock.emplace(hListenSocket.sock, Sock::Events{Sock::RECV});
     }
 
     for (CNode* pnode : nodes) {
@@ -2386,7 +2386,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
             requested |= Sock::RECV;
         }
 
-        events_per_sock.emplace(pnode->m_sock->Get(), Sock::Events{requested});
+        events_per_sock.emplace(pnode->m_sock, Sock::Events{requested});
     }
 
     if (m_wakeup_pipe) {
@@ -2395,7 +2395,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
         // This is currently only implemented for POSIX compliant systems. This means that Windows will fall back to
         // timing out after 50ms and then trying to send. This is ok as we assume that heavy-load daemons are usually
         // run on Linux and friends.
-        events_per_sock.emplace(m_wakeup_pipe->m_pipe[0], Sock::Events{Sock::RECV});
+        events_per_sock.emplace(m_wakeup_pipe->m_read_sock, Sock::Events{Sock::RECV});
     }
 
     return events_per_sock;
@@ -2447,15 +2447,28 @@ void CConnman::SocketHandler(CMasternodeSync& mn_sync)
         // listening sockets in one call ("readiness" as in poll(2) or
         // select(2)). If none are ready, wait for a short while and return
         // empty sets.
-        events_per_sock = GenerateWaitSockets(snap.Nodes());
-        if ((is_lt && events_per_sock.empty()) || !Sock::WaitManyInternal(timeout, events_per_sock, SocketEventsParams{socketEventsMode, GetModeFileDescriptor(), ToggleWakeupPipe})) {
+        if (is_lt) {
+            events_per_sock = GenerateWaitSockets(snap.Nodes());
+        }
+        bool ok{false};
+        const auto wait_many = [&] {
             if (is_lt) {
-                interruptNet.sleep_for(std::chrono::milliseconds(SELECT_TIMEOUT_MILLISECONDS));
+                ok = !events_per_sock.empty() && Sock::WaitManyInternal(timeout, events_per_sock, SocketEventsParams{socketEventsMode});
+            } else {
+                ok = Assert(m_edge_trig_events)->Wait(timeout, events_per_sock);
             }
+        };
+        if (m_wakeup_pipe) {
+            m_wakeup_pipe->Toggle(wait_many);
+        } else {
+            wait_many();
+        }
+        if (!ok && is_lt) {
+            interruptNet.sleep_for(std::chrono::milliseconds(SELECT_TIMEOUT_MILLISECONDS));
         }
 
         // Drain the wakeup pipe
-        if (m_wakeup_pipe && events_per_sock.find(m_wakeup_pipe->m_pipe[0]) != events_per_sock.end()) {
+        if (m_wakeup_pipe && events_per_sock.find(m_wakeup_pipe->m_read_sock) != events_per_sock.end()) {
             m_wakeup_pipe->Drain();
         }
 
@@ -2482,7 +2495,7 @@ void CConnman::SocketHandlerConnected(const Sock::EventsPerSock& events_per_sock
         {
             LOCK(pnode->m_sock_mutex);
             if (pnode->m_sock) {
-                const auto it = events_per_sock.find(pnode->m_sock->Get());
+                const auto it = events_per_sock.find(pnode->m_sock);
                 if (it != events_per_sock.end()) {
                     occurred = it->second.occurred;
                 }
@@ -2614,7 +2627,7 @@ void CConnman::SocketHandlerListening(const Sock::EventsPerSock& events_per_sock
         if (interruptNet) {
             return;
         }
-        const auto it = events_per_sock.find(listen_socket.sock->Get());
+        const auto it = events_per_sock.find(listen_socket.sock);
         if (it != events_per_sock.end() && (it->second.occurred & Sock::RECV)) {
             AcceptConnection(listen_socket, mn_sync);
         }
@@ -3680,7 +3693,7 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     {
         if (m_edge_trig_events) {
             LOCK(pnode->m_sock_mutex);
-            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock->Get())) {
+            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock)) {
                 LogPrint(BCLog::NET, "EdgeTriggeredEvents::RegisterEvents() failed\n");
             }
         }
@@ -3854,12 +3867,13 @@ bool CConnman::BindListenPort(const CService& addrBind, bilingual_str& strError,
         return false;
     }
 
-    if (m_edge_trig_events && !m_edge_trig_events->AddSocket(sock->Get())) {
+    vhListenSocket.emplace_back(std::move(sock), permissions);
+
+    if (m_edge_trig_events && !m_edge_trig_events->AddSocket(vhListenSocket.back().sock)) {
         LogPrintf("Error: EdgeTriggeredEvents::AddSocket() failed\n");
+        vhListenSocket.pop_back();
         return false;
     }
-
-    vhListenSocket.emplace_back(std::move(sock), permissions);
 
     return true;
 }
@@ -4205,7 +4219,7 @@ void CConnman::StopNodes()
     if (m_edge_trig_events) {
         for (ListenSocket& hListenSocket : vhListenSocket) {
             if (hListenSocket.sock) {
-                m_edge_trig_events->RemoveSocket(hListenSocket.sock->Get());
+                m_edge_trig_events->RemoveSocket(hListenSocket.sock);
             }
         }
     }

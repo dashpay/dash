@@ -8,12 +8,14 @@
 #include <array>
 #include <assert.h>
 #include <atomic>
+#include <memory>
 
 #ifndef WIN32
 #define USE_WAKEUP_PIPE
 #endif
 
 class EdgeTriggeredEvents;
+class Sock;
 
 /**
  * A manager for abstracting logic surrounding wakeup pipes. Supported only on
@@ -50,6 +52,8 @@ public:
 public:
     /* File descriptors for read and write data channels */
     std::array<int, 2> m_pipe{{ -1, -1 }};
+    /* Owner of the read end, m_pipe[0], to wait on together with sockets */
+    std::shared_ptr<const Sock> m_read_sock;
     /* Flag used to determine if Write() needs to be called. Used occasionally */
     std::atomic<bool> m_need_wakeup{false};
 
