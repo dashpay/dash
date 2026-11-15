@@ -345,6 +345,15 @@ AC_ARG_ENABLE([external-signer],
 
 AC_LANG_PUSH([C++])
 
+dnl Always set -g -O2 in our CXXFLAGS. Autoconf will try and set CXXFLAGS to "-g -O2" by default,
+dnl so we suppress that (if CXXFLAGS hasn't been overridden by the user), given we are adding it
+dnl ourselves.
+CORE_CXXFLAGS="$CORE_CXXFLAGS -g -O2"
+
+if test "$CXXFLAGS_overridden" = "no"; then
+  CXXFLAGS=""
+fi
+
 dnl Check for a flag to turn compiler warnings into errors. This is helpful for checks which may
 dnl appear to succeed because by default they merely emit warnings when they fail.
 dnl
@@ -369,12 +378,6 @@ case $host in
 esac
 
 if test "$enable_debug" = "yes"; then
-  dnl If debugging is enabled, and the user hasn't overridden CXXFLAGS, clear
-  dnl them, to prevent autoconfs "-g -O2" being added. Otherwise we'd end up
-  dnl with "-O0 -g3 -g -O2".
-  if test "$CXXFLAGS_overridden" = "no"; then
-  CXXFLAGS=""
-  fi
 
   dnl Disable all optimizations
   AX_CHECK_COMPILE_FLAG([-O0], [DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -O0"], [], [$CXXFLAG_WERROR])
@@ -1009,13 +1012,7 @@ if test "$use_lcov" = "yes"; then
     [AC_MSG_ERROR([lcov testing requested but --coverage linker flag does not work])])
   AX_CHECK_COMPILE_FLAG([--coverage],[CORE_CXXFLAGS="$CORE_CXXFLAGS --coverage"],
     [AC_MSG_ERROR([lcov testing requested but --coverage flag does not work])])
-  dnl If coverage is enabled, and the user hasn't overridden CXXFLAGS, clear
-  dnl them, to prevent autoconfs "-g -O2" being added. Otherwise we'd end up
-  dnl with "--coverage -Og -O0 -g -O2".
-  if test "$CXXFLAGS_overridden" = "no"; then
-  CXXFLAGS=""
-  fi
-  CORE_CXXFLAGS="$CORE_CXXFLAGS -Og -O0"
+  CORE_CXXFLAGS="$CORE_CXXFLAGS -Og"
 fi
 
 if test "$use_lcov_branch" != "no"; then
@@ -1086,7 +1083,7 @@ if test "$use_hardening" != "no"; then
       HARDENED_CPPFLAGS="$HARDENED_CPPFLAGS -U_FORTIFY_SOURCE"
     ])
     HARDENED_CPPFLAGS="$HARDENED_CPPFLAGS -D_FORTIFY_SOURCE=3"
-  ], [], [$DEBUG_CXXFLAGS $CORE_CXXFLAGS $CXXFLAGS], [AC_LANG_PROGRAM([[
+  ], [], [$CORE_CXXFLAGS $DEBUG_CXXFLAGS $CXXFLAGS], [AC_LANG_PROGRAM([[
     #if !defined __OPTIMIZE__ || __OPTIMIZE__ <= 0
     #error
     #endif
@@ -2195,8 +2192,8 @@ echo "  CC              = $CC"
 echo "  CFLAGS          = $SANITIZER_CFLAGS $BACKTRACE_FLAGS $DEBUG_CFLAGS $PTHREAD_CFLAGS $CFLAGS"
 echo "  CPPFLAGS        = $DEBUG_CPPFLAGS $HARDENED_CPPFLAGS $CORE_CPPFLAGS $CPPFLAGS"
 echo "  CXX             = $CXX"
-echo "  CXXFLAGS        = $BACKTRACE_FLAGS $DEBUG_CXXFLAGS $HARDENED_CXXFLAGS $WARN_CXXFLAGS $NOWARN_CXXFLAGS $ERROR_CXXFLAGS $CORE_CXXFLAGS $CXXFLAGS"
-echo "  LDFLAGS         = $PTHREAD_LIBS $HARDENED_LDFLAGS $CORE_LDFLAGS $BACKTRACE_LDFLAGS $LDFLAGS"
+echo "  CXXFLAGS        = $CORE_CXXFLAGS $BACKTRACE_FLAGS $DEBUG_CXXFLAGS $HARDENED_CXXFLAGS $WARN_CXXFLAGS $NOWARN_CXXFLAGS $ERROR_CXXFLAGS $SANITIZER_CXXFLAGS $CXXFLAGS"
+echo "  LDFLAGS         = $PTHREAD_LIBS $HARDENED_LDFLAGS $SANITIZER_LDFLAGS $CORE_LDFLAGS $BACKTRACE_LDFLAGS $LDFLAGS"
 echo "  AR              = $AR"
 echo "  ARFLAGS         = $ARFLAGS"
 echo

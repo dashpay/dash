@@ -14,6 +14,7 @@
 #include <policy/fees.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
+#include <scheduler.h>
 #include <script/standard.h>
 #include <support/allocators/secure.h>
 #include <sync.h>
@@ -336,7 +337,7 @@ public:
         }
         return true;
     }
-    std::vector<WalletAddress> getAddresses() const override
+    std::vector<WalletAddress> getAddresses() override
     {
         LOCK(m_wallet->cs_wallet);
         std::vector<WalletAddress> result;
@@ -975,10 +976,15 @@ public:
     }
     bool verify() override { return VerifyWallets(m_context); }
     bool load() override { return LoadWallets(m_context); }
-    void start(CScheduler& scheduler) override { return StartWallets(m_context, scheduler); }
+    void start(CScheduler& scheduler) override
+    {
+        m_context.scheduler = &scheduler;
+        return StartWallets(m_context);
+    }
     void flush() override { return FlushWallets(m_context); }
     void stop() override { return UnloadWallets(m_context); }
     void setMockTime(int64_t time) override { return SetMockTime(time); }
+    void schedulerMockForward(std::chrono::seconds delta) override { Assert(m_context.scheduler)->MockForward(delta); }
 
     //! WalletLoader methods
     void registerOtherRpcs(const Span<const CRPCCommand>& commands) override
