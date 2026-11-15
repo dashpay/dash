@@ -30,7 +30,6 @@ class MasternodePayoutSharesTest(DashTestFramework):
         while not softfork_active(self.nodes[0], "v24"):
             self.bump_mocktime(50)
             self.generate(self.nodes[0], 50, sync_fun=self.no_op)
-        assert softfork_active(self.nodes[0], "v24")
 
     def build_block(self, node, tamper=None):
         """Build a block extending the tip whose coinbase pays exactly the template's

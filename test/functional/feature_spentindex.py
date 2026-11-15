@@ -29,7 +29,7 @@ class SpentIndexTest(BitcoinTestFramework):
 
     def set_test_params(self):
         self.setup_clean_chain = True
-        self.num_nodes = 4
+        self.num_nodes = 3
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
@@ -39,25 +39,14 @@ class SpentIndexTest(BitcoinTestFramework):
         # Nodes 0/1 are "wallet" nodes
         self.start_node(0)
         self.start_node(1, ["-spentindex"])
-        # Nodes 2/3 are used for testing
-        self.start_node(2, ["-spentindex"])
-        self.start_node(3, ["-spentindex", "-txindex"])
+        # Node 2 is used for testing
+        self.start_node(2, ["-spentindex", "-txindex"])
         self.connect_nodes(0, 1)
         self.connect_nodes(0, 2)
-        self.connect_nodes(0, 3)
         self.sync_all()
         self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
-        self.log.info("Test that settings can be disabled and re-enabled...")
-        self.restart_node(1, ["-spentindex=0"])
-        self.connect_nodes(0, 1)
-        self.sync_all()
-        # SpentIndex is now async, so it can be enabled without -reindex
-        self.restart_node(1, ["-spentindex"])
-        self.connect_nodes(0, 1)
-        self.sync_all()
-
         self.log.info("Mining blocks...")
         self.generate(self.nodes[0], 105)
 
@@ -80,8 +69,16 @@ class SpentIndexTest(BitcoinTestFramework):
         tx.rehash()
 
         signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
+        self.log.info("Test that the index catches up without -reindex on a spend mined while it was disabled")
+        self.restart_node(1, ["-spentindex=0"])
+        self.connect_nodes(0, 1)
         txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
         self.generate(self.nodes[0], 1)
+        # SpentIndex is async, so it can be enabled without -reindex
+        self.restart_node(1, ["-spentindex"])
+        self.connect_nodes(0, 1)
+        self.sync_all()
+        self.wait_until(lambda: self.nodes[1].getindexinfo()["spentindex"] == {"synced": True, "best_block_height": 106})
 
         self.log.info("Testing getspentinfo method...")
 
@@ -94,13 +91,13 @@ class SpentIndexTest(BitcoinTestFramework):
         self.log.info("Testing getrawtransaction method...")
 
         # Check that verbose raw transaction includes spent info
-        txVerbose = self.nodes[3].getrawtransaction(unspent[0]["txid"], 1)
+        txVerbose = self.nodes[2].getrawtransaction(unspent[0]["txid"], 1)
         assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentTxId"], txid)
         assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentIndex"], 0)
         assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentHeight"], 106)
 
         # Check that verbose raw transaction includes input values
-        txVerbose2 = self.nodes[3].getrawtransaction(txid, 1)
+        txVerbose2 = self.nodes[2].getrawtransaction(txid, 1)
         assert_equal(txVerbose2["vin"][0]["value"], Decimal(unspent[0]["amount"]))
         assert_equal(txVerbose2["vin"][0]["valueSat"] - tx_fee_sat, amount)
 
@@ -134,7 +131,7 @@ class SpentIndexTest(BitcoinTestFramework):
         # Check the database index
         self.generate(self.nodes[0], 1)
 
-        txVerbose4 = self.nodes[3].getrawtransaction(txid2, 1)
+        txVerbose4 = self.nodes[2].getrawtransaction(txid2, 1)
         assert_equal(txVerbose4["vin"][0]["address"], address2)
         assert_equal(txVerbose4["vin"][0]["value"], Decimal(unspent[0]["amount"]) - tx_fee)
         assert_equal(txVerbose4["vin"][0]["valueSat"], amount)
