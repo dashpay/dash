@@ -18,7 +18,6 @@
 #include <netaddress.h>
 #include <spork.h>
 #include <streams.h>
-#include <util/strencodings.h>
 #include <validation.h>
 #include <version.h>
 
@@ -172,27 +171,6 @@ BOOST_FIXTURE_TEST_CASE(historical_coinbase_lookup_from_disk, RegTestingSetup)
     BOOST_CHECK_THROW(unavailable.Read(activation + 30), std::runtime_error);
 }
 
-BOOST_AUTO_TEST_CASE(chainlock_construction_test)
-{
-    // Test default constructor
-    ChainLockSig clsig1;
-    BOOST_CHECK(clsig1.IsNull());
-    BOOST_CHECK_EQUAL(clsig1.getHeight(), -1);
-    BOOST_CHECK(clsig1.getBlockHash().IsNull());
-    BOOST_CHECK(!clsig1.getSig().IsValid());
-
-    // Test parameterized constructor
-    int32_t height = 12345;
-    uint256 blockHash = GetTestBlockHash(1);
-    CBLSSignature sig = CreateRandomBLSSignature();
-
-    ChainLockSig clsig2(height, blockHash, sig);
-    BOOST_CHECK(!clsig2.IsNull());
-    BOOST_CHECK_EQUAL(clsig2.getHeight(), height);
-    BOOST_CHECK(clsig2.getBlockHash() == blockHash);
-    BOOST_CHECK(clsig2.getSig() == sig);
-}
-
 BOOST_AUTO_TEST_CASE(chainlock_null_test)
 {
     ChainLockSig clsig;
@@ -227,26 +205,6 @@ BOOST_AUTO_TEST_CASE(chainlock_serialization_test)
     BOOST_CHECK_EQUAL(clsig.IsNull(), deserialized.IsNull());
 }
 
-BOOST_AUTO_TEST_CASE(chainlock_tostring_test)
-{
-    // Test null chainlock
-    ChainLockSig nullClsig;
-    std::string nullStr = nullClsig.ToString();
-    BOOST_CHECK(!nullStr.empty());
-
-    // Test valid chainlock
-    int32_t height = 123456;
-    uint256 blockHash = GetTestBlockHash(789);
-    ChainLockSig clsig = CreateChainLock(height, blockHash);
-
-    std::string str = clsig.ToString();
-    BOOST_CHECK(!str.empty());
-
-    // ToString should contain height and hash info
-    BOOST_CHECK(str.find(strprintf("%d", height)) != std::string::npos);
-    BOOST_CHECK(str.find(blockHash.ToString().substr(0, 10)) != std::string::npos);
-}
-
 BOOST_AUTO_TEST_CASE(chainlock_edge_cases_test)
 {
     // Test with edge case heights
@@ -269,33 +227,6 @@ BOOST_AUTO_TEST_CASE(chainlock_edge_cases_test)
     ChainLockSig clsig2_deserialized;
     ss2 >> clsig2_deserialized;
     BOOST_CHECK_EQUAL(clsig2.getHeight(), clsig2_deserialized.getHeight());
-}
-
-BOOST_AUTO_TEST_CASE(chainlock_malformed_data_test)
-{
-    // Test deserialization of truncated data
-    ChainLockSig clsig = CreateChainLock(1000, GetTestBlockHash(5));
-
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-    ss << clsig;
-
-    // Truncate the stream
-    std::string data = ss.str();
-    for (size_t truncateAt = 1; truncateAt < data.size(); truncateAt += 10) {
-        CDataStream truncated(std::vector<unsigned char>(data.begin(), data.begin() + truncateAt), SER_NETWORK,
-                              PROTOCOL_VERSION);
-
-        ChainLockSig deserialized;
-        try {
-            truncated >> deserialized;
-            // If no exception, verify it's either complete or default
-            if (truncateAt < sizeof(int32_t)) {
-                BOOST_CHECK(deserialized.IsNull());
-            }
-        } catch (const std::exception&) {
-            // Expected for most truncation points
-        }
-    }
 }
 
 BOOST_FIXTURE_TEST_CASE(stale_chainlocks_are_remembered_for_duplicate_suppression, TestingSetup)

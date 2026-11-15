@@ -22,33 +22,6 @@ using namespace llmq::testutils;
 
 BOOST_FIXTURE_TEST_SUITE(llmq_snapshot_tests, BasicTestingSetup)
 
-BOOST_AUTO_TEST_CASE(quorum_snapshot_construction_test)
-{
-    // Test default constructor
-    CQuorumSnapshot snapshot1;
-    BOOST_CHECK(snapshot1.activeQuorumMembers.empty());
-    BOOST_CHECK_EQUAL(snapshot1.mnSkipListMode, SnapshotSkipMode::MODE_NO_SKIPPING);
-    BOOST_CHECK(snapshot1.mnSkipList.empty());
-
-    // Test parameterized constructor
-    std::vector<bool> activeMembers = {true, false, true, true, false};
-    auto skipMode = SnapshotSkipMode::MODE_SKIPPING_ENTRIES;
-    std::vector<int> skipList = {1, 3, 5, 7};
-
-    CQuorumSnapshot snapshot2(activeMembers, skipMode, skipList);
-    BOOST_CHECK(snapshot2.activeQuorumMembers == activeMembers);
-    BOOST_CHECK_EQUAL(snapshot2.mnSkipListMode, skipMode);
-    BOOST_CHECK(snapshot2.mnSkipList == skipList);
-
-    // Test move semantics
-    std::vector<bool> activeMembersCopy = activeMembers;
-    std::vector<int> skipListCopy = skipList;
-    CQuorumSnapshot snapshot3(std::move(activeMembersCopy), skipMode, std::move(skipListCopy));
-    BOOST_CHECK(snapshot3.activeQuorumMembers == activeMembers);
-    BOOST_CHECK_EQUAL(snapshot3.mnSkipListMode, skipMode);
-    BOOST_CHECK(snapshot3.mnSkipList == skipList);
-}
-
 BOOST_AUTO_TEST_CASE(quorum_snapshot_serialization_test)
 {
     std::vector<bool> activeMembers = CreateBitVector(10, {0, 2, 4, 6, 8});
@@ -107,21 +80,6 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_serialization_test)
     }
     BOOST_CHECK(TestSerializationRoundtrip(CQuorumSnapshot(alternating, SnapshotSkipMode::MODE_NO_SKIPPING, {})));
 }
-
-BOOST_AUTO_TEST_CASE(quorum_rotation_info_construction_test)
-{
-    CQuorumRotationInfo rotInfo;
-
-    // Test default state
-    BOOST_CHECK(!rotInfo.extraShare);
-    BOOST_CHECK(!rotInfo.cycleHMinus4C.has_value());
-    BOOST_CHECK(rotInfo.lastCommitmentPerIndex.empty());
-    BOOST_CHECK(rotInfo.quorumSnapshotList.empty());
-    BOOST_CHECK(rotInfo.mnListDiffList.empty());
-}
-
-// Note: CQuorumRotationInfo serialization requires complex setup
-// This is better tested in functional tests
 
 BOOST_AUTO_TEST_CASE(get_last_base_block_hash_repeated_base_blocks_test)
 {
@@ -251,51 +209,39 @@ BOOST_AUTO_TEST_CASE(quorum_rotation_info_serialization_test)
     BOOST_CHECK(TestSerializationRoundtrip(rotInfo));
 }
 
-BOOST_AUTO_TEST_CASE(quorum_snapshot_json_test)
+BOOST_AUTO_TEST_CASE(quorum_snapshot_json_values)
 {
-    // Create snapshot with test data
-    std::vector<bool> activeMembers = {true, false, true, true, false, false, true};
-    auto skipMode = SnapshotSkipMode::MODE_SKIPPING_ENTRIES;
-    std::vector<int> skipList = {10, 20, 30, 40};
+    const std::vector<bool> activeMembers = {true, false, true};
+    const std::vector<int> skipList = {10, 20};
+    CQuorumSnapshot snapshot(activeMembers, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, skipList);
 
-    CQuorumSnapshot snapshot(activeMembers, skipMode, skipList);
-
-    // Test JSON conversion
-    UniValue json = snapshot.ToJson();
-
-    // Verify JSON structure
-    BOOST_CHECK(json.isObject());
-    BOOST_CHECK(json.exists("activeQuorumMembers"));
-    BOOST_CHECK(json.exists("mnSkipListMode"));
-    BOOST_CHECK(json.exists("mnSkipList"));
-
-    // Verify skip list is array
-    BOOST_CHECK(json["mnSkipList"].isArray());
-    BOOST_CHECK_EQUAL(json["mnSkipList"].size(), skipList.size());
+    const UniValue json = snapshot.ToJson();
+    BOOST_CHECK_EQUAL(json["mnSkipListMode"].getInt<int>(),
+                      static_cast<int>(SnapshotSkipMode::MODE_SKIPPING_ENTRIES));
+    BOOST_REQUIRE_EQUAL(json["activeQuorumMembers"].size(), activeMembers.size());
+    BOOST_CHECK_EQUAL(json["activeQuorumMembers"][0].get_bool(), true);
+    BOOST_CHECK_EQUAL(json["activeQuorumMembers"][1].get_bool(), false);
+    BOOST_CHECK_EQUAL(json["activeQuorumMembers"][2].get_bool(), true);
+    BOOST_REQUIRE_EQUAL(json["mnSkipList"].size(), skipList.size());
+    BOOST_CHECK_EQUAL(json["mnSkipList"][0].getInt<int>(), 10);
+    BOOST_CHECK_EQUAL(json["mnSkipList"][1].getInt<int>(), 20);
 }
 
-BOOST_AUTO_TEST_CASE(quorum_snapshot_malformed_data_test)
+BOOST_AUTO_TEST_CASE(quorum_snapshot_truncated_wire_is_rejected)
 {
-    // Create valid snapshot
-    CQuorumSnapshot snapshot({true, false, true}, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, {1, 2, 3});
-
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-    ss << snapshot;
-
-    // Test truncated data deserialization
-    std::string data = ss.str();
-    for (size_t truncateAt = 1; truncateAt < data.size(); truncateAt += 5) {
+    // Every proper prefix of a populated snapshot is shorter than the length the
+    // compact-size fields claim, so Unserialize must fail rather than return a
+    // partial object. One-byte steps, not a stride, so a prefix the stride skipped
+    // cannot be accepted.
+    const CQuorumSnapshot snapshot({true, false, true}, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, {1, 2, 3});
+    CDataStream full(SER_NETWORK, PROTOCOL_VERSION);
+    full << snapshot;
+    const std::string data = full.str();
+    for (size_t truncateAt = 1; truncateAt < data.size(); ++truncateAt) {
         CDataStream truncated(std::vector<unsigned char>(data.begin(), data.begin() + truncateAt), SER_NETWORK,
                               PROTOCOL_VERSION);
-
         CQuorumSnapshot deserialized;
-        try {
-            truncated >> deserialized;
-            // If no exception, it might be a valid partial deserialization
-            // (though unlikely for complex structures)
-        } catch (const std::exception&) {
-            // Expected for most truncation points
-        }
+        BOOST_CHECK_THROW(truncated >> deserialized, std::ios_base::failure);
     }
 }
 

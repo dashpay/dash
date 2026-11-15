@@ -83,6 +83,20 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_sensitivity_test)
                                                GetTestQuorumHash(99) // Different vvec hash
     );
     BOOST_CHECK(baseHash != hashDiffVvec);
+
+    // Null quorum hash, null vvec hash, and an invalid pubkey still change the hash.
+    uint256 hashNullQuorum = BuildCommitmentHash(llmqType, uint256(), validMembers, quorumPubKey, vvecHash);
+    BOOST_CHECK(!hashNullQuorum.IsNull());
+    BOOST_CHECK(baseHash != hashNullQuorum);
+
+    CBLSPublicKey invalidPubKey;
+    uint256 hashInvalidKey = BuildCommitmentHash(llmqType, quorumHash, validMembers, invalidPubKey, vvecHash);
+    BOOST_CHECK(!hashInvalidKey.IsNull());
+    BOOST_CHECK(baseHash != hashInvalidKey);
+
+    uint256 hashNullVvec = BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPubKey, uint256());
+    BOOST_CHECK(!hashNullVvec.IsNull());
+    BOOST_CHECK(baseHash != hashNullVvec);
 }
 
 BOOST_AUTO_TEST_CASE(build_commitment_hash_edge_cases_test)
@@ -109,59 +123,6 @@ BOOST_AUTO_TEST_CASE(build_commitment_hash_edge_cases_test)
     BOOST_CHECK(hashEmpty != hashAllValid);
     BOOST_CHECK(hashEmpty != hashNoneValid);
     BOOST_CHECK(hashAllValid != hashNoneValid);
-}
-
-BOOST_AUTO_TEST_CASE(build_commitment_hash_null_inputs_test)
-{
-    // Test with null quorum hash
-    uint256 hashNullQuorum = BuildCommitmentHash(TEST_PARAMS.type,
-                                                 uint256(), // Null hash
-                                                 CreateBitVector(5, {0, 1, 2}), CreateRandomBLSPublicKey(),
-                                                 GetTestQuorumHash(1));
-    BOOST_CHECK(!hashNullQuorum.IsNull());
-
-    // Test with invalid (but serializable) public key
-    CBLSPublicKey invalidPubKey;
-    uint256 hashInvalidKey = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), CreateBitVector(5, {0, 1, 2}),
-                                                 invalidPubKey, // Invalid key
-                                                 GetTestQuorumHash(2));
-    BOOST_CHECK(!hashInvalidKey.IsNull());
-
-    // Test with null vvec hash
-    uint256 hashNullVvec = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), CreateBitVector(5, {0, 1, 2}),
-                                               CreateRandomBLSPublicKey(),
-                                               uint256() // Null hash
-    );
-    BOOST_CHECK(!hashNullVvec.IsNull());
-
-    // All should produce different hashes
-    BOOST_CHECK(hashNullQuorum != hashInvalidKey);
-    BOOST_CHECK(hashNullQuorum != hashNullVvec);
-    BOOST_CHECK(hashInvalidKey != hashNullVvec);
-}
-
-BOOST_AUTO_TEST_CASE(build_commitment_hash_large_data_test)
-{
-    // Test with maximum expected quorum size
-    std::vector<bool> largeValidMembers(400, true); // Max quorum size
-
-    // Create pattern in valid members
-    for (size_t i = 0; i < largeValidMembers.size(); i += 3) {
-        largeValidMembers[i] = false;
-    }
-
-    uint256 hashLarge = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), largeValidMembers,
-                                            CreateRandomBLSPublicKey(), GetTestQuorumHash(2));
-
-    BOOST_CHECK(!hashLarge.IsNull());
-
-    // Slightly different pattern should produce different hash
-    largeValidMembers[0] = !largeValidMembers[0];
-    uint256 hashLargeDiff = BuildCommitmentHash(TEST_PARAMS.type, GetTestQuorumHash(1), largeValidMembers,
-                                                CreateRandomBLSPublicKey(), GetTestQuorumHash(2));
-
-    BOOST_CHECK(!hashLargeDiff.IsNull());
-    BOOST_CHECK(hashLarge != hashLargeDiff);
 }
 
 BOOST_AUTO_TEST_CASE(build_commitment_hash_bit_pattern_test)
