@@ -86,13 +86,7 @@ std::optional<bilingual_str> RawSender::SendDirectly(const RawMessage& msg)
         return _("Socket not initialized, cannot send message");
     }
 
-    if (::sendto(m_sock->Get(), reinterpret_cast<const char*>(msg.data()),
-#ifdef WIN32
-                 static_cast<int>(msg.size()),
-#else
-                 msg.size(),
-#endif // WIN32
-                 /*flags=*/0, reinterpret_cast<struct sockaddr*>(&m_server.first), m_server.second) == SOCKET_ERROR) {
+    if (m_sock->SendTo(msg.data(), msg.size(), /*flags=*/0, reinterpret_cast<struct sockaddr*>(&m_server.first), m_server.second) == SOCKET_ERROR) {
         m_failures++;
         return strprintf(_("Unable to send message to %s (::sendto() returned error %s)"), this->ToStringHostPort(),
                          NetworkErrorString(WSAGetLastError()));

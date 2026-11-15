@@ -183,6 +183,13 @@ public:
     [[nodiscard]] virtual ssize_t Recv(void* buf, size_t len, int flags) const;
 
     /**
+     * sendto(2) wrapper. Equivalent to `sendto(m_socket, data, len, flags, dest_addr, addr_len);`.
+     * Code that uses this wrapper can be unit tested if this method is overridden by a mock Sock
+     * implementation.
+     */
+    [[nodiscard]] virtual ssize_t SendTo(const void* data, size_t len, int flags, const sockaddr* dest_addr, socklen_t addr_len) const;
+
+    /**
      * connect(2) wrapper. Equivalent to `connect(this->Get(), addr, addrlen)`. Code that uses this
      * wrapper can be unit tested if this method is overridden by a mock Sock implementation.
      */
@@ -199,6 +206,12 @@ public:
      * wrapper can be unit tested if this method is overridden by a mock Sock implementation.
      */
     [[nodiscard]] virtual int Listen(int backlog) const;
+
+    /**
+     * shutdown(2) wrapper. Equivalent to `shutdown(m_socket, how)`. Code that uses this
+     * wrapper can be unit tested if this method is overridden by a mock Sock implementation.
+     */
+    virtual int Shutdown(int how) const;
 
     /**
      * accept(2) wrapper. Equivalent to `std::make_unique<Sock>(accept(this->Get(), addr, addr_len))`.

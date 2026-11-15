@@ -75,6 +75,11 @@ ssize_t Sock::Recv(void* buf, size_t len, int flags) const
     return recv(m_socket, static_cast<char*>(buf), len, flags);
 }
 
+ssize_t Sock::SendTo(const void* data, size_t len, int flags, const sockaddr* dest_addr, socklen_t addr_len) const
+{
+    return sendto(m_socket, static_cast<const char*>(data), len, flags, dest_addr, addr_len);
+}
+
 int Sock::Connect(const sockaddr* addr, socklen_t addr_len) const
 {
     return connect(m_socket, addr, addr_len);
@@ -88,6 +93,11 @@ int Sock::Bind(const sockaddr* addr, socklen_t addr_len) const
 int Sock::Listen(int backlog) const
 {
     return listen(m_socket, backlog);
+}
+
+int Sock::Shutdown(int how) const
+{
+    return shutdown(m_socket, how);
 }
 
 std::unique_ptr<Sock> Sock::Accept(sockaddr* addr, socklen_t* addr_len) const

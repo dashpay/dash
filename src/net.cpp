@@ -2159,7 +2159,7 @@ void CConnman::DisconnectNodes()
                             LOCK(pnode->m_sock_mutex);
                             if (pnode->m_sock) {
                                 // Give the other side a chance to detect the disconnect as early as possible (recv() will return 0)
-                                ::shutdown(pnode->m_sock->Get(), SD_SEND);
+                                pnode->m_sock->Shutdown(SD_SEND);
                             }
                             pnode->fSocketShutdown = true;
                         }

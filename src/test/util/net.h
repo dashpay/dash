@@ -154,6 +154,8 @@ public:
 
     ssize_t Send(const void*, size_t len, int) const override { return len; }
 
+    ssize_t SendTo(const void*, size_t len, int, const sockaddr*, socklen_t) const override { return len; }
+
     ssize_t Recv(void* buf, size_t len, int flags) const override
     {
         const size_t consume_bytes{std::min(len, m_contents.size() - m_consumed)};
@@ -169,6 +171,8 @@ public:
     int Bind(const sockaddr*, socklen_t) const override { return 0; }
 
     int Listen(int) const override { return 0; }
+
+    int Shutdown(int) const override { return 0; }
 
     std::unique_ptr<Sock> Accept(sockaddr* addr, socklen_t* addr_len) const override
     {
