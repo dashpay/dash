@@ -659,6 +659,10 @@ BOOST_AUTO_TEST_CASE(rpc_convert_composite_commands)
     BOOST_CHECK_EQUAL(result[3][1].get_str(), "1.0.0.1:19999");
     BOOST_CHECK_EQUAL(result[4].get_str(), "yhq7ifNCtTKEpY4Yu5XPCcztQco6Fh6JsZ");
 
+    BOOST_CHECK_NO_THROW(result = RPCConvertValues("bls", {"operatorkey", "0"}));
+    BOOST_CHECK_EQUAL(result[0].get_str(), "operatorkey");
+    BOOST_CHECK_EQUAL(result[1].getInt<int>(), 0);
+
     // Validate that array syntax is not interpreted as string literal (named parameter)
     BOOST_CHECK_NO_THROW(result = RPCConvertNamedValues("protx", {
         "register_prepare",

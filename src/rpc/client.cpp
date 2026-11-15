@@ -348,6 +348,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     // Compound RPCs (note: index position is offset by one to account for subcommand)
     { "bls generate", 1, "legacy" },
     { "bls fromsecret", 2, "legacy" },
+    { "bls operatorkey", 1, "index" },
     { "coinjoinsalt generate", 1, "overwrite" },
     { "coinjoinsalt set", 2, "overwrite" },
     { "gobject list-prepared", 1, "count" },
