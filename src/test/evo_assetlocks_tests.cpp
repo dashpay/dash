@@ -226,6 +226,18 @@ static void CheckAssetLockCommon(uint8_t version, bool is_v24_active)
     }
 
     {
+        // Credits must not exceed the OP_RETURN amount
+        std::vector<CTxOut> wrongOutput = creditOutputs;
+        wrongOutput[0].nValue += CENT;
+
+        CMutableTransaction txGreaterCredits(baseTx);
+        SetTxPayload(txGreaterCredits, CAssetLockPayload(wrongOutput, version));
+
+        BOOST_CHECK(!CheckAssetLockTx(CTransaction(txGreaterCredits), tx_state, is_v24_active));
+        BOOST_CHECK(tx_state.GetRejectReason() == "bad-assetlocktx-creditamount");
+    }
+
+    {
         // Credit output is out-of-range
         std::vector<CTxOut> creditOutputsOutOfRange = creditOutputs;
         creditOutputsOutOfRange[0].nValue = 0;
