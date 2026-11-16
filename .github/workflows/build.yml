@@ -50,6 +50,10 @@ jobs:
       decision-reason: ${{ steps.select-runner.outputs.decision_reason }}
       base-image-digest: ${{ steps.base-image.outputs.digest }}
       runner-check-skip: ${{ vars.RUNNER_CHECK_SKIP || 'ubuntu-24.04-arm' }}
+      # Depends check-cache sources the head's ci/dash/matrix.sh, so only runs
+      # trusted with cache-write may take it to RUNNER_CHECK_SKIP's runners;
+      # the rest use the default arm64 runner, which runs pull request code.
+      runner-check-cache: ${{ steps.select-runner.outputs.cache_write == 'true' && vars.RUNNER_CHECK_SKIP || vars.RUNNER_DEFAULT_ARM64 || 'ubuntu-24.04-arm' }}
       ci-context-tag: ${{ steps.ci-images.outputs.context_tag }}
       existing-runner-image: ${{ steps.ci-images.outputs.runner_image }}
       existing-slim-image: ${{ steps.ci-images.outputs.slim_image }}
@@ -229,7 +233,7 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
-      runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
+      runs-on-check: ${{ needs.check-skip.outputs['runner-check-cache'] }}
 
   depends-linux64:
     name: x86_64-pc-linux-gnu
@@ -242,7 +246,7 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-build: ${{ needs.check-skip.outputs['runner-fast'] }}
-      runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
+      runs-on-check: ${{ needs.check-skip.outputs['runner-check-cache'] }}
 
   depends-linux64_multiprocess:
     name: linux64_multiprocess
@@ -256,7 +260,7 @@ jobs:
       container-path: ${{ needs.container.outputs.path }}
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-arm64'] }}
-      runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
+      runs-on-check: ${{ needs.check-skip.outputs['runner-check-cache'] }}
       runs-on-arch: aarch64
 
   depends-linux64_nowallet:
@@ -270,7 +274,7 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
-      runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
+      runs-on-check: ${{ needs.check-skip.outputs['runner-check-cache'] }}
 
   depends-linux64_platform_gui:
     name: x86_64-pc-linux-gnu_platform_gui
@@ -298,7 +302,7 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
-      runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
+      runs-on-check: ${{ needs.check-skip.outputs['runner-check-cache'] }}
 
   depends-win64:
     name: x86_64-w64-mingw32
@@ -311,7 +315,7 @@ jobs:
       base-image-digest: ${{ needs.check-skip.outputs.base-image-digest }}
       runs-on: ${{ needs.check-skip.outputs['runner-amd64'] }}
       runs-on-build: ${{ needs.check-skip.outputs['runner-build'] }}
-      runs-on-check: ${{ needs.check-skip.outputs['runner-check-skip'] }}
+      runs-on-check: ${{ needs.check-skip.outputs['runner-check-cache'] }}
 
   lint:
     name: Lint
