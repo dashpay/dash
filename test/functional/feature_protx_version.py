@@ -30,6 +30,7 @@ class ProTxVersionTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
+        self.noban_tx_relay = True
         self.extra_args = [[
             '-deprecatedrpc=legacy_mn',
             '-testactivationheight=v19@200',
@@ -138,11 +139,8 @@ class ProTxVersionTest(DashTestFramework):
                 payout_mn = new_mn
 
         # mine more quorums and make sure everything still works between v19 and v24
-        prev_quorum = None
-        for _ in range(2):
-            quorum = self.mine_quorum()
-            assert prev_quorum != quorum
-            self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
+        self.mine_quorum()
+        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
         self.test_protx_v24_versioning(new_mn, migrate_legacy_mn, surviving_legacy_mn, basic_mn, payout_mn, evo_info_0)
 

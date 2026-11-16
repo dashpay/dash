@@ -110,7 +110,6 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         block = self.generatetoaddress(self.nodes[3], 1, self.nodes[0].getnewaddress(), sync_fun=self.no_op)[0]
         self.reconnect_isolated_node(3, 0)
         self.wait_for_chainlocked_block_all_nodes(block)
-        self.nodes[0].setmocktime(self.mocktime)
 
         self.log.info("testing retroactive signing with partially known TX")
         self.isolate_node(3)

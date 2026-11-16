@@ -10,7 +10,7 @@ Checks intra quorum connections
 
 '''
 
-import time
+from concurrent.futures import ThreadPoolExecutor
 
 from test_framework.test_framework import (
     DashTestFramework,
@@ -144,8 +144,9 @@ class LLMQConnections(DashTestFramework):
 
         for i in range(num_simple_nodes):
             self.start_node(i)
-        for mn_info in self.mninfo:
-            self.start_masternode(mn_info)
+        with ThreadPoolExecutor(max_workers=len(self.mninfo)) as executor:
+            for job in [executor.submit(self.start_masternode, mn_info) for mn_info in self.mninfo]:
+                job.result()
 
         # reconnect: simple nodes to node 0, MNs to node 0 only.
         # Quorum connections between MNs must be re-established automatically
@@ -214,11 +215,6 @@ class LLMQConnections(DashTestFramework):
         # Also re-connect non-masternode connections
         for i in range(1, len(self.nodes)):
             self.connect_nodes(i, 0)
-            self.nodes[i].ping()
-        # wait for ping/pong so that we can be sure that spork propagation works
-        time.sleep(1) # needed to make sure we don't check before the ping is actually sent (fPingQueued might be true but SendMessages still not called)
-        for i in range(1, len(self.nodes)):
-            self.wait_until(lambda: all('pingwait' not in peer for peer in self.nodes[i].getpeerinfo()))
 
     def get_mn_connection_count(self, node):
         peers = node.getpeerinfo()

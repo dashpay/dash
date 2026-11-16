@@ -4,190 +4,53 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+"""Test Asset Lock and Asset Unlock transactions through the v24 fork.
+
+Version 2 asset unlocks, non-standard asset locks and crash replay are in
+feature_asset_locks_v24.py.
+"""
+
 import copy
-import http.client
-import struct
-import subprocess
 from decimal import Decimal
 from io import BytesIO
 
+from test_framework.asset_locks import (
+    AssetLocksMixin,
+    HEIGHT_DIFF_EXPIRING,
+    blocks_in_one_day,
+    llmq_type_test,
+    tiny_amount,
+)
 from test_framework.blocktools import (
     create_block,
     create_coinbase,
 )
 from test_framework.authproxy import JSONRPCException
 from test_framework.messages import (
-    CAssetLockTx,
     CAssetUnlockTx,
-    CCoinJoinBroadcastTx,
     COIN,
-    COutPoint,
-    CTransaction,
-    CTxIn,
-    CTxOut,
-    MSG_ASSET_UNLOCK,
-    msg_dstx,
     msg_tx,
     tx_from_hex,
-    hash256,
-    ser_string,
 )
 from test_framework.p2p import P2PInterface
-from test_framework.script import (
-    CScript,
-    hash160,
-    OP_RETURN,
-)
-from test_framework.script_util import (
-    key_to_p2pk_script,
-    key_to_p2pkh_script,
-)
+from test_framework.script import hash160
+from test_framework.script_util import key_to_p2pkh_script
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_greater_than_or_equal,
-    assert_raises,
     assert_raises_rpc_error,
     softfork_active,
 )
 from test_framework.segwit_addr import encode_platform_p2pkh
 from test_framework.wallet_util import generate_keypair
 
-llmq_type_test = 106 # LLMQType::LLMQ_TEST_PLATFORM
-MNEHF_SIGNAL_TX_TYPE = 7 # TRANSACTION_MNHF_SIGNAL
-ASSET_UNLOCK_TX_TYPE = 9 # TRANSACTION_ASSET_UNLOCK
-tiny_amount = int(Decimal("0.0007") * COIN)
-blocks_in_one_day = 100
-HEIGHT_DIFF_EXPIRING = 48
 
-class InvListener(P2PInterface):
-    def __init__(self):
-        super().__init__()
-        self.asset_unlock_invs = []
-
-    def on_inv(self, message):
-        for i in message.inv:
-            if i.type == MSG_ASSET_UNLOCK:
-                self.asset_unlock_invs.append(i.hash)
-
-
-class AssetLocksTest(DashTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
+class AssetLocksTest(AssetLocksMixin, DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(2, 0, [[
-                "-whitelist=127.0.0.1",
-                "-llmqtestinstantsenddip0024=llmq_test_instantsend",
-                "-acceptnonstdtxn=1",
-        ]] * 2, evo_count=2)
+        self.set_asset_locks_test_params()
         self.mn_rr_height = 560
-
-    def skip_test_if_missing_module(self):
-        self.skip_if_no_wallet()
-
-    def create_assetlock(self, coin, amount, pubkey, version=1):
-        node_wallet = self.nodes[0]
-
-
-        coins = coin if isinstance(coin, list) else [coin]
-        inputs = [CTxIn(COutPoint(int(c["txid"], 16), c["vout"])) for c in coins]
-
-        credit_outputs = []
-        tmp_amount = amount
-        if tmp_amount > COIN:
-            tmp_amount -= COIN
-            credit_outputs.append(CTxOut(COIN, key_to_p2pkh_script(pubkey)))
-        credit_outputs.append(CTxOut(tmp_amount, key_to_p2pkh_script(pubkey)))
-
-        lockTx_payload = CAssetLockTx(version, credit_outputs)
-
-        remaining = sum(int(COIN * c['amount']) for c in coins) - tiny_amount - amount
-
-        tx_output_ret = CTxOut(amount, CScript([OP_RETURN, b""]))
-        tx_output = CTxOut(remaining, key_to_p2pk_script(pubkey))
-
-        lock_tx = CTransaction()
-        lock_tx.vin = inputs
-        lock_tx.vout = [tx_output, tx_output_ret] if remaining > 0 else [tx_output_ret]
-        lock_tx.nVersion = 3
-        lock_tx.nType = 8 # asset lock type
-        lock_tx.vExtraPayload = lockTx_payload.serialize()
-
-        lock_tx = node_wallet.signrawtransactionwithwallet(lock_tx.serialize().hex())
-        return tx_from_hex(lock_tx["hex"])
-
-
-    def create_assetunlock_request_id(self, index):
-        # request ID = sha256("plwdtx", index)
-        request_id_buf = ser_string(b"plwdtx") + struct.pack("<Q", index)
-        return hash256(request_id_buf)[::-1].hex()
-
-
-    def create_assetunlock(self, index, withdrawal, pubkey=None, fee=tiny_amount, version=1, requested_height=None):
-        node_wallet = self.nodes[0]
-        mninfo = self.mninfo
-        assert_greater_than(int(withdrawal), fee)
-        tx_output = CTxOut(int(withdrawal) - fee, key_to_p2pk_script(pubkey))
-
-        request_id = self.create_assetunlock_request_id(index)
-
-        height = node_wallet.getblockcount() if requested_height is None else requested_height
-        self.log.info(f"Creating asset unlock: index={index} {request_id}")
-        quorumHash = mninfo[0].get_node(self).quorum("selectquorum", llmq_type_test, request_id)["quorumHash"]
-        self.log.info(f"Used quorum hash: {quorumHash}")
-        unlockTx_payload = CAssetUnlockTx(
-            version = version,
-            index = index,
-            fee = fee,
-            requestedHeight = height,
-            quorumHash = int(quorumHash, 16),
-            quorumSig = b'\00' * 96)
-
-        unlock_tx = CTransaction()
-        unlock_tx.vin = []
-        unlock_tx.vout = [tx_output]
-        unlock_tx.nVersion = 3
-        unlock_tx.nType = 9 # asset unlock type
-        unlock_tx.vExtraPayload = unlockTx_payload.serialize()
-
-        unlock_tx.calc_sha256()
-        msgHash = format(unlock_tx.sha256, '064x')
-
-        recsig = self.get_recovered_sig(request_id, msgHash, llmq_type=llmq_type_test, use_platformsign=True)
-
-        unlockTx_payload.quorumSig = bytearray.fromhex(recsig["sig"])
-        unlock_tx.vExtraPayload = unlockTx_payload.serialize()
-        return unlock_tx
-
-
-    def sync_unlock_instance(self, txid, instance_hash):
-        # A re-signed instance shares the held entry's txid, so sync_mempools() is satisfied
-        # before the refresh has propagated; wait for every node to hold this exact instance.
-        # Refreshes travel as MSG_ASSET_UNLOCK invs on the trickle schedule, which needs time
-        # to advance.
-        def synced():
-            self.bump_mocktime(1)
-            return all(node.getrawtransaction(txid, 1).get('instanceHash') == instance_hash
-                       for node in self.nodes)
-        self.wait_until(synced, timeout=60)
-
-    def get_v2_txid(self, unlock_tx):
-        # The txid of a v2 asset unlock: the tx hashed with the requestedHeight, quorumHash and
-        # quorumSig payload fields zeroed - the fields Platform changes when it re-signs - so
-        # every re-signed instance of one withdrawal shares one txid. The python-side rehash()
-        # of the full serialization is the instance hash instead.
-        payload = CAssetUnlockTx()
-        payload.deserialize(BytesIO(unlock_tx.vExtraPayload))
-        payload.requestedHeight = 0
-        payload.quorumHash = 0
-        payload.quorumSig = b'\x00' * 96
-        tx_copy = copy.deepcopy(unlock_tx)
-        tx_copy.vExtraPayload = payload.serialize()
-        tx_copy.rehash()
-        return tx_copy.hash
-
 
     def create_assetunlock_for_oldest_quorum(self, start_index, withdrawal, pubkey):
         expected_quorum_hash = self.nodes[0].quorum('list')['llmq_test_platform'][-1]
@@ -224,15 +87,6 @@ class AssetLocksTest(DashTestFramework):
                 assert_equal(expected, locked)
         self.log.info(f"Credit pool amount matched with '{expected}'")
         return expected
-
-    def check_mempool_size(self):
-        # Masternodes submit the MnEHF signal transaction on their own as soon as a quorum
-        # able to sign it exists, so it is not part of what this test puts in the mempool.
-        self.sync_mempools()
-        for node in self.nodes:
-            own = [txid for txid in node.getrawmempool()
-                   if node.getrawtransaction(txid, 1)['type'] != MNEHF_SIGNAL_TX_TYPE]
-            assert_equal(len(own), self.mempool_size)
 
     def check_mempool_result(self, result_expected, tx, txid=None):
         """Wrapper to check result of testmempoolaccept on node_0's mempool"""
@@ -276,15 +130,6 @@ class AssetLocksTest(DashTestFramework):
         if result != expected_error:
             raise AssertionError('mining the block should have failed with error %s, but submitblock returned %s' % (expected_error, result))
 
-    def set_sporks(self):
-        spork_enabled = 0
-        spork_disabled = 4070908800
-
-        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork_enabled)
-        self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", spork_disabled)
-        self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", spork_disabled)
-        self.wait_for_sporks_same()
-
     def ensure_tx_is_not_mined(self, tx_id):
         try:
             for node in self.nodes:
@@ -292,41 +137,6 @@ class AssetLocksTest(DashTestFramework):
             raise AssertionError("Transaction should not be mined")
         except JSONRPCException as e:
             assert "Invalid or non-wallet transaction id" in e.error['message']
-
-    def send_tx_simple(self, tx):
-        return self.nodes[0].sendrawtransaction(hexstring=tx.serialize().hex(), maxfeerate=0)
-
-    def send_tx(self, tx, expected_error = None, reason = None):
-        try:
-            self.log.info(f"Send tx with expected_error:'{expected_error}'...")
-            tx_res = self.send_tx_simple(tx)
-            if expected_error is None:
-                self.sync_mempools()
-                return tx_res
-
-            # failure didn't happen, but expected:
-            message = "Transaction should not be accepted"
-            if reason is not None:
-                message += ": " + reason
-
-            raise AssertionError(message)
-        except JSONRPCException as e:
-            assert expected_error in e.error['message']
-
-    def generate_batch(self, count, sync_fun=None):
-        self.log.info(f"Generate {count} blocks")
-        while count > 0:
-            self.log.info(f"Generating batch of blocks {count} left")
-            batch = min(50, count)
-            count -= batch
-            self.bump_mocktime(10 * 60 + 1)
-            self.generate(self.nodes[1], batch, sync_fun=sync_fun)
-
-    # This functional test intentionally setup only 2 MN and only 2 Evo nodes
-    # to ensure that corner case of quorum with minimum amount of nodes as possible
-    # does not cause any issues in Dash Core
-    def mine_quorum_2_nodes(self):
-        self.mine_quorum(llmq_type_name='llmq_test_platform', expected_members=2, expected_connections=1, expected_contributions=2, expected_commitments=2, llmq_type=106)
 
     def run_test(self):
         node_wallet = self.nodes[0]
@@ -351,10 +161,6 @@ class AssetLocksTest(DashTestFramework):
         self.test_withdrawals_fork(node_wallet, node, pubkey)
         self.test_asset_locks_v2_pre_v24(node_wallet, node, pubkey)
         self.test_v24_fork(node_wallet, node, pubkey)
-        self.test_asset_unlock_v2(node_wallet, node, pubkey)
-        self.test_non_standard(node_wallet, node, pubkey)
-        self.test_replay_after_crash(node_wallet, node, pubkey)
-
 
     def test_asset_locks(self, node_wallet, node, pubkey):
         self.log.info("Testing asset lock...")
@@ -420,7 +226,6 @@ class AssetLocksTest(DashTestFramework):
             self.log.info("Platform quorum exist")
 
         self.validate_credit_pool_balance(locked_1)
-
 
     def test_asset_unlocks(self, node_wallet, node, pubkey):
         self.log.info("Testing asset unlock...")
@@ -495,8 +300,6 @@ class AssetLocksTest(DashTestFramework):
         self.check_mempool_size()
         self.validate_credit_pool_balance(locked)
         self.generate(node, 1)
-        assert_equal(rawtx["instantlock"], False)
-        assert_equal(rawtx["chainlock"], False)
         rawtx = node.getrawtransaction(txid, 1)
         assert_equal(rawtx["confirmations"], 1)
         self.validate_credit_pool_balance(locked - COIN)
@@ -554,7 +357,6 @@ class AssetLocksTest(DashTestFramework):
 
         self.log.info("Forcibly mine asset_unlock_tx_duplicate_index and ensure block is invalid")
         self.create_and_check_block([asset_unlock_tx_duplicate_index], expected_error = "bad-assetunlock-duplicated-index")
-
 
     def test_withdrawal_limits(self, node_wallet, node, pubkey):
         self.log.info("Testing withdrawal limits before v22 'withdrawal fork'...")
@@ -713,7 +515,6 @@ class AssetLocksTest(DashTestFramework):
         self.check_mempool_size()
         assert not softfork_active(node_wallet, 'withdrawals')
 
-
     def test_mn_rr(self, node_wallet, node, pubkey):
         self.log.info("Activate mn_rr...")
         locked = self.get_credit_pool_balance()
@@ -787,23 +588,6 @@ class AssetLocksTest(DashTestFramework):
         self.log.info(f'post-v24 height: {node.getblockcount()} credit: {self.get_credit_pool_balance()}')
 
         self.test_asset_locks_v2(node_wallet, node, pubkey)
-
-        asset_unlock_tx, asset_unlock_tx_payload, quorumHash_str = self.create_assetunlock_for_oldest_quorum(601, COIN, pubkey)
-        self.log.info("Check that Asset Unlock tx is valid for current quorum")
-        self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
-
-        assert quorumHash_str in node_wallet.quorum('list')['llmq_test_platform']
-        self.log.info("Generate one more quorum to make signing quorum inactive but still valid")
-        self.mine_quorum_2_nodes()
-        assert quorumHash_str not in node_wallet.quorum('list')['llmq_test_platform']
-
-
-        assert asset_unlock_tx_payload.requestedHeight + HEIGHT_DIFF_EXPIRING > node_wallet.getblockcount()
-        self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
-
-        self.log.info("Generate one more quorum after which signing quorum becomes too old")
-        self.mine_quorum_2_nodes()
-        self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': False, 'reject-reason': 'bad-assetunlock-too-old-quorum'})
 
         self.test_admissible_asset_unlock_ancestor_package(node_wallet, pubkey)
 
@@ -884,20 +668,6 @@ class AssetLocksTest(DashTestFramework):
         assert_raises_rpc_error(-8, "Block height out of range", node.getcreditpoolinfo, -1)
         return expected_limit
 
-    def create_asset_unlock_child(self, node_wallet, asset_unlock_tx, asset_unlock_txid):
-        child_value = Decimal(asset_unlock_tx.vout[0].nValue - tiny_amount) / COIN
-        child_hex = node_wallet.createrawtransaction(
-            [{'txid': asset_unlock_txid, 'vout': 0}],
-            {node_wallet.getnewaddress(): child_value})
-        signed_child = node_wallet.signrawtransactionwithwallet(child_hex)
-        assert signed_child['complete']
-        child_txid = node_wallet.sendrawtransaction(signed_child['hex'])
-
-        # Ensure package selection considers the child before its Asset Unlock
-        # ancestor is considered on its own.
-        node_wallet.prioritisetransaction(child_txid, COIN)
-        return child_txid
-
     def test_admissible_asset_unlock_ancestor_package(self, node_wallet, pubkey):
         self.log.info("Test an admissible Asset Unlock ancestor package")
         asset_unlock_tx = self.create_assetunlock(619, COIN, pubkey)
@@ -920,388 +690,6 @@ class AssetLocksTest(DashTestFramework):
         template_txids = {tx_from_hex(tx['data']).rehash() for tx in node_wallet.getblocktemplate()['transactions']}
         assert asset_unlock_txid not in template_txids
         assert child_txid not in template_txids
-
-    def test_asset_unlock_v2(self, node_wallet, node, pubkey):
-        self.log.info("Testing v2 asset unlocks with stable txids...")
-        assert softfork_active(node_wallet, 'v24')
-        self.log.info("Enable InstantSend: version 2 unlocks are locked once they are minable within the limit")
-        node_wallet.sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 0)
-        self.wait_for_sporks_same()
-
-        # The withdrawal window is exhausted by test_v24_fork, so v2 instances created here stay
-        # unminable in the mempool until the window clears
-        index = 800
-        listener = node_wallet.add_p2p_connection(InvListener())
-        # A peer at the current protocol version supplies the first instance; refreshes of the
-        # withdrawal must still be announced to it later
-        sender = node_wallet.add_p2p_connection(InvListener())
-        unlock_a = self.create_assetunlock(index, COIN, pubkey, version=2)
-        stable_txid = self.get_v2_txid(unlock_a)
-        instance_a = unlock_a.rehash()
-        assert stable_txid != instance_a
-
-        sender.send_and_ping(msg_tx(unlock_a))
-        self.wait_until(lambda: stable_txid in node_wallet.getrawmempool())
-        self.sync_mempools()
-        rpc_tx = node_wallet.getrawtransaction(stable_txid, 1)
-        assert_equal(rpc_tx['txid'], stable_txid)
-        assert_equal(rpc_tx['instanceHash'], instance_a)
-
-        self.log.info("The v2 unlock is announced by instance hash")
-        self.wait_until(lambda: int(instance_a, 16) in listener.asset_unlock_invs)
-
-        self.log.info("Pending withdrawals exceed the limit, so the unlock is not locked while an ordinary tx is")
-        pending = node_wallet.getmempoolinfo()['pendingassetunlocks']
-        # the leftover over-limit unlocks of test_v24_fork exceed a whole window's allowed drop
-        info = node_wallet.getcreditpoolinfo()
-        allowed_drop = max(info['window']['balance'] * 20 / 100, 2000)
-        assert_greater_than(pending, allowed_drop)
-        assert_greater_than(pending, info['currentlimit'])
-        is_txid = node_wallet.sendtoaddress(node_wallet.getnewaddress(), 1)
-        self.wait_for_instantlock(is_txid)
-        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instantlock'], False)
-        assert_equal(node_wallet.getassetunlockstatuses([str(index)])[0], {'index': index, 'status': 'mempooled', 'instantlock': False})
-
-        self.log.info("A second withdrawal refused on the limit is retried automatically once the window clears")
-        retry_index = 801
-        unlock_retry = self.create_assetunlock(retry_index, COIN, pubkey, version=2)
-        retry_txid = self.get_v2_txid(unlock_retry)
-        assert_equal(self.send_tx_simple(unlock_retry), retry_txid)
-        self.sync_mempools()
-        assert_equal(node_wallet.getrawtransaction(retry_txid, 1)['instantlock'], False)
-
-        self.log.info("Spend the unmined v2 unlock by its stable txid")
-        child_value = Decimal(unlock_a.vout[0].nValue - tiny_amount) / COIN
-        child_hex = node_wallet.createrawtransaction(
-            [{'txid': stable_txid, 'vout': 0}],
-            {node_wallet.getnewaddress(): child_value})
-        signed_child = node_wallet.signrawtransactionwithwallet(child_hex)
-        assert signed_child['complete']
-        child_txid = node_wallet.sendrawtransaction(signed_child['hex'])
-        self.sync_mempools()
-        assert child_txid in node_wallet.getrawmempool()
-
-        def child_output():
-            return next(u for u in node_wallet.listunspent(0) if u['txid'] == child_txid)
-        self.log.info("Without a lock on the withdrawal the wallet does not trust the child's output")
-        assert_equal(child_output()['safe'], False)
-
-        self.log.info("A fresher re-signed instance refreshes the entry in place; same txid, child untouched")
-        self.generate(node, 1)
-        unlock_a2 = self.create_assetunlock(index, COIN, pubkey, version=2)
-        assert_equal(self.get_v2_txid(unlock_a2), stable_txid)
-        instance_a2 = unlock_a2.rehash()
-        assert instance_a2 != instance_a
-        assert_equal(self.send_tx_simple(unlock_a2), stable_txid)
-        self.sync_unlock_instance(stable_txid, instance_a2)
-        mempool = node_wallet.getrawmempool()
-        assert stable_txid in mempool
-        assert child_txid in mempool
-        self.log.info("The refresh is announced under its own instance hash, including to the peer that sent the first instance")
-        self.wait_until(lambda: int(instance_a2, 16) in listener.asset_unlock_invs)
-        self.wait_until(lambda: int(instance_a2, 16) in sender.asset_unlock_invs)
-        assert int(instance_a, 16) not in sender.asset_unlock_invs
-
-        self.log.info("A stale instance does not refresh a fresher one")
-        assert_raises_rpc_error(-26, 'assetunlock-stale-instance', self.send_tx_simple, unlock_a)
-
-        self.log.info("A stale instance in a package is rejected by the refresh path; the fresher held instance stays")
-        stale_package_child_hex = node_wallet.createrawtransaction(
-            [{'txid': stable_txid, 'vout': 0}],
-            {node_wallet.getnewaddress(): child_value})
-        signed_stale_package_child = node_wallet.signrawtransactionwithwallet(stale_package_child_hex)
-        assert signed_stale_package_child['complete']
-        assert_raises_rpc_error(-26, f'{stable_txid} failed: assetunlock-stale-instance', node_wallet.submitpackage,
-                                [unlock_a.serialize().hex(), signed_stale_package_child['hex']])
-        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instanceHash'], instance_a2)
-        assert child_txid in node_wallet.getrawmempool()
-
-        self.log.info("Package test acceptance treats the held withdrawal as already in the mempool")
-        # A multi-transaction testmempoolaccept must not route the mempooled unlock through the
-        # in-place refresh path: that used to leave the package feerate accounting unfilled and
-        # abort the node. Refreshes are only admitted through single-transaction submission.
-        funded = node_wallet.fundrawtransaction(node_wallet.createrawtransaction([], {node_wallet.getnewaddress(): 1}))
-        signed_sibling = node_wallet.signrawtransactionwithwallet(funded['hex'])
-        assert signed_sibling['complete']
-        package_result = node_wallet.testmempoolaccept([unlock_a2.serialize().hex(), signed_sibling['hex']])
-        assert_equal(package_result[0]['txid'], stable_txid)
-        assert_equal(package_result[0]['allowed'], False)
-        assert_equal(package_result[0]['reject-reason'], 'txn-already-in-mempool')
-
-        self.log.info("Expire the v2 instance; it and its child must survive in the mempool")
-        self.generate_batch(HEIGHT_DIFF_EXPIRING + 1)
-        mempool = node_wallet.getrawmempool()
-        assert stable_txid in mempool
-        assert child_txid in mempool
-        assert retry_txid in mempool
-
-        self.log.info("A node without the expired instances admits them and the child from a peer")
-        expired_hexes = [node_wallet.getrawtransaction(txid) for txid in (stable_txid, retry_txid, child_txid)]
-        # Stopping dumps node's mempool, which the -persistmempool=0 run neither loads nor overwrites
-        self.restart_node(1, self.extra_args[1] + ["-persistmempool=0"])
-        assert stable_txid not in node.getrawmempool()
-        expired_peer = node.add_p2p_connection(P2PInterface())
-        with node.assert_debug_log(expected_msgs=[], unexpected_msgs=["Misbehaving"]):
-            for tx_hex in expired_hexes:
-                expired_peer.send_and_ping(msg_tx(tx_from_hex(tx_hex)))
-        mempool = node.getrawmempool()
-        assert stable_txid in mempool
-        assert retry_txid in mempool
-        assert child_txid in mempool
-
-        self.log.info("An expired instance must still carry a signature valid at its requestedHeight")
-        forged = tx_from_hex(expired_hexes[0])
-        forged_payload = CAssetUnlockTx()
-        forged_payload.deserialize(BytesIO(forged.vExtraPayload))
-        forged_payload.index = 810
-        forged.vExtraPayload = forged_payload.serialize()
-        forged_peer = node.add_p2p_connection(P2PInterface())
-        with node.assert_debug_log(expected_msgs=["bad-assetunlock-not-verified", "Misbehaving: peer=", "(0 -> 100)"]):
-            forged_peer.send_and_ping(msg_tx(forged))
-        node.disconnect_p2ps()
-
-        self.log.info("A requestedHeight overflowing the height window is rejected as too late")
-        overflow_unlock = self.create_assetunlock(812, COIN, pubkey, version=2, requested_height=2**32 - HEIGHT_DIFF_EXPIRING)
-        assert_equal(node.testmempoolaccept([overflow_unlock.serialize().hex()])[0]['reject-reason'], 'bad-assetunlock-too-late')
-
-        self.log.info("An expired instance signed by a quorum mined after its requestedHeight is admitted")
-        late_index = 811
-        late_quorum = self.mninfo[0].get_node(self).quorum("selectquorum", llmq_type_test, self.create_assetunlock_request_id(late_index))["quorumHash"]
-        late_quorum_mined_height = node.getblock(node.quorum("info", llmq_type_test, late_quorum)["minedBlock"])["height"]
-        late_quorum_unlock = self.create_assetunlock(late_index, COIN, pubkey, version=2, requested_height=late_quorum_mined_height - 1)
-        blocks_to_expiry = late_quorum_mined_height - 1 + HEIGHT_DIFF_EXPIRING - node.getblockcount()
-        if blocks_to_expiry > 0:
-            # node is still disconnected from node_wallet after its restart above
-            self.generate(node, blocks_to_expiry, sync_fun=self.no_op)
-        assert_equal(node.testmempoolaccept([late_quorum_unlock.serialize().hex()])[0]['allowed'], True)
-
-        self.log.info("The expired instances and the child survive a restart")
-        self.restart_node(1, self.extra_args[1])
-        mempool = node.getrawmempool()
-        assert stable_txid in mempool
-        assert retry_txid in mempool
-        assert child_txid in mempool
-        self.connect_nodes(1, 0)
-        self.sync_all()
-
-        self.log.info("Flush leftover withdrawals from earlier phases and clear the window; the expired instance keeps waiting for a re-sign")
-        # Pending unlocks from the limit tests would otherwise consume the cleared window and
-        # crowd this test's withdrawal out of the block. Mine until each of them is either mined
-        # or expired and evicted; the expired instance under test cannot be mined and stays.
-
-        def other_unlocks_pending():
-            self.sync_mempools()
-            return any(txid not in (stable_txid, retry_txid) and node_wallet.getrawtransaction(txid, 1)['type'] == ASSET_UNLOCK_TX_TYPE
-                       for txid in node_wallet.getrawmempool())
-        flushed = 0
-        while other_unlocks_pending():
-            self.generate(node, 1)
-            flushed += 1
-            assert flushed <= 2 * blocks_in_one_day, "leftover withdrawals never left the mempool"
-        self.generate_batch(101)
-        mempool = node_wallet.getrawmempool()
-        assert stable_txid in mempool
-        assert child_txid in mempool
-        self.log.info("A whole window later the allowance has regenerated to at least the 2000 DASH floor")
-        assert_greater_than_or_equal(node_wallet.getcreditpoolinfo()['currentlimit'], 2000)
-
-        self.log.info("Both expired instances fit the cleared limit but are not minable, so neither is locked")
-        assert_equal(node_wallet.getmempoolinfo()['pendingassetunlocks'], 2 * Decimal(unlock_a.vout[0].nValue + tiny_amount) / COIN)
-        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instantlock'], False)
-        assert_equal(node_wallet.getrawtransaction(retry_txid, 1)['instantlock'], False)
-
-        self.log.info("Refreshing the second withdrawal gets it locked: the per-block retry re-evaluates it against the cleared limit")
-        unlock_retry_b = self.create_assetunlock(retry_index, COIN, pubkey, version=2)
-        assert_equal(self.send_tx_simple(unlock_retry_b), retry_txid)
-        self.sync_unlock_instance(retry_txid, unlock_retry_b.rehash())
-        self.wait_for_instantlock(retry_txid)
-        self.generate(node, 1)
-        assert retry_txid not in node_wallet.getrawmempool()
-
-        self.log.info("Refresh the expired instance with a fresh re-sign: minable and within the limit, it gets locked")
-        unlock_b = self.create_assetunlock(index, COIN, pubkey, version=2)
-        assert_equal(self.get_v2_txid(unlock_b), stable_txid)
-        assert_equal(self.send_tx_simple(unlock_b), stable_txid)
-        self.sync_unlock_instance(stable_txid, unlock_b.rehash())
-        self.wait_for_instantlock(stable_txid)
-        assert_equal(node_wallet.getassetunlockstatuses([str(index)])[0], {'index': index, 'status': 'mempooled', 'instantlock': True})
-        self.log.info("The lock pins the withdrawal index as the unlock's single input")
-        islock = node_wallet.getislocks([stable_txid])[0]
-        assert_equal(islock['inputs'], [{'txid': self.create_assetunlock_request_id(index), 'vout': 0}])
-        self.log.info("The child is an ordinary spend of a locked parent: it gets locked and the wallet trusts it")
-        self.wait_for_instantlock(child_txid)
-        assert_equal(child_output()['safe'], True)
-
-        self.log.info("A peer relaying an older instance of the locked withdrawal does not strip the locks")
-        # The rejected instance shares the txid of the locked one still held in the mempool
-        stale_peer = node_wallet.add_p2p_connection(P2PInterface())
-        with node_wallet.assert_debug_log([f"{stable_txid} from peer=", "was not accepted"]):
-            stale_peer.send_and_ping(msg_tx(unlock_a2))
-        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instanceHash'], unlock_b.rehash())
-        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instantlock'], True)
-        assert_equal(node_wallet.getrawtransaction(child_txid, 1)['instantlock'], True)
-
-        self.log.info("Mine the withdrawal with its child")
-        tip_hash = self.generate(node, 1)[0]
-        block = node_wallet.getblock(tip_hash, 2)
-        mined_txids = [t['txid'] for t in block['tx']]
-        assert stable_txid in mined_txids
-        assert child_txid in mined_txids
-        # The coinbase commits to the mined instance's hash; a single leaf is its own merkle root
-        assert_equal(block['cbTx']['merkleRootAssetUnlocks'], unlock_b.rehash())
-        assert_equal(node_wallet.getassetunlockstatuses([str(index)])[0], {'index': index, 'status': 'mined'})
-        child_rpc = node_wallet.getrawtransaction(child_txid, 1)
-        assert_equal(child_rpc['vin'][0]['txid'], stable_txid)
-        assert_equal(node_wallet.getrawtransaction(stable_txid, 1)['instantlock'], True)
-
-        self.log.info("At most one instance of a withdrawal index is held: a version 1 instance signed one block earlier is the claimant")
-        cross_index = 803
-        tip_height = node_wallet.getblockcount()
-        unlock_v1 = self.create_assetunlock(cross_index, COIN, pubkey, version=1, requested_height=tip_height - 1)
-        v1_txid = self.send_tx_simple(unlock_v1)
-        self.sync_mempools()
-
-        self.log.info("A version 2 instance signed at the same height is stale: rejected before its signature is verified")
-        unlock_v2_stale = self.create_assetunlock(cross_index, COIN, pubkey, version=2, requested_height=tip_height - 1)
-        stale_result = node_wallet.testmempoolaccept([unlock_v2_stale.serialize().hex()])[0]
-        assert_equal(stale_result['txid'], self.get_v2_txid(unlock_v2_stale))
-        assert_equal(stale_result['allowed'], False)
-        assert_equal(stale_result['reject-reason'], 'assetunlock-stale-instance')
-        assert v1_txid in node_wallet.getrawmempool()
-
-        unlock_v2_fresh = self.create_assetunlock(cross_index, COIN, pubkey, version=2, requested_height=tip_height)
-        cross_txid = self.get_v2_txid(unlock_v2_fresh)
-        self.log.info("A package cannot replace an unlock while spending the evicted claimant")
-        package_child_hex = node_wallet.createrawtransaction(
-            [{'txid': v1_txid, 'vout': 0}, {'txid': cross_txid, 'vout': 0}],
-            {node_wallet.getnewaddress(): Decimal(unlock_v1.vout[0].nValue + unlock_v2_fresh.vout[0].nValue - tiny_amount) / COIN})
-        fresh_prevout = {'txid': cross_txid, 'vout': 0, 'scriptPubKey': unlock_v2_fresh.vout[0].scriptPubKey.hex(),
-                         'amount': Decimal(unlock_v2_fresh.vout[0].nValue) / COIN}
-        signed_package_child = node_wallet.signrawtransactionwithwallet(package_child_hex, [fresh_prevout])
-        assert signed_package_child['complete']
-        assert_raises_rpc_error(-25, 'assetunlock-conflicting-package', node_wallet.submitpackage,
-                                [unlock_v1.serialize().hex(), unlock_v2_fresh.serialize().hex(), signed_package_child['hex']])
-        assert v1_txid in node_wallet.getrawmempool()
-        assert cross_txid not in node_wallet.getrawmempool()
-
-        self.log.info("Package test acceptance predicts that rejection rather than validating the child against the evicted claimant")
-        evicted_child_hex = node_wallet.createrawtransaction(
-            [{'txid': v1_txid, 'vout': 0}],
-            {node_wallet.getnewaddress(): Decimal(unlock_v1.vout[0].nValue - tiny_amount) / COIN})
-        signed_evicted_child = node_wallet.signrawtransactionwithwallet(evicted_child_hex)
-        assert signed_evicted_child['complete']
-        test_result = node_wallet.testmempoolaccept([unlock_v2_fresh.serialize().hex(), signed_evicted_child['hex']])
-        assert_equal([r['txid'] for r in test_result], [cross_txid, node_wallet.decoderawtransaction(signed_evicted_child['hex'])['txid']])
-        for r in test_result:
-            assert_equal(r['package-error'], 'assetunlock-conflicting-package')
-            assert 'allowed' not in r
-        assert v1_txid in node_wallet.getrawmempool()
-        assert cross_txid not in node_wallet.getrawmempool()
-
-        self.log.info("A version 2 unlock wrapped in a dstx message goes through DSTX validation and is dropped")
-        dstx_peer = node_wallet.add_p2p_connection(P2PInterface())
-        wrapped = CCoinJoinBroadcastTx(tx=unlock_v2_fresh, m_protxHash=1, vchSig=b"\x01" * 96, sigTime=self.mocktime)
-        with node_wallet.assert_debug_log(["Invalid DSTX structure", "invalid dstx"]):
-            dstx_peer.send_and_ping(msg_dstx(wrapped))
-        assert cross_txid not in node_wallet.getrawmempool()
-        assert v1_txid in node_wallet.getrawmempool()
-
-        self.log.info("Signed one block later, the version 2 instance is fresher: it replaces the version 1 claimant and gets locked")
-        assert_equal(self.send_tx_simple(unlock_v2_fresh), cross_txid)
-        self.sync_mempools()
-        mempool = node_wallet.getrawmempool()
-        assert cross_txid in mempool
-        assert v1_txid not in mempool
-        assert_equal(node_wallet.getmempoolinfo()['pendingassetunlocks'], Decimal(unlock_v2_fresh.vout[0].nValue + tiny_amount) / COIN)
-        self.wait_for_instantlock(cross_txid)
-        assert_equal(node_wallet.getassetunlockstatuses([str(cross_index)])[0], {'index': cross_index, 'status': 'mempooled', 'instantlock': True})
-        tip_hash = self.generate(node, 1)[0]
-        assert cross_txid in node_wallet.getblock(tip_hash)['tx']
-
-        self.log.info("A rejected instance does not blacklist the txid shared by every instance of its withdrawal")
-        # The node does not hold this withdrawal yet. An instance with a tampered requestedHeight
-        # fails validation but carries the txid of the valid one, which a child already spends.
-        orphan_index = 804
-        unlock_valid = self.create_assetunlock(orphan_index, COIN, pubkey, version=2)
-        parent_txid = self.get_v2_txid(unlock_valid)
-        tampered_payload = CAssetUnlockTx()
-        tampered_payload.deserialize(BytesIO(unlock_valid.vExtraPayload))
-        tampered_payload.requestedHeight -= 1
-        unlock_tampered = copy.deepcopy(unlock_valid)
-        unlock_tampered.vExtraPayload = tampered_payload.serialize()
-        assert_equal(self.get_v2_txid(unlock_tampered), parent_txid)
-        assert unlock_tampered.rehash() != unlock_valid.rehash()
-
-        parent_value = unlock_valid.vout[0].nValue
-        orphan_child_hex = node_wallet.createrawtransaction(
-            [{'txid': parent_txid, 'vout': 0}],
-            {node_wallet.getnewaddress(): Decimal(parent_value - tiny_amount) / COIN})
-        parent_prevout = {'txid': parent_txid, 'vout': 0, 'scriptPubKey': unlock_valid.vout[0].scriptPubKey.hex(),
-                          'amount': Decimal(parent_value) / COIN}
-        signed_orphan_child = node_wallet.signrawtransactionwithwallet(orphan_child_hex, [parent_prevout])
-        assert signed_orphan_child['complete']
-        orphan_child = tx_from_hex(signed_orphan_child['hex'])
-        orphan_child_txid = orphan_child.rehash()
-
-        relay_peer = node_wallet.add_p2p_connection(P2PInterface())
-        with node_wallet.assert_debug_log([f"{parent_txid} from peer=", "was not accepted"]):
-            relay_peer.send_and_ping(msg_tx(unlock_tampered))
-        assert parent_txid not in node_wallet.getrawmempool()
-
-        self.log.info("A child spending the withdrawal is kept as an orphan and accepted with its valid parent")
-        with node_wallet.assert_debug_log(expected_msgs=[], unexpected_msgs=["not keeping orphan with rejected parents"]):
-            relay_peer.send_and_ping(msg_tx(orphan_child))
-        assert orphan_child_txid not in node_wallet.getrawmempool()
-        relay_peer.send_and_ping(msg_tx(unlock_valid))
-        mempool = node_wallet.getrawmempool()
-        assert parent_txid in mempool
-        assert orphan_child_txid in mempool
-        self.wait_for_instantlock(parent_txid, orphan_child_txid)
-        tip_hash = self.generate(node, 1)[0]
-        mined_txids = node_wallet.getblock(tip_hash)['tx']
-        assert parent_txid in mined_txids
-        assert orphan_child_txid in mined_txids
-
-        self.log.info("A peer relaying an older instance of an unlocked withdrawal does not keep it from being locked later")
-        # A pending withdrawal over the credit pool limit keeps this one from being locked until it
-        # expires; the per-block retry must then lock it without another re-sign
-        tip_height = node_wallet.getblockcount()
-        blocker = self.create_assetunlock(805, 4001 * COIN, pubkey, version=1,
-                                          requested_height=tip_height - HEIGHT_DIFF_EXPIRING + 2)
-        blocker_txid = self.send_tx_simple(blocker)
-        unlock_old = self.create_assetunlock(806, COIN, pubkey, version=2)
-        retry_lock_txid = self.get_v2_txid(unlock_old)
-        assert_equal(self.send_tx_simple(unlock_old), retry_lock_txid)
-        self.sync_mempools()
-        # Empty blocks keep the withdrawal unmined while the blocker is pending
-        self.generateblock(node, node_wallet.getnewaddress(), [])
-        unlock_new = self.create_assetunlock(806, COIN, pubkey, version=2)
-        assert_equal(self.send_tx_simple(unlock_new), retry_lock_txid)
-        self.sync_unlock_instance(retry_lock_txid, unlock_new.rehash())
-        assert blocker_txid in node_wallet.getrawmempool()
-        assert_equal(node_wallet.getrawtransaction(retry_lock_txid, 1)['instantlock'], False)
-
-        for mn in self.mninfo:
-            mn_node = mn.get_node(self)
-            with mn_node.assert_debug_log([f"{retry_lock_txid} from peer=", "assetunlock-stale-instance"]):
-                mn_node.add_p2p_connection(P2PInterface()).send_and_ping(msg_tx(unlock_old))
-            mn_node.disconnect_p2ps()
-
-        self.log.info("Once the blocking withdrawal expires, the per-block retry locks the unlock")
-        for _ in range(3):
-            if blocker_txid not in node_wallet.getrawmempool():
-                break
-            self.generateblock(node, node_wallet.getnewaddress(), [])
-        assert blocker_txid not in node_wallet.getrawmempool()
-        assert retry_lock_txid in node_wallet.getrawmempool()
-        self.wait_for_instantlock(retry_lock_txid)
-        tip_hash = self.generate(node, 1)[0]
-        assert retry_lock_txid in node_wallet.getblock(tip_hash)['tx']
-
-        node_wallet.disconnect_p2ps()
-        self.set_sporks()
-        self.mempool_size = node_wallet.getmempoolinfo()['size']
-        self.check_mempool_size()
 
     def test_asset_locks_v2_pre_v24(self, node_wallet, node, pubkey):
         self.log.info("Testing asset lock v2 rejection before v24 activation...")
@@ -1398,96 +786,6 @@ class AssetLocksTest(DashTestFramework):
         rpc_v1 = node.getrawtransaction(lock_tx_v1.rehash(), 1)
         assert_equal(rpc_v1['assetLockTx']['version'], 1)
         assert 'address' not in rpc_v1['assetLockTx']['creditOutputs'][0]
-
-
-    def test_non_standard(self, node_wallet, node, pubkey):
-        self.log.info("Testing that v2 and >100-input asset locks are non-standard...")
-        assert softfork_active(node_wallet, 'v24')
-
-        coin = node_wallet.listunspent(query_options={'minimumAmount': 1}).pop()
-        lock_v2 = self.create_assetlock(coin, COIN, pubkey, version=2)
-        # reserve this coin so funding the split below can not spend it
-        node_wallet.lockunspent(False, [{'txid': coin['txid'], 'vout': coin['vout']}])
-
-        self.log.info("Split one coin into 101 outputs to build an asset lock with >100 inputs")
-        raw = node_wallet.createrawtransaction([], [{node_wallet.getnewaddress(): 1} for _ in range(101)])
-        funded = node_wallet.fundrawtransaction(raw, {'change_position': 101})['hex']
-        split_txid = node_wallet.sendrawtransaction(node_wallet.signrawtransactionwithwallet(funded)['hex'])
-        self.generate(node, 1)
-        many_coins = [{'txid': split_txid, 'vout': i, 'amount': 1} for i in range(101)]
-        tx_many_inputs = self.create_assetlock(many_coins, COIN, pubkey)
-        assert_equal(len(tx_many_inputs.vin), 101)
-
-        self.log.info("A standard node (-acceptnonstdtxn=0) rejects them; the permissive node accepts them")
-        self.restart_node(1, self.extra_args[1] + ["-acceptnonstdtxn=0"])
-        self.connect_nodes(1, 0)
-
-
-        for tx, reason in [(lock_v2, 'assetlocktx-version-2'), (tx_many_inputs, 'assetlocktx-too-many-inputs')]:
-            tx_hex = tx.serialize().hex()
-            assert_equal(node_wallet.testmempoolaccept([tx_hex])[0]['allowed'], True)
-            rejected = node.testmempoolaccept([tx_hex])[0]
-            assert_equal(rejected['allowed'], False)
-            assert_equal(rejected['reject-reason'], reason)
-
-        self.log.info("They are still valid in a block: mine both and check the standard node accepts it")
-        txids = [node_wallet.sendrawtransaction(tx.serialize().hex()) for tx in [lock_v2, tx_many_inputs]]
-        block_hash = self.generate(node_wallet, 1)[0]
-        for checked_node in self.nodes:
-            for txid in txids:
-                assert txid in checked_node.getblock(block_hash)['tx']
-
-        self.log.info("The wallet refuses to build a v2 asset lock the local mempool would reject")
-        self.restart_node(0, self.extra_args[0] + ["-acceptnonstdtxn=0"])
-        assert_raises_rpc_error(-6, "assetlocktx-version-2", node_wallet.sendtoaddress,
-                                encode_platform_p2pkh('tdash', hash160(pubkey)), 1)
-        self.restart_node(0, self.extra_args[0])
-
-        self.restart_node(1, self.extra_args[1])
-        self.connect_nodes(1, 0)
-
-    def test_replay_after_crash(self, node_wallet, node, pubkey):
-        self.log.info("Testing recovery from a crash mid-flush with a quorum commitment and an asset unlock to replay...")
-        # Every flush now dies after its first partial write, so nothing mined from here on is flushed
-        self.restart_with_crashing_flush()
-
-        self.mine_quorum_2_nodes()
-        quorum_hash = node_wallet.quorum("list", 1)["llmq_test_platform"][0]
-        commitment_block = node_wallet.quorum("info", llmq_type_test, quorum_hash)["minedBlock"]
-        txid = self.send_tx(self.create_assetunlock(900, COIN, pubkey))
-        unlock_block = self.generate(node_wallet, 1)[0]
-        assert txid in node_wallet.getblock(unlock_block)["tx"]
-
-        self.log.info("Restart without peers: the commitment block is replayed before the asset unlock block")
-        self.crash_and_replay(node_wallet, node, [commitment_block, unlock_block])
-        assert quorum_hash in node_wallet.quorum("list")["llmq_test_platform"]
-
-        self.log.info("Replay an asset unlock as the first block rolled forward, with the quorum already mature and flushed")
-        self.restart_node(0, self.extra_args[0])
-        self.restart_with_crashing_flush()
-        txid = self.send_tx(self.create_assetunlock(901, COIN, pubkey))
-        unlock_block = self.generate(node_wallet, 1)[0]
-        assert txid in node_wallet.getblock(unlock_block)["tx"]
-        self.crash_and_replay(node_wallet, node, [unlock_block])
-
-        self.restart_node(0, self.extra_args[0])
-        for i in range(1, len(self.nodes)):
-            self.connect_nodes(0, i)
-
-    def restart_with_crashing_flush(self):
-        self.restart_node(0, self.extra_args[0] + ["-dbcrashratio=1", "-dbbatchsize=1"])
-        for i in range(1, len(self.nodes)):
-            self.connect_nodes(0, i)
-
-    def crash_and_replay(self, node_wallet, node, replayed_blocks):
-        tip = node_wallet.getbestblockhash()
-        self.log.info("Force a flush, which crashes the node")
-        assert_raises((ConnectionError, http.client.CannotSendRequest, subprocess.CalledProcessError), node_wallet.gettxoutsetinfo)
-        self.wait_for_node_exit(0, timeout=10)
-        with node_wallet.assert_debug_log([f"Rolling forward {block}" for block in replayed_blocks]):
-            self.start_node(0, extra_args=self.extra_args[0] + ["-connect=0"])
-        assert_equal(node_wallet.getbestblockhash(), tip)
-        assert_equal(node_wallet.gettxoutsetinfo()["hash_serialized_3"], node.gettxoutsetinfo()["hash_serialized_3"])
 
 
 if __name__ == '__main__':

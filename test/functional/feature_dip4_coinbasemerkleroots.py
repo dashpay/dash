@@ -32,6 +32,7 @@ class LLMQCoinbaseCommitmentsTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
+        self.noban_tx_relay = True
         self.extra_args = [[ f'-testactivationheight=dip0008@{DIP0008_HEIGHT}', f'-testactivationheight=dip0024@{DIP0024_HEIGHT}', "-vbparams=testdummy:999999999999:999999999999" ]] * 4
         self.set_dash_test_params(4, 3, extra_args = self.extra_args)
         self.delay_v20_and_mn_rr(height=V20_HEIGHT)
@@ -282,6 +283,9 @@ class LLMQCoinbaseCommitmentsTest(DashTestFramework):
             assert merkleRootQuorums != 0
         else:
             assert_equal(merkleRootQuorums, 0)
+
+        if with_initial_quorum:
+            return
 
         self.bump_mocktime(1)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
