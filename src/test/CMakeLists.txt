@@ -67,6 +67,7 @@ add_executable(test_bitcoin
   coinjoin_inouts_tests.cpp
   coinjoin_queue_tests.cpp
   coins_tests.cpp
+  coinscachepair_tests.cpp
   coinstatsindex_tests.cpp
   common_url_tests.cpp
   compilerbug_tests.cpp

@@ -26,9 +26,13 @@ struct IndexMigrationSetup : public TestChainSetup {
         const uint256 tip{WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Tip()->GetBlockHash())};
         CCoinsViewDB coins_db{DBParams{.path = gArgs.GetDataDirNet() / "chainstate", .cache_bytes = 1 << 20},
                               CoinsViewOptions{}};
+        CoinsCachePair sentinel{};
+        sentinel.second.SelfRef(sentinel);
         CCoinsMapMemoryResource resource;
         CCoinsMap no_coins{0, CCoinsMap::hasher{}, CCoinsMap::key_equal{}, &resource};
-        BOOST_REQUIRE(coins_db.BatchWrite(no_coins, tip));
+        size_t usage{0};
+        auto cursor{CoinsViewCacheCursor(usage, sentinel, no_coins, /*will_erase=*/true)};
+        BOOST_REQUIRE(coins_db.BatchWrite(cursor, tip));
     }
 
     //! Height the timestamp index resumes from, read before its sync thread can advance it.
