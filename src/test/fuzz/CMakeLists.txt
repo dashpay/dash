@@ -46,6 +46,7 @@ add_executable(fuzz
   golomb_rice.cpp
   hex.cpp
   http_request.cpp
+  i2p.cpp
   integer.cpp
   key.cpp
   key_io.cpp
