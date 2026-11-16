@@ -1,6 +1,6 @@
 # NetBSD Build Guide
 
-Updated for NetBSD [9.2](https://netbsd.org/releases/formal-9/NetBSD-9.2.html).
+**Updated for NetBSD [10.0](https://netbsd.org/releases/formal-10/NetBSD-10.0.html)**
 
 This guide describes how to build dashd, command-line utilities, and GUI on NetBSD.
 
@@ -14,7 +14,7 @@ Install the required dependencies the usual way you [install software on NetBSD]
 The example commands below use `pkgin`.
 
 ```bash
-pkgin install autoconf automake libtool pkg-config git gmake boost libevent zstd
+pkgin install autoconf automake libtool pkg-config git gmake boost-headers libevent zstd
 
 ```
 
@@ -68,10 +68,10 @@ pkgin install db4
 
 #### GUI Dependencies
 
-Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, we need to install `qt5`.
+Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, Qt 5 is required.
 
 ```bash
-pkgin install qt5
+pkgin install qt5-qtbase qt5-qttools
 ```
 
 The GUI can encode addresses in a QR Code. To build in QR support for the GUI, install `qrencode`.
