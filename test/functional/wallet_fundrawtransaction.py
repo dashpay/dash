@@ -1224,7 +1224,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         # 147 bytes per input (148 when high-s); picking 682 inputs will exceed the max standard tx size.
         rawtx = wallet.createrawtransaction([], [{wallet.getnewaddress(): 0.1 * 682}])
 
-        # 1) Try to fund transaction only using the preset inputs
+        # 1) Try to fund transaction only using the preset inputs (pick all 683 inputs to cover the fee)
         input_sizes = []
         for utxo in wallet.listunspent():
             input_sizes.append({"txid": utxo["txid"], "vout": utxo["vout"], "size": 148})
