@@ -29,7 +29,7 @@ git checkout -b dash-subtree v0.3.17
 git rm -rq bindings/*/ build/win64 build/cheri src/asm .github
 git commit -m "Trim for Dash Core: drop language bindings, MSVC/CHERI assembly, perl generators"
 
-# src/vect.h line 11: add  && !defined(__BLST_NO_ASM__)  to the x86_64/aarch64 condition
+# src/vect.h: add  && !defined(__BLST_NO_ASM__)  to the x86_64/aarch64 and _WIN64 conditions
 git commit -am "vect.h: use C limbs when __BLST_NO_ASM__ is set on x86_64/aarch64"
 
 git push git@github.com:dashpay/blst.git dash-subtree
@@ -46,6 +46,7 @@ git subtree add --prefix=src/blst https://github.com/dashpay/blst dash-subtree -
 ```bash
 # in the fork: merge the new tag, repeat the `git rm` if upstream added files there
 git merge v0.3.18
+git push git@github.com:dashpay/blst.git dash-subtree
 # in Dash Core
 git subtree pull --prefix=src/blst https://github.com/dashpay/blst dash-subtree --squash
 ```
