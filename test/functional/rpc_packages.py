@@ -25,6 +25,9 @@ from test_framework.wallet import (
 )
 
 
+MAX_PACKAGE_COUNT = 25
+
+
 class RPCPackagesTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
@@ -350,6 +353,13 @@ class RPCPackagesTest(BitcoinTestFramework):
         # Chain of 3 transactions has too many generations
         chain_hex = [t["hex"] for t in self.wallet.create_self_transfer_chain(chain_length=25)]
         assert_raises_rpc_error(-25, "package topology disallowed", node.submitpackage, chain_hex)
+
+        assert_raises_rpc_error(-8, f"Array must contain between 2 and {MAX_PACKAGE_COUNT} transactions.", node.submitpackage, [])
+        assert_raises_rpc_error(-8, f"Array must contain between 2 and {MAX_PACKAGE_COUNT} transactions.", node.submitpackage, [chain_hex[0]] * 1)
+        assert_raises_rpc_error(
+            -8, f"Array must contain between 2 and {MAX_PACKAGE_COUNT} transactions.",
+            node.submitpackage, [chain_hex[0]] * (MAX_PACKAGE_COUNT + 1)
+        )
 
 
 if __name__ == "__main__":
