@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -438,7 +438,7 @@ RPCHelpMan getaddressinfo()
                         {RPCResult::Type::BOOL, "solvable", "If we know how to spend coins sent to this address, ignoring the possible lack of private keys."},
                         {RPCResult::Type::STR, "desc", /*optional=*/true, "A descriptor for spending coins sent to this address (only when solvable)."},
                         {RPCResult::Type::STR, "parent_desc", /*optional=*/true, "The descriptor used to derive this address if this is a descriptor wallet"},
-                        {RPCResult::Type::BOOL, "isscript", "If the key is a script."},
+                        {RPCResult::Type::BOOL, "isscript", /*optional=*/true, "If the key is a script."},
                         {RPCResult::Type::BOOL, "ischange", "If the address was used for change output."},
                         {RPCResult::Type::STR, "script", /*optional=*/true, "The output script type. Only if isscript is true and the redeemscript is known. Possible types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata"},
                         {RPCResult::Type::STR_HEX, "hex", /*optional=*/true, "The redeemscript for the p2sh address."},
