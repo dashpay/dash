@@ -568,5 +568,39 @@ class WalletSendTest(BitcoinTestFramework):
         # but rounded to nearest integer, it should be the same as the target fee rate
         assert_equal(round(actual_fee_rate_sat_vb), target_fee_rate_sat_vb)
 
+        # Check tx creation size limits
+        self.test_weight_limits()
+
+    def test_weight_limits(self):
+        self.log.info("Test weight limits")
+
+        self.nodes[1].createwallet("test_weight_limits")
+        wallet = self.nodes[1].get_wallet_rpc("test_weight_limits")
+
+        # Generate future inputs; 147 bytes per input (148 when high-s).
+        # Picking 682 inputs will exceed the max standard tx size.
+        outputs = []
+        for _ in range(683):
+            outputs.append({wallet.getnewaddress(): 0.1})
+        self.nodes[0].send(outputs=outputs)
+        self.generate(self.nodes[0], 1)
+
+        # 1) Try to fund transaction only using the preset inputs
+        inputs = wallet.listunspent()
+        assert_raises_rpc_error(-4, "Transaction too large",
+                                wallet.send, outputs=[{wallet.getnewaddress(): 0.1 * 682}], options={"inputs": inputs, "add_inputs": False})
+
+        # 2) Let the wallet fund the transaction
+        assert_raises_rpc_error(-4, "The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs",
+                                wallet.send, outputs=[{wallet.getnewaddress(): 0.1 * 682}])
+
+        # 3) Pre-select some inputs and let the wallet fill-up the remaining amount
+        inputs = inputs[0:460]
+        assert_raises_rpc_error(-4, "The combination of the pre-selected inputs and the wallet automatic inputs selection exceeds the transaction maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs",
+                                wallet.send, outputs=[{wallet.getnewaddress(): 0.1 * 682}], options={"inputs": inputs, "add_inputs": True})
+
+        self.nodes[1].unloadwallet("test_weight_limits")
+
+
 if __name__ == '__main__':
     WalletSendTest().main()
