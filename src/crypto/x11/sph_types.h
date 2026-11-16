@@ -101,7 +101,7 @@ typedef int_fast64_t sph_s64;
  * Define SPH_INLINE to be an "inline" qualifier, if available. We define
  * some small macro-like functions which benefit greatly from being inlined.
  */
-#if (defined __STDC__ && __STDC_VERSION__ >= 199901L) || defined __GNUC__
+#if (defined __STDC__ && defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L) || defined __GNUC__
 #define SPH_INLINE inline
 #elif defined _MSC_VER
 #define SPH_INLINE __inline
@@ -214,14 +214,14 @@ typedef int_fast64_t sph_s64;
 /*
  * MIPS, little-endian.
  */
-#elif MIPSEL || _MIPSEL || __MIPSEL || __MIPSEL__
+#elif defined MIPSEL || defined _MIPSEL || defined __MIPSEL || defined __MIPSEL__
 
 #define SPH_DETECT_LITTLE_ENDIAN     1
 
 /*
  * MIPS, big-endian.
  */
-#elif MIPSEB || _MIPSEB || __MIPSEB || __MIPSEB__
+#elif defined MIPSEB || defined _MIPSEB || defined __MIPSEB || defined __MIPSEB__
 
 #define SPH_DETECT_BIG_ENDIAN        1
 
@@ -314,6 +314,35 @@ typedef int_fast64_t sph_s64;
 #endif
 #if defined SPH_DETECT_PPC64_GCC && !defined SPH_PPC64_GCC
 #define SPH_PPC64_GCC         SPH_DETECT_PPC64_GCC
+#endif
+
+/*
+ * Give the remaining feature macros an explicit value of 0 so they can be
+ * tested with #if under -Wundef.
+ */
+#ifndef SPH_UNALIGNED
+#define SPH_UNALIGNED 0
+#endif
+#ifndef SPH_LITTLE_ENDIAN
+#define SPH_LITTLE_ENDIAN 0
+#endif
+#ifndef SPH_BIG_ENDIAN
+#define SPH_BIG_ENDIAN 0
+#endif
+#ifndef SPH_I386_GCC
+#define SPH_I386_GCC 0
+#endif
+#ifndef SPH_AMD64_GCC
+#define SPH_AMD64_GCC 0
+#endif
+#ifndef SPH_SPARCV9_GCC
+#define SPH_SPARCV9_GCC 0
+#endif
+#ifndef SPH_SPARCV9_GCC_64
+#define SPH_SPARCV9_GCC_64 0
+#endif
+#ifndef SPH_NO_ASM
+#define SPH_NO_ASM 0
 #endif
 
 #if SPH_LITTLE_ENDIAN && !defined SPH_LITTLE_FAST
