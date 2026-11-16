@@ -139,6 +139,8 @@ option(ENABLE_MINER "Enable the in-wallet miner and its RPCs." ON)
 
 option(ENABLE_MIMALLOC "Use mimalloc for BLS secret memory until BLSInit() installs the locked pool." ON)
 
+option(ENABLE_BLST_ASM "Use blst's hand-written assembly on x86_64 and aarch64." ON)
+
 # Dash, unlike upstream, still provides the public libdashconsensus API.
 option(BUILD_CONSENSUS_LIB "Build the public dashconsensus shared library." ON)
 
@@ -451,8 +453,6 @@ add_boost_if_needed()
 if(BUILD_DAEMON OR BUILD_GUI OR BUILD_CLI OR BUILD_TESTS OR BUILD_BENCH OR BUILD_FUZZ_BINARY OR WITH_MULTIPROCESS)
   find_package(Libevent 2.1.8 MODULE REQUIRED)
 endif()
-
-find_package(BLST MODULE REQUIRED)
 
 if(ENABLE_PLATFORM_GUI)
   find_package(PkgConfig REQUIRED)
@@ -776,6 +776,7 @@ add_subdirectory(doc)
 include(cmake/crc32c.cmake)
 include(cmake/leveldb.cmake)
 include(cmake/minisketch.cmake)
+include(cmake/blst.cmake)
 include(cmake/dashbls.cmake)
 add_subdirectory(src)
 

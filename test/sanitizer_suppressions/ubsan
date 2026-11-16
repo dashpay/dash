@@ -10,6 +10,7 @@ nonnull-attribute:dashbls/
 # ------------
 # Suppressions in dependencies that are developed outside this repository.
 unsigned-integer-overflow:*/include/c++/
+unsigned-integer-overflow:blst/
 unsigned-integer-overflow:FuzzedDataProvider::ConsumeIntegralInRange
 unsigned-integer-overflow:dashbls/depends/mimalloc/
 unsigned-integer-overflow:leveldb/
@@ -35,6 +36,7 @@ implicit-unsigned-integer-truncation:secp256k1*
 implicit-signed-integer-truncation,implicit-integer-sign-change:secp256k1*
 implicit-unsigned-integer-truncation:test/fuzz/crypto_diff_fuzz_chacha20.cpp
 shift-base:*/include/c++/
+shift-base:blst/
 shift-base:leveldb/
 shift-base:minisketch/
 # Vendored immer's HAMT merge computes a bitmap shift past the hash width when

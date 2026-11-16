@@ -27,6 +27,11 @@ Files: src/qt/res/fonts/RobotoMono-Bold.ttf
 License: Apache-2.0
 Comment: Site: https://fonts.google.com/specimen/Roboto+Mono
 
+Files: src/blst/*
+Copyright: Supranational LLC
+License: Apache-2.0
+Comment: Site: https://github.com/supranational/blst
+
 Files: src/dashbls/*
 Copyright: 2018-present Chia Network Inc.
            2021-present The Dash Core developers

@@ -1,4 +1,5 @@
-SHARED_EXCLUDED_SUBTREES = ["src/leveldb/",
+SHARED_EXCLUDED_SUBTREES = ["src/blst/",
+                 "src/leveldb/",
                  "src/crc32c/",
                  "src/secp256k1/",
                  "src/minisketch/",
