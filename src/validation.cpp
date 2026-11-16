@@ -3298,8 +3298,10 @@ bool Chainstate::FlushStateToDisk(
                     return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
                 }
                 // Flush the chainstate (which may refer to block index entries).
-                if (!CoinsTip().Flush())
+                const auto empty_cache{(mode == FlushStateMode::ALWAYS) || fCacheLarge || fCacheCritical};
+                if (empty_cache ? !CoinsTip().Flush() : !CoinsTip().Sync()) {
                     return AbortNode(state, "Failed to write to coin database");
+                }
                 m_last_flushed_block = m_blockman.LookupBlockIndex(CoinsTip().GetBestBlock());
             }
             {
@@ -4954,9 +4956,10 @@ bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& 
     if (NotifyHeaderTip(*this)) {
         if (IsInitialBlockDownload() && ppindex && *ppindex) {
             const CBlockIndex& last_accepted{**ppindex};
-            const int64_t blocks_left{(GetTime() - last_accepted.GetBlockTime()) / GetConsensus().nPowTargetSpacing};
+            int64_t blocks_left{(NodeClock::now() - last_accepted.Time()) / GetConsensus().PowTargetSpacing()};
+            blocks_left = std::max<int64_t>(0, blocks_left);
             const double progress{100.0 * last_accepted.nHeight / (last_accepted.nHeight + blocks_left)};
-            LogPrintf("Synchronizing blockheaders, height: %d (~%.2f%%)\n", last_accepted.nHeight, progress);
+            LogInfo("Synchronizing blockheaders, height: %d (~%.2f%%)\n", last_accepted.nHeight, progress);
         }
     }
     return true;
