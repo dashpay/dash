@@ -121,8 +121,8 @@ What it does:
 * Fetch the target branch (the pull request's base by default) and the pull request.
 * Locally construct a merge commit.
 * Show the diff that merge results in.
-* Ask you to verify the resulting source tree (so you can do a make
-check or whatever).
+* Ask you to verify the resulting source tree (so you can build and run `ctest`
+or whatever).
 * Ask you whether to GPG sign the merge commit.
 * Ask you whether to push the result upstream.
 
@@ -136,7 +136,7 @@ Setup
 Configuring the github-merge tool for the Dash Core repository is done in the following way:
 
     git config githubmerge.repository dashpay/dash
-    git config githubmerge.testcmd "make -j4 check" (adapt to whatever you want to use for testing)
+    git config githubmerge.testcmd "cmake --build build -j4 && ctest --test-dir build -j4 --no-tests=error" (adapt to whatever you want to use for testing)
     git config --global user.signingkey mykeyid
 
 Authentication (optional)

@@ -14,7 +14,7 @@ be checked).
 
 Example usage:
 
-    contrib/devtools/check-no-rust.py src/dashd src/dash-cli src/dash-tx src/dash-util src/dash-wallet src/bench/bench_dash src/test/fuzz/fuzz
+    contrib/devtools/check-no-rust.py build/src/dashd build/src/dash-cli build/src/dash-tx build/src/dash-util build/src/dash-wallet build/src/bench/bench_dash build/src/test/fuzz/fuzz
 '''
 import re
 import subprocess

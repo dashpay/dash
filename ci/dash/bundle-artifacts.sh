@@ -50,9 +50,7 @@ if [ "${VERB}" = "create" ]; then
     "src/test/fuzz/fuzz"
     "src/test/test_dash"
   )
-  if [ "${BUILD_TARGET}" != "linux64_multiprocess" ]; then
-    EXCLUSIONS+=("src/qt/qrc_bitcoin.cpp" "src/qt/qrc_dash_locale.cpp")
-  else
+  if [ "${BUILD_TARGET}" = "linux64_multiprocess" ]; then
     # The lint job consumes the compilation database and generated sources.
     test -s "build-ci/dashcore-${BUILD_TARGET}/compile_commands.json"
   fi
