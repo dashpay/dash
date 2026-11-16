@@ -17,6 +17,7 @@ add_executable(fuzz
   bitset.cpp
   block.cpp
   block_header.cpp
+  block_index.cpp
   blockfilter.cpp
   bloom_filter.cpp
   buffered_file.cpp
@@ -29,6 +30,7 @@ add_executable(fuzz
   crypto_aes256.cpp
   crypto_aes256cbc.cpp
   crypto_chacha20.cpp
+  crypto_chacha20poly1305.cpp
   crypto_common.cpp
   crypto_diff_fuzz_chacha20.cpp
   crypto_hkdf_hmac_sha256_l32.cpp

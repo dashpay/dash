@@ -10,9 +10,6 @@
 
 #include <validation.h>
 
-#include <kernel/coinstats.h>
-#include <kernel/mempool_persist.h>
-
 #include <arith_uint256.h>
 #include <bls/bls.h>
 #include <chain.h>
@@ -30,6 +27,7 @@
 #include <flatfile.h>
 #include <hash.h>
 #include <kernel/chainparams.h>
+#include <kernel/coinstats.h>
 #include <kernel/disconnected_transactions.h>
 #include <kernel/mempool_entry.h>
 #include <kernel/notifications_interface.h>
@@ -5834,6 +5832,14 @@ void ChainstateManager::LoadExternalBlockFile(
     }
 }
 
+bool ChainstateManager::ShouldCheckBlockIndex() const
+{
+    // Assert to verify Flatten() has been called.
+    if (!*Assert(m_options.check_block_index)) return false;
+    if (GetRand(*m_options.check_block_index) >= 1) return false;
+    return true;
+}
+
 void ChainstateManager::CheckBlockIndex()
 {
     if (!ShouldCheckBlockIndex()) {
@@ -5850,19 +5856,28 @@ void ChainstateManager::CheckBlockIndex()
         return;
     }
 
-    // Build forward-pointing map of the entire block tree.
+    // Build forward-pointing data structure for the entire block tree.
+    // For performance reasons, indexes of the best header chain are stored in a vector (within CChain).
+    // All remaining blocks are stored in a multimap.
+    // The best header chain can differ from the active chain: E.g. its entries may belong to blocks that
+    // are not yet validated.
+    CChain best_hdr_chain;
+    assert(m_best_header);
+    best_hdr_chain.SetTip(*m_best_header);
+
     std::multimap<CBlockIndex*,CBlockIndex*> forward;
     for (auto& [_, block_index] : m_blockman.m_block_index) {
-        forward.emplace(block_index.pprev, &block_index);
+        // Only save indexes in forward that are not part of the best header chain.
+        if (!best_hdr_chain.Contains(&block_index)) {
+            // Only genesis, which must be part of the best header chain, can have a nullptr parent.
+            assert(block_index.pprev);
+            forward.emplace(block_index.pprev, &block_index);
+        }
     }
+    assert(forward.size() + best_hdr_chain.Height() + 1 == m_blockman.m_block_index.size());
 
-    assert(forward.size() == m_blockman.m_block_index.size());
-
-    std::pair<std::multimap<CBlockIndex*,CBlockIndex*>::iterator,std::multimap<CBlockIndex*,CBlockIndex*>::iterator> rangeGenesis = forward.equal_range(nullptr);
-    CBlockIndex *pindex = rangeGenesis.first->second;
-    rangeGenesis.first++;
-    assert(rangeGenesis.first == rangeGenesis.second); // There is only one index entry with parent nullptr.
-
+    CBlockIndex* pindex = best_hdr_chain[0];
+    assert(pindex);
     // Iterate over the entire block tree, using depth-first search.
     // Along the way, remember whether there are blocks on the path from genesis
     // block being explored which are the first to have certain properties.
@@ -6035,12 +6050,19 @@ void ChainstateManager::CheckBlockIndex()
         // assert(pindex->GetBlockHash() == pindex->GetBlockHeader().GetHash()); // Perhaps too slow
         // End: actual consistency checks.
 
-        // Try descending into the first subnode.
+
+        // Try descending into the first subnode. Always process forks first and the best header chain after.
         std::pair<std::multimap<CBlockIndex*,CBlockIndex*>::iterator,std::multimap<CBlockIndex*,CBlockIndex*>::iterator> range = forward.equal_range(pindex);
         if (range.first != range.second) {
-            // A subnode was found.
+            // A subnode not part of the best header chain was found.
             pindex = range.first->second;
             nHeight++;
+            continue;
+        } else if (best_hdr_chain.Contains(pindex)) {
+            // Descend further into best header chain.
+            nHeight++;
+            pindex = best_hdr_chain[nHeight];
+            if (!pindex) break; // we are finished, since the best header chain is always processed last
             continue;
         }
         // This is a leaf node.
@@ -6068,8 +6090,14 @@ void ChainstateManager::CheckBlockIndex()
             // Proceed to the next one.
             rangePar.first++;
             if (rangePar.first != rangePar.second) {
-                // Move to the sibling.
+                // Move to a sibling not part of the best header chain.
                 pindex = rangePar.first->second;
+                break;
+            } else if (pindexPar == best_hdr_chain[nHeight - 1]) {
+                // Move to pindex's sibling on the best-chain, if it has one.
+                pindex = best_hdr_chain[nHeight];
+                // There will not be a next block if (and only if) parent block is the best header.
+                assert((pindex == nullptr) == (pindexPar == best_hdr_chain.Tip()));
                 break;
             } else {
                 // Move up further.
@@ -6080,8 +6108,8 @@ void ChainstateManager::CheckBlockIndex()
         }
     }
 
-    // Check that we actually traversed the entire map.
-    assert(nNodes == forward.size());
+    // Check that we actually traversed the entire block index.
+    assert(nNodes == forward.size() + best_hdr_chain.Height() + 1);
 }
 
 std::string Chainstate::ToString()

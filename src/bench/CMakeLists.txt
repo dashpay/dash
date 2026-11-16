@@ -24,6 +24,7 @@ add_executable(bench_bitcoin
   ccoins_caching.cpp
   chacha20.cpp
   checkblock.cpp
+  checkblockindex.cpp
   checkqueue.cpp
   disconnected_transactions.cpp
   crypto_hash.cpp
@@ -41,11 +42,13 @@ add_executable(bench_bitcoin
   mempool_stress.cpp
   merkle_root.cpp
   net_processing.cpp
+  parse_hex.cpp
   peer_eviction.cpp
   poly1305.cpp
   pool.cpp
   pow_hash.cpp
   prevector.cpp
+  readblock.cpp
   rollingbloom.cpp
   rpc_blockchain.cpp
   rpc_mempool.cpp

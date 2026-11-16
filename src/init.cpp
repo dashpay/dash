@@ -12,7 +12,6 @@
 
 #include <kernel/checks.h>
 #include <kernel/mempool_options.h>
-#include <kernel/mempool_persist.h>
 #include <kernel/validation_cache_sizes.h>
 
 #include <addrman.h>
@@ -63,6 +62,7 @@
 #include <node/interface_ui.h>
 #include <node/kernel_notifications.h>
 #include <node/mempool_args.h>
+#include <node/mempool_persist.h>
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
@@ -173,8 +173,6 @@
 
 using kernel::CoinStatsHashType;
 using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
-using kernel::DumpMempool;
-using kernel::LoadMempool;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
@@ -183,6 +181,8 @@ using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
+using node::DumpMempool;
+using node::LoadMempool;
 using node::g_indexes_ready_to_sync;
 using node::KernelNotifications;
 using node::LoadChainstate;
@@ -821,7 +821,7 @@ void SetupServerArgs(ArgsManager& argsman)
     hidden_args.emplace_back("-zmqpubsequencehwm=<n>");
 #endif
 
-    argsman.AddArg("-checkblockindex", strprintf("Do a consistency check for the block tree, and  occasionally. (default: %u, regtest: %u)", defaultChainParams->DefaultConsistencyChecks(), regtestChainParams->DefaultConsistencyChecks()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
+    argsman.AddArg("-checkblockindex", strprintf("Do a consistency check for the block tree, chainstate, and other validation data structures every <n> operations. Use 0 to disable. (default: %u, regtest: %u)", defaultChainParams->DefaultConsistencyChecks(), regtestChainParams->DefaultConsistencyChecks()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-checkblocks=<n>", strprintf("How many blocks to check at startup (default: %u, 0 = all)", DEFAULT_CHECKBLOCKS), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-checklevel=<n>", strprintf("How thorough the block verification of -checkblocks is: %s (0-4, default: %u)", Join(CHECKLEVEL_DOC, ", "), DEFAULT_CHECKLEVEL), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-checkaddrman=<n>", strprintf("Run addrman consistency checks every <n> operations. Use 0 to disable. (default: %u)", DEFAULT_ADDRMAN_CONSISTENCY_CHECKS), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
