@@ -192,12 +192,12 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
                 bool fLocked = isman.IsLocked(tx->GetHash());
                 objTx.pushKV("instantlock", fLocked || result["chainlock"].get_bool());
                 objTx.pushKV("instantlock_internal", fLocked);
-                txs.push_back(objTx);
+                txs.push_back(std::move(objTx));
             }
             break;
     }
 
-    result.pushKV("tx", txs);
+    result.pushKV("tx", std::move(txs));
     if (!block.vtx[0]->vExtraPayload.empty()) {
         if (const auto opt_cbTx = GetTxPayload<CCbTx>(block.vtx[0]->vExtraPayload)) {
             result.pushKV("cbTx", opt_cbTx->ToJson());
