@@ -6,7 +6,8 @@
 from test_framework.messages import hash256
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import (
-    BitcoinTestFramework,
+    DashTestFramework,
+    MasternodeInfo,
 )
 from test_framework.util import assert_equal, assert_raises_rpc_error
 
@@ -17,16 +18,20 @@ Tests mnauth RPC command
 '''
 
 
-class FakeMNAUTHTest(BitcoinTestFramework):
+class FakeMNAUTHTest(DashTestFramework):
+    def add_options(self, parser):
+        self.add_wallet_options(parser)
+
     def set_test_params(self):
-        self.num_nodes = 1
+        self.set_dash_test_params(2, 1)
 
     def run_test(self):
-        node = self.nodes[0]
+        masternode: MasternodeInfo = self.mninfo[0]
+        node = masternode.get_node(self)
         node.add_p2p_connection(P2PInterface())
 
-        protx_hash = "01" + "0" * 62
-        public_key = node.bls("generate")["public"]
+        protx_hash = masternode.proTxHash
+        public_key = masternode.pubKeyOperator
 
         # The peerinfo should not yet contain verified_proregtx_hash/verified_pubkey_hash
         assert "verified_proregtx_hash" not in node.getpeerinfo()[-1]

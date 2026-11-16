@@ -63,12 +63,15 @@ class LLMQSigningTest(DashTestFramework):
         def wait_for_sigs(hasrecsigs, isconflicting1, isconflicting2, timeout):
             self.wait_until(lambda: check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout)
 
-        def assert_sigs_nochange(hasrecsigs, isconflicting1, isconflicting2, timeout):
-            assert not self.wait_until(lambda: not check_sigs(hasrecsigs, isconflicting1, isconflicting2), timeout = timeout, do_assert = False)
+        def assert_sigs_nochange(hasrecsigs, isconflicting1, isconflicting2, timeout, other_ids=()):
+            def unchanged():
+                return all(check_sigs(hasrecsigs, isconflicting1, isconflicting2, sig_id) for sig_id in (id, *other_ids))
+            assert not self.wait_until(lambda: not unchanged(), timeout = timeout, do_assert = False)
 
         # Recovering, conflicting or removing a recovered sig can't be undone during this test without a
-        # deliberate step, so a change caused by any earlier step is still visible in a later check. A step
-        # that must cause no change is therefore checked at once.
+        # deliberate step, so a change caused by any earlier step is still visible in a later window. A step
+        # that must cause no change is therefore checked at once, and its window is shared with the next
+        # step that must cause no change either.
 
         # Initial state
         wait_for_sigs(False, False, False, 1)
@@ -152,6 +155,7 @@ class LLMQSigningTest(DashTestFramework):
 
         # Mine one more quorum, so that we have 2 active ones, nothing should change
         self.mine_quorum()
+        # The window for this is shared with the one after the next quorums below
         assert check_sigs(True, False, True)
         first_id = id
 
@@ -178,10 +182,10 @@ class LLMQSigningTest(DashTestFramework):
 
         recsig_time = self.mocktime
 
-        # The quorum that signed is inactive now, which must not affect the recovered sigs: they only age out by time.
-        # mine_quorum does not wait for the recovered signature to reach every masternode.
-        wait_for_sigs(True, False, True, 15)
-        assert check_sigs(True, False, True, sig_id=first_id)
+        # Mine 2 more quorums, so that the one used for the the recovered sig should become inactive, nothing should change
+        self.mine_quorum()
+        self.mine_quorum()
+        assert_sigs_nochange(True, False, True, 3, other_ids=[first_id])
 
         # fast forward until 0.5 days before cleanup is expected, recovered sig should still be valid
         self.bump_mocktime(recsig_time + int(60 * 60 * 24 * 6.5) - self.mocktime, update_schedulers=False)

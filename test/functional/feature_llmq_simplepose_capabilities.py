@@ -41,13 +41,8 @@ class LLMQSimplePoSeCapabilitiesTest(SimplePoSeMixin, DashTestFramework):
     def set_test_params(self):
         self.set_simplepose_test_params()
 
-    def add_options(self, parser):
-        super().add_options(parser)
-        parser.add_argument("--disable-spork23", dest="disable_spork23", default=False, action="store_true",
-                            help="Test with spork23 disabled")
-
     def run_test(self):
-        self.set_pose_sporks(pose_enabled=not self.options.disable_spork23)
+        self.set_pose_sporks()
 
         # These scenarios need SPORK_21 on, an existing quorum and all masternodes healthy
         self.nodes[0].sporkupdate("SPORK_21_QUORUM_ALL_CONNECTED", 0)
@@ -58,10 +53,8 @@ class LLMQSimplePoSeCapabilitiesTest(SimplePoSeMixin, DashTestFramework):
         if not self.options.disable_spork23:
             self.test_banning(self.force_old_mn_proto, 3)
         else:
-            self.log.info("With PoSe off there should be no punishing for outdated nodes")
-            self.force_old_mn_proto(self.mninfo[0])
-            self.mine_quorum(expected_connections=3)
-            assert not check_punished(self.nodes[0], self.mninfo[0])
+            # With PoSe off there should be no punishing for outdated nodes
+            self.test_no_banning(self.force_old_mn_proto, 3)
 
         self.repair_masternodes(True)
         self.reset_probe_timeouts()
@@ -86,9 +79,8 @@ class LLMQSimplePoSeCapabilitiesTest(SimplePoSeMixin, DashTestFramework):
         node = mn.get_node(self)
         others = [m for m in self.mninfo if m is not mn]
         expected_complaints = len(others) if banned else 0
-        rounds = 2 if banned else 1
-        for i in range(rounds):
-            self.log.info(f"Testing PoSe {'banning' if banned else 'no banning'} of a masternode that {reason} {i + 1}/{rounds}")
+        for i in range(2):
+            self.log.info(f"Testing PoSe {'banning' if banned else 'no banning'} of a masternode that {reason} {i + 1}/2")
             self.reset_probe_timeouts()
             with others[0].get_node(self).assert_debug_log([reason] if banned else [], unexpected_msgs=[] if banned else [reason]):
                 self.mine_quorum_no_service(mn, others, relay, services, expected_complaints)

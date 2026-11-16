@@ -52,17 +52,13 @@ class GovernanceTriggerVotingTest(DashTestFramework):
             return predicate()
         self.wait_until(check, timeout=10)
 
-    def mine(self, count=1):
+    def mine(self):
         nodes = self.online_nodes()
-        self.bump_mocktime(count, nodes=nodes)
-        self.generate(self.nodes[0], count, sync_fun=lambda: self.sync_blocks(nodes))
+        self.bump_mocktime(1, nodes=nodes)
+        self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(nodes))
         # Masternodes act on a block only from the validation callback
         for node in nodes:
             node.syncwithvalidationinterfacequeue()
-
-    def mine_to_window_start(self, sb_height):
-        """Masternodes do nothing before the maturity window, so these blocks need no individual attention."""
-        self.mine(sb_height - SB_MATURITY_WINDOW - 1 - self.nodes[0].getblockcount())
 
     def mine_to(self, height):
         while self.nodes[0].getblockcount() < height:
@@ -148,7 +144,8 @@ class GovernanceTriggerVotingTest(DashTestFramework):
         self.sync_mempools(self.online_nodes())
         # Collateral transactions without an InstantSend lock are only mined once they are this old
         self.bump_mocktime(10 * 60 + 1, nodes=self.online_nodes())
-        self.mine(GOVERNANCE_FEE_CONFIRMATIONS)
+        for _ in range(GOVERNANCE_FEE_CONFIRMATIONS):
+            self.mine()
         proposals = []
         for proposal_hex, collateral, address in prepared:
             proposal_hash = node.gobject("submit", "0", 1, created_at, proposal_hex, collateral)
@@ -228,7 +225,7 @@ class GovernanceTriggerVotingTest(DashTestFramework):
         self.log.info("A single change of the approved set: the trigger for the later set is paid")
         sb_height, (p_kept, p_dropped) = self.start_scenario(2)
         self.set_approval({p_kept: True, p_dropped: True})
-        self.mine_to_window_start(sb_height)
+        self.mine_to(sb_height - SB_MATURITY_WINDOW - 1)
         creator, first_trigger = self.create_first_trigger(sb_height)
         assert_equal(self.trigger_addresses(first_trigger),
                      {self.proposal_address[p_kept], self.proposal_address[p_dropped]})
@@ -266,7 +263,7 @@ class GovernanceTriggerVotingTest(DashTestFramework):
         sb_height, (proposal,) = self.start_scenario(1)
         address = self.proposal_address[proposal]
         self.set_approval({proposal: True})
-        self.mine_to_window_start(sb_height)
+        self.mine_to(sb_height - SB_MATURITY_WINDOW - 1)
         creator, trigger = self.create_first_trigger(sb_height)
         creator_node = self.nodes[creator.nodeIdx]
         if restart:
@@ -289,14 +286,16 @@ class GovernanceTriggerVotingTest(DashTestFramework):
         self.log.info("The proposal is approved again: every masternode votes YES on the next trigger and it is paid")
         next_sb_height = sb_height + SB_CYCLE
         self.set_approval({proposal: True})
-        self.mine_to_window_start(next_sb_height)
+        self.mine_to(next_sb_height - SB_MATURITY_WINDOW - 1)
 
+        def one_trigger_everywhere():
+            self.flush_relay()
+            return all(len(self.triggers_for(n, next_sb_height)) == 1 for n in self.online_nodes())
         while True:
             assert self.nodes[0].getblockcount() < next_sb_height - NO_VOTE_DEADLINE_BLOCKS - 2
             self.mine()
-            if any(self.triggers_for(n, next_sb_height) for n in self.online_nodes()):
+            if self.wait_until(one_trigger_everywhere, timeout=5, do_assert=False):
                 break
-        self.wait_relayed(lambda: all(len(self.triggers_for(n, next_sb_height)) == 1 for n in self.online_nodes()))
         next_trigger = next(iter(self.triggers_for(self.nodes[0], next_sb_height)))
         # Every masternode knows the trigger and acts on it at this block
         self.mine()
@@ -311,7 +310,7 @@ class GovernanceTriggerVotingTest(DashTestFramework):
                       "and another trigger still gets NO")
         sb_height, (p_main, p_extra) = self.start_scenario(2)
         self.set_approval({p_main: True, p_extra: True})
-        self.mine_to_window_start(sb_height)
+        self.mine_to(sb_height - SB_MATURITY_WINDOW - 1)
         window_start = sb_height - SB_MATURITY_WINDOW
         # The masternode paid at window_start + 3 keeps the approved set {p_main, p_extra} and creates its
         # trigger once the others are back to {p_main}
@@ -357,7 +356,7 @@ class GovernanceTriggerVotingTest(DashTestFramework):
         sb_height, (p_kept, p_dropped) = self.start_scenario(2)
         self.set_approval({p_kept: True, p_dropped: True})
         window_start = sb_height - SB_MATURITY_WINDOW
-        self.mine_to_window_start(sb_height)
+        self.mine_to(window_start - 1)
         creator, trigger = self.create_first_trigger(sb_height)
 
         fork_point = self.nodes[0].getblockhash(window_start - 1)
@@ -398,7 +397,7 @@ class GovernanceTriggerVotingTest(DashTestFramework):
                       f"in the last {NO_VOTE_DEADLINE_BLOCKS} blocks before the superblock")
         sb_height, (p_a, p_b) = self.start_scenario(2)
         self.set_approval({p_a: True, p_b: True})
-        self.mine_to_window_start(sb_height)
+        self.mine_to(sb_height - SB_MATURITY_WINDOW - 1)
         # The masternode paid at sb_height - 5 keeps the approved set {p_a, p_b}: it is stopped until the
         # block before the one it is paid in, then creates its trigger while catching up
         late = self.payee(sb_height - 5)
