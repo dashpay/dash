@@ -2022,7 +2022,10 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
                              });
     pnode->AddRef();
     m_msgproc->InitializeNode(*pnode, nLocalServices);
-
+    {
+        LOCK(m_nodes_mutex);
+        m_nodes.push_back(pnode);
+    }
     {
         LOCK(pnode->m_sock_mutex);
         if (fLogIPs) {
@@ -2030,11 +2033,6 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         } else {
             LogPrint(BCLog::NET_NETCONN, "connection accepted, sock=%d, peer=%d\n", pnode->m_sock->Get(), pnode->GetId());
         }
-    }
-
-    {
-        LOCK(m_nodes_mutex);
-        m_nodes.push_back(pnode);
     }
     {
         LOCK2(cs_mapSocketToNode, pnode->m_sock_mutex);
