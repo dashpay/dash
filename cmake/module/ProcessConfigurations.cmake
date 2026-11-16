@@ -105,22 +105,13 @@ function(remove_cxx_flag_from_all_configs flag)
 endfunction()
 
 function(append_flag_to_config lang config flag)
-  string(TOUPPER "${config}" config_uppercase)
-  set(flags_var CMAKE_${lang}_FLAGS_${config_uppercase})
-  set(flags "${${flags_var}}")
-  separate_arguments(flags)
-  # Appending unconditionally would re-append on every reconfigure, because the
-  # value read back here is the one this function forced into the cache last time.
-  if(NOT "${flag}" IN_LIST flags)
-    list(APPEND flags "${flag}")
+  string(TOUPPER "CMAKE_${lang}_FLAGS_${config}" var_name)
+  if("${var_name}" IN_LIST precious_variables)
+    return()
   endif()
-  list(JOIN flags " " new_flags)
-  set(${flags_var} "${new_flags}" PARENT_SCOPE)
-  set(${flags_var} "${new_flags}"
-    CACHE STRING
-    "Flags used by the ${lang} compiler during ${config_uppercase} builds."
-    FORCE
-  )
+  string(STRIP "${${var_name}} ${flag}" ${var_name})
+  set(${var_name} "${${var_name}}" PARENT_SCOPE)
+  set_property(CACHE ${var_name} PROPERTY VALUE "${${var_name}}")
 endfunction()
 
 function(replace_cxx_flag_in_config config old_flag new_flag)
