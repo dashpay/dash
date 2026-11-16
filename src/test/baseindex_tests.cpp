@@ -106,6 +106,9 @@ void LowerLastFlushedBlock(ChainstateManager& chainman, int height)
     WITH_LOCK(::cs_main, chainstate.ResetBlockFailureFlags(first_disconnected));
     BOOST_REQUIRE(chainstate.ActivateBestChain(state));
     BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainstate.GetLastFlushedBlock()->nHeight), height);
+    // Deliver the reorg's notifications now. Left in the queue, they would reach the next index to start, which would
+    // take the reconnects of blocks it already indexed as a reorg and rewind.
+    SyncWithValidationInterfaceQueue();
 }
 } // namespace
 
