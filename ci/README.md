@@ -131,7 +131,7 @@ single-use machine.
 | `RUNNER_CHECK_SKIP` | `build.yml` `Check skip conditions`, the existing-container checks and, for runs trusted with the remote ccache write credential, the depends `Check cache` jobs | `ubuntu-24.04-arm` |
 | `RUNNER_CACHE_DEPENDS_SOURCES` | scheduled `cache-depends-sources.yml` | `ubuntu-24.04-arm` |
 | `RUNNER_GUIX_BUILD` | `guix-build.yml` image and build jobs | `ubuntu-24.04-arm` |
-| `RUNNER_GUIX_ATTEST` | `guix-build.yml` release-tag `attest` job | `ubuntu-24.04` |
+| `RUNNER_GUIX_ATTEST` | `guix-build.yml` `attest-build` and release-tag `attest` jobs | `ubuntu-24.04` |
 | `RUNNER_CLANG_DIFF_FORMAT` | `clang-diff-format.yml` | `ubuntu-latest` |
 | `RUNNER_PREVENT_MASTER_PR` | `prevent-master-pr.yml` | `ubuntu-latest` |
 | `RUNNER_LABEL_MERGE_CONFLICTS` | `label-merge-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |

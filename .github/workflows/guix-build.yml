@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ vars.RUNNER_GUIX_BUILD || 'ubuntu-24.04-arm' }}
     if: |
       (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || vars.RUN_GUIX_ON_ALL_PUSH == 'true')) ||
-      contains(github.event.pull_request.labels.*.name, 'guix-build') ||
+      github.event.label.name == 'guix-build' ||
       github.event_name == 'schedule'
     outputs:
       image: ghcr.io/${{ steps.prepare.outputs.repo-name }}/dashcore-guix-builder@${{ steps.build.outputs.digest }}
@@ -82,8 +82,6 @@ jobs:
     runs-on: ${{ vars.RUNNER_GUIX_BUILD || 'ubuntu-24.04-arm' }}
     permissions:
       packages: read
-      id-token: write
-      attestations: write
     strategy:
       matrix:
         build_target: [x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, powerpc64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, arm64-apple-darwin]
@@ -169,17 +167,34 @@ jobs:
             ${{ github.workspace }}/dash/guix-build*/output/${{ matrix.build_target }}/
           compression-level: 0
 
-      - name: Attest build provenance
-        uses: actions/attest@v4
-        with:
-          subject-path: ${{ github.workspace }}/dash/guix-build*/output/${{ matrix.build_target }}/*
-
       - name: Upload SHA256SUMS fragment
         uses: actions/upload-artifact@v6
         with:
           name: guix-sha256sums-${{ matrix.build_target }}
           path: ${{ github.workspace }}/dash/guix-build*/output/${{ matrix.build_target }}/SHA256SUMS.part
           if-no-files-found: error
+
+  # Kept out of the build job, which runs the pull request head on
+  # pull_request_target: its OIDC token would name develop as the source
+  attest-build:
+    needs: build
+    if: github.event_name != 'pull_request_target'
+    runs-on: ${{ vars.RUNNER_GUIX_ATTEST || 'ubuntu-24.04' }}
+    permissions:
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: guix-artifacts-*
+          path: ${{ runner.temp }}/guix
+          merge-multiple: true
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/guix/guix-build*/output/*/*
 
   # Publish the release's guix.sigs-format noncodesigned.SHA256SUMS with a
   # keyless (Sigstore) attestation tying it to this workflow and tag
