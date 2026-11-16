@@ -9,8 +9,6 @@
 #include <context.h>
 
 #include <atomic>
-#include <memory>
-#include <string>
 
 //! Default value for -daemon option
 static constexpr bool DEFAULT_DAEMON = false;

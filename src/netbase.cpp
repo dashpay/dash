@@ -24,7 +24,7 @@
 #include <functional>
 #include <memory>
 
-#if HAVE_SOCKADDR_UN
+#ifdef HAVE_SOCKADDR_UN
 #include <sys/un.h>
 #endif
 
@@ -228,7 +228,7 @@ CService LookupNumeric(const std::string& name, uint16_t portDefault, DNSLookupF
 
 bool IsUnixSocketPath(const std::string& name)
 {
-#if HAVE_SOCKADDR_UN
+#ifdef HAVE_SOCKADDR_UN
     if (name.find(ADDR_PREFIX_UNIX) != 0) return false;
 
     // Split off "unix:" prefix
@@ -512,7 +512,7 @@ std::unique_ptr<Sock> CreateSockOS(sa_family_t address_family)
     if (address_family == AF_UNSPEC) return nullptr;
 
     int protocol{IPPROTO_TCP};
-#if HAVE_SOCKADDR_UN
+#ifdef HAVE_SOCKADDR_UN
     if (address_family == AF_UNIX) protocol = 0;
 #endif
 
@@ -547,7 +547,7 @@ std::unique_ptr<Sock> CreateSockOS(sa_family_t address_family)
         return nullptr;
     }
 
-#if HAVE_SOCKADDR_UN
+#ifdef HAVE_SOCKADDR_UN
     if (address_family == AF_UNIX) return sock;
 #endif
 
@@ -655,7 +655,7 @@ std::unique_ptr<Sock> Proxy::Connect() const
 
     if (!m_is_unix_socket) return ConnectDirectly(proxy, /*manual_connection=*/true);
 
-#if HAVE_SOCKADDR_UN
+#ifdef HAVE_SOCKADDR_UN
     auto sock = CreateSock(AF_UNIX);
     if (!sock) {
         LogPrintLevel(BCLog::NET, BCLog::Level::Error, "Cannot create a socket for connecting to %s\n", m_unix_socket_path);
