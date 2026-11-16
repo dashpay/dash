@@ -128,10 +128,10 @@ single-use machine.
 | `RUNNER_DEFAULT_AMD64` | `build.yml` amd64 jobs | `ubuntu-24.04` |
 | `RUNNER_DEFAULT_ARM64` | `build.yml` arm64 jobs and ccache pruning | `ubuntu-24.04-arm` |
 | `RUNNER_AMD64`, `RUNNER_ARM64` | `build.yml` runs moved off the default runners by the backlog, the `blacksmith-ci` label or an amd64 tier's last step | the defaults above |
-| `RUNNER_CHECK_SKIP` | `build.yml` `Check skip conditions`, the depends `Check cache` jobs and the existing-container checks | `ubuntu-24.04-arm` |
+| `RUNNER_CHECK_SKIP` | `build.yml` `Check skip conditions`, the existing-container checks and, for runs trusted with the remote ccache write credential, the depends `Check cache` jobs | `ubuntu-24.04-arm` |
 | `RUNNER_CACHE_DEPENDS_SOURCES` | scheduled `cache-depends-sources.yml` | `ubuntu-24.04-arm` |
 | `RUNNER_GUIX_BUILD` | `guix-build.yml` image and build jobs | `ubuntu-24.04-arm` |
-| `RUNNER_GUIX_ATTEST` | `guix-build.yml` release-tag `attest` job | `ubuntu-24.04` |
+| `RUNNER_GUIX_ATTEST` | `guix-build.yml` `attest-build` and release-tag `attest` jobs | `ubuntu-24.04` |
 | `RUNNER_CLANG_DIFF_FORMAT` | `clang-diff-format.yml` | `ubuntu-latest` |
 | `RUNNER_PREVENT_MASTER_PR` | `prevent-master-pr.yml` | `ubuntu-latest` |
 | `RUNNER_LABEL_MERGE_CONFLICTS` | `label-merge-conflicts.yml` | `DASH_LIGHT_RUNNER`, then `ubuntu-latest` |
@@ -153,12 +153,16 @@ Jobs without a `container:` run straight on the runner and expect the tools
 GitHub's Ubuntu images ship, such as `gh`, `jq`, `python3` and Docker; ccache
 pruning on `RUNNER_DEFAULT_ARM64`, for example, calls `gh` and `jq`.
 
-The depends `Check cache` jobs run on `RUNNER_CHECK_SKIP`, and a cache hit
-there skips the depends build. Blacksmith runners use their own cache rather
-than GitHub's, so `RUNNER_CHECK_SKIP` and the runners that build depends must
-use the same one: with Blacksmith default runners, set `RUNNER_CHECK_SKIP` to
-a Blacksmith label and leave `RUNNER_SELFHOSTED_FAST` and
-`RUNNER_SELFHOSTED_BUILD` unset.
+The depends `Check cache` jobs source the pull request's `ci/dash/matrix.sh`,
+so they run on `RUNNER_CHECK_SKIP` only for pushes and allowlisted pull
+requests (the runs given `CCACHE_REMOTE_AUTH`), and otherwise on
+`RUNNER_DEFAULT_ARM64`. The other `RUNNER_CHECK_SKIP` jobs run only
+base-branch code, which is why it may name our own hardware; keep it that way.
+A cache hit in `Check cache` skips the depends build. Blacksmith runners use
+their own cache rather than GitHub's, so the check runners and the runners
+that build depends must use the same one: with Blacksmith default runners,
+set `RUNNER_CHECK_SKIP` to a Blacksmith label and leave
+`RUNNER_SELFHOSTED_FAST` and `RUNNER_SELFHOSTED_BUILD` unset.
 
 The backlog that moves runs to `RUNNER_AMD64`/`RUNNER_ARM64` counts queued
 jobs in the dashpay repositories listed in `select_dynamic_runner.py`, and
