@@ -47,6 +47,7 @@ Output descriptors currently support:
 - `sortedmulti(1,022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4,025cbdf0646e5db4eaa398f365f2ea7a0e3d419b7e0330e39ce92bddedcac4f9bc)` describes a bare *1-of-2* multisig with keys sorted lexicographically in the resulting redeemScript.
 - `pkh(xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw/1/2)` describes a P2PKH output with child key *1/2* of the specified xpub.
 - `pkh([d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/1/*)` describes a set of P2PKH outputs, but additionally specifies that the specified xpub is a child of a master with fingerprint `d34db33f`, and derived using path `44'/0'/0'`.
+- `sh(sortedmulti(2,[6f53d49c/44h/1h/0h]tpubDDjsCRDQ9YzyaAq9rspCfq8RZFrWoBpYnLxK6sS2hS2yukqSczgcYiur8Scx4Hd5AZatxTuzMtJQJhchufv1FRFanLqUP7JHwusSSpfcEp2/0/*,[e6807791/44h/1h/0h]tpubDDAfvogaaAxaFJ6c15ht7Tq6ZmiqFYfrSmZsHu7tHXBgnjMZSHAeHSwhvjARNA6Qybon4ksPksjRbPDVp7yXA1KjTjSd5x18KHqbppnXP1s/0/*,[367c9cfa/44h/1h/0h]tpubDDtPnSgWYk8dDnaDwnof4ehcnjuL5VoUt1eW2MoAed1grPHuXPDnkX1fWMvXfcz3NqFxPbhqNZ3QBdYjLz2hABeM9Z2oqMR1Gt2HHYDoCgh/0/*))#6adrlqpw` describes a *2-of-3* multisig. For brevity, the internal "change" descriptor accompanying the above external "receiving" descriptor is not included here, but it typically differs only in the xpub derivation steps, ending in `/1/*` for change addresses.
 
 ## Reference
 
@@ -138,9 +139,9 @@ The basic steps are:
      the participant's signer wallet. Avoid reusing this wallet for any purpose other than signing transactions from the
      corresponding multisig we are about to create. Hint: extract the wallet's xpubs using `listdescriptors` and pick the one from the
      `pkh` descriptor since it's least likely to be accidentally reused (legacy addresses)
-  2. Create a watch-only descriptor wallet (blank, private keys disabled). Now the multisig is created by importing the two descriptors:
+  2. Create a watch-only descriptor wallet (blank, private keys disabled). Now the multisig is created by importing the external and internal descriptors:
      `wsh(sortedmulti(<M>,XPUB1/0/*,XPUB2/0/*,…,XPUBN/0/*))` and `wsh(sortedmulti(<M>,XPUB1/1/*,XPUB2/1/*,…,XPUBN/1/*))`
-     (one descriptor w/ `0` for receiving addresses and another w/ `1` for change). Every participant does this
+     (one descriptor w/ `0` for receiving addresses and another w/ `1` for change). Every participant does this. All key origin information (master key fingerprint and all derivation steps) should be included with xpubs for proper support of hardware devices / external signers
   3. A receiving address is generated for the multisig. As a check to ensure step 2 was done correctly, every participant
      should verify they get the same addresses
   4. Funds are sent to the resulting address
