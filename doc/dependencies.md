@@ -6,8 +6,7 @@ You can find installation instructions in the `build-*.md` file for your platfor
 
 | Dependency | Minimum required |
 | --- | --- |
-| [Autoconf](https://www.gnu.org/software/autoconf/) | [2.69](https://github.com/bitcoin/bitcoin/pull/17769) |
-| [Automake](https://www.gnu.org/software/automake/) | [1.13](https://github.com/bitcoin/bitcoin/pull/18290) |
+| [CMake](https://cmake.org) | 3.22 |
 | [Clang](https://clang.llvm.org) | [16.0](https://github.com/bitcoin/bitcoin/pull/30263) |
 | [GCC](https://gcc.gnu.org) | [11.1](https://github.com/bitcoin/bitcoin/pull/29091) |
 | [Python](https://www.python.org) (scripts, tests) | [3.10](https://github.com/bitcoin/bitcoin/pull/30527) |
@@ -37,8 +36,8 @@ You can find installation instructions in the `build-*.md` file for your platfor
 | [qrencode](../depends/packages/qrencode.mk) | [link](https://fukuchi.org/works/qrencode/) | [4.1.1](https://github.com/bitcoin/bitcoin/pull/27312) | | No |
 | [Qt](../depends/packages/qt.mk) | [link](https://download.qt.io/official_releases/qt/) | [5.15.18](https://github.com/dashpay/dash/pull/6949) | 5.15 | No |
 
-### Dash Platform GUI (`--enable-platform-gui`, depends `PLATFORM_GUI=1` only)
-`--enable-platform-gui` is an opt-in developer build. Official release binaries are built without it (Guix refuses
+### Dash Platform GUI (`-DENABLE_PLATFORM_GUI=ON`, depends `PLATFORM_GUI=1` only)
+`-DENABLE_PLATFORM_GUI=ON` is an opt-in developer build. Official release binaries are built without it (Guix refuses
 `PLATFORM_GUI`), and CI builds and tests it on x86_64 Linux only. Rust and protoc are pinned prebuilt binaries verified
 by SHA256.
 

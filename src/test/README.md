@@ -12,22 +12,23 @@ that runs all of the unit tests. The main source file for the test library is fo
 
 ### Compiling/running unit tests
 
-Unit tests will be automatically compiled if dependencies were met in `./configure`
-and tests weren't explicitly disabled.
+Unit tests are compiled by default unless disabled with `-DBUILD_TESTS=OFF`
+when configuring with CMake.
 
-After configuring, they can be run with `make check`, which includes unit tests from
-subtrees, or `make && make -C src check-unit` for just the unit tests.
+Assuming the build directory is named `build`, run them with
+`ctest --test-dir build`, which includes unit tests from subtrees.
 
-To run the unit tests manually, launch `src/test/test_dash`. To recompile
-after a test file was modified, run `make` and then run the test again. If you
-modify a non-test file, use `make -C src/test` to recompile only what's needed
-to run the unit tests.
+To run the unit tests manually, launch `build/src/test/test_dash`. To recompile
+after a test file was modified, run `cmake --build build` and then run the test again. If you
+modify a non-test file, use `cmake --build build --target test_bitcoin` to recompile
+only what is needed to run the unit tests. The target retains its upstream name
+and produces the `test_dash` executable.
 
 To add more unit tests, add `BOOST_AUTO_TEST_CASE` functions to the existing
 .cpp files in the `test/` directory or add new .cpp files that
 implement new `BOOST_AUTO_TEST_SUITE` sections.
 
-To run the GUI unit tests manually, launch `src/qt/test/test_dash-qt`
+To run the GUI unit tests manually, launch `build/src/qt/test/test_dash-qt`
 
 To add more GUI unit tests, add them to the `src/qt/test/` directory and
 the `src/qt/test/test_main.cpp` file.
@@ -38,7 +39,7 @@ the `src/qt/test/test_main.cpp` file.
 For example, to run just the `getarg_tests` suite of tests:
 
 ```bash
-test_dash --log_level=all --run_test=getarg_tests
+build/src/test/test_dash --log_level=all --run_test=getarg_tests
 ```
 
 `log_level` controls the verbosity of the test framework, which logs when a
@@ -47,7 +48,7 @@ line arguments accepted by `dashd`. Use `--` to separate both types of
 arguments:
 
 ```bash
-test_dash --log_level=all --run_test=getarg_tests -- -printtoconsole=1
+build/src/test/test_dash --log_level=all --run_test=getarg_tests -- -printtoconsole=1
 ```
 
 The `-printtoconsole=1` after the two dashes redirects the debug log, which
@@ -57,15 +58,16 @@ would normally go to a file in the test datadir
 ... or to run just the doubledash test:
 
 ```bash
-test_dash --run_test=getarg_tests/doubledash
+build/src/test/test_dash --run_test=getarg_tests/doubledash
 ```
 
-Run `test_dash --help` for the full list.
+Run `build/src/test/test_dash --help` for the full list.
 
 ### Adding test cases
 
 To add a new unit test file to our test suite you need
-to add the file to `src/Makefile.test.include`. The pattern is to create
+to add the file to `src/test/CMakeLists.txt`, or `src/wallet/test/CMakeLists.txt`
+for wallet-related tests. The pattern is to create
 one test file for each class or source file for which you want to create
 unit tests. The file naming convention is `<source_filename>_tests.cpp`
 and such files should wrap their tests in a test suite
@@ -74,8 +76,9 @@ see `uint256_tests.cpp`.
 
 ### Logging and debugging in unit tests
 
-`make check` will write to a log file `foo_tests.cpp.log` and display this file
-on failure. For running individual tests verbosely, refer to the section
+`ctest --test-dir build` writes logs to `build/Testing/Temporary/LastTest.log`.
+Use `--output-on-failure` to display logs automatically when a test fails. For
+running individual tests verbosely, refer to the section
 [above](#running-individual-tests).
 
 To write to logs from unit tests you need to use specific message methods
@@ -85,13 +88,13 @@ For debugging you can launch the `test_dash` executable with `gdb` or `lldb` and
 start debugging, just like you would with any other program:
 
 ```bash
-gdb src/test/test_dash
+gdb build/src/test/test_dash
 ```
 
 #### Segmentation faults
 
 If you hit a segmentation fault during a test run, you can diagnose where the fault
-is happening by running `gdb ./src/test/test_dash` and then using the `bt` command
+is happening by running `gdb ./build/src/test/test_dash` and then using the `bt` command
 within gdb.
 
 Another tool that can be used to resolve segmentation faults is
@@ -109,7 +112,7 @@ Running the tests and hitting a segmentation fault should now produce a file cal
 
 You can then explore the core dump using
 ```bash
-gdb src/test/test_dash core
+gdb build/src/test/test_dash core
 
 (gbd) bt  # produce a backtrace for where a segfault occurred
 ```

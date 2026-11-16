@@ -47,7 +47,7 @@ To install, run the following from your terminal:
 See [dependencies.md](dependencies.md) for a complete overview.
 
 ``` bash
-brew install automake libtool boost pkg-config libevent zstd
+brew install cmake boost pkg-config libevent zstd
 ```
 
 ### 4. Clone Dash repository
@@ -88,7 +88,7 @@ brew install berkeley-db@4
 ###### Qt
 
 Dash Core includes a GUI built with the cross-platform Qt Framework.
-To compile the GUI, we need to install `qt@5`.
+To compile the GUI, install `qt@5` and pass `-DBUILD_GUI=ON` to CMake.
 Skip if you don't intend to use the GUI.
 
 ``` bash
@@ -101,7 +101,7 @@ See the notes in [#7714](https://github.com/dashpay/dash/issues/7714).
 ###### qrencode
 
 The GUI can encode addresses in a QR Code. To build in QR support for the GUI, install `qrencode`.
-Skip if not using the GUI or don't want QR code functionality.
+If you do not want QR code functionality, pass `-DWITH_QRENCODE=OFF` to CMake.
 
 ``` bash
 brew install qrencode
@@ -128,7 +128,8 @@ Skip if you do not need this functionality.
 brew install libnatpmp
 ```
 
-Note: UPnP and NAT-PMP support will be compiled in and disabled by default.
+Enable UPnP support with `-DWITH_MINIUPNPC=ON` and NAT-PMP support with
+`-DWITH_NATPMP=ON`. Both remain disabled at runtime by default.
 Check out the [further configuration](#further-configuration) section for more information.
 
 ---
@@ -142,7 +143,7 @@ Skip if you do not need ZMQ functionality.
 brew install zeromq
 ```
 
-ZMQ is automatically compiled in and enabled if the dependency is detected.
+Enable ZMQ notifications with `-DWITH_ZMQ=ON`.
 Check out the [further configuration](#further-configuration) section for more information.
 
 For more information on ZMQ, see: [zmq.md](zmq.md)
@@ -162,7 +163,7 @@ brew install python
 
 #### Deploy Dependencies
 
-You can deploy a `.zip` containing the Dash Core application using `make deploy`.
+You can deploy a `.zip` containing the Dash Core application using `cmake --build build --target deploy`.
 It is required that you have `python` installed.
 
 ## Building Dash Core
@@ -173,31 +174,25 @@ There are many ways to configure Dash Core, here are a few common examples:
 
 ##### Wallet (BDB + SQlite) Support, No GUI:
 
-If `berkeley-db@4` is installed, then legacy wallet support will be built.
-If `sqlite` is installed, then descriptor wallet support will also be built.
-Additionally, this explicitly disables the GUI.
+This enables legacy wallet support in addition to descriptor wallets.
+If `berkeley-db@4` or `sqlite` is unavailable, configuration fails. The GUI is disabled by default.
 
 ``` bash
-./autogen.sh
-./configure --with-gui=no
+cmake -B build -DWITH_BDB=ON -DBUILD_GUI=OFF
 ```
 ##### Wallet (only SQlite) and GUI Support:
 
 This explicitly enables the GUI and disables legacy wallet support.
-If `qt` is not installed, this will throw an error.
-If `sqlite` is installed then descriptor wallet functionality will be built.
-If `sqlite` is not installed, then wallet functionality will be disabled.
+If `qt@5` or `sqlite` is unavailable, configuration fails.
 
 ``` bash
-./autogen.sh
-./configure --without-bdb --with-gui=yes
+cmake -B build -DWITH_BDB=OFF -DBUILD_GUI=ON
 ```
 
 ##### No Wallet or GUI
 
 ``` bash
-./autogen.sh
-./configure --without-wallet --with-gui=no
+cmake -B build -DENABLE_WALLET=OFF -DBUILD_GUI=OFF
 ```
 
 ##### Further Configuration
@@ -206,7 +201,7 @@ You may want to dig deeper into the configuration options to achieve your desire
 Examine the output of the following command for a full list of configuration options:
 
 ``` bash
-./configure -help
+cmake -B build -LH
 ```
 
 ### 2. Compile
@@ -215,8 +210,8 @@ After configuration, you are ready to compile.
 Run the following in your terminal to compile Dash Core:
 
 ``` bash
-make        # use "-j N" here for N parallel jobs
-make check  # Run tests if Python 3 is available
+cmake --build build     # use "-j N" for N parallel jobs
+ctest --test-dir build  # Some tests require Python 3
 ```
 
 ### 3. Deploy (optional)
@@ -224,13 +219,13 @@ make check  # Run tests if Python 3 is available
 You can also create a  `.zip` containing the `.app` bundle by running the following command:
 
 ``` bash
-make deploy
+cmake --build build --target deploy
 ```
 
 ## Running Dash Core
 
-Dash Core should now be available at `./src/dashd`.
-If you compiled support for the GUI, it should be available at `./src/qt/dash-qt`.
+Dash Core should now be available at `./build/src/dashd`.
+If you compiled support for the GUI, it should be available at `./build/src/qt/dash-qt`.
 
 The first time you run `dashd` or `dash-qt`, it will start downloading the blockchain.
 This process could take many hours, or even days on slower than average systems.
@@ -260,8 +255,8 @@ tail -f $HOME/Library/Application\ Support/DashCore/debug.log
 ## Other commands:
 
 ```shell
-./src/dashd -daemon      # Starts the dashd daemon.
-./src/dash-cli --help    # Outputs a list of command-line options.
-./src/dash-cli help      # Outputs a list of RPC commands when the daemon is running.
-./src/qt/dash-qt -server # Starts the dash-qt server mode, allows dash-cli control
+./build/src/dashd -daemon      # Starts the dashd daemon.
+./build/src/dash-cli --help    # Outputs a list of command-line options.
+./build/src/dash-cli help      # Outputs a list of RPC commands when the daemon is running.
+./build/src/qt/dash-qt -server # Starts the dash-qt server mode, allows dash-cli control
 ```

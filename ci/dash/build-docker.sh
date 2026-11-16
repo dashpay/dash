@@ -16,9 +16,9 @@ DOCKER_RELATIVE_PATH=contrib/containers/deploy
 
 rm -rf "${DOCKER_RELATIVE_PATH:?}/bin"
 mkdir -p "$DOCKER_RELATIVE_PATH/bin"
-cp src/dashd    "$DOCKER_RELATIVE_PATH/bin/"
-cp src/dash-cli "$DOCKER_RELATIVE_PATH/bin/"
-cp src/dash-tx  "$DOCKER_RELATIVE_PATH/bin/"
+cp build/src/dashd    "$DOCKER_RELATIVE_PATH/bin/"
+cp build/src/dash-cli "$DOCKER_RELATIVE_PATH/bin/"
+cp build/src/dash-tx  "$DOCKER_RELATIVE_PATH/bin/"
 strip "$DOCKER_RELATIVE_PATH/bin/dashd"
 strip "$DOCKER_RELATIVE_PATH/bin/dash-cli"
 strip "$DOCKER_RELATIVE_PATH/bin/dash-tx"

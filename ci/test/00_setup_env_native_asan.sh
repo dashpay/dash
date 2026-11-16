@@ -12,8 +12,14 @@ export NO_DEPENDS=1
 export TEST_RUNNER_EXTRA="--timeout-factor=4 -j4"  # Increase timeout because sanitizers slow down
 export CI_LIMIT_STACK_SIZE=1
 export GOAL="install"
-export BITCOIN_CONFIG="--enable-zmq --enable-crash-hooks --with-gui=qt5 --without-bdb --with-sqlite \
---with-sanitizers=address,float-divide-by-zero,integer,undefined \
-CPPFLAGS='-DARENA_DEBUG' \
-CC='clang-19 -ftrivial-auto-var-init=pattern' CXX='clang++-19 -ftrivial-auto-var-init=pattern'"
+export BITCOIN_CONFIG="\
+ -DWITH_ZMQ=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON -DWITH_BDB=OFF -DWITH_SQLITE=ON \
+ -DWITH_MINIUPNPC=ON -DWITH_NATPMP=ON -DWITH_ZSTD=ON -DWITH_USDT=ON \
+ -DSANITIZERS=address,float-divide-by-zero,integer,undefined \
+ -DCMAKE_C_COMPILER=clang-19 \
+ -DCMAKE_CXX_COMPILER=clang++-19 \
+ -DAPPEND_CFLAGS='-ftrivial-auto-var-init=pattern' \
+ -DAPPEND_CXXFLAGS='-ftrivial-auto-var-init=pattern' \
+ -DAPPEND_CPPFLAGS='-DARENA_DEBUG' \
+"
 export PYZMQ=true

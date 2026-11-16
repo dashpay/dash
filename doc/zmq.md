@@ -46,11 +46,12 @@ operation.
 
 ## Enabling
 
-By default, the ZeroMQ feature is automatically compiled in if the
-necessary prerequisites are found.  To disable, use --disable-zmq
-during the *configure* step of building dashd:
+ZeroMQ support is disabled by default. Install the prerequisites and enable it
+when configuring Dash Core:
 
-    $ ./configure --disable-zmq (other options)
+    $ cmake -B build -DWITH_ZMQ=ON
+
+Use `-DWITH_ZMQ=OFF` to disable it.
 
 To actually enable operation, one must set the appropriate options on
 the command line or in the configuration file.

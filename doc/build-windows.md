@@ -8,6 +8,8 @@ The options known to work for building Dash Core on Windows are:
 * On Linux, using the [Mingw-w64](https://www.mingw-w64.org/) cross compiler tool chain.
 * On Windows, using [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/about) and Mingw-w64.
 
+Native MSVC builds are currently unsupported.
+
 Other options which may work, but which have not been extensively tested are (please contribute instructions):
 
 * On Windows, using a POSIX compatibility layer application such as [cygwin](https://www.cygwin.com/) or [msys2](https://www.msys2.org/).
@@ -39,15 +41,16 @@ results in `Autoconf` configure scripts being able to execute Windows Portable E
 unexpected behaviour during the build, such as Win32 error dialogs for missing libraries. The recommended approach
 is to temporarily disable WSL support for Win32 applications.
 
+Install the cross compiler and NSIS (for the optional installer):
+
+    sudo apt install g++-mingw-w64-x86-64-posix nsis
+
 Build using:
 
     sudo bash -c "echo 0 > /proc/sys/fs/binfmt_misc/status" # Disable WSL support for Win32 applications.
-    cd depends
-    make HOST=x86_64-w64-mingw32
-    cd ..
-    ./autogen.sh
-    CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/
-    make # use "-j N" for N parallel jobs
+    make -C depends HOST=x86_64-w64-mingw32 # use "-j N" for N parallel jobs
+    cmake -B build --toolchain depends/x86_64-w64-mingw32/toolchain.cmake
+    cmake --build build # use "-j N" for N parallel jobs
     sudo bash -c "echo 1 > /proc/sys/fs/binfmt_misc/status" # Enable WSL support for Win32 applications.
 
 ## Depends system
@@ -62,8 +65,8 @@ executables to a directory on the Windows drive in the same directory structure
 as they appear in the release `.zip` archive. This can be done in the following
 way. This will install to `c:\workspace\dash`, for example:
 
-    make install DESTDIR=/mnt/c/workspace/dash
+    cmake --install build --prefix /mnt/c/workspace/dash
 
 You can also create an installer using:
 
-    make deploy
+    cmake --build build --target deploy

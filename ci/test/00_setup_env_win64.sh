@@ -11,9 +11,12 @@ export HOST=x86_64-w64-mingw32
 export DPKG_ADD_ARCH="i386"
 export PACKAGES="nsis g++-mingw-w64-x86-64-posix wine-binfmt wine64 wine32 file"
 export RUN_FUNCTIONAL_TESTS=false
-export GOAL="deploy"
+# The CI image has no makensis, so the NSIS installer (the deploy target) is
+# only built by Guix.
+export GOAL="install"
 # Prior to 11.0.0, the mingw-w64 headers were missing noreturn attributes, causing warnings when
 # cross-compiling for Windows. https://sourceforge.net/p/mingw-w64/bugs/306/
 # https://github.com/mingw-w64/mingw-w64/commit/1690994f515910a31b9fb7c7bd3a52d4ba987abe
-export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --disable-miner CXXFLAGS='-Wno-return-type -Wno-error=maybe-uninitialized -Wno-error=array-bounds'"
+export BITCOIN_CONFIG="-DBUILD_GUI=ON -DREDUCE_EXPORTS=ON -DENABLE_MINER=OFF \
+-DAPPEND_CXXFLAGS='-Wno-return-type -Wno-error=maybe-uninitialized -Wno-error=array-bounds'"
 export DIRECT_WINE_EXEC_TESTS=true

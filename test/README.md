@@ -13,7 +13,7 @@ interfaces.
 - [util](/test/util) which tests the utilities (dash-tx, ...).
 - [lint](/test/lint/) which perform various static analysis checks.
 
-The util tests are run as part of `make check` target. The fuzz tests, functional
+The util tests are run by `ctest --test-dir build`. The fuzz tests, functional
 tests and lint scripts can be run as explained in the sections below.
 
 # Running tests locally
@@ -47,22 +47,26 @@ set PYTHONUTF8=1
 
 #### Running the tests
 
-Individual tests can be run by directly calling the test script, e.g.:
+CMake generates `build/test/config.ini` with the build paths and enabled features.
+Run the scripts under `build/test/` so they use that configuration. The examples
+below assume a build directory named `build` and commands run from the source root.
+
+When calling an individual test script directly, specify the generated configuration, e.g.:
 
 ```
-test/functional/wallet_hd.py
+build/test/functional/wallet_hd.py --configfile=build/test/config.ini
 ```
 
-or can be run through the test_runner harness, eg:
+The test runner passes the generated configuration to each test automatically:
 
 ```
-test/functional/test_runner.py wallet_hd.py
+build/test/functional/test_runner.py wallet_hd.py
 ```
 
 You can run any combination (incl. duplicates) of tests by calling:
 
 ```
-test/functional/test_runner.py <testname1> <testname2> <testname3> ...
+build/test/functional/test_runner.py <testname1> <testname2> <testname3> ...
 ```
 
 Wildcard test names can be passed, if the paths are coherent and the test runner
@@ -70,34 +74,34 @@ is called from a `bash` shell or similar that does the globbing. For example,
 to run all the wallet tests:
 
 ```
-test/functional/test_runner.py test/functional/wallet*
-functional/test_runner.py functional/wallet* (called from the test/ directory)
-test_runner.py wallet* (called from the test/functional/ directory)
+build/test/functional/test_runner.py build/test/functional/wallet*
+functional/test_runner.py functional/wallet* (called from the build/test/ directory)
+test_runner.py wallet* (called from the build/test/functional/ directory)
 ```
 
 but not
 
 ```
-test/functional/test_runner.py wallet*
+build/test/functional/test_runner.py wallet*
 ```
 
 Combinations of wildcards can be passed:
 
 ```
-test/functional/test_runner.py ./test/functional/tool* test/functional/mempool*
+build/test/functional/test_runner.py ./build/test/functional/tool* build/test/functional/mempool*
 test_runner.py tool* mempool*
 ```
 
 Run the regression test suite with:
 
 ```
-test/functional/test_runner.py
+build/test/functional/test_runner.py
 ```
 
 Run all possible tests with
 
 ```
-test/functional/test_runner.py --extended
+build/test/functional/test_runner.py --extended
 ```
 
 In order to run backwards compatibility tests, first run:
@@ -112,7 +116,7 @@ By default, up to 4 tests will be run in parallel by test_runner. To specify
 how many jobs to run, append `--jobs=n`
 
 The individual tests and the test_runner harness have many command-line
-options. Run `test/functional/test_runner.py -h` to see them all.
+options. Run `build/test/functional/test_runner.py -h` to see them all.
 
 #### Speed up test runs with a RAM disk
 
@@ -141,7 +145,7 @@ For example running the test suite with `--jobs=100` might need a 4 GiB RAM disk
 To use, run the test suite specifying the RAM disk as the `cachedir` and `tmpdir`:
 
 ```bash
-test/functional/test_runner.py --cachedir=/mnt/tmp/cache --tmpdir=/mnt/tmp
+build/test/functional/test_runner.py --cachedir=/mnt/tmp/cache --tmpdir=/mnt/tmp
 ```
 
 Once finished with the tests and the disk, and to free the RAM, simply unmount the disk:
@@ -162,7 +166,7 @@ Configure the RAM disk size, expressed as the number of blocks, at the end of th
 (`4096 MiB * 2048 blocks/MiB = 8388608 blocks` for 4 GiB). To run the tests using the RAM disk:
 
 ```bash
-test/functional/test_runner.py --cachedir=/Volumes/ramdisk/cache --tmpdir=/Volumes/ramdisk/tmp
+build/test/functional/test_runner.py --cachedir=/Volumes/ramdisk/cache --tmpdir=/Volumes/ramdisk/tmp
 ```
 
 To unmount:
@@ -204,14 +208,14 @@ pkill -9 dashd
 ##### Data directory cache
 
 A pre-mined blockchain with 200 blocks is generated the first time a
-functional test is run and is stored in test/cache. This speeds up
+functional test is run and is stored in build/test/cache. This speeds up
 test startup times since new blockchains don't need to be generated for
 each test. However, the cache may get into a bad state, in which case
 tests will fail. If this happens, remove the cache directory (and make
 sure dashd processes are stopped as above):
 
 ```bash
-rm -rf test/cache
+rm -rf build/test/cache
 killall dashd
 ```
 
@@ -247,7 +251,7 @@ aggregate log by running the `combine_logs.py` script. The output can be plain
 text, colorized text or html. For example:
 
 ```
-test/functional/combine_logs.py -c <test data directory> | less -r
+build/test/functional/combine_logs.py -c <test data directory> | less -r
 ```
 
 will pipe the colorized logs from the test into less.
@@ -308,7 +312,7 @@ See this link for considerations: https://www.kernel.org/doc/Documentation/secur
 
 Often while debugging RPC calls in functional tests, the test might time out before the
 process can return a response. Use `--timeout-factor 0` to disable all RPC timeouts for that particular
-functional test. Ex: `test/functional/wallet_hd.py --timeout-factor 0`.
+functional test. Ex: `build/test/functional/wallet_hd.py --configfile=build/test/config.ini --timeout-factor 0`.
 
 ##### Profiling
 
@@ -332,7 +336,7 @@ For ways to generate more granular profiles, see the README in
 
 ### Util tests
 
-Util tests can be run locally by running `test/util/test_runner.py`.
+Util tests can be run locally by running `build/test/util/test_runner.py`.
 Use the `-v` option for verbose output.
 
 ### Lint tests

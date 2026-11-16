@@ -211,23 +211,20 @@ mkdir -p "$OUTDIR"
 ###########################
 
 # CONFIGFLAGS
-CONFIGFLAGS+=" --enable-reduce-exports --disable-bench --disable-gui-tests --disable-fuzz-binary"
+CONFIGFLAGS+=" -DREDUCE_EXPORTS=ON -DBUILD_BENCH=OFF -DBUILD_GUI_TESTS=OFF -DBUILD_FUZZ_BINARY=OFF"
 case "$HOST" in
-    *mingw*) CONFIGFLAGS+=" --disable-miner" ;;
+    *mingw*) CONFIGFLAGS+=" -DENABLE_MINER=OFF" ;;
 esac
 
 # CFLAGS
 HOST_CFLAGS="-O2 -g"
 HOST_CFLAGS+=$(find /gnu/store -maxdepth 1 -mindepth 1 -type d -exec echo -n " -ffile-prefix-map={}=/usr" \;)
 case "$HOST" in
-    *linux*)  HOST_CFLAGS+=" -ffile-prefix-map=${PWD}=." ;;
+    *linux*)  HOST_CFLAGS+=" -ffile-prefix-map=${DISTSRC}/src=." ;;
     *mingw*)  HOST_CFLAGS+=" -fno-ident" ;;
     *darwin*)
-        # Optimization and target flags come from depends' config.site; only
-        # the debug level is requested here. The shipped dSYM debug artifacts
-        # previously carried full -g2 DWARF via the since-removed -gdwarf-4
-        # backtrace flag escalating configure's -g1 floor, so keep requesting
-        # it explicitly.
+        # Keep full debug information for the shipped dSYM artifacts; the
+        # depends toolchain supplies optimization and target flags.
         HOST_CFLAGS="-g" ;;
 esac
 
@@ -256,46 +253,41 @@ mkdir -p "$DISTSRC"
     # Extract the source tarball
     tar --strip-components=1 -xf "${GIT_ARCHIVE}"
 
-    ./autogen.sh
-
     # Configure this DISTSRC for $HOST
     # shellcheck disable=SC2086
-    env CONFIG_SITE="${BASEPREFIX}/${HOST}/share/config.site" \
-        ./configure --prefix=/ \
-                    --disable-ccache \
-                    --disable-maintainer-mode \
-                    --disable-dependency-tracking \
-                    ${CONFIGFLAGS} \
-                    ${HOST_CFLAGS:+CFLAGS="${HOST_CFLAGS}"} \
-                    ${HOST_CXXFLAGS:+CXXFLAGS="${HOST_CXXFLAGS}"} \
-                    ${HOST_LDFLAGS:+LDFLAGS="${HOST_LDFLAGS}"}
-
-    sed -i.old 's/-lstdc++ //g' {./,src/secp256k1/}{config.status,libtool}
-
+    cmake -S . -B build \
+          --toolchain "${BASEPREFIX}/${HOST}/toolchain.cmake" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DWITH_CCACHE=OFF \
+          "-DAPPEND_CFLAGS=${HOST_CFLAGS}" \
+          "-DAPPEND_CXXFLAGS=${HOST_CXXFLAGS}" \
+          "-DAPPEND_LDFLAGS=${HOST_LDFLAGS}" \
+          ${CONFIGFLAGS}
 
     # Build Dash Core
-    make --jobs="$JOBS" ${V:+V=1}
+    cmake --build build -j "$JOBS" ${V:+--verbose}
 
     # Make macos-specific debug symbols
     case "$HOST" in
         *darwin*)
-            make -C src/ osx_debug
+            cmake --build build --target osx_debug ${V:+--verbose}
             ;;
     esac
 
     # Perform basic security checks on a series of executables.
-    make -C src --jobs=1 check-security ${V:+V=1}
+    cmake --build build -j 1 --target check-security ${V:+--verbose}
     # Check that executables only contain allowed version symbols.
-    make -C src --jobs=1 check-symbols  ${V:+V=1}
+    cmake --build build -j 1 --target check-symbols ${V:+--verbose}
     # Check that no executable embeds a standard library header path.
-    make -C src --jobs=1 check-stdlib-paths ${V:+V=1}
+    cmake --build build -j 1 --target check-stdlib-paths ${V:+--verbose}
 
     mkdir -p "$OUTDIR"
 
     # Make the os-specific installers
     case "$HOST" in
         *mingw*)
-            make deploy ${V:+V=1} BITCOIN_WIN_INSTALLER="${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
+            cmake --build build -j "$JOBS" --target deploy ${V:+--verbose}
+            mv build/dashcore-*-win64-setup.exe "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
             ;;
     esac
 
@@ -305,15 +297,18 @@ mkdir -p "$DISTSRC"
     INSTALLPATH="${PWD}/installed/${DISTNAME}"
     mkdir -p "${INSTALLPATH}"
     # Install built Dash Core to $INSTALLPATH
-    make install DESTDIR="${INSTALLPATH}" ${V:+V=1}
+    cmake --install build --prefix "${INSTALLPATH}" ${V:+--verbose}
 
     case "$HOST" in
         *darwin*)
-            make deploydir ${V:+V=1}
+            # CMake versions before 3.27 pass unsupported flags to llvm-strip.
+            find build -name 'cmake_install.cmake' -exec sed -i 's| -u -r | |g' {} +
+            cmake --build build --target deploy ${V:+--verbose}
+            mv build/dist/Dash-Core.zip "${OUTDIR}/${DISTNAME}-${HOST}-unsigned.zip"
             mkdir -p "unsigned-app-${HOST}"
             cp  --target-directory="unsigned-app-${HOST}" \
                 contrib/macdeploy/detached-sig-create.sh
-            mv --target-directory="unsigned-app-${HOST}" dist
+            mv --target-directory="unsigned-app-${HOST}" build/dist
             (
                 cd "unsigned-app-${HOST}"
                 find . -print0 \
@@ -322,7 +317,6 @@ mkdir -p "$DISTSRC"
                     | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-unsigned.tar.gz" \
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-unsigned.tar.gz" && exit 1 )
             )
-            make deploy ${V:+V=1} OSX_ZIP="${OUTDIR}/${DISTNAME}-${HOST}-unsigned.zip"
             ;;
     esac
     (
@@ -334,8 +328,7 @@ mkdir -p "$DISTSRC"
                 ;;
         esac
 
-        # Prune libtool and object archives
-        find . -name "lib*.la" -delete
+        # Prune static and import libraries
         find . -name "lib*.a" -delete
 
         # Prune pkg-config files
@@ -344,14 +337,14 @@ mkdir -p "$DISTSRC"
         case "$HOST" in
             *darwin*)
                 # Copy dSYM-s
-                find ../src -name "*.dSYM" -exec cp -ra {} "${DISTNAME}/bin" \;
+                find ../build -name "*.dSYM" -exec cp -ra {} "${DISTNAME}/bin" \;
                 ;;
             *)
                 # Split binaries and libraries from their debug symbols
                 {
                     find "${DISTNAME}/bin" -type f -executable -print0
                     find "${DISTNAME}/lib" -type f -print0
-                } | xargs -0 -P"$JOBS" -I{} "${DISTSRC}/contrib/devtools/split-debug.sh" {} {} {}.dbg
+                } | xargs -0 -P"$JOBS" -I{} "${DISTSRC}/build/split-debug.sh" {} {} {}.dbg
 
                 case "$HOST" in
                     *linux*)
@@ -365,7 +358,10 @@ mkdir -p "$DISTSRC"
                             find "${DISTNAME}/lib" -type f -print0
                         } | while IFS= read -r -d '' elf; do
                             if file "$elf" | grep -q "ELF.*executable\|ELF.*shared object"; then
-                                build_id=$("${HOST}"-readelf -n "$elf" 2>/dev/null | awk '/Build ID/ {print $3; exit}')
+                                # Read all of readelf's output: notes such as USDT probes can exceed a
+                                # pipe buffer, and a reader that exits early kills readelf with SIGPIPE,
+                                # which pipefail turns into a failure.
+                                build_id=$("${HOST}"-readelf -n "$elf" 2>/dev/null | awk '/Build ID/ && !id {id = $3} END {print id}')
                                 if [ -n "$build_id" ] && [ -f "${elf}.dbg" ]; then
                                     dir="${DISTNAME}/usr/lib/debug/.build-id/${build_id:0:2}"
                                     mkdir -p "$dir"
@@ -376,6 +372,7 @@ mkdir -p "$DISTSRC"
                         done
 
                         # Verify build-ids and debug links
+                        verification_status=0
                         verification_output=$(
                             {
                                 find "${DISTNAME}/bin" -type f -executable -print0
@@ -385,7 +382,7 @@ mkdir -p "$DISTSRC"
                                 while IFS= read -r -d '' elf; do
                                     if file "$elf" | grep -q "ELF.*executable\|ELF.*shared object"; then
                                         # Check for build-id
-                                        if ! "${HOST}"-readelf -n "$elf" 2>/dev/null | grep -q "Build ID"; then
+                                        if ! "${HOST}"-readelf -n "$elf" 2>/dev/null | grep "Build ID" >/dev/null; then
                                             echo "ERROR: No build-id found in $elf" >&2
                                             verification_failed=1
                                         fi
@@ -399,8 +396,7 @@ mkdir -p "$DISTSRC"
                                 done
                                 exit "$verification_failed"
                             } 2>&1
-                        )
-                        verification_status=$?
+                        ) || verification_status=$?
                         if [ "$verification_status" -ne 0 ]; then
                             echo "$verification_output" >&2
                             exit 1

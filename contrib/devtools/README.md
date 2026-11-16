@@ -82,8 +82,8 @@ gen-manpages.py
 A small script to automatically create manpages in ../../doc/man by running the release binaries with the -help option.
 This requires help2man which can be found at: https://www.gnu.org/software/help2man/
 
-With in-tree builds this tool can be run from any directory within the
-repository. To use this tool with out-of-tree builds set `BUILDDIR`. For
+This tool can be run from any directory within the repository. It looks for
+the binaries in `build/`; to use another build directory set `BUILDDIR`. For
 example:
 
 ```bash
@@ -97,8 +97,8 @@ Generates a dash.conf file in `contrib/debian/examples/` by parsing the output f
 release process to include a dash.conf with the release binaries and can also be run by users to generate a file locally.
 When generating a file as part of the release process, make sure to commit the changes after running the script.
 
-With in-tree builds this tool can be run from any directory within the
-repository. To use this tool with out-of-tree builds set `BUILDDIR`. For
+This tool can be run from any directory within the repository. It looks for
+the binaries in `build/`; to use another build directory set `BUILDDIR`. For
 example:
 
 ```bash

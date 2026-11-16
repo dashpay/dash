@@ -55,17 +55,16 @@ To build dependencies for the current arch+OS:
 
 ## Configuring Dash Core
 
-**Dash Core's `configure` script by default will ignore the depends output.** In
-order for it to pick up libraries, tools, and settings from the depends build,
-you must set the `CONFIG_SITE` environment variable to point to a `config.site` settings file.
-Make sure that `CONFIG_SITE` is an absolute path.
-In the above example, a file named `depends/x86_64-w64-mingw32/share/config.site` will be
-created. To use it during compilation:
+**CMake by default will ignore the depends output.** To use libraries, tools,
+and settings from the depends build, specify the generated toolchain file.
+For example, after `make -C depends HOST=x86_64-w64-mingw32` from the source root:
 
-    CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure
+    cmake -B build --toolchain depends/x86_64-w64-mingw32/toolchain.cmake
+    cmake --build build
 
-The default install prefix when using `config.site` is `--prefix=depends/<host-platform-triplet>`,
-so depends build outputs will be installed in that location.
+For a native build, use `depends/<host-platform-triplet>/toolchain.cmake` for
+your platform. See [Dependency Options](#dependency-options) for settings that
+also configure Dash Core features.
 
 ## Dependency Options
 
@@ -91,7 +90,7 @@ The following can be set when running make: `make FOO=bar`
 - `NO_USDT`: Don't download/build/cache packages needed for enabling USDT tracepoints
 - `MULTIPROCESS`: build libmultiprocess (experimental, requires cmake)
 - `PLATFORM_GUI`: build the Rust toolchain and `dash-sdk-cxx` (the Dash Platform SDK's C++ binding) needed for
-  `--enable-platform-gui` (which config.site then enables unless the GUI or wallet is off); cannot be combined with `NO_QT`
+  `-DENABLE_PLATFORM_GUI=ON` (which the toolchain file then sets unless the GUI or wallet is off); cannot be combined with `NO_QT`
   or `NO_WALLET`. Not supported in Guix or release builds (the build refuses `GUIX_ENVIRONMENT`); CI builds and
   tests it on x86_64 Linux only. Uses a pinned prebuilt Rust toolchain and protoc. Not available for
   `powerpc64-linux-gnu`, or for hosts `packages/rust_stdlib.mk` has no entry for, such as `powerpc64le-linux-gnu`.
@@ -104,8 +103,9 @@ The following can be set when running make: `make FOO=bar`
 - `LTO`: Enable options needed for LTO. Does not add `-flto` related options to *FLAGS.
 - `NO_HARDEN=1`: Don't use hardening options when building packages
 
-If some packages are not built, for example `make NO_WALLET=1`, the appropriate
-options will be passed to Dash Core's configure. In this case, `--disable-wallet`.
+If some packages are not built, for example `make NO_WALLET=1`, the appropriate CMake
+cache variables will be set when configuring Dash Core with the toolchain file.
+In this case, `-DENABLE_WALLET=OFF`.
 
 ## Cross compilation
 

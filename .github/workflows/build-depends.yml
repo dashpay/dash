@@ -88,7 +88,7 @@ jobs:
           DEP_HASH="$(echo -n "${BUILD_TARGET}" "${DEP_OPTS}" "${HOST}" | sha256sum | head -c 64)"
           echo "DEP_HASH=${DEP_HASH}" >> "${GITHUB_OUTPUT}"
           DOCKERFILE_HASH="${{ hashFiles('contrib/containers/ci/ci.Dockerfile', 'contrib/containers/ci/ci-slim.Dockerfile') }}"
-          DEPENDS_INPUTS_HASH="${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/gen_id', 'depends/config.guess', 'depends/config.sub', 'depends/config.site.in', 'depends/builders/**', 'depends/hosts/**', 'depends/packages/**', 'depends/patches/**') }}"
+          DEPENDS_INPUTS_HASH="${{ hashFiles('depends/Makefile', 'depends/funcs.mk', 'depends/gen_id', 'depends/config.guess', 'depends/config.sub', 'depends/toolchain.cmake.in', 'depends/builders/**', 'depends/hosts/**', 'depends/packages/**', 'depends/patches/**') }}"
           CACHE_KEY_PREFIX="depends-${DOCKERFILE_HASH}-${BASE_IMAGE_DIGEST}-${RUNS_ON}-${BUILD_TARGET}"
           CACHE_KEY="${CACHE_KEY_PREFIX}-${DEP_HASH}-${DEPENDS_INPUTS_HASH}"
           echo "cache-key-prefix=${CACHE_KEY_PREFIX}" >> "${GITHUB_OUTPUT}"
