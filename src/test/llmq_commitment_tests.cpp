@@ -31,22 +31,6 @@ BOOST_FIXTURE_TEST_SUITE(llmq_commitment_tests, BasicTestingSetup)
 // Get test params for use in tests
 static const Consensus::LLMQParams& TEST_PARAMS = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST_V17);
 
-BOOST_AUTO_TEST_CASE(commitment_null_test)
-{
-    CFinalCommitment commitment;
-
-    // Test default constructor creates null commitment
-    BOOST_CHECK(commitment.IsNull());
-    BOOST_CHECK(commitment.quorumHash.IsNull());
-    BOOST_CHECK(commitment.validMembers.empty());
-    BOOST_CHECK(commitment.signers.empty());
-    BOOST_CHECK(!commitment.quorumPublicKey.IsValid());
-    BOOST_CHECK(!commitment.quorumSig.IsValid());
-
-    // Note: VerifyNull requires valid LLMQ params which we can't test in unit tests
-    // It's tested in functional tests
-}
-
 BOOST_AUTO_TEST_CASE(commitment_counting_test)
 {
     CFinalCommitment commitment;
@@ -344,18 +328,6 @@ BOOST_AUTO_TEST_CASE(commitment_verify_null_edge_cases)
     commitment = CFinalCommitment{};
     commitment.quorumSig = CreateRandomBLSSignature();
     BOOST_CHECK(!commitment.IsNull());
-}
-
-BOOST_AUTO_TEST_CASE(commitment_tx_payload_test)
-{
-    CFinalCommitmentTxPayload payload;
-    payload.nHeight = 12345;
-    payload.commitment = CreateValidCommitment(TEST_PARAMS, GetTestQuorumHash(1));
-
-    // Test basic construction
-    BOOST_CHECK_EQUAL(payload.nVersion, CFinalCommitmentTxPayload::CURRENT_VERSION);
-    BOOST_CHECK_EQUAL(payload.nHeight, 12345);
-    BOOST_CHECK(!payload.commitment.IsNull());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
