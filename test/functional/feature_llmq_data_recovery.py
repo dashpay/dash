@@ -212,7 +212,6 @@ class QuorumDataRecoveryTest(DashTestFramework):
         assert last_resort_test != last_resort_v17
         # Reindex all other nodes the to drop their DKG data, first run with recovery disabled to make sure disabling
         # works as expected
-        recover_members = member_mns_recover_test + member_mns_recover_v17
         exclude_members = [last_resort_test, last_resort_v17]
         # Reindex all masternodes but exclude the last_resort for both testing quorums
         self.restart_mns(exclude=exclude_members, reindex=True, qdata_recovery_enabled=False)
@@ -238,14 +237,23 @@ class QuorumDataRecoveryTest(DashTestFramework):
         # Make sure they are still invalid
         self.test_mns(llmq_test, quorum_hash_recover, valid_mns=[last_resort_test], all_mns=member_mns_recover_test)
         self.test_mns(llmq_test_v17, quorum_hash_recover, valid_mns=[last_resort_v17], all_mns=member_mns_recover_v17)
-        # Now restart with recovery enabled
-        self.restart_mns(mns=recover_members, exclude=exclude_members, reindex=True, qdata_recovery_enabled=True)
+        # Now restart with recovery enabled. Restart every masternode but the last resorts, not just the
+        # recovery quorum's members, so members of any other active quorum can recover their data too.
+        self.restart_mns(exclude=exclude_members, reindex=True, qdata_recovery_enabled=True)
         # Validate that all invalid members recover. Note: recover=True leads to mocktime bumps and mining while waiting
         # which trigger CQuorumManger::TriggerQuorumDataRecoveryThreads()
         self.test_mns(llmq_test, quorum_hash_recover, valid_mns=member_mns_recover_test, recover=True)
         self.test_mns(llmq_test_v17, quorum_hash_recover, valid_mns=member_mns_recover_v17, recover=True)
-        # Mining a block should result in a chainlock now because the quorum should be healed. The tip that the
-        # recovery loop mined last may have been signed before every member held its key share again.
+        # If the quorum selection loop above had to mine more than one quorum, an earlier llmq_test quorum is
+        # still signing-active and a ChainLock can fall to it instead of the recovery quorum. Its members lost
+        # their DKG data to the same reindex, so wait for every signing-active llmq_test quorum to recover
+        # before expecting a ChainLock below, whichever of them ends up signing.
+        for quorum_hash in node.quorum("list")[llmq_type_strings[llmq_test]]:
+            if quorum_hash != quorum_hash_recover:
+                self.log.info(f"Waiting for members of other active quorum {quorum_hash} to recover")
+                self.test_mns(llmq_test, quorum_hash, valid_mns=self.get_member_mns(llmq_test, quorum_hash), recover=True)
+        # Mining a block should result in a chainlock now because every signing-active quorum should be healed.
+        # The tip that the recovery loop mined last may have been signed before every member held its key share again.
         self.generate(node, 1, sync_fun=self.sync_validation)
         self.wait_for_chainlocked_block_all_nodes(node.getbestblockhash())
         logger.info("Test -llmq-qvvec-sync command line parameter")
