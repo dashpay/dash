@@ -232,7 +232,7 @@ Setup and Build Example: Arch Linux
 This example lists the steps necessary to setup and build a command line only distribution of the latest changes on Arch Linux:
 
 ```sh
-pacman --sync --needed base-devel boost cmake gcc git libbacktrace libevent make pkgconf python sqlite zstd
+pacman --sync --needed base-devel boost cmake gcc git libbacktrace libevent make python sqlite zstd
 git clone https://github.com/dashpay/dash.git
 cd dash/
 cmake -B build

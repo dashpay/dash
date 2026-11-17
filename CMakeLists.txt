@@ -155,21 +155,7 @@ cmake_dependent_option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert han
 
 option(WITH_ZMQ "Enable ZMQ notifications." OFF)
 if(WITH_ZMQ)
-  if(VCPKG_TARGET_TRIPLET)
-    find_package(ZeroMQ CONFIG REQUIRED)
-  else()
-    # The ZeroMQ project has provided config files since v4.2.2.
-    # However, mainstream distributions do not yet provide CMake
-    # config files for ZeroMQ packages. If they do in the future,
-    # find_package(ZeroMQ) may be used instead.
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(libzmq REQUIRED IMPORTED_TARGET libzmq>=4)
-    # TODO: This command will be redundant once
-    #       https://github.com/bitcoin/bitcoin/pull/30508 is merged.
-    target_link_libraries(PkgConfig::libzmq INTERFACE
-      $<$<PLATFORM_ID:Windows>:iphlpapi;ws2_32>
-    )
-  endif()
+  find_package(ZeroMQ 4.0.0 MODULE REQUIRED)
 endif()
 
 option(WITH_ZSTD "Enable zstd compression of block and undo files." OFF)
@@ -188,8 +174,7 @@ cmake_dependent_option(ENABLE_EXTERNAL_SIGNER "Enable external signer support." 
 
 cmake_dependent_option(WITH_QRENCODE "Enable QR code support." ON "BUILD_GUI" OFF)
 if(WITH_QRENCODE)
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(libqrencode REQUIRED IMPORTED_TARGET libqrencode)
+  find_package(QRencode MODULE REQUIRED)
   set(USE_QRCODE TRUE)
 endif()
 

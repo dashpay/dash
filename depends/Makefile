@@ -206,6 +206,7 @@ $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
 	echo copying packages: $^
 	echo to: $(@D)
 	cd $(@D); $(foreach package,$^, $(build_TAR) xf $($(package)_cached); )
+	echo To build Dash Core with these packages, pass \'--toolchain $(@D)/toolchain.cmake\' to the first CMake invocation.
 	touch $@
 
 ifeq ($(host),$(build))
@@ -217,6 +218,7 @@ endif
 $(host_prefix)/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(final_build_id)
 	@mkdir -p $(@D)
 	sed -e 's|@depends_crosscompiling@|$(crosscompiling)|' \
+            -e 's|@host@|$(host)|' \
             -e 's|@host_system_name@|$($(host_os)_cmake_system_name)|' \
             -e 's|@host_system_version@|$($(host_os)_cmake_system_version)|' \
             -e 's|@host_arch@|$(host_arch)|' \
@@ -228,7 +230,6 @@ $(host_prefix)/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(fina
             -e 's|@STRIP@|$(host_STRIP)|' \
             -e 's|@OBJCOPY@|$(host_OBJCOPY)|' \
             -e 's|@OBJDUMP@|$(host_OBJDUMP)|' \
-            -e 's|@depends_prefix@|$(host_prefix)|' \
             -e 's|@CFLAGS@|$(strip $(host_CFLAGS))|' \
             -e 's|@CFLAGS_RELEASE@|$(strip $(host_release_CFLAGS))|' \
             -e 's|@CFLAGS_DEBUG@|$(strip $(host_debug_CFLAGS))|' \
