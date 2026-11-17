@@ -90,15 +90,6 @@ void ApplyArgsManOptions(const ArgsManager& args, BlockAssembler::Options& optio
         if (const auto parsed{ParseMoney(*blockmintxfee)}) options.blockMinFeeRate = CFeeRate{*parsed};
     }
 }
-static BlockAssembler::Options ConfiguredOptions()
-{
-    BlockAssembler::Options options;
-    ApplyArgsManOptions(gArgs, options);
-    return options;
-}
-
-BlockAssembler::BlockAssembler(Chainstate& chainstate, const NodeContext& node, const CTxMemPool* mempool)
-    : BlockAssembler(chainstate, node, mempool, ConfiguredOptions()) {}
 
 void BlockAssembler::resetBlock()
 {

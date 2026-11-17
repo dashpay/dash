@@ -13,6 +13,7 @@
 #include <consensus/amount.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
+#include <interfaces/mining.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
@@ -341,6 +342,9 @@ void SharedMnWalkthroughTests::walkthrough()
         client->registerRpcs();
     }
     m_node.walletLoader().registerOtherRpcs(GetWalletEvoRPCCommands());
+    // The mining RPCs go through interfaces::Mining, which AppInitInterfaces()
+    // creates and the test fixture does not.
+    test.m_node.mining = interfaces::MakeMining(test.m_node);
 
     // Three separate descriptor wallets: each role signs with its own wallet,
     // as it would on its own machine.

@@ -13,6 +13,7 @@
 #include <chainparams.h>
 #include <coinjoin/common.h>
 #include <common/system.h>
+#include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
@@ -30,6 +31,7 @@
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/handler.h>
+#include <interfaces/mining.h>
 #include <interfaces/wallet.h>
 #include <kernel/chain.h>
 #include <kernel/mempool_entry.h>
@@ -51,6 +53,7 @@
 #include <node/coin.h>
 #include <node/context.h>
 #include <node/interface_ui.h>
+#include <node/miner.h>
 #include <node/transaction.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
@@ -102,6 +105,7 @@ using interfaces::GOV;
 using interfaces::Handler;
 using interfaces::LLMQ;
 using interfaces::MakeSignalHandler;
+using interfaces::Mining;
 using interfaces::MnEntry;
 using interfaces::MnEntryCPtr;
 using interfaces::MnList;
@@ -129,6 +133,7 @@ using interfaces::SharedSignResult;
 using interfaces::SharedUpdateShareRequest;
 using interfaces::Wallet;
 using interfaces::WalletLoader;
+using node::BlockAssembler;
 
 namespace node {
 // All members of the classes in this namespace are intentionally public, as the
@@ -1755,10 +1760,64 @@ public:
     ChainstateManager& chainman() { return *Assert(m_node.chainman); }
     NodeContext& m_node;
 };
+
+class MinerImpl : public Mining
+{
+public:
+    explicit MinerImpl(NodeContext& node) : m_node(node) {}
+
+    bool isTestChain() override
+    {
+        return chainman().GetParams().IsTestChain();
+    }
+
+    bool isInitialBlockDownload() override
+    {
+        return chainman().IsInitialBlockDownload();
+    }
+
+    std::optional<uint256> getTipHash() override
+    {
+        LOCK(::cs_main);
+        CBlockIndex* tip{chainman().ActiveChain().Tip()};
+        if (!tip) return {};
+        return tip->GetBlockHash();
+    }
+
+    bool processNewBlock(const std::shared_ptr<const CBlock>& block, bool* new_block) override
+    {
+        return chainman().ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/new_block);
+    }
+
+    unsigned int getTransactionsUpdated() override
+    {
+        return context()->mempool->GetTransactionsUpdated();
+    }
+
+    bool testBlockValidity(BlockValidationState& state, const CBlock& block, bool check_merkle_root) override
+    {
+        LOCK(::cs_main);
+        return TestBlockValidity(state, *Assert(m_node.chainlocks), *Assert(m_node.evodb), chainman().GetParams(), chainman().ActiveChainstate(), block, chainman().ActiveChain().Tip(), /*fCheckPOW=*/false, check_merkle_root);
+    }
+
+    std::unique_ptr<CBlockTemplate> createNewBlock(const CScript& script_pub_key, bool use_mempool) override
+    {
+        BlockAssembler::Options options;
+        ApplyArgsManOptions(gArgs, options);
+
+        LOCK(::cs_main);
+        return BlockAssembler{chainman().ActiveChainstate(), m_node, use_mempool ? context()->mempool.get() : nullptr, options}.CreateNewBlock(script_pub_key);
+    }
+
+    NodeContext* context() override { return &m_node; }
+    ChainstateManager& chainman() { return *Assert(m_node.chainman); }
+    NodeContext& m_node;
+};
 } // namespace
 } // namespace node
 
 namespace interfaces {
 std::unique_ptr<Node> MakeNode(node::NodeContext& context) { return std::make_unique<node::NodeImpl>(context); }
 std::unique_ptr<Chain> MakeChain(node::NodeContext& node) { return std::make_unique<node::ChainImpl>(node); }
+std::unique_ptr<Mining> MakeMining(node::NodeContext& context) { return std::make_unique<node::MinerImpl>(context); }
 } // namespace interfaces

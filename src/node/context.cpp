@@ -7,6 +7,7 @@
 #include <addrman.h>
 #include <banman.h>
 #include <interfaces/chain.h>
+#include <interfaces/mining.h>
 #include <kernel/context.h>
 #include <net.h>
 #include <netfulfilledman.h>

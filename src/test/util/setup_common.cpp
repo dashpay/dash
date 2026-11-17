@@ -618,7 +618,8 @@ CBlock TestChainSetup::CreateBlock(
     const CScript& scriptPubKey,
     Chainstate& chainstate)
 {
-    CBlock block = BlockAssembler(chainstate, m_node, nullptr).CreateNewBlock(scriptPubKey)->block;
+    BlockAssembler::Options options;
+    CBlock block = BlockAssembler{chainstate, m_node, nullptr, options}.CreateNewBlock(scriptPubKey)->block;
 
     std::vector<CTransactionRef> llmqCommitments;
     for (const auto& tx : block.vtx) {

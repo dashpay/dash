@@ -3142,7 +3142,8 @@ void FuncEvoNodeRegistrarRaiseNotMined(TestChainV24SignalBeforeV19Setup& setup)
         mempool.addUnchecked(entry.Fee(50000).Time(Now<NodeSeconds>()).FromTx(tx));
         BOOST_REQUIRE(mempool.exists(tx.GetHash()));
     }
-    const auto block_template = node::BlockAssembler{chainman.ActiveChainstate(), setup.m_node, &mempool}.CreateNewBlock(
+    node::BlockAssembler::Options options;
+    const auto block_template = node::BlockAssembler{chainman.ActiveChainstate(), setup.m_node, &mempool, options}.CreateNewBlock(
         setup.coinbase_pk);
     BOOST_REQUIRE(block_template != nullptr);
     for (const auto& block_tx : block_template->block.vtx) {
@@ -3541,7 +3542,8 @@ void FuncPreV24CrossSchemePairCannotBecomeResident(TestChainV24SignalBeforeV19Se
     // than because every special transaction was dropped.
     std::unique_ptr<node::CBlockTemplate> tmpl;
     auto make_template = [&] {
-        tmpl = node::BlockAssembler{chainman.ActiveChainstate(), setup.m_node, &mempool}.CreateNewBlock(coinbase_pk);
+        node::BlockAssembler::Options options;
+        tmpl = node::BlockAssembler{chainman.ActiveChainstate(), setup.m_node, &mempool, options}.CreateNewBlock(coinbase_pk);
     };
     BOOST_CHECK_NO_THROW(make_template());
     BOOST_REQUIRE_MESSAGE(tmpl != nullptr, "no template could be built with a pre-v24 cross-scheme pair resident");
@@ -4113,7 +4115,8 @@ void FuncStaleSpecialTxDoesNotPoisonTemplate(TestChainV24SignalBeforeV19Setup& s
         BOOST_REQUIRE(mempool.exists(stale_hash));
     }
 
-    auto block_template = node::BlockAssembler{chainman.ActiveChainstate(), setup.m_node, &mempool}
+    node::BlockAssembler::Options options;
+    auto block_template = node::BlockAssembler{chainman.ActiveChainstate(), setup.m_node, &mempool, options}
                               .CreateNewBlock(coinbase_pk);
     BOOST_REQUIRE_MESSAGE(block_template != nullptr, "no template built while a stale special tx was resident");
     for (const auto& tx : block_template->block.vtx) {
@@ -4250,7 +4253,8 @@ void FuncTemplateSkipsConflictingProviderPackage(TestChainSetup& setup)
         BOOST_REQUIRE(ranks_before(*reuse_entry, *parent_entry));
     }
 
-    node::BlockAssembler assembler{chainman.ActiveChainstate(), setup.m_node, &mempool};
+    node::BlockAssembler::Options options;
+    node::BlockAssembler assembler{chainman.ActiveChainstate(), setup.m_node, &mempool, options};
     std::unique_ptr<node::CBlockTemplate> block_template;
     try {
         block_template = assembler.CreateNewBlock(coinbase_pk);
