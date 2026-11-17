@@ -445,6 +445,8 @@ BASE_SCRIPTS = [
     'rpc_getpeerinfo_deprecation.py',
     'rpc_mempool_info.py',
     'rpc_help.py',
+    'p2p_handshake.py',
+    'p2p_handshake.py --v2transport',
     'feature_dirsymlinks.py',
     'feature_help.py',
     'wallet_migration.py',

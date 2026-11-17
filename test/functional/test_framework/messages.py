@@ -50,6 +50,7 @@ MAX_HEADERS_UNCOMPRESSED_RESULT = 2000  # Number of headers sent in one getheade
 MAX_HEADERS_COMPRESSED_RESULT = 8000  # Number of headers2 sent in one getheaders2 result
 MAX_INV_SIZE = 50000  # Maximum number of entries in an 'inv' protocol message
 
+NODE_NONE = 0
 NODE_NETWORK = (1 << 0)
 NODE_BLOOM = (1 << 2)
 NODE_COMPACT_FILTERS = (1 << 6)
