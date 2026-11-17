@@ -1794,10 +1794,17 @@ public:
         return context()->mempool->GetTransactionsUpdated();
     }
 
-    bool testBlockValidity(BlockValidationState& state, const CBlock& block, bool check_merkle_root) override
+    bool testBlockValidity(const CBlock& block, bool check_merkle_root, BlockValidationState& state) override
     {
-        LOCK(::cs_main);
-        return TestBlockValidity(state, *Assert(m_node.chainlocks), *Assert(m_node.evodb), chainman().GetParams(), chainman().ActiveChainstate(), block, chainman().ActiveChain().Tip(), /*fCheckPOW=*/false, check_merkle_root);
+        LOCK(cs_main);
+        CBlockIndex* tip{chainman().ActiveChain().Tip()};
+        // Fail if the tip updated before the lock was taken
+        if (block.hashPrevBlock != tip->GetBlockHash()) {
+            state.Error("Block does not connect to current chain tip.");
+            return false;
+        }
+
+        return TestBlockValidity(state, *Assert(m_node.chainlocks), *Assert(m_node.evodb), chainman().GetParams(), chainman().ActiveChainstate(), block, tip, /*fCheckPOW=*/false, check_merkle_root);
     }
 
     std::unique_ptr<CBlockTemplate> createNewBlock(const CScript& script_pub_key, bool use_mempool) override
@@ -1805,7 +1812,6 @@ public:
         BlockAssembler::Options options;
         ApplyArgsManOptions(gArgs, options);
 
-        LOCK(::cs_main);
         return BlockAssembler{chainman().ActiveChainstate(), m_node, use_mempool ? context()->mempool.get() : nullptr, options}.CreateNewBlock(script_pub_key);
     }
 
