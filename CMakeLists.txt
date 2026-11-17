@@ -8,16 +8,14 @@
 # Centos Stream 9, EOL in May 2027:
 #  - CMake 3.26.5, https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages/
 cmake_minimum_required(VERSION 3.22)
-if(POLICY CMP0141)
-  # MSVC debug information format flags are selected by an abstraction.
-  # We want to use the CMAKE_MSVC_DEBUG_INFORMATION_FORMAT variable
-  # to select the MSVC debug information format.
-  cmake_policy(SET CMP0141 NEW)
-endif()
 
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "In-source builds are not allowed.")
 endif()
+
+# When adjusting CMake flag variables, we must not override those explicitly
+# set by the user. These are a subset of the CACHE_VARIABLES property.
+get_directory_property(precious_variables CACHE_VARIABLES)
 
 #=============================
 # Project / Package metadata
@@ -86,6 +84,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/module)
+include(ProcessConfigurations)
 
 #=============================
 # Configurable options
@@ -112,14 +111,12 @@ if(WITH_SQLITE)
     find_package(SQLite3 3.7.17 REQUIRED)
   endif()
   set(USE_SQLITE ON)
-  set(ENABLE_WALLET ON)
 endif()
 option(WITH_BDB "Enable Berkeley DB (BDB) wallet support." OFF)
 cmake_dependent_option(WARN_INCOMPATIBLE_BDB "Warn when using a Berkeley DB (BDB) version other than 4.8." ON "WITH_BDB" OFF)
 if(WITH_BDB)
   find_package(BerkeleyDB 4.8 MODULE REQUIRED)
   set(USE_BDB ON)
-  set(ENABLE_WALLET ON)
   if(NOT BerkeleyDB_VERSION VERSION_EQUAL 4.8)
     message(WARNING "Found Berkeley DB (BDB) other than 4.8.\n"
                     "BDB (legacy) wallets opened by this build will not be portable!"
@@ -156,7 +153,9 @@ if(WITH_ZMQ)
     find_package(ZeroMQ CONFIG REQUIRED)
   else()
     # The ZeroMQ project has provided config files since v4.2.2.
-    # TODO: Switch to find_package(ZeroMQ) at some point in the future.
+    # However, mainstream distributions do not yet provide CMake
+    # config files for ZeroMQ packages. If they do in the future,
+    # find_package(ZeroMQ) may be used instead.
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(libzmq REQUIRED IMPORTED_TARGET libzmq>=4)
     # TODO: This command will be redundant once
@@ -224,7 +223,7 @@ cmake_dependent_option(ENABLE_PLATFORM_GUI "Enable Dash Platform (usernames, Das
 
 option(BUILD_BENCH "Build bench_bitcoin executable." OFF)
 option(BUILD_FUZZ_BINARY "Build fuzz binary." OFF)
-cmake_dependent_option(BUILD_FOR_FUZZING "Build for fuzzing. Enabling this will disable all other targets and override BUILD_FUZZ_BINARY." OFF "NOT MSVC" OFF)
+option(BUILD_FOR_FUZZING "Build for fuzzing. Enabling this will disable all other targets and override BUILD_FUZZ_BINARY." OFF)
 
 option(INSTALL_MAN "Install man pages." ON)
 
@@ -241,16 +240,8 @@ string(APPEND CMAKE_CXX_LINK_EXECUTABLE " ${APPEND_LDFLAGS}")
 
 set(configure_warnings)
 
-include(CheckPIESupported)
-check_pie_supported(OUTPUT_VARIABLE check_pie_output LANGUAGES CXX)
-if(CMAKE_CXX_LINK_PIE_SUPPORTED)
-  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-elseif(NOT WIN32)
-  # The warning is superfluous for Windows.
-  message(WARNING "PIE is not supported at link time: ${check_pie_output}")
-  list(APPEND configure_warnings "Position independent code disabled.")
-endif()
-unset(check_pie_output)
+include(CheckLinkerSupportsPIE)
+check_linker_supports_pie(configure_warnings)
 
 # The core_interface library aims to encapsulate common build flags.
 # It is a usage requirement for all targets except for secp256k1, which
@@ -295,10 +286,19 @@ endif()
 # Derive this after BUILD_FOR_FUZZING has applied its target overrides.
 set(HAVE_CONSENSUS_LIB ${BUILD_CONSENSUS_LIB})
 
-include(ProcessConfigurations)
-
 include(TryAppendCXXFlags)
 include(TryAppendLinkerFlag)
+
+# Redefine/adjust per-configuration flags.
+# Dash uses DEBUG_CORE, not upstream's DEBUG, which is what span.h and
+# init/common.cpp check.
+target_compile_definitions(core_interface_debug INTERFACE
+  DEBUG_CORE
+  DEBUG_LOCKORDER
+  DEBUG_LOCKCONTENTION
+  RPC_DOC_CHECK
+  ABORT_ON_FAILED_ASSUME
+)
 
 if(WIN32)
   #[=[
@@ -580,18 +580,21 @@ if(ENABLE_HARDENING)
     try_append_linker_flag("/HIGHENTROPYVA" TARGET hardening_interface)
     try_append_linker_flag("/NXCOMPAT" TARGET hardening_interface)
   else()
+
+    # _FORTIFY_SOURCE requires that there is some level of optimization,
+    # otherwise it does nothing and just creates a compiler warning.
     try_append_cxx_flags("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3"
       RESULT_VAR cxx_supports_fortify_source
+      SOURCE "int main() {
+              # if !defined __OPTIMIZE__ || __OPTIMIZE__ <= 0
+                #error
+              #endif
+              }"
     )
     if(cxx_supports_fortify_source)
-      # When the build configuration is Debug, all optimizations are disabled.
-      # However, _FORTIFY_SOURCE requires that there is some level of optimization,
-      # otherwise it does nothing and just creates a compiler warning.
-      # Since _FORTIFY_SOURCE is a no-op without optimizations, do not enable it
-      # when the build configuration is Debug.
       target_compile_options(hardening_interface INTERFACE
-        $<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE>
-        $<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=3>
+        -U_FORTIFY_SOURCE
+        -D_FORTIFY_SOURCE=3
       )
     endif()
     unset(cxx_supports_fortify_source)

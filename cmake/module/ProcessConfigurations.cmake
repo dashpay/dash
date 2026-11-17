@@ -4,8 +4,6 @@
 
 include_guard(GLOBAL)
 
-include(TryAppendCXXFlags)
-
 macro(normalize_string string)
   string(REGEX REPLACE " +" " " ${string} "${${string}}")
   string(STRIP "${${string}}" ${string})
@@ -107,47 +105,29 @@ function(remove_cxx_flag_from_all_configs flag)
 endfunction()
 
 function(append_flag_to_config lang config flag)
-  string(TOUPPER "${config}" config_uppercase)
-  set(flags_var CMAKE_${lang}_FLAGS_${config_uppercase})
-  set(flags "${${flags_var}}")
-  separate_arguments(flags)
-  # Appending unconditionally would re-append on every reconfigure, because the
-  # value read back here is the one this function forced into the cache last time.
-  if(NOT "${flag}" IN_LIST flags)
-    list(APPEND flags "${flag}")
+  string(TOUPPER "CMAKE_${lang}_FLAGS_${config}" var_name)
+  if("${var_name}" IN_LIST precious_variables)
+    return()
   endif()
-  list(JOIN flags " " new_flags)
-  set(${flags_var} "${new_flags}" PARENT_SCOPE)
-  set(${flags_var} "${new_flags}"
-    CACHE STRING
-    "Flags used by the ${lang} compiler during ${config_uppercase} builds."
-    FORCE
-  )
+  string(STRIP "${${var_name}} ${flag}" ${var_name})
+  set(${var_name} "${${var_name}}" PARENT_SCOPE)
+  set_property(CACHE ${var_name} PROPERTY VALUE "${${var_name}}")
 endfunction()
 
 function(replace_cxx_flag_in_config config old_flag new_flag)
-  string(TOUPPER "${config}" config_uppercase)
-  string(REGEX REPLACE "(^| )${old_flag}( |$)" "\\1${new_flag}\\2" new_flags "${CMAKE_CXX_FLAGS_${config_uppercase}}")
-  set(CMAKE_CXX_FLAGS_${config_uppercase} "${new_flags}" PARENT_SCOPE)
-  set(CMAKE_CXX_FLAGS_${config_uppercase} "${new_flags}"
-    CACHE STRING
-    "Flags used by the CXX compiler during ${config_uppercase} builds."
-    FORCE
-  )
+  string(TOUPPER "CMAKE_CXX_FLAGS_${config}" var_name)
+  if("${var_name}" IN_LIST precious_variables)
+    return()
+  endif()
+  string(REGEX REPLACE "(^| )${old_flag}( |$)" "\\1${new_flag}\\2" ${var_name} "${${var_name}}")
+  set(${var_name} "${${var_name}}" PARENT_SCOPE)
+  set_property(CACHE ${var_name} PROPERTY VALUE "${${var_name}}")
 endfunction()
 
 set_default_config(RelWithDebInfo)
 
-# Redefine/adjust per-configuration flags.
-# Dash uses DEBUG_CORE, not upstream's DEBUG, which is what span.h and
-# init/common.cpp check.
-target_compile_definitions(core_interface_debug INTERFACE
-  DEBUG_CORE
-  DEBUG_LOCKORDER
-  DEBUG_LOCKCONTENTION
-  RPC_DOC_CHECK
-  ABORT_ON_FAILED_ASSUME
-)
+include(TryAppendCXXFlags)
+
 # We leave assertions on.
 if(MSVC)
   remove_cxx_flag_from_all_configs(/DNDEBUG)
