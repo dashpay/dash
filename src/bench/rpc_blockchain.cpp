@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bench/bench.h>
-#include <bench/data.h>
+#include <bench/data/block813851.raw.h>
 
 #include <chainlock/chainlock.h>
 #include <consensus/validation.h>

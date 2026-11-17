@@ -2,15 +2,10 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
-include(GenerateHeaders)
-generate_header_from_raw(data/block813851.raw)
-
 add_executable(bench_bitcoin
   bench_bitcoin.cpp
   bench.cpp
-  data.cpp
   nanobench.cpp
-  ${CMAKE_CURRENT_BINARY_DIR}/data/block813851.raw.h
 # Benchmarks:
   addrman.cpp
   base58.cpp
@@ -60,6 +55,11 @@ add_executable(bench_bitcoin
   xor.cpp
 )
 set_target_properties(bench_bitcoin PROPERTIES OUTPUT_NAME bench_dash)
+
+include(TargetDataSources)
+target_raw_data_sources(bench_bitcoin NAMESPACE benchmark::data
+  data/block813851.raw
+)
 
 target_link_libraries(bench_bitcoin
   core_interface
