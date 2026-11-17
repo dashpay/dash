@@ -114,14 +114,30 @@ void ActiveDKGSessionHandler::WaitForNextPhase(std::optional<QuorumPhase> curPha
 {
     LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, quorumIndex, curPhase.has_value() ? std23::to_underlying(*curPhase) : -1, std23::to_underlying(nextPhase));
 
+    const bool waiting_for_round_start{!curPhase.has_value()};
+    bool logged_snapshot_wait{false};
     while (true) {
-        if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
-            LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting because snapshot background validation is incomplete\n", __func__, params.name, quorumIndex);
-            throw AbortPhaseException();
-        }
         if (stopRequested) {
             LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting due to stop/shutdown requested\n", __func__, params.name, quorumIndex);
             throw AbortPhaseException();
+        }
+        if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+            if (!waiting_for_round_start) {
+                LogPrint(BCLog::LLMQ_DKG,
+                         "ActiveDKGSessionHandler::%s -- %s qi[%d] - aborting because snapshot background validation "
+                         "is incomplete\n",
+                         __func__, params.name, quorumIndex);
+                throw AbortPhaseException();
+            }
+            // No round can start until background validation completes, so wait instead of aborting
+            if (!logged_snapshot_wait) {
+                LogPrint(BCLog::LLMQ_DKG,
+                         "ActiveDKGSessionHandler::%s -- %s qi[%d] - waiting for snapshot background validation\n",
+                         __func__, params.name, quorumIndex);
+                logged_snapshot_wait = true;
+            }
+            UninterruptibleSleep(std::chrono::milliseconds{100});
+            continue;
         }
         auto [_phase, _quorumHash] = GetPhaseAndQuorumHash();
         if (!expectedQuorumHash.IsNull() && _quorumHash != expectedQuorumHash) {
