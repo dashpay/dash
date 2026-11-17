@@ -35,6 +35,7 @@ EXCLUDE_COMPILED = re.compile('|'.join([fnmatch.translate(m) for m in EXCLUDE]))
 
 EXCLUDE_DIRS = [
     # git subtrees
+    "src/blst/",
     "src/crc32c/",
     "src/crypto/ctaes/",
     "src/dashbls/",

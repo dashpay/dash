@@ -1290,6 +1290,12 @@ Current subtrees include:
 - src/dashbls
   - Upstream at https://github.com/dashpay/bls-signatures ; maintained by Dash Core contributors.
 
+- src/blst
+  - Upstream at https://github.com/dashpay/blst (branch `dash-subtree`) ; a fork of https://github.com/supranational/blst
+    maintained by Dash Core contributors. The BLS12-381 backend of src/dashbls. The fork branch drops the language
+    bindings and unused assembly, and lets the C implementation (`-DENABLE_BLST_ASM=OFF`, as in the MSan build) build on
+    64-bit targets; `src/blst/README.md` describes how to update it.
+
 - src/immer
   - Upstream at https://github.com/arximboldi/immer ; provides the immutable containers used by the deterministic masternode list.
 

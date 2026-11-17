@@ -3,7 +3,7 @@
 # file COPYING or https://opensource.org/license/mit/.
 
 # The dashbls subtree ships no build system of its own, so build its sources
-# here and take blst from depends or the system.
+# here, against blst from the src/blst subtree (cmake/blst.cmake).
 
 if(ENABLE_MIMALLOC)
   add_library(mimalloc_secure STATIC EXCLUDE_FROM_ALL
@@ -78,7 +78,7 @@ target_link_libraries(dashbls
     core_interface
   PUBLIC
     $<TARGET_NAME_IF_EXISTS:mimalloc_secure>
-    BLST::BLST
+    blst
 )
 set_target_properties(dashbls PROPERTIES
   EXPORT_COMPILE_COMMANDS OFF

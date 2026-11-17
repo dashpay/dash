@@ -37,21 +37,6 @@ RUN set -ex; \
     zip \
     && rm -rf /var/lib/apt/lists/*
 
-# No distribution packages blst, so builds that take their libraries from the
-# system instead of depends (NO_DEPENDS=1) find it here.
-# Keep the version in sync with depends/packages/blst.mk.
-ARG BLST_VERSION=0.3.17
-ARG BLST_SHA256=c3fef37b566b67419703b2bbb648e15176276af9a880c22aa8f5f2e8cecc2e4d
-RUN set -ex; \
-    curl -fL "https://github.com/supranational/blst/archive/refs/tags/v${BLST_VERSION}.tar.gz" -o /tmp/blst.tar.gz; \
-    echo "${BLST_SHA256}  /tmp/blst.tar.gz" | sha256sum -c -; \
-    mkdir /tmp/blst && tar -xzf /tmp/blst.tar.gz -C /tmp/blst --strip-components=1; \
-    cd /tmp/blst; \
-    CFLAGS="-O2 -fno-builtin -fPIC -D__BLST_PORTABLE__" ./build.sh; \
-    install -m 644 bindings/blst.h bindings/blst_aux.h /usr/local/include; \
-    install -m 644 libblst.a /usr/local/lib; \
-    cd / && rm -rf /tmp/blst /tmp/blst.tar.gz
-
 # Native g++-11 already provides aarch64-linux-gnu-g++-11 on arm64, where noble
 # has no g++-11-aarch64-linux-gnu cross package
 RUN set -ex; \

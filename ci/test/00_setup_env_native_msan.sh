@@ -17,21 +17,19 @@ LIBCXX_FLAGS="-nostdinc++ -nostdlib++ -isystem ${LIBCXX_DIR}include/c++/v1 -L${L
 export MSAN_AND_LIBCXX_FLAGS="${MSAN_FLAGS} ${LIBCXX_FLAGS}"
 
 # BDB generates false-positives and will be removed in future
-# __BLST_NO_ASM__ makes blst use its C implementation instead of hand-written
-# assembly, which MSan cannot see through.
-export DEP_OPTS="DEBUG=1 NO_BDB=1 NO_QT=1 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}' CPPFLAGS='-D__BLST_NO_ASM__'"
+export DEP_OPTS="DEBUG=1 NO_BDB=1 NO_QT=1 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}'"
 export GOAL="install"
 # The compilers and flags come from DEP_OPTS through depends' toolchain file.
 # _FORTIFY_SOURCE is not compatible with MSAN.
 # depends' toolchain file applies its DEBUG=1 defines to Debug builds only, so
 # repeat the libc++ debug hardening mode here to keep it on in this build.
-# SECP256K1_ASM=OFF keeps secp256k1 off hand-written assembly, which MSan
-# cannot see through.
+# SECP256K1_ASM=OFF and ENABLE_BLST_ASM=OFF keep secp256k1 and blst off
+# hand-written assembly, which MSan cannot see through.
 # ENABLE_MIMALLOC=OFF selects the plain malloc secure allocator; mimalloc seeds
 # itself with a raw getrandom syscall before main(), which MSan cannot track.
 export BITCOIN_CONFIG="\
  -DSANITIZERS=memory -DBUILD_GUI=OFF -DWITH_BDB=OFF -DWITH_SQLITE=ON \
- -DSECP256K1_ASM=OFF -DENABLE_MIMALLOC=OFF \
+ -DSECP256K1_ASM=OFF -DENABLE_BLST_ASM=OFF -DENABLE_MIMALLOC=OFF \
  -DAPPEND_CPPFLAGS='-U_FORTIFY_SOURCE -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG' \
 "
 export USE_MEMORY_SANITIZER="true"
