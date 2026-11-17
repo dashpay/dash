@@ -31,6 +31,7 @@ public:
     }
     std::unique_ptr<interfaces::Node> makeNode() override { return interfaces::MakeNode(m_node); }
     std::unique_ptr<interfaces::Chain> makeChain() override { return interfaces::MakeChain(m_node); }
+    std::unique_ptr<interfaces::Mining> makeMining() override { return interfaces::MakeMining(m_node); }
     std::unique_ptr<interfaces::CoinJoin::Loader> makeCoinJoinLoader() override
     {
         return interfaces::MakeCoinJoinLoader(m_node);

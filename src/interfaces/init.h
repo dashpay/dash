@@ -8,6 +8,7 @@
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>
 #include <interfaces/echo.h>
+#include <interfaces/mining.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 
@@ -33,6 +34,7 @@ public:
     virtual ~Init() = default;
     virtual std::unique_ptr<Node> makeNode() { return nullptr; }
     virtual std::unique_ptr<Chain> makeChain() { return nullptr; }
+    virtual std::unique_ptr<Mining> makeMining() { return nullptr; }
     virtual std::unique_ptr<CoinJoin::Loader> makeCoinJoinLoader() { return nullptr; }
     virtual std::unique_ptr<interfaces::WalletLoader> makeWalletLoader(interfaces::Chain&) { return nullptr; }
     virtual std::unique_ptr<Echo> makeEcho() { return nullptr; }

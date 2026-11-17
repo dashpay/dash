@@ -23,6 +23,7 @@
 #include <netbase.h>
 #include <netmessagemaker.h>
 #include <node/blockstorage.h>
+#include <node/timeoffsets.h>
 #include <node/txreconciliation.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
@@ -447,6 +448,10 @@ struct Peer {
     /** Whether this peer wants invs or compressed headers (when possible) for block announcements */
     bool m_prefers_headers_compressed GUARDED_BY(NetEventsInterface::g_msgproc_mutex){false};
 
+    /** Time offset computed during the version handshake based on the
+     * timestamp the peer sent in the version message. */
+    std::atomic<std::chrono::seconds> m_time_offset{0s};
+
     explicit Peer(NodeId id, ServiceFlags our_services)
         : m_id(id)
         , m_our_services{our_services}
@@ -614,7 +619,7 @@ public:
     std::optional<std::string> FetchBlock(NodeId peer_id, const CBlockIndex& block_index) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     bool GetNodeStateStats(NodeId nodeid, CNodeStateStats& stats) const override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    bool IgnoresIncomingTxs() override { return m_opts.ignore_incoming_txs; }
+    PeerManagerInfo GetInfo() const override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void SendPings() override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);;
     void PushInventory(NodeId nodeid, const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void RelayInv(const CInv& inv) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
@@ -863,6 +868,8 @@ private:
 
     /** Next time to check for stale tip */
     std::chrono::seconds m_stale_tip_check_time GUARDED_BY(cs_main){0s};
+
+    TimeOffsets m_outbound_time_offsets;
 
     const Options m_opts;
 
@@ -1966,8 +1973,17 @@ bool PeerManagerImpl::GetNodeStateStats(NodeId nodeid, CNodeStateStats& stats) c
     stats.m_addr_processed = peer->m_addr_processed.load();
     stats.m_addr_rate_limited = peer->m_addr_rate_limited.load();
     stats.m_addr_relay_enabled = peer->m_addr_relay_enabled.load();
+    stats.time_offset = peer->m_time_offset;
 
     return true;
+}
+
+PeerManagerInfo PeerManagerImpl::GetInfo() const
+{
+    return PeerManagerInfo{
+        .median_outbound_time_offset = m_outbound_time_offsets.Median(),
+        .ignores_incoming_txs = m_opts.ignore_incoming_txs,
+    };
 }
 
 void PeerManagerImpl::AddToCompactExtraTransactions(const CTransactionRef& tx)
@@ -4199,12 +4215,14 @@ void PeerManagerImpl::ProcessMessage(
                   peer->m_starting_height, addrMe.ToStringAddrPort(), fRelay, pfrom.GetId(),
                   remoteAddr, (mapped_as ? strprintf(", mapped_as=%d", mapped_as) : ""));
 
-        int64_t nTimeOffset = nTime - GetTime();
-        pfrom.nTimeOffset = nTimeOffset;
+        peer->m_time_offset = NodeSeconds{std::chrono::seconds{nTime}} - Now<NodeSeconds>();
         if (!pfrom.IsInboundConn()) {
             // Don't use timedata samples from inbound peers to make it
-            // harder for others to tamper with our adjusted time.
-            AddTimeData(pfrom.addr, nTimeOffset, m_opts.max_time_adjustment);
+            // harder for others to tamper with our adjusted time or to create
+            // false warnings about our clock being out of sync.
+            AddTimeData(pfrom.addr, Ticks<std::chrono::seconds>(peer->m_time_offset.load()), m_opts.max_time_adjustment);
+            m_outbound_time_offsets.Add(peer->m_time_offset);
+            m_outbound_time_offsets.WarnIfOutOfSync();
         }
 
         // Feeler connections exist only to verify if address is online.

@@ -106,6 +106,7 @@ add_executable(fuzz
   strprintf.cpp
   system.cpp
   timedata.cpp
+  timeoffsets.cpp
   torcontrol.cpp
   transaction.cpp
   tx_in.cpp

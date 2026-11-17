@@ -87,7 +87,8 @@ struct TestChainDATSetup : public TestChainSetup
                                   .threshold,
                               threshold(0));
             // Next block should be signaling by default
-            const auto pblocktemplate = BlockAssembler(m_node.chainman->ActiveChainstate(), m_node, m_node.mempool.get()).CreateNewBlock(coinbasePubKey);
+            BlockAssembler::Options options;
+            const auto pblocktemplate = BlockAssembler{m_node.chainman->ActiveChainstate(), m_node, m_node.mempool.get(), options}.CreateNewBlock(coinbasePubKey);
             const uint32_t bitmask = static_cast<uint32_t>(1) << consensus_params.vDeployments[deployment_id].bit;
             BOOST_CHECK_EQUAL(m_node.chainman->ActiveChain().Tip()->nVersion & bitmask, 0);
             BOOST_CHECK_EQUAL(pblocktemplate->block.nVersion & bitmask, bitmask);

@@ -2,19 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
 #include <timedata.h>
 
 #include <logging.h>
 #include <netaddress.h>
-#include <node/interface_ui.h>
 #include <sync.h>
 #include <tinyformat.h>
-#include <util/translation.h>
-#include <warnings.h>
 
 static GlobalMutex g_timeoffset_mutex;
 static int64_t nTimeOffset GUARDED_BY(g_timeoffset_mutex) = 0;
@@ -41,7 +34,6 @@ NodeClock::time_point GetAdjustedTime()
 
 static std::set<CNetAddr> g_sources;
 static CMedianFilter<int64_t> g_time_offsets{BITCOIN_TIMEDATA_MAX_SAMPLES, 0};
-static bool g_warning_emitted;
 
 void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample, int64_t max_adjustment)
 {
@@ -82,21 +74,6 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample, int64_t max_adjustme
             nTimeOffset = nMedian;
         } else {
             nTimeOffset = 0;
-
-            if (!g_warning_emitted) {
-                // If nobody has a time different than ours but within 5 minutes of ours, give a warning
-                bool fMatch = false;
-                for (const int64_t nOffset : vSorted) {
-                    if (nOffset != 0 && nOffset > -5 * 60 && nOffset < 5 * 60) fMatch = true;
-                }
-
-                if (!fMatch) {
-                    g_warning_emitted = true;
-                    bilingual_str strMessage = strprintf(_("Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly."), PACKAGE_NAME);
-                    SetMiscWarning(strMessage);
-                    uiInterface.ThreadSafeMessageBox(strMessage, "", CClientUIInterface::MSG_WARNING);
-                }
-            }
         }
 
         if (LogAcceptCategory(BCLog::NET, BCLog::Level::Debug)) {
@@ -116,5 +93,4 @@ void TestOnlyResetTimeData()
     nTimeOffset = 0;
     g_sources.clear();
     g_time_offsets = CMedianFilter<int64_t>{BITCOIN_TIMEDATA_MAX_SAMPLES, 0};
-    g_warning_emitted = false;
 }

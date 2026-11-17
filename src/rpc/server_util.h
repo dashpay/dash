@@ -22,6 +22,9 @@ class CInstantSendManager;
 namespace node {
 struct NodeContext;
 } // namespace node
+namespace interfaces {
+class Mining;
+} // namespace interfaces
 
 node::NodeContext& EnsureAnyNodeContext(const CoreContext& context);
 CTxMemPool& EnsureMemPool(const node::NodeContext& node);
@@ -38,6 +41,7 @@ LLMQContext& EnsureLLMQContext(const node::NodeContext& node);
 LLMQContext& EnsureAnyLLMQContext(const CoreContext& context);
 llmq::CInstantSendManager& EnsureInstantSendManager(const node::NodeContext& node);
 CConnman& EnsureConnman(const node::NodeContext& node);
+interfaces::Mining& EnsureMining(const node::NodeContext& node);
 PeerManager& EnsurePeerman(const node::NodeContext& node);
 AddrMan& EnsureAddrman(const node::NodeContext& node);
 AddrMan& EnsureAnyAddrman(const CoreContext& context);

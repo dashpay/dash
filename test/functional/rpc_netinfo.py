@@ -446,7 +446,7 @@ class NetInfoTest(BitcoinTestFramework):
             result = self.nodes[0].testmempoolaccept([tx])[0]
             assert_equal(result['allowed'], False)
             assert_equal(result['reject-reason'], reason)
-            assert_raises_rpc_error(-25, f"TestBlockValidity failed: {reason}", self.nodes[0].generateblock, address,
+            assert_raises_rpc_error(-25, f"testBlockValidity failed: {reason}", self.nodes[0].generateblock, address,
                                     [tx], invalid_call=False)
         self.nodes[0].reconsiderblock(tip)
         self.sync_blocks()

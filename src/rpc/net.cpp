@@ -23,7 +23,6 @@
 #include <rpc/server_util.h>
 #include <rpc/util.h>
 #include <sync.h>
-#include <timedata.h>
 #include <util/chaintype.h>
 #include <util/strencodings.h>
 #include <util/string.h>
@@ -250,7 +249,7 @@ static RPCHelpMan getpeerinfo()
         obj.pushKV("bytessent", stats.nSendBytes);
         obj.pushKV("bytesrecv", stats.nRecvBytes);
         obj.pushKV("conntime", count_seconds(stats.m_connected));
-        obj.pushKV("timeoffset", stats.nTimeOffset);
+        obj.pushKV("timeoffset", Ticks<std::chrono::seconds>(statestats.time_offset));
         if (stats.m_last_ping_time > 0us) {
             obj.pushKV("pingtime", Ticks<SecondsDouble>(stats.m_last_ping_time));
         }
@@ -701,9 +700,10 @@ static RPCHelpMan getnetworkinfo()
         obj.pushKV("localservicesnames", GetServicesNames(services));
     }
     if (node.peerman) {
-        obj.pushKV("localrelay", !node.peerman->IgnoresIncomingTxs());
+        auto peerman_info{node.peerman->GetInfo()};
+        obj.pushKV("localrelay", !peerman_info.ignores_incoming_txs);
+        obj.pushKV("timeoffset", Ticks<std::chrono::seconds>(peerman_info.median_outbound_time_offset));
     }
-    obj.pushKV("timeoffset",    GetTimeOffset());
     if (node.connman) {
         obj.pushKV("networkactive", node.connman->GetNetworkActive());
         obj.pushKV("connections", node.connman->GetNodeCount(ConnectionDirection::Both));

@@ -42,6 +42,7 @@
 #include <index/timestampindex.h>
 #include <index/txindex.h>
 #include <interfaces/init.h>
+#include <interfaces/mining.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <kernel/coinstats.h>
@@ -1521,6 +1522,7 @@ bool AppInitLockDataDirectory()
 bool AppInitInterfaces(NodeContext& node)
 {
     node.chain = node.init->makeChain();
+    node.mining = node.init->makeMining();
     return true;
 }
 
