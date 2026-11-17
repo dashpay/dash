@@ -11,6 +11,7 @@ from typing import List
 from test_framework.messages import (
     CAddress,
     msg_addrv2,
+    msg_sendaddrv2,
 )
 from test_framework.p2p import (
     P2PInterface,
@@ -75,6 +76,12 @@ class AddrTest(BitcoinTestFramework):
                 addr.ip = f"123.123.123.{i % 256}"
             ADDRS.append(addr)
 
+        self.log.info('Check disconnection when sending sendaddrv2 after verack')
+        conn = self.nodes[0].add_p2p_connection(P2PInterface())
+        with self.nodes[0].assert_debug_log(['sendaddrv2 received after verack from peer=0; disconnecting']):
+            conn.send_message(msg_sendaddrv2())
+            conn.wait_for_disconnect()
+
         self.log.info('Create connection that sends addrv2 messages')
         addr_source = self.nodes[0].add_p2p_connection(P2PInterface())
         msg = msg_addrv2()
@@ -92,13 +99,13 @@ class AddrTest(BitcoinTestFramework):
         msg.addrs = ADDRS
         msg_size = calc_addrv2_msg_size(ADDRS)
         with self.nodes[0].assert_debug_log([
-                f'received: addrv2 ({msg_size} bytes) peer=1',
+                f'received: addrv2 ({msg_size} bytes) peer=2',
         ]):
             addr_source.send_and_ping(msg)
 
         # Wait until "Added ..." before bumping mocktime to make sure addv2 is (almost) fully processed
         with self.nodes[0].assert_debug_log([
-                f'sending addrv2 ({msg_size} bytes) peer=2',
+                f'sending addrv2 ({msg_size} bytes) peer=3',
         ]):
             self.bump_mocktime(30 * 60)
             addr_receiver.wait_for_addrv2()
