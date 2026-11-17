@@ -67,12 +67,6 @@ zstd compresses block and undo files on disk (see: `-DWITH_ZSTD=ON`, package `li
 on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
 contain compressed records.
 
-Optional port mapping libraries (see: `-DWITH_MINIUPNPC=ON` and `-DWITH_NATPMP=ON`):
-
-```sh
-sudo apt-get install libminiupnpc-dev libnatpmp-dev
-```
-
 ZMQ dependencies (enable notifications with `-DWITH_ZMQ=ON`):
 
 ```sh
@@ -147,12 +141,6 @@ zstd compresses block and undo files on disk (see: `-DWITH_ZSTD=ON`, package `li
 on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
 contain compressed records.
 
-Optional port mapping libraries (see: `-DWITH_MINIUPNPC=ON` and `-DWITH_NATPMP=ON`):
-
-```sh
-sudo dnf install miniupnpc-devel libnatpmp-devel
-```
-
 ZMQ dependencies (enable notifications with `-DWITH_ZMQ=ON`):
 
 ```sh
@@ -203,7 +191,7 @@ The legacy wallet uses Berkeley DB. To ensure backwards compatibility it is
 recommended to use Berkeley DB 4.8. If you have to build it yourself, and don't
 want to use any other libraries built in depends, you can do:
 ```bash
-make -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_SQLITE=1 NO_NATPMP=1 NO_UPNP=1 NO_ZMQ=1 NO_USDT=1
+make -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_SQLITE=1 NO_ZMQ=1 NO_USDT=1
 ...
 to: /path/to/dash/depends/x86_64-pc-linux-gnu
 ```

@@ -58,6 +58,7 @@ target_link_libraries(bitcoin_util
     dashbls
     univalue
     $<$<PLATFORM_ID:Windows>:ws2_32>
+    $<$<PLATFORM_ID:Windows>:iphlpapi>
   PUBLIC
     $<TARGET_NAME_IF_EXISTS:PkgConfig::libzstd>
 )

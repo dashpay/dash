@@ -47,12 +47,6 @@ by SHA256.
 | [protoc](../depends/packages/native_protobuf.mk) (build tool) | [link](https://github.com/protocolbuffers/protobuf/releases) | 32.0 | 25.0 | No |
 | [dash-sdk-cxx](../depends/packages/platform_cxx.mk) (Dash Platform SDK C++ binding) | [link](https://github.com/dashpay/platform) | commit [fb463c2...](https://github.com/dashpay/platform/tree/fb463c282ea09adf93dd5d256fc9471969f7a46f) | | No |
 
-### Networking
-| Dependency | Releases | Version used | Minimum required | Runtime |
-| --- | --- | --- | --- | --- |
-| [libnatpmp](../depends/packages/libnatpmp.mk) | [link](https://github.com/miniupnp/libnatpmp/) | commit [07004b9...](https://github.com/miniupnp/libnatpmp/tree/07004b97cf691774efebe70404cf22201e4d330d) | | No |
-| [MiniUPnPc](../depends/packages/miniupnpc.mk) | [link](https://miniupnp.tuxfamily.org/) | [2.2.7](https://github.com/bitcoin/bitcoin/pull/29707) | 2.1 | No |
-
 ### Notifications
 | Dependency | Releases | Version used | Minimum required | Runtime |
 | --- | --- | --- | --- | --- |

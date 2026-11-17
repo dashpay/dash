@@ -6,7 +6,7 @@
 
 export LC_ALL=C.UTF-8
 
-export PACKAGES="valgrind clang llvm libclang-rt-dev python3-zmq libevent-dev libboost-dev libdb5.3++-dev libminiupnpc-dev libzmq3-dev"
+export PACKAGES="valgrind clang llvm libclang-rt-dev python3-zmq libevent-dev libboost-dev libdb5.3++-dev libzmq3-dev"
 export USE_VALGRIND=1
 export NO_DEPENDS=1
 export TEST_RUNNER_EXTRA="--exclude feature_init,rpc_bind,feature_bind_extra --timeout-factor=4"  # feature_init excluded for now, see https://github.com/bitcoin/bitcoin/issues/30011 ; bind tests excluded for now, see https://github.com/bitcoin/bitcoin/issues/17765#issuecomment-602068547

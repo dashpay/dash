@@ -192,6 +192,8 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   common/config.cpp
   common/init.cpp
   common/interfaces.cpp
+  common/netif.cpp
+  common/pcp.cpp
   common/run_command.cpp
   common/settings.cpp
   common/system.cpp
@@ -458,8 +460,6 @@ target_link_libraries(bitcoin_node
     $<TARGET_NAME_IF_EXISTS:Boost::headers>
     $<TARGET_NAME_IF_EXISTS:libevent::libevent>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
-    $<TARGET_NAME_IF_EXISTS:NATPMP::NATPMP>
-    $<TARGET_NAME_IF_EXISTS:MiniUPnPc::MiniUPnPc>
     $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
 )

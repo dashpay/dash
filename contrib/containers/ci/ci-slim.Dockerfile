@@ -47,8 +47,6 @@ RUN set -ex; \
     libbz2-dev \
     libevent-dev \
     liblzma-dev \
-    libminiupnpc-dev \
-    libnatpmp-dev \
     libreadline-dev \
     libsqlite3-dev \
     libssl-dev \

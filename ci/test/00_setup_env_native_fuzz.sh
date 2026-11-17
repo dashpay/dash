@@ -8,7 +8,7 @@ export LC_ALL=C.UTF-8
 
 export CONTAINER_NAME=ci_native_fuzz
 export PACKAGES="clang llvm libevent-dev libboost-dev"
-export DEP_OPTS="NO_UPNP=1 DEBUG=1"
+export DEP_OPTS="DEBUG=1"
 export PYZMQ=true
 export RUN_UNIT_TESTS=false
 export RUN_FUNCTIONAL_TESTS=false

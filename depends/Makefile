@@ -41,9 +41,7 @@ NO_SQLITE ?=
 NO_WALLET ?=
 NO_ZMQ ?=
 NO_ZSTD ?=
-NO_UPNP ?=
 NO_USDT ?=
-NO_NATPMP ?=
 MULTIPROCESS ?=
 PLATFORM_GUI ?=
 LTO ?=
@@ -168,16 +166,13 @@ bdb_packages_$(NO_BDB) = $(bdb_packages)
 sqlite_packages_$(NO_SQLITE) = $(sqlite_packages)
 wallet_packages_$(NO_WALLET) = $(bdb_packages_) $(sqlite_packages_)
 
-upnp_packages_$(NO_UPNP) = $(upnp_packages)
-natpmp_packages_$(NO_NATPMP) = $(natpmp_packages)
-
 zmq_packages_$(NO_ZMQ) = $(zmq_packages)
 zstd_packages_$(NO_ZSTD) = $(zstd_packages)
 multiprocess_packages_$(MULTIPROCESS) = $(multiprocess_packages)
 platform_packages_$(PLATFORM_GUI) = $(platform_packages)
 usdt_packages_$(NO_USDT) = $(usdt_$(host_os)_packages)
 
-packages += $($(host_arch)_$(host_os)_packages) $($(host_os)_packages) $(boost_packages_) $(libevent_packages_) $(qt_packages_) $(wallet_packages_) $(upnp_packages_) $(natpmp_packages_) $(usdt_packages_) $(zstd_packages_)
+packages += $($(host_arch)_$(host_os)_packages) $($(host_os)_packages) $(boost_packages_) $(libevent_packages_) $(qt_packages_) $(wallet_packages_) $(usdt_packages_) $(zstd_packages_)
 native_packages += $($(host_arch)_$(host_os)_native_packages) $($(host_os)_native_packages)
 
 ifneq ($(zmq_packages_),)
@@ -253,8 +248,6 @@ $(host_prefix)/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(fina
             -e 's|@wallet_packages@|$(wallet_packages_)|' \
             -e 's|@bdb_packages@|$(bdb_packages_)|' \
             -e 's|@sqlite_packages@|$(sqlite_packages_)|' \
-            -e 's|@upnp_packages@|$(upnp_packages_)|' \
-            -e 's|@natpmp_packages@|$(natpmp_packages_)|' \
             -e 's|@usdt_packages@|$(usdt_packages_)|' \
             -e 's|@no_harden@|$(NO_HARDEN)|' \
             -e 's|@multiprocess@|$(MULTIPROCESS)|' \

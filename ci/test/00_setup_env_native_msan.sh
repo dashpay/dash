@@ -19,7 +19,7 @@ export MSAN_AND_LIBCXX_FLAGS="${MSAN_FLAGS} ${LIBCXX_FLAGS}"
 # BDB generates false-positives and will be removed in future
 # __BLST_NO_ASM__ makes blst use its C implementation instead of hand-written
 # assembly, which MSan cannot see through.
-export DEP_OPTS="DEBUG=1 NO_BDB=1 NO_QT=1 NO_UPNP=1 NO_NATPMP=1 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}' CPPFLAGS='-D__BLST_NO_ASM__'"
+export DEP_OPTS="DEBUG=1 NO_BDB=1 NO_QT=1 CC=clang-19 CXX=clang++-19 CFLAGS='${MSAN_FLAGS}' CXXFLAGS='${MSAN_AND_LIBCXX_FLAGS}' CPPFLAGS='-D__BLST_NO_ASM__'"
 export GOAL="install"
 # The compilers and flags come from DEP_OPTS through depends' toolchain file.
 # _FORTIFY_SOURCE is not compatible with MSAN.
