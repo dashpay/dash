@@ -233,7 +233,6 @@ public:
     std::chrono::seconds m_last_tx_time;
     std::chrono::seconds m_last_block_time;
     std::chrono::seconds m_connected;
-    int64_t nTimeOffset;
     std::string m_addr_name;
     int nVersion;
     std::string cleanSubVer;
@@ -771,7 +770,6 @@ public:
     std::atomic<std::chrono::seconds> m_last_recv{0s};
     //! Unix epoch time at peer connection
     const std::chrono::seconds m_connected;
-    std::atomic<int64_t> nTimeOffset{0};
     std::atomic<int64_t> nLastWarningTime{0};
     std::atomic<std::chrono::seconds> nTimeFirstMessageReceived{0s};
     std::atomic<bool> fFirstMessageIsMNAUTH{false};

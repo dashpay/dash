@@ -14,6 +14,7 @@
 #include <msg_result.h>
 
 #include <atomic>
+#include <chrono>
 
 class AddrMan;
 class CActiveMasternodeManager;
@@ -82,6 +83,12 @@ struct CNodeStateStats {
     uint64_t m_addr_rate_limited = 0;
     bool m_addr_relay_enabled{false};
     ServiceFlags their_services;
+    std::chrono::seconds time_offset{0};
+};
+
+struct PeerManagerInfo {
+    std::chrono::seconds median_outbound_time_offset{0s};
+    bool ignores_incoming_txs{false};
 };
 
 class PeerManagerInternal
@@ -211,8 +218,8 @@ public:
     /** Get statistics from node state */
     virtual bool GetNodeStateStats(NodeId nodeid, CNodeStateStats& stats) const = 0;
 
-    /** Whether this node ignores txs received over p2p. */
-    virtual bool IgnoresIncomingTxs() = 0;
+    /** Get peer manager info. */
+    virtual PeerManagerInfo GetInfo() const = 0;
 
     /** Send ping message to all peers */
     virtual void SendPings() = 0;

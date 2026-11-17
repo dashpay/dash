@@ -58,16 +58,9 @@ BOOST_AUTO_TEST_CASE(addtimedata)
 {
     BOOST_CHECK_EQUAL(GetTimeOffset(), 0);
 
-    //Part 1: Add large offsets to test a warning message that our clock may be wrong.
-    MultiAddTimeData(3, DEFAULT_MAX_TIME_ADJUSTMENT + 1);
-    // Filter size is 1 + 3 = 4: It is always initialized with a single element (offset 0)
-
-    {
-        ASSERT_DEBUG_LOG("Please check that your computer's date and time are correct!");
-        MultiAddTimeData(1, DEFAULT_MAX_TIME_ADJUSTMENT + 1); //filter size 5
-    }
-
-    BOOST_CHECK(GetWarnings(true).original.find("clock is wrong") != std::string::npos);
+    //Part 1: Add large offsets
+    MultiAddTimeData(4, DEFAULT_MAX_TIME_ADJUSTMENT + 1);
+    // Filter size is 1 + 4 = 5: It is always initialized with a single element (offset 0)
 
     // nTimeOffset is not changed if the median of offsets exceeds DEFAULT_MAX_TIME_ADJUSTMENT
     BOOST_CHECK_EQUAL(GetTimeOffset(), 0);
