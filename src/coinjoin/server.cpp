@@ -466,7 +466,7 @@ void CCoinJoinServer::CommitFinalTransaction(int session_id)
     // create and sign masternode dstx transaction
     if (!m_dstxman.GetDSTX(hashTx)) {
         CCoinJoinBroadcastTx dstxNew(finalTransaction, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(),
-                                     GetAdjustedTime());
+                                     NodeClock::now());
         dstxNew.vchSig = m_mn_activeman.SignBasic(dstxNew.GetSignatureHash());
         m_dstxman.AddDSTX(dstxNew);
     }
@@ -743,7 +743,7 @@ void CCoinJoinServer::CheckForCompleteQueue()
         participants = m_session_collaterals.size();
     }
 
-    CCoinJoinQueue dsq(session_denom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), true);
+    CCoinJoinQueue dsq(session_denom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), NodeClock::now(), true);
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckForCompleteQueue -- ready queue %s with %d participants\n",
              dsq.ToString(), participants);
     dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
@@ -1078,7 +1078,7 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, int nPeerVers
 
     if (!fUnitTest) {
         //broadcast that I'm accepting entries, only if it's the first entry through
-        CCoinJoinQueue dsq(nDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), GetAdjustedTime(), false);
+        CCoinJoinQueue dsq(nDenom, m_mn_activeman.GetOutPoint(), m_mn_activeman.GetProTxHash(), NodeClock::now(), false);
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
         dsq.vchSig = m_mn_activeman.SignBasic(dsq.GetSignatureHash());
         m_peer_manager->PeerRelayDSQ(dsq);

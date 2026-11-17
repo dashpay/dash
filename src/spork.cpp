@@ -11,8 +11,8 @@
 #include <messagesigner.h>
 #include <protocol.h>
 #include <script/standard.h>
-#include <timedata.h>
 #include <util/helpers.h>
+#include <util/time.h>
 
 #include <string>
 
@@ -84,7 +84,7 @@ void CSporkManager::CheckAndRemove()
 
 bool CSporkManager::IsValidSpork(const CSporkMessage& spork) const
 {
-    const auto max_time{std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime() + 2h)};
+    const auto max_time{std::chrono::time_point_cast<std::chrono::seconds>(NodeClock::now() + 2h)};
     if (spork.TimeSigned() > max_time) {
         LogPrint(BCLog::SPORK, "CSporkManager::%s -- ERROR: too far into the future\n", __func__);
         return false;
@@ -138,7 +138,7 @@ std::optional<CInv> CSporkManager::UpdateSpork(SporkId nSporkID, SporkValue nVal
 {
     LOCK(cs);
 
-    const auto now = GetAdjustedTime();
+    const auto now = NodeClock::now();
     auto spork_time = now;
     if (const auto it = mapSporksActive.find(nSporkID); it != mapSporksActive.end()) {
         const auto min_next_time = it->second.TimeSigned() + 1s;
@@ -175,7 +175,7 @@ bool CSporkManager::IsSporkActive(SporkId nSporkID) const
 {
     const SporkValue nSporkValue = GetSporkValue(nSporkID);
     const NodeSeconds activation_time{std::chrono::seconds{nSporkValue}};
-    const auto now{std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime())};
+    const auto now{std::chrono::time_point_cast<std::chrono::seconds>(NodeClock::now())};
     return activation_time < now;
 }
 

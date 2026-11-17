@@ -7,7 +7,7 @@
 #include <protocol.h>
 #include <script/standard.h>
 #include <spork.h>
-#include <timedata.h>
+#include <util/time.h>
 
 #include <test/util/setup_common.h>
 
@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(extreme_timestamps_are_handled_without_overflow)
     BOOST_CHECK(!sporkman.IsValidSpork(future_spork));
 
     CSporkMessage inactive_spork{SPORK_2_INSTANTSEND_ENABLED, std::numeric_limits<int64_t>::max(),
-                                 GetAdjustedTime()};
+                                 NodeClock::now()};
     BOOST_REQUIRE(inactive_spork.Sign(key));
     BOOST_REQUIRE(sporkman.IsValidSpork(inactive_spork));
     BOOST_REQUIRE(sporkman.ProcessSpork(inactive_spork));
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(sporks_signed_by_an_unknown_key_are_rejected)
     CKey other_key;
     other_key.MakeNewKey(/*fCompressed=*/true);
 
-    CSporkMessage spork{SPORK_2_INSTANTSEND_ENABLED, 1, GetAdjustedTime()};
+    CSporkMessage spork{SPORK_2_INSTANTSEND_ENABLED, 1, NodeClock::now()};
     BOOST_REQUIRE(spork.Sign(other_key));
     BOOST_CHECK(!sporkman.IsValidSpork(spork));
 
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(check_and_remove_drops_sporks_not_signed_by_the_spork_key)
     const SporkValue default_value{sporkman.GetSporkValue(SPORK_2_INSTANTSEND_ENABLED)};
     BOOST_REQUIRE(default_value != 1);
 
-    CSporkMessage spork{SPORK_2_INSTANTSEND_ENABLED, 1, GetAdjustedTime()};
+    CSporkMessage spork{SPORK_2_INSTANTSEND_ENABLED, 1, NodeClock::now()};
     BOOST_REQUIRE(spork.Sign(key));
     BOOST_REQUIRE(sporkman.ProcessSpork(spork));
     BOOST_REQUIRE_EQUAL(sporkman.GetSporkValue(SPORK_2_INSTANTSEND_ENABLED), 1);

@@ -148,7 +148,7 @@ BOOST_FIXTURE_TEST_CASE(mainnet_ignores_sporks, TestingSetup)
         // Older peers still relay sporks that no longer verify; they must not be penalized for it.
         CKey key;
         key.MakeNewKey(/*fCompressed=*/true);
-        CSporkMessage spork{SPORK_2_INSTANTSEND_ENABLED, 0, GetAdjustedTime()};
+        CSporkMessage spork{SPORK_2_INSTANTSEND_ENABLED, 0, NodeClock::now()};
         BOOST_REQUIRE(spork.Sign(key));
         CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
         stream << spork;

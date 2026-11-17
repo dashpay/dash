@@ -452,8 +452,8 @@ RPCResult CDKGDebugManager::GetJsonHelp(const std::string& key, bool optional, b
 {
     return {RPCResult::Type::OBJ, key, optional, key.empty() ? "" : "The state of the node's DKG sessions",
     {
-        {RPCResult::Type::NUM, "time", inner_optional, "Adjusted time for the last update, timestamp"},
-        {RPCResult::Type::STR, "timeStr", inner_optional, "Adjusted time for the last update, human friendly"},
+        {RPCResult::Type::NUM, "time", inner_optional, "Local time for the last update, timestamp"},
+        {RPCResult::Type::STR, "timeStr", inner_optional, "Local time for the last update, human friendly"},
         {RPCResult::Type::ARR, "session", inner_optional, "", {
             {RPCResult::Type::OBJ, "", "", {
                 {RPCResult::Type::STR, "llmqType", "Name of quorum"},
