@@ -15,7 +15,6 @@
 #include <streams.h>
 #include <test/util/bls.h>
 #include <test/util/setup_common.h>
-#include <timedata.h>
 #include <util/helpers.h>
 #include <util/strencodings.h>
 #include <validation.h>

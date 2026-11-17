@@ -445,7 +445,6 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   spork.cpp
   stats/client.cpp
   stats/rawsender.cpp
-  timedata.cpp
   torcontrol.cpp
   txdb.cpp
   txmempool.cpp

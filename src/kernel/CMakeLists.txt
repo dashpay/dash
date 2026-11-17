@@ -108,7 +108,6 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../support/cleanse.cpp
   ../support/lockedpool.cpp
   ../sync.cpp
-  ../timedata.cpp
   ../txdb.cpp
   ../txmempool.cpp
   ../uint256.cpp
