@@ -106,15 +106,7 @@ This means that a single backup is enough to recover the coins at any time. It i
 
 Non-HD wallets must be backed up every 1000 keys used since the previous backup, or even more often to maintain the metadata.
 
-### 1.6 Automatic Backups
-
-For legacy wallets, Dash Core automatically creates a backup in the `backups` directory inside the data directory on every startup and whenever the keypool is replenished. Each file is named after the wallet with the backup time appended, e.g. `wallet.dat.2026-08-02-14-30`.
-
-Older backups are pruned as new ones are made. The most recent `-createwalletbackups` backups (default: 10, max: 20) are always kept. Beyond those, at most one backup is kept from each widening age range — 1-2 hours old, 2-4 hours, 4-8 hours, and so on, each range twice as long as the one before (512-1024 hours is about 3-6 weeks) — up to `-maxwalletbackups` files in total (default: 30); if that cap is reached, the most recent ranges are the ones kept. This preserves restore points going back months, even for a wallet that writes many backups a day while mixing, while keeping the size of the `backups` directory predictable. Several backups made within the same hour do not each get their own range: beyond the most recent `-createwalletbackups`, only the oldest backup in each range is kept. The backup just written is never pruned, and if the system clock has been set back, backups dated later than it are left untouched until the clock catches up with them. A clock set far forward makes all existing backups look old at once, so those beyond the most recent `-createwalletbackups` can collapse into one or two ranges.
-
-Setting either option to `0` disables automatic backups, in which case existing backups are left untouched. Renaming a backup also excludes it from pruning, which is a simple way to keep one indefinitely.
-
-### 1.7 Restoring the Wallet From a Backup
+### 1.6 Restoring the Wallet From a Backup
 
 To restore a wallet, the `restorewallet` RPC or the `Restore Wallet` GUI menu item (`File` -> `Restore Wallet…`) must be used.
 
@@ -129,6 +121,14 @@ $ dash-cli -rpcwallet="restored-wallet" getwalletinfo
 ```
 
 The restored wallet can also be loaded in the GUI via `File` ->`Open wallet`.
+
+### 1.7 Automatic Backups
+
+For legacy wallets, Dash Core automatically creates a backup whenever a wallet is created or loaded, and while mixing with CoinJoin once fewer than 100 keys are left since the last backup. Backups go to the `backups` directory inside the network's data directory, or to the directory given with `-walletbackupsdir`. Each file is named after the wallet with the backup time in UTC appended, e.g. `wallet.dat.2026-08-02-14-30`. Encrypting an existing wallet does not create one.
+
+Older backups are pruned as new ones are made. The most recent `-createwalletbackups` backups (default: 10, max: 20) are always kept, or the most recent `-maxwalletbackups` if that is lower. Beyond those, at most one backup is kept from each widening age range — 1-2 hours old, 2-4 hours, 4-8 hours, and so on, each range twice as long as the one before (512-1024 hours is about 3-6 weeks) — up to `-maxwalletbackups` files in total (default: 30); if that cap is reached, the most recent ranges are the ones kept. This preserves restore points going back months, even for a wallet that writes many backups a day while mixing, while keeping the size of the `backups` directory predictable. Several backups made within the same hour do not each get their own range: beyond the most recent `-createwalletbackups`, only the oldest backup in each range is kept. A backup less than an hour older than the newest one falls in no range, so a wallet that keeps writing more than `-createwalletbackups` backups an hour adds no older restore points while it does. The backup just written is never pruned, and if the system clock has been set back, backups dated later than it are left untouched until the clock catches up with them. A clock set far forward makes all existing backups look old at once, so those beyond the most recent `-createwalletbackups` can collapse into one or two ranges.
+
+Setting either option to `0` disables automatic backups, in which case existing backups are left untouched. Renaming a backup so that its name no longer ends in a timestamp of that form, e.g. by appending `.keep`, also excludes it from pruning, which is a simple way to keep one indefinitely.
 
 ## Wallet Passphrase
 
@@ -165,4 +165,4 @@ unexpectedly or otherwise misses any scripts, please create an issue on GitHub. 
 original wallet can be found in the wallet directory with the name `<name>_<timestamp>.legacy.bak`.
 
 The backup can be restored using the `restorewallet` command as discussed in the
-[Restoring the Wallet From a Backup](#17-restoring-the-wallet-from-a-backup) section
+[Restoring the Wallet From a Backup](#16-restoring-the-wallet-from-a-backup) section
