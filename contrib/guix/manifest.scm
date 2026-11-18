@@ -113,7 +113,7 @@ desirable for building Dash Core release binaries."
 
 (define (gcc-libgcc-patches gcc)
   (package-with-extra-patches gcc
-    (search-our-patches "gcc-remap-guix-store.patch")))
+    (search-our-patches "gcc-remap-guix-store.patch" "gcc-ssa-generation.patch")))
 
 (define (binutils-mingw-patches binutils)
   (package-with-extra-patches binutils
