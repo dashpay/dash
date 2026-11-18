@@ -604,8 +604,3 @@ bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
     fValid = true;
     return true;
 }
-
-bool BLSInit()
-{
-    return true;
-}
