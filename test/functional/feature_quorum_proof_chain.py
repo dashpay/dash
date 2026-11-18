@@ -43,7 +43,7 @@ class QuorumProofChainTest(BitcoinTestFramework):
         assert "No archived certificate" in responses[requests[0]["id"]]["error"]["message"]
         assert_equal(responses[requests[1]["id"]]["error"],
                      {"code": -5, "message": "Chainlock not found for height"})
-        assert_equal(responses[requests[2]["id"]]["error"], None)
+        assert "error" not in responses[requests[2]["id"]]
         assert_equal(responses[requests[2]["id"]]["result"], result)
         assert_equal(node.verifyquorumproofchain(anchor, proof, fixture["target"]["height"] + 1)["valid"], False)
         wrong = dict(anchor, quorum_root="01" * 32)
