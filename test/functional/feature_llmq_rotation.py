@@ -10,7 +10,6 @@ Checks LLMQs Quorum Rotation
 
 '''
 import copy
-import struct
 from io import BytesIO
 
 from test_framework.test_framework import DashTestFramework
@@ -478,8 +477,8 @@ class LLMQQuorumRotationTest(DashTestFramework):
 
     def get_hash_modifier(self, llmq_type, height, cl_sig):
         bytes = b""
-        bytes += struct.pack('<B', int(llmq_type))
-        bytes += struct.pack('<i', int(height))
+        bytes += int(llmq_type).to_bytes(1, "little")
+        bytes += int(height).to_bytes(4, "little", signed=True)
         bytes += bytes.fromhex(cl_sig)
         return hash256(bytes)[::-1].hex()
 

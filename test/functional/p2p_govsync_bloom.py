@@ -11,7 +11,6 @@ bounds, so an unbounded value would force an enormous amount of work while the m
 processing mutex is held. The handler must reject any filter that is not within the
 standard size constraints (vData <= 36000 bytes, nHashFuncs <= 50), matching filterload.
 """
-import struct
 
 from test_framework.messages import msg_generic, ser_compact_size, ser_string, ser_uint256
 from test_framework.p2p import P2PInterface
@@ -39,9 +38,9 @@ class msg_govsync:
     def serialize(self):
         r = ser_uint256(self.nprop)
         r += ser_string(self.data)  # CBloomFilter.vData
-        r += struct.pack("<I", self.n_hash_funcs)
-        r += struct.pack("<I", self.n_tweak)
-        r += struct.pack("<B", self.n_flags)
+        r += self.n_hash_funcs.to_bytes(4, "little")
+        r += self.n_tweak.to_bytes(4, "little")
+        r += self.n_flags.to_bytes(1, "little")
         return r
 
     def __repr__(self):

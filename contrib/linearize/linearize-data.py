@@ -251,7 +251,7 @@ class BlockDataCopier:
                 rawblock = rawblock[80:]
                 inLen = len(rawblock)
                 # bootstrap files always hold uncompressed records
-                inhdr = inMagic + struct.pack("<I", len(blk_hdr) + inLen)
+                inhdr = inMagic + (len(blk_hdr) + inLen).to_bytes(4, "little")
                 inExtent = BlockExtent(self.inFn, payload_offset, inhdr, blk_hdr, payload_len, compressed)
             else:
                 inLen = su[0] - 80 # length without header

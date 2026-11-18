@@ -4,7 +4,6 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 import copy
-import struct
 
 from test_framework.messages import (
     CSigSharesInv,
@@ -92,11 +91,11 @@ def craft_qdata_with_bad_section(qdata_valid, *, bad_vvec=None, bad_contribs=Non
     contributions check).
     """
     payload = b""
-    payload += struct.pack("<B", qdata_valid.quorum_type)
+    payload += qdata_valid.quorum_type.to_bytes(1, "little")
     payload += ser_uint256(qdata_valid.quorum_hash)
-    payload += struct.pack("<H", qdata_valid.data_mask)
+    payload += qdata_valid.data_mask.to_bytes(2, "little")
     payload += ser_uint256(qdata_valid.protx_hash)
-    payload += struct.pack("<B", qdata_valid.error)
+    payload += qdata_valid.error.to_bytes(1, "little")
     if qdata_valid.data_mask & 0x01:
         payload += bad_vvec if bad_vvec is not None else ser_vector(qdata_valid.quorum_vvec)
     if qdata_valid.data_mask & 0x02:

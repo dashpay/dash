@@ -11,7 +11,6 @@ from test_framework.p2p import (
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import wait_until_helper
 
-import struct
 
 class PlatformBanMessagesTest(DashTestFramework):
     def add_options(self, parser):
@@ -50,7 +49,7 @@ class PlatformBanMessagesTest(DashTestFramework):
         msg.protx_hash = int(self.mninfo[0].proTxHash, 16)
         msg.requested_height = node.getblockcount()
 
-        request_id_buf = ser_string(b"PlatformPoSeBan") + ser_uint256(msg.protx_hash) + struct.pack("<I", msg.requested_height)
+        request_id_buf = ser_string(b"PlatformPoSeBan") + ser_uint256(msg.protx_hash) + msg.requested_height.to_bytes(4, "little")
         request_id = hash256(request_id_buf)[::-1].hex()
 
         quorum_hash = self.mninfo[1].get_node(self).quorum("selectquorum", 106, request_id)["quorumHash"]
