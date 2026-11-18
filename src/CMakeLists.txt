@@ -190,6 +190,7 @@ endif()
 # Home for common functionality shared by different executables and libraries.
 # Similar to `bitcoin_util` library, but higher-level.
 add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
+  addresstype.cpp
   base58.cpp
   bech32.cpp
   chainparams.cpp
@@ -240,7 +241,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   script/miniscript.cpp
   script/sign.cpp
   script/signingprovider.cpp
-  script/standard.cpp
+  script/solver.cpp
   warnings.cpp
 )
 target_link_libraries(bitcoin_common
@@ -388,6 +389,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   netfulfilledman.cpp
   net_processing.cpp
   netgroup.cpp
+  node/abort.cpp
   node/blockmanager_args.cpp
   node/blockstorage.cpp
   node/caches.cpp

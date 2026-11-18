@@ -81,7 +81,6 @@
 #include <rpc/util.h>
 #include <scheduler.h>
 #include <script/sigcache.h>
-#include <script/standard.h>
 #include <shutdown.h>
 #include <sync.h>
 #include <timedata.h>
@@ -173,7 +172,6 @@
 #endif
 
 using kernel::CoinStatsHashType;
-using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
@@ -182,16 +180,16 @@ using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
+using node::DEFAULT_STOPATHEIGHT;
 using node::DumpMempool;
 using node::LoadMempool;
-using node::g_indexes_ready_to_sync;
 using node::KernelNotifications;
 using node::LoadChainstate;
 using node::MAX_RECOMMENDED_BLOCK_COMPRESSION_LEVEL;
 using node::MempoolPath;
 using node::NodeContext;
 using node::ShouldPersistMempool;
-using node::ThreadImport;
+using node::ImportBlocks;
 using node::VerifyLoadedChainstate;
 using node::fReindex;
 #ifdef ENABLE_WALLET
@@ -201,6 +199,7 @@ using wallet::DEFAULT_DISABLE_WALLET;
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
 static constexpr bool DEFAULT_REST_ENABLE{false};
 static constexpr bool DEFAULT_I2P_ACCEPT_INCOMING{true};
+static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -371,7 +370,7 @@ void PrepareShutdown(NodeContext& node)
     // After everything has been shut down, but before things get flushed, stop the
     // CScheduler/checkqueue, threadGroup and load block thread.
     if (node.scheduler) node.scheduler->stop();
-    if (node.chainman && node.chainman->m_load_block.joinable()) node.chainman->m_load_block.join();
+    if (node.chainman && node.chainman->m_thread_load.joinable()) node.chainman->m_thread_load.join();
     StopScriptCheckWorkerThreads();
 
     // After there are no more peers/RPC left to give us new data which may generate
@@ -1195,10 +1194,6 @@ bool AppInitBasicSetup(const ArgsManager& args, std::atomic<int>& exit_status)
     // Enable heap terminate-on-corruption
     HeapSetInformation(nullptr, HeapEnableTerminationOnCorruption, nullptr, 0);
 #endif
-    if (!InitShutdownState(exit_status)) {
-        return InitError(Untranslated("Initializing wait-for-shutdown state failed."));
-    }
-
     if (!SetupNetworking()) {
         return InitError(Untranslated("Initializing networking failed."));
     }
@@ -1458,7 +1453,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 
     // Also report errors from parsing before daemonization
     {
-        KernelNotifications notifications{};
+        kernel::Notifications notifications{};
         ChainstateManager::Options chainman_opts_dummy{
             .chainparams = chainparams,
             .datadir = args.GetDataDirNet(),
@@ -1470,6 +1465,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         BlockManager::Options blockman_opts_dummy{
             .chainparams = chainparams,
             .blocks_dir = args.GetBlocksDirPath(),
+            .notifications = chainman_opts_dummy.notifications,
         };
         if (const auto error{ApplyArgsManOptions(args, blockman_opts_dummy)}) {
             return InitError(*error);
@@ -1730,7 +1726,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.connman);
     node.connman = std::make_unique<CConnman>(GetRand<uint64_t>(),
                                               GetRand<uint64_t>(),
-                                              *node.addrman, *node.netgroupman, args.GetBoolArg("-networkactive", true));
+                                              *node.addrman, *node.netgroupman, chainparams, args.GetBoolArg("-networkactive", true));
 
     assert(!node.fee_estimator);
     // Don't initialize fee estimation with old data if we don't relay transactions,
@@ -2010,7 +2006,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7b: load block chain
 
-    node.notifications = std::make_unique<KernelNotifications>();
+    node.notifications = std::make_unique<KernelNotifications>(node.exit_status);
+    ReadNotificationArgs(args, *node.notifications);
     fReindex = args.GetBoolArg("-reindex", false);
     bool fReindexChainState = args.GetBoolArg("-reindex-chainstate", false);
     ChainstateManager::Options chainman_opts{
@@ -2027,6 +2024,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     BlockManager::Options blockman_opts{
         .chainparams = chainparams,
         .blocks_dir = args.GetBlocksDirPath(),
+        .notifications = chainman_opts.notifications,
     };
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
@@ -2099,7 +2097,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             return {node::ChainstateLoadStatus::SUCCESS, {}};
         });
 
-        node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
+        node.chainman = std::make_unique<ChainstateManager>(node.kernel->interrupt, chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;
 
         node::ChainstateLoadOptions options;
@@ -2145,7 +2143,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                                                                    bls_threads, llmq::DEFAULT_WORKER_COUNT, max_recsigs_age));
                 node.special_tx = std::make_unique<CSpecialTxProcessor>(*node.evodb, *node.dmnman,
                                                                         *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman,
-                                                                        chainman, chainman.m_blockman, chainman.GetConsensus(),
+                                                                        chainman, chainman.m_blockman, chainman.GetConsensus(), chainman.GetNotifications(),
                                                                         *node.chainlocks, *node.llmq_ctx->qman);
                 return LoadChainstate(chainman, cache_sizes, options, *node.evodb, *node.dmnman, *node.special_tx);
             });
@@ -2237,7 +2235,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         if (!operator_sk.IsValid()) {
             return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
         }
-        // Will init later in ThreadImport
+        // Will init later in the initload thread
         node.active_ctx = std::make_unique<ActiveContext>(*node.llmq_ctx->bls_worker, chainman, *node.connman, *node.dmnman,
                                                           *node.govman, *node.special_tx->m_mnhfman, *node.sbman,
                                                           *node.sporkman, *node.chainlocks, *node.mempool, *node.clhandler, *node.isman,
@@ -2351,53 +2349,42 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 8: start indexers
 
-    // If reindex-chainstate was specified, delay syncing indexes until ThreadImport has reindexed the chain
-    if (!fReindexChainState) g_indexes_ready_to_sync = true;
     if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
         g_txindex = std::make_unique<TxIndex>(interfaces::MakeChain(node), cache_sizes.tx_index, false, fReindex);
-        if (!g_txindex->Start()) {
-            return false;
-        }
+        node.indexes.emplace_back(g_txindex.get());
     }
 
-    if (node.gov_collateral_index && !node.gov_collateral_index->Start()) {
-        return false;
+    if (node.gov_collateral_index) {
+        node.indexes.emplace_back(node.gov_collateral_index.get());
     }
 
     if (args.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX)) {
         node.address_index = std::make_unique<AddressIndex>(interfaces::MakeChain(node), cache_sizes.address_index, false, fReindex);
-        if (!node.address_index->Start()) {
-            return false;
-        }
+        node.indexes.emplace_back(node.address_index.get());
     }
 
     if (args.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
         node.timestamp_index = std::make_unique<TimestampIndex>(interfaces::MakeChain(node), cache_sizes.timestamp_index, false, fReindex);
-        if (!node.timestamp_index->Start()) {
-            return false;
-        }
+        node.indexes.emplace_back(node.timestamp_index.get());
     }
 
     if (args.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
         node.spent_index = std::make_unique<SpentIndex>(interfaces::MakeChain(node), cache_sizes.spent_index, false, fReindex);
-        if (!node.spent_index->Start()) {
-            return false;
-        }
+        node.indexes.emplace_back(node.spent_index.get());
     }
 
     for (const auto& filter_type : g_enabled_filter_types) {
         InitBlockFilterIndex([&]{ return interfaces::MakeChain(node); }, filter_type, cache_sizes.filter_index, false, fReindex);
-        if (!GetBlockFilterIndex(filter_type)->Start()) {
-            return false;
-        }
+        node.indexes.emplace_back(GetBlockFilterIndex(filter_type));
     }
 
     if (args.GetBoolArg("-coinstatsindex", DEFAULT_COINSTATSINDEX)) {
         g_coin_stats_index = std::make_unique<CoinStatsIndex>(interfaces::MakeChain(node), /*cache_size=*/0, false, fReindex);
-        if (!g_coin_stats_index->Start()) {
-            return false;
-        }
+        node.indexes.emplace_back(g_coin_stats_index.get());
     }
+
+    // Init indexes
+    for (auto index : node.indexes) if (!index->Init()) return false;
 
     // ********************************************************* Step 9: load wallet
     for (const auto& client : node.chain_clients) {
@@ -2529,10 +2516,23 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         vImportFiles.push_back(fs::PathFromString(strFile));
     }
 
-    chainman.m_load_block = std::thread(&util::TraceThread, "loadblk", [=, &args, &chainman, &node] {
-        // ThreadImport can switch fReindex from true to false, fetch its original state here to use later
+    chainman.m_thread_load = std::thread(&util::TraceThread, "initload", [=, &args, &chainman, &node] {
+        // ImportBlocks can switch fReindex from true to false, fetch its original state here to use later
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
-        ThreadImport(chainman, vImportFiles);
+        // Import blocks
+        ImportBlocks(chainman, vImportFiles);
+        if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+            LogPrintf("Stopping after block import\n");
+            StartShutdown();
+            return;
+        }
+
+        // Start indexes initial sync
+        if (!StartIndexBackgroundSync(node)) {
+            bilingual_str err_str = _("Failed to start indexes, shutting down..");
+            chainman.GetNotifications().fatalError(err_str.original, err_str);
+            return;
+        }
 
         // Load mempool from disk
         if (auto* pool{chainman.ActiveChainstate().GetMempool()}) {
@@ -2659,7 +2659,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     {
         WAIT_LOCK(g_genesis_wait_mutex, lock);
         // We previously could hang here if StartShutdown() is called prior to
-        // ThreadImport getting started, so instead we just wait on a timer to
+        // ImportBlocks getting started, so instead we just wait on a timer to
         // check ShutdownRequested() regularly.
         while (!fHaveGenesis && !ShutdownRequested()) {
             g_genesis_wait_cv.wait_for(lock, std::chrono::milliseconds(500));
@@ -2896,5 +2896,50 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     StartupNotify(args);
 #endif
 
+    return true;
+}
+
+bool StartIndexBackgroundSync(NodeContext& node)
+{
+    // Find the oldest block among all indexes.
+    // This block is used to verify that we have the required blocks' data stored on disk,
+    // starting from that point up to the current tip.
+    // indexes_start_block='nullptr' means "start from height 0".
+    std::optional<const CBlockIndex*> indexes_start_block;
+    std::string older_index_name;
+
+    ChainstateManager& chainman = *Assert(node.chainman);
+    for (auto index : node.indexes) {
+        const IndexSummary& summary = index->GetSummary();
+        if (summary.synced) continue;
+
+        // Get the last common block between the index best block and the active chain
+        LOCK(::cs_main);
+        const CChain& active_chain = chainman.ActiveChain();
+        const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(summary.best_block_hash);
+        if (!active_chain.Contains(pindex)) {
+            pindex = active_chain.FindFork(pindex);
+        }
+
+        if (!indexes_start_block || !pindex || pindex->nHeight < indexes_start_block.value()->nHeight) {
+            indexes_start_block = pindex;
+            older_index_name = summary.name;
+            if (!pindex) break; // Starting from genesis so no need to look for earlier block.
+        }
+    };
+
+    // Verify all blocks needed to sync to current tip are present.
+    if (indexes_start_block) {
+        LOCK(::cs_main);
+        const CBlockIndex* start_block = *indexes_start_block;
+        if (!start_block) start_block = chainman.ActiveChain().Genesis();
+        if (const CBlockIndex* tip = chainman.ActiveChain().Tip();
+            tip && !chainman.m_blockman.CheckBlockDataAvailability(*tip, *Assert(start_block))) {
+            return InitError(strprintf(Untranslated("%s best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"), older_index_name));
+        }
+    }
+
+    // Start threads
+    for (auto index : node.indexes) if (!index->StartBackgroundSync()) return false;
     return true;
 }

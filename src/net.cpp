@@ -403,8 +403,8 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     }
 
     // Resolve
-    const uint16_t default_port{pszDest != nullptr ? Params().GetDefaultPort(pszDest) :
-                                                     Params().GetDefaultPort()};
+    const uint16_t default_port{pszDest != nullptr ? GetDefaultPort(pszDest) :
+                                                     m_params.GetDefaultPort()};
 
     // Collection of addresses to try to connect to: either all dns resolved addresses if a domain name (pszDest) is provided, or addrConnect otherwise.
     std::vector<CAddress> connect_to{};
@@ -726,7 +726,7 @@ V1Transport::V1Transport(const NodeId node_id, int nTypeIn, int nVersionIn) noex
     m_node_id(node_id), hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn)
 {
     assert(std::size(Params().MessageStart()) == std::size(m_magic_bytes));
-    std::copy(std::begin(Params().MessageStart()), std::end(Params().MessageStart()), m_magic_bytes);
+    m_magic_bytes = Params().MessageStart();
     LOCK(m_recv_mutex);
     Reset();
 }
@@ -760,7 +760,7 @@ int V1Transport::readHeader(Span<const uint8_t> msg_bytes)
     }
 
     // Check start string, network magic
-    if (memcmp(hdr.pchMessageStart, m_magic_bytes, CMessageHeader::MESSAGE_START_SIZE) != 0) {
+    if (hdr.pchMessageStart != m_magic_bytes) {
         LogPrint(BCLog::NET, "Header error: Wrong MessageStart %s received, peer=%d\n", HexStr(hdr.pchMessageStart), m_node_id);
         return -1;
     }
@@ -1243,7 +1243,7 @@ bool V2Transport::ProcessReceivedKeyBytes() noexcept
     // they receive our uniformly random key and garbage, but detecting this case specially
     // means we can log it.
     static constexpr std::array<uint8_t, 12> MATCH = {'v', 'e', 'r', 's', 'i', 'o', 'n', 0, 0, 0, 0, 0};
-    static constexpr size_t OFFSET = sizeof(CMessageHeader::MessageStartChars);
+    static constexpr size_t OFFSET = std::tuple_size_v<MessageStartChars>;
     if (!m_initiating && m_recv_buffer.size() >= OFFSET + MATCH.size()) {
         if (std::equal(MATCH.begin(), MATCH.end(), m_recv_buffer.begin() + OFFSET)) {
             LogPrint(BCLog::NET, "V2 transport error: V1 peer with wrong MessageStart %s\n",
@@ -2712,7 +2712,7 @@ void CConnman::WakeMessageHandler()
 void CConnman::ThreadDNSAddressSeed()
 {
     FastRandomContext rng;
-    std::vector<std::string> seeds = Params().DNSSeeds();
+    std::vector<std::string> seeds = m_params.DNSSeeds();
     Shuffle(seeds.begin(), seeds.end(), rng);
     int seeds_right_now = 0; // Number of seeds left before testing if we have enough connections
     int found = 0;
@@ -2807,7 +2807,7 @@ void CConnman::ThreadDNSAddressSeed()
             const auto addresses{LookupHost(host, nMaxIPs, true)};
             if (!addresses.empty()) {
                 for (const CNetAddr& ip : addresses) {
-                    CAddress addr = CAddress(CService(ip, Params().GetDefaultPort()), requiredServiceBits);
+                    CAddress addr = CAddress(CService(ip, m_params.GetDefaultPort()), requiredServiceBits);
                     addr.nTime = rng.rand_uniform_delay(Now<NodeSeconds>() - 3 * 24h, -4 * 24h); // use a random age between 3 and 7 days old
                     vAdd.push_back(addr);
                     found++;
@@ -3026,7 +3026,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect, CDe
             }
 
             if (add_fixed_seeds_now) {
-                std::vector<CAddress> seed_addrs{ConvertSeeds(Params().FixedSeeds())};
+                std::vector<CAddress> seed_addrs{ConvertSeeds(m_params.FixedSeeds())};
                 // We will not make outgoing connections to peers that are unreachable
                 // (e.g. because of -onlynet configuration).
                 // Therefore, we do not add them to addrman in the first place.
@@ -3366,7 +3366,7 @@ std::vector<AddedNodeInfo> CConnman::GetAddedNodeInfo(bool include_connected) co
     }
 
     for (const auto& addr : lAddresses) {
-        CService service{MaybeFlipIPv6toCJDNS(LookupNumeric(addr.m_added_node, Params().GetDefaultPort(addr.m_added_node)))};
+        CService service{MaybeFlipIPv6toCJDNS(LookupNumeric(addr.m_added_node, GetDefaultPort(addr.m_added_node)))};
         AddedNodeInfo addedNode{addr, CService(), false, false};
         if (service.IsValid()) {
             // strAddNode is an IP:port
@@ -3906,15 +3906,16 @@ void CConnman::SetNetworkActive(bool active, CMasternodeSync* const mn_sync)
 }
 
 CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, AddrMan& addrman_in,
-                   const NetGroupManager& netgroupman, bool network_active)
+                   const NetGroupManager& netgroupman, const CChainParams& params, bool network_active)
     : addrman(addrman_in)
     , m_netgroupman{netgroupman}
     , nSeed0(nSeed0In)
     , nSeed1(nSeed1In)
+    , m_params(params)
 {
     // Make sure we never set the default port to a bad port
     for (int n = 0; n < NET_MAX; ++n) {
-        const bool is_bad_port = IsBadPort(Params().GetDefaultPort(static_cast<Network>(n)));
+        const bool is_bad_port = IsBadPort(GetDefaultPort(static_cast<Network>(n)));
         assert(!is_bad_port);
     }
 
@@ -3930,6 +3931,16 @@ NodeId CConnman::GetNewNodeId()
     return nLastNodeId.fetch_add(1, std::memory_order_relaxed);
 }
 
+uint16_t CConnman::GetDefaultPort(Network net) const
+{
+    return net == NET_I2P ? I2P_SAM31_PORT : m_params.GetDefaultPort();
+}
+
+uint16_t CConnman::GetDefaultPort(const std::string& addr) const
+{
+    CNetAddr a;
+    return a.SetSpecial(addr) ? GetDefaultPort(a.GetNetwork()) : m_params.GetDefaultPort();
+}
 
 bool CConnman::Bind(const CService& addr_, unsigned int flags, NetPermissionFlags permissions)
 {
@@ -4309,12 +4320,12 @@ std::vector<CAddress> CConnman::GetAddresses(CNode& requestor, size_t max_addres
 
 bool CConnman::AddNode(const AddedNodeParams& add)
 {
-    const CService resolved(LookupNumeric(add.m_added_node, Params().GetDefaultPort(add.m_added_node)));
+    const CService resolved(LookupNumeric(add.m_added_node, GetDefaultPort(add.m_added_node)));
     const bool resolved_is_valid{resolved.IsValid()};
 
     LOCK(m_added_nodes_mutex);
     for (const auto& it : m_added_node_params) {
-        if (add.m_added_node == it.m_added_node || (resolved_is_valid && resolved == LookupNumeric(it.m_added_node, Params().GetDefaultPort(it.m_added_node)))) return false;
+        if (add.m_added_node == it.m_added_node || (resolved_is_valid && resolved == LookupNumeric(it.m_added_node, GetDefaultPort(it.m_added_node)))) return false;
     }
 
     m_added_node_params.push_back(add);

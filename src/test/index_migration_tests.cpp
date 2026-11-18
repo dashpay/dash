@@ -13,6 +13,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+using kernel::BlockTreeDB;
+
 namespace {
 struct IndexMigrationSetup : public TestChainSetup {
     IndexMigrationSetup() :
@@ -38,13 +40,11 @@ struct IndexMigrationSetup : public TestChainSetup {
     //! Height the timestamp index resumes from, read before its sync thread can advance it.
     int LoadedTimestampIndexHeight()
     {
-        node::g_indexes_ready_to_sync = false;
         TimestampIndex index{interfaces::MakeChain(m_node), /*n_cache_size=*/1 << 20};
-        BOOST_REQUIRE(index.Start());
+        BOOST_REQUIRE(index.Init());
         const int height{index.GetSummary().best_block_height};
         index.Interrupt();
         index.Stop();
-        node::g_indexes_ready_to_sync = true;
         return height;
     }
 };
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_SUITE(index_migration_tests)
 BOOST_FIXTURE_TEST_CASE(empty_index_is_not_adopted_as_migrated, IndexMigrationSetup)
 {
     WriteChainstateBestBlock();
-    CBlockTreeDB& block_tree_db{*WITH_LOCK(cs_main, return m_node.chainman->m_blockman.m_block_tree_db.get())};
+    BlockTreeDB& block_tree_db{*WITH_LOCK(cs_main, return m_node.chainman->m_blockman.m_block_tree_db.get())};
     BOOST_REQUIRE(block_tree_db.WriteFlag("timestampindex", true));
 
     BOOST_REQUIRE(

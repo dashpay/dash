@@ -6,12 +6,12 @@
 
 #include <evo/deterministicmns.h>
 
+#include <addresstype.h>
 #include <chain.h>
 #include <consensus/amount.h>
 #include <consensus/params.h>
 #include <key_io.h>
 #include <logging.h>
-#include <script/standard.h>
 #include <util/std23.h>
 
 #include <algorithm>

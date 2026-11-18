@@ -7,11 +7,11 @@
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
 #include <evo/specialtx.h>
+#include <kernel/notifications_interface.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <node/blockstorage.h>
-#include <shutdown.h>
 #include <util/std23.h>
 
 #include <chain.h>
@@ -43,10 +43,12 @@ CMutableTransaction MNHFTxPayload::PrepareTx() const
     return tx;
 }
 
-CMNHFManager::CMNHFManager(CEvoDB& evoDb, const node::BlockManager& blockman, const Consensus::Params& consensus_params) :
+CMNHFManager::CMNHFManager(CEvoDB& evoDb, const node::BlockManager& blockman, const Consensus::Params& consensus_params,
+                           kernel::Notifications& notifications) :
     m_evoDb(evoDb),
     m_blockman{blockman},
-    m_consensus_params{consensus_params}
+    m_consensus_params{consensus_params},
+    m_notifications{notifications}
 {
     assert(globalInstance == nullptr);
     globalInstance = this;
@@ -373,7 +375,7 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
         // translate this into a consensus rejection.
         const std::string msg = strprintf("CMNHFManager::%s -- EvoDB MNHF state mismatch for block %s",
                                           __func__, blockHash.ToString());
-        AbortNode(msg);
+        m_notifications.fatalError(msg);
         throw EvoDbInconsistencyError(msg);
     }
     {

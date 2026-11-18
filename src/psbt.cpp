@@ -7,6 +7,7 @@
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <psbt.h>
+#include <script/signingprovider.h>
 #include <tinyformat.h>
 #include <util/check.h>
 #include <util/strencodings.h>

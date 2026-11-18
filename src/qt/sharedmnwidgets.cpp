@@ -4,13 +4,13 @@
 
 #include <qt/sharedmnwidgets.h>
 
+#include <addresstype.h>
 #include <core_io.h>
 #include <evo/providertx.h>
 #include <interfaces/wallet.h>
 #include <node/transaction.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
 #include <util/error.h>
 #include <util/strencodings.h>
 

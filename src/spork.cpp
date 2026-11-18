@@ -4,13 +4,13 @@
 
 #include <spork.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <flat-database.h>
 #include <key_io.h>
 #include <logging.h>
 #include <messagesigner.h>
 #include <protocol.h>
-#include <script/standard.h>
 #include <timedata.h>
 #include <util/helpers.h>
 

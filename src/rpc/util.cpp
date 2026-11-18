@@ -17,6 +17,7 @@
 #include <rpc/util.h>
 #include <script/descriptor.h>
 #include <script/signingprovider.h>
+#include <script/solver.h>
 #include <tinyformat.h>
 #include <util/check.h>
 #include <util/result.h>
@@ -280,6 +281,11 @@ public:
     explicit DescribeAddressVisitor() = default;
 
     UniValue operator()(const CNoDestination &dest) const { return UniValue(UniValue::VOBJ); }
+
+    UniValue operator()(const PubKeyDestination& dest) const
+    {
+        return UniValue(UniValue::VOBJ);
+    }
 
     UniValue operator()(const PKHash &pkhash) const {
         UniValue obj(UniValue::VOBJ);
@@ -636,6 +642,7 @@ TMPL_INST(nullptr, const std::string*, maybe_arg ? &maybe_arg->get_str() : nullp
 
 // Required arg or optional arg with default value.
 TMPL_INST(CheckRequiredOrDefault, const UniValue&, *CHECK_NONFATAL(maybe_arg););
+TMPL_INST(CheckRequiredOrDefault, bool, CHECK_NONFATAL(maybe_arg)->get_bool(););
 TMPL_INST(CheckRequiredOrDefault, int, CHECK_NONFATAL(maybe_arg)->getInt<int>(););
 TMPL_INST(CheckRequiredOrDefault, uint64_t, CHECK_NONFATAL(maybe_arg)->getInt<uint64_t>(););
 TMPL_INST(CheckRequiredOrDefault, const std::string&, CHECK_NONFATAL(maybe_arg)->get_str(););

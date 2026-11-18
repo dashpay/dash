@@ -429,7 +429,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
     // marking the block consensus-invalid and punishing the relaying peer.
     auto cacheKey = std::make_pair(llmq_params.type, quorumHash);
     if (!m_evoDb.WriteDerived(std::make_pair(DB_MINED_COMMITMENT, cacheKey), std::make_pair(qc, blockHash))) {
-        return AbortNode(state, strprintf("CQuorumBlockProcessor::%s -- EvoDB quorum commitment mismatch for quorum %s",
+        return FatalError(m_chainman.GetNotifications(), state, strprintf("CQuorumBlockProcessor::%s -- EvoDB quorum commitment mismatch for quorum %s",
                                           __func__, quorumHash.ToString()));
     }
 

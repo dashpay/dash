@@ -5,11 +5,11 @@
 #ifndef BITCOIN_GOVERNANCE_SUPERBLOCK_H
 #define BITCOIN_GOVERNANCE_SUPERBLOCK_H
 
+#include <addresstype.h>
 #include <consensus/amount.h>
 #include <governance/object.h>
 #include <masternode/payments.h>
 #include <script/script.h>
-#include <script/standard.h>
 #include <sync.h>
 #include <uint256.h>
 

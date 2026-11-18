@@ -107,6 +107,7 @@
 #include <memory>
 #include <stdexcept>
 
+using kernel::BlockTreeDB;
 using kernel::ValidationCacheSizes;
 using node::ApplyArgsManOptions;
 using node::BlockAssembler;
@@ -218,7 +219,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
         ::g_stats_client = std::move(*stats_client);
     }
 
-    m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman); // Deterministic randomness for tests.
+    m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params()); // Deterministic randomness for tests.
 
     m_node.mn_metaman = std::make_unique<CMasternodeMetaMan>(m_args.GetDataDirNet());
     m_node.netfulfilledman = std::make_unique<CNetFulfilledRequestManager>(m_args.GetDataDirNet());
@@ -237,7 +238,6 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     }
 
     bls::bls_legacy_scheme.store(true);
-    node::g_indexes_ready_to_sync = true;
 }
 
 BasicTestingSetup::~BasicTestingSetup()
@@ -279,7 +279,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
-    m_node.notifications = std::make_unique<KernelNotifications>();
+    m_node.notifications = std::make_unique<KernelNotifications>(m_node.exit_status);
 
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
@@ -292,9 +292,10 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     const BlockManager::Options blockman_opts{
         .chainparams = chainparams,
         .blocks_dir = m_args.GetBlocksDirPath(),
+        .notifications = chainman_opts.notifications,
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
-    m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
+    m_node.chainman = std::make_unique<ChainstateManager>(m_node.kernel->interrupt, chainman_opts, blockman_opts);
+    m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<BlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",
         .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),
         .memory_only = true});
@@ -355,7 +356,7 @@ void ChainTestingSetup::MakeDashChainContexts(const bool llmq_dbs_wipe)
                                                     llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE);
     m_node.special_tx = std::make_unique<CSpecialTxProcessor>(*m_node.evodb, *m_node.dmnman,
                                                               *m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qsnapman,
-                                                              chainman, chainman.m_blockman, chainman.GetConsensus(),
+                                                              chainman, chainman.m_blockman, chainman.GetConsensus(), chainman.GetNotifications(),
                                                               *Assert(m_node.chainlocks), *m_node.llmq_ctx->qman);
 }
 

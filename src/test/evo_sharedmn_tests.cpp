@@ -13,6 +13,7 @@
 #include <evo/specialtx_filter.h>
 #include <evo/specialtxman.h>
 
+#include <addresstype.h>
 #include <arith_uint256.h>
 #include <clientversion.h>
 #include <common/bloom.h>
@@ -23,7 +24,6 @@
 #include <random.h>
 #include <script/interpreter.h>
 #include <script/script.h>
-#include <script/standard.h>
 #include <streams.h>
 #include <util/strencodings.h>
 

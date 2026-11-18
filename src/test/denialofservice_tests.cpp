@@ -12,7 +12,6 @@
 #include <pubkey.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
-#include <script/standard.h>
 #include <test/util/net.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
@@ -145,7 +144,7 @@ static void AddRandomOutboundPeer(NodeId& id, std::vector<CNode*>& vNodes, PeerM
 BOOST_AUTO_TEST_CASE(stale_tip_peer_management)
 {
     NodeId id{0};
-    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
+    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params());
     auto peerLogic = MakePeerManager(*connman, m_node, /*banman=*/nullptr, {});
 
     constexpr int max_outbound_full_relay = MAX_OUTBOUND_FULL_RELAY_CONNECTIONS;
@@ -243,7 +242,7 @@ BOOST_AUTO_TEST_CASE(stale_tip_peer_management)
 BOOST_AUTO_TEST_CASE(block_relay_only_eviction)
 {
     NodeId id{0};
-    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
+    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params());
     auto peerLogic = MakePeerManager(*connman, m_node, /*banman=*/nullptr, {});
 
     constexpr int max_outbound_block_relay{MAX_BLOCK_RELAY_ONLY_CONNECTIONS};
@@ -304,7 +303,7 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
-    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
+    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params());
     auto peerLogic = MakePeerManager(*connman, m_node, banman.get(), {});
 
     CNetAddr tor_netaddr;
@@ -410,7 +409,7 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     auto banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
-    auto connman = std::make_unique<CConnman>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
+    auto connman = std::make_unique<CConnman>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params());
     auto peerLogic = MakePeerManager(*connman, m_node, banman.get(), {});
 
     banman->ClearBanned();

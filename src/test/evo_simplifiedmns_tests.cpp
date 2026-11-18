@@ -4,13 +4,13 @@
 
 #include <test/util/setup_common.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
 #include <evo/dmnstate.h>
 #include <evo/simplifiedmns.h>
 #include <evo/smldiff.h>
 #include <netbase.h>
-#include <script/standard.h>
 
 #include <boost/test/unit_test.hpp>
 

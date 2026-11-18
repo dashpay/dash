@@ -33,6 +33,9 @@ class CBlock;
 class CBlockIndex;
 class CCoinsViewCache;
 class ChainstateManager;
+namespace kernel {
+class Notifications;
+} // namespace kernel
 namespace node {
 class BlockManager;
 } // namespace node
@@ -785,7 +788,8 @@ public:
     ~CDeterministicMNManager();
 
     bool ProcessBlock(gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state,
-                      const CDeterministicMNList& oldList, const CDeterministicMNList& newList, MNListUpdates& updatesRet)
+                      const CDeterministicMNList& oldList, const CDeterministicMNList& newList, MNListUpdates& updatesRet,
+                      kernel::Notifications& notifications)
         EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
     bool UndoBlock(gsl::not_null<const CBlockIndex*> pindex, MNListUpdates& updatesRet) EXCLUSIVE_LOCKS_REQUIRED(!cs);
 

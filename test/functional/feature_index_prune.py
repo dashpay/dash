@@ -3,6 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test indices in conjunction with prune."""
+import os
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
@@ -156,9 +157,10 @@ class FeatureIndexPruneTest(BitcoinTestFramework):
         filter_msg = "Error: basic block filter index best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
         stats_msg = "Error: coinstatsindex best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
         timestamp_msg = "Error: timestampindex best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"
+        end_msg = f"{os.linesep}Error: Failed to start indexes, shutting down.."
         # Node 2 has both blockfilter and coinstats indexes; the blockfilter init runs first and produces the error.
         for i, msg in enumerate([filter_msg, stats_msg, filter_msg, timestamp_msg]):
-            self.nodes[i].assert_start_raises_init_error(extra_args=self.extra_args[i], expected_msg=msg)
+            self.nodes[i].assert_start_raises_init_error(extra_args=self.extra_args[i], expected_msg=msg+end_msg)
 
         self.log.info("make sure the nodes start again with the indices and an additional -reindex arg")
         for i in range(4):

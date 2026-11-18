@@ -4,13 +4,13 @@
 
 #include <qt/masternodewizard.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <evo/dmn_types.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
 #include <util/strencodings.h>
 
 #include <qt/bitcoinunits.h>

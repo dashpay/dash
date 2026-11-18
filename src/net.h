@@ -16,6 +16,7 @@
 #include <crypto/siphash.h>
 #include <hash.h>
 #include <i2p.h>
+#include <kernel/messagestartchars.h>
 #include <net_permissions.h>
 #include <netaddress.h>
 #include <netbase.h>
@@ -54,6 +55,7 @@
 
 class AddrMan;
 class BanMan;
+class CChainParams;
 class CConnman;
 class CDeterministicMNList;
 class CDeterministicMNManager;
@@ -423,7 +425,7 @@ public:
 class V1Transport final : public Transport
 {
 private:
-    CMessageHeader::MessageStartChars m_magic_bytes;
+    MessageStartChars m_magic_bytes;
     const NodeId m_node_id; // Only for logging
     mutable Mutex m_recv_mutex; //!< Lock for receive state
     mutable CHash256 hasher GUARDED_BY(m_recv_mutex);
@@ -1300,7 +1302,7 @@ public:
     }
 
     CConnman(uint64_t seed0, uint64_t seed1, AddrMan& addrman, const NetGroupManager& netgroupman,
-             bool network_active = true);
+             const CChainParams& params, bool network_active = true);
 
     ~CConnman();
     bool Start(CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
@@ -1798,6 +1800,9 @@ private:
     // Whether the node should be passed out in ForEach* callbacks
     static bool NodeFullyConnected(const CNode* pnode);
 
+    uint16_t GetDefaultPort(Network net) const;
+    uint16_t GetDefaultPort(const std::string& addr) const;
+
     // Network usage totals
     mutable Mutex m_total_bytes_sent_mutex;
     std::atomic<uint64_t> nTotalBytesRecv{0};
@@ -2067,6 +2072,8 @@ private:
      * unexpectedly use too much memory.
      */
     static constexpr size_t MAX_UNUSED_I2P_SESSIONS_SIZE{10};
+
+    const CChainParams& m_params;
 
     friend struct ConnmanTestMsg;
 };

@@ -59,7 +59,7 @@ FUZZ_TARGET(net, .init = initialize_net)
             [&] {
                 NetGroupManager netgroupman{ConsumeNetGroupManager(fuzzed_data_provider)};
                 AddrMan addrman(netgroupman, /*deterministic=*/false, GetCheckRatio());
-                CConnman connman{fuzzed_data_provider.ConsumeIntegral<uint64_t>(), fuzzed_data_provider.ConsumeIntegral<uint64_t>(), addrman, netgroupman};
+                CConnman connman{fuzzed_data_provider.ConsumeIntegral<uint64_t>(), fuzzed_data_provider.ConsumeIntegral<uint64_t>(), addrman, netgroupman, Params()};
                 node.CloseSocketDisconnect(&connman);
             },
             [&] {

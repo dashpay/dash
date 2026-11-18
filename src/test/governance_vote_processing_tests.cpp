@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
@@ -19,7 +20,7 @@
 #include <messagesigner.h>
 #include <netfulfilledman.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <streams.h>
 #include <timedata.h>
 #include <uint256.h>
@@ -113,7 +114,8 @@ struct GovernanceVoteSetup : public TestChainSetup {
         SyncWithValidationInterfaceQueue();
         m_node.gov_collateral_index = std::make_unique<GovCollateralIndex>(interfaces::MakeChain(m_node),
                                                                            /*n_cache_size=*/0, /*f_memory=*/true);
-        BOOST_REQUIRE(m_node.gov_collateral_index->Start());
+        BOOST_REQUIRE(m_node.gov_collateral_index->Init());
+        BOOST_REQUIRE(m_node.gov_collateral_index->StartBackgroundSync());
         IndexWaitSynced(*m_node.gov_collateral_index);
 
         utxos = BuildSimpleUtxoMap(m_coinbase_txns);

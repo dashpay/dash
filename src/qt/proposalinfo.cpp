@@ -5,10 +5,10 @@
 #include <qt/proposalinfo.h>
 #include <qt/forms/ui_proposalinfo.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <evo/dmn_types.h>
 #include <interfaces/node.h>
-#include <script/standard.h>
 
 #include <qt/bitcoinunits.h>
 #include <qt/clientfeeds.h>

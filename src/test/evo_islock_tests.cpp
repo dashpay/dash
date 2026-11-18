@@ -16,7 +16,7 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <spork.h>
 #include <streams.h>
 #include <test/util/llmq_tests.h>

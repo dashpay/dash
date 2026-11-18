@@ -5,12 +5,12 @@
 #include <qt/masternodelist.h>
 #include <qt/forms/ui_masternodelist.h>
 
+#include <addresstype.h>
 #include <core_io.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <key_io.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
 
 #include <qt/clientfeeds.h>
 #include <qt/clientmodel.h>

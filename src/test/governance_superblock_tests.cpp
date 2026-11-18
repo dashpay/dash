@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <governance/superblock.h>
@@ -10,7 +11,6 @@
 #include <primitives/transaction.h>
 #include <pubkey.h>
 #include <script/script.h>
-#include <script/standard.h>
 
 #include <test/util/setup_common.h>
 

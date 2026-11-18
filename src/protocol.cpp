@@ -211,7 +211,7 @@ const static std::set<std::string> netMessageTypesViolateBlocksOnlySet(std::begi
 
 CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn, const char* pszCommand, unsigned int nMessageSizeIn)
 {
-    memcpy(pchMessageStart, pchMessageStartIn, MESSAGE_START_SIZE);
+    pchMessageStart = pchMessageStartIn;
 
     // Copy the command name
     size_t i = 0;
