@@ -706,7 +706,7 @@ class PSBTTest(BitcoinTestFramework):
         assert_raises_rpc_error(-4, "Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input", self.nodes[0].walletcreatefundedpsbt, [], [{"data": "deadbeef"}], 0, {"fee_rate": "0"})
 
         self.log.info("Test walletprocesspsbt raises if an invalid sighashtype is passed")
-        assert_raises_rpc_error(-8, "all is not a valid sighash parameter.", self.nodes[0].walletprocesspsbt, psbt["psbt"], sighashtype="all")
+        assert_raises_rpc_error(-8, "'all' is not a valid sighash parameter.", self.nodes[0].walletprocesspsbt, psbt["psbt"], sighashtype="all")
 
         self.log.info("Test decoding PSBT with per-input preimage types")
         # note that the decodepsbt RPC doesn't check whether preimages and hashes match
@@ -812,7 +812,7 @@ class PSBTTest(BitcoinTestFramework):
         self.nodes[2].sendrawtransaction(processed_psbt['hex'])
 
         self.log.info("Test descriptorprocesspsbt raises if an invalid sighashtype is passed")
-        assert_raises_rpc_error(-8, "all is not a valid sighash parameter.", self.nodes[2].descriptorprocesspsbt, psbt, [descriptor], sighashtype="all")
+        assert_raises_rpc_error(-8, "'all' is not a valid sighash parameter.", self.nodes[2].descriptorprocesspsbt, psbt, [descriptor], sighashtype="all")
 
 
 if __name__ == '__main__':

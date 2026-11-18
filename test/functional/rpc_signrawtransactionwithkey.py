@@ -55,7 +55,7 @@ class SignRawTransactionWithKeyTest(BitcoinTestFramework):
         self.log.info("Test signing transaction with invalid sighashtype")
         tx = self.nodes[0].createrawtransaction(INPUTS, OUTPUTS)
         privkeys = [self.nodes[0].get_deterministic_priv_key().key]
-        assert_raises_rpc_error(-8, "all is not a valid sighash parameter.", self.nodes[0].signrawtransactionwithkey, tx, privkeys, sighashtype="all")
+        assert_raises_rpc_error(-8, "'all' is not a valid sighash parameter.", self.nodes[0].signrawtransactionwithkey, tx, privkeys, sighashtype="all")
 
     def invalid_private_key_and_tx(self):
         self.log.info("Test signing transaction with an invalid private key")
