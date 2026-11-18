@@ -93,6 +93,7 @@ TEST_FRAMEWORK_MODULES = [
     "crypto.ripemd160",
     "script",
     "segwit_addr",
+    "wallet_util",
 ]
 
 EXTENDED_SCRIPTS = [
