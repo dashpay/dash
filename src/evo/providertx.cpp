@@ -444,8 +444,7 @@ std::string CProRegTx::ToString() const
                      "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s%s)\n",
                      nVersion, std23::to_underlying(nType), collateralOutpoint.ToStringShort(), netInfo->ToString(),
                      static_cast<double>(nOperatorReward) / 100, EncodeDestination(PKHash(keyIDOwner)),
-                     pubKeyOperator.ToString(OperatorKeyScheme()), EncodeDestination(PKHash(keyIDVoting)), payee,
-                     platformNodeID.ToString(),
+                     OperatorKey().ToString(), EncodeDestination(PKHash(keyIDVoting)), payee, platformNodeID.ToString(),
                      (nVersion >= ProTxVersion::ExtAddr
                           ? ""
                           : strprintf(", platformP2PPort=%d, platformHTTPPort=%d", platformP2PPort, platformHTTPPort)));
@@ -514,8 +513,8 @@ std::string CProUpRegTx::ToString() const
     const std::string payee = PayoutListToString(GetOwnerPayouts(*this));
 
     return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
-                     nVersion, proTxHash.ToString(), pubKeyOperator.ToString(OperatorKeyScheme()),
-                     EncodeDestination(PKHash(keyIDVoting)), payee);
+                     nVersion, proTxHash.ToString(), OperatorKey().ToString(), EncodeDestination(PKHash(keyIDVoting)),
+                     payee);
 }
 
 bool CProUpRevTx::IsTriviallyValid(TxValidationState& state) const
@@ -623,6 +622,6 @@ bool CProUpSharedRegTx::IsTriviallyValid(TxValidationState& state) const
 std::string CProUpSharedRegTx::ToString() const
 {
     return strprintf("CProUpSharedRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, sigCount=%d)",
-                     nVersion, proTxHash.ToString(), pubKeyOperator.ToString(OperatorKeyScheme()),
-                     EncodeDestination(PKHash(keyIDVoting)), vchSigs.size());
+                     nVersion, proTxHash.ToString(), OperatorKey().ToString(), EncodeDestination(PKHash(keyIDVoting)),
+                     vchSigs.size());
 }

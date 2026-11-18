@@ -352,6 +352,9 @@ struct BLSEncoded {
     {
         obj.Unserialize(s, scheme);
     }
+
+    [[nodiscard]] uint256 GetHash() const { return obj.GetHash(scheme); }
+    [[nodiscard]] std::string ToString() const { return obj.ToString(scheme); }
 };
 
 class CBLSSignature : public CBLSWrapper<bls::G2Element, BLS_CURVE_SIG_SIZE, CBLSSignature>

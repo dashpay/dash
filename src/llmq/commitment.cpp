@@ -66,7 +66,7 @@ bool CFinalCommitment::VerifySignatureAsync(const llmq::UtilParameters& util_par
                  ss3.str(), quorumPublicKey.ToString(), commitmentHash.ToString());
     }
     if (llmq_params.is_single_member()) {
-        LogPrintf("pubkey operator: %s\n", members[0]->pdmnState->pubKeyOperator.Get().ToString());
+        LogPrintf("pubkey operator: %s\n", members[0]->pdmnState->OperatorKey().ToString());
         if (!membersSig.VerifyInsecure(members[0]->pdmnState->pubKeyOperator.Get(), commitmentHash, scheme)) {
             LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid member signature\n", quorumHash.ToString());
             return false;

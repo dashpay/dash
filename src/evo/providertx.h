@@ -157,6 +157,10 @@ public:
     CKeyID keyIDOwner;
     CBLSLazyPublicKey pubKeyOperator;
     [[nodiscard]] BLSScheme OperatorKeyScheme() const { return ProTxVersion::GetBLSScheme(nVersion); }
+    [[nodiscard]] BLSEncoded<const CBLSLazyPublicKey> OperatorKey() const
+    {
+        return {pubKeyOperator, OperatorKeyScheme()};
+    }
     CKeyID keyIDVoting;
     uint16_t nOperatorReward{0};
     CScript scriptPayout;
@@ -326,6 +330,10 @@ public:
     uint16_t nMode{0}; // only 0 supported for now
     CBLSLazyPublicKey pubKeyOperator;
     [[nodiscard]] BLSScheme OperatorKeyScheme() const { return ProTxVersion::GetBLSScheme(nVersion); }
+    [[nodiscard]] BLSEncoded<const CBLSLazyPublicKey> OperatorKey() const
+    {
+        return {pubKeyOperator, OperatorKeyScheme()};
+    }
     CKeyID keyIDVoting;
     CScript scriptPayout;
     MasternodePayoutShares payouts;
@@ -521,6 +529,10 @@ public:
     uint256 proTxHash;
     CBLSLazyPublicKey pubKeyOperator;
     [[nodiscard]] static BLSScheme OperatorKeyScheme() { return BLSScheme::Basic; }
+    [[nodiscard]] BLSEncoded<const CBLSLazyPublicKey> OperatorKey() const
+    {
+        return {pubKeyOperator, OperatorKeyScheme()};
+    }
     CKeyID keyIDVoting;
     uint256 inputsHash; // replay protection
     // One signature per share, in share order; a shared registrar update requires unanimity

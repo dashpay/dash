@@ -444,10 +444,10 @@ bool CSpecialTxProcessor::ApplyTxToList(const CTransaction& tx, gsl::not_null<co
                     return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
                 }
             }
-            if (newList.HasUniqueProperty(OperatorKeySlotOf(proTx))) {
+            if (newList.HasUniqueProperty(proTx.OperatorKey())) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
             }
-        } else if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(OperatorKeySlotOf(proTx))) {
+        } else if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.OperatorKey())) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-dup-key");
         }
 
@@ -1349,10 +1349,10 @@ bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pin
                     return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
                 }
             }
-            if (mnList.HasUniqueProperty(OperatorKeySlotOf(*opt_ptx))) {
+            if (mnList.HasUniqueProperty(opt_ptx->OperatorKey())) {
                 return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
             }
-        } else if (mnList.HasUniqueProperty(opt_ptx->keyIDOwner) || mnList.HasUniqueProperty(OperatorKeySlotOf(*opt_ptx))) {
+        } else if (mnList.HasUniqueProperty(opt_ptx->keyIDOwner) || mnList.HasUniqueProperty(opt_ptx->OperatorKey())) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
         }
 
@@ -1593,8 +1593,8 @@ bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> p
     if (!IsPayoutListKeySafe(owner_payouts, collateralTxDest, dmn->pdmnState->keyIDOwner, opt_ptx->keyIDVoting,
                              check_payout_collateral_reuse, state)) return false;
 
-    if (mnList.HasUniqueProperty(OperatorKeySlotOf(*opt_ptx))) {
-        auto otherDmn = mnList.GetUniquePropertyMN(OperatorKeySlotOf(*opt_ptx));
+    if (mnList.HasUniqueProperty(opt_ptx->OperatorKey())) {
+        auto otherDmn = mnList.GetUniquePropertyMN(opt_ptx->OperatorKey());
         if (opt_ptx->proTxHash != otherDmn->proTxHash) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
         }

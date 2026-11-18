@@ -2652,7 +2652,7 @@ static void CheckListRoundTrips(CDeterministicMNManager& dmnman, const std::stri
         BOOST_CHECK(dmn.pdmnState->OperatorKeyScheme() ==
                     ProTxVersion::GetBLSScheme(static_cast<uint16_t>(dmn.pdmnState->nVersion)));
         if (dmn.pdmnState->pubKeyOperator != CBLSLazyPublicKey()) {
-            BOOST_CHECK_MESSAGE(live.HasUniqueProperty(OperatorKeySlotOf(*dmn.pdmnState)),
+            BOOST_CHECK_MESSAGE(live.HasUniqueProperty(dmn.pdmnState->OperatorKey()),
                                 what << ": operator key missing from its scheme slot for " << dmn.proTxHash.ToString());
         }
     });
@@ -4452,8 +4452,7 @@ BOOST_AUTO_TEST_CASE(statediff_captures_operator_key_reencoding)
             BOOST_CHECK_EQUAL(reconstructed.nVersion, ProTxVersion::BasicBLS);
             CheckOperatorKeyEncoding(reconstructed, c.basic_key);
             BOOST_CHECK(reconstructed.pubKeyOperator.Get() == c.basic_key);
-            BOOST_CHECK(reconstructed.pubKeyOperator.GetHash(reconstructed.OperatorKeyScheme()) ==
-                        b.pubKeyOperator.GetHash(b.OperatorKeyScheme()));
+            BOOST_CHECK(reconstructed.OperatorKey().GetHash() == b.OperatorKey().GetHash());
         }
     }
 
@@ -5051,8 +5050,7 @@ BOOST_AUTO_TEST_CASE(migration_logic_validation)
     BOOST_CHECK_EQUAL(convertedDiff.state.nVersion, legacyDiff.state.nVersion);
     BOOST_CHECK_EQUAL(convertedDiff.state.GetBannedHeight(), legacyDiff.state.GetBannedHeight());
     BOOST_CHECK(convertedDiff.state.pubKeyOperator.Get() == legacyDiff.state.pubKeyOperator.Get());
-    BOOST_CHECK_EQUAL(convertedDiff.state.pubKeyOperator.ToString(convertedDiff.state.OperatorKeyScheme()),
-                      legacyDiff.state.pubKeyOperator.ToString(legacyDiff.state.OperatorKeyScheme()));
+    BOOST_CHECK_EQUAL(convertedDiff.state.OperatorKey().ToString(), legacyDiff.state.OperatorKey().ToString());
 }
 
 static void ExpectEncoding(const std::string& stored, const char* present_hex, const char* absent_hex)

@@ -527,7 +527,8 @@ property of the data or of the block, never of the node:
   signature for historical validation use `SignBLS()` from `test/util/bls.h`.
 - An operator key (`CBLSLazyPublicKey`) has no encoding of its own, so
   serializing, hashing or printing one always names the scheme, taken from the
-  payload or masternode state that owns it.
+  payload or masternode state that owns it. Hash, print or check the uniqueness
+  of one through its owner's `OperatorKey()`, which carries that scheme.
 - Two other kinds of code name legacy explicitly: operator-key uniqueness
   checks, which probe both encodings, and RPC or log code that prints or parses
   a key or signature in either encoding.

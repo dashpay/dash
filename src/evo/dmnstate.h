@@ -61,6 +61,10 @@ public:
     {
         return ProTxVersion::GetBLSScheme(static_cast<uint16_t>(nVersion));
     }
+    [[nodiscard]] BLSEncoded<const CBLSLazyPublicKey> OperatorKey() const
+    {
+        return {pubKeyOperator, OperatorKeyScheme()};
+    }
     CKeyID keyIDVoting;
     std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CScript scriptPayout;
@@ -265,7 +269,7 @@ public:
                 // operator== compares the point and ignores its encoding. A scheme migration
                 // re-encodes the same point, and identical bytes decode to a different point under
                 // the other scheme, so either a different encoding or a different scheme is a change.
-                if (member.get(a).GetHash(a.OperatorKeyScheme()) != member.get(b).GetHash(b.OperatorKeyScheme()) ||
+                if (a.OperatorKey().GetHash() != b.OperatorKey().GetHash() ||
                     a.OperatorKeyScheme() != b.OperatorKeyScheme()) {
                     member.get(state) = member.get(b);
                     fields |= member.mask;

@@ -127,13 +127,6 @@ inline void SerReadWrite(Stream& s, immer::map<K, T, Hash, Equal>& obj, ActionUn
 //! encoding: the same key under legacy and under basic occupies two slots.
 using OperatorKeySlot = BLSEncoded<const CBLSLazyPublicKey>;
 
-//! The slot an operator key occupies given the payload or state that owns it.
-template <typename Owner>
-OperatorKeySlot OperatorKeySlotOf(const Owner& owner)
-{
-    return {owner.pubKeyOperator, owner.OperatorKeyScheme()};
-}
-
 class CDeterministicMNList
 {
 private:
@@ -558,7 +551,7 @@ private:
         // Hash of the 48 key bytes under slot.scheme: GetHash writes those bytes to
         // CHashWriter(SER_GETHASH, PROTOCOL_VERSION), matching SerializeHash of the key
         // serialized under that scheme.
-        return slot.obj.GetHash(slot.scheme);
+        return slot.GetHash();
     }
     template <typename T>
     [[nodiscard]] static bool IsNullUniqueProperty(const T& value)

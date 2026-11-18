@@ -739,7 +739,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
                                             payeeStr, dmnToStatus(dmn), dmn.pdmnState->nPoSePenalty,
                                             dmnToLastPaidTime(dmn), dmn.pdmnState->nLastPaidHeight, ownerStr,
                                             EncodeDestination(PKHash(dmn.pdmnState->keyIDVoting)), collateralAddressStr,
-                                            dmn.pdmnState->pubKeyOperator.ToString(dmn.pdmnState->OperatorKeyScheme()));
+                                            dmn.pdmnState->OperatorKey().ToString());
             if (!strFilter.empty() && strInfo.find(strFilter) == std::string::npos &&
                 strOutpoint.find(strFilter) == std::string::npos)
                 return;
@@ -766,7 +766,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             objMN.pushKV("owneraddress", ownerStr);
             objMN.pushKV("votingaddress", EncodeDestination(PKHash(dmn.pdmnState->keyIDVoting)));
             objMN.pushKV("collateraladdress", collateralAddressStr);
-            objMN.pushKV("pubkeyoperator", dmn.pdmnState->pubKeyOperator.ToString(dmn.pdmnState->OperatorKeyScheme()));
+            objMN.pushKV("pubkeyoperator", dmn.pdmnState->OperatorKey().ToString());
             obj.pushKV(strOutpoint, objMN);
         } else if (strMode == "lastpaidblock") {
             if (!strFilter.empty() && strOutpoint.find(strFilter) == std::string::npos) return;
@@ -784,7 +784,7 @@ static RPCHelpMan masternodelist_helper(bool is_composite)
             obj.pushKV(strOutpoint, ownerStr);
         } else if (strMode == "pubkeyoperator") {
             if (!strFilter.empty() && strOutpoint.find(strFilter) == std::string::npos) return;
-            obj.pushKV(strOutpoint, dmn.pdmnState->pubKeyOperator.ToString(dmn.pdmnState->OperatorKeyScheme()));
+            obj.pushKV(strOutpoint, dmn.pdmnState->OperatorKey().ToString());
         } else if (strMode == "status") {
             std::string strStatus = dmnToStatus(dmn);
             if (!strFilter.empty() && strStatus.find(strFilter) == std::string::npos &&

@@ -485,12 +485,10 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
         throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate keyIDOwner=%s", __func__,
                 dmn->proTxHash.ToString(), EncodeDestination(PKHash(dmn->pdmnState->keyIDOwner)))));
     }
-    if (dmn->pdmnState->pubKeyOperator != CBLSLazyPublicKey() &&
-        !AddUniqueProperty(*dmn, OperatorKeySlotOf(*dmn->pdmnState))) {
+    if (dmn->pdmnState->pubKeyOperator != CBLSLazyPublicKey() && !AddUniqueProperty(*dmn, dmn->pdmnState->OperatorKey())) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate pubKeyOperator=%s", __func__,
-                                           dmn->proTxHash.ToString(),
-                                           dmn->pdmnState->pubKeyOperator.ToString(dmn->pdmnState->OperatorKeyScheme()))));
+                                           dmn->proTxHash.ToString(), dmn->pdmnState->OperatorKey().ToString())));
     }
 
     if (dmn->nType == MnType::Evo) {
@@ -566,11 +564,10 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate keyIDOwner=%s", __func__,
                 oldDmn.proTxHash.ToString(), EncodeDestination(PKHash(pdmnState->keyIDOwner)))));
     }
-    if (!UpdateUniqueProperty(*dmn, OperatorKeySlotOf(*oldState), OperatorKeySlotOf(*pdmnState))) {
+    if (!UpdateUniqueProperty(*dmn, oldState->OperatorKey(), pdmnState->OperatorKey())) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate pubKeyOperator=%s",
-                                           __func__, oldDmn.proTxHash.ToString(),
-                                           pdmnState->pubKeyOperator.ToString(pdmnState->OperatorKeyScheme()))));
+                                           __func__, oldDmn.proTxHash.ToString(), pdmnState->OperatorKey().ToString())));
     }
     if (dmn->nType == MnType::Evo) {
         if (!UpdateUniqueProperty(*dmn, oldState->platformNodeID, pdmnState->platformNodeID)) {
@@ -655,11 +652,10 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
                 proTxHash.ToString(), EncodeDestination(PKHash(dmn->pdmnState->keyIDOwner)))));
     }
     if (dmn->pdmnState->pubKeyOperator != CBLSLazyPublicKey() &&
-        !DeleteUniqueProperty(*dmn, OperatorKeySlotOf(*dmn->pdmnState))) {
+        !DeleteUniqueProperty(*dmn, dmn->pdmnState->OperatorKey())) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
-        throw(std::runtime_error(
-            strprintf("%s: Can't delete a masternode %s with a pubKeyOperator=%s", __func__, proTxHash.ToString(),
-                      dmn->pdmnState->pubKeyOperator.ToString(dmn->pdmnState->OperatorKeyScheme()))));
+        throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a pubKeyOperator=%s", __func__,
+                                           proTxHash.ToString(), dmn->pdmnState->OperatorKey().ToString())));
     }
 
     if (dmn->nType == MnType::Evo) {

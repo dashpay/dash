@@ -32,6 +32,10 @@ public:
     std::shared_ptr<NetInfoInterface> netInfo{nullptr};
     CBLSLazyPublicKey pubKeyOperator;
     [[nodiscard]] BLSScheme OperatorKeyScheme() const { return ProTxVersion::GetBLSScheme(nVersion); }
+    [[nodiscard]] BLSEncoded<const CBLSLazyPublicKey> OperatorKey() const
+    {
+        return {pubKeyOperator, OperatorKeyScheme()};
+    }
     CKeyID keyIDVoting;
     bool isValid{false};
     uint16_t platformHTTPPort{0};

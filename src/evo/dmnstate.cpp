@@ -27,9 +27,9 @@ std::string CDeterministicMNState::ToString() const
                      "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, netInfo=%s, payoutAddress=%s, payouts=%s, "
                      "operatorPayoutAddress=%s)\n",
                      nVersion, nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight,
-                     nRevocationReason, EncodeDestination(PKHash(keyIDOwner)),
-                     pubKeyOperator.ToString(OperatorKeyScheme()), EncodeDestination(PKHash(keyIDVoting)),
-                     netInfo->ToString(), payoutAddress, payoutList, operatorPayoutAddress);
+                     nRevocationReason, EncodeDestination(PKHash(keyIDOwner)), OperatorKey().ToString(),
+                     EncodeDestination(PKHash(keyIDVoting)), netInfo->ToString(), payoutAddress, payoutList,
+                     operatorPayoutAddress);
 }
 
 void CDeterministicMNStateDiffLegacy::MaterializeOperatorKeyFromBytes()
