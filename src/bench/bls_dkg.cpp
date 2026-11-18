@@ -13,6 +13,11 @@
 
 #include <random.h>
 
+#include <map>
+#include <memory>
+#include <utility>
+#include <vector>
+
 struct Member {
     CBLSId id;
 
@@ -20,16 +25,64 @@ struct Member {
     std::vector<CBLSSecretKey> skShares;
 };
 
+//! What the members of a quorum contribute to a DKG
+struct Contributions {
+    std::vector<CBLSId> ids;
+    std::vector<Member> members;
+
+    Contributions(CBLSWorker& blsWorker, int quorumSize, int threshold)
+    {
+        members.reserve(quorumSize);
+        ids.reserve(quorumSize);
+
+        for (const int i : util::irange(quorumSize)) {
+            uint256 id;
+            WriteLE64(id.begin(), i + 1);
+            members.push_back({CBLSId(id), {}, {}});
+            ids.emplace_back(id);
+        }
+        for (auto& member : members) {
+            blsWorker.GenerateContributions(threshold, ids, member.vvec, member.skShares);
+        }
+    }
+};
+
+//! Generating the contributions of a quorum takes much longer than any step measured on them, so
+//! every benchmark of a quorum of the same shape works on the same ones. No step changes them.
+static const Contributions& SharedContributions(CBLSWorker& blsWorker, int quorumSize, int threshold)
+{
+    // Never destroyed: the secret keys in it would outlive the pool their memory comes from.
+    static auto& cache{*new std::map<std::pair<int, int>, std::unique_ptr<const Contributions>>};
+    auto& entry{cache[{quorumSize, threshold}]};
+    if (!entry) {
+        entry = std::make_unique<const Contributions>(blsWorker, quorumSize, threshold);
+    }
+    return *entry;
+}
+
 class DKG
 {
 private:
-    std::vector<CBLSId> ids;
-    std::vector<Member> members;
+    CBLSWorker blsWorker;
+    //! Set when the contributions are generated for this object alone
+    std::unique_ptr<const Contributions> ownContributions;
+    const Contributions& contributions;
+    const std::vector<CBLSId>& ids;
+    const std::vector<Member>& members;
     std::vector<BLSVerificationVectorPtr> receivedVvecs;
 
     std::vector<CBLSSecretKey> receivedSkShares;
     BLSVerificationVectorPtr quorumVvec;
-    CBLSWorker blsWorker;
+
+    const Contributions& Init(int quorumSize, int threshold, bool shared)
+    {
+        blsWorker.Start(llmq::DEFAULT_WORKER_COUNT);
+        if (shared) {
+            return SharedContributions(blsWorker, quorumSize, threshold);
+        }
+        ownContributions = std::make_unique<const Contributions>(blsWorker, quorumSize, threshold);
+        return *ownContributions;
+    }
 
     void ReceiveVvecs()
     {
@@ -67,22 +120,11 @@ public:
     {
     }
 
-    DKG(int quorumSize, int threshold)
+    DKG(int quorumSize, int threshold, bool shared = true) :
+        contributions(Init(quorumSize, threshold, shared)),
+        ids(contributions.ids),
+        members(contributions.members)
     {
-        members.reserve(quorumSize);
-        ids.reserve(quorumSize);
-
-        for (const int i : util::irange(quorumSize)) {
-            uint256 id;
-            WriteLE64(id.begin(), i + 1);
-            members.push_back({CBLSId(id), {}, {}});
-            ids.emplace_back(id);
-        }
-
-        blsWorker.Start(llmq::DEFAULT_WORKER_COUNT);
-        for (auto& member : members) {
-            blsWorker.GenerateContributions(threshold, ids, member.vvec, member.skShares);
-        }
     }
     ~DKG()
     {
@@ -144,7 +186,8 @@ public:
     {
         ReceiveVvecs();
         size_t memberIdx = 0;
-        bench.minEpochIterations(epoch_iters).run([&] {
+        // one run for a large quorum takes over a second
+        bench.epochs(members.size() < 400 ? 11 : 3).minEpochIterations(epoch_iters).run([&] {
             ReceiveShares(memberIdx);
 
             std::set<size_t> invalidIndexes;
@@ -199,7 +242,7 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
         quorumSize = 1;
     }
     bench.minEpochIterations(epoch_iters).run([&] {
-        DKG d(quorumSize);
+        DKG d(quorumSize, quorumSize / 2 + 1, /*shared=*/false);
     });
 }
 
@@ -214,7 +257,7 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
     static void BLSDKG_BuildQuorumVerificationVectors_##name##_##quorumSize(benchmark::Bench& bench) \
     {                                                                                                \
         if (!bench.output()) {                                                                       \
-            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(1);                                     \
+            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(2);                                     \
             ptr->Bench_BuildQuorumVerificationVectors(bench, 1);                                     \
             ptr.reset();                                                                             \
             return;                                                                                  \
@@ -229,7 +272,7 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
     static void BLSDKG_VerifyContributionShares_##name##_##quorumSize(benchmark::Bench& bench)  \
     {                                                                                           \
         if (!bench.output()) {                                                                  \
-            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(1);                                \
+            std::unique_ptr<DKG> ptr = std::make_unique<DKG>(2);                                \
             ptr->Bench_VerifyContributionShares(bench, invalidCount, aggregated, 1);            \
             ptr.reset();                                                                        \
             return;                                                                             \
@@ -257,20 +300,26 @@ BENCHMARK(BLSDKG_BuildCommitment_cold_400, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLSDKG_BuildCommitment_cached_400, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLSDKG_VerifyCommitment_400, benchmark::PriorityLevel::HIGH)
 
-BENCH_GenerateContributions(simple, 50, 50);
+BENCH_GenerateContributions(simple, 50, 10);
 BENCH_GenerateContributions(simple, 100, 5);
 
-BENCH_InitDKG(simple, 10, 100)
-BENCH_InitDKG(simple, 50, 10)
+BENCH_InitDKG(simple, 10, 10)
+BENCH_InitDKG(simple, 50, 5)
 
 BENCH_BuildQuorumVerificationVectors(simple, 10, 1000)
 BENCH_BuildQuorumVerificationVectors(simple, 100, 10)
 BENCH_BuildQuorumVerificationVectors(simple, 400, 1)
 
-BENCH_VerifyContributionShares(simple, 10, 5, false, 10)
-BENCH_VerifyContributionShares(simple, 100, 5, false, 10)
+BENCH_VerifyContributionShares(simple, 10, 5, false, 100)
+BENCH_VerifyContributionShares(simple, 100, 5, false, 1)
 BENCH_VerifyContributionShares(simple, 400, 5, false, 1)
 
-BENCH_VerifyContributionShares(aggregated, 10, 5, true, 100)
-BENCH_VerifyContributionShares(aggregated, 100, 5, true, 10)
-BENCH_VerifyContributionShares(aggregated, 400, 5, true, 1)
+// Shares are checked a batch at a time. A batch that holds an invalid share fails as a whole,
+// and its shares are then checked one by one to find it.
+BENCH_VerifyContributionShares(aggregated_valid, 10, 0, true, 100)
+BENCH_VerifyContributionShares(aggregated_valid, 100, 0, true, 1)
+BENCH_VerifyContributionShares(aggregated_valid, 400, 0, true, 1)
+
+BENCH_VerifyContributionShares(aggregated_invalid, 10, 5, true, 100)
+BENCH_VerifyContributionShares(aggregated_invalid, 100, 5, true, 3)
+BENCH_VerifyContributionShares(aggregated_invalid, 400, 5, true, 1)
