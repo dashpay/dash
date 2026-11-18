@@ -152,6 +152,20 @@ std::vector<blst_scalar> SecureAggregationFactors(const std::vector<PublicKeyByt
     return factors;
 }
 
+//! The number an id stands for as the argument of a polynomial
+blst_scalar ScalarFromId(const uint256& id)
+{
+    blst_scalar scalar;
+    blst_scalar_from_be_bytes(&scalar, id.begin(), id.size());
+    return scalar;
+}
+
+bool IsZero(const blst_scalar& scalar)
+{
+    static const blst_scalar zero{};
+    return std::memcmp(&scalar, &zero, sizeof(scalar)) == 0;
+}
+
 //! blst reads a scalar from the bytes it is kept in, so that no copy of a secret one is made.
 void Multiply(blst_p1& out, const blst_p1& point, const blst_scalar& scalar)
 {
@@ -305,27 +319,25 @@ bool CBLSPublicKey::PublicKeyShare(Span<CBLSPublicKey> mpk, const CBLSId& _id)
     fValid = false;
     cachedHash.SetNull();
 
-    if (!_id.IsValid()) {
+    if (!_id.IsValid() || mpk.size() < 2) {
         return false;
     }
-
-    std::vector<bls::G1Element> mpkVec;
-    mpkVec.reserve(mpk.size());
     for (const CBLSPublicKey& pk : mpk) {
         if (!pk.IsValid()) {
             return false;
         }
-        mpkVec.emplace_back(pk.impl);
     }
 
-    try {
-        impl = bls::Threshold::PublicKeyShare(mpkVec, bls::Bytes(_id.impl.begin(), _id.impl.size()));
-    } catch (...) {
-        return false;
+    // Horner's method: the polynomial with these coefficients, evaluated at the id
+    const blst_scalar x{ScalarFromId(_id.impl)};
+    blst_p1 y{mpk.back().impl.p};
+    for (size_t i = mpk.size() - 1; i > 0; --i) {
+        Multiply(y, y, x);
+        blst_p1_add_or_double(&y, &y, &mpk[i - 1].impl.p);
     }
+    impl.p = y;
 
     fValid = true;
-    cachedHash.SetNull();
     return true;
 }
 
@@ -492,31 +504,53 @@ bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
     fValid = false;
     cachedHash.SetNull();
 
-    if (sigs.empty() || ids.empty() || sigs.size() != ids.size()) {
+    if (sigs.size() < 2 || sigs.size() != ids.size()) {
         return false;
     }
 
-    std::vector<bls::G2Element> sigsVec;
-    std::vector<bls::Bytes> idsVec;
-    sigsVec.reserve(sigs.size());
-    idsVec.reserve(sigs.size());
-
+    std::vector<blst_scalar> xs;
+    xs.reserve(ids.size());
     for (size_t i = 0; i < sigs.size(); i++) {
         if (!sigs[i].IsValid() || !ids[i].IsValid()) {
             return false;
         }
-        sigsVec.emplace_back(sigs[i].impl);
-        idsVec.emplace_back(ids[i].impl.begin(), ids[i].impl.size());
+        xs.push_back(ScalarFromId(ids[i].impl));
     }
 
-    try {
-        impl = bls::Threshold::SignatureRecover(sigsVec, idsVec);
-    } catch (...) {
+    // Lagrange interpolation at zero. The share of x_i is weighted by
+    //   prod_{j != i} x_j / (x_j - x_i) = (prod_j x_j) / (x_i * prod_{j != i} (x_j - x_i))
+    blst_scalar numerator{xs[0]};
+    for (size_t i = 1; i < xs.size(); i++) {
+        blst_sk_mul_n_check(&numerator, &numerator, &xs[i]);
+    }
+    if (IsZero(numerator)) {
         return false;
     }
 
+    blst_p2 recovered{};
+    for (size_t i = 0; i < xs.size(); i++) {
+        blst_scalar denominator{xs[i]};
+        for (size_t j = 0; j < xs.size(); j++) {
+            if (j == i) continue;
+            blst_scalar difference;
+            blst_sk_sub_n_check(&difference, &xs[j], &xs[i]);
+            if (IsZero(difference)) {
+                // two shares of the same id
+                return false;
+            }
+            blst_sk_mul_n_check(&denominator, &denominator, &difference);
+        }
+        blst_scalar weight;
+        blst_sk_inverse(&weight, &denominator);
+        blst_sk_mul_n_check(&weight, &numerator, &weight);
+
+        blst_p2 multiple;
+        Multiply(multiple, sigs[i].impl.q, weight);
+        blst_p2_add_or_double(&recovered, &recovered, &multiple);
+    }
+    impl.q = recovered;
+
     fValid = true;
-    cachedHash.SetNull();
     return true;
 }
 
