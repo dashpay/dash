@@ -10,7 +10,6 @@ Checks conflict handling between ChainLocks and InstantSend
 
 '''
 
-import struct
 
 from test_framework.blocktools import create_block_with_mnpayments
 from test_framework.messages import CInv, hash256, msg_clsig, msg_inv, ser_string, tx_from_hex, uint256_from_str
@@ -258,7 +257,7 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
             assert_equal(node.getchaintips(2)[1]["status"], "conflicting")
 
     def create_chainlock(self, height, block):
-        request_id_buf = ser_string(b"clsig") + struct.pack("<I", height)
+        request_id_buf = ser_string(b"clsig") + height.to_bytes(4, "little")
         request_id = hash256(request_id_buf)[::-1].hex()
         message_hash = block.hash
 

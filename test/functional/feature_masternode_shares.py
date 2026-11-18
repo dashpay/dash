@@ -76,7 +76,7 @@ def prodis_sign_hash(tx, sig_count):
     data = ser_string(b"DashSharedMNDissolve") + payload[:2]
     data += struct.pack("<hHI", tx.nVersion, tx.nType, tx.nLockTime)
     data += b"".join(txin.prevout.serialize() for txin in tx.vin)
-    data += b"".join(struct.pack("<I", txin.nSequence) for txin in tx.vin)
+    data += b"".join(txin.nSequence.to_bytes(4, "little") for txin in tx.vin)
     data += b"".join(out.serialize() for out in tx.vout)
     return hash256(data + payload[2:36] + bytes([sig_count]))
 
@@ -338,7 +338,7 @@ class MasternodeSharesTest(DashTestFramework):
                 bad.vout[-1].nValue -= 1
             self.assert_rejected_transaction(node, bad, "bad-prodis-sig")
         bad = deepcopy(unanimous)
-        bad.vExtraPayload = prefix[:34] + struct.pack("<H", len(shares)) + unanimous.vExtraPayload[36:]
+        bad.vExtraPayload = prefix[:34] + len(shares).to_bytes(2, "little") + unanimous.vExtraPayload[36:]
         self.assert_rejected_transaction(node, bad, "bad-prodis-actor")
         bad = deepcopy(unanimous)
         bad.vExtraPayload = bad.vExtraPayload[:-1]
@@ -564,7 +564,7 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(node.testmempoolaccept([registrar])[0]["allowed"], True)
         for index, reason in ((1, "bad-proupshare-sig"), (len(shares), "bad-proupshare-index")):
             bad = tx_from_hex(update)
-            bad.vExtraPayload = bad.vExtraPayload[:34] + struct.pack("<H", index) + bad.vExtraPayload[36:]
+            bad.vExtraPayload = bad.vExtraPayload[:34] + index.to_bytes(2, "little") + bad.vExtraPayload[36:]
             self.assert_rejected_transaction(node, bad, reason)
         bad = tx_from_hex(update)
         bad.vExtraPayload = bad.vExtraPayload[:-65] + b"\x00" * 65
@@ -723,23 +723,23 @@ class MasternodeSharesTest(DashTestFramework):
         # deployment check with the type's dedicated "too early" reason, not a payload or lookup error
         prodis_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_DISSOLVE,
-            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + bytes([1]) + b"\x00" * 65)
+            (1).to_bytes(2, "little") + b"\x00" * 32 + (0).to_bytes(2, "little") + bytes([1]) + b"\x00" * 65)
         gate_reward_script = bytes.fromhex(node.getaddressinfo(node.getnewaddress())["scriptPubKey"])
         upshare_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_UPDATE_SHARE,
-            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + bytes([len(gate_reward_script)]) +
+            (1).to_bytes(2, "little") + b"\x00" * 32 + (0).to_bytes(2, "little") + bytes([len(gate_reward_script)]) +
             gate_reward_script + b"\x00" * 32 + bytes([65]) + b"\x00" * 65)
         # A ProUpShareTx must carry an explicit reward script; a zero-length script is rejected
         # statelessly, before the deployment gate
         upshare_empty_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_UPDATE_SHARE,
-            struct.pack("<H", 1) + b"\x00" * 32 + struct.pack("<H", 0) + b"\x00" + b"\x00" * 32 +
+            (1).to_bytes(2, "little") + b"\x00" * 32 + (0).to_bytes(2, "little") + b"\x00" + b"\x00" * 32 +
             bytes([65]) + b"\x00" * 65)
         assert_raises_rpc_error(-25, "bad-proupshare-payee", self.generateblock, node, pre_miner,
                                 [upshare_empty_hex], sync_fun=self.no_op)
         upsharedreg_hex = self.build_lifecycle_tx(
             TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR,
-            struct.pack("<H", 1) + b"\x00" * 32 + bytes.fromhex(node.bls("generate")["public"]) +
+            (1).to_bytes(2, "little") + b"\x00" * 32 + bytes.fromhex(node.bls("generate")["public"]) +
             b"\x01" * 20 + b"\x00" * 32 + bytes([1]) + b"\x00" * 65)
         for tx_hex, reason in ((prodis_hex, "bad-prodis-too-early"),
                                (upshare_hex, "bad-proupshare-too-early"),
@@ -1018,9 +1018,9 @@ class MasternodeSharesTest(DashTestFramework):
         # rejects the shared target before checking its dummy funding input or signature.
         payout_script = bytes.fromhex(node.getaddressinfo(fee_addr)["scriptPubKey"])
         ordinary_registrar = self.build_lifecycle_tx(
-            3, struct.pack("<H", 3) + bytes.fromhex(protx_hash)[::-1] + struct.pack("<H", 0) +
+            3, (3).to_bytes(2, "little") + bytes.fromhex(protx_hash)[::-1] + (0).to_bytes(2, "little") +
             bytes.fromhex(info["state"]["pubKeyOperator"]) + b"\x01" * 20 +
-            bytes([1, len(payout_script)]) + payout_script + struct.pack("<H", 10000) +
+            bytes([1, len(payout_script)]) + payout_script + (10000).to_bytes(2, "little") +
             b"\x00" * 32 + b"\x00")
         assert_raises_rpc_error(-25, "bad-protx-shared-mn", self.generateblock, node, miner_addr,
                                 [ordinary_registrar], sync_fun=self.no_op)

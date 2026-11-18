@@ -4,6 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Useful util functions for testing the wallet"""
 from collections import namedtuple
+import unittest
 
 from test_framework.address import (
     byte_to_base58,
@@ -11,6 +12,7 @@ from test_framework.address import (
     script_to_p2sh,
 )
 from test_framework.key import ECKey
+from test_framework.messages import CTxIn
 from test_framework.script_util import (
     key_to_p2pkh_script,
     keys_to_multisig_script,
@@ -92,3 +94,28 @@ def generate_keypair(compressed=True, wif=False):
     if wif:
         privkey = bytes_to_wif(privkey.get_bytes(), compressed)
     return privkey, pubkey
+
+def calculate_input_weight(scriptsig_hex):
+    """Given a scriptSig for an input in hex format, calculate the total input
+       weight (Dash has no witness data, so this is the serialized input size)."""
+    tx_in = CTxIn(scriptSig=bytes.fromhex(scriptsig_hex))
+    return len(tx_in.serialize())
+
+
+class TestFrameworkWalletUtil(unittest.TestCase):
+    def test_calculate_input_weight(self):
+        SKELETON_BYTES = 32 + 4 + 4  # prevout-txid, prevout-index, sequence
+        SMALL_LEN_BYTES = 1  # bytes needed for encoding scriptSig lenghts < 253
+        LARGE_LEN_BYTES = 3  # bytes needed for encoding scriptSig lengths >= 253
+
+        # empty scriptSig
+        self.assertEqual(calculate_input_weight(""),
+                         SKELETON_BYTES + SMALL_LEN_BYTES)
+        # small scriptSig
+        scriptSig_small = "00"*252
+        self.assertEqual(calculate_input_weight(scriptSig_small),
+                         SKELETON_BYTES + SMALL_LEN_BYTES + 252)
+        # large scriptSig
+        scriptSig_large = "00"*253
+        self.assertEqual(calculate_input_weight(scriptSig_large),
+                         SKELETON_BYTES + LARGE_LEN_BYTES + 253)

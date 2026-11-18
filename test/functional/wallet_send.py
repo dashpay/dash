@@ -9,9 +9,6 @@ from itertools import product
 
 from test_framework.authproxy import JSONRPCException
 from test_framework.descriptors import descsum_create
-from test_framework.messages import (
-    ser_compact_size,
-)
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
@@ -19,7 +16,10 @@ from test_framework.util import (
     assert_greater_than,
     assert_raises_rpc_error,
 )
-from test_framework.wallet_util import generate_keypair
+from test_framework.wallet_util import (
+    calculate_input_weight,
+    generate_keypair,
+)
 
 
 class WalletSendTest(BitcoinTestFramework):
@@ -526,16 +526,8 @@ class WalletSendTest(BitcoinTestFramework):
                 input_idx = i
                 break
         psbt_in = dec["inputs"][input_idx]
-        # Calculate the input weight
-        # prevout + sequence + length of scriptSig + scriptsig
-        # Note that occasionally this size estimate may be slightly larger or smaller than the real size
-        # as sometimes ECDSA signatures are one byte shorter than expected with a probability of 1/128
-        len_scriptsig = len(psbt_in["final_scriptSig"]["hex"]) // 2 if "final_scriptSig" in psbt_in else 0
-        len_scriptsig += len(ser_compact_size(len_scriptsig))
-        len_prevout_txid = 32
-        len_prevout_index = 4
-        len_sequence = 4
-        input_weight = len_prevout_txid + len_prevout_index + len_sequence + len_scriptsig
+        scriptsig_hex = psbt_in["final_scriptSig"]["hex"] if "final_scriptSig" in psbt_in else ""
+        input_weight = calculate_input_weight(scriptsig_hex)
 
         # Input weight error conditions
         assert_raises_rpc_error(

@@ -4,7 +4,6 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 from contextlib import ExitStack
-import struct
 from typing import List, Optional
 from test_framework.messages import hash256, ser_string
 from test_framework.p2p import logger
@@ -120,7 +119,7 @@ class QuorumDataRecoveryTest(DashTestFramework):
         fewer members of the signing quorum than the signing threshold hold their secret key share, each of
         those has signed the block, and no ChainLock formed"""
         height = node.getblockcount() + 1
-        request_id = hash256(ser_string(b"clsig") + struct.pack("<I", height))[::-1].hex()
+        request_id = hash256(ser_string(b"clsig") + height.to_bytes(4, "little"))[::-1].hex()
         log_positions = self.debug_log_positions(self.mninfo)
         block_hash = self.generate(node, 1, sync_fun=self.sync_validation)[0]
         # Logged before the InstantSend safety gate: a block with a transaction that is neither islocked nor old

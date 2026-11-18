@@ -8,7 +8,6 @@ from enum import Enum
 import io
 import json
 import random
-import struct
 import time
 
 from test_framework.test_framework import (
@@ -203,7 +202,7 @@ class DashZMQTest (DashTestFramework):
         rpc_last_block_hash = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
         self.wait_for_chainlocked_block_all_nodes(rpc_last_block_hash)
         height = self.nodes[0].getblockcount()
-        rpc_request_id = hash256(ser_string(b"clsig") + struct.pack("<I", height))[::-1].hex()
+        rpc_request_id = hash256(ser_string(b"clsig") + height.to_bytes(4, "little"))[::-1].hex()
         validate_recovered_sig(rpc_request_id, rpc_last_block_hash)
         # Sign an arbitrary and make sure this leads to valid recovered sig ZMQ messages
         sign_id = uint256_to_string(random.getrandbits(256))

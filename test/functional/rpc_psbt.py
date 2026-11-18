@@ -14,7 +14,6 @@ from test_framework.messages import (
     CTransaction,
     CTxIn,
     CTxOut,
-    ser_compact_size,
 )
 from test_framework.psbt import (
     PSBT,
@@ -37,6 +36,7 @@ from test_framework.util import (
     random_bytes,
 )
 from test_framework.wallet_util import (
+    calculate_input_weight,
     generate_keypair,
     get_generate_key,
 )
@@ -633,16 +633,8 @@ class PSBTTest(BitcoinTestFramework):
                 input_idx = i
                 break
         psbt_in = dec["inputs"][input_idx]
-        # Calculate the input weight
-        # prevout + sequence + length of scriptSig + scriptsig
-        # Note that occasionally this size estimate may be slightly larger or smaller than the real size
-        # as sometimes ECDSA signatures are one byte shorter than expected with a probability of 1/128
-        len_scriptsig = len(psbt_in["final_scriptSig"]["hex"]) // 2 if "final_scriptSig" in psbt_in else 0
-        len_scriptsig += len(ser_compact_size(len_scriptsig))
-        len_prevout_txid = 32
-        len_prevout_index = 4
-        len_sequence = 4
-        input_weight = len_prevout_txid + len_prevout_index + len_sequence + len_scriptsig
+        scriptsig_hex = psbt_in["final_scriptSig"]["hex"] if "final_scriptSig" in psbt_in else ""
+        input_weight = calculate_input_weight(scriptsig_hex)
         low_input_weight = input_weight // 2
         high_input_weight = input_weight * 2
 
@@ -706,7 +698,7 @@ class PSBTTest(BitcoinTestFramework):
         assert_raises_rpc_error(-4, "Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input", self.nodes[0].walletcreatefundedpsbt, [], [{"data": "deadbeef"}], 0, {"fee_rate": "0"})
 
         self.log.info("Test walletprocesspsbt raises if an invalid sighashtype is passed")
-        assert_raises_rpc_error(-8, "all is not a valid sighash parameter.", self.nodes[0].walletprocesspsbt, psbt["psbt"], sighashtype="all")
+        assert_raises_rpc_error(-8, "'all' is not a valid sighash parameter.", self.nodes[0].walletprocesspsbt, psbt["psbt"], sighashtype="all")
 
         self.log.info("Test decoding PSBT with per-input preimage types")
         # note that the decodepsbt RPC doesn't check whether preimages and hashes match
@@ -812,7 +804,7 @@ class PSBTTest(BitcoinTestFramework):
         self.nodes[2].sendrawtransaction(processed_psbt['hex'])
 
         self.log.info("Test descriptorprocesspsbt raises if an invalid sighashtype is passed")
-        assert_raises_rpc_error(-8, "all is not a valid sighash parameter.", self.nodes[2].descriptorprocesspsbt, psbt, [descriptor], sighashtype="all")
+        assert_raises_rpc_error(-8, "'all' is not a valid sighash parameter.", self.nodes[2].descriptorprocesspsbt, psbt, [descriptor], sighashtype="all")
 
 
 if __name__ == '__main__':
