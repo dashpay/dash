@@ -144,6 +144,9 @@ std::string GetOpName(opcodetype opcode)
     case OP_CHECKDATASIG           : return "OP_CHECKDATASIG";
     case OP_CHECKDATASIGVERIFY     : return "OP_CHECKDATASIGVERIFY";
 
+    // Opcode added by BIP 342 (Tapscript)
+    case OP_CHECKSIGADD            : return "OP_CHECKSIGADD";
+
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
     default:
@@ -217,6 +220,20 @@ bool CScript::IsPayToScriptHash() const
             (*this)[0] == OP_HASH160 &&
             (*this)[1] == 0x14 &&
             (*this)[22] == OP_EQUAL);
+}
+
+bool CScript::IsPayToTaproot(std::vector<unsigned char>& program) const
+{
+    if (!IsPayToTaproot()) return false;
+    program = std::vector<unsigned char>(this->begin() + 2, this->end());
+    return true;
+}
+
+bool CScript::IsPayToTaproot() const
+{
+    return (this->size() == 34 &&
+            (*this)[0] == OP_1 &&
+            (*this)[1] == 0x20);
 }
 
 bool CScript::IsPayToPublicKey() const
@@ -419,4 +436,16 @@ bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode)
         return opcode == OP_PUSHDATA2;
     }
     return true;
+}
+
+bool IsOpSuccess(const opcodetype& opcode)
+{
+    // The BIP 342 OP_SUCCESSx set, minus the opcodes Dash enabled with DIP0020
+    // (OP_CAT, OP_SPLIT, OP_NUM2BIN, OP_BIN2NUM, OP_AND, OP_OR, OP_XOR, OP_DIV,
+    // OP_MOD, OP_CHECKDATASIG, OP_CHECKDATASIGVERIFY) and OP_CHECKSIGADD at 0xbc.
+    return opcode == OP_RESERVED || opcode == OP_VER || opcode == OP_INVERT ||
+           opcode == OP_RESERVED1 || opcode == OP_RESERVED2 ||
+           opcode == OP_2MUL || opcode == OP_2DIV || opcode == OP_MUL ||
+           opcode == OP_LSHIFT || opcode == OP_RSHIFT ||
+           (opcode >= 189 && opcode <= 254);
 }

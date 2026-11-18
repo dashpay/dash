@@ -10,6 +10,7 @@
 #include <secp256k1_extrakeys.h>
 #include <secp256k1_ellswift.h>
 #include <secp256k1_recovery.h>
+#include <secp256k1_schnorrsig.h>
 #include <span.h>
 #include <uint256.h>
 
@@ -177,6 +178,41 @@ int ecdsa_signature_parse_der_lax(secp256k1_ecdsa_signature* sig, const unsigned
         secp256k1_ecdsa_signature_parse_compact(secp256k1_context_static, sig, tmpsig);
     }
     return 1;
+}
+
+XOnlyPubKey::XOnlyPubKey(Span<const unsigned char> bytes)
+{
+    assert(bytes.size() == 32);
+    std::copy(bytes.begin(), bytes.end(), m_keydata.begin());
+}
+
+bool XOnlyPubKey::VerifySchnorr(const uint256& msg, Span<const unsigned char> sigbytes) const
+{
+    assert(sigbytes.size() == 64);
+    secp256k1_xonly_pubkey pubkey;
+    if (!secp256k1_xonly_pubkey_parse(secp256k1_context_static, &pubkey, m_keydata.data())) return false;
+    return secp256k1_schnorrsig_verify(secp256k1_context_static, sigbytes.data(), msg.begin(), 32, &pubkey);
+}
+
+static const HashWriter HASHER_TAPTWEAK{TaggedHash("TapTweak")};
+
+uint256 XOnlyPubKey::ComputeTapTweakHash(const uint256* merkle_root) const
+{
+    if (merkle_root == nullptr) {
+        // We have no scripts. The actual tweak does not matter, but follow BIP341 here to
+        // allow for reproducible tweaking.
+        return (HashWriter{HASHER_TAPTWEAK} << m_keydata).GetSHA256();
+    } else {
+        return (HashWriter{HASHER_TAPTWEAK} << m_keydata << *merkle_root).GetSHA256();
+    }
+}
+
+bool XOnlyPubKey::CheckTapTweak(const XOnlyPubKey& internal, const uint256& merkle_root, bool parity) const
+{
+    secp256k1_xonly_pubkey internal_key;
+    if (!secp256k1_xonly_pubkey_parse(secp256k1_context_static, &internal_key, internal.data())) return false;
+    uint256 tweak = internal.ComputeTapTweakHash(&merkle_root);
+    return secp256k1_xonly_pubkey_tweak_add_check(secp256k1_context_static, m_keydata.begin(), parity, &internal_key, tweak.begin());
 }
 
 bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchSig) const {

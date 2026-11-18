@@ -35,6 +35,7 @@ std::string GetTxnOutputType(TxoutType t)
     case TxoutType::SCRIPTHASH: return "scripthash";
     case TxoutType::MULTISIG: return "multisig";
     case TxoutType::NULL_DATA: return "nulldata";
+    case TxoutType::TAPROOT: return "taproot";
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
@@ -125,6 +126,12 @@ TxoutType Solver(const CScript& scriptPubKey, std::vector<std::vector<unsigned c
         return TxoutType::SCRIPTHASH;
     }
 
+    std::vector<unsigned char> taproot_program;
+    if (scriptPubKey.IsPayToTaproot(taproot_program)) {
+        vSolutionsRet.push_back(std::move(taproot_program));
+        return TxoutType::TAPROOT;
+    }
+
     // Provably prunable, data-carrying output
     //
     // So long as script passes the IsUnspendable() test and all but the first
@@ -180,6 +187,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
         addressRet = ScriptHash(uint160(vSolutions[0]));
         return true;
     }
+    case TxoutType::TAPROOT:
     case TxoutType::MULTISIG:
     case TxoutType::NULL_DATA:
     case TxoutType::NONSTANDARD:

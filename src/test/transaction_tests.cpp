@@ -50,6 +50,7 @@ static std::map<std::string, unsigned int> mapFlagNames = {
     {std::string("CHECKLOCKTIMEVERIFY"), (unsigned int) SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY},
     {std::string("CHECKSEQUENCEVERIFY"), (unsigned int) SCRIPT_VERIFY_CHECKSEQUENCEVERIFY},
     {std::string("CONST_SCRIPTCODE"), (unsigned int)SCRIPT_VERIFY_CONST_SCRIPTCODE},
+    {std::string("TAPROOT"), (unsigned int)SCRIPT_VERIFY_TAPROOT},
 };
 
 unsigned int ParseScriptFlags(std::string strFlags)
@@ -376,7 +377,7 @@ BOOST_AUTO_TEST_CASE(test_Get)
     t1.vout[0].nValue = 90*CENT;
     t1.vout[0].scriptPubKey << OP_1;
 
-    BOOST_CHECK(AreInputsStandard(CTransaction(t1), coins));
+    BOOST_CHECK(AreInputsStandard(CTransaction(t1), coins, false));
 }
 
 BOOST_AUTO_TEST_CASE(test_IsStandard)
@@ -399,12 +400,12 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
 
     constexpr auto CheckIsStandard = [](const auto& t) {
         std::string reason;
-        BOOST_CHECK(IsStandardTx(CTransaction{t}, MAX_OP_RETURN_RELAY, g_bare_multi, g_dust, reason));
+        BOOST_CHECK(IsStandardTx(CTransaction{t}, MAX_OP_RETURN_RELAY, g_bare_multi, g_dust, /*taproot_active=*/true, reason));
         BOOST_CHECK(reason.empty());
     };
     constexpr auto CheckIsNotStandard = [](const auto& t, const std::string& reason_in) {
         std::string reason;
-        BOOST_CHECK(!IsStandardTx(CTransaction{t}, MAX_OP_RETURN_RELAY, g_bare_multi, g_dust, reason));
+        BOOST_CHECK(!IsStandardTx(CTransaction{t}, MAX_OP_RETURN_RELAY, g_bare_multi, g_dust, /*taproot_active=*/true, reason));
         BOOST_CHECK_EQUAL(reason_in, reason);
     };
 
