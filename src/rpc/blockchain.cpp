@@ -9,6 +9,7 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <chainparamsbase.h>
 #include <coins.h>
 #include <common/args.h>
 #include <consensus/amount.h>
@@ -1544,7 +1545,7 @@ RPCHelpMan getblockchaininfo()
         RPCResult{
             RPCResult::Type::OBJ, "", "",
             {
-                {RPCResult::Type::STR, "chain", "current network name (main, test, regtest) and "
+                {RPCResult::Type::STR, "chain", "current network name (" LIST_CHAIN_NAMES ") and "
                                                 "devnet or devnet-<name> for \"-devnet\" and \"-devnet=<name>\" respectively\n"},
                 {RPCResult::Type::NUM, "blocks", "the height of the most-work fully-validated chain. The genesis block has height 0"},
                 {RPCResult::Type::NUM, "headers", "the current number of headers we have validated"},
