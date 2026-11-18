@@ -172,18 +172,20 @@ set_target_properties(test_bitcoin PROPERTIES OUTPUT_NAME test_dash)
 include(TargetDataSources)
 target_json_data_sources(test_bitcoin
   data/base58_encode_decode.json
-  data/bip39_vectors.json
   data/blockfilters.json
   data/key_io_invalid.json
   data/key_io_valid.json
-  data/proposals_invalid.json
-  data/proposals_valid.json
   data/script_tests.json
   data/sighash.json
-  data/trivially_invalid.json
-  data/trivially_valid.json
   data/tx_invalid.json
   data/tx_valid.json
+)
+target_json_data_sources(test_bitcoin
+  data/bip39_vectors.json
+  data/proposals_invalid.json
+  data/proposals_valid.json
+  data/trivially_invalid.json
+  data/trivially_valid.json
 )
 target_raw_data_sources(test_bitcoin NAMESPACE test::data
   data/asmap.raw
