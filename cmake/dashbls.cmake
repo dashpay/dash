@@ -92,7 +92,7 @@ if(BUILD_TESTS)
   target_compile_definitions(dashbls_runtest
     PRIVATE
       $<$<BOOL:${ENABLE_MIMALLOC}>:BLSALLOC_MIMALLOC=1>
-      DASHBLS_REFERENCE_VECTORS="${PROJECT_SOURCE_DIR}/src/dashbls/test-vectors/reference.txt"
+      DASHBLS_REFERENCE_VECTORS="${PROJECT_SOURCE_DIR}/src/test/data/bls_reference_vectors.txt"
   )
   target_include_directories(dashbls_runtest SYSTEM
     PRIVATE
