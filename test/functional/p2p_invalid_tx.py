@@ -6,6 +6,8 @@
 
 In this test we connect to one node over p2p, and test tx requests."""
 
+import re
+
 from test_framework.blocktools import create_block, create_coinbase
 from test_framework.messages import (
     COIN,
@@ -98,6 +100,12 @@ class InvalidTxRequestTest(BitcoinTestFramework):
         # * p2ps[1] will send an invalid orphan tx (and is later disconnected for that)
         self.reconnect_p2p(num_connections=2)
 
+        # The node erases a peer's orphans only when it finalizes the peer, which for a peer it
+        # disconnected itself can come well after the disconnect. Orphans left by the templates
+        # above would otherwise still count in the erase checks below.
+        first_orphan_test_peer = min(peer['id'] for peer in node.getpeerinfo())
+        self.wait_until(lambda: self.finalized_peer_ids() >= set(range(first_orphan_test_peer)))
+
         self.log.info('Test orphan transaction handling ... ')
         self.test_orphan_tx_handling(block1.vtx[0].sha256, False)
 
@@ -106,6 +114,10 @@ class InvalidTxRequestTest(BitcoinTestFramework):
 
         self.reconnect_p2p(num_connections=2)
         self.test_orphan_tx_handling(block2.vtx[0].sha256, True)
+
+    def finalized_peer_ids(self):
+        with open(self.nodes[0].debug_log_path, encoding="utf-8", errors="replace") as debug_log:
+            return {int(peer_id) for peer_id in re.findall(r"Cleared nodestate for peer=(\d+)$", debug_log.read(), re.MULTILINE)}
 
     def test_orphan_tx_handling(self, base_tx, resolve_via_block):
         node = self.nodes[0]  # convenience reference to the node
