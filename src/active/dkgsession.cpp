@@ -21,37 +21,119 @@
 #include <hash.h>
 #include <validation.h>
 
+#include <algorithm>
+#include <iterator>
+#include <map>
+#include <optional>
+#include <tuple>
+
 #include <cxxtimer.hpp>
 
 namespace llmq {
 namespace {
-//! About a week of mainnet blocks
-constexpr int SIGNING_HISTORY_WINDOW{4032};
 constexpr int SIGNING_HISTORY_MIN_COMMITMENTS{6};
+constexpr int SIGNING_HISTORY_RECENT_UNSIGNED_WARNING{2};
+
+std::optional<int> SigningHistoryCutoff(const CDeterministicMNList& mn_list, const uint256& proTxHash)
+{
+    const auto dmn = mn_list.GetMN(proTxHash);
+    if (!dmn) {
+        return std::nullopt;
+    }
+    return std::max(dmn->pdmnState->nRegisteredHeight, dmn->pdmnState->nPoSeRevivedHeight);
+}
+
+//! The records of proTxHash that count: those of quorums based after its registration or last revival
+std::vector<SigningRecord> CountedSigningRecords(const SigningRecords& records, const CDeterministicMNList& mn_list,
+                                                 const uint256& proTxHash)
+{
+    auto it = records.find(proTxHash);
+    const auto cutoff = SigningHistoryCutoff(mn_list, proTxHash);
+    if (it == records.end() || !cutoff) {
+        return {};
+    }
+    std::vector<SigningRecord> ret;
+    std::ranges::copy_if(it->second, std::back_inserter(ret),
+                         [&](const SigningRecord& record) { return record.quorum_height > *cutoff; });
+    return ret;
+}
+
+std::pair<int, int> CountRecords(const std::vector<SigningRecord>& records)
+{
+    const auto signed_count = std::ranges::count_if(records, &SigningRecord::signed_commitment);
+    return {static_cast<int>(records.size()), static_cast<int>(signed_count)};
+}
 } // anonymous namespace
 
 std::pair<int, int> CountSignedCommitments(const SigningRecords& records, const CDeterministicMNList& mn_list,
                                            const uint256& proTxHash)
 {
-    auto it = records.find(proTxHash);
-    const auto dmn = mn_list.GetMN(proTxHash);
-    if (it == records.end() || !dmn) {
-        return {0, 0};
-    }
-    const int cutoff{std::max(dmn->pdmnState->nRegisteredHeight, dmn->pdmnState->nPoSeRevivedHeight)};
-    int valid{0}, signed_count{0};
-    for (const auto& record : it->second) {
-        if (record.quorum_height > cutoff) {
-            ++valid;
-            signed_count += record.signed_commitment;
-        }
-    }
-    return {valid, signed_count};
+    return CountRecords(CountedSigningRecords(records, mn_list, proTxHash));
 }
 
 bool HasInsufficientSigningHistory(int valid, int signed_count)
 {
     return valid >= SIGNING_HISTORY_MIN_COMMITMENTS && 4 * signed_count <= valid;
+}
+
+SigningHistorySummary SummarizeSigningHistory(const SigningRecords& records, const CDeterministicMNList& mn_list,
+                                              const uint256& proTxHash, int expiring_until_height)
+{
+    const auto counted = CountedSigningRecords(records, mn_list, proTxHash);
+
+    SigningHistorySummary ret;
+    ret.cutoff_height = SigningHistoryCutoff(mn_list, proTxHash).value_or(-1);
+    std::tie(ret.valid, ret.signed_count) = CountRecords(counted);
+    ret.voted_bad = HasInsufficientSigningHistory(ret.valid, ret.signed_count);
+
+    // Quorums of different types share base heights, so there is no order among records of the same height:
+    // count only the unsigned records strictly after the most recent signed one
+    std::optional<int> last_signed_height;
+    for (const auto& record : counted) {
+        if (record.signed_commitment) {
+            last_signed_height = std::max(last_signed_height.value_or(record.quorum_height), record.quorum_height);
+        }
+    }
+    ret.recent_unsigned = static_cast<int>(std::ranges::count_if(counted, [&](const SigningRecord& record) {
+        return !record.signed_commitment && (!last_signed_height || record.quorum_height > *last_signed_height);
+    }));
+
+    // The window slides, so expiring signed records can push the history over the threshold, alone or together
+    // with one more unsigned commitment. Old signed records may leave before old unsigned ones, so check after each
+    // quorum height leaves, not only at the end.
+    std::map<int, std::pair<int, int>> expiring; // quorum height -> valid, signed
+    for (const auto& record : counted) {
+        if (record.quorum_height <= expiring_until_height) {
+            auto& [valid, signed_count] = expiring[record.quorum_height];
+            ++valid;
+            signed_count += record.signed_commitment;
+        }
+    }
+    int remaining_valid{ret.valid}, remaining_signed{ret.signed_count};
+    ret.one_miss_from_voted_bad = HasInsufficientSigningHistory(remaining_valid + 1, remaining_signed);
+    for (const auto& [height, counts] : expiring) {
+        remaining_valid -= counts.first;
+        remaining_signed -= counts.second;
+        ret.voted_bad_after_expiry |= HasInsufficientSigningHistory(remaining_valid, remaining_signed);
+        ret.one_miss_from_voted_bad |= HasInsufficientSigningHistory(remaining_valid + 1, remaining_signed);
+    }
+    ret.one_miss_from_voted_bad &= !ret.voted_bad;
+    return ret;
+}
+
+bool IsSigningHistoryAtRisk(const SigningHistorySummary& summary)
+{
+    if (summary.voted_bad) {
+        return false;
+    }
+    return summary.voted_bad_after_expiry || summary.one_miss_from_voted_bad ||
+           summary.recent_unsigned >= SIGNING_HISTORY_RECENT_UNSIGNED_WARNING ||
+           (summary.valid >= SIGNING_HISTORY_MIN_COMMITMENTS && 2 * summary.signed_count < summary.valid);
+}
+
+int SigningHistoryExpiringUntil(int gathering_height)
+{
+    return gathering_height - SIGNING_HISTORY_WINDOW + SIGNING_HISTORY_EXPIRY_LOOKAHEAD;
 }
 
 ActiveDKGSession::ActiveDKGSession(CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CDKGDebugManager& dkgdbgman,
@@ -315,13 +397,29 @@ void ActiveDKGSession::VerifyConnectionAndMinProtoVersions(CConnman& connman) co
     });
 
     const int base_height{m_quorum_base_block_index->nHeight};
-    const auto signing_records = m_qblockman.GetSigningRecords(
-        m_quorum_base_block_index->GetAncestor(base_height - base_height % params.dkgInterval), SIGNING_HISTORY_WINDOW);
+    const int gathering_height{base_height - base_height % params.dkgInterval};
+    const auto signing_records = m_qblockman.GetSigningRecords(m_quorum_base_block_index->GetAncestor(gathering_height),
+                                                               SIGNING_HISTORY_WINDOW);
     if (!signing_records) {
         LogPrint(BCLog::LLMQ_DKG, "ActiveDKGSession::%s -- signing history unavailable, skipping signing-history check\n", __func__);
     }
     // Members of a rotated quorum keep the state they had when their quarter was built
     const auto mn_list = m_dmnman.GetListForBlock(m_quorum_base_block_index);
+    if (signing_records) {
+        // Other members only see our history once they vote us bad; tell the operator before that
+        const auto own = SummarizeSigningHistory(*signing_records, mn_list, myProTxHash,
+                                                 SigningHistoryExpiringUntil(gathering_height));
+        if (own.voted_bad) {
+            LogPrintf("WARNING: this masternode signed only %d of the %d recent commitments it was a valid " /* Continued */
+                      "member of; other members vote it bad, which can lead to PoSe penalties and a ban\n",
+                      own.signed_count, own.valid);
+        } else if (IsSigningHistoryAtRisk(own)) {
+            LogPrintf("WARNING: this masternode signed only %d of the %d recent commitments it was a valid " /* Continued */
+                      "member of, %d unsigned since its last signed one; check its DKG participation " /* Continued */
+                      "(see `masternode status`)\n",
+                      own.signed_count, own.valid, own.recent_unsigned);
+        }
+    }
 
     bool fShouldAllMembersBeConnected = IsAllMembersConnectedEnabled(params.type, m_sporkman);
     for (const auto& m : members) {

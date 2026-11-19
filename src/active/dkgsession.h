@@ -17,9 +17,37 @@ class CSporkManager;
 class CMasternodeMetaMan;
 
 namespace llmq {
+//! About a week of mainnet blocks
+constexpr int SIGNING_HISTORY_WINDOW{4032};
+//! About a day of mainnet blocks: how far ahead the at-risk check looks for records leaving the window
+constexpr int SIGNING_HISTORY_EXPIRY_LOOKAHEAD{576};
+
 std::pair<int, int> CountSignedCommitments(const SigningRecords& records, const CDeterministicMNList& mn_list,
                                            const uint256& proTxHash);
 bool HasInsufficientSigningHistory(int valid, int signed_count);
+
+struct SigningHistorySummary {
+    //! Only quorums based after this height count: the registration or last revival, -1 if not in the list
+    int cutoff_height{-1};
+    int valid{0};
+    int signed_count{0};
+    //! Valid commitments of quorums based after the most recent signed one
+    int recent_unsigned{0};
+    bool voted_bad{false};
+    //! Whether one more unsigned commitment would get it voted bad, now or at some point while the records of
+    //! quorums based until the expiring height leave the window. Several more within the time between two
+    //! gatherings can still get it voted bad without a warning first.
+    bool one_miss_from_voted_bad{false};
+    //! Whether the history would get it voted bad at some point while the records of quorums based until
+    //! the expiring height leave the window, even without another unsigned commitment
+    bool voted_bad_after_expiry{false};
+};
+SigningHistorySummary SummarizeSigningHistory(const SigningRecords& records, const CDeterministicMNList& mn_list,
+                                              const uint256& proTxHash, int expiring_until_height);
+//! Heading towards being voted bad, but not there yet
+bool IsSigningHistoryAtRisk(const SigningHistorySummary& summary);
+//! The expiring height to summarize records gathered at gathering_height with
+int SigningHistoryExpiringUntil(int gathering_height);
 
 class ActiveDKGSession final : public llmq::CDKGSession
 {

@@ -234,6 +234,7 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
             mo.pushKV("addresses", GetNetInfoWithLegacyFields(*dmn->pdmnState, dmn->nType));
             mo.pushKV("pubKeyOperator", dmn->pdmnState->OperatorKey().ToString());
             mo.pushKV("valid", static_cast<bool>(quorum.qc->validMembers[i]));
+            mo.pushKV("signed", static_cast<bool>(quorum.qc->signers[i]));
             if (quorum.qc->validMembers[i]) {
                 if (quorum.params.is_single_member()) {
                     mo.pushKV("pubKeyShare", dmn->pdmnState->OperatorKey().ToString());
@@ -285,6 +286,7 @@ static RPCHelpMan quorum_info()
                             GetRpcResult("addresses"),
                             GetRpcResult("pubKeyOperator"),
                             {RPCResult::Type::BOOL, "valid", "True if member is valid for this DKG"},
+                            {RPCResult::Type::BOOL, "signed", "True if member signed the mined final commitment"},
                             {RPCResult::Type::STR_HEX, "pubKeyShare", /*optional=*/true, "Share of BLS public key of the member. Only present if member is valid."}
                         }},
                     },
@@ -469,6 +471,7 @@ static RPCHelpMan quorum_memberof()
                     {RPCResult::Type::ELISION, "", "See `help quorum info` for details"},
                     {RPCResult::Type::BOOL, "isValidMember", ""},
                     {RPCResult::Type::NUM, "memberIndex", ""},
+                    {RPCResult::Type::BOOL, "isSigner", "Whether the masternode signed the mined final commitment"},
                 }},
             },
         },
@@ -508,7 +511,9 @@ static RPCHelpMan quorum_memberof()
             if (quorum->IsMember(dmn->proTxHash)) {
                 auto json = BuildQuorumInfo(*llmq_ctx.quorum_block_processor, *quorum, false, false);
                 json.pushKV("isValidMember", quorum->IsValidMember(dmn->proTxHash));
-                json.pushKV("memberIndex", quorum->GetMemberIndex(dmn->proTxHash));
+                const auto member_index = quorum->GetMemberIndex(dmn->proTxHash);
+                json.pushKV("memberIndex", member_index);
+                json.pushKV("isSigner", static_cast<bool>(quorum->qc->signers.at(member_index)));
                 result.push_back(json);
             }
         }

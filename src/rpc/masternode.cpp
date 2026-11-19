@@ -3,10 +3,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <active/context.h>
+#include <active/dkgsession.h>
 #include <active/masternode.h>
 #include <evo/assetlocktx.h>
 #include <evo/deterministicmns.h>
 #include <governance/superblock.h>
+#include <llmq/blockprocessor.h>
+#include <llmq/context.h>
 #include <masternode/payments.h>
 #include <rpc/json_help.h>
 
@@ -188,6 +191,22 @@ static RPCHelpMan masternode_status()
                 {RPCResult::Type::STR, "state", "Masternode state (human-readable string)"},
                 {RPCResult::Type::STR, "status", "Masternode status (human-readable string, based on current state)"},
                 {RPCResult::Type::BOOL, "quorumParticipation", "Whether DKG participation and quorum signing are enabled"},
+                {RPCResult::Type::OBJ, "signingHistory", /*optional=*/true, "Final commitments of recent quorums this masternode was a valid member of. "
+                    "An estimate: each DKG session gathers the history at its own block, and counts it since the registration or revival "
+                    "known at its quorum base block",
+                {
+                    {RPCResult::Type::NUM, "gatheringHeight", "Height the history was gathered at"},
+                    {RPCResult::Type::NUM, "window", "Number of blocks before the gathering height the history covers"},
+                    {RPCResult::Type::NUM, "countedSince", "Only quorums based after this height count: the registration or last revival, as in the masternode list at the tip"},
+                    {RPCResult::Type::NUM, "validCommitments", "Commitments this masternode was a valid member of"},
+                    {RPCResult::Type::NUM, "signedCommitments", "Of those, the ones it signed"},
+                    {RPCResult::Type::NUM, "recentUnsigned", "Valid commitments of quorums based after the most recent signed one"},
+                    {RPCResult::Type::BOOL, "oneMissAway", "Whether one more unsigned commitment would get it voted bad, now or as the history leaves the window over the next day"},
+                    {RPCResult::Type::BOOL, "expiringSoon", "Whether the history leaving the window over the next day alone would get it voted bad"},
+                    {RPCResult::Type::BOOL, "atRisk", "Whether it is heading towards being voted bad for not signing. "
+                        "Several unsigned commitments mined within an hour can still get it voted bad without this being set first"},
+                    {RPCResult::Type::BOOL, "votedBad", "Whether DKG sessions gathering at this height would vote it bad for not signing"},
+                }},
             }
         },
         RPCExamples{""},
@@ -204,7 +223,8 @@ static RPCHelpMan masternode_status()
     // keep compatibility with legacy status for now (TODO: get deprecated/removed later)
     mnObj.pushKV("outpoint", mn_activeman.GetOutPoint().ToStringShort());
     mnObj.pushKV("service", mn_activeman.GetService().ToStringAddrPort());
-    auto dmn = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip().GetMN(mn_activeman.GetProTxHash());
+    const auto tip_mn_list = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip();
+    auto dmn = tip_mn_list.GetMN(mn_activeman.GetProTxHash());
     if (dmn) {
         mnObj.pushKV("proTxHash", dmn->proTxHash.ToString());
         mnObj.pushKV("type", std::string(GetMnType(dmn->nType).description));
@@ -218,6 +238,35 @@ static RPCHelpMan masternode_status()
         strprintf("%s; DKG participation and quorum signing disabled until snapshot background validation completes",
                   mn_activeman.GetStatus()));
     mnObj.pushKV("quorumParticipation", quorum_participation);
+
+    if (dmn) {
+        const ChainstateManager& chainman = EnsureChainman(node);
+        const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+        // Gather at the block hourly DKG sessions gather at, so that the result is shared with them and cached
+        constexpr int GATHER_INTERVAL{24};
+        const CBlockIndex* pindex = WITH_LOCK(::cs_main, {
+            const int tip_height{chainman.ActiveChain().Height()};
+            return chainman.ActiveChain()[tip_height - tip_height % GATHER_INTERVAL];
+        });
+        if (pindex) {
+            if (const auto records = llmq_ctx.quorum_block_processor->GetSigningRecords(pindex, llmq::SIGNING_HISTORY_WINDOW)) {
+                const auto summary = llmq::SummarizeSigningHistory(*records, tip_mn_list, dmn->proTxHash,
+                                                                   llmq::SigningHistoryExpiringUntil(pindex->nHeight));
+                UniValue history(UniValue::VOBJ);
+                history.pushKV("gatheringHeight", pindex->nHeight);
+                history.pushKV("window", llmq::SIGNING_HISTORY_WINDOW);
+                history.pushKV("countedSince", summary.cutoff_height);
+                history.pushKV("validCommitments", summary.valid);
+                history.pushKV("signedCommitments", summary.signed_count);
+                history.pushKV("recentUnsigned", summary.recent_unsigned);
+                history.pushKV("oneMissAway", summary.one_miss_from_voted_bad);
+                history.pushKV("expiringSoon", summary.voted_bad_after_expiry);
+                history.pushKV("atRisk", llmq::IsSigningHistoryAtRisk(summary));
+                history.pushKV("votedBad", summary.voted_bad);
+                mnObj.pushKV("signingHistory", history);
+            }
+        }
+    }
 
     return mnObj;
 },
