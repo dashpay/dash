@@ -80,6 +80,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <deque>
 #include <numeric>
 #include <optional>
@@ -4608,8 +4609,8 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
         double n1 = ConvertBitsToDouble(block.nBits);
         double n2 = ConvertBitsToDouble(nBitsNext);
 
-        if (abs(n1-n2) > n1*0.5) {
-            LogPrintf("ERROR: %s : incorrect proof of work (DGW pre-fork) - %f %f %f at %d\n", __func__, abs(n1-n2), n1, n2, nHeight);
+        if (std::abs(n1-n2) > n1*0.5) {
+            LogPrintf("ERROR: %s : incorrect proof of work (DGW pre-fork) - %f %f %f at %d\n", __func__, std::abs(n1-n2), n1, n2, nHeight);
             return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits");
         }
     } else {
