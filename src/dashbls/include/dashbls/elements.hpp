@@ -68,7 +68,6 @@ public:
     friend G1Element operator*(const blst_scalar &k, const G1Element &a);
     friend GTElement operator&(const G1Element &a, const G2Element &b);
 
-private:
     blst_p1 p;
 };
 
@@ -111,7 +110,6 @@ public:
     friend G2Element operator*(const G2Element &a, const blst_scalar &k);
     friend G2Element operator*(const blst_scalar &k, const G2Element &a);
 
-private:
     blst_p2 q;
 };
 
