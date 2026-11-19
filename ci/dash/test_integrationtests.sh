@@ -51,7 +51,7 @@ EXTRA_ARGS="--dashd-arg=-socketevents=$SOCKETEVENTS"
 
 set +e
 # shellcheck disable=SC2086
-./test/functional/test_runner.py --ci --attempts=3 --ansi --combinedlogslen=4000 --timeout-factor="${TEST_RUNNER_TIMEOUT_FACTOR}" ${TEST_RUNNER_EXTRA} --failfast --nocleanup --tmpdir="$(pwd)/testdatadirs" $PASS_ARGS $EXTRA_ARGS
+./test/functional/test_runner.py --ci --attempts=3 --ansi --combinedlogslen=4000 --timeout-factor="${TEST_RUNNER_TIMEOUT_FACTOR}" --jobs="${FUNCTIONAL_TEST_JOBS:-${TEST_RUNNER_JOBS:-4}}" ${TEST_RUNNER_EXTRA} --failfast --nocleanup --tmpdir="$(pwd)/testdatadirs" $PASS_ARGS $EXTRA_ARGS
 RESULT=$?
 set -e
 

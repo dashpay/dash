@@ -13,6 +13,7 @@ export PACKAGES="python3-zmq"
 # options in 00_setup_env_native_platform_gui.sh, not here.
 export DEP_OPTS=""
 export TEST_RUNNER_EXTRA="--previous-releases --coverage --extended --exclude feature_pruning,feature_dbcrash"  # Run extended tests so that coverage does not fail, but exclude the very slow dbcrash
+export TEST_RUNNER_JOBS=12
 export RUN_UNIT_TESTS_SEQUENTIAL="true"
 export RUN_UNIT_TESTS="false"
 export GOAL="install"
