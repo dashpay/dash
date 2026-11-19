@@ -122,6 +122,7 @@ add_executable(fuzz
 )
 target_link_libraries(fuzz
   core_interface
+  fuzzer_interface
   test_fuzz
   test_util
   bitcoin_cli

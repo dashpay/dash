@@ -38,6 +38,7 @@ endfunction()
 #  - https://doc.qt.io/qt-5/cmake-manual.html
 
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOMOC_MOC_OPTIONS "-p${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOUIC_SEARCH_PATHS forms)
@@ -49,7 +50,7 @@ file(GLOB ts_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} locale/*.ts)
 set_source_files_properties(${ts_files} PROPERTIES OUTPUT_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/locale)
 qt5_add_translation(qm_files ${ts_files})
 
-configure_file(dash_locale.qrc dash_locale.qrc COPYONLY)
+configure_file(dash_locale.qrc dash_locale.qrc USE_SOURCE_PERMISSIONS COPYONLY)
 
 # The bitcoinqt sources have to include headers in
 # order to parse them to collect translatable strings.
@@ -354,7 +355,13 @@ function(get_translatable_sources var)
           get_target_property(target_source_dir ${target} SOURCE_DIR)
           cmake_path(APPEND target_source_dir ${source} OUTPUT_VARIABLE source)
         endif()
-        list(APPEND result ${source})
+        get_property(is_generated
+          SOURCE  ${source} TARGET_DIRECTORY ${target}
+          PROPERTY GENERATED
+        )
+        if(NOT is_generated)
+          list(APPEND result ${source})
+        endif()
       endforeach()
     endif()
   endforeach()

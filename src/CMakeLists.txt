@@ -5,7 +5,7 @@
 include(GNUInstallDirs)
 include(AddWindowsResources)
 
-configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-config.h.in config/bitcoin-config.h @ONLY)
+configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-config.h.in config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/immer)
 
@@ -176,7 +176,7 @@ if(BUILD_CONSENSUS_LIB)
     set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
   endif()
   configure_file(${PROJECT_SOURCE_DIR}/libdashconsensus.pc.in
-    ${PROJECT_BINARY_DIR}/libdashconsensus.pc @ONLY
+    ${PROJECT_BINARY_DIR}/libdashconsensus.pc USE_SOURCE_PERMISSIONS @ONLY
   )
   install(FILES ${PROJECT_BINARY_DIR}/libdashconsensus.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig

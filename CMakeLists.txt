@@ -403,13 +403,28 @@ target_link_libraries(core_interface INTERFACE
   Threads::Threads
 )
 
+# Define sanitize_interface with -fsanitize flags intended to apply to all
+# libraries and executables.
 add_library(sanitize_interface INTERFACE)
 target_link_libraries(core_interface INTERFACE sanitize_interface)
 if(SANITIZERS)
+  # Transform list of sanitizers into -fsanitize flags, replacing "fuzzer" with
+  # "fuzzer-no-link" in sanitize_interface flags, and moving "fuzzer" to
+  # fuzzer_interface flags. If -DSANITIZERS=fuzzer is specified, the fuzz test
+  # binary should be built with -fsanitize=fuzzer (so it can use libFuzzer's
+  # main function), but libraries should be built with -fsanitize=fuzzer-no-link
+  # (so they can be linked into other executables that have their own main
+  # functions).
+  string(REGEX REPLACE "(^|,)fuzzer($|,)" "\\1fuzzer-no-link\\2" sanitize_opts "${SANITIZERS}")
+  set(fuzz_flag "")
+  if(NOT sanitize_opts STREQUAL SANITIZERS)
+    set(fuzz_flag "-fsanitize=fuzzer")
+  endif()
+
   # First check if the compiler accepts flags. If an incompatible pair like
   # -fsanitize=address,thread is used here, this check will fail. This will also
   # fail if a bad argument is passed, e.g. -fsanitize=undfeined
-  try_append_cxx_flags("-fsanitize=${SANITIZERS}" TARGET sanitize_interface
+  try_append_cxx_flags("-fsanitize=${sanitize_opts}" TARGET sanitize_interface
     RESULT_VAR cxx_supports_sanitizers
     SKIP_LINK
   )
@@ -422,15 +437,15 @@ if(SANITIZERS)
   # flag. This is a separate check so we can give a better error message when
   # the sanitize flags are supported by the compiler but the actual sanitizer
   # libs are missing.
-  try_append_linker_flag("-fsanitize=${SANITIZERS}" VAR SANITIZER_LDFLAGS
+  try_append_linker_flag("-fsanitize=${sanitize_opts}" VAR SANITIZER_LDFLAGS
     SOURCE "
       #include <cstdint>
       #include <cstddef>
       extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) { return 0; }
-      __attribute__((weak)) // allow for libFuzzer linking
       int main() { return 0; }
     "
     RESULT_VAR linker_supports_sanitizers
+    NO_CACHE_IF_FAILED
   )
   if(NOT linker_supports_sanitizers)
     message(FATAL_ERROR "Linker did not accept requested flags, you are missing required libraries.")
@@ -438,15 +453,23 @@ if(SANITIZERS)
 endif()
 target_link_options(sanitize_interface INTERFACE ${SANITIZER_LDFLAGS})
 
+# Define fuzzer_interface with flags intended to apply to the fuzz test binary,
+# and perform a test compilation to determine correct value of
+# FUZZ_BINARY_LINKS_WITHOUT_MAIN_FUNCTION.
 if(BUILD_FUZZ_BINARY)
-  include(CheckSourceCompilesAndLinks)
-  check_cxx_source_links_with_flags("${SANITIZER_LDFLAGS}" "
+  include(CheckSourceCompilesWithFlags)
+  check_cxx_source_compiles_with_flags("
       #include <cstdint>
       #include <cstddef>
       extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) { return 0; }
       // No main() function.
     " FUZZ_BINARY_LINKS_WITHOUT_MAIN_FUNCTION
+    LDFLAGS ${SANITIZER_LDFLAGS} ${fuzz_flag}
+    LINK_LIBRARIES ${FUZZ_LIBS}
   )
+  add_library(fuzzer_interface INTERFACE)
+  target_link_options(fuzzer_interface INTERFACE ${fuzz_flag})
+  target_link_libraries(fuzzer_interface INTERFACE ${FUZZ_LIBS})
 endif()
 
 include(AddBoostIfNeeded)
@@ -459,8 +482,8 @@ endif()
 if(ENABLE_PLATFORM_GUI)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(dash_sdk_cxx REQUIRED IMPORTED_TARGET dash_sdk_cxx)
-  include(CheckSourceCompilesAndLinks)
-  check_cxx_source_links_with_libs(PkgConfig::dash_sdk_cxx "
+  include(CheckSourceCompilesWithFlags)
+  check_cxx_source_compiles_with_flags("
     #include <dash/sdk/ffi.h>
     int main()
     {
@@ -468,6 +491,7 @@ if(ENABLE_PLATFORM_GUI)
       client->shutdown();
     }
     " HAVE_WORKING_DASH_SDK_CXX
+    LINK_LIBRARIES PkgConfig::dash_sdk_cxx
   )
   if(NOT HAVE_WORKING_DASH_SDK_CXX)
     message(FATAL_ERROR "A program using dash-sdk-cxx does not link. See CMakeFiles/CMakeConfigureLog.yaml.")
@@ -560,13 +584,20 @@ else()
   endif()
 endif()
 
-configure_file(cmake/script/Coverage.cmake Coverage.cmake COPYONLY)
-configure_file(cmake/script/CoverageFuzz.cmake CoverageFuzz.cmake COPYONLY)
-configure_file(cmake/script/CoverageInclude.cmake.in CoverageInclude.cmake @ONLY)
-configure_file(contrib/filter-lcov.py filter-lcov.py COPYONLY)
+configure_file(cmake/script/Coverage.cmake Coverage.cmake USE_SOURCE_PERMISSIONS COPYONLY)
+configure_file(cmake/script/CoverageFuzz.cmake CoverageFuzz.cmake USE_SOURCE_PERMISSIONS COPYONLY)
+configure_file(cmake/script/CoverageInclude.cmake.in CoverageInclude.cmake USE_SOURCE_PERMISSIONS @ONLY)
+configure_file(cmake/script/cov_tool_wrapper.sh.in cov_tool_wrapper.sh.in USE_SOURCE_PERMISSIONS COPYONLY)
+configure_file(contrib/filter-lcov.py filter-lcov.py USE_SOURCE_PERMISSIONS COPYONLY)
 
 # Don't allow extended (non-ASCII) symbols in identifiers. This is easier for code review.
 try_append_cxx_flags("-fno-extended-identifiers" TARGET core_interface SKIP_LINK)
+
+# Set `-fmacro-prefix-map`, so that source file names are expanded without the
+# src prefix.
+try_append_cxx_flags("-fmacro-prefix-map=A=B" TARGET core_interface SKIP_LINK
+  IF_CHECK_PASSED "-fmacro-prefix-map=${PROJECT_SOURCE_DIR}/src=."
+)
 
 # Currently all versions of gcc are subject to a class of bugs, see the
 # gccbug_90348 test case (only reproduces on GCC 11 and earlier) and
@@ -739,6 +770,13 @@ if(ENABLE_STACKTRACES)
   endif()
 endif()
 
+# Prefer Unix-style package components over frameworks on macOS.
+# This improves compatibility with Python version managers.
+set(Python3_FIND_FRAMEWORK LAST CACHE STRING "")
+# Search for generic names before more specialized ones. This
+# improves compatibility with Python version managers that use shims.
+set(Python3_FIND_UNVERSIONED_NAMES FIRST CACHE STRING "")
+mark_as_advanced(Python3_FIND_FRAMEWORK Python3_FIND_UNVERSIONED_NAMES)
 find_package(Python3 3.9 COMPONENTS Interpreter)
 if(Python3_EXECUTABLE)
   set(PYTHON_COMMAND ${Python3_EXECUTABLE})
@@ -764,14 +802,25 @@ endif()
 if(BUILD_TESTS)
   enable_testing()
 endif()
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
+  # have "make test" depend on "make all"
+  set(CMAKE_SKIP_TEST_ALL_DEPENDENCY FALSE)
+endif()
+
 # TODO: The `CMAKE_SKIP_BUILD_RPATH` variable setting can be deleted
 #       in the future after reordering Guix script commands to
 #       perform binary checks after the installation step.
 # Relevant discussions:
 # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
 # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
-set(CMAKE_SKIP_BUILD_RPATH TRUE)
-set(CMAKE_SKIP_INSTALL_RPATH TRUE)
+# NetBSD always requires runtime paths to be set for executables.
+if(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+else()
+  set(CMAKE_SKIP_BUILD_RPATH TRUE)
+  set(CMAKE_SKIP_INSTALL_RPATH TRUE)
+endif()
 add_subdirectory(test)
 add_subdirectory(doc)
 
