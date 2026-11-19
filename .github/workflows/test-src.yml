@@ -70,6 +70,7 @@ jobs:
         env:
           BUILD_TARGET: ${{ inputs.build-target }}
           BUNDLE_KEY: ${{ inputs.bundle-key }}
+          FUNCTIONAL_TEST_JOBS: ${{ vars.FUNCTIONAL_TEST_JOBS }}
         run: |
           git config --global --add safe.directory "$PWD"
           ./ci/dash/bundle-artifacts.sh extract

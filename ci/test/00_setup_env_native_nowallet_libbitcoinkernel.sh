@@ -11,4 +11,5 @@ export HOST=x86_64-pc-linux-gnu
 export PACKAGES="python3-zmq"
 export DEP_OPTS="NO_WALLET=1 CC=gcc-14 CXX=g++-14"
 export GOAL="install"
+export TEST_RUNNER_JOBS=12
 export BITCOIN_CONFIG="-DREDUCE_EXPORTS=ON -DBUILD_UTIL_CHAINSTATE=ON"

@@ -32,6 +32,7 @@ export DEP_OPTS="MULTIPROCESS=1 CC=clang-19 CXX=clang++-19"
 export RUN_TIDY=true
 export GOAL="install"
 export TEST_RUNNER_EXTRA="--v2transport"
+export TEST_RUNNER_JOBS=8
 export BITCOIN_CONFIG="-DCMAKE_BUILD_TYPE=Debug"
 # Additional flags for RUN_TIDY. -O0 only for C++, while the C code (secp256k1, most of X11) stays at -O2
 export BITCOIN_CONFIG="${BITCOIN_CONFIG} -DENABLE_HARDENING=OFF -DCMAKE_C_FLAGS_DEBUG='-O2 -g0' -DCMAKE_CXX_FLAGS_DEBUG='-ftrapv -O0 -g0'"
