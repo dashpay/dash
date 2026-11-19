@@ -105,6 +105,9 @@ private:
     CAmount nModFeesWithAncestors;
     int64_t nSigOpCountWithAncestors;
 
+    //! Never removed to make room: holds an InstantSend lock, or TrimToSize() found a descendant that does
+    bool m_instantsend_pinned{false};
+
 public:
     CTxMemPoolEntry(const CTransactionRef& tx, CAmount fee,
                     int64_t time, unsigned int entry_height, uint64_t entry_sequence,
@@ -152,6 +155,8 @@ public:
     CAmount GetModifiedFee() const { return m_modified_fee; }
     size_t DynamicMemoryUsage() const { return nUsageSize; }
     const LockPoints& GetLockPoints() const { return lockPoints; }
+    bool IsInstantSendPinned() const { return m_instantsend_pinned; }
+    void PinForInstantSend() { m_instantsend_pinned = true; }
 
     // Adjusts the descendant state.
     void UpdateDescendantState(int32_t modifySize, CAmount modifyFee, int64_t modifyCount);

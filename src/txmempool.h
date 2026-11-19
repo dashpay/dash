@@ -75,12 +75,15 @@ struct mempoolentry_txid
 /** \class CompareTxMemPoolEntryByDescendantScore
  *
  *  Sort an entry by max(score/size of entry's tx, score/size with all descendants).
+ *  Entries pinned by an InstantSend lock sort after every other entry.
  */
 class CompareTxMemPoolEntryByDescendantScore
 {
 public:
     bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
     {
+        if (a.IsInstantSendPinned() != b.IsInstantSendPinned()) return b.IsInstantSendPinned();
+
         double a_mod_fee, a_size, b_mod_fee, b_size;
 
         GetModFeeAndSize(a, a_mod_fee, a_size);
@@ -304,6 +307,7 @@ protected:
     uint64_t totalTxSize GUARDED_BY(cs){0};      //!< sum of all mempool tx' byte sizes
     CAmount m_total_fee GUARDED_BY(cs){0};       //!< sum of all mempool tx's fees (NOT modified fee)
     uint64_t cachedInnerUsage GUARDED_BY(cs){0}; //!< sum of dynamic memory usage of all the map elements (NOT the maps themselves)
+    uint64_t m_pinned_usage GUARDED_BY(cs){0};   //!< share of DynamicMemoryUsage() taken by the transactions pinned by an InstantSend lock
 
     mutable int64_t lastRollingFeeUpdate GUARDED_BY(cs){GetTime()};
     mutable bool blockSinceLastRollingFeeBump GUARDED_BY(cs){false};
@@ -671,6 +675,15 @@ public:
     /** Expire all transaction (and their dependencies) in the mempool older than time. Return the number of removed transactions. */
     int Expire(std::chrono::seconds time) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
+    /** Pin a transaction that holds an InstantSend lock: TrimToSize() and Expire() keep it, and
+     *  the transactions it depends on, until it is mined or becomes invalid. */
+    void PinInstantSendLocked(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    uint64_t GetPinnedUsage() const EXCLUSIVE_LOCKS_REQUIRED(cs)
+    {
+        AssertLockHeld(cs);
+        return m_pinned_usage;
+    }
+
     /**
      * Calculate the ancestor and descendant count for the given transaction.
      * The counts include the transaction itself.
@@ -860,6 +873,9 @@ private:
      */
     void removeUnchecked(txiter entry, MemPoolRemovalReason reason) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeUncheckedProTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void Pin(txiter entry) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** What an entry adds to DynamicMemoryUsage(), apart from its links to parents and children. */
+    size_t EntryUsage(const CTxMemPoolEntry& entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
     /** visited marks a CTxMemPoolEntry as having been traversed
