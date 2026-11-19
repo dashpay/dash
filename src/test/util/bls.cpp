@@ -4,29 +4,17 @@
 
 #include <test/util/bls.h>
 
-#include <dashbls/schemes.hpp>
+#include <crypto/common.h>
+#include <crypto/sha256.h>
+#include <dashbls/legacy.hpp>
 #include <deploymentstatus.h>
 #include <util/check.h>
 #include <validation.h>
 
-namespace {
-
-bls::CoreMPL& Scheme(const BLSScheme scheme)
-{
-    static bls::LegacySchemeMPL legacy;
-    static bls::BasicSchemeMPL basic;
-    return scheme == BLSScheme::Legacy ? static_cast<bls::CoreMPL&>(legacy)
-                                       : static_cast<bls::CoreMPL&>(basic);
-}
-
-CBLSSignature SignatureFromElement(const bls::G2Element& element, const BLSScheme scheme)
-{
-    CBLSSignature sig;
-    sig.SetBytes(element.SerializeToArray(scheme == BLSScheme::Legacy), scheme);
-    return sig;
-}
-
-} // namespace
+#include <algorithm>
+#include <array>
+#include <utility>
+#include <vector>
 
 CBLSSecretKey SecretFromScalar(uint8_t scalar)
 {
@@ -48,52 +36,58 @@ BLSScheme SchemeForNextBlock(const ChainstateManager& chainman)
 
 CBLSSignature SignBLS(const CBLSSecretKey& sk, const uint256& hash, const BLSScheme scheme)
 {
-    if (!sk.IsValid()) {
-        return {};
+    if (scheme == BLSScheme::Basic || !sk.IsValid()) {
+        return sk.Sign(hash);
     }
-    const auto sk_bytes{sk.ToBytes()};
-    try {
-        const bls::PrivateKey key{bls::PrivateKey::FromBytes(bls::Bytes(sk_bytes.data(), sk_bytes.size()), false)};
-        const bls::G2Element element{Scheme(scheme).Sign(key, bls::Bytes(hash.begin(), hash.size()))};
-        return SignatureFromElement(element, scheme);
-    } catch (...) {
-        return {};
-    }
+    // A signature is the secret key times the point of the message, which the legacy scheme maps in its own way.
+    blst_p2 point;
+    bls::ep2_map_legacy(&point, hash.begin(), hash.size());
+    std::array<uint8_t, BLS_CURVE_SIG_SIZE> bytes;
+    blst_p2_compress(bytes.data(), &point);
+    CBLSSignature sig{bytes};
+    sig.MulInsecure(sk);
+    return sig;
 }
 
 CBLSSignature AggregateSecureBLS(Span<CBLSSignature> sigs, Span<CBLSPublicKey> pks, const uint256& hash,
                                  const BLSScheme scheme)
 {
-    if (sigs.size() != pks.size() || sigs.empty()) {
-        return {};
+    if (scheme == BLSScheme::Basic || sigs.size() != pks.size() || sigs.empty()) {
+        return CBLSSignature::AggregateSecure(sigs, pks, hash);
     }
+    // Every signature is multiplied by a number derived from the encodings of all the keys, in their order.
+    // The legacy scheme differs in that encoding.
+    std::vector<std::pair<std::array<uint8_t, BLS_CURVE_PUBKEY_SIZE>, CBLSSignature>> signers;
+    signers.reserve(sigs.size());
+    for (size_t i = 0; i < sigs.size(); i++) {
+        signers.emplace_back(pks[i].ToBytes(scheme), sigs[i]);
+    }
+    std::sort(signers.begin(), signers.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    const bool legacy{scheme == BLSScheme::Legacy};
-    std::vector<bls::G1Element> pubkeys;
-    std::vector<bls::G2Element> signatures;
-    pubkeys.reserve(pks.size());
-    signatures.reserve(sigs.size());
-    try {
-        for (const CBLSPublicKey& pk : pks) {
-            if (!pk.IsValid()) {
-                pubkeys.emplace_back();
-                continue;
-            }
-            const auto bytes{pk.ToBytes(scheme)};
-            pubkeys.push_back(bls::G1Element::FromBytes(bls::Bytes(bytes.data(), bytes.size()), legacy));
-        }
-        for (const CBLSSignature& sig : sigs) {
-            if (!sig.IsValid()) {
-                signatures.emplace_back();
-                continue;
-            }
-            const auto bytes{sig.ToBytes(scheme)};
-            signatures.push_back(bls::G2Element::FromBytes(bls::Bytes(bytes.data(), bytes.size()), legacy));
-        }
-        const bls::G2Element element{
-            Scheme(scheme).AggregateSecure(pubkeys, signatures, bls::Bytes(hash.begin(), hash.size()))};
-        return SignatureFromElement(element, scheme);
-    } catch (...) {
-        return {};
+    CSHA256 hasher;
+    for (const auto& [pk, _] : signers) {
+        hasher.Write(pk.data(), pk.size());
     }
+    std::array<uint8_t, 4 + CSHA256::OUTPUT_SIZE> preimage;
+    hasher.Finalize(preimage.data() + 4);
+
+    CBLSSignature ret;
+    for (size_t i = 0; i < signers.size(); i++) {
+        WriteBE32(preimage.data(), i);
+        std::array<uint8_t, CSHA256::OUTPUT_SIZE> factor;
+        CSHA256().Write(preimage.data(), preimage.size()).Finalize(factor.data());
+        // A secret key holds a number below the group order
+        blst_scalar reduced;
+        blst_scalar_from_be_bytes(&reduced, factor.data(), factor.size());
+        blst_bendian_from_scalar(factor.data(), &reduced);
+
+        CBLSSignature& term{signers[i].second};
+        term.MulInsecure(CBLSSecretKey{factor});
+        if (i == 0) {
+            ret = term;
+        } else {
+            ret.AggregateInsecure(term);
+        }
+    }
+    return ret;
 }
