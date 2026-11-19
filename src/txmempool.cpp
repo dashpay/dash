@@ -452,6 +452,9 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
     if (delta) {
         mapTx.modify(newit, [&delta](CTxMemPoolEntry& e) { e.UpdateModifiedFee(delta); });
     }
+    if (const uint256& hash{entry.GetTx().GetHash()}; m_isman.IsLocked(hash) || m_isman.IsWaitingForTx(hash)) {
+        Pin(newit);
+    }
 
     // Update cachedInnerUsage to include contained transaction's usage.
     // (When we update the entry for in-mempool parents, memory usage will be
@@ -763,6 +766,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
     totalTxSize -= it->GetTxSize();
     m_total_fee -= it->GetFee();
     cachedInnerUsage -= it->DynamicMemoryUsage();
+    if (it->IsInstantSendPinned()) m_pinned_usage -= EntryUsage(*it);
     cachedInnerUsage -= memusage::DynamicUsage(it->GetMemPoolParentsConst()) + memusage::DynamicUsage(it->GetMemPoolChildrenConst());
     mapTx.erase(it);
     nTransactionsUpdated++;
@@ -1409,6 +1413,7 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     uint64_t checkTotal = 0;
     CAmount check_total_fee{0};
     uint64_t innerUsage = 0;
+    uint64_t pinned_usage{0};
     uint64_t prev_ancestor_count{0};
     size_t check_asset_unlock_instances{0};
     size_t check_asset_unlock_indexes{0};
@@ -1420,6 +1425,7 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
         checkTotal += it->GetTxSize();
         check_total_fee += it->GetFee();
         innerUsage += it->DynamicMemoryUsage();
+        if (it->IsInstantSendPinned()) pinned_usage += EntryUsage(*it);
         const CTransaction& tx = it->GetTx();
         innerUsage += memusage::DynamicUsage(it->GetMemPoolParentsConst()) + memusage::DynamicUsage(it->GetMemPoolChildrenConst());
         if (IsAssetUnlockWithStableTxid(tx)) {
@@ -1515,6 +1521,7 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     assert(totalTxSize == checkTotal);
     assert(m_total_fee == check_total_fee);
     assert(innerUsage == cachedInnerUsage);
+    assert(pinned_usage == m_pinned_usage);
     assert(check_asset_unlock_instances == m_asset_unlock_instances.size());
     assert(check_asset_unlock_indexes == m_asset_unlock_indexes.size());
     assert(check_pending_asset_unlock_amount == m_pending_asset_unlock_amount);
@@ -2069,14 +2076,38 @@ void CTxMemPool::RemoveStaged(setEntries &stage, bool updateDescendants, MemPool
     }
 }
 
+size_t CTxMemPool::EntryUsage(const CTxMemPoolEntry& entry) const
+{
+    AssertLockHeld(cs);
+    return memusage::MallocUsage(sizeof(CTxMemPoolEntry) + 12 * sizeof(void*)) + entry.DynamicMemoryUsage() +
+           entry.GetTx().vin.size() * memusage::IncrementalDynamicUsage(mapNextTx) +
+           sizeof(decltype(vTxHashes)::value_type);
+}
+
+void CTxMemPool::Pin(txiter it)
+{
+    AssertLockHeld(cs);
+    if (it->IsInstantSendPinned()) return;
+    mapTx.modify(it, [](CTxMemPoolEntry& e) { e.PinForInstantSend(); });
+    m_pinned_usage += EntryUsage(*it);
+}
+
+void CTxMemPool::PinInstantSendLocked(const uint256& txid)
+{
+    AssertLockHeld(cs);
+    if (const txiter it{mapTx.find(txid)}; it != mapTx.end()) Pin(it);
+}
+
 int CTxMemPool::Expire(std::chrono::seconds time)
 {
     AssertLockHeld(cs);
     indexed_transaction_set::index<entry_time>::type::iterator it = mapTx.get<entry_time>().begin();
     setEntries toremove;
     while (it != mapTx.get<entry_time>().end() && it->GetTime() < time) {
-        // locked txes do not expire until mined and have sufficient confirmations
-        if (m_isman.IsLocked(it->GetTx().GetHash())) {
+        // locked txes, and the txes they depend on, do not expire until mined and have sufficient confirmations
+        setEntries descendants;
+        CalculateDescendants(mapTx.project<0>(it), descendants);
+        if (std::ranges::any_of(descendants, [](txiter entry) { return entry->IsInstantSendPinned(); })) {
             it++;
             continue;
         }
@@ -2159,6 +2190,16 @@ void CTxMemPool::TrimToSize(size_t sizelimit, std::vector<COutPoint>* pvNoSpends
     while (!mapTx.empty() && DynamicMemoryUsage() > sizelimit) {
         indexed_transaction_set::index<descendant_score>::type::iterator it = mapTx.get<descendant_score>().begin();
 
+        // Pinned entries sort last: once one is reached, nothing that may be evicted is left
+        if (it->IsInstantSendPinned()) break;
+        setEntries stage;
+        CalculateDescendants(mapTx.project<0>(it), stage);
+        if (std::ranges::any_of(stage, [](txiter entry) { return entry->IsInstantSendPinned(); })) {
+            // Evicting an entry takes its descendants along, so it stays with the pinned one
+            Pin(mapTx.project<0>(it));
+            continue;
+        }
+
         // We set the new mempool min fee to the feerate of the removed set, plus the
         // "minimum reasonable fee rate" (ie some value under which we consider txn
         // to have 0 fee). This way, we don't allow txn to enter mempool with feerate
@@ -2168,8 +2209,6 @@ void CTxMemPool::TrimToSize(size_t sizelimit, std::vector<COutPoint>* pvNoSpends
         trackPackageRemoved(removed);
         maxFeeRateRemoved = std::max(maxFeeRateRemoved, removed);
 
-        setEntries stage;
-        CalculateDescendants(mapTx.project<0>(it), stage);
         nTxnRemoved += stage.size();
 
         std::vector<CTransaction> txn;

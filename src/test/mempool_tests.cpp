@@ -577,6 +577,32 @@ BOOST_AUTO_TEST_CASE(MempoolSizeLimitTest)
     SetMockTime(42 + 8*CTxMemPool::ROLLING_FEE_HALFLIFE + CTxMemPool::ROLLING_FEE_HALFLIFE/2 + CTxMemPool::ROLLING_FEE_HALFLIFE/4);
     BOOST_CHECK_EQUAL(pool.GetMinFee(1).GetFeePerK(), 0);
     // ... unless it has gone all the way to 0 (after getting past 1000/2)
+
+    // A transaction pinned by an InstantSend lock stays, and so do the transactions it depends on
+    pool.PinInstantSendLocked(tx5.GetHash());
+    BOOST_CHECK_EQUAL(pool.Expire(std::chrono::seconds{1}), 2);
+    BOOST_CHECK(pool.exists(tx4.GetHash()));
+    BOOST_CHECK(pool.exists(tx5.GetHash()));
+    BOOST_CHECK(!pool.exists(tx6.GetHash()));
+    BOOST_CHECK(!pool.exists(tx7.GetHash()));
+
+    // ... however little room there is, which does not raise the min fee
+    pool.TrimToSize(1);
+    BOOST_CHECK(pool.exists(tx4.GetHash()));
+    BOOST_CHECK(pool.exists(tx5.GetHash()));
+    BOOST_CHECK_EQUAL(pool.GetMinFee(1).GetFeePerK(), 0);
+    // ... and counts towards the usage that is compared to the limit
+    BOOST_CHECK_GT(pool.GetPinnedUsage(), pool.mapTx.find(tx4.GetHash())->DynamicMemoryUsage() +
+                                              pool.mapTx.find(tx5.GetHash())->DynamicMemoryUsage());
+    BOOST_CHECK_LE(pool.GetPinnedUsage(), pool.DynamicMemoryUsage());
+
+    // ... while everything else still makes room
+    pool.addUnchecked(entry.Fee(1100LL).FromTx(tx6));
+    pool.TrimToSize(1);
+    BOOST_CHECK(pool.exists(tx4.GetHash()));
+    BOOST_CHECK(pool.exists(tx5.GetHash()));
+    BOOST_CHECK(!pool.exists(tx6.GetHash()));
+    BOOST_CHECK_GT(pool.GetMinFee(1).GetFeePerK(), 0);
 }
 
 inline CTransactionRef make_tx(std::vector<CAmount>&& output_values, std::vector<CTransactionRef>&& inputs=std::vector<CTransactionRef>(), std::vector<uint32_t>&& input_indices=std::vector<uint32_t>())
