@@ -230,14 +230,28 @@ public:
         if (!reserver.reserve()) {
             return wallet::RescanStatus::BUSY;
         }
-        const int64_t scanned_from{m_wallet->RescanFromTime(from_time, reserver, /*update=*/true)};
-        // A shutdown stops the scan as an abort does, without setting the abort flag.
-        const bool interrupted{m_wallet->IsAbortingRescan() || m_wallet->chain().shutdownRequested()};
-        if (interrupted) return wallet::RescanStatus::USER_ABORT;
-        if (scanned_from > from_time) return wallet::RescanStatus::FAILURE;
-        // RescanFromTime() only reads the mempool when it finds a block to start from.
-        WITH_LOCK(m_wallet->cs_wallet, m_wallet->chain().requestMempoolTransactions(*m_wallet));
-        return wallet::RescanStatus::SUCCESS;
+        // Not CWallet::RescanFromTime(): it does not say when an abort or a shutdown cut the scan short.
+        uint256 start_hash;
+        int start_height{0};
+        if (!m_wallet->chain().findFirstBlockWithTimeAndHeight(from_time - TIMESTAMP_WINDOW, /*min_height=*/0,
+                                                               FoundBlock().hash(start_hash).height(start_height))) {
+            // No block is that recent: only the mempool can pay the key.
+            WITH_LOCK(m_wallet->cs_wallet, m_wallet->chain().requestMempoolTransactions(*m_wallet));
+            return wallet::RescanStatus::SUCCESS;
+        }
+        switch (m_wallet
+                    ->ScanForWalletTransactions(start_hash, start_height, /*max_height=*/std::nullopt, reserver,
+                                                /*fUpdate=*/true, /*save_progress=*/false)
+                    .status) {
+        case CWallet::ScanResult::SUCCESS:
+            return wallet::RescanStatus::SUCCESS;
+        case CWallet::ScanResult::FAILURE:
+            return wallet::RescanStatus::FAILURE;
+        case CWallet::ScanResult::USER_ABORT:
+            return wallet::RescanStatus::USER_ABORT;
+        }
+        Assume(false);                        // unreachable
+        return wallet::RescanStatus::FAILURE; // fallback for release builds
     }
     void abortRescan() override { m_wallet->AbortRescan(); }
     std::optional<int> rescanPrunedFrom() override

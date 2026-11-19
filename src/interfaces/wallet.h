@@ -180,9 +180,14 @@ public:
     //! descriptor born no later than request.birth_time (in seconds) and
     //! return the corresponding public chain. Derivation, descriptor update
     //! and result publication are one wallet-locked action. When the chain
-    //! was imported or its birth moved earlier, the result's rescan_from is
-    //! set and the caller owes a rescanFromTime() from it, as after
-    //! importdescriptors; one rescan from the lowest serves many chains.
+    //! was imported, given its key, or its birth moved earlier,
+    //! the result's rescan_from is set to the chain's birth, which can be
+    //! earlier than the request's, and the caller owes a rescanFromTime()
+    //! from it, as after importdescriptors; one rescan from the lowest
+    //! serves many chains. A later call for the same chain does not report
+    //! it again: the caller keeps it until that rescan returns SUCCESS, and
+    //! to survive a restart in between it records what it is about to
+    //! import before it calls this.
     virtual wallet::PlatformKeyResult<wallet::FriendshipKeychain> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) = 0;
 
