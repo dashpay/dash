@@ -53,7 +53,7 @@ cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}/src"
 # Filter out:
 # * generated Qt sources (moc, qrc and uic output under the *_autogen directories)
 # * subtrees and other vendored code
-jq 'map(select(.file | test("_autogen/|src/(secp256k1|crc32c|crypto/x11|dashbls|gsl|immer|leveldb|minisketch|univalue)/|src/bench/nanobench\\.cpp$") | not))' ../compile_commands.json > tmp.json
+jq 'map(select(.file | test("_autogen/|src/(secp256k1|crc32c|crypto/x11|gsl|immer|leveldb|minisketch|univalue)/|src/bench/nanobench\\.cpp$") | not))' ../compile_commands.json > tmp.json
 mv tmp.json ../compile_commands.json
 
 CAST_LINT_DB="${PWD}/../cstyle-cast-compile-db"

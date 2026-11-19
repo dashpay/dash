@@ -27,7 +27,6 @@ EXCLUDE_FILES_WITH_PREFIX = ['contrib/devtools/bitcoin-tidy',
                              'src/bls',
                              'src/crypto/x11/sph',
                              'src/ctpl_stl.h',
-                             'src/dashbls',
                              'src/gsl',
                              'src/immer'] + SHARED_EXCLUDED_SUBTREES
 
