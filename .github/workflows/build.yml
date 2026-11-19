@@ -57,6 +57,9 @@ jobs:
       ci-context-tag: ${{ steps.ci-images.outputs.context_tag }}
       existing-runner-image: ${{ steps.ci-images.outputs.runner_image }}
       existing-slim-image: ${{ steps.ci-images.outputs.slim_image }}
+      # develop builds ASan against system libraries; pull requests into release
+      # branches run this workflow too, and those branches still build it with depends
+      asan-use-depends: ${{ github.base_ref != '' && github.base_ref != 'develop' }}
     steps:
       - name: Check skip environment variables
         id: skip-check
@@ -239,7 +242,9 @@ jobs:
     name: x86_64-pc-linux-gnu
     uses: ./.github/workflows/build-depends.yml
     needs: [check-skip, container, cache-sources]
-    if: ${{ vars.SKIP_LINUX64_FUZZ == '' }}
+    if: |
+      vars.SKIP_LINUX64_FUZZ == '' ||
+      (vars.SKIP_LINUX64_ASAN == '' && needs.check-skip.outputs.asan-use-depends == 'true')
     with:
       build-target: linux64
       container-path: ${{ needs.container.outputs.path }}
@@ -367,11 +372,18 @@ jobs:
   src-linux64_asan:
     name: linux64_asan-build
     uses: ./.github/workflows/build-src.yml
-    needs: [check-skip, container]
-    if: ${{ vars.SKIP_LINUX64_ASAN == '' }}
+    needs: [check-skip, container, depends-linux64]
+    if: |
+      !cancelled() && vars.SKIP_LINUX64_ASAN == '' &&
+      needs.check-skip.result == 'success' && needs.container.result == 'success' &&
+      (needs.check-skip.outputs.asan-use-depends != 'true' || needs.depends-linux64.result == 'success')
     with:
       build-target: linux64_asan
       container-path: ${{ needs.container.outputs.path }}
+      depends-key: ${{ needs.check-skip.outputs.asan-use-depends == 'true' && needs.depends-linux64.outputs.key || '' }}
+      depends-host: ${{ needs.check-skip.outputs.asan-use-depends == 'true' && needs.depends-linux64.outputs.host || '' }}
+      depends-dep-opts: ${{ needs.check-skip.outputs.asan-use-depends == 'true' && needs.depends-linux64.outputs.dep-opts || '' }}
+      depends-artifact: ${{ needs.check-skip.outputs.asan-use-depends == 'true' && needs.depends-linux64.outputs.built-artifact || '' }}
       runs-on: ${{ needs.check-skip.outputs['runner-build'] }}
     secrets: *remote-ccache-auth
 
@@ -569,7 +581,12 @@ jobs:
     name: linux64_asan-test
     uses: ./.github/workflows/test-src.yml
     needs: [check-skip, container-slim, src-linux64_asan, lint]
-    if: needs.src-linux64_asan.outputs.freshness != 'superseded' && needs.lint.outputs.freshness != 'superseded'
+    # Explicit results: a skipped depends-linux64 upstream must not skip these tests
+    if: |
+      !cancelled() &&
+      needs.check-skip.result == 'success' && needs.container-slim.result == 'success' &&
+      needs.src-linux64_asan.result == 'success' && needs.lint.result == 'success' &&
+      needs.src-linux64_asan.outputs.freshness != 'superseded' && needs.lint.outputs.freshness != 'superseded'
     with:
       bundle-key: ${{ needs.src-linux64_asan.outputs.key }}
       build-target: linux64_asan
