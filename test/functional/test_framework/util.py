@@ -584,7 +584,12 @@ def force_finish_mnsync(node):
     """
     Masternodes won't accept incoming connections while IsSynced is false.
     Force them to switch to this state to speed things up.
+
+    Tip notifications still queued from startup (e.g. after -reindex) can reset mnsync
+    and clear its last tip time, which lets the next new connection reset it again
+    after it was forced to finish, so they are processed first.
     """
+    node.syncwithvalidationinterfacequeue()
     while not node.mnsync("status")['IsSynced']:
         node.mnsync("next")
 
