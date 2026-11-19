@@ -12,6 +12,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../blockfilter.cpp
   ../bls/bls.cpp
   ../bls/bls_worker.cpp
+  ../bls/legacy.cpp
   ../chain.cpp
   ../chainlock/chainlock.cpp
   ../chainlock/clsig.cpp
@@ -151,7 +152,7 @@ target_link_libraries(bitcoinkernel
   PUBLIC
     $<TARGET_NAME_IF_EXISTS:PkgConfig::libzstd>
     Boost::headers
-    dashbls
+    blst
     leveldb
     univalue
     secp256k1

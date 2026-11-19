@@ -26,7 +26,7 @@ target_link_libraries(test_bitcoin-qt
   # The Dash-specific headers reachable from these tests include dbwrapper.h,
   # so the LevelDB headers have to be on the include path.
   leveldb
-  dashbls
+  blst
   Boost::headers
   Qt5::Test
 )

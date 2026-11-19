@@ -4,9 +4,9 @@
 
 #include <test/util/bls.h>
 
+#include <bls/legacy.h>
 #include <crypto/common.h>
 #include <crypto/sha256.h>
-#include <dashbls/legacy.hpp>
 #include <deploymentstatus.h>
 #include <util/check.h>
 #include <validation.h>

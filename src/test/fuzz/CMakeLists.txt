@@ -128,7 +128,7 @@ target_link_libraries(fuzz
   bitcoin_cli
   bitcoin_node
   bitcoin_common
-  dashbls
+  blst
   minisketch
   leveldb
   univalue

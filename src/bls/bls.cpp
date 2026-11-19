@@ -4,7 +4,7 @@
 
 #include <bls/bls.h>
 
-#include <dashbls/legacy.hpp>
+#include <bls/legacy.h>
 #include <crypto/common.h>
 #include <crypto/sha256.h>
 #include <random.h>
@@ -188,38 +188,36 @@ void Multiply(blst_p2& out, const blst_p2& point, const blst_scalar& scalar)
 }
 } // namespace
 
-// The points are still those of dashbls, which refuses an encoding by throwing.
-template <typename Element>
-static bool DecodeElement(Element& out, Span<const uint8_t> bytes, const BLSScheme scheme)
+bool BLSDecode(blst_p1& out, Span<const uint8_t> bytes, const BLSScheme scheme)
 {
-    try {
-        out = Element::FromBytes(bls::Bytes(bytes.data(), bytes.size()), scheme == BLSScheme::Legacy);
-        return true;
-    } catch (...) {
-        return false;
-    }
+    if (scheme == BLSScheme::Legacy) return bls::DecodeLegacy(out, bytes.data());
+    // blst accepts nothing but the canonical encoding of infinity or of a point of the curve
+    blst_p1_affine point;
+    if (blst_p1_uncompress(&point, bytes.data()) != BLST_SUCCESS || !blst_p1_affine_in_g1(&point)) return false;
+    blst_p1_from_affine(&out, &point);
+    return true;
 }
 
-bool BLSDecode(bls::G1Element& out, Span<const uint8_t> bytes, const BLSScheme scheme)
+bool BLSDecode(blst_p2& out, Span<const uint8_t> bytes, const BLSScheme scheme)
 {
-    return DecodeElement(out, bytes, scheme);
+    if (scheme == BLSScheme::Legacy) return bls::DecodeLegacy(out, bytes.data());
+    // As for G1. Each coordinate is checked to be below the modulus, so the second one has no flags.
+    blst_p2_affine point;
+    if (blst_p2_uncompress(&point, bytes.data()) != BLST_SUCCESS || !blst_p2_affine_in_g2(&point)) return false;
+    blst_p2_from_affine(&out, &point);
+    return true;
 }
 
-bool BLSDecode(bls::G2Element& out, Span<const uint8_t> bytes, const BLSScheme scheme)
+void BLSEncode(uint8_t* out, const blst_p1& in, const BLSScheme scheme)
 {
-    return DecodeElement(out, bytes, scheme);
+    if (scheme == BLSScheme::Legacy) return bls::EncodeLegacy(out, in);
+    blst_p1_compress(out, &in);
 }
 
-void BLSEncode(uint8_t* out, const bls::G1Element& in, const BLSScheme scheme)
+void BLSEncode(uint8_t* out, const blst_p2& in, const BLSScheme scheme)
 {
-    const auto bytes{in.SerializeToArray(scheme == BLSScheme::Legacy)};
-    memcpy(out, bytes.data(), bytes.size());
-}
-
-void BLSEncode(uint8_t* out, const bls::G2Element& in, const BLSScheme scheme)
-{
-    const auto bytes{in.SerializeToArray(scheme == BLSScheme::Legacy)};
-    memcpy(out, bytes.data(), bytes.size());
+    if (scheme == BLSScheme::Legacy) return bls::EncodeLegacy(out, in);
+    blst_p2_compress(out, &in);
 }
 
 bool BLSDecode(CBLSSecretScalar& out, Span<const uint8_t> bytes, BLSNoScheme)
@@ -327,7 +325,7 @@ CBLSPublicKey CBLSSecretKey::GetPublicKey() const
     }
 
     CBLSPublicKey pubKey;
-    blst_sk_to_pk_in_g1(&pubKey.impl.p, &Scalar(impl));
+    blst_sk_to_pk_in_g1(&pubKey.impl, &Scalar(impl));
     pubKey.fValid = true;
     return pubKey;
 }
@@ -340,7 +338,7 @@ CBLSSignature CBLSSecretKey::Sign(const uint256& hash) const
 
     CBLSSignature sigRet;
     const blst_p2 point{HashToG2(hash, BLSScheme::Basic)};
-    blst_sign_pk_in_g1(&sigRet.impl.q, &point, &Scalar(impl));
+    blst_sign_pk_in_g1(&sigRet.impl, &point, &Scalar(impl));
     sigRet.fValid = true;
     return sigRet;
 }
@@ -348,7 +346,7 @@ CBLSSignature CBLSSecretKey::Sign(const uint256& hash) const
 void CBLSPublicKey::AggregateInsecure(const CBLSPublicKey& o)
 {
     assert(IsValid() && o.IsValid());
-    blst_p1_add_or_double(&impl.p, &impl.p, &o.impl.p);
+    blst_p1_add_or_double(&impl, &impl, &o.impl);
     cachedHash.SetNull();
 }
 
@@ -360,7 +358,7 @@ CBLSPublicKey CBLSPublicKey::AggregateInsecure(Span<CBLSPublicKey> pks)
 
     CBLSPublicKey ret;
     for (const auto& pk : pks) {
-        blst_p1_add_or_double(&ret.impl.p, &ret.impl.p, &pk.impl.p);
+        blst_p1_add_or_double(&ret.impl, &ret.impl, &pk.impl);
     }
     ret.fValid = true;
     return ret;
@@ -382,12 +380,12 @@ bool CBLSPublicKey::PublicKeyShare(Span<CBLSPublicKey> mpk, const CBLSId& _id)
 
     // Horner's method: the polynomial with these coefficients, evaluated at the id
     const blst_scalar x{ScalarFromId(_id.impl)};
-    blst_p1 y{mpk.back().impl.p};
+    blst_p1 y{mpk.back().impl};
     for (size_t i = mpk.size() - 1; i > 0; --i) {
         Multiply(y, y, x);
-        blst_p1_add_or_double(&y, &y, &mpk[i - 1].impl.p);
+        blst_p1_add_or_double(&y, &y, &mpk[i - 1].impl);
     }
-    impl.p = y;
+    impl = y;
 
     fValid = true;
     return true;
@@ -396,7 +394,7 @@ bool CBLSPublicKey::PublicKeyShare(Span<CBLSPublicKey> mpk, const CBLSId& _id)
 void CBLSPublicKey::MulInsecure(const CBLSSecretKey& factor)
 {
     assert(IsValid() && factor.IsValid());
-    Multiply(impl.p, impl.p, Scalar(factor.impl));
+    Multiply(impl, impl, Scalar(factor.impl));
     cachedHash.SetNull();
 }
 
@@ -408,7 +406,7 @@ bool CBLSPublicKey::DHKeyExchange(const CBLSSecretKey& sk, const CBLSPublicKey& 
     if (!sk.IsValid() || !pk.IsValid()) {
         return false;
     }
-    Multiply(impl.p, pk.impl.p, Scalar(sk.impl));
+    Multiply(impl, pk.impl, Scalar(sk.impl));
     fValid = true;
     return true;
 }
@@ -416,7 +414,7 @@ bool CBLSPublicKey::DHKeyExchange(const CBLSSecretKey& sk, const CBLSPublicKey& 
 void CBLSSignature::AggregateInsecure(const CBLSSignature& o)
 {
     assert(IsValid() && o.IsValid());
-    blst_p2_add_or_double(&impl.q, &impl.q, &o.impl.q);
+    blst_p2_add_or_double(&impl, &impl, &o.impl);
     cachedHash.SetNull();
 }
 
@@ -428,7 +426,7 @@ CBLSSignature CBLSSignature::AggregateInsecure(Span<CBLSSignature> sigs)
 
     CBLSSignature ret;
     for (const auto& sig : sigs) {
-        blst_p2_add_or_double(&ret.impl.q, &ret.impl.q, &sig.impl.q);
+        blst_p2_add_or_double(&ret.impl, &ret.impl, &sig.impl);
     }
     ret.fValid = true;
     return ret;
@@ -452,8 +450,8 @@ CBLSSignature CBLSSignature::AggregateSecure(Span<CBLSSignature> sigs,
     CBLSSignature ret;
     for (size_t i = 0; i < sigs.size(); i++) {
         blst_p2 multiple;
-        Multiply(multiple, sigs[i].impl.q, factors[i]);
-        blst_p2_add_or_double(&ret.impl.q, &ret.impl.q, &multiple);
+        Multiply(multiple, sigs[i].impl, factors[i]);
+        blst_p2_add_or_double(&ret.impl, &ret.impl, &multiple);
     }
     ret.fValid = true;
     return ret;
@@ -462,16 +460,16 @@ CBLSSignature CBLSSignature::AggregateSecure(Span<CBLSSignature> sigs,
 void CBLSSignature::SubInsecure(const CBLSSignature& o)
 {
     assert(IsValid() && o.IsValid());
-    blst_p2 negated{o.impl.q};
+    blst_p2 negated{o.impl};
     blst_p2_cneg(&negated, true);
-    blst_p2_add_or_double(&impl.q, &impl.q, &negated);
+    blst_p2_add_or_double(&impl, &impl, &negated);
     cachedHash.SetNull();
 }
 
 void CBLSSignature::MulInsecure(const CBLSSecretKey& factor)
 {
     assert(IsValid() && factor.IsValid());
-    Multiply(impl.q, impl.q, Scalar(factor.impl));
+    Multiply(impl, impl, Scalar(factor.impl));
     cachedHash.SetNull();
 }
 
@@ -480,12 +478,12 @@ bool CBLSSignature::VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& h
     if (!IsValid() || !pubKey.IsValid()) {
         return false;
     }
-    if (!IsKeyOrSignature(impl.q) || !IsKeyOrSignature(pubKey.impl.p)) {
+    if (!IsKeyOrSignature(impl) || !IsKeyOrSignature(pubKey.impl)) {
         return false;
     }
 
-    SignatureCheck check{impl.q};
-    check.Add(pubKey.impl.p, hash, scheme);
+    SignatureCheck check{impl};
+    check.Add(pubKey.impl, hash, scheme);
     return check.Verify();
 }
 
@@ -502,16 +500,16 @@ bool CBLSSignature::VerifyInsecureAggregated(Span<CBLSPublicKey> pubKeys, Span<u
     if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end()) {
         return false;
     }
-    if (!IsKeyOrSignature(impl.q)) {
+    if (!IsKeyOrSignature(impl)) {
         return false;
     }
 
-    SignatureCheck check{impl.q};
+    SignatureCheck check{impl};
     for (size_t i = 0; i < pubKeys.size(); i++) {
-        if (!pubKeys[i].IsValid() || !IsKeyOrSignature(pubKeys[i].impl.p)) {
+        if (!pubKeys[i].IsValid() || !IsKeyOrSignature(pubKeys[i].impl)) {
             return false;
         }
-        check.Add(pubKeys[i].impl.p, hashes[i], BLSScheme::Basic);
+        check.Add(pubKeys[i].impl, hashes[i], BLSScheme::Basic);
     }
     return check.Verify();
 }
@@ -521,14 +519,14 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     if (pks.empty()) {
         return false;
     }
-    if (!IsKeyOrSignature(impl.q)) {
+    if (!IsKeyOrSignature(impl)) {
         return false;
     }
 
     std::vector<PublicKeyBytes> pk_bytes;
     pk_bytes.reserve(pks.size());
     for (const auto& pk : pks) {
-        if (!IsKeyOrSignature(pk.impl.p)) {
+        if (!IsKeyOrSignature(pk.impl)) {
             return false;
         }
         BLSEncode(pk_bytes.emplace_back().data(), pk.impl, scheme);
@@ -538,14 +536,14 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     blst_p1 aggregated{};
     for (size_t i = 0; i < pks.size(); i++) {
         blst_p1 multiple;
-        Multiply(multiple, pks[i].impl.p, factors[i]);
+        Multiply(multiple, pks[i].impl, factors[i]);
         blst_p1_add_or_double(&aggregated, &aggregated, &multiple);
     }
     if (blst_p1_is_inf(&aggregated)) {
         return false;
     }
 
-    SignatureCheck check{impl.q};
+    SignatureCheck check{impl};
     check.Add(aggregated, hash, scheme);
     return check.Verify();
 }
@@ -596,10 +594,10 @@ bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
         blst_sk_mul_n_check(&weight, &numerator, &weight);
 
         blst_p2 multiple;
-        Multiply(multiple, sigs[i].impl.q, weight);
+        Multiply(multiple, sigs[i].impl, weight);
         blst_p2_add_or_double(&recovered, &recovered, &multiple);
     }
-    impl.q = recovered;
+    impl = recovered;
 
     fValid = true;
     return true;

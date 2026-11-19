@@ -154,8 +154,6 @@ option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
 
 option(ENABLE_MINER "Enable the in-wallet miner and its RPCs." ON)
 
-option(ENABLE_MIMALLOC "Use mimalloc for BLS secret memory until BLSInit() installs the locked pool." ON)
-
 option(ENABLE_BLST_ASM "Use blst's hand-written assembly on x86_64 and aarch64." ON)
 
 # Dash, unlike upstream, still provides the public libdashconsensus API.
@@ -828,7 +826,6 @@ include(cmake/crc32c.cmake)
 include(cmake/leveldb.cmake)
 include(cmake/minisketch.cmake)
 include(cmake/blst.cmake)
-include(cmake/dashbls.cmake)
 add_subdirectory(src)
 
 include(cmake/tests.cmake)

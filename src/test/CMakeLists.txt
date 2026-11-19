@@ -198,7 +198,7 @@ target_link_libraries(test_bitcoin
   test_util
   bitcoin_cli
   bitcoin_node
-  dashbls
+  blst
   leveldb
   minisketch
   secp256k1

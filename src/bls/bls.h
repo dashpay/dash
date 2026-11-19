@@ -13,7 +13,7 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 
-#include <dashbls/elements.hpp>
+#include <blst.h>
 
 #include <array>
 #include <mutex>
@@ -26,6 +26,8 @@
 using CBLSSecretScalar = std::vector<blst_scalar, secure_allocator<blst_scalar>>;
 
 inline bool operator==(const blst_scalar& a, const blst_scalar& b) { return memcmp(a.b, b.b, sizeof(a.b)) == 0; }
+inline bool operator==(const blst_p1& a, const blst_p1& b) { return blst_p1_is_equal(&a, &b); }
+inline bool operator==(const blst_p2& a, const blst_p2& b) { return blst_p2_is_equal(&a, &b); }
 
 //! Public keys and signatures are encoded under a scheme. Secret keys and ids are not.
 template <typename Impl>
@@ -43,16 +45,16 @@ struct BLSNoScheme {};
 //! What the CBLS* objects hold, from and to bytes of the size of the object. Decoding returns false
 //! if the bytes are no encoding. Of a point, the basic encoding is only that of a point of the
 //! subgroup. The legacy one is that of any point, and of some values that are no point.
-bool BLSDecode(bls::G1Element& out, Span<const uint8_t> bytes, BLSScheme scheme);
-bool BLSDecode(bls::G2Element& out, Span<const uint8_t> bytes, BLSScheme scheme);
+bool BLSDecode(blst_p1& out, Span<const uint8_t> bytes, BLSScheme scheme);
+bool BLSDecode(blst_p2& out, Span<const uint8_t> bytes, BLSScheme scheme);
 bool BLSDecode(CBLSSecretScalar& out, Span<const uint8_t> bytes, BLSNoScheme);
 inline bool BLSDecode(uint256& out, Span<const uint8_t> bytes, BLSNoScheme)
 {
     memcpy(out.begin(), bytes.data(), out.size());
     return true;
 }
-void BLSEncode(uint8_t* out, const bls::G1Element& in, BLSScheme scheme);
-void BLSEncode(uint8_t* out, const bls::G2Element& in, BLSScheme scheme);
+void BLSEncode(uint8_t* out, const blst_p1& in, BLSScheme scheme);
+void BLSEncode(uint8_t* out, const blst_p2& in, BLSScheme scheme);
 void BLSEncode(uint8_t* out, const CBLSSecretScalar& in, BLSNoScheme);
 inline void BLSEncode(uint8_t* out, const uint256& in, BLSNoScheme) { memcpy(out, in.begin(), in.size()); }
 
@@ -285,7 +287,7 @@ public:
 
 static_assert(!BLSSetBytesTakesScheme<CBLSSecretKey>);
 
-class CBLSPublicKey : public CBLSWrapper<bls::G1Element, BLS_CURVE_PUBKEY_SIZE, CBLSPublicKey>
+class CBLSPublicKey : public CBLSWrapper<blst_p1, BLS_CURVE_PUBKEY_SIZE, CBLSPublicKey>
 {
     friend class CBLSSecretKey;
     friend class CBLSSignature;
@@ -335,7 +337,7 @@ struct BLSEncoded {
     [[nodiscard]] std::string ToString() const { return obj.ToString(scheme); }
 };
 
-class CBLSSignature : public CBLSWrapper<bls::G2Element, BLS_CURVE_SIG_SIZE, CBLSSignature>
+class CBLSSignature : public CBLSWrapper<blst_p2, BLS_CURVE_SIG_SIZE, CBLSSignature>
 {
     friend class CBLSSecretKey;
 
