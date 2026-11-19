@@ -213,6 +213,59 @@ BOOST_FIXTURE_TEST_CASE(cached_recovered_sig_does_not_authenticate_other_lock, N
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(locked_tx_keeps_its_lock_and_its_place_in_the_mempool, NetInstantSendTest)
+{
+    auto& isman = *m_node.isman;
+    auto& pool = *m_node.mempool;
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto cycle_hash = AddMinedQuorum(/*height=*/24, key);
+
+    const auto& coinbase = m_coinbase_txns[0];
+    const auto tx = MakeTransactionRef(
+        CreateValidMempoolTransaction(coinbase, /*input_vout=*/0, /*input_height=*/1, coinbaseKey,
+                                      GetScriptForRawPubKey(coinbaseKey.GetPubKey()), coinbase->vout[0].nValue - 1000,
+                                      /*submit=*/false));
+    const auto islock = MakeLock(cycle_hash, key, tx->GetHash(), tx->vin[0].prevout);
+    const auto accept = [&] {
+        return WITH_LOCK(cs_main, return m_node.chainman->ProcessTransaction(tx)).m_result_type ==
+               MempoolAcceptResult::ResultType::VALID;
+    };
+
+    // The fee floor of a full mempool keeps the transaction out until its lock is known
+    MockMempoolMinFee(CFeeRate{100000});
+    BOOST_CHECK(!accept());
+    Process(/*node=*/1, islock);
+    BOOST_REQUIRE(isman.IsWaitingForTx(tx->GetHash()));
+    BOOST_REQUIRE(accept());
+    Process(/*node=*/1, islock);
+    BOOST_REQUIRE(isman.IsLocked(tx->GetHash()));
+
+    // Neither its age nor a full mempool removes it
+    {
+        LOCK(pool.cs);
+        BOOST_CHECK_EQUAL(pool.Expire(GetTime<std::chrono::seconds>() + std::chrono::seconds{1}), 0);
+        pool.TrimToSize(0);
+    }
+    BOOST_CHECK(pool.exists(tx->GetHash()));
+
+    // A second lock on its input is refused
+    const uint256 other_txid{GetRandHash()};
+    Process(/*node=*/2, MakeLock(cycle_hash, key, other_txid, tx->vin[0].prevout));
+    BOOST_CHECK(!isman.IsWaitingForTx(other_txid));
+    BOOST_CHECK(pool.exists(tx->GetHash()));
+
+    // The lock outlives the transaction leaving the mempool
+    RegisterValidationInterface(&net);
+    WITH_LOCK(pool.cs, pool.removeRecursive(*tx, MemPoolRemovalReason::REORG));
+    SyncWithValidationInterfaceQueue();
+    UnregisterValidationInterface(&net);
+    BOOST_CHECK(!pool.exists(tx->GetHash()));
+    const auto stored = isman.GetInstantSendLockByTxid(tx->GetHash());
+    BOOST_REQUIRE(stored);
+    BOOST_CHECK(::SerializeHash(*stored) == ::SerializeHash(*islock));
+}
+
 uint256 CalculateRequestId(const std::vector<COutPoint>& inputs)
 {
     CHashWriter hw(SER_GETHASH, 0);
