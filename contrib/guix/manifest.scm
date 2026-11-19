@@ -1,5 +1,4 @@
 (use-modules (gnu packages)
-             (gnu packages autotools)
              ((gnu packages bash) #:select (bash-minimal))
              (gnu packages bison)
              ((gnu packages certs) #:select (nss-certs))
@@ -12,10 +11,9 @@
              (gnu packages gawk)
              (gnu packages gcc)
              ((gnu packages installers) #:select (nsis-x86_64))
-             ((gnu packages linux) #:select (linux-libre-headers-6.1 util-linux))
+             ((gnu packages linux) #:select (linux-libre-headers-6.1))
              (gnu packages llvm)
              (gnu packages mingw)
-             (gnu packages moreutils)
              (gnu packages pkg-config)
              ((gnu packages python) #:select (python-minimal))
              ((gnu packages python-build) #:select (python-tomli))
@@ -23,10 +21,8 @@
              ((gnu packages tls) #:select (openssl))
              ((gnu packages version-control) #:select (git-minimal))
              (guix build-system cmake)
-             (guix build-system gnu)
              (guix build-system python)
              (guix build-system trivial)
-             (guix download)
              (guix gexp)
              (guix git-download)
              ((guix licenses) #:prefix license:)
@@ -486,6 +482,7 @@ inspecting signatures in Mach-O binaries.")
           `(append ,flags
             ;; https://www.gnu.org/software/libc/manual/html_node/Configuring-and-compiling.html
             (list "--enable-stack-protector=all",
+                  "--enable-cet",
                   "--enable-bind-now",
                   "--disable-werror",
                   "--disable-timezone-tools",
@@ -511,7 +508,6 @@ inspecting signatures in Mach-O binaries.")
         bash-minimal
         which
         coreutils-minimal
-        util-linux
         ;; File(system) inspection
         file
         grep
@@ -521,7 +517,6 @@ inspecting signatures in Mach-O binaries.")
         patch
         gawk
         sed
-        moreutils
         ;; Compression and archiving
         tar
         gzip
@@ -530,9 +525,6 @@ inspecting signatures in Mach-O binaries.")
         gcc-toolchain-13
         cmake-minimal
         gnu-make
-        libtool
-        autoconf-2.71
-        automake
         pkg-config
         ;; Scripting
         python-minimal ;; (3.10)
