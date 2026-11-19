@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(walletdb_dash_record_load_policy)
 {
     // Damage to an hdpubkey or g_object record is noncritical. An HD chain
     // whose encryption state disagrees with its record type, or with the
-    // wallet's, is corrupt, and so is an unreadable owed_rescan record.
+    // wallet's, is corrupt.
     CHDChain plain_chain;
     BOOST_REQUIRE(plain_chain.SetSeed(SecureVector(32, 0x01), /*fUpdateID=*/true));
     CHDChain crypted_chain{plain_chain};
@@ -161,9 +161,6 @@ BOOST_AUTO_TEST_CASE(walletdb_dash_record_load_policy)
         {[&](DatabaseBatch& batch) {
              return batch.Write(std::make_pair(DBKeys::G_OBJECT, uint256::ONE), Span{truncated});
          }, DBErrors::NONCRITICAL_ERROR},
-        {[&](DatabaseBatch& batch) {
-             return batch.Write(std::make_pair(DBKeys::OWED_RESCAN, uint64_t{1}), Span{truncated});
-         }, DBErrors::CORRUPT},
     };
     for (size_t i{0}; i < rows.size(); ++i) {
         CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());

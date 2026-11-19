@@ -4325,10 +4325,10 @@ PlatformKeyResult<uint32_t> CWallet::PlatformAccountReference(const IdentityAuth
     return result;
 }
 
-PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
+PlatformKeyResult<FriendshipKeychain> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
 {
     LOCK(cs_wallet);
-    PlatformKeyResult<FriendshipXpub> result;
+    PlatformKeyResult<FriendshipKeychain> result;
     const auto path{platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
                                                  Span{request.local_id.begin(), uint256::size()},
                                                  Span{request.remote_id.begin(), uint256::size()})};
@@ -4349,6 +4349,7 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         return result;
     }
 
+    const FriendshipXpub friendship_xpub{key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     const int64_t birth_time{std::max<int64_t>(request.birth_time, 0)};
     WalletDescriptor descriptor(std::move(parsed), birth_time, /*range_start=*/0,
                                 /*range_end=*/DEFAULT_KEYPOOL_SIZE, /*next_index=*/0);
@@ -4360,22 +4361,19 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         descriptor.next_index = current.next_index;
         // Held with its key and born no later: no block was scanned without it.
         if (descriptor.creation_time >= current.creation_time && existing->HavePrivateKeys()) {
-            result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+            result.value = {friendship_xpub, /*rescan_from=*/std::nullopt};
             return result;
         }
         descriptor.creation_time = std::min(descriptor.creation_time, current.creation_time);
     }
-    // Recorded before the chain changes: a crash in between costs a needless
-    // rescan rather than missed payments.
-    if (!AddOwedRescan(descriptor.creation_time) ||
-        !AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false)) {
+    if (!AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false)) {
         result.status = PlatformKeyStatus::IMPORT_ERROR;
         return result;
     }
     // A held chain is not an active one, so nothing else lowers the wallet's birth to its new one.
     MaybeUpdateBirthTime(descriptor.creation_time);
 
-    result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+    result.value = {friendship_xpub, /*rescan_from=*/descriptor.creation_time};
     return result;
 }
 
@@ -4410,48 +4408,6 @@ PlatformKeyResult<std::vector<AssetLockFunding>> CWallet::ListAssetLockFundings(
         }
     }
     return result;
-}
-
-void CWallet::LoadOwedRescan(uint64_t sequence, int64_t from_time)
-{
-    AssertLockHeld(cs_wallet);
-    m_owed_rescans[sequence] = std::max<int64_t>(from_time, 0);
-    m_next_owed_rescan = std::max(m_next_owed_rescan, sequence + 1);
-}
-
-bool CWallet::AddOwedRescan(int64_t from_time)
-{
-    AssertLockHeld(cs_wallet);
-    from_time = std::max<int64_t>(from_time, 0);
-    if (!WalletBatch{GetDatabase()}.WriteOwedRescan(m_next_owed_rescan, from_time)) return false;
-    m_owed_rescans.emplace(m_next_owed_rescan++, from_time);
-    return true;
-}
-
-std::optional<int64_t> CWallet::GetOwedRescanFrom() const
-{
-    AssertLockHeld(cs_wallet);
-    std::optional<int64_t> from;
-    for (const auto& [sequence, from_time] : m_owed_rescans) {
-        if (!from || from_time < *from) from = from_time;
-    }
-    return from;
-}
-
-void CWallet::SettleOwedRescans(uint64_t sequence, int64_t covered_from)
-{
-    AssertLockHeld(cs_wallet);
-    WalletBatch batch{GetDatabase()};
-    for (auto it{m_owed_rescans.begin()}; it != m_owed_rescans.end() && it->first <= sequence;) {
-        if (it->second < covered_from) {
-            ++it;
-            continue;
-        }
-        if (!batch.EraseOwedRescan(it->first)) {
-            WalletLogPrintf("%s: could not erase owed rescan %d from the wallet database\n", __func__, it->first);
-        }
-        it = m_owed_rescans.erase(it);
-    }
 }
 
 std::vector<const Governance::Object*> CWallet::GetGovernanceObjects()

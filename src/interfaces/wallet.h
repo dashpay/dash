@@ -115,10 +115,7 @@ public:
 
     //! Rescan, on the calling thread, the blocks a key born at from_time
     //! (UNIX time in seconds) may be paid in, as importdescriptors does.
-    //! Returns as startRescan() does. Only SUCCESS settles the owed rescans
-    //! it covers that were recorded before it started; no other rescan
-    //! settles any. Throws std::runtime_error if a wallet database write
-    //! fails: reload the wallet before running it again.
+    //! Returns as startRescan() does.
     virtual wallet::RescanStatus rescanFromTime(int64_t from_time) = 0;
 
     //! Abort a rescan.
@@ -127,11 +124,6 @@ public:
     //! The height startRescan(false) starts at, when this node has pruned
     //! blocks it would read; nullopt when it has them all.
     virtual std::optional<int> rescanPrunedFrom() = 0;
-
-    //! The time, in seconds, the rescan this wallet owes starts from, for
-    //! receiving chains it was given or whose birth moved earlier; nullopt
-    //! when it owes none. Run it with rescanFromTime().
-    virtual std::optional<int64_t> owedRescanFrom() = 0;
 
     //! Lock masternode collaterals
     virtual void autoLockMasternodeCollaterals() = 0;
@@ -187,11 +179,11 @@ public:
     //! Ensure our private DIP-15 receiving chain is imported as a ranged
     //! descriptor born no later than request.birth_time (in seconds) and
     //! return the corresponding public chain. Derivation, descriptor update
-    //! and result publication are one wallet-locked action. Importing the
-    //! chain, or moving its birth earlier, first records a rescan owed from
-    //! that birth (see owedRescanFrom()). May throw std::runtime_error if a
-    //! wallet database write fails, as importdescriptors does.
-    virtual wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
+    //! and result publication are one wallet-locked action. When the chain
+    //! was imported or its birth moved earlier, the result's rescan_from is
+    //! set and the caller owes a rescanFromTime() from it, as after
+    //! importdescriptors; one rescan from the lowest serves many chains.
+    virtual wallet::PlatformKeyResult<wallet::FriendshipKeychain> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) = 0;
 
     //! Every credit output of this wallet's asset lock transactions that pays
