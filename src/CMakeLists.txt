@@ -118,6 +118,7 @@ if(BUILD_CONSENSUS_LIB)
     ${consensus_sources}
     ${crypto_base_sources}
     ${crypto_sph_sources}
+    support/lockedpool.cpp
   )
   target_compile_definitions(dashconsensus
     PRIVATE

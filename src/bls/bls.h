@@ -8,34 +8,53 @@
 #include <bls/scheme.h>
 #include <hash.h>
 #include <serialize.h>
+#include <span.h>
+#include <support/allocators/secure.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 
-#include <dashbls/bls.hpp>
-#include <dashbls/privatekey.hpp>
 #include <dashbls/elements.hpp>
-#include <dashbls/schemes.hpp>
-#include <dashbls/threshold.hpp>
 
 #include <array>
 #include <mutex>
 #include <ranges>
 #include <type_traits>
+#include <vector>
 
-struct CBLSIdImplicit;
+//! The number a secret key is, in locked memory that is wiped when it is released.
+//! A key that was never set, or was moved from, holds none.
+using CBLSSecretScalar = std::vector<blst_scalar, secure_allocator<blst_scalar>>;
+
+inline bool operator==(const blst_scalar& a, const blst_scalar& b) { return memcmp(a.b, b.b, sizeof(a.b)) == 0; }
 
 //! Public keys and signatures are encoded under a scheme. Secret keys and ids are not.
 template <typename Impl>
 struct BLSHasScheme : std::true_type {};
 
 template <>
-struct BLSHasScheme<bls::PrivateKey> : std::false_type {};
+struct BLSHasScheme<CBLSSecretScalar> : std::false_type {};
 
 template <>
-struct BLSHasScheme<CBLSIdImplicit> : std::false_type {};
+struct BLSHasScheme<uint256> : std::false_type {};
 
 //! Stands in for the scheme argument of types that have no scheme, so that none can be passed.
 struct BLSNoScheme {};
+
+//! What the CBLS* objects hold, from and to bytes of the size of the object. Decoding returns false
+//! if the bytes are no encoding. Of a point, the basic encoding is only that of a point of the
+//! subgroup. The legacy one is that of any point, and of some values that are no point.
+bool BLSDecode(bls::G1Element& out, Span<const uint8_t> bytes, BLSScheme scheme);
+bool BLSDecode(bls::G2Element& out, Span<const uint8_t> bytes, BLSScheme scheme);
+bool BLSDecode(CBLSSecretScalar& out, Span<const uint8_t> bytes, BLSNoScheme);
+inline bool BLSDecode(uint256& out, Span<const uint8_t> bytes, BLSNoScheme)
+{
+    memcpy(out.begin(), bytes.data(), out.size());
+    return true;
+}
+void BLSEncode(uint8_t* out, const bls::G1Element& in, BLSScheme scheme);
+void BLSEncode(uint8_t* out, const bls::G2Element& in, BLSScheme scheme);
+void BLSEncode(uint8_t* out, const CBLSSecretScalar& in, BLSNoScheme);
+inline void BLSEncode(uint8_t* out, const uint256& in, BLSNoScheme) { memcpy(out, in.begin(), in.size()); }
 
 // reversed BLS12-381
 constexpr int BLS_CURVE_ID_SIZE{32};
@@ -54,7 +73,7 @@ class CBLSWrapper
     friend class CBLSSignature;
 
 protected:
-    ImplType impl;
+    ImplType impl{};
     bool fValid{false};
     mutable uint256 cachedHash;
 
@@ -108,60 +127,34 @@ public:
         *(static_cast<C*>(this)) = C();
     }
 
-    void SetBytes(Span<const uint8_t> vecBytes, [[maybe_unused]] SchemeArg scheme = DEFAULT_SCHEME)
+    void SetBytes(Span<const uint8_t> vecBytes, SchemeArg scheme = DEFAULT_SCHEME)
     {
         if (vecBytes.size() != SerSize) {
             Reset();
             return;
         }
 
-        if (std::ranges::all_of(vecBytes, [](uint8_t c) { return c == 0; })) {
-            Reset();
+        if (!std::ranges::all_of(vecBytes, [](uint8_t c) { return c == 0; }) && BLSDecode(impl, vecBytes, scheme) &&
+            !(impl == ImplType())) {
+            fValid = true;
         } else {
-            try {
-                if constexpr (BLSHasScheme<ImplType>::value) {
-                    impl = ImplType::FromBytes(bls::Bytes(vecBytes.data(), vecBytes.size()), scheme == BLSScheme::Legacy);
-                } else if constexpr (std::is_same_v<ImplType, bls::PrivateKey>) {
-                    // Out-of-range scalars are rejected rather than reduced.
-                    impl = ImplType::FromBytes(bls::Bytes(vecBytes.data(), vecBytes.size()), /*modOrder=*/false);
-                } else {
-                    impl = ImplType::FromBytes(vecBytes.data());
-                }
-                if (impl == ImplType()) {
-                    Reset();
-                    cachedHash.SetNull();
-                    return;
-                }
-                fValid = true;
-            } catch (...) {
-                Reset();
-            }
+            Reset();
         }
         cachedHash.SetNull();
     }
 
-    std::vector<uint8_t> ToByteVector([[maybe_unused]] SchemeArg scheme = DEFAULT_SCHEME) const
+    std::vector<uint8_t> ToByteVector(SchemeArg scheme = DEFAULT_SCHEME) const
     {
-        if (!fValid) {
-            return std::vector<uint8_t>(SerSize, 0);
-        }
-        if constexpr (BLSHasScheme<ImplType>::value) {
-            return impl.Serialize(scheme == BLSScheme::Legacy);
-        } else {
-            return impl.Serialize();
-        }
+        std::vector<uint8_t> ret(SerSize, 0);
+        if (fValid) BLSEncode(ret.data(), impl, scheme);
+        return ret;
     }
 
-    std::array<uint8_t, SerSize> ToBytes([[maybe_unused]] SchemeArg scheme = DEFAULT_SCHEME) const
+    std::array<uint8_t, SerSize> ToBytes(SchemeArg scheme = DEFAULT_SCHEME) const
     {
-        if (!fValid) {
-            return std::array<uint8_t, SerSize>{};
-        }
-        if constexpr (BLSHasScheme<ImplType>::value) {
-            return impl.SerializeToArray(scheme == BLSScheme::Legacy);
-        } else {
-            return impl.SerializeToArray();
-        }
+        std::array<uint8_t, SerSize> ret{};
+        if (fValid) BLSEncode(ret.data(), impl, scheme);
+        return ret;
     }
 
     const uint256& GetHash() const
@@ -235,25 +228,7 @@ public:
     inline std::string ToString(SchemeArg scheme = DEFAULT_SCHEME) const { return HexStr(ToBytes(scheme)); }
 };
 
-struct CBLSIdImplicit : public uint256
-{
-    CBLSIdImplicit() = default;
-    // cppcheck-suppress noExplicitConstructor
-    CBLSIdImplicit(const uint256& id)
-    {
-        memcpy(begin(), id.begin(), sizeof(uint256));
-    }
-    static CBLSIdImplicit FromBytes(const uint8_t* buffer)
-    {
-        CBLSIdImplicit instance;
-        memcpy(instance.begin(), buffer, sizeof(CBLSIdImplicit));
-        return instance;
-    }
-    [[nodiscard]] std::vector<uint8_t> Serialize() const { return {begin(), end()}; }
-    [[nodiscard]] std::array<uint8_t, 32> SerializeToArray() const { return m_data; }
-};
-
-class CBLSId : public CBLSWrapper<CBLSIdImplicit, BLS_CURVE_ID_SIZE, CBLSId>
+class CBLSId : public CBLSWrapper<uint256, BLS_CURVE_ID_SIZE, CBLSId>
 {
 public:
     using CBLSWrapper::operator=;
@@ -277,7 +252,7 @@ constexpr bool BLSSetBytesTakesScheme = requires(T& obj, Span<const uint8_t> byt
 static_assert(!BLSToBytesTakesScheme<CBLSId>);
 
 //! CBLSSecretKey is invariant to BLS scheme for Creation / Serialization / Deserialization
-class CBLSSecretKey : public CBLSWrapper<bls::PrivateKey, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>
+class CBLSSecretKey : public CBLSWrapper<CBLSSecretScalar, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>
 {
 public:
     using CBLSWrapper::operator=;
@@ -288,7 +263,10 @@ public:
     CBLSSecretKey() = default;
     explicit CBLSSecretKey(Span<const unsigned char> vecBytes) { SetBytes(vecBytes); }
     CBLSSecretKey(const CBLSSecretKey&) = default;
-    CBLSSecretKey& operator=(const CBLSSecretKey&) = default;
+    CBLSSecretKey(CBLSSecretKey&&) noexcept = default;
+    //! Assigning releases the memory of the key held before, which wipes it.
+    CBLSSecretKey& operator=(const CBLSSecretKey& other) { return *this = CBLSSecretKey(other); }
+    CBLSSecretKey& operator=(CBLSSecretKey&&) noexcept = default;
 
     void AggregateInsecure(const CBLSSecretKey& o);
     static CBLSSecretKey AggregateInsecure(Span<CBLSSecretKey> sks);

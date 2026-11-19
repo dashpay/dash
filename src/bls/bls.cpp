@@ -10,10 +10,7 @@
 #include <random.h>
 #include <span.h>
 
-#ifndef BUILD_BITCOIN_INTERNAL
-#include <support/allocators/mt_pooled_secure.h>
 #include <support/cleanse.h>
-#endif
 
 #include <algorithm>
 #include <array>
@@ -49,6 +46,19 @@ bool IsKeyOrSignature(const blst_p1& point)
 bool IsKeyOrSignature(const blst_p2& point)
 {
     return !blst_p2_is_inf(&point) && blst_p2_on_curve(&point) && blst_p2_in_g2(&point);
+}
+
+//! The number of a secret key, which is zero for a key that was never set
+const blst_scalar& Scalar(const CBLSSecretScalar& secret)
+{
+    static const blst_scalar zero{};
+    return secret.empty() ? zero : secret.front();
+}
+
+blst_scalar& Scalar(CBLSSecretScalar& secret)
+{
+    secret.resize(1);
+    return secret.front();
 }
 
 //! A product of pairings, computed without allocating whatever the number of pairs.
@@ -178,7 +188,67 @@ void Multiply(blst_p2& out, const blst_p2& point, const blst_scalar& scalar)
 }
 } // namespace
 
-CBLSId::CBLSId(const uint256& nHash) : CBLSWrapper<CBLSIdImplicit, BLS_CURVE_ID_SIZE, CBLSId>()
+// The points are still those of dashbls, which refuses an encoding by throwing.
+template <typename Element>
+static bool DecodeElement(Element& out, Span<const uint8_t> bytes, const BLSScheme scheme)
+{
+    try {
+        out = Element::FromBytes(bls::Bytes(bytes.data(), bytes.size()), scheme == BLSScheme::Legacy);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool BLSDecode(bls::G1Element& out, Span<const uint8_t> bytes, const BLSScheme scheme)
+{
+    return DecodeElement(out, bytes, scheme);
+}
+
+bool BLSDecode(bls::G2Element& out, Span<const uint8_t> bytes, const BLSScheme scheme)
+{
+    return DecodeElement(out, bytes, scheme);
+}
+
+void BLSEncode(uint8_t* out, const bls::G1Element& in, const BLSScheme scheme)
+{
+    const auto bytes{in.SerializeToArray(scheme == BLSScheme::Legacy)};
+    memcpy(out, bytes.data(), bytes.size());
+}
+
+void BLSEncode(uint8_t* out, const bls::G2Element& in, const BLSScheme scheme)
+{
+    const auto bytes{in.SerializeToArray(scheme == BLSScheme::Legacy)};
+    memcpy(out, bytes.data(), bytes.size());
+}
+
+bool BLSDecode(CBLSSecretScalar& out, Span<const uint8_t> bytes, BLSNoScheme)
+{
+    // BLS12-381 group order r, big-endian.
+    // Taken from src/blst/src/consts.c: BLS12_381_r = { 0xffffffff00000001, 0x53bda402fffe5bfe, 0x3339d80809a1d805, 0x73eda753299d7d48 }
+    //     (little-endian limbs of the same number, with the comment z^4 - z^2 + 1, group order).
+    static const uint8_t ORDER_BE[BLS_CURVE_SECKEY_SIZE] = {
+        0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08,
+        0x09, 0xa1, 0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe,
+        0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01};
+    // Values strictly greater than the group order are rejected; the
+    // order itself is accepted, matching the relic-based
+    // implementation's bn_cmp(keydata, order) > 0 check.
+    if (memcmp(bytes.data(), ORDER_BE, sizeof(ORDER_BE)) > 0) return false;
+    blst_scalar_from_bendian(&Scalar(out), bytes.data());
+    return true;
+}
+
+void BLSEncode(uint8_t* out, const CBLSSecretScalar& in, BLSNoScheme)
+{
+    // blst_bendian_from_scalar converts through a temporary limb vector and
+    // securely wipes it, which costs more than the serialization itself;
+    // the scalar's native bytes are little-endian, so copy and reverse.
+    blst_lendian_from_scalar(out, &Scalar(in));
+    std::reverse(out, out + BLS_CURVE_SECKEY_SIZE);
+}
+
+CBLSId::CBLSId(const uint256& nHash) : CBLSWrapper<uint256, BLS_CURVE_ID_SIZE, CBLSId>()
 {
     impl = nHash;
     fValid = true;
@@ -188,7 +258,11 @@ CBLSId::CBLSId(const uint256& nHash) : CBLSWrapper<CBLSIdImplicit, BLS_CURVE_ID_
 void CBLSSecretKey::AggregateInsecure(const CBLSSecretKey& o)
 {
     assert(IsValid() && o.IsValid());
-    impl = bls::PrivateKey::Aggregate({impl, o.impl});
+    // A sum starts from zero, which is what reduces a key that is the group order itself.
+    static const blst_scalar zero{};
+    blst_scalar& scalar{Scalar(impl)};
+    blst_sk_add_n_check(&scalar, &zero, &scalar);
+    blst_sk_add_n_check(&scalar, &scalar, &Scalar(o.impl));
     cachedHash.SetNull();
 }
 
@@ -198,16 +272,12 @@ CBLSSecretKey CBLSSecretKey::AggregateInsecure(Span<CBLSSecretKey> sks)
         return {};
     }
 
-    std::vector<bls::PrivateKey> v;
-    v.reserve(sks.size());
-    for (const auto& sk : sks) {
-        v.emplace_back(sk.impl);
-    }
-
     CBLSSecretKey ret;
-    ret.impl = bls::PrivateKey::Aggregate(v);
+    blst_scalar& sum{Scalar(ret.impl)};
+    for (const auto& sk : sks) {
+        blst_sk_add_n_check(&sum, &sum, &Scalar(sk.impl));
+    }
     ret.fValid = true;
-    ret.cachedHash.SetNull();
     return ret;
 }
 
@@ -215,20 +285,11 @@ CBLSSecretKey CBLSSecretKey::AggregateInsecure(Span<CBLSSecretKey> sks)
 void CBLSSecretKey::MakeNewKey()
 {
     unsigned char buf[SerSize];
-    while (true) {
+    do {
         GetStrongRandBytes({buf, sizeof(buf)});
-        try {
-            impl = bls::PrivateKey::FromBytes(bls::Bytes(reinterpret_cast<const uint8_t*>(buf), SerSize));
-            if (impl == bls::PrivateKey()) {
-                continue;
-            }
-            break;
-        } catch (...) {
-        }
-    }
+        SetBytes(buf);
+    } while (!IsValid());
     memory_cleanse(buf, sizeof(buf));
-    fValid = true;
-    cachedHash.SetNull();
 }
 #endif
 
@@ -237,27 +298,25 @@ bool CBLSSecretKey::SecretKeyShare(Span<CBLSSecretKey> msk, const CBLSId& _id)
     fValid = false;
     cachedHash.SetNull();
 
-    if (!_id.IsValid()) {
+    if (!_id.IsValid() || msk.size() < 2) {
         return false;
     }
-
-    std::vector<bls::PrivateKey> mskVec;
-    mskVec.reserve(msk.size());
     for (const CBLSSecretKey& sk : msk) {
         if (!sk.IsValid()) {
             return false;
         }
-        mskVec.emplace_back(sk.impl);
     }
 
-    try {
-        impl = bls::Threshold::PrivateKeyShare(mskVec, bls::Bytes(_id.impl.begin(), _id.impl.size()));
-    } catch (...) {
-        return false;
+    // Horner's method: the polynomial with these coefficients, evaluated at the id
+    const blst_scalar x{ScalarFromId(_id.impl)};
+    blst_scalar& y{Scalar(impl)};
+    y = Scalar(std::as_const(msk.back().impl));
+    for (size_t i = msk.size() - 1; i > 0; --i) {
+        blst_sk_mul_n_check(&y, &y, &x);
+        blst_sk_add_n_check(&y, &y, &Scalar(std::as_const(msk[i - 1].impl)));
     }
 
     fValid = true;
-    cachedHash.SetNull();
     return true;
 }
 
@@ -268,9 +327,8 @@ CBLSPublicKey CBLSSecretKey::GetPublicKey() const
     }
 
     CBLSPublicKey pubKey;
-    pubKey.impl = impl.GetG1Element();
+    blst_sk_to_pk_in_g1(&pubKey.impl.p, &Scalar(impl));
     pubKey.fValid = true;
-    pubKey.cachedHash.SetNull();
     return pubKey;
 }
 
@@ -281,15 +339,9 @@ CBLSSignature CBLSSecretKey::Sign(const uint256& hash) const
     }
 
     CBLSSignature sigRet;
-    try {
-        sigRet.impl = impl.SignG2(hash.begin(), hash.size(), UCharCast(BASIC_SCHEME_DST.data()), BASIC_SCHEME_DST.size());
-        sigRet.fValid = true;
-    } catch (...) {
-        sigRet.fValid = false;
-    }
-
-    sigRet.cachedHash.SetNull();
-
+    const blst_p2 point{HashToG2(hash, BLSScheme::Basic)};
+    blst_sign_pk_in_g1(&sigRet.impl.q, &point, &Scalar(impl));
+    sigRet.fValid = true;
     return sigRet;
 }
 
@@ -344,7 +396,7 @@ bool CBLSPublicKey::PublicKeyShare(Span<CBLSPublicKey> mpk, const CBLSId& _id)
 void CBLSPublicKey::MulInsecure(const CBLSSecretKey& factor)
 {
     assert(IsValid() && factor.IsValid());
-    impl = factor.impl * impl;
+    Multiply(impl.p, impl.p, Scalar(factor.impl));
     cachedHash.SetNull();
 }
 
@@ -356,9 +408,8 @@ bool CBLSPublicKey::DHKeyExchange(const CBLSSecretKey& sk, const CBLSPublicKey& 
     if (!sk.IsValid() || !pk.IsValid()) {
         return false;
     }
-    impl = sk.impl * pk.impl;
+    Multiply(impl.p, pk.impl.p, Scalar(sk.impl));
     fValid = true;
-    cachedHash.SetNull();
     return true;
 }
 
@@ -394,7 +445,7 @@ CBLSSignature CBLSSignature::AggregateSecure(Span<CBLSSignature> sigs,
     std::vector<PublicKeyBytes> pk_bytes;
     pk_bytes.reserve(pks.size());
     for (const auto& pk : pks) {
-        pk_bytes.push_back(pk.impl.SerializeToArray());
+        BLSEncode(pk_bytes.emplace_back().data(), pk.impl, BLSScheme::Basic);
     }
     const std::vector<blst_scalar> factors{SecureAggregationFactors(pk_bytes)};
 
@@ -420,7 +471,7 @@ void CBLSSignature::SubInsecure(const CBLSSignature& o)
 void CBLSSignature::MulInsecure(const CBLSSecretKey& factor)
 {
     assert(IsValid() && factor.IsValid());
-    impl = factor.impl * impl;
+    Multiply(impl.q, impl.q, Scalar(factor.impl));
     cachedHash.SetNull();
 }
 
@@ -480,7 +531,7 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
         if (!IsKeyOrSignature(pk.impl.p)) {
             return false;
         }
-        pk_bytes.push_back(pk.impl.SerializeToArray(scheme == BLSScheme::Legacy));
+        BLSEncode(pk_bytes.emplace_back().data(), pk.impl, scheme);
     }
     const std::vector<blst_scalar> factors{SecureAggregationFactors(pk_bytes)};
 
@@ -554,50 +605,7 @@ bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
     return true;
 }
 
-#ifndef BUILD_BITCOIN_INTERNAL
-
-static std::once_flag init_flag;
-static mt_pooled_secure_allocator<uint8_t>* secure_allocator_instance;
-static void create_secure_allocator()
-{
-    // make sure LockedPoolManager is initialized first (ensures destruction order)
-    LockedPoolManager::Instance();
-
-    // static variable in function scope ensures it's initialized when first accessed
-    // and destroyed before LockedPoolManager
-    static mt_pooled_secure_allocator<uint8_t> a(sizeof(blst_p2) + sizeof(size_t));
-    secure_allocator_instance = &a;
-}
-
-static mt_pooled_secure_allocator<uint8_t>& get_secure_allocator()
-{
-    std::call_once(init_flag, create_secure_allocator);
-    return *secure_allocator_instance;
-}
-
-static void* secure_allocate(size_t n)
-{
-    uint8_t* ptr = get_secure_allocator().allocate(n + sizeof(size_t));
-    *reinterpret_cast<size_t*>(ptr) = n;
-    return ptr + sizeof(size_t);
-}
-
-static void secure_free(void* p)
-{
-    if (p == nullptr) {
-        return;
-    }
-
-    uint8_t* ptr = reinterpret_cast<uint8_t*>(p) - sizeof(size_t);
-    size_t n = *reinterpret_cast<size_t*>(ptr);
-    return get_secure_allocator().deallocate(ptr, n + sizeof(size_t));
-}
-#endif
-
 bool BLSInit()
 {
-#ifndef BUILD_BITCOIN_INTERNAL
-    bls::BLS::SetSecureAllocator(secure_allocate, secure_free);
-#endif
     return true;
 }
