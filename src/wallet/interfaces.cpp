@@ -231,8 +231,13 @@ public:
             return wallet::RescanStatus::BUSY;
         }
         const int64_t scanned_from{m_wallet->RescanFromTime(from_time, reserver, /*update=*/true)};
-        if (m_wallet->IsAbortingRescan()) return wallet::RescanStatus::USER_ABORT;
-        return scanned_from > from_time ? wallet::RescanStatus::FAILURE : wallet::RescanStatus::SUCCESS;
+        // A shutdown stops the scan as an abort does, without setting the abort flag.
+        const bool interrupted{m_wallet->IsAbortingRescan() || m_wallet->chain().shutdownRequested()};
+        if (interrupted) return wallet::RescanStatus::USER_ABORT;
+        if (scanned_from > from_time) return wallet::RescanStatus::FAILURE;
+        // RescanFromTime() only reads the mempool when it finds a block to start from.
+        WITH_LOCK(m_wallet->cs_wallet, m_wallet->chain().requestMempoolTransactions(*m_wallet));
+        return wallet::RescanStatus::SUCCESS;
     }
     void abortRescan() override { m_wallet->AbortRescan(); }
     std::optional<int> rescanPrunedFrom() override

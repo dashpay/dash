@@ -840,6 +840,25 @@ BOOST_FIXTURE_TEST_CASE(friendship_import_reports_rescan, FriendshipWalletSetup)
     const auto with_key{interfaces::MakeWallet(m_context, wallet)->ensureFriendshipReceivingKeychain(request(birth))};
     BOOST_REQUIRE(with_key);
     BOOST_CHECK(with_key.value.rescan_from == std::optional<int64_t>{birth - 10});
+
+    // Born after every block: the rescan has no block to read, and finds a payment that is in the mempool.
+    const int64_t unmined{birth + 2 * TIMESTAMP_WINDOW};
+    const auto unmined_chain{
+        m_iface->ensureFriendshipReceivingKeychain(FriendshipKeychainRequest{ACCOUNT, m_my_id, uint256::ONE, unmined})};
+    BOOST_REQUIRE(unmined_chain);
+    BOOST_REQUIRE(unmined_chain.value.rescan_from == std::optional<int64_t>{unmined});
+    CTxDestination unconfirmed_destination;
+    BOOST_REQUIRE(DeriveFriendshipPaymentDestination(unmined_chain.value, /*index=*/0, unconfirmed_destination));
+    const CMutableTransaction unconfirmed{
+        CreateValidMempoolTransaction(m_coinbase_txns[0], /*input_vout=*/0,
+                                      /*input_height=*/1, coinbaseKey, GetScriptForDestination(unconfirmed_destination))};
+    const auto holds_unconfirmed{[&] {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->GetWalletTx(unconfirmed.GetHash()) != nullptr;
+    }};
+    BOOST_CHECK(!holds_unconfirmed());
+    BOOST_CHECK(m_iface->rescanFromTime(unmined) == RescanStatus::SUCCESS);
+    BOOST_CHECK(holds_unconfirmed());
 }
 
 //! Recovery re-runs re-import friendships it already imported; that must
