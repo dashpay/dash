@@ -25,6 +25,7 @@
 #include <immer/algorithm.hpp>
 #include <univalue.h>
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <ranges>
@@ -484,10 +485,10 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
         throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate keyIDOwner=%s", __func__,
                 dmn->proTxHash.ToString(), EncodeDestination(PKHash(dmn->pdmnState->keyIDOwner)))));
     }
-    if (dmn->pdmnState->pubKeyOperator != CBLSLazyPublicKey() && !AddUniqueProperty(*dmn, dmn->pdmnState->pubKeyOperator)) {
+    if (dmn->pdmnState->pubKeyOperator != CBLSLazyPublicKey() && !AddUniqueProperty(*dmn, dmn->pdmnState->OperatorKey())) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate pubKeyOperator=%s", __func__,
-                dmn->proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.ToString())));
+                                           dmn->proTxHash.ToString(), dmn->pdmnState->OperatorKey().ToString())));
     }
 
     if (dmn->nType == MnType::Evo) {
@@ -563,10 +564,10 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate keyIDOwner=%s", __func__,
                 oldDmn.proTxHash.ToString(), EncodeDestination(PKHash(pdmnState->keyIDOwner)))));
     }
-    if (!UpdateUniqueProperty(*dmn, oldState->pubKeyOperator, pdmnState->pubKeyOperator)) {
+    if (!UpdateUniqueProperty(*dmn, oldState->OperatorKey(), pdmnState->OperatorKey())) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
-        throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate pubKeyOperator=%s", __func__,
-                oldDmn.proTxHash.ToString(), pdmnState->pubKeyOperator.ToString())));
+        throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate pubKeyOperator=%s",
+                                           __func__, oldDmn.proTxHash.ToString(), pdmnState->OperatorKey().ToString())));
     }
     if (dmn->nType == MnType::Evo) {
         if (!UpdateUniqueProperty(*dmn, oldState->platformNodeID, pdmnState->platformNodeID)) {
@@ -651,10 +652,10 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
                 proTxHash.ToString(), EncodeDestination(PKHash(dmn->pdmnState->keyIDOwner)))));
     }
     if (dmn->pdmnState->pubKeyOperator != CBLSLazyPublicKey() &&
-        !DeleteUniqueProperty(*dmn, dmn->pdmnState->pubKeyOperator)) {
+        !DeleteUniqueProperty(*dmn, dmn->pdmnState->OperatorKey())) {
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a pubKeyOperator=%s", __func__,
-                proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.ToString())));
+                                           proTxHash.ToString(), dmn->pdmnState->OperatorKey().ToString())));
     }
 
     if (dmn->nType == MnType::Evo) {
@@ -1042,6 +1043,16 @@ bool CDeterministicMNManager::IsMigrationRequired() const
     return false; // No legacy format found
 }
 
+static void ReinterpretOperatorKey(CBLSLazyPublicKey& key, const BLSScheme from, const BLSScheme to)
+{
+    if (from == to || key == CBLSLazyPublicKey()) {
+        return;
+    }
+    CDataStream ss{SER_DISK, CLIENT_VERSION};
+    key.Serialize(ss, from);
+    key.Unserialize(ss, to);
+}
+
 bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_index)
 {
     // CRITICAL: This migration converts ALL stored CDeterministicMNListDiff entries
@@ -1082,6 +1093,32 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
 
         CDeterministicMNListDiff legacyDiff;
         legacyDiff.UnserializeLegacyFormat(s); // Use legacy format deserializer
+
+        // A legacy diff stores the operator key as raw bytes. Unserialize builds the key under the
+        // diff's own version when that field is present, and under legacy otherwise. The latter has
+        // to be reinterpreted under the masternode's version before the diff is applied: the bytes
+        // stay as they were read and are decoded under that scheme.
+        for (auto& [internalId, stateDiff] : legacyDiff.updatedMNs) {
+            if ((stateDiff.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) == 0 ||
+                (stateDiff.fields & CDeterministicMNStateDiff::Field_nVersion) != 0) {
+                continue;
+            }
+            BLSScheme scheme{BLSScheme::Legacy}; // NOLINT(bls-legacy-scheme)
+            if (const auto dmn = snapshot.GetMNByInternalId(internalId)) {
+                scheme = dmn->pdmnState->OperatorKeyScheme();
+            } else if (const auto added = std::find_if(legacyDiff.addedMNs.begin(), legacyDiff.addedMNs.end(),
+                                                       [&](const CDeterministicMNCPtr& added_mn) {
+                                                           return added_mn->GetInternalId() == internalId;
+                                                       });
+                       added != legacyDiff.addedMNs.end()) {
+                scheme = (*added)->pdmnState->OperatorKeyScheme();
+            } else {
+                throw std::runtime_error(strprintf("%s: can't find an updated masternode, id=%d", __func__, internalId));
+            }
+            // NOLINTNEXTLINE(bls-legacy-scheme)
+            ReinterpretOperatorKey(stateDiff.state.pubKeyOperator, BLSScheme::Legacy, scheme);
+        }
+
         snapshot.ApplyDiff(current_index, legacyDiff);
 
         CDeterministicMNListDiff convertedDiff;
@@ -1105,9 +1142,6 @@ bool CDeterministicMNManager::MigrateLegacyDiffs(const CBlockIndex* const tip_in
                     stateDiff.fields |= CDeterministicMNStateDiff::Field_nVersion;
                     stateDiff.state.nVersion = dmn->pdmnState->nVersion;
                 }
-            }
-            if (stateDiff.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) {
-                stateDiff.state.pubKeyOperator.SetLegacy(stateDiff.state.nVersion == ProTxVersion::LegacyBLS);
             }
             convertedDiff.updatedMNs.emplace(internalId, stateDiff);
         }

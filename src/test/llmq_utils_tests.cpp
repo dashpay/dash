@@ -2,11 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/bls.h>
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <checkqueue.h>
 #include <consensus/params.h>
 #include <dbwrapper.h>
 #include <llmq/context.h>
@@ -42,8 +44,7 @@ BOOST_FIXTURE_TEST_CASE(platform_recovered_sigs_preserve_each_message, TestingSe
     const auto make_sig = [&](uint32_t message) {
         const auto msg = GetTestQuorumHash(message);
         return std::make_shared<const CRecoveredSig>(type, quorum, id, msg,
-                                                     key.Sign(SignHash(type, quorum, id, msg).Get(),
-                                                              bls::bls_legacy_scheme.load()));
+                                                     key.Sign(SignHash(type, quorum, id, msg).Get()));
     };
     const auto current = make_sig(4);
     const auto earlier = make_sig(3);
@@ -68,8 +69,7 @@ BOOST_AUTO_TEST_CASE(platform_recovered_sigs_persistence_and_expiry)
     key.MakeNewKey();
     const auto make_sig = [&](uint32_t message) {
         const auto msg = GetTestQuorumHash(message);
-        return CRecoveredSig(type, quorum, id, msg,
-                             key.Sign(SignHash(type, quorum, id, msg).Get(), bls::bls_legacy_scheme.load()));
+        return CRecoveredSig(type, quorum, id, msg, key.Sign(SignHash(type, quorum, id, msg).Get()));
     };
     const auto first = make_sig(3);
     const auto second = make_sig(4);
@@ -120,8 +120,7 @@ BOOST_AUTO_TEST_CASE(truncated_recovered_sig_markers_expire_after_reopen)
     const auto msg = GetTestQuorumHash(3);
     CBLSSecretKey key;
     key.MakeNewKey();
-    const CRecoveredSig sig{type, quorum, id, msg,
-                            key.Sign(SignHash{type, quorum, id, msg}.Get(), bls::bls_legacy_scheme.load())};
+    const CRecoveredSig sig{type, quorum, id, msg, key.Sign(SignHash{type, quorum, id, msg}.Get())};
     const auto path = m_args.GetDataDirBase() / "truncated_sigs";
     const auto now = GetTime();
     SetMockTime(now);
@@ -170,8 +169,7 @@ BOOST_AUTO_TEST_CASE(recovered_sig_reinsertion_survives_stale_expiry)
     key.MakeNewKey();
     const auto make_sig = [&](uint32_t message) {
         const auto msg = GetTestQuorumHash(message);
-        return CRecoveredSig{type, quorum, id, msg,
-                             key.Sign(SignHash{type, quorum, id, msg}.Get(), bls::bls_legacy_scheme.load())};
+        return CRecoveredSig{type, quorum, id, msg, key.Sign(SignHash{type, quorum, id, msg}.Get())};
     };
     const auto now = GetTime();
     for (const bool same_message : {false, true}) {
@@ -411,17 +409,16 @@ BOOST_AUTO_TEST_CASE(pending_sig_shares_session_removal_updates_count)
 
 BOOST_AUTO_TEST_CASE(sig_share_batch_verifier_judges_each_sender_by_its_own_share)
 {
-    const bool legacy_scheme{bls::bls_legacy_scheme.load()};
     const CSigShare sig_share{MakeSigShare(1)};
 
     CBLSSecretKey sk_share;
     sk_share.MakeNewKey();
     const CBLSPublicKey pk_share{sk_share.GetPublicKey()};
-    const CBLSSignature valid_sig{sk_share.Sign(sig_share.GetSignHash(), legacy_scheme)};
+    const CBLSSignature valid_sig{sk_share.Sign(sig_share.GetSignHash())};
 
     CBLSSecretKey sk_forger;
     sk_forger.MakeNewKey();
-    const CBLSSignature forged_sig{sk_forger.Sign(sig_share.GetSignHash(), legacy_scheme)};
+    const CBLSSignature forged_sig{sk_forger.Sign(sig_share.GetSignHash())};
 
     // Two wrong shares whose errors cancel out: (valid + forged) + (valid - forged) == 2 * valid
     CBLSSignature plus_error_sig{valid_sig};
@@ -457,6 +454,47 @@ BOOST_AUTO_TEST_CASE(sig_share_batch_verifier_judges_each_sender_by_its_own_shar
         verifier.Verify();
         BOOST_CHECK(verifier.badSources == expected_bad_sources);
     }
+}
+
+BOOST_AUTO_TEST_CASE(bls_check_runs_under_the_scheme_it_was_given)
+{
+    // ConnectBlock builds commitment checks with the block's scheme, and
+    // CCheckQueue runs them on other threads.
+    CCheckQueue<utils::BlsCheck> queue{/*nBatchSizeIn=*/1};
+    queue.StartWorkerThreads(/*threads_num=*/2);
+    const uint256 msg_hash{GetRandHash()};
+    std::vector<CBLSSecretKey> sks(3);
+    std::vector<CBLSPublicKey> pks;
+    for (auto& sk : sks) {
+        sk.MakeNewKey();
+        pks.push_back(sk.GetPublicKey());
+    }
+    for (const BLSScheme signed_scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
+        const BLSScheme other_scheme{signed_scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy};
+        std::vector<CBLSSignature> sigs;
+        sigs.reserve(sks.size());
+        for (const auto& sk : sks) {
+            sigs.push_back(SignBLS(sk, msg_hash, signed_scheme));
+        }
+        const CBLSSignature members_sig{AggregateSecureBLS(sigs, pks, msg_hash, signed_scheme)};
+        const auto build = [&](BLSScheme scheme) {
+            std::vector<utils::BlsCheck> checks;
+            checks.emplace_back(sigs[0], std::vector<CBLSPublicKey>{pks[0]}, msg_hash, "quorum sig", scheme);
+            checks.emplace_back(members_sig, pks, msg_hash, "members sig", scheme);
+            return checks;
+        };
+        const auto run = [&](std::vector<utils::BlsCheck> checks) {
+            CCheckQueueControl<utils::BlsCheck> control{&queue};
+            control.Add(std::move(checks));
+            return control.Wait();
+        };
+        BOOST_CHECK(run(build(signed_scheme)));
+        // One at a time, so neither check's rejection masks the other's
+        for (const auto& check : build(other_scheme)) {
+            BOOST_CHECK(!run({check}));
+        }
+    }
+    queue.StopWorkerThreads();
 }
 
 BOOST_AUTO_TEST_CASE(batched_sig_shares_rejects_oversized_inner_vector)

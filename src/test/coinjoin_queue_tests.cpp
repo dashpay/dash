@@ -77,8 +77,7 @@ struct RegisteredMasternodeSetup : public TestChainSetup {
 
     static void Sign(CCoinJoinQueue& dsq, const CBLSSecretKey& key)
     {
-        dsq.vchSig = key.Sign(dsq.GetSignatureHash(), /*specificLegacyScheme=*/false)
-                         .ToByteVector(/*specificLegacyScheme=*/false);
+        dsq.vchSig = key.Sign(dsq.GetSignatureHash()).ToByteVector();
     }
 };
 

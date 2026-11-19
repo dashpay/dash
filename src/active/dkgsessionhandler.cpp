@@ -87,6 +87,9 @@ bool ActiveDKGSessionHandler::InitNewQuorum(gsl::not_null<const CBlockIndex*> pQ
     if (!DeploymentDIP0003Enforced(pQuorumBaseBlockIndex->nHeight, Params().GetConsensus())) {
         return false;
     }
+    if (!DeploymentActiveAfter(pQuorumBaseBlockIndex, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)) {
+        return false;
+    }
 
     auto next_session = std::make_shared<ActiveDKGSession>(m_bls_worker, m_dmnman, m_dkgdbgman, m_qdkgsman,
                                                            m_mn_metaman, m_qsnapman, m_mn_activeman, m_chainman,

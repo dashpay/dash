@@ -141,10 +141,7 @@ FUZZ_TARGET(dkg_message_framing, .init = initialize_dkg_message_framing)
         fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, DKG_MSG_TYPES.size() - 1));
     const Consensus::LLMQParams& params = Consensus::available_llmqs.at(
         fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, Consensus::available_llmqs.size() - 1));
-    // Framing is scheme-independent (BLS wire sizes are fixed), but typed
-    // deserialization is not; cover both so the equivalence is checked on each.
-    bls::bls_legacy_scheme.store(fuzzed_data_provider.ConsumeBool());
-
+    // DKG messages deserialize as basic. Framing accepts a payload the worker would accept.
     CheckWellFormedMessageIsAccepted(msg_type, params, fuzzed_data_provider);
 
     const std::vector<uint8_t> payload = fuzzed_data_provider.ConsumeRemainingBytes<uint8_t>();

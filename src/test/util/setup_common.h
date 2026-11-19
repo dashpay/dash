@@ -146,11 +146,11 @@ struct TestChainSetup : public TestingSetup
 
     /**
      * Create a new block with just given transactions, coinbase paying to
-     * scriptPubKey.
+     * scriptPubKey. `mutate` runs after the template is assembled and before
+     * the coinbase payload roots, merkle root and proof of work are finalised.
      */
-    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKey,
-                       Chainstate& chainstate);
+    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey,
+                       Chainstate& chainstate, const std::function<void(CBlock&)>& mutate = {});
 
     //! Mine a series of new blocks on the active chain.
     void mineBlocks(int num_blocks);

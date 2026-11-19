@@ -199,8 +199,8 @@ void CQuorum::WriteContributions(CDBWrapper& db) const
     if (HasVerificationVectorInternal()) {
         CDataStream s(SER_DISK, CLIENT_VERSION);
         WriteCompactSize(s, quorumVvec->size());
-        for (auto& pubkey : *quorumVvec) {
-            s << CBLSPublicKeyVersionWrapper(pubkey, false);
+        for (const auto& pubkey : *quorumVvec) {
+            s << pubkey;
         }
         db.Write(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), Span{s});
     }
@@ -222,7 +222,7 @@ bool CQuorum::ReadContributions(const CDBWrapper& db)
     CBLSPublicKey pubkey;
     std::vector<CBLSPublicKey> qv;
     for ([[maybe_unused]] size_t _ : util::irange(vvec_size)) {
-        s >> CBLSPublicKeyVersionWrapper(pubkey, false);
+        s >> pubkey;
         qv.emplace_back(pubkey);
     }
 

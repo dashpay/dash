@@ -64,8 +64,7 @@ struct NetInstantSendTest : TestChain100Setup {
     void Sign(instantsend::InstantSendLock& islock, const CBLSSecretKey& key) const
     {
         const auto sign_hash = llmq::SignHash{params.type, islock.cycleHash, islock.GetRequestId(), islock.txid}.Get();
-        const bool legacy = bls::bls_legacy_scheme.load();
-        islock.sig.Set(key.Sign(sign_hash, legacy), legacy);
+        islock.sig.Set(key.Sign(sign_hash));
     }
 
     std::shared_ptr<instantsend::InstantSendLock> MakeLock(const uint256& cycle_hash, const CBLSSecretKey& key,
@@ -120,8 +119,7 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
     islock.cycleHash = WITH_LOCK(cs_main, return chain.Genesis()->GetBlockHash());
     CBLSSecretKey key;
     key.MakeNewKey();
-    const bool legacy = bls::bls_legacy_scheme.load();
-    islock.sig.Set(key.Sign(islock.GetRequestId(), legacy), legacy);
+    islock.sig.Set(key.Sign(islock.GetRequestId()));
     auto peer = MakeTestPeer(/*id=*/1);
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
     CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
@@ -268,9 +266,7 @@ BOOST_AUTO_TEST_CASE(deserialize_instantlock_from_realdata2)
         "46ceeb4405998ff7235317708f277402799ffe05258015cae9b6bae43683f992b2f50f70f8f0cb9c0f26af340b00903e93995c1345d1b2"
         "c5b697ebecdbe5811dd112e11889101dcb4553b2bc206ab304026b96c07dec4f24";
 
-    // This islock was created with non-legacy. Using legacy will result in the signature being all zeros.
-    bls::bls_legacy_scheme.store(false);
-
+    // This InstantSend lock's signature is basic. An un-annotated decode reads it as basic.
     // Convert hex string to a byte vector and deserialize.
     std::vector<unsigned char> islockData = ParseHex(islockHex);
     CDataStream ss(islockData, SER_NETWORK, PROTOCOL_VERSION);

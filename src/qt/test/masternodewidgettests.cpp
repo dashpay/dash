@@ -1373,7 +1373,7 @@ void MasternodeWidgetTests::operatorKeyModes()
 
     auto* edit{widget.findChild<QValidatedLineEdit*>()};
     QVERIFY(edit != nullptr);
-    edit->setText(QString::fromStdString(secret.GetPublicKey().ToString(false)));
+    edit->setText(QString::fromStdString(secret.GetPublicKey().ToString()));
     QVERIFY(widget.isValid());
     QVERIFY(widget.secretHex().isEmpty());
 }

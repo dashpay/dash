@@ -5,6 +5,7 @@
 #ifndef BITCOIN_DEPLOYMENTSTATUS_H
 #define BITCOIN_DEPLOYMENTSTATUS_H
 
+#include <bls/scheme.h>
 #include <chain.h>
 #include <versionbits.h>
 
@@ -28,6 +29,13 @@ inline bool DeploymentActiveAfter(const CBlockIndex* pindexPrev, const Consensus
 {
     assert(Consensus::ValidDeployment(dep));
     return ThresholdState::ACTIVE == versionbitscache.State(pindexPrev, params, dep);
+}
+
+/** The BLS scheme in force for the block after pindexPrev. */
+inline BLSScheme BLSSchemeAfter(const CBlockIndex* pindexPrev, const Consensus::Params& params)
+{
+    // NOLINTNEXTLINE(bls-legacy-scheme)
+    return DeploymentActiveAfter(pindexPrev, params, Consensus::DEPLOYMENT_V19) ? BLSScheme::Basic : BLSScheme::Legacy;
 }
 
 /** Determine if a deployment is active for this block */

@@ -23,10 +23,10 @@ UniValue CFinalCommitment::ToJson() const
     obj.pushKV("signers", BitsVectorToHexStr(signers));
     obj.pushKV("validMembersCount", CountValidMembers());
     obj.pushKV("validMembers", BitsVectorToHexStr(validMembers));
-    obj.pushKV("quorumPublicKey", quorumPublicKey.ToString(nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION));
+    obj.pushKV("quorumPublicKey", quorumPublicKey.ToString(GetBLSScheme()));
     obj.pushKV("quorumVvecHash", quorumVvecHash.ToString());
-    obj.pushKV("quorumSig", quorumSig.ToString(nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION));
-    obj.pushKV("membersSig", membersSig.ToString(nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION));
+    obj.pushKV("quorumSig", quorumSig.ToString(GetBLSScheme()));
+    obj.pushKV("membersSig", membersSig.ToString(GetBLSScheme()));
     return obj;
 }
 

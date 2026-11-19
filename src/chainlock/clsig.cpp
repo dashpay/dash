@@ -72,10 +72,9 @@ CarrierCache& GetCarrierCache()
     return cache;
 }
 
-/** Decoded ChainLock signatures, keyed by their serialized bytes and the BLS
- *  scheme they were decoded under. Decoding a G2 point (decompression plus
- *  subgroup check) costs far more than the lookups around it, and proofs sharing
- *  history ask for the same signatures each time. */
+/** Decoded ChainLock signatures, keyed by their serialized bytes. Decoding a G2
+ *  point (decompression plus subgroup check) costs far more than the lookups
+ *  around it, and proofs sharing history ask for the same signatures each time. */
 class DecodedSignatureCache
 {
     Mutex m_mutex;
@@ -85,18 +84,16 @@ class DecodedSignatureCache
 public:
     CBLSSignature Decode(const std::array<uint8_t, CBLSSignature::SerSize>& bytes) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {
-        // Decode exactly as the coinbase payload was always decoded: under the
-        // process-wide scheme flag, including its opposite-scheme rejection. The
-        // flag is part of the key so a transient value cannot leak into later calls.
-        const bool legacy = bls::bls_legacy_scheme.load();
-        const uint256 key = (CHashWriter(SER_GETHASH, 0) << Span{bytes} << legacy).GetHash();
+        // Coinbase ChainLock signatures are basic. Unserialize still rejects an
+        // encoding that is canonical only under the other scheme.
+        const uint256 key = (CHashWriter(SER_GETHASH, 0) << Span{bytes}).GetHash();
         CBLSSignature sig;
         {
             LOCK(m_mutex);
             if (m_entries.get(key, sig)) return sig;
         }
         CDataStream in(Span<const uint8_t>{bytes}, SER_NETWORK, PROTOCOL_VERSION);
-        sig.Unserialize(in, legacy);
+        sig.Unserialize(in);
         if (sig.IsValid()) {
             LOCK(m_mutex);
             m_entries.insert(key, sig);
@@ -130,9 +127,8 @@ namespace {
 constexpr size_t CBTX_CLSIG_OFFSET{2 + 4 + 32 + 32};
 
 /** The raw bestCLSignature bytes of a validated CLSIG_AND_BALANCE payload.
- *  Read from the wire rather than from the decoded CCbTx, whose signature
- *  depends on the process-wide BLS scheme flag at decode time; a cached value
- *  must be a function of the block alone. */
+ *  Read from the wire rather than from the decoded CCbTx; a cached value must
+ *  be a function of the block alone. */
 std::array<uint8_t, CBLSSignature::SerSize> RawChainLockSignature(const std::vector<unsigned char>& payload)
 {
     CDataStream in(Span<const uint8_t>{payload}.subspan(CBTX_CLSIG_OFFSET), SER_NETWORK, PROTOCOL_VERSION);
@@ -203,8 +199,8 @@ std::optional<CoinbaseChainLock> CoinbaseChainLockReader::Read(int carrier_heigh
 ChainLockSig CoinbaseChainLock::Signed() const
 {
     // Validated by consensus when the carrier was connected, so a failure here
-    // means corrupt block data (or a transient BLS scheme flag); surface it for
-    // this request rather than proving with it.
+    // means corrupt block data; surface it for this request rather than proving
+    // with it.
     const CBLSSignature sig = GetDecodedSignatureCache().Decode(signature_bytes);
     if (!sig.IsValid()) throw std::runtime_error("Invalid historical ChainLock signature");
     return ChainLockSig{height, block_hash, sig};

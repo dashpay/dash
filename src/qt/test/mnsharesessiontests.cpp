@@ -92,8 +92,7 @@ CBLSSecretKey SetFreshOperatorKey(MnShareSession& session)
 {
     CBLSSecretKey secret;
     secret.MakeNewKey();
-    session.terms().operatorPubKey =
-        QString::fromStdString(secret.GetPublicKey().ToString(/*specificLegacyScheme=*/false));
+    session.terms().operatorPubKey = QString::fromStdString(secret.GetPublicKey().ToString());
     return secret;
 }
 //! A coordinator's invitation: four named shares with amounts and terms, but

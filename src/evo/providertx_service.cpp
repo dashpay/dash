@@ -343,11 +343,22 @@ std::optional<ProviderTxError> SignPayload(const CMutableTransaction& tx, Payloa
     return std::nullopt;
 }
 
+std::optional<ProviderTxError> RequireV19ForOperatorSignature(const ChainSnapshot& snapshot)
+{
+    // LegacyBLS means v19 is not active for the next block, so consensus would
+    // verify this operator signature under the legacy scheme.
+    if (snapshot.provider_tx_version == ProTxVersion::LegacyBLS) {
+        return Error(ProviderTxErrorCode::INVALID_PARAMETER,
+                     "operator-signed provider transactions need v19 to be active");
+    }
+    return std::nullopt;
+}
+
 template <typename Payload>
-void SignPayload(const CMutableTransaction& tx, Payload& payload, const CBLSSecretKey& key, bool legacy)
+void SignPayload(const CMutableTransaction& tx, Payload& payload, const CBLSSecretKey& key)
 {
     UpdateInputsHash(tx, payload);
-    payload.sig = key.Sign(::SerializeHash(payload), legacy);
+    payload.sig = key.Sign(::SerializeHash(payload));
 }
 
 using MutableTxResult = std::variant<CMutableTransaction, ProviderTxError>;
@@ -530,10 +541,7 @@ RegistrationResult BuildRegistration(node::NodeContext& node, Wallet& wallet,
     }
     payload.keyIDOwner = request.owner_key;
     payload.keyIDVoting = request.voting_key.IsNull() ? request.owner_key : request.voting_key;
-    payload.pubKeyOperator.Set(request.operator_key, request.use_legacy_bls_scheme);
-    if (payload.pubKeyOperator.IsLegacy() != (payload.nVersion == ProTxVersion::LegacyBLS)) {
-        return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator key encoding does not match ProTx version");
-    }
+    payload.pubKeyOperator.Set(request.operator_key);
     payload.nOperatorReward = request.operator_reward;
 
     auto payouts_result{BuildPayouts(request.payouts)};
@@ -974,13 +982,15 @@ ProviderTxResult<ProviderTxSubmission> UpdateService(node::NodeContext& node, Wa
         return *error;
     }
 
+    if (auto error{RequireV19ForOperatorSignature(chain_snapshot)}) return *error;
+
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     auto funded_result{Fund(wallet, std::move(tx), payload, fund_destination)};
     if (const auto* error{std::get_if<ProviderTxError>(&funded_result)}) return *error;
     tx = std::get<CMutableTransaction>(std::move(funded_result));
-    SignPayload(tx, payload, request.operator_key, payload.nVersion == ProTxVersion::LegacyBLS);
+    SignPayload(tx, payload, request.operator_key);
     SetTxPayload(tx, payload);
     return Finish(node, wallet, tx, request.submit);
 }
@@ -1022,16 +1032,9 @@ ProviderTxResult<ProviderTxSubmission> UpdateRegistrar(node::NodeContext& node, 
         if (!request.operator_key->IsValid()) {
             return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator BLS address must be a valid BLS public key");
         }
-        payload.pubKeyOperator.Set(*request.operator_key, request.use_legacy_bls_scheme);
+        payload.pubKeyOperator.Set(*request.operator_key);
     } else {
         payload.pubKeyOperator = dmn->pdmnState->pubKeyOperator;
-        if (!request.use_legacy_bls_scheme && payload.pubKeyOperator != CBLSLazyPublicKey() &&
-            payload.pubKeyOperator.IsLegacy()) {
-            payload.pubKeyOperator.Set(payload.pubKeyOperator.Get(), /*specificLegacyScheme=*/false);
-        }
-    }
-    if (payload.pubKeyOperator.IsLegacy() != (payload.nVersion == ProTxVersion::LegacyBLS)) {
-        return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator key encoding does not match ProTx version");
     }
 
     CTxDestination payout_destination;
@@ -1110,13 +1113,15 @@ ProviderTxResult<ProviderTxSubmission> Revoke(node::NodeContext& node, Wallet& w
         return *error;
     }
 
+    if (auto error{RequireV19ForOperatorSignature(chain_snapshot)}) return *error;
+
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
     auto funded_result{Fund(wallet, std::move(tx), payload, fund_destination)};
     if (const auto* error{std::get_if<ProviderTxError>(&funded_result)}) return *error;
     tx = std::get<CMutableTransaction>(std::move(funded_result));
-    SignPayload(tx, payload, request.operator_key, payload.nVersion == ProTxVersion::LegacyBLS);
+    SignPayload(tx, payload, request.operator_key);
     SetTxPayload(tx, payload);
     return Finish(node, wallet, tx, request.submit);
 }
@@ -1175,7 +1180,7 @@ ProviderTxResult<PreparedSharedRegistration> PrepareSharedRegistration(node::Nod
     if (!request.operator_key.IsValid()) {
         return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator BLS address must be a valid BLS public key");
     }
-    payload.pubKeyOperator.Set(request.operator_key, /*specificLegacyScheme=*/false);
+    payload.pubKeyOperator.Set(request.operator_key);
     payload.keyIDVoting = request.voting_key;
     if (request.operator_reward > 10000) {
         return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operatorReward must be between 0 and 10000");
@@ -1479,7 +1484,7 @@ ProviderTxResult<PreparedSharedConsent> PrepareSharedRegistrarUpdate(node::NodeC
         if (!request.operator_key->IsValid()) {
             return Error(ProviderTxErrorCode::INVALID_PARAMETER, "operator BLS address must be a valid BLS public key");
         }
-        payload.pubKeyOperator.Set(*request.operator_key, /*specificLegacyScheme=*/false);
+        payload.pubKeyOperator.Set(*request.operator_key);
     } else {
         payload.pubKeyOperator = dmn->pdmnState->pubKeyOperator;
     }
