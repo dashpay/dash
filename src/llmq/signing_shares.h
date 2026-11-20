@@ -24,6 +24,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -438,6 +439,53 @@ public:
     int sendCount{0};
 };
 
+/**
+ * Live signing sessions, when each last had activity (its first announcement or a new share), and our own share to
+ * push for each.
+ */
+class SigningSessionTable
+{
+public:
+    /** Starts tracking a session; an announcement never extends one that is already tracked. */
+    void OnAnnounced(const uint256& signHash, int64_t now) { m_last_activity.try_emplace(signHash, now); }
+    /** Starts tracking a session, or extends it: a new share is the only activity that does. */
+    void OnShareAdded(const uint256& signHash, int64_t now) { m_last_activity.insert_or_assign(signHash, now); }
+    /**
+     * Stores (or restarts) the push state of our own share for a tracked session. Refuses an untracked one, since
+     * nothing would ever reap it. Returns whether it was stored.
+     */
+    [[nodiscard]] bool SetOwnShare(const uint256& signHash, CSignedSession ownShare)
+    {
+        if (!m_last_activity.contains(signHash)) return false;
+        m_own_shares.insert_or_assign(signHash, std::move(ownShare));
+        return true;
+    }
+    /** Stops tracking a session, dropping our own share for it too. */
+    void Erase(const uint256& signHash)
+    {
+        m_last_activity.erase(signHash);
+        m_own_shares.erase(signHash);
+    }
+    /** Sessions with no activity for at least `timeout` seconds. */
+    [[nodiscard]] std::vector<uint256> CollectTimedOut(int64_t now, int64_t timeout) const
+    {
+        std::vector<uint256> ret;
+        for (const auto& [signHash, lastActivity] : m_last_activity) {
+            if (now - lastActivity >= timeout) {
+                ret.emplace_back(signHash);
+            }
+        }
+        return ret;
+    }
+    [[nodiscard]] auto SignHashes() const { return std::views::keys(m_last_activity); }
+    /** Values only, so an own share can't be added around SetOwnShare. */
+    [[nodiscard]] auto OwnShares() { return std::views::values(m_own_shares); }
+
+private:
+    Uint256HashMap<int64_t> m_last_activity;
+    Uint256HashMap<CSignedSession> m_own_shares;
+};
+
 struct PendingSignatureData {
     const CQuorumCPtr quorum;
     const uint256 id;
@@ -470,10 +518,7 @@ private:
     mutable Mutex cs;
 
     SigShareMap<CSigShare> sigShares GUARDED_BY(cs);
-    Uint256HashMap<CSignedSession> signedSessions GUARDED_BY(cs);
-
-    // stores time of last receivedSigShare. Used to detect timeouts
-    Uint256HashMap<int64_t> timeSeenForSessions GUARDED_BY(cs);
+    SigningSessionTable m_session_table GUARDED_BY(cs);
 
     std::unordered_map<NodeId, CSigSharesNodeState> nodeStates GUARDED_BY(cs);
     SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested GUARDED_BY(cs);
