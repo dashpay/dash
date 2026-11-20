@@ -1237,11 +1237,13 @@ void CTxMemPool::removeProTxVotingPayeeConflicts(const uint256& proTxHash, const
     }
 }
 
-void CTxMemPool::removeProTxConflicts(const CTransaction &tx, const CBlockIndex* pindex_prev)
+void CTxMemPool::removeProTxConflicts(const CTransaction& tx, const CBlockIndex* pindex_prev)
 {
-    // The list tx is applied to, not the list at the chain tip: while a reorg is connecting its
-    // new branch, the tip list is still the one of the disconnected branch.
-    const CDeterministicMNList prev_mn_list{pindex_prev ? m_dmnman.GetListForBlock(pindex_prev) : CDeterministicMNList{}};
+    removeProTxConflicts(tx, pindex_prev ? m_dmnman.GetListForBlock(pindex_prev) : CDeterministicMNList{});
+}
+
+void CTxMemPool::removeProTxConflicts(const CTransaction& tx, const CDeterministicMNList& prev_mn_list)
+{
     removeProTxSpentCollateralConflicts(tx, prev_mn_list);
 
     const uint256 tx_hash{tx.GetHash()};
@@ -1365,6 +1367,9 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
     }
     // Before the txs in the new block have been removed from the mempool, update policy estimates
     if (minerPolicyEstimator) {minerPolicyEstimator->processBlock(nBlockHeight, entries);}
+    // The list the block is applied to, not the list at the chain tip: while a reorg is connecting
+    // its new branch, the tip list is still the one of the disconnected branch.
+    const CDeterministicMNList prev_mn_list{pindex_prev ? m_dmnman.GetListForBlock(pindex_prev) : CDeterministicMNList{}};
     for (const auto& tx : vtx)
     {
         txiter it = mapTx.find(tx->GetHash());
@@ -1374,7 +1379,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
             RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
         }
         removeConflicts(*tx);
-        removeProTxConflicts(*tx, pindex_prev);
+        removeProTxConflicts(*tx, prev_mn_list);
         removeAssetUnlockConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }

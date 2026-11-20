@@ -520,9 +520,11 @@ public:
     /** Remove pending TXs of refType for proTxHash that pair the P2PKH destination of keyIDVoting with a
      *  share reward script: ProUpShareTxs paying it, or ProUpSharedRegTxs setting it as the voting key. */
     void removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    /** @param[in] pindex_prev  Block that tx is mined on top of; nullptr for the genesis block.
-     *                          Its masternode list decides which masternodes tx removes. */
-    void removeProTxConflicts(const CTransaction &tx, const CBlockIndex* pindex_prev) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** @param[in] prev_mn_list  Masternode list of the block that tx is mined on top of. It decides
+     *                           which masternodes tx removes. */
+    void removeProTxConflicts(const CTransaction& tx, const CDeterministicMNList& prev_mn_list) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** @param[in] pindex_prev  Block that tx is mined on top of; nullptr for the genesis block. */
+    void removeProTxConflicts(const CTransaction& tx, const CBlockIndex* pindex_prev) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight, const CBlockIndex* pindex_prev) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeExpiredAssetUnlock(int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** If entry changes or revokes the operator key a masternode has at the chain tip, return that
