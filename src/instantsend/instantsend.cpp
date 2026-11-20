@@ -120,7 +120,7 @@ void CInstantSendManager::WriteNewISLock(const uint256& hash, const instantsend:
     }
 }
 
-void CInstantSendManager::AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
+bool CInstantSendManager::AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
 {
     // put it in a separate pending map and try again later
     LOCK(cs_pendingLocks);
@@ -130,9 +130,10 @@ void CInstantSendManager::AddPendingISLock(const uint256& hash, const instantsen
         // Honest islocks are re-relayed, so dropping under flood is not fatal.
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- no-tx pending islock queue full (%d), dropping islock=%s peer=%d\n",
                  __func__, pendingNoTxInstantSendLocks.size(), hash.ToString(), from);
-        return;
+        return false;
     }
     pendingNoTxInstantSendLocks.try_emplace(hash, instantsend::PendingISLockFromPeer{from, islock});
+    return true;
 }
 
 void CInstantSendManager::TransactionIsRemoved(const CTransactionRef& tx)
@@ -393,6 +394,14 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, instants
     }
     ret = *islock;
     return true;
+}
+
+instantsend::InstantSendLockPtr CInstantSendManager::GetProcessedInstantSendLock(const uint256& hash) const
+{
+    if (auto islock = db.GetInstantSendLockByHash(hash)) return islock;
+    LOCK(cs_pendingLocks);
+    const auto it = pendingNoTxInstantSendLocks.find(hash);
+    return it != pendingNoTxInstantSendLocks.end() ? it->second.islock : nullptr;
 }
 
 instantsend::InstantSendLockPtr CInstantSendManager::GetInstantSendLockByTxid(const uint256& txid) const

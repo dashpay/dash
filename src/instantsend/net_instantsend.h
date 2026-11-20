@@ -6,14 +6,17 @@
 #define BITCOIN_INSTANTSEND_NET_INSTANTSEND_H
 
 #include <net_processing.h>
+#include <uint256.h>
 #include <util/threadinterrupt.h>
 #include <validationinterface.h>
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <thread>
 #include <vector>
 
+class CBlockIndex;
 class ChainstateManager;
 
 namespace Consensus {
@@ -80,6 +83,10 @@ protected:
 
 private:
     struct BatchVerificationData;
+    struct DeferredConflictCheck {
+        const CBlockIndex* tip{nullptr};
+        uint256 islock_hash;
+    };
 
     bool ValidateIncomingISLock(const instantsend::InstantSendLock& islock, NodeId node_id);
     std::optional<int> ResolveCycleHeight(const uint256& cycle_hash);
@@ -102,6 +109,7 @@ private:
         const std::vector<instantsend::PendingISLockEntry>& pend);
 
     void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock);
+    void ResolveDeferredBlockConflicts();
 
     void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
 
@@ -116,6 +124,11 @@ private:
     const ChainstateManager& m_chainman;
     CTxMemPool& m_mempool;
     const CMasternodeSync& m_mn_sync;
+
+    // Mined transactions are recorded from BlockConnected, which runs after the block is connected.
+    // A lock processed before the tip it saw was notified is checked for conflicts once it has been.
+    std::atomic<const CBlockIndex*> m_notified_tip{nullptr};
+    std::vector<DeferredConflictCheck> m_deferred_conflict_checks; // worker thread only
 
     std::thread workThread;
     CThreadInterrupt workInterrupt;

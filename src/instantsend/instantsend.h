@@ -136,13 +136,17 @@ public:
     void RemoveBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
     void WriteBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
     void WriteNewISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, std::optional<int> minedHeight);
-    void AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
+    //! Returns whether the lock was stored: it is dropped while the queue is full.
+    [[nodiscard]] bool AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     bool PreVerifyIsLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from) const;
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     bool GetInstantSendLockByHash(const uint256& hash, instantsend::InstantSendLock& ret) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+    /** A processed lock: stored in the db or awaiting its transaction, not just queued for verification */
+    instantsend::InstantSendLockPtr GetProcessedInstantSendLock(const uint256& hash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     instantsend::InstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
 
