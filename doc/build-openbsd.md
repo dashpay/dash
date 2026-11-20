@@ -1,6 +1,6 @@
 # OpenBSD Build Guide
 
-**Updated for OpenBSD [7.3](https://www.openbsd.org/73.html)**
+**Updated for OpenBSD [7.5](https://www.openbsd.org/75.html)**
 
 This guide describes how to build dashd, command-line utilities, and GUI on OpenBSD.
 
@@ -61,7 +61,7 @@ export BDB_PREFIX="/path/to/dash/depends/x86_64-unknown-openbsd"
 Dash Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, Qt 5 is required. Pass `-DBUILD_GUI=ON` to CMake.
 
 ```bash
-pkg_add qt5
+pkg_add qtbase qttools
 ```
 
 ###### libqrencode

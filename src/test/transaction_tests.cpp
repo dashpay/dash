@@ -54,23 +54,22 @@ static std::map<std::string, unsigned int> mapFlagNames = {
 
 unsigned int ParseScriptFlags(std::string strFlags)
 {
-    if (strFlags.empty() || strFlags == "NONE") return 0;
-    unsigned int flags = 0;
-    std::vector<std::string> words = SplitString(strFlags, ',');
+    unsigned int flags = SCRIPT_VERIFY_NONE;
+    if (strFlags.empty() || strFlags == "NONE") return flags;
 
+    std::vector<std::string> words = SplitString(strFlags, ',');
     for (const std::string& word : words)
     {
         if (!mapFlagNames.count(word))
             BOOST_ERROR("Bad test: unknown verification flag '" << word << "'");
         flags |= mapFlagNames[word];
     }
-
     return flags;
 }
 
 std::string FormatScriptFlags(unsigned int flags)
 {
-    if (flags == 0) {
+    if (flags == SCRIPT_VERIFY_NONE) {
         return "";
     }
     std::string ret;
@@ -314,6 +313,41 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
                 }
             }
         }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(tx_no_inputs)
+{
+    CMutableTransaction empty;
+
+    TxValidationState state;
+    BOOST_CHECK_MESSAGE(!CheckTransaction(CTransaction(empty), state), "Transaction with no inputs should be invalid.");
+    BOOST_CHECK(state.GetRejectReason() == "bad-txns-vin-empty");
+}
+
+BOOST_AUTO_TEST_CASE(tx_oversized)
+{
+    auto createTransaction =[](size_t payloadSize) {
+        CMutableTransaction tx;
+        tx.vin.resize(1);
+        tx.vout.emplace_back(1, CScript() << OP_RETURN << std::vector<unsigned char>(payloadSize));
+        return CTransaction(tx);
+    };
+    const auto maxTransactionSize = MAX_LEGACY_BLOCK_SIZE;
+    const auto oversizedTransactionBaseSize = ::GetSerializeSize(createTransaction(maxTransactionSize), PROTOCOL_VERSION) - maxTransactionSize;
+
+    auto maxPayloadSize = maxTransactionSize - oversizedTransactionBaseSize;
+    {
+        TxValidationState state;
+        CheckTransaction(createTransaction(maxPayloadSize), state);
+        BOOST_CHECK(state.GetRejectReason() != "bad-txns-oversize");
+    }
+
+    maxPayloadSize += 1;
+    {
+        TxValidationState state;
+        BOOST_CHECK_MESSAGE(!CheckTransaction(createTransaction(maxPayloadSize), state), "Oversized transaction should be invalid");
+        BOOST_CHECK(state.GetRejectReason() == "bad-txns-oversize");
     }
 }
 
