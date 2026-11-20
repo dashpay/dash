@@ -2481,6 +2481,23 @@ class msg_isdlock:
                (self.nVersion, repr(self.inputs), self.txid, self.cycleHash)
 
 
+class msg_qsigrec:
+    __slots__ = ("rec_sig",)
+    msgtype = b"qsigrec"
+
+    def __init__(self, rec_sig=None):
+        self.rec_sig = rec_sig if rec_sig is not None else CRecoveredSig()
+
+    def deserialize(self, f):
+        self.rec_sig.deserialize(f)
+
+    def serialize(self):
+        return self.rec_sig.serialize()
+
+    def __repr__(self):
+        return "msg_qsigrec(id=%064x, msgHash=%064x)" % (self.rec_sig.id, self.rec_sig.msgHash)
+
+
 class msg_platformban:
     __slots__ = ("protx_hash", "requested_height", "quorum_hash", "sig")
     msgtype = b"platformban"
