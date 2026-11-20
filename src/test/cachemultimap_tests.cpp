@@ -219,4 +219,13 @@ BOOST_AUTO_TEST_CASE(capacity_limits)
     BOOST_CHECK(!cache.Insert(1, 1));
 }
 
+BOOST_AUTO_TEST_CASE(find_returns_the_stored_value)
+{
+    CacheMultiMap<int, int> cmmap(5);
+    BOOST_REQUIRE(cmmap.Insert(1, 2));
+    BOOST_CHECK(cmmap.Find(1, 2) == std::optional<int>{2});
+    BOOST_CHECK(!cmmap.Find(1, 3));
+    BOOST_CHECK(!cmmap.Find(2, 2));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

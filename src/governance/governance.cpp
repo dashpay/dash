@@ -28,7 +28,9 @@
 
 #include <univalue.h>
 
+#include <limits>
 #include <ranges>
+#include <tuple>
 
 const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-17";
 
@@ -38,6 +40,27 @@ constexpr std::chrono::seconds GOVERNANCE_ORPHAN_EXPIRATION_TIME{10min};
 constexpr std::chrono::seconds MAX_TIME_FUTURE_DEVIATION{1h};
 // Margin below MAX_TIME_FUTURE_DEVIATION so lagging-clock peers don't reject near-limit objects.
 constexpr std::chrono::seconds RELIABLE_PROPAGATION_TIME{60};
+
+// The encoding chooses which key to verify: IsValidForUnknownParent accepts only compact
+// signatures by the voting key and BLS signatures by the operator key.
+bool UsesVotingKey(const CGovernanceVote& vote)
+{
+    return vote.GetSignal() == VOTE_SIGNAL_FUNDING && vote.GetSignatureSize() == CGovernanceVote::COMPACT_SIG_SIZE;
+}
+
+bool InsertOrphanVote(CacheMultiMap<uint256, governance::OrphanVote>& cache, const CDeterministicMNList& tip_mn_list,
+                      const governance::OrphanVote& orphan_vote)
+{
+    const auto& parent = orphan_vote.vote.GetParentHash();
+    if (const auto cached{cache.Find(parent, orphan_vote)}) {
+        // Only an unexpired vote that still verifies against the current key may suppress a new one
+        const bool usable{cached->expiration >= Now<NodeSeconds>() &&
+                          cached->vote.IsValid(tip_mn_list, UsesVotingKey(cached->vote))};
+        if (usable && cached->vote.GetTimestamp() >= orphan_vote.vote.GetTimestamp()) return false;
+        cache.Erase(parent, *cached);
+    }
+    return cache.Insert(parent, orphan_vote);
+}
 
 bool IsSyncableObject(const std::shared_ptr<CGovernanceObject>& govobj)
 {
@@ -62,6 +85,14 @@ public:
     ~ScopedLockBool() { ref = fPrevValue; }
 };
 } // anonymous namespace
+
+bool governance::operator<(const OrphanVote& lhs, const OrphanVote& rhs)
+{
+    const auto slot = [](const CGovernanceVote& vote) {
+        return std::tuple{vote.GetMasternodeOutpoint(), vote.GetSignal(), vote.GetOutcome(), UsesVotingKey(vote)};
+    };
+    return slot(lhs.vote) < slot(rhs.vote);
+}
 
 GovernanceStore::GovernanceStore() :
     cs_store(),
@@ -830,9 +861,8 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
     AssertLockNotHeld(cs_store);
     hashToRequest = uint256{};
 
-    const auto tip_mn_list{m_dmnman.GetListAtChainTip()};
-
     LOCK(cs_store);
+    const auto tip_mn_list{m_dmnman.GetListAtChainTip()};
     uint256 nHashVote = vote.GetHash();
     uint256 nHashGovobj = vote.GetParentHash();
 
@@ -856,7 +886,8 @@ bool CGovernanceManager::ProcessVote(const CGovernanceVote& vote, CGovernanceExc
         // No penalty: the vote is signed by a masternode, it just arrived before its parent object,
         // which routinely happens during governance sync. Misbehaviour scores never decay.
         exception = CGovernanceException(msg, GOVERNANCE_EXCEPTION_WARNING);
-        if (cmmapOrphanVotes.Insert(nHashGovobj, governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME})) {
+        if (InsertOrphanVote(cmmapOrphanVotes, tip_mn_list,
+                             governance::OrphanVote{vote, Now<NodeSeconds>() + GOVERNANCE_ORPHAN_EXPIRATION_TIME})) {
             hashToRequest = nHashGovobj; // Caller should request this object
         }
         LogPrint(BCLog::GOBJECT, "%s\n", msg);

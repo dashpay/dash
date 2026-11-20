@@ -57,10 +57,9 @@ struct OrphanVote {
     }
 };
 
-inline bool operator<(const OrphanVote& lhs, const OrphanVote& rhs)
-{
-    return lhs.vote < rhs.vote;
-}
+//! Orders by masternode, signal, outcome and signing key but not by time, so that a parent keeps one orphan vote
+//! for each of them, see InsertOrphanVote()
+bool operator<(const OrphanVote& lhs, const OrphanVote& rhs);
 } // namespace governance
 
 static constexpr int RATE_BUFFER_SIZE = 5;

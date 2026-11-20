@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <map>
 #include <list>
+#include <optional>
 #include <set>
 
 #include <serialize.h>
@@ -136,6 +137,16 @@ public:
             vecValues.push_back(item.value);
         }
         return true;
+    }
+
+    //! The stored value that compares equivalent to `value`, if any
+    std::optional<V> Find(const K& key, const V& value) const
+    {
+        const map_cit mit = mapIndex.find(key);
+        if (mit == mapIndex.end()) return std::nullopt;
+        const it_map_cit it = mit->second.find(value);
+        if (it == mit->second.end()) return std::nullopt;
+        return it->second->value;
     }
 
     void GetKeys(std::vector<K>& vecKeys)

@@ -62,8 +62,6 @@ class CGovernanceVote
 {
     friend bool operator==(const CGovernanceVote& vote1, const CGovernanceVote& vote2);
 
-    friend bool operator<(const CGovernanceVote& vote1, const CGovernanceVote& vote2);
-
 public:
     // Wire-valid signature encodings: compact ECDSA voting key (FUNDING)
     // or BLS operator key (other signals). Kept in sync via static_assert
@@ -145,6 +143,7 @@ public:
     }
 
     void SetSignature(const std::vector<unsigned char>& vchSigIn) { vchSig = vchSigIn; }
+    size_t GetSignatureSize() const { return vchSig.size(); }
 
     bool CheckSignature(const CKeyID& keyID) const;
     bool CheckSignature(const CBLSPublicKey& pubKey) const;
