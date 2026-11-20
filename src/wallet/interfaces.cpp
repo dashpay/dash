@@ -233,7 +233,8 @@ public:
         // Not CWallet::RescanFromTime(): it does not say when an abort or a shutdown cut the scan short.
         uint256 start_hash;
         int start_height{0};
-        if (!m_wallet->chain().findFirstBlockWithTimeAndHeight(from_time - TIMESTAMP_WINDOW, /*min_height=*/0,
+        if (!m_wallet->chain().findFirstBlockWithTimeAndHeight(std::max<int64_t>(from_time, 0) - TIMESTAMP_WINDOW,
+                                                               /*min_height=*/0,
                                                                FoundBlock().hash(start_hash).height(start_height))) {
             // No block is that recent: only the mempool can pay the key.
             WITH_LOCK(m_wallet->cs_wallet, m_wallet->chain().requestMempoolTransactions(*m_wallet));

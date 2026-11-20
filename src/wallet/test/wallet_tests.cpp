@@ -8,6 +8,7 @@
 #include <functional>
 #include <future>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdint.h>
 #include <vector>
@@ -231,6 +232,8 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         WalletContext context;
         const auto iface{interfaces::MakeWallet(context, wallet)};
         BOOST_CHECK(iface->rescanFromTime(0) == RescanStatus::FAILURE);
+        // However early the time, the rescan starts at the first block rather than finding none.
+        BOOST_CHECK(iface->rescanFromTime(std::numeric_limits<int64_t>::min()) == RescanStatus::FAILURE);
     }
 
     // Verify ScanForWalletTransactions only picks transactions in the new block

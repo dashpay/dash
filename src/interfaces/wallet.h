@@ -115,7 +115,8 @@ public:
 
     //! Rescan, on the calling thread, the blocks a key born at from_time
     //! (UNIX time in seconds) may be paid in, as importdescriptors does.
-    //! Returns as startRescan() does.
+    //! Returns as startRescan() does. Throws std::runtime_error if a wallet
+    //! database write fails: reload the wallet before running it again.
     virtual wallet::RescanStatus rescanFromTime(int64_t from_time) = 0;
 
     //! Abort a rescan.
