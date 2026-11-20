@@ -345,7 +345,7 @@ void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const
               islock.txid.ToString(), islockHash.ToString());
     const int tipHeight = GetTipHeight();
 
-    auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock.txid, tipHeight);
+    auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock, tipHeight);
     for (const auto& h : removedIslocks) {
         LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCK %s\n", __func__,
                   islock.txid.ToString(), islockHash.ToString(), h.ToString());
@@ -452,12 +452,18 @@ std::optional<std::pair</*islock_hash=*/uint256, /*txid=*/uint256>> CInstantSend
     return std::make_pair(::SerializeHash(*islock), islock->txid);
 }
 
-bool CInstantSendManager::RemoveConflictingISLockByTx(const CTransaction& tx)
+void CInstantSendManager::RemoveConflictingISLocksByTx(const CTransaction& tx)
 {
-    const auto islock = GetConflictingLock(tx);
-    if (!islock) return false;
-    RemoveConflictingLock(::SerializeHash(*islock), *islock);
-    return true;
+    if (!IsInstantSendEnabled()) {
+        return;
+    }
+
+    for (const auto& outpoint : instantsend::GetLockInputs(tx)) {
+        const auto islock = db.GetInstantSendLockByInput(outpoint);
+        if (islock && islock->txid != tx.GetHash()) {
+            RemoveConflictingLock(::SerializeHash(*islock), *islock);
+        }
+    }
 }
 
 size_t CInstantSendManager::GetInstantSendLockCount() const
