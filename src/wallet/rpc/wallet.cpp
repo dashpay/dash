@@ -791,7 +791,7 @@ static RPCHelpMan unloadwallet()
     }
     PushWarnings(warnings, result);
 
-    UnloadWallet(std::move(wallet));
+    WaitForDeleteWallet(std::move(wallet));
     return result;
 },
     };
