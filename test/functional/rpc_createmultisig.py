@@ -12,6 +12,7 @@ from test_framework.address import address_to_scriptpubkey
 from test_framework.authproxy import JSONRPCException
 from test_framework.descriptors import descsum_create, drop_origins
 from test_framework.key import ECPubKey
+from test_framework.script_util import keys_to_multisig_script
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_raises_rpc_error,
@@ -96,6 +97,15 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
             sorted_key_str = ','.join(t['sorted_keys'])
             sorted_key_desc = descsum_create('sh(multi(2,{}))'.format(sorted_key_str))
             assert_equal(self.nodes[0].deriveaddresses(sorted_key_desc)[0], t['address'])
+
+        self.log.info('Check correct encoding of multisig script for all n (1..15)')
+        for nkeys in range(1, 15+1):
+            keys = [self.pub[0]]*nkeys
+            expected_ms_script = keys_to_multisig_script(keys, k=nkeys)  # simply use n-of-n
+            # note that Dash only creates P2SH multisig, which fails for n values larger than 15
+            # due to exceeding the P2SH size limit (520 bytes)
+            res = self.nodes[0].createmultisig(nrequired=nkeys, keys=keys)
+            assert_equal(res['redeemScript'], expected_ms_script.hex())
 
     def check_addmultisigaddress_errors(self):
         if self.options.descriptors:

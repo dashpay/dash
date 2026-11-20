@@ -105,6 +105,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.test_add_inputs_default_value()
         self.test_preset_inputs_selection()
+        self.test_weight_limits()
         self.test_change_position()
         self.test_simple()
         self.test_simple_two_coins()
@@ -1207,6 +1208,40 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_raises_rpc_error(-4, "Insufficient funds", wallet.send, outputs=[{wallet.getnewaddress(): 29}], options=options)
 
         self.nodes[2].unloadwallet("test_preset_inputs_selection")
+
+    def test_weight_limits(self):
+        self.log.info("Test weight limits")
+
+        self.nodes[2].createwallet("test_weight_limits")
+        wallet = self.nodes[2].get_wallet_rpc("test_weight_limits")
+
+        outputs = []
+        for _ in range(683):
+            outputs.append({wallet.getnewaddress(): 0.1})
+        self.nodes[0].send(outputs=outputs)
+        self.generate(self.nodes[0], 1)
+
+        # 147 bytes per input (148 when high-s); picking 682 inputs will exceed the max standard tx size.
+        rawtx = wallet.createrawtransaction([], [{wallet.getnewaddress(): 0.1 * 682}])
+
+        # 1) Try to fund transaction only using the preset inputs (pick all 683 inputs to cover the fee)
+        input_sizes = []
+        for utxo in wallet.listunspent():
+            input_sizes.append({"txid": utxo["txid"], "vout": utxo["vout"], "size": 148})
+        preset_rawtx = wallet.createrawtransaction([{"txid": i["txid"], "vout": i["vout"]} for i in input_sizes], [{wallet.getnewaddress(): 0.1 * 682}])
+        assert_raises_rpc_error(-4, "Transaction too large", wallet.fundrawtransaction, hexstring=preset_rawtx, input_sizes=input_sizes)
+
+        # 2) Let the wallet fund the transaction
+        assert_raises_rpc_error(-4, "The inputs size exceeds the maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs",
+                                wallet.fundrawtransaction, hexstring=rawtx)
+
+        # 3) Pre-select some inputs and let the wallet fill-up the remaining amount
+        inputs = input_sizes[0:460]
+        preset_rawtx = wallet.createrawtransaction([{"txid": i["txid"], "vout": i["vout"]} for i in inputs], [{wallet.getnewaddress(): 0.1 * 682}])
+        assert_raises_rpc_error(-4, "The combination of the pre-selected inputs and the wallet automatic inputs selection exceeds the transaction maximum weight. Please try sending a smaller amount or manually consolidating your wallet's UTXOs",
+                                wallet.fundrawtransaction, hexstring=preset_rawtx, input_sizes=inputs, add_inputs=True)
+
+        self.nodes[2].unloadwallet("test_weight_limits")
 
     def test_include_unsafe(self):
         self.log.info("Test fundrawtxn with unsafe inputs")
