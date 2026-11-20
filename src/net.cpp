@@ -544,7 +544,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
 void CNode::CloseSocketDisconnect(CConnman* connman)
 {
     fDisconnect = true;
-    LOCK2(connman->cs_mapSocketToNode, m_sock_mutex);
+    LOCK(m_sock_mutex);
     if (!m_sock) {
         return;
     }
@@ -552,7 +552,6 @@ void CNode::CloseSocketDisconnect(CConnman* connman)
     fHasRecvData = false;
     fCanSendData = false;
 
-    connman->mapSocketToNode.erase(m_sock->Get());
     {
         LOCK(connman->cs_sendable_receivable_nodes);
         connman->mapReceivableNodes.erase(GetId());
@@ -560,7 +559,7 @@ void CNode::CloseSocketDisconnect(CConnman* connman)
     }
 
     if (connman->m_edge_trig_events) {
-        connman->m_edge_trig_events->UnregisterEvents(m_sock->Get());
+        connman->m_edge_trig_events->UnregisterEvents(m_sock);
     }
 
     LogPrint(BCLog::NET, "disconnecting peer=%d\n", id);
@@ -1948,7 +1947,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         return;
     }
 
-    if (!sock->IsSelectable(/*is_select=*/::g_socket_events_mode == SocketEventsMode::Select)) {
+    if (!sock->IsSelectable()) {
         LogPrintf("%s: non-selectable socket\n", strDropped);
         return;
     }
@@ -2026,19 +2025,16 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         LOCK(m_nodes_mutex);
         m_nodes.push_back(pnode);
     }
-    {
-        LOCK(pnode->m_sock_mutex);
-        if (fLogIPs) {
-            LogPrint(BCLog::NET_NETCONN, "connection from %s accepted, sock=%d, peer=%d\n", addr.ToStringAddrPort(), pnode->m_sock->Get(), pnode->GetId());
-        } else {
-            LogPrint(BCLog::NET_NETCONN, "connection accepted, sock=%d, peer=%d\n", pnode->m_sock->Get(), pnode->GetId());
-        }
+
+    if (fLogIPs) {
+        LogPrint(BCLog::NET_NETCONN, "connection from %s accepted, peer=%d\n", addr.ToStringAddrPort(), pnode->GetId());
+    } else {
+        LogPrint(BCLog::NET_NETCONN, "connection accepted, peer=%d\n", pnode->GetId());
     }
     {
-        LOCK2(cs_mapSocketToNode, pnode->m_sock_mutex);
-        mapSocketToNode.emplace(pnode->m_sock->Get(), pnode);
+        LOCK(pnode->m_sock_mutex);
         if (m_edge_trig_events) {
-            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock->Get())) {
+            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock)) {
                 LogPrint(BCLog::NET, "EdgeTriggeredEvents::RegisterEvents() failed\n");
             }
         }
@@ -2161,7 +2157,7 @@ void CConnman::DisconnectNodes()
                             LOCK(pnode->m_sock_mutex);
                             if (pnode->m_sock) {
                                 // Give the other side a chance to detect the disconnect as early as possible (recv() will return 0)
-                                ::shutdown(pnode->m_sock->Get(), SD_SEND);
+                                pnode->m_sock->Shutdown(SD_SEND);
                             }
                             pnode->fSocketShutdown = true;
                         }
@@ -2369,7 +2365,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
     Sock::EventsPerSock events_per_sock;
 
     for (const ListenSocket& hListenSocket : vhListenSocket) {
-        events_per_sock.emplace(hListenSocket.sock->Get(), Sock::Events{Sock::RECV});
+        events_per_sock.emplace(hListenSocket.sock, Sock::Events{Sock::RECV});
     }
 
     for (CNode* pnode : nodes) {
@@ -2390,7 +2386,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
             requested |= Sock::RECV;
         }
 
-        events_per_sock.emplace(pnode->m_sock->Get(), Sock::Events{requested});
+        events_per_sock.emplace(pnode->m_sock, Sock::Events{requested});
     }
 
     if (m_wakeup_pipe) {
@@ -2399,7 +2395,7 @@ Sock::EventsPerSock CConnman::GenerateWaitSockets(Span<CNode* const> nodes)
         // This is currently only implemented for POSIX compliant systems. This means that Windows will fall back to
         // timing out after 50ms and then trying to send. This is ok as we assume that heavy-load daemons are usually
         // run on Linux and friends.
-        events_per_sock.emplace(m_wakeup_pipe->m_pipe[0], Sock::Events{Sock::RECV});
+        events_per_sock.emplace(m_wakeup_pipe->m_read_sock, Sock::Events{Sock::RECV});
     }
 
     return events_per_sock;
@@ -2451,15 +2447,28 @@ void CConnman::SocketHandler(CMasternodeSync& mn_sync)
         // listening sockets in one call ("readiness" as in poll(2) or
         // select(2)). If none are ready, wait for a short while and return
         // empty sets.
-        events_per_sock = GenerateWaitSockets(snap.Nodes());
-        if ((is_lt && events_per_sock.empty()) || !Sock::WaitManyInternal(timeout, events_per_sock, SocketEventsParams{socketEventsMode, GetModeFileDescriptor(), ToggleWakeupPipe})) {
+        if (is_lt) {
+            events_per_sock = GenerateWaitSockets(snap.Nodes());
+        }
+        bool ok{false};
+        const auto wait_many = [&] {
             if (is_lt) {
-                interruptNet.sleep_for(std::chrono::milliseconds(SELECT_TIMEOUT_MILLISECONDS));
+                ok = !events_per_sock.empty() && events_per_sock.begin()->first->WaitMany(timeout, events_per_sock);
+            } else {
+                ok = Assert(m_edge_trig_events)->Wait(timeout, events_per_sock);
             }
+        };
+        if (m_wakeup_pipe) {
+            m_wakeup_pipe->Toggle(wait_many);
+        } else {
+            wait_many();
+        }
+        if (!ok && is_lt) {
+            interruptNet.sleep_for(std::chrono::milliseconds(SELECT_TIMEOUT_MILLISECONDS));
         }
 
         // Drain the wakeup pipe
-        if (m_wakeup_pipe && events_per_sock.find(m_wakeup_pipe->m_pipe[0]) != events_per_sock.end()) {
+        if (m_wakeup_pipe && events_per_sock.find(m_wakeup_pipe->m_read_sock) != events_per_sock.end()) {
             m_wakeup_pipe->Drain();
         }
 
@@ -2480,32 +2489,36 @@ void CConnman::SocketHandlerConnected(const Sock::EventsPerSock& events_per_sock
     std::set<CNode*> node_err_set;
     std::set<CNode*> node_recv_set;
     std::set<CNode*> node_send_set;
-    {
-        LOCK(cs_mapSocketToNode);
-        for (const auto& [sock, events] : events_per_sock) {
-            auto it = mapSocketToNode.find(sock);
-            if (it == mapSocketToNode.end()) continue;
-            if (events.occurred & Sock::ERR) {
-                it->second->AddRef();
-                node_err_set.emplace(it->second);
-            }
-            if (events.occurred & Sock::RECV) {
-                if (events.occurred & Sock::ERR) continue;
-                LOCK(cs_sendable_receivable_nodes);
-                auto jt = mapReceivableNodes.emplace(it->second->GetId(), it->second);
-                assert(jt.first->second == it->second);
-                it->second->fHasRecvData = true;
-            }
-            if (events.occurred & Sock::SEND) {
-                LOCK(cs_sendable_receivable_nodes);
-                auto jt = mapSendableNodes.emplace(it->second->GetId(), it->second);
-                assert(jt.first->second == it->second);
-                it->second->fCanSendData = true;
-            }
-        }
-    }
 
     ForEachNode(AllNodes, [&](CNode* pnode) {
+        Sock::Event occurred{0};
+        {
+            LOCK(pnode->m_sock_mutex);
+            if (pnode->m_sock) {
+                const auto it = events_per_sock.find(pnode->m_sock);
+                if (it != events_per_sock.end()) {
+                    occurred = it->second.occurred;
+                }
+            }
+        }
+        const bool recv_err{(occurred & Sock::RECV) && (occurred & Sock::ERR)};
+        if (occurred & Sock::ERR) {
+            pnode->AddRef();
+            node_err_set.emplace(pnode);
+        }
+        if ((occurred & Sock::RECV) && !recv_err) {
+            LOCK(cs_sendable_receivable_nodes);
+            auto jt = mapReceivableNodes.emplace(pnode->GetId(), pnode);
+            assert(jt.first->second == pnode);
+            pnode->fHasRecvData = true;
+        }
+        if ((occurred & Sock::SEND) && !recv_err) {
+            LOCK(cs_sendable_receivable_nodes);
+            auto jt = mapSendableNodes.emplace(pnode->GetId(), pnode);
+            assert(jt.first->second == pnode);
+            pnode->fCanSendData = true;
+        }
+
         const auto& [to_send, more, _msg_type] = pnode->m_transport->GetBytesToSend(pnode->nSendMsgSize != 0);
         // Collect nodes that have a receivable socket, implement the following logic:
         // * If there is data to send, try sending data. As this only
@@ -2614,7 +2627,7 @@ void CConnman::SocketHandlerListening(const Sock::EventsPerSock& events_per_sock
         if (interruptNet) {
             return;
         }
-        const auto it = events_per_sock.find(listen_socket.sock->Get());
+        const auto it = events_per_sock.find(listen_socket.sock);
         if (it != events_per_sock.end() && (it->second.occurred & Sock::RECV)) {
             AcceptConnection(listen_socket, mn_sync);
         }
@@ -2630,7 +2643,7 @@ size_t CConnman::SocketRecvData(CNode *pnode)
         LOCK(pnode->m_sock_mutex);
         if (!pnode->m_sock)
             return 0;
-        nBytes = recv(pnode->m_sock->Get(), (char*)pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
+        nBytes = pnode->m_sock->Recv(pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
         if (nBytes < 0 && WSAGetLastError() == WSAEWOULDBLOCK) {
             pnode->fHasRecvData = false;
         }
@@ -3660,10 +3673,7 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         return;
     }
 
-    {
-        LOCK(pnode->m_sock_mutex);
-        LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- successfully connected to %s, sock=%d, peer=%d\n", __func__, getIpStr(), pnode->m_sock->Get(), pnode->GetId());
-    }
+    LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- successfully connected to %s, peer=%d\n", __func__, getIpStr(), pnode->GetId());
 
     pnode->grantOutbound = std::move(grant_outbound);
 
@@ -3671,11 +3681,6 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         pnode->m_masternode_connection = true;
     if (masternode_probe_connection == MasternodeProbeConn::IsConnection)
         pnode->m_masternode_probe_connection = true;
-
-    {
-        LOCK2(cs_mapSocketToNode, pnode->m_sock_mutex);
-        mapSocketToNode.emplace(pnode->m_sock->Get(), pnode);
-    }
 
     m_msgproc->InitializeNode(*pnode, nLocalServices);
     {
@@ -3688,7 +3693,7 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     {
         if (m_edge_trig_events) {
             LOCK(pnode->m_sock_mutex);
-            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock->Get())) {
+            if (!m_edge_trig_events->RegisterEvents(pnode->m_sock)) {
                 LogPrint(BCLog::NET, "EdgeTriggeredEvents::RegisterEvents() failed\n");
             }
         }
@@ -3862,12 +3867,13 @@ bool CConnman::BindListenPort(const CService& addrBind, bilingual_str& strError,
         return false;
     }
 
-    if (m_edge_trig_events && !m_edge_trig_events->AddSocket(sock->Get())) {
+    vhListenSocket.emplace_back(std::move(sock), permissions);
+
+    if (m_edge_trig_events && !m_edge_trig_events->AddSocket(vhListenSocket.back().sock)) {
         LogPrintf("Error: EdgeTriggeredEvents::AddSocket() failed\n");
+        vhListenSocket.pop_back();
         return false;
     }
-
-    vhListenSocket.emplace_back(std::move(sock), permissions);
 
     return true;
 }
@@ -4213,7 +4219,7 @@ void CConnman::StopNodes()
     if (m_edge_trig_events) {
         for (ListenSocket& hListenSocket : vhListenSocket) {
             if (hListenSocket.sock) {
-                m_edge_trig_events->RemoveSocket(hListenSocket.sock->Get());
+                m_edge_trig_events->RemoveSocket(hListenSocket.sock);
             }
         }
     }
@@ -4221,7 +4227,6 @@ void CConnman::StopNodes()
     for (CNode* pnode : m_nodes_disconnected) {
         DeleteNode(pnode);
     }
-    WITH_LOCK(cs_mapSocketToNode, mapSocketToNode.clear());
     {
         LOCK(cs_sendable_receivable_nodes);
         mapReceivableNodes.clear();

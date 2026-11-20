@@ -43,8 +43,6 @@ static inline bool IsSelectableSocket(const SOCKET& s, bool is_select)
 #endif
 }
 
-Sock::Sock() : m_socket(INVALID_SOCKET) {}
-
 Sock::Sock(SOCKET s) : m_socket(s) {}
 
 Sock::Sock(Sock&& other)
@@ -63,8 +61,6 @@ Sock& Sock::operator=(Sock&& other)
     return *this;
 }
 
-SOCKET Sock::Get() const { return m_socket; }
-
 ssize_t Sock::Send(const void* data, size_t len, int flags) const
 {
     return send(m_socket, static_cast<const char*>(data), len, flags);
@@ -73,6 +69,11 @@ ssize_t Sock::Send(const void* data, size_t len, int flags) const
 ssize_t Sock::Recv(void* buf, size_t len, int flags) const
 {
     return recv(m_socket, static_cast<char*>(buf), len, flags);
+}
+
+ssize_t Sock::SendTo(const void* data, size_t len, int flags, const sockaddr* dest_addr, socklen_t addr_len) const
+{
+    return sendto(m_socket, static_cast<const char*>(data), len, flags, dest_addr, addr_len);
 }
 
 int Sock::Connect(const sockaddr* addr, socklen_t addr_len) const
@@ -88,6 +89,11 @@ int Sock::Bind(const sockaddr* addr, socklen_t addr_len) const
 int Sock::Listen(int backlog) const
 {
     return listen(m_socket, backlog);
+}
+
+int Sock::Shutdown(int how) const
+{
+    return shutdown(m_socket, how);
 }
 
 std::unique_ptr<Sock> Sock::Accept(sockaddr* addr, socklen_t* addr_len) const
@@ -131,6 +137,46 @@ int Sock::GetSockName(sockaddr* name, socklen_t* name_len) const
     return getsockname(m_socket, name, name_len);
 }
 
+bool Sock::RegisterEvents(SocketEventsMode mode, int event_fd, bool edge_triggered) const
+{
+#ifdef USE_EPOLL
+    if (mode == SocketEventsMode::EPoll) {
+        epoll_event event{};
+        // In edge-triggered mode, it's important that we drain sockets even if no signals come in
+        event.events = edge_triggered ? (EPOLLIN | EPOLLOUT | EPOLLET | EPOLLERR | EPOLLHUP) : EPOLLIN;
+        event.data.ptr = const_cast<Sock*>(this);
+        return epoll_ctl(event_fd, EPOLL_CTL_ADD, m_socket, &event) == 0;
+    }
+#endif /* USE_EPOLL */
+#ifdef USE_KQUEUE
+    if (mode == SocketEventsMode::KQueue) {
+        struct kevent events[2];
+        EV_SET(&events[0], m_socket, EVFILT_READ, EV_ADD, 0, 0, const_cast<Sock*>(this));
+        EV_SET(&events[1], m_socket, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, const_cast<Sock*>(this));
+        return kevent(event_fd, events, edge_triggered ? 2 : 1, nullptr, 0, nullptr) == 0;
+    }
+#endif /* USE_KQUEUE */
+    return false;
+}
+
+bool Sock::UnregisterEvents(SocketEventsMode mode, int event_fd, bool edge_triggered) const
+{
+#ifdef USE_EPOLL
+    if (mode == SocketEventsMode::EPoll) {
+        return epoll_ctl(event_fd, EPOLL_CTL_DEL, m_socket, nullptr) == 0;
+    }
+#endif /* USE_EPOLL */
+#ifdef USE_KQUEUE
+    if (mode == SocketEventsMode::KQueue) {
+        struct kevent events[2];
+        EV_SET(&events[0], m_socket, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+        EV_SET(&events[1], m_socket, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+        return kevent(event_fd, events, edge_triggered ? 2 : 1, nullptr, 0, nullptr) == 0;
+    }
+#endif /* USE_KQUEUE */
+    return false;
+}
+
 bool Sock::SetNonBlocking() const
 {
 #ifdef WIN32
@@ -150,28 +196,23 @@ bool Sock::SetNonBlocking() const
     return true;
 }
 
-bool Sock::IsSelectable(bool is_select) const
+bool Sock::IsSelectable() const
 {
-    return IsSelectableSocket(m_socket, is_select);
+    return IsSelectableSocket(m_socket, /*is_select=*/::g_socket_events_mode == SocketEventsMode::Select);
 }
 
-bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, SocketEventsParams event_params, Event* occurred) const
+bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
 {
-    EventsPerSock events_per_sock{std::make_pair(m_socket, Events{requested})};
+    // We need a `shared_ptr` holding `this` for `WaitMany()`, but don't want
+    // `this` to be destroyed when the `shared_ptr` goes out of scope at the
+    // end of this function.
+    // Create it with an aliasing shared_ptr that points to `this` without
+    // owning it.
+    std::shared_ptr<const Sock> shared{std::shared_ptr<const Sock>{}, this};
 
-    // We need to ensure we are only using a level-triggered mode because we are expecting
-    // a direct correlation between the events reported and the one socket we are querying
-    if (auto [sem, _, __] = event_params; sem != SocketEventsMode::Poll && sem != SocketEventsMode::Select) {
-        // We will use a compatible fallback events mode if we didn't specify a valid option
-        event_params = SocketEventsParams{
-#ifdef USE_POLL
-            SocketEventsMode::Poll
-#else
-            SocketEventsMode::Select
-#endif /* USE_POLL */
-        };
-    }
-    if (!WaitMany(timeout, events_per_sock, event_params)) {
+    EventsPerSock events_per_sock{std::make_pair(shared, Events{requested})};
+
+    if (!WaitMany(timeout, events_per_sock)) {
         return false;
     }
 
@@ -182,175 +223,48 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, SocketEvents
     return true;
 }
 
-bool Sock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, SocketEventsParams event_params) const
+bool Sock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock) const
 {
-    return WaitManyInternal(timeout, events_per_sock, event_params);
-}
-
-bool Sock::WaitManyInternal(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, SocketEventsParams event_params)
-{
-    switch (event_params.m_event_mode)
-    {
 #ifdef USE_POLL
-        case SocketEventsMode::Poll:
-            return WaitManyPoll(timeout, events_per_sock, event_params.m_wrap_func);
+    // The edge-triggered modes are served by EdgeTriggeredEvents and use poll(2) here.
+    if (::g_socket_events_mode != SocketEventsMode::Select) {
+        std::vector<pollfd> pfds;
+        for (const auto& [sock, events] : events_per_sock) {
+            pfds.emplace_back();
+            auto& pfd = pfds.back();
+            pfd.fd = sock->m_socket;
+            if (events.requested & RECV) {
+                pfd.events |= POLLIN;
+            }
+            if (events.requested & SEND) {
+                pfd.events |= POLLOUT;
+            }
+        }
+
+        if (poll(pfds.data(), pfds.size(), count_milliseconds(timeout)) == SOCKET_ERROR) {
+            return false;
+        }
+
+        assert(pfds.size() == events_per_sock.size());
+        size_t i{0};
+        for (auto& [sock, events] : events_per_sock) {
+            assert(sock->m_socket == static_cast<SOCKET>(pfds[i].fd));
+            events.occurred = 0;
+            if (pfds[i].revents & POLLIN) {
+                events.occurred |= RECV;
+            }
+            if (pfds[i].revents & POLLOUT) {
+                events.occurred |= SEND;
+            }
+            if (pfds[i].revents & (POLLERR | POLLHUP)) {
+                events.occurred |= ERR;
+            }
+            ++i;
+        }
+
+        return true;
+    }
 #endif /* USE_POLL */
-        case SocketEventsMode::Select:
-            return WaitManySelect(timeout, events_per_sock, event_params.m_wrap_func);
-#ifdef USE_EPOLL
-        case SocketEventsMode::EPoll:
-            assert(event_params.m_event_fd != INVALID_SOCKET);
-            return WaitManyEPoll(timeout, events_per_sock, event_params.m_event_fd, event_params.m_wrap_func);
-#endif /* USE_EPOLL */
-#ifdef USE_KQUEUE
-        case SocketEventsMode::KQueue:
-            assert(event_params.m_event_fd != INVALID_SOCKET);
-            return WaitManyKQueue(timeout, events_per_sock, event_params.m_event_fd, event_params.m_wrap_func);
-#endif /* USE_KQUEUE */
-        default:
-            assert(false);
-    }
-}
-
-#ifdef USE_EPOLL
-bool Sock::WaitManyEPoll(std::chrono::milliseconds timeout,
-                         EventsPerSock& events_per_sock,
-                         SOCKET epoll_fd,
-                         SocketEventsParams::wrap_fn wrap_func)
-{
-    std::array<epoll_event, MAX_EVENTS> events{};
-
-    int ret{SOCKET_ERROR};
-    wrap_func([&](){
-        ret = epoll_wait(epoll_fd, events.data(), events.size(), count_milliseconds(timeout));
-    });
-    if (ret == SOCKET_ERROR) {
-        return false;
-    }
-
-    // Events reported do not correspond to sockets requested in edge-triggered modes, we will clear the
-    // entire map before populating it with our events data.
-    events_per_sock.clear();
-
-    for (int idx = 0; idx < ret; idx++) {
-        auto& ev = events[idx];
-        Event occurred = 0;
-        if (ev.events & (EPOLLERR | EPOLLHUP)) {
-            occurred |= ERR;
-        } else {
-            if (ev.events & EPOLLIN) {
-                occurred |= RECV;
-            }
-            if (ev.events & EPOLLOUT) {
-                occurred |= SEND;
-            }
-        }
-        events_per_sock.emplace(static_cast<SOCKET>(ev.data.fd), Sock::Events{/*req=*/RECV | SEND, occurred});
-    }
-
-    return true;
-}
-#endif /* USE_EPOLL */
-
-#ifdef USE_KQUEUE
-bool Sock::WaitManyKQueue(std::chrono::milliseconds timeout,
-                          EventsPerSock& events_per_sock,
-                          SOCKET kqueue_fd,
-                          SocketEventsParams::wrap_fn wrap_func)
-{
-    std::array<struct kevent, MAX_EVENTS> events{};
-    struct timespec ts = MillisToTimespec(timeout);
-
-    int ret{SOCKET_ERROR};
-    wrap_func([&](){
-        ret = kevent(kqueue_fd, nullptr, 0, events.data(), events.size(), &ts);
-    });
-    if (ret == SOCKET_ERROR) {
-        return false;
-    }
-
-    // Events reported do not correspond to sockets requested in edge-triggered modes, we will clear the
-    // entire map before populating it with our events data.
-    events_per_sock.clear();
-
-    for (int idx = 0; idx < ret; idx++) {
-        auto& ev = events[idx];
-        Event occurred = 0;
-        if (ev.flags & (EV_ERROR | EV_EOF)) {
-            occurred |= ERR;
-        } else {
-            if (ev.filter == EVFILT_READ) {
-                occurred |= RECV;
-            }
-            if (ev.filter == EVFILT_WRITE) {
-                occurred |= SEND;
-            }
-        }
-        if (auto it = events_per_sock.find(static_cast<SOCKET>(ev.ident)); it != events_per_sock.end()) {
-            it->second.occurred |= occurred;
-        } else {
-            events_per_sock.emplace(static_cast<SOCKET>(ev.ident), Sock::Events{/*req=*/RECV | SEND, occurred});
-        }
-    }
-
-    return true;
-}
-#endif /* USE_KQUEUE */
-
-#ifdef USE_POLL
-bool Sock::WaitManyPoll(std::chrono::milliseconds timeout,
-                        EventsPerSock& events_per_sock,
-                        SocketEventsParams::wrap_fn wrap_func)
-{
-    if (events_per_sock.empty()) return true;
-
-    std::vector<pollfd> pfds;
-    for (const auto& [socket, events] : events_per_sock) {
-        pfds.emplace_back();
-        auto& pfd = pfds.back();
-        pfd.fd = socket;
-        if (events.requested & RECV) {
-            pfd.events |= POLLIN;
-        }
-        if (events.requested & SEND) {
-            pfd.events |= POLLOUT;
-        }
-    }
-
-    int ret{SOCKET_ERROR};
-    wrap_func([&](){
-        ret = poll(pfds.data(), pfds.size(), count_milliseconds(timeout));
-    });
-    if (ret == SOCKET_ERROR) {
-        return false;
-    }
-
-    assert(pfds.size() == events_per_sock.size());
-    size_t i{0};
-    for (auto& [socket, events] : events_per_sock) {
-        assert(socket == static_cast<SOCKET>(pfds[i].fd));
-        events.occurred = 0;
-        if (pfds[i].revents & POLLIN) {
-            events.occurred |= RECV;
-        }
-        if (pfds[i].revents & POLLOUT) {
-            events.occurred |= SEND;
-        }
-        if (pfds[i].revents & (POLLERR | POLLHUP)) {
-            events.occurred |= ERR;
-        }
-        ++i;
-    }
-
-    return true;
-}
-#endif /* USE_POLL */
-
-bool Sock::WaitManySelect(std::chrono::milliseconds timeout,
-                          EventsPerSock& events_per_sock,
-                          SocketEventsParams::wrap_fn wrap_func)
-{
-    if (events_per_sock.empty()) return true;
 
     fd_set recv;
     fd_set send;
@@ -361,10 +275,10 @@ bool Sock::WaitManySelect(std::chrono::milliseconds timeout,
     SOCKET socket_max{0};
 
     for (const auto& [sock, events] : events_per_sock) {
-        if (!IsSelectableSocket(sock, /*is_select=*/true)) {
+        if (!IsSelectableSocket(sock->m_socket, /*is_select=*/true)) {
             return false;
         }
-        const auto& s = sock;
+        const auto& s = sock->m_socket;
         if (events.requested & RECV) {
             FD_SET(s, &recv);
             FD_SET(s, &err);
@@ -379,16 +293,12 @@ bool Sock::WaitManySelect(std::chrono::milliseconds timeout,
 
     timeval tv = MillisToTimeval(timeout);
 
-    int ret{SOCKET_ERROR};
-    wrap_func([&](){
-        ret = select(socket_max + 1, &recv, &send, &err, &tv);
-    });
-    if (ret == SOCKET_ERROR) {
+    if (select(socket_max + 1, &recv, &send, &err, &tv) == SOCKET_ERROR) {
         return false;
     }
 
     for (auto& [sock, events] : events_per_sock) {
-        const auto& s = sock;
+        const auto& s = sock->m_socket;
         events.occurred = 0;
         if (FD_ISSET(s, &recv)) {
             events.occurred |= RECV;
@@ -441,7 +351,7 @@ void Sock::SendComplete(const std::string& data,
         // Wait for a short while (or the socket to become ready for sending) before retrying
         // if nothing was sent.
         const auto wait_time = std::min(deadline - now, std::chrono::milliseconds{MAX_WAIT_FOR_IO});
-        (void)Wait(wait_time, SEND, SocketEventsParams{::g_socket_events_mode});
+        (void)Wait(wait_time, SEND);
     }
 }
 
@@ -524,7 +434,7 @@ std::string Sock::RecvUntilTerminator(uint8_t terminator,
 
         // Wait for a short while (or the socket to become ready for reading) before retrying.
         const auto wait_time = std::min(deadline - now, std::chrono::milliseconds{MAX_WAIT_FOR_IO});
-        (void)Wait(wait_time, RECV, SocketEventsParams{::g_socket_events_mode});
+        (void)Wait(wait_time, RECV);
     }
 }
 
@@ -568,6 +478,11 @@ void Sock::Close()
     }
     m_socket = INVALID_SOCKET;
 }
+
+bool Sock::operator==(SOCKET s) const
+{
+    return m_socket == s;
+};
 
 std::string NetworkErrorString(int err)
 {

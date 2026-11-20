@@ -5,19 +5,17 @@
 #ifndef BITCOIN_UTIL_EDGE_H
 #define BITCOIN_UTIL_EDGE_H
 
-#include <compat/compat.h>
+#include <sync.h>
+#include <util/sock.h>
 
-#include <assert.h>
-#include <cstdint>
-#include <string>
-
-enum class SocketEventsMode : int8_t;
+#include <chrono>
+#include <memory>
+#include <unordered_map>
 
 /**
  * A manager for abstracting logic surrounding edge-triggered socket events
  * modes like kqueue and epoll.
  */
-// TODO: simplify this class to 2-3 flags; kick out everything else to Sock/~Sock and inherited classes
 class EdgeTriggeredEvents
 {
 public:
@@ -25,38 +23,46 @@ public:
     ~EdgeTriggeredEvents();
 
     bool IsValid() const { return m_valid; }
-    int GetFileDescriptor() const { assert(m_fd != -1); return m_fd; }
 
     /* Add socket to interest list */
-    bool AddSocket(SOCKET socket) const;
+    bool AddSocket(const std::shared_ptr<const Sock>& sock) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
     /* Remove socket from interest list */
-    bool RemoveSocket(SOCKET socket) const;
+    bool RemoveSocket(const std::shared_ptr<const Sock>& sock) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
     /* Register events for socket */
-    bool RegisterEvents(SOCKET socket) const;
+    bool RegisterEvents(const std::shared_ptr<const Sock>& sock) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
     /* Unregister events for socket */
-    bool UnregisterEvents(SOCKET socket) const;
+    bool UnregisterEvents(const std::shared_ptr<const Sock>& sock) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+
+    /**
+     * Wait for events on the sockets added or registered so far.
+     * @param[in] timeout Wait this long for at least one event to occur.
+     * @param[out] events_per_sock Replaced with the sockets that have events and what occurred on
+     * them. Unlike `Sock::WaitMany()`, the caller does not choose the sockets to wait on.
+     * @return true on success (or timeout, if `events_per_sock` is returned empty), false otherwise
+     */
+    [[nodiscard]] bool Wait(std::chrono::milliseconds timeout, Sock::EventsPerSock& events_per_sock)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
 private:
-    friend class WakeupPipe;
-    /* Register wakeup pipe with EdgeTriggeredEvents instance */
-    bool RegisterPipe(int wakeup_pipe);
-    /* Unregister wakeup pipe with EdgeTriggeredEvents instance */
-    bool UnregisterPipe(int wakeup_pipe);
+    bool Register(const std::shared_ptr<const Sock>& sock, bool edge_triggered) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+    bool Unregister(const std::shared_ptr<const Sock>& sock, bool edge_triggered) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
 private:
-    bool RegisterEntity(int entity, const std::string& entity_name) const;
-    bool UnregisterEntity(int entity, const std::string& entity_name) const;
-
-private:
-    /* Flag set if pipe has been registered with instance */
-    bool m_pipe_registered{false};
     /* Instance validity flag set during construction */
     bool m_valid{false};
     /* Flag for storing selected socket events mode */
     SocketEventsMode m_mode;
     /* File descriptor used to interact with events mode */
     int m_fd{-1};
+
+    Mutex m_mutex;
+    /**
+     * Sockets in the interest list, by the address their events are tagged with (see
+     * `Sock::RegisterEvents()`). Events for a socket can still be reported after another thread
+     * has removed it; the tag of such an event is only looked up here, never dereferenced.
+     */
+    std::unordered_map<const void*, std::shared_ptr<const Sock>> m_socks GUARDED_BY(m_mutex);
 };
 
 #endif // BITCOIN_UTIL_EDGE_H

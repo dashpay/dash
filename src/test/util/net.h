@@ -138,10 +138,10 @@ constexpr auto ALL_NETWORKS = std::array{
 class StaticContentsSock : public Sock
 {
 public:
-    explicit StaticContentsSock(const std::string& contents) : m_contents{contents}
+    explicit StaticContentsSock(const std::string& contents)
+        : Sock{INVALID_SOCKET},
+          m_contents{contents}
     {
-        // Just a dummy number that is not INVALID_SOCKET.
-        m_socket = INVALID_SOCKET - 1;
     }
 
     ~StaticContentsSock() override { m_socket = INVALID_SOCKET; }
@@ -153,6 +153,8 @@ public:
     }
 
     ssize_t Send(const void*, size_t len, int) const override { return len; }
+
+    ssize_t SendTo(const void*, size_t len, int, const sockaddr*, socklen_t) const override { return len; }
 
     ssize_t Recv(void* buf, size_t len, int flags) const override
     {
@@ -169,6 +171,8 @@ public:
     int Bind(const sockaddr*, socklen_t) const override { return 0; }
 
     int Listen(int) const override { return 0; }
+
+    int Shutdown(int) const override { return 0; }
 
     std::unique_ptr<Sock> Accept(sockaddr* addr, socklen_t* addr_len) const override
     {
@@ -203,11 +207,10 @@ public:
 
     bool SetNonBlocking() const override { return true; }
 
-    bool IsSelectable(bool is_select) const override { return true; }
+    bool IsSelectable() const override { return true; }
 
     bool Wait(std::chrono::milliseconds timeout,
               Event requested,
-              SocketEventsParams event_params,
               Event* occurred = nullptr) const override
     {
         if (occurred != nullptr) {
@@ -217,13 +220,17 @@ public:
     }
 
     bool WaitMany(std::chrono::milliseconds timeout,
-                  EventsPerSock& events_per_sock,
-                  SocketEventsParams event_params) const override
+                  EventsPerSock& events_per_sock) const override
     {
         for (auto& [sock, events] : events_per_sock) {
             (void)sock;
             events.occurred = events.requested;
         }
+        return true;
+    }
+
+    bool IsConnected(std::string&) const override
+    {
         return true;
     }
 

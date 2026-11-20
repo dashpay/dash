@@ -63,11 +63,15 @@ public:
 
     ssize_t Recv(void* buf, size_t len, int flags) const override;
 
+    ssize_t SendTo(const void* data, size_t len, int flags, const sockaddr* dest_addr, socklen_t addr_len) const override;
+
     int Connect(const sockaddr*, socklen_t) const override;
 
     int Bind(const sockaddr*, socklen_t) const override;
 
     int Listen(int backlog) const override;
+
+    int Shutdown(int how) const override;
 
     std::unique_ptr<Sock> Accept(sockaddr* addr, socklen_t* addr_len) const override;
 
@@ -79,11 +83,11 @@ public:
 
     bool SetNonBlocking() const override;
 
-    bool IsSelectable(bool is_select) const override;
+    bool IsSelectable() const override;
 
-    bool Wait(std::chrono::milliseconds timeout, Event requested, SocketEventsParams event_params, Event* occurred = nullptr) const override;
+    bool Wait(std::chrono::milliseconds timeout, Event requested, Event* occurred = nullptr) const override;
 
-    bool WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock, SocketEventsParams event_params) const override;
+    bool WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_per_sock) const override;
 
     bool IsConnected(std::string& errmsg) const override;
 };

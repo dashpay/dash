@@ -159,7 +159,7 @@ void CActiveMasternodeManager::InitInternal(const CBlockIndex* pindex)
     // Check socket connectivity
     LogPrintf("CActiveMasternodeManager::Init -- Checking inbound connection to '%s'\n", m_service.ToStringAddrPort());
     std::unique_ptr<Sock> sock{ConnectDirectly(m_service, /*manual_connection=*/true)};
-    bool fConnected{sock && sock->IsSelectable(/*is_select=*/::g_socket_events_mode == SocketEventsMode::Select)};
+    bool fConnected{sock && sock->IsSelectable()};
     sock = std::make_unique<Sock>(INVALID_SOCKET);
     if (!fConnected && Params().RequireRoutableExternalIP()) {
         m_state = MasternodeState::SOME_ERROR;

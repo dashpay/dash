@@ -28,8 +28,9 @@ WakeupPipe::WakeupPipe(EdgeTriggeredEvents* edge_trig_events)
             return;
         }
     }
-    if (edge_trig_events && !edge_trig_events->RegisterPipe(m_pipe[0])) {
-        LogPrintf("Unable to initialize WakeupPipe, EdgeTriggeredEvents::RegisterPipe() failed for m_pipe[0] = %d\n",
+    m_read_sock = std::make_shared<Sock>(static_cast<SOCKET>(m_pipe[0]));
+    if (edge_trig_events && !edge_trig_events->AddSocket(m_read_sock)) {
+        LogPrintf("Unable to initialize WakeupPipe, EdgeTriggeredEvents::AddSocket() failed for m_pipe[0] = %d\n",
                   m_pipe[0]);
         Close();
         return;
@@ -45,8 +46,8 @@ WakeupPipe::~WakeupPipe()
     if (m_valid) {
 #ifdef USE_WAKEUP_PIPE
         Drain();
-        if (m_edge_trig_events && !m_edge_trig_events->UnregisterPipe(m_pipe[0])) {
-            LogPrintf("Destroying WakeupPipe instance, EdgeTriggeredEvents::UnregisterPipe() failed for m_pipe[0] = %d\n",
+        if (m_edge_trig_events && !m_edge_trig_events->RemoveSocket(m_read_sock)) {
+            LogPrintf("Destroying WakeupPipe instance, EdgeTriggeredEvents::RemoveSocket() failed for m_pipe[0] = %d\n",
                       m_pipe[0]);
         }
         Close();
@@ -59,6 +60,10 @@ WakeupPipe::~WakeupPipe()
 void WakeupPipe::Close()
 {
 #ifdef USE_WAKEUP_PIPE
+    if (m_read_sock) {
+        m_read_sock.reset();
+        m_pipe[0] = -1;
+    }
     for (size_t idx{0}; idx < m_pipe.size(); idx++) {
         if (m_pipe[idx] != -1 && close(m_pipe[idx]) != 0) {
             LogPrintf("close() failed for m_pipe[%d] = %d with error %s\n", idx, m_pipe[idx],

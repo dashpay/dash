@@ -1308,8 +1308,8 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !m_added_nodes_mutex, !m_addr_fetches_mutex, !mutexMsgProc);
 
     void StopThreads();
-    void StopNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !cs_mapSocketToNode, !cs_sendable_receivable_nodes, !m_reconnections_mutex);
-    void Stop() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !cs_mapSocketToNode, !cs_sendable_receivable_nodes, !m_reconnections_mutex)
+    void StopNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !cs_sendable_receivable_nodes, !m_reconnections_mutex);
+    void Stop() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !cs_sendable_receivable_nodes, !m_reconnections_mutex)
     {
         StopThreads();
         StopNodes();
@@ -1340,9 +1340,9 @@ public:
                                const char* strDest, ConnectionType conn_type, bool use_v2transport,
                                MasternodeConn masternode_connection = MasternodeConn::IsNotConnection,
                                MasternodeProbeConn masternode_probe_connection = MasternodeProbeConn::IsNotConnection)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc);
     void OpenMasternodeConnection(const CAddress& addrConnect, bool use_v2transport, MasternodeProbeConn probe = MasternodeProbeConn::IsConnection)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc);
     bool CheckIncomingNonce(uint64_t nonce) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     void ASMapHealthCheck();
 
@@ -1504,7 +1504,7 @@ public:
      *                          - Max connection capacity for type is filled
      */
     bool AddConnection(const std::string& address, ConnectionType conn_type, bool use_v2transport)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc);
 
     bool AddPendingMasternode(const uint256& proTxHash);
     void SetMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash, const Uint256HashSet& proTxHashes);
@@ -1619,18 +1619,18 @@ private:
 
     void ThreadOpenAddedConnections()
         EXCLUSIVE_LOCKS_REQUIRED(!m_added_nodes_mutex, !m_nodes_mutex, !m_reconnections_mutex,
-                                 !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+                                 !m_unused_i2p_sessions_mutex, !mutexMsgProc);
     void AddAddrFetch(const std::string& strDest) EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex);
     void ProcessAddrFetch()
         EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_nodes_mutex, !m_unused_i2p_sessions_mutex,
-                                 !mutexMsgProc, !cs_mapSocketToNode);
+                                 !mutexMsgProc);
     void ThreadOpenConnections(const std::vector<std::string> connect, CDeterministicMNManager& dmnman)
         EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_added_nodes_mutex, !m_nodes_mutex, !m_reconnections_mutex,
-                                 !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+                                 !m_unused_i2p_sessions_mutex, !mutexMsgProc);
     void ThreadMessageHandler() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
-    void ThreadI2PAcceptIncoming(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+    void ThreadI2PAcceptIncoming(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
     void AcceptConnection(const ListenSocket& hListenSocket, CMasternodeSync& mn_sync)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
 
     /**
      * Create a `CNode` object from a socket that has just been accepted and add the node to
@@ -1645,7 +1645,7 @@ private:
                                       const CAddress& addr_bind,
                                       const CAddress& addr,
                                       CMasternodeSync& mn_sync)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
 
     void DisconnectNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_reconnections_mutex, !m_nodes_mutex);
     void NotifyNumConnectionsChanged(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
@@ -1663,28 +1663,28 @@ private:
     /**
      * Check connected and listening sockets for IO readiness and process them accordingly.
      */
-    void SocketHandler(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_total_bytes_sent_mutex, !mutexMsgProc, !cs_mapSocketToNode, !cs_sendable_receivable_nodes);
+    void SocketHandler(CMasternodeSync& mn_sync) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_total_bytes_sent_mutex, !mutexMsgProc, !cs_sendable_receivable_nodes);
 
     /**
      * Do the read/write for connected sockets that are ready for IO.
      * @param[in] events_per_sock Sockets that are ready for IO.
      */
     void SocketHandlerConnected(const Sock::EventsPerSock& events_per_sock)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_total_bytes_sent_mutex, !mutexMsgProc, !cs_sendable_receivable_nodes, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_total_bytes_sent_mutex, !mutexMsgProc, !cs_sendable_receivable_nodes);
 
     /**
      * Accept incoming connections, one from each read-ready listening socket.
      * @param[in] events_per_sock Sockets that are ready for IO.
      */
     void SocketHandlerListening(const Sock::EventsPerSock& events_per_sock, CMasternodeSync& mn_sync)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
 
     void ThreadSocketHandler(CMasternodeSync& mn_sync)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !mutexMsgProc, !m_nodes_mutex, !m_reconnections_mutex, !cs_mapSocketToNode, !cs_sendable_receivable_nodes);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !mutexMsgProc, !m_nodes_mutex, !m_reconnections_mutex, !cs_sendable_receivable_nodes);
     void ThreadDNSAddressSeed() EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_nodes_mutex);
     void ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                                          CMasternodeSync& mn_sync)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc);
 
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
 
@@ -1848,8 +1848,6 @@ private:
     std::map<std::pair<Consensus::LLMQType, uint256>, Uint256HashSet> masternodeQuorumRelayMembers GUARDED_BY(cs_vPendingMasternodes);
     Uint256HashSet masternodePendingProbes GUARDED_BY(cs_vPendingMasternodes);
 
-    mutable Mutex cs_mapSocketToNode;
-    std::unordered_map<SOCKET, CNode*> mapSocketToNode GUARDED_BY(cs_mapSocketToNode);
 
     /**
      * Cache responses to addr requests to minimize privacy leak.
@@ -1965,23 +1963,6 @@ private:
     std::unique_ptr<EdgeTriggeredEvents> m_edge_trig_events{nullptr};
     std::unique_ptr<WakeupPipe> m_wakeup_pipe{nullptr};
 
-    SOCKET GetModeFileDescriptor()
-    {
-        if (m_edge_trig_events) {
-            return static_cast<SOCKET>(m_edge_trig_events->GetFileDescriptor());
-        }
-        return INVALID_SOCKET;
-    }
-
-    SocketEventsParams::wrap_fn ToggleWakeupPipe = [&](std::function<void()>&& func)
-    {
-        if (m_wakeup_pipe) {
-            m_wakeup_pipe->Toggle(func);
-        } else {
-            func();
-        }
-    };
-
     Mutex cs_sendable_receivable_nodes;
     std::unordered_map<NodeId, CNode*> mapReceivableNodes GUARDED_BY(cs_sendable_receivable_nodes);
     std::unordered_map<NodeId, CNode*> mapSendableNodes GUARDED_BY(cs_sendable_receivable_nodes);
@@ -2060,7 +2041,7 @@ private:
     std::list<ReconnectionInfo> m_reconnections GUARDED_BY(m_reconnections_mutex);
 
     /** Attempt reconnections, if m_reconnections non-empty. */
-    void PerformReconnections() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !m_reconnections_mutex, !m_unused_i2p_sessions_mutex, !cs_mapSocketToNode);
+    void PerformReconnections() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc, !m_reconnections_mutex, !m_unused_i2p_sessions_mutex);
 
     /**
      * Cap on the size of `m_unused_i2p_sessions`, to ensure it does not

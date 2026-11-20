@@ -328,7 +328,7 @@ static IntrRecvError InterruptibleRecv(uint8_t* data, size_t len, std::chrono::m
                 // we're approaching the end of the specified total timeout
                 const auto remaining = std::chrono::milliseconds{endTime - curTime};
                 const auto timeout = std::min(remaining, std::chrono::milliseconds{MAX_WAIT_FOR_IO});
-                if (!sock.Wait(timeout, Sock::RECV, SocketEventsParams{::g_socket_events_mode})) {
+                if (!sock.Wait(timeout, Sock::RECV)) {
                     return IntrRecvError::NetworkError;
                 }
             } else {
@@ -526,7 +526,7 @@ std::unique_ptr<Sock> CreateSockOS(int domain, int type, int protocol)
 
     // Ensure that waiting for I/O on this socket won't result in undefined
     // behavior.
-    if (!sock->IsSelectable(/*is_select=*/::g_socket_events_mode == SocketEventsMode::Select)) {
+    if (!sock->IsSelectable()) {
         LogPrintf("Cannot create connection: non-selectable socket created (fd >= FD_SETSIZE ?)\n");
         return nullptr;
     }
@@ -587,7 +587,7 @@ static bool ConnectToSocket(const Sock& sock, struct sockaddr* sockaddr, socklen
             // synchronously to check for successful connection with a timeout.
             const Sock::Event requested = Sock::RECV | Sock::SEND;
             Sock::Event occurred;
-            if (!sock.Wait(std::chrono::milliseconds{nConnectTimeout}, requested, SocketEventsParams{::g_socket_events_mode}, &occurred)) {
+            if (!sock.Wait(std::chrono::milliseconds{nConnectTimeout}, requested, &occurred)) {
                 LogPrintf("wait for connect to %s failed: %s\n",
                           dest_str,
                           NetworkErrorString(WSAGetLastError()));
