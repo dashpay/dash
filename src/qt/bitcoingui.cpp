@@ -677,6 +677,7 @@ void BitcoinGUI::createActions()
             activity->migrate(walletFrame->currentWalletModel());
         });
         connect(m_mask_values_action, &QAction::toggled, this, &BitcoinGUI::setPrivacy);
+        connect(m_mask_values_action, &QAction::toggled, this, &BitcoinGUI::enableHistoryAction);
     }
 #endif // ENABLE_WALLET
 }
@@ -1052,6 +1053,14 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
 }
 
 #ifdef ENABLE_WALLET
+void BitcoinGUI::enableHistoryAction(bool privacy)
+{
+    if (walletFrame->currentWalletModel()) {
+        historyButton->setEnabled(!privacy);
+        if (historyButton->isChecked()) gotoOverviewPage();
+    }
+}
+
 void BitcoinGUI::setWalletController(WalletController* wallet_controller, bool show_loading_minimized)
 {
     assert(!m_wallet_controller);
@@ -1171,7 +1180,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
         sendCoinsButton->setEnabled(enabled);
         coinJoinCoinsButton->setEnabled(enabled && clientModel->coinJoinOptions().isEnabled());
         receiveCoinsButton->setEnabled(enabled);
-        historyButton->setEnabled(enabled);
+        historyButton->setEnabled(enabled && !isPrivacyModeActivated());
     }
 #endif // ENABLE_WALLET
 

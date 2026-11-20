@@ -125,6 +125,10 @@ public Q_SLOTS:
 
     /** Update selected DASH amount from transactionview */
     void trxAmount(QString amount);
+
+private Q_SLOTS:
+    void disableTransactionView(bool disable);
+
 Q_SIGNALS:
     void setPrivacy(bool privacy);
     void transactionClicked();

@@ -11,6 +11,7 @@
 
 #include <QWidget>
 
+class DescriptionDialog;
 class TransactionFilterProxy;
 class WalletModel;
 
@@ -34,6 +35,7 @@ class TransactionView : public QWidget
 
 public:
     explicit TransactionView(QWidget* parent = nullptr);
+    ~TransactionView();
 
     void setModel(WalletModel *model);
 
@@ -86,6 +88,8 @@ private:
 
     bool eventFilter(QObject *obj, QEvent *event) override;
 
+    QList<DescriptionDialog*> m_opened_dialogs;
+
 private Q_SLOTS:
     void contextualMenu(const QPoint &);
     void dateRangeChanged();
@@ -121,6 +125,7 @@ public Q_SLOTS:
     void changedAmount();
     void changedSearch();
     void exportClicked();
+    void closeOpenedDialogs();
     void focusTransaction(const QModelIndex&);
     void focusTransaction(const uint256& txid);
     void computeSum();
