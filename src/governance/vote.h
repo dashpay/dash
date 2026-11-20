@@ -62,8 +62,6 @@ class CGovernanceVote
 {
     friend bool operator==(const CGovernanceVote& vote1, const CGovernanceVote& vote2);
 
-    friend bool operator<(const CGovernanceVote& vote1, const CGovernanceVote& vote2);
-
 public:
     // Wire-valid signature encodings: compact ECDSA voting key (FUNDING)
     // or BLS operator key (other signals). Kept in sync via static_assert

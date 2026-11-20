@@ -30,6 +30,7 @@
 
 #include <limits>
 #include <ranges>
+#include <tuple>
 
 const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-17";
 
@@ -50,25 +51,13 @@ bool UsesVotingKey(const CGovernanceVote& vote)
 bool InsertOrphanVote(CacheMultiMap<uint256, governance::OrphanVote>& cache, const CDeterministicMNList& tip_mn_list,
                       const governance::OrphanVote& orphan_vote)
 {
-    auto lower{orphan_vote};
-    auto upper{orphan_vote};
-    lower.vote.SetTime(std::numeric_limits<int64_t>::min());
-    lower.vote.SetSignature({});
-    upper.vote.SetTime(std::numeric_limits<int64_t>::max());
-    upper.vote.SetSignature(std::vector<unsigned char>(CGovernanceVote::BLS_SIG_SIZE));
-    std::vector<governance::OrphanVote> variants;
     const auto& parent = orphan_vote.vote.GetParentHash();
-    cache.GetAll(parent, lower, upper, variants);
-    const bool use_voting_key{UsesVotingKey(orphan_vote.vote)};
-    for (const auto& cached : variants) {
-        const bool cached_uses_voting_key{UsesVotingKey(cached.vote)};
-        // Only current-key authentication may suppress a new vote.
-        if (cached.expiration < Now<NodeSeconds>() || !cached.vote.IsValid(tip_mn_list, cached_uses_voting_key)) {
-            cache.Erase(parent, cached);
-        } else if (cached_uses_voting_key == use_voting_key) {
-            if (cached.vote.GetTimestamp() >= orphan_vote.vote.GetTimestamp()) return false;
-            cache.Erase(parent, cached);
-        }
+    if (const auto cached{cache.Find(parent, orphan_vote)}) {
+        // Only an unexpired vote that still verifies against the current key may suppress a new one
+        const bool usable{cached->expiration >= Now<NodeSeconds>() &&
+                          cached->vote.IsValid(tip_mn_list, UsesVotingKey(cached->vote))};
+        if (usable && cached->vote.GetTimestamp() >= orphan_vote.vote.GetTimestamp()) return false;
+        cache.Erase(parent, *cached);
     }
     return cache.Insert(parent, orphan_vote);
 }
@@ -96,6 +85,14 @@ public:
     ~ScopedLockBool() { ref = fPrevValue; }
 };
 } // anonymous namespace
+
+bool governance::operator<(const OrphanVote& lhs, const OrphanVote& rhs)
+{
+    const auto slot = [](const CGovernanceVote& vote) {
+        return std::tuple{vote.GetMasternodeOutpoint(), vote.GetSignal(), vote.GetOutcome(), UsesVotingKey(vote)};
+    };
+    return slot(lhs.vote) < slot(rhs.vote);
+}
 
 GovernanceStore::GovernanceStore() :
     cs_store(),

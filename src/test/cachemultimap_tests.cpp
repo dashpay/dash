@@ -219,21 +219,13 @@ BOOST_AUTO_TEST_CASE(capacity_limits)
     BOOST_CHECK(!cache.Insert(1, 1));
 }
 
-BOOST_AUTO_TEST_CASE(cachemultimap_get_all_in_value_range)
+BOOST_AUTO_TEST_CASE(find_returns_the_stored_value)
 {
     CacheMultiMap<int, int> cmmap(5);
-    for (const int value : {1, 2, 3, 4})
-        BOOST_REQUIRE(cmmap.Insert(1, value));
-    BOOST_REQUIRE(cmmap.Insert(2, 2));
-    std::vector<int> values;
-    BOOST_CHECK(cmmap.GetAll(1, 2, 3, values));
-    BOOST_CHECK(values == (std::vector<int>{2, 3}));
-    values.clear();
-    BOOST_CHECK(cmmap.GetAll(1, 5, 6, values));
-    BOOST_CHECK(values.empty());
-    BOOST_CHECK(!cmmap.GetAll(3, 1, 4, values));
-    BOOST_CHECK(!cmmap.GetAll(1, 3, 2, values));
-    BOOST_CHECK(values.empty());
+    BOOST_REQUIRE(cmmap.Insert(1, 2));
+    BOOST_CHECK(cmmap.Find(1, 2) == std::optional<int>{2});
+    BOOST_CHECK(!cmmap.Find(1, 3));
+    BOOST_CHECK(!cmmap.Find(2, 2));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
