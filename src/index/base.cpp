@@ -118,8 +118,8 @@ bool BaseIndex::Init()
     const auto uncommitted_tip{WritesEagerly() ? GetDB().ReadUncommittedTip() : std::nullopt};
     if (uncommitted_tip && resume_block == locator_index) {
         // The entries of the blocks up to it are on disk, but without the blocks the index can't tell whether they
-        // are still on the active chain, nor rewind them.
-        if (!m_chainstate->m_blockman.LookupBlockIndex(*uncommitted_tip)) {
+        // are still on the active chain, nor rewind them. That only matters if readers trust them.
+        if (!m_chainstate->m_blockman.LookupBlockIndex(*uncommitted_tip) && !IgnoresEntriesOffActiveChain()) {
             return InitError(strprintf(Untranslated("%s: the block the index was last synced to is not found. Please "
                                                     "rebuild the index."),
                                        GetName()));
@@ -399,6 +399,11 @@ void BaseIndex::BlockConnected(const std::shared_ptr<const CBlock>& block, const
                       "known best chain (tip=%s); not updating index\n",
                       __func__, pindex->GetBlockHash().ToString(),
                       best_block_index->GetBlockHash().ToString());
+            return;
+        }
+        // Init() can resume from an uncommitted tip above the active chain. The blocks below it are indexed already,
+        // and after an unclean stop their data may not be on disk again yet, so they can't be rewound.
+        if (best_block_index->GetAncestor(pindex->nHeight) == pindex) {
             return;
         }
         if (best_block_index != pindex->pprev && !Rewind(best_block_index, pindex->pprev)) {

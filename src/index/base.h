@@ -110,6 +110,11 @@ private:
     /// entries of blocks above it that are no longer on the active chain.
     virtual bool WritesEagerly() const { return false; }
 
+    /// Whether readers ignore entries of blocks that aren't on the active chain, so leftover entries of blocks that
+    /// left it are harmless. Init() then resumes from the locator when the block index lost the uncommitted tip,
+    /// instead of failing.
+    virtual bool IgnoresEntriesOffActiveChain() const { return false; }
+
 protected:
     std::unique_ptr<interfaces::Chain> m_chain;
     Chainstate* m_chainstate{nullptr};
