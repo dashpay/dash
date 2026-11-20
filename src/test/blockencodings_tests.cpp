@@ -51,8 +51,8 @@ static CBlock BuildBlockTestCase() {
 }
 
 // Number of shared use_counts we expect for a tx we haven't touched
-// (block + mempool entry + mempool txns_randomized + our copy from the GetSharedTx call)
-constexpr long SHARED_TX_OFFSET{4};
+// (block + mempool entry + our copy from the GetSharedTx call)
+constexpr long SHARED_TX_OFFSET{3};
 
 BOOST_AUTO_TEST_CASE(SimpleRoundTripTest)
 {

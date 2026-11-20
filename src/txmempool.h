@@ -379,7 +379,7 @@ public:
     indexed_transaction_set mapTx GUARDED_BY(cs);
 
     using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
-    std::vector<CTransactionRef> txns_randomized GUARDED_BY(cs); //!< All transactions in mapTx, in random order
+    std::vector<std::pair<uint256, txiter>> txns_randomized GUARDED_BY(cs); //!< All transactions in mapTx with their instance hashes, in arbitrary order
 
     typedef std::set<txiter, CompareIteratorByHash> setEntries;
 

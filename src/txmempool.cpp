@@ -485,7 +485,7 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
         minerPolicyEstimator->processTransaction(entry, validFeeEstimate);
     }
 
-    txns_randomized.emplace_back(newit->GetSharedTx());
+    txns_randomized.emplace_back(entry.GetTx().GetInstanceHash(), newit);
     newit->idx_randomized = txns_randomized.size() - 1;
 
     // Invalid ProTxes should never get this far because transactions should be
@@ -750,15 +750,16 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
     RemoveUnbroadcastTx(hash, true /* add logging because unchecked */ );
 
     if (txns_randomized.size() > 1) {
-        // Update idx_randomized of the to-be-moved entry.
-        Assert(GetEntry(txns_randomized.back()->GetHash()))->idx_randomized = it->idx_randomized;
         // Remove entry from txns_randomized by replacing it with the back and deleting the back.
         txns_randomized[it->idx_randomized] = std::move(txns_randomized.back());
+        txns_randomized[it->idx_randomized].second->idx_randomized = it->idx_randomized;
         txns_randomized.pop_back();
-        if (txns_randomized.size() * 2 < txns_randomized.capacity())
+        if (txns_randomized.size() * 2 < txns_randomized.capacity()) {
             txns_randomized.shrink_to_fit();
-    } else
+        }
+    } else {
         txns_randomized.clear();
+    }
 
     removeUncheckedProTx(it->GetTx());
 
@@ -896,7 +897,7 @@ void CTxMemPool::ReplaceAssetUnlockInstance(const CTransactionRef& tx)
     Assume(it->GetTx().GetTotalSize() == tx->GetTotalSize());
     const bool modified{mapTx.modify(it, [&tx](CTxMemPoolEntry& e) { e.ReplaceAssetUnlockTx(tx); })};
     assert(modified);
-    txns_randomized[it->idx_randomized] = tx;
+    txns_randomized[it->idx_randomized].first = tx->GetInstanceHash();
     m_asset_unlock_instances.erase(old_instance_hash);
     m_asset_unlock_instances.emplace(tx->GetInstanceHash(), tx->GetHash());
     nTransactionsUpdated++;

@@ -4,6 +4,7 @@
 
 #include <test/util/setup_common.h>
 
+#include <blockencodings.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/tx_check.h>
@@ -692,6 +693,21 @@ BOOST_FIXTURE_TEST_CASE(mempool_pending_asset_unlock_amount, TestChain100Setup)
     pool.ReplaceAssetUnlockInstance(unlock_v2_resigned);
     BOOST_CHECK(unlock_v2_resigned->GetInstanceHash() != unlock_v2->GetInstanceHash());
     BOOST_CHECK(pool.get(unlock_v2->GetHash())->GetInstanceHash() == unlock_v2_resigned->GetInstanceHash());
+
+    // Compact block reconstruction finds the refreshed instance and treats the replaced one as missing
+    const auto reconstructs_from_mempool = [&](const CTransactionRef& unlock) {
+        CBlock block;
+        block.nBits = 0x207fffff;
+        CMutableTransaction coinbase;
+        coinbase.vin.resize(1);
+        coinbase.vout.resize(1);
+        block.vtx = {MakeTransactionRef(coinbase), unlock};
+        PartiallyDownloadedBlock partial_block(&pool);
+        BOOST_REQUIRE(partial_block.InitData(CBlockHeaderAndShortTxIDs{block}, {}) == READ_STATUS_OK);
+        return partial_block.IsTxAvailable(1);
+    };
+    BOOST_CHECK(reconstructs_from_mempool(unlock_v2_resigned));
+    BOOST_CHECK(!reconstructs_from_mempool(unlock_v2));
     BOOST_CHECK_EQUAL(pool.GetPendingAssetUnlockAmount(), 12 * COIN + 3000);
     BOOST_CHECK(pool.GetAssetUnlockTxidsByIndex(2) == std::vector<uint256>{unlock_v2->GetHash()});
 
