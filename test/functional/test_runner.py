@@ -338,6 +338,7 @@ BASE_SCRIPTS = [
     'rpc_preciousblock.py',
     'wallet_importprunedfunds.py --legacy-wallet',
     'wallet_importprunedfunds.py --descriptors',
+    'wallet_auto_backup.py --legacy-wallet',
     'p2p_leak_tx.py --v1transport',
     'p2p_leak_tx.py --v2transport',
     'p2p_eviction.py',

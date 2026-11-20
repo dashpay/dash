@@ -92,6 +92,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <exception>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <thread>
@@ -3987,13 +3988,14 @@ void CWallet::InitAutoBackup(const ArgsManager& args)
     if (args.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return;
 
-    nWalletBackups = args.GetIntArg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS);
-    nWalletBackups = std::max(0, std::min(MAX_N_WALLET_BACKUPS, nWalletBackups));
+    const auto clamp_arg{[&args](const std::string& arg, int default_value, int max_value) {
+        return static_cast<int>(std::clamp<int64_t>(args.GetIntArg(arg, default_value), 0, max_value));
+    }};
+    const int keep_recent{clamp_arg("-createwalletbackups", DEFAULT_N_WALLET_BACKUPS, MAX_N_WALLET_BACKUPS)};
+    const int max_backups{clamp_arg("-maxwalletbackups", DEFAULT_MAX_WALLET_BACKUPS, std::numeric_limits<int>::max())};
 
-    nMaxWalletBackups = args.GetIntArg("-maxwalletbackups", DEFAULT_MAX_WALLET_BACKUPS);
-    nMaxWalletBackups = std::max(0, nMaxWalletBackups);
-
-    nWalletBackups = std::min(nWalletBackups, nMaxWalletBackups);
+    nMaxWalletBackups = max_backups;
+    nWalletBackups = std::min(keep_recent, max_backups);
 }
 
 bool CWallet::BackupWallet(const std::string& strDest) const
