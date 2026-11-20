@@ -42,6 +42,7 @@
 #include <iterator>
 #include <memory>
 #include <ranges>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -267,15 +268,16 @@ BOOST_AUTO_TEST_CASE(server_signing_timeout_charges_each_offender_once)
     const CScript previous_script{GetScriptForDestination(PKHash(key.GetPubKey()))};
 
     // One missing signature, several missing signatures from the same participant,
-    // no offenders, and every participant offending.
+    // no offenders, every participant offending, and every participant that was asked
+    // to sign offending in a session finalized on timeout without one participant's entry.
     uint32_t collateral_index{0};
-    const std::array<std::pair<int, int>, 4> scenarios{{{1, 1}, {3, 1}, {0, 0}, {3, 3}}};
-    for (const auto& [unsigned_inputs, offenders] : scenarios) {
+    const std::array<std::tuple<int, int, int>, 5> scenarios{{{1, 1, 3}, {3, 1, 3}, {0, 0, 3}, {3, 3, 3}, {3, 3, 4}}};
+    for (const auto& [unsigned_inputs, offenders, session_collaterals] : scenarios) {
         TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), connman,
                                       *Assert(m_node.dmnman), *Assert(m_node.dstxman), *Assert(m_node.mn_metaman),
                                       *Assert(m_node.mempool), mn_activeman, *Assert(m_node.mn_sync), *Assert(m_node.isman));
         std::vector<uint256> collaterals;
-        for (int participant{0}; participant < 3; ++participant) {
+        for (int participant{0}; participant < session_collaterals; ++participant) {
             const uint32_t index{collateral_index++};
             const COutPoint collateral_input{uint256::TWO, index};
             {
@@ -290,6 +292,7 @@ BOOST_AUTO_TEST_CASE(server_signing_timeout_charges_each_offender_once)
             BOOST_REQUIRE(SignSignature(provider, previous_script, collateral, 0, COIN / 10, SIGHASH_ALL, empty));
             collaterals.push_back(collateral.GetHash());
             server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
+            if (participant >= 3) continue; // never sent an entry
 
             CCoinJoinEntry entry;
             entry.txCollateral = MakeTransactionRef(collateral);
@@ -518,6 +521,15 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
     BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
     BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
 
+    // Nor does a signature that fails validation. The participant is not connected, so a
+    // session-wide rejection would find it unreachable and reset the session.
+    CDataStream invalid_stream{SER_NETWORK, PROTOCOL_VERSION};
+    invalid_stream << std::vector<CTxIn>{CTxIn{COutPoint{uint256::ONE, 0}}};
+
+    BOOST_CHECK_NO_THROW(server.ProcessMessage(*participant, NetMsgType::DSSIGNFINALTX, invalid_stream));
+    BOOST_CHECK_EQUAL(server.GetState(), int{POOL_STATE_SIGNING});
+    BOOST_CHECK_EQUAL(server.GetEntriesCount(), 1);
+
     // A count beyond the generic CompactSize cap is a malformed message, not a
     // CoinJoin-level violation: it throws the standard deserialization error out
     // to net processing. No txin is materialized and the session is left intact,
@@ -735,6 +747,47 @@ BOOST_AUTO_TEST_CASE(server_timeout_resets_only_sessions_that_cannot_advance)
         BOOST_TEST_CONTEXT(name)
         {
             BOOST_CHECK_EQUAL(ShouldResetTimedOutSession(session), reset);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(server_unreachable_participant_ends_session)
+{
+    CActiveMasternodeManager mn_activeman(*Assert(m_node.connman), *Assert(m_node.dmnman), MakeSecretKey());
+    auto& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+
+    // Every participant has submitted an entry, so the final transaction is relayed to them. If
+    // one of them can no longer be reached, the others are told to abandon the session; they
+    // cannot be charged at its timeout for obeying, so it must end right away. If everyone can be
+    // reached, it moves on to signing.
+    for (const bool all_reachable : {true, false}) {
+        BOOST_TEST_CONTEXT("all_reachable=" << all_reachable)
+        {
+            TestableCoinJoinServer server(m_node.peerman.get(), *Assert(m_node.chainman), *Assert(m_node.connman),
+                                          *Assert(m_node.dmnman), *Assert(m_node.dstxman),
+                                          *Assert(m_node.mn_metaman), *Assert(m_node.mempool), mn_activeman,
+                                          *Assert(m_node.mn_sync), *Assert(m_node.isman));
+            for (int i = 0; i < CoinJoin::GetMinPoolParticipants(); ++i) {
+                auto peer = MakePeer(/*id=*/i, /*ipv4=*/0x0a000001 + i);
+                CMutableTransaction collateral;
+                collateral.vin.emplace_back(COutPoint{uint256::ONE, static_cast<uint32_t>(i)});
+                server.SeedSessionCollateral(collateral, CoinJoin::MixShape::STANDARD);
+                CCoinJoinEntry entry{{CTxDSIn{CTxIn{COutPoint{uint256::TWO, static_cast<uint32_t>(i)}}, P2PKHScript(), 0}},
+                                     {CTxOut{CoinJoin::GetSmallestDenomination(), P2PKHScript()}},
+                                     CTransaction{collateral}};
+                entry.addr = peer->addr;
+                server.SeedEntry(std::move(entry));
+                if (all_reachable || i == 0) {
+                    peer->fSuccessfullyConnected = true;
+                    connman.AddTestNode(*peer.release());
+                }
+            }
+            server.EnterAcceptingEntriesState();
+
+            server.CreateFinalTransaction(/*session_id=*/1, /*charge_fees=*/false);
+            BOOST_CHECK_EQUAL(server.GetState(), all_reachable ? int{POOL_STATE_SIGNING} : int{POOL_STATE_IDLE});
+
+            connman.ClearTestNodes();
         }
     }
 }

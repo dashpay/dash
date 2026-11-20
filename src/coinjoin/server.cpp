@@ -256,7 +256,10 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
             if (!AddScriptSig(txin, peer.addr)) {
                 LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() failed at %d/%d, session: %d\n", nTxInIndex,
                          nTxInsCount, session_id);
-                RelayStatus(STATUS_REJECTED);
+                // Only the sender is at fault, so only the sender is rejected. A session-wide
+                // rejection would let one participant abort the session for everyone, and those
+                // that obeyed it would be counted as non-signers at the timeout.
+                PushStatus(peer, STATUS_REJECTED, ERR_INVALID_INPUT);
                 return;
             }
             LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- AddScriptSig() %d/%d success\n", nTxInIndex, nTxInsCount);
@@ -514,7 +517,9 @@ CTransactionRef CCoinJoinServer::SelectCollateralToCharge()
 
     std::vector<CTransactionRef> vecOffendersCollaterals;
     const PoolState state{nState};
-    const size_t nSessionCollaterals{m_session_collaterals.size()};
+    // Only the participants that sent an entry are asked to sign. A session finalized on timeout
+    // still holds the collaterals of those that did not.
+    const size_t nParticipants{state == POOL_STATE_SIGNING ? vecEntries.size() : m_session_collaterals.size()};
 
     if (state == POOL_STATE_ACCEPTING_ENTRIES) {
         for (const auto& txCollateral : m_session_collaterals.txs()) {
@@ -549,10 +554,10 @@ CTransactionRef CCoinJoinServer::SelectCollateralToCharge()
     if (vecOffendersCollaterals.empty()) return {};
 
     //mostly offending? Charge sometimes
-    if (vecOffendersCollaterals.size() >= nSessionCollaterals - 1 && GetRand<int>(/*nMax=*/100) > 33) return {};
+    if (vecOffendersCollaterals.size() >= nParticipants - 1 && GetRand<int>(/*nMax=*/100) > 33) return {};
 
     //everyone is an offender? That's not right
-    if (vecOffendersCollaterals.size() >= nSessionCollaterals) return {};
+    if (vecOffendersCollaterals.size() >= nParticipants) return {};
 
     //charge one of the offenders randomly
     Shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end(), FastRandomContext());
@@ -1246,17 +1251,16 @@ void CCoinJoinServer::RelayFinalTransaction(const CTransaction& txFinal)
         __func__, nSessionID, nSessionDenom, CoinJoin::DenominationToString(nSessionDenom));
 
     // final mixing tx with empty signatures should be relayed to mixing participants only
-    for (const auto& entry : vecEntries) {
-        bool fOk = connman.ForNode(entry.addr, [&txFinal, this](CNode* pnode) {
+    const bool all_reached = std::ranges::all_of(vecEntries, [&txFinal, this](const auto& entry) {
+        return connman.ForNode(entry.addr, [&txFinal, this](CNode* pnode) {
             CNetMsgMaker msgMaker(pnode->GetCommonVersion());
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSFINALTX, nSessionID.load(), txFinal));
             return true;
         });
-        if (!fOk) {
-            // no such node? maybe this client disconnected or our own connection went down
-            RelayStatus(STATUS_REJECTED);
-            break;
-        }
+    });
+    if (!all_reached) {
+        // no such node? maybe this client disconnected or our own connection went down
+        RelayStatus(STATUS_REJECTED);
     }
 }
 
@@ -1296,11 +1300,11 @@ void CCoinJoinServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nM
         });
     }
 
-    if (nDisconnected == vecEntries.size()) {
-        // all clients disconnected, there is probably some issues with our own connection
-        // do not charge any fees, just reset the pool
-        SetNull();
-    }
+    // The participants told to terminate release their inputs and stop, so the session can no
+    // longer complete. End it now without charging anyone: at the timeout they would look like
+    // participants that never sent or signed, and a peer we cannot reach is no evidence of
+    // misbehavior - our own connection may be the one that failed.
+    SetNull();
 }
 
 void CCoinJoinServer::RelayCompletedTransaction(int session_id, const std::vector<CService>& participants,
