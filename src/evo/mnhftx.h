@@ -11,6 +11,7 @@
 #include <versionbits.h>
 
 #include <bls/bls.h>
+#include <evo/viewcache.h>
 #include <unordered_lru_cache.h>
 
 #include <gsl/pointers.h>
@@ -109,7 +110,8 @@ private:
     static constexpr size_t MNHFCacheSize = 1000;
     Mutex cs_cache;
     // versionBit <-> height
-    Uint256LruHashMap<Signals> mnhfCache GUARDED_BY(cs_cache){MNHFCacheSize};
+    EvoViewCache<Uint256LruHashMap<Signals>> mnhfCache GUARDED_BY(cs_cache){
+        [] { return Uint256LruHashMap<Signals>{MNHFCacheSize}; }};
 
 public:
     CMNHFManager() = delete;
@@ -143,8 +145,9 @@ public:
 
     /**
      * Recompute missing state from block data, walking back from pindex to the first block whose
-     * state is stored. Throws for a block that did not pass script validation. Only for startup,
-     * inside an EvoDB transaction: pindex must be a block that was connected.
+     * state is stored. Throws for a block that did not pass script validation, and
+     * BlockDataUnavailableError for a block at or below the base of a snapshot view. Only for
+     * startup, inside an EvoDB transaction: pindex must be a block that was connected.
      */
     void RebuildSignals(const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs_cache);
 
@@ -153,7 +156,8 @@ private:
 
     /**
      * Returns the signals stored for pindex, from the cache or evo db. Throws EvoDbMissingStateError
-     * if there are none, e.g. because the block was never connected.
+     * if there are none, e.g. because the block was never connected, or BlockDataUnavailableError
+     * in a snapshot view, which lacks what its snapshot did not carry.
      * NOTE: that some signals could expired between blocks.
      */
     Signals GetForBlock(const CBlockIndex* const pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_cache);

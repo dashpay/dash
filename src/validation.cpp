@@ -3373,7 +3373,8 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
         const CBlockIndex* pindex = pindexNew;
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
             WarningBitsConditionChecker checker(m_chainman, bit);
-            ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(), m_chainman.m_warningcache.at(bit));
+            ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(),
+                                                       m_chainman.m_warningcache.For(m_evoDb.CurrentView()).at(bit));
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
                 if (state == ThresholdState::ACTIVE) {
@@ -6191,7 +6192,16 @@ Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool,
     m_ibd_chainstate = std::make_unique<Chainstate>(
         mempool, m_blockman, *this, evoDb, special_tx, chainlocks, isman);
     m_active_chainstate = m_ibd_chainstate.get();
+    m_versionbitscache.SetEvoDb(&evoDb);
     return *m_active_chainstate;
+}
+
+std::shared_ptr<VersionBitsCache> EvoViewVersionBitsCache::ForCurrentView() const
+{
+    const CEvoDB* evodb{WITH_LOCK(m_mutex, return m_evodb)};
+    const EvoViewToken view{evodb ? evodb->CurrentView() : EvoViewToken{}};
+    LOCK(m_mutex);
+    return m_parts.For(view);
 }
 
 const AssumeutxoData* ExpectedAssumeutxo(
@@ -6923,6 +6933,15 @@ Chainstate& ChainstateManager::ActiveChainstate() const
     LOCK(::cs_main);
     assert(m_active_chainstate);
     return *m_active_chainstate;
+}
+
+const CChain* ChainstateManager::EvoChain(::EvoDbIdentity identity) const
+{
+    AssertLockHeld(::cs_main);
+    for (const Chainstate* chainstate : {m_ibd_chainstate.get(), m_snapshot_chainstate.get()}) {
+        if (IsUsable(chainstate) && chainstate->EvoDbIdentity() == identity) return &chainstate->m_chain;
+    }
+    return nullptr;
 }
 
 bool ChainstateManager::IsSnapshotActive() const
