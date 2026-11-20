@@ -173,6 +173,28 @@ BOOST_FIXTURE_TEST_CASE(baseindex_no_commit_ahead_of_flush, TestChain100Setup)
     sync_index(false, 101, 100);
 }
 
+// The sync thread can catch up while the notification for the genesis block is still queued, as when
+// -reindex-chainstate connects only the genesis block. That late notification has nothing to rewind to.
+BOOST_FIXTURE_TEST_CASE(late_genesis_notification_keeps_index, TestChain100Setup)
+{
+    ChainstateManager& chainman{*Assert(m_node.chainman)};
+    ErasingIndex index{interfaces::MakeChain(m_node)};
+    BOOST_REQUIRE(index.Start());
+    IndexWaitSynced(index);
+
+    GetMainSignals().BlockConnected(std::make_shared<const CBlock>(Params().GenesisBlock()), AtHeight(chainman, 0));
+    SyncWithValidationInterfaceQueue();
+    BOOST_CHECK_EQUAL(index.GetSummary().best_block_height, 100);
+    for (int height{0}; height <= 100; ++height) {
+        BOOST_CHECK(index.Indexed(AtHeight(chainman, height)));
+    }
+
+    CreateAndProcessBlock({}, CScript() << OP_TRUE);
+    IndexWaitSynced(index);
+    BOOST_CHECK(index.Indexed(AtHeight(chainman, 101)));
+    index.Stop();
+}
+
 // A rewind persists its erasures right away. If the node then stops before the rewound tip is flushed and the
 // rewound blocks are back on the active chain, the next start must index them again instead of resuming above them.
 BOOST_FIXTURE_TEST_CASE(restart_after_rewind_reindexes_erased_blocks, TestChain100Setup)
