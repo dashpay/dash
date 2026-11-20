@@ -12,6 +12,7 @@
 #include <uint256.h>
 #include <util/time.h>
 
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -55,106 +56,105 @@ public:
 
 /**
  * Bitcoin protocol message types. When adding new message types, don't forget
- * to update allNetMessageTypes in protocol.cpp.
+ * to update ALL_NET_MESSAGE_TYPES below.
  */
 namespace NetMsgType {
-
 /**
  * The version message provides information about the transmitting node to the
  * receiving node at the beginning of a connection.
  */
-extern const char* VERSION;
+inline constexpr const char* VERSION{"version"};
 /**
  * The verack message acknowledges a previously-received version message,
  * informing the connecting node that it can begin to send other messages.
  */
-extern const char* VERACK;
+inline constexpr const char* VERACK{"verack"};
 /**
  * The addr (IP address) message relays connection information for peers on the
  * network.
  */
-extern const char* ADDR;
+inline constexpr const char* ADDR{"addr"};
 /**
  * The addrv2 message relays connection information for peers on the network just
  * like the addr message, but is extended to allow gossiping of longer node
  * addresses (see BIP155).
  */
-extern const char *ADDRV2;
+inline constexpr const char* ADDRV2{"addrv2"};
 /**
  * The sendaddrv2 message signals support for receiving ADDRV2 messages (BIP155).
  * It also implies that its sender can encode as ADDRV2 and would send ADDRV2
  * instead of ADDR to a peer that has signaled ADDRV2 support by sending SENDADDRV2.
  */
-extern const char *SENDADDRV2;
+inline constexpr const char* SENDADDRV2{"sendaddrv2"};
 /**
  * The inv message (inventory message) transmits one or more inventories of
  * objects known to the transmitting peer.
  */
-extern const char* INV;
+inline constexpr const char* INV{"inv"};
 /**
  * The getdata message requests one or more data objects from another node.
  */
-extern const char* GETDATA;
+inline constexpr const char* GETDATA{"getdata"};
 /**
  * The merkleblock message is a reply to a getdata message which requested a
  * block using the inventory type MSG_MERKLEBLOCK.
  * @since protocol version 70001 as described by BIP37.
  */
-extern const char* MERKLEBLOCK;
+inline constexpr const char* MERKLEBLOCK{"merkleblock"};
 /**
  * The getblocks message requests an inv message that provides block header
  * hashes starting from a particular point in the block chain.
  */
-extern const char* GETBLOCKS;
+inline constexpr const char* GETBLOCKS{"getblocks"};
 /**
  * The getheaders message requests a headers message that provides block
  * headers starting from a particular point in the block chain.
  * @since protocol version 31800.
  */
-extern const char* GETHEADERS;
+inline constexpr const char* GETHEADERS{"getheaders"};
 /**
  * The tx message transmits a single transaction.
  */
-extern const char* TX;
+inline constexpr const char* TX{"tx"};
 /**
  * The headers message sends one or more block headers to a node which
  * previously requested certain headers with a getheaders message.
  * @since protocol version 31800.
  */
-extern const char* HEADERS;
+inline constexpr const char* HEADERS{"headers"};
 /**
  * The block message transmits a single serialized block.
  */
-extern const char* BLOCK;
+inline constexpr const char* BLOCK{"block"};
 /**
  * The getaddr message requests an addr message from the receiving node,
  * preferably one with lots of IP addresses of other receiving nodes.
  */
-extern const char* GETADDR;
+inline constexpr const char* GETADDR{"getaddr"};
 /**
  * The mempool message requests the TXIDs of transactions that the receiving
  * node has verified as valid but which have not yet appeared in a block.
  * @since protocol version 60002 as described by BIP35.
  *   Only available with service bit NODE_BLOOM, see also BIP111.
  */
-extern const char* MEMPOOL;
+inline constexpr const char* MEMPOOL{"mempool"};
 /**
  * The ping message is sent periodically to help confirm that the receiving
  * peer is still connected.
  */
-extern const char* PING;
+inline constexpr const char* PING{"ping"};
 /**
  * The pong message replies to a ping message, proving to the pinging node that
  * the ponging node is still alive.
  * @since protocol version 60001 as described by BIP31.
  */
-extern const char* PONG;
+inline constexpr const char* PONG{"pong"};
 /**
  * The notfound message is a reply to a getdata message which requested an
  * object the receiving node does not have available for relay.
  * @since protocol version 70001.
  */
-extern const char* NOTFOUND;
+inline constexpr const char* NOTFOUND{"notfound"};
 /**
  * The filterload message tells the receiving peer to filter all relayed
  * transactions and requested merkle blocks through the provided filter.
@@ -162,7 +162,7 @@ extern const char* NOTFOUND;
  *   Only available with service bit NODE_BLOOM since protocol version
  *   70011 as described by BIP111.
  */
-extern const char* FILTERLOAD;
+inline constexpr const char* FILTERLOAD{"filterload"};
 /**
  * The filteradd message tells the receiving peer to add a single element to a
  * previously-set bloom filter, such as a new public key.
@@ -170,7 +170,7 @@ extern const char* FILTERLOAD;
  *   Only available with service bit NODE_BLOOM since protocol version
  *   70011 as described by BIP111.
  */
-extern const char* FILTERADD;
+inline constexpr const char* FILTERADD{"filteradd"};
 /**
  * The filterclear message tells the receiving peer to remove a previously-set
  * bloom filter.
@@ -178,13 +178,13 @@ extern const char* FILTERADD;
  *   Only available with service bit NODE_BLOOM since protocol version
  *   70011 as described by BIP111.
  */
-extern const char* FILTERCLEAR;
+inline constexpr const char* FILTERCLEAR{"filterclear"};
 /**
  * Indicates that a node prefers to receive new block announcements via a
  * "headers" message rather than an "inv".
  * @since protocol version 70012 as described by BIP130.
  */
-extern const char* SENDHEADERS;
+inline constexpr const char* SENDHEADERS{"sendheaders"};
 
 /**
  * Contains a 1-byte bool and 8-byte LE version number.
@@ -193,36 +193,36 @@ extern const char* SENDHEADERS;
  * "cmpctblock" message rather than an "inv", depending on message contents.
  * @since protocol version 70209 as described by BIP 152
  */
-extern const char* SENDCMPCT;
+inline constexpr const char* SENDCMPCT{"sendcmpct"};
 /**
  * Contains a CBlockHeaderAndShortTxIDs object - providing a header and
  * list of "short txids".
  * @since protocol version 70209 as described by BIP 152
  */
-extern const char* CMPCTBLOCK;
+inline constexpr const char* CMPCTBLOCK{"cmpctblock"};
 /**
  * Contains a BlockTransactionsRequest
  * Peer should respond with "blocktxn" message.
  * @since protocol version 70209 as described by BIP 152
  */
-extern const char* GETBLOCKTXN;
+inline constexpr const char* GETBLOCKTXN{"getblocktxn"};
 /**
  * Contains a BlockTransactions.
  * Sent in response to a "getblocktxn" message.
  * @since protocol version 70209 as described by BIP 152
  */
-extern const char* BLOCKTXN;
+inline constexpr const char* BLOCKTXN{"blocktxn"};
 /**
  * getcfilters requests compact filters for a range of blocks.
  * Only available with service bit NODE_COMPACT_FILTERS as described by
  * BIP 157 & 158.
  */
-extern const char* GETCFILTERS;
+inline constexpr const char* GETCFILTERS{"getcfilters"};
 /**
  * cfilter is a response to a getcfilters request containing a single compact
  * filter.
  */
-extern const char* CFILTER;
+inline constexpr const char* CFILTER{"cfilter"};
 /**
  * getcfheaders requests a compact filter header and the filter hashes for a
  * range of blocks, which can then be used to reconstruct the filter headers
@@ -230,79 +230,156 @@ extern const char* CFILTER;
  * Only available with service bit NODE_COMPACT_FILTERS as described by
  * BIP 157 & 158.
  */
-extern const char* GETCFHEADERS;
+inline constexpr const char* GETCFHEADERS{"getcfheaders"};
 /**
  * cfheaders is a response to a getcfheaders request containing a filter header
  * and a vector of filter hashes for each subsequent block in the requested range.
  */
-extern const char* CFHEADERS;
+inline constexpr const char* CFHEADERS{"cfheaders"};
 /**
  * getcfcheckpt requests evenly spaced compact filter headers, enabling
  * parallelized download and validation of the headers between them.
  * Only available with service bit NODE_COMPACT_FILTERS as described by
  * BIP 157 & 158.
  */
-extern const char* GETCFCHECKPT;
+inline constexpr const char* GETCFCHECKPT{"getcfcheckpt"};
 /**
  * cfcheckpt is a response to a getcfcheckpt request containing a vector of
  * evenly spaced filter headers for blocks on the requested chain.
  */
-extern const char* CFCHECKPT;
+inline constexpr const char* CFCHECKPT{"cfcheckpt"};
 /**
  * Contains a 4-byte version number and an 8-byte salt.
  * The salt is used to compute short txids needed for efficient
  * txreconciliation, as described by BIP 330.
  */
-extern const char* SENDTXRCNCL;
+inline constexpr const char* SENDTXRCNCL{"sendtxrcncl"};
 
 // Dash message types
 // NOTE: do NOT declare non-implmented here, we don't want them to be exposed to the outside
 // TODO: add description
-extern const char* SPORK;
-extern const char* GETSPORKS;
-extern const char* DSACCEPT;
-extern const char* DSVIN;
-extern const char* DSFINALTX;
-extern const char* DSSIGNFINALTX;
-extern const char* DSCOMPLETE;
-extern const char* DSSTATUSUPDATE;
-extern const char* DSTX;
-extern const char* DSQUEUE;
-extern const char* SENDDSQUEUE;
-extern const char* SYNCSTATUSCOUNT;
-extern const char* MNGOVERNANCESYNC;
-extern const char* MNGOVERNANCEOBJECT;
-extern const char* MNGOVERNANCEOBJECTVOTE;
-extern const char* GETMNLISTDIFF;
-extern const char* MNLISTDIFF;
-extern const char* QSENDRECSIGS;
-extern const char* QFCOMMITMENT;
-extern const char* QCONTRIB;
-extern const char* QCOMPLAINT;
-extern const char* QJUSTIFICATION;
-extern const char* QPCOMMITMENT;
-extern const char* QWATCH;
-extern const char* QSIGSESANN;
-extern const char* QSIGSHARESINV;
-extern const char* QGETSIGSHARES;
-extern const char* QBSIGSHARES;
-extern const char* QSIGREC;
-extern const char* QSIGSHARE;
-extern const char* QGETDATA;
-extern const char* QDATA;
-extern const char* CLSIG;
-extern const char* ISDLOCK;
-extern const char* MNAUTH;
-extern const char* GETHEADERS2;
-extern const char* SENDHEADERS2;
-extern const char* HEADERS2;
-extern const char* GETQUORUMROTATIONINFO;
-extern const char* QUORUMROTATIONINFO;
-extern const char* PLATFORMBAN;
-};
+inline constexpr const char* SPORK{"spork"};
+inline constexpr const char* GETSPORKS{"getsporks"};
+inline constexpr const char* DSACCEPT{"dsa"};
+inline constexpr const char* DSVIN{"dsi"};
+inline constexpr const char* DSFINALTX{"dsf"};
+inline constexpr const char* DSSIGNFINALTX{"dss"};
+inline constexpr const char* DSCOMPLETE{"dsc"};
+inline constexpr const char* DSSTATUSUPDATE{"dssu"};
+inline constexpr const char* DSTX{"dstx"};
+inline constexpr const char* DSQUEUE{"dsq"};
+inline constexpr const char* SENDDSQUEUE{"senddsq"};
+inline constexpr const char* SYNCSTATUSCOUNT{"ssc"};
+inline constexpr const char* MNGOVERNANCESYNC{"govsync"};
+inline constexpr const char* MNGOVERNANCEOBJECT{"govobj"};
+inline constexpr const char* MNGOVERNANCEOBJECTVOTE{"govobjvote"};
+inline constexpr const char* GETMNLISTDIFF{"getmnlistd"};
+inline constexpr const char* MNLISTDIFF{"mnlistdiff"};
+inline constexpr const char* QSENDRECSIGS{"qsendrecsigs"};
+inline constexpr const char* QFCOMMITMENT{"qfcommit"};
+inline constexpr const char* QCONTRIB{"qcontrib"};
+inline constexpr const char* QCOMPLAINT{"qcomplaint"};
+inline constexpr const char* QJUSTIFICATION{"qjustify"};
+inline constexpr const char* QPCOMMITMENT{"qpcommit"};
+inline constexpr const char* QWATCH{"qwatch"};
+inline constexpr const char* QSIGSESANN{"qsigsesann"};
+inline constexpr const char* QSIGSHARESINV{"qsigsinv"};
+inline constexpr const char* QGETSIGSHARES{"qgetsigs"};
+inline constexpr const char* QBSIGSHARES{"qbsigs"};
+inline constexpr const char* QSIGREC{"qsigrec"};
+inline constexpr const char* QSIGSHARE{"qsigshare"};
+inline constexpr const char* QGETDATA{"qgetdata"};
+inline constexpr const char* QDATA{"qdata"};
+inline constexpr const char* CLSIG{"clsig"};
+inline constexpr const char* ISDLOCK{"isdlock"};
+inline constexpr const char* MNAUTH{"mnauth"};
+inline constexpr const char* GETHEADERS2{"getheaders2"};
+inline constexpr const char* SENDHEADERS2{"sendheaders2"};
+inline constexpr const char* HEADERS2{"headers2"};
+inline constexpr const char* GETQUORUMROTATIONINFO{"getqrinfo"};
+inline constexpr const char* QUORUMROTATIONINFO{"qrinfo"};
+inline constexpr const char* PLATFORMBAN{"platformban"};
+}; // namespace NetMsgType
 
-/* Get a vector of all valid message types (see above) */
-const std::vector<std::string>& getAllNetMessageTypes();
+/** All known message types (see above). Keep this in the same order as the list of messages above. */
+inline const std::array ALL_NET_MESSAGE_TYPES{std::to_array<std::string>({
+    NetMsgType::VERSION,
+    NetMsgType::VERACK,
+    NetMsgType::ADDR,
+    NetMsgType::ADDRV2,
+    NetMsgType::SENDADDRV2,
+    NetMsgType::INV,
+    NetMsgType::GETDATA,
+    NetMsgType::MERKLEBLOCK,
+    NetMsgType::GETBLOCKS,
+    NetMsgType::GETHEADERS,
+    NetMsgType::TX,
+    NetMsgType::HEADERS,
+    NetMsgType::BLOCK,
+    NetMsgType::GETADDR,
+    NetMsgType::MEMPOOL,
+    NetMsgType::PING,
+    NetMsgType::PONG,
+    NetMsgType::NOTFOUND,
+    NetMsgType::FILTERLOAD,
+    NetMsgType::FILTERADD,
+    NetMsgType::FILTERCLEAR,
+    NetMsgType::SENDHEADERS,
+    NetMsgType::SENDCMPCT,
+    NetMsgType::CMPCTBLOCK,
+    NetMsgType::GETBLOCKTXN,
+    NetMsgType::BLOCKTXN,
+    NetMsgType::GETCFILTERS,
+    NetMsgType::CFILTER,
+    NetMsgType::GETCFHEADERS,
+    NetMsgType::CFHEADERS,
+    NetMsgType::GETCFCHECKPT,
+    NetMsgType::CFCHECKPT,
+    NetMsgType::SENDTXRCNCL,
+    // Dash message types
+    // NOTE: do NOT include non-implmented here, we want them to be "Unknown command" in ProcessMessage()
+    NetMsgType::SPORK,
+    NetMsgType::GETSPORKS,
+    NetMsgType::SENDDSQUEUE,
+    NetMsgType::DSACCEPT,
+    NetMsgType::DSVIN,
+    NetMsgType::DSFINALTX,
+    NetMsgType::DSSIGNFINALTX,
+    NetMsgType::DSCOMPLETE,
+    NetMsgType::DSSTATUSUPDATE,
+    NetMsgType::DSTX,
+    NetMsgType::DSQUEUE,
+    NetMsgType::SYNCSTATUSCOUNT,
+    NetMsgType::MNGOVERNANCESYNC,
+    NetMsgType::MNGOVERNANCEOBJECT,
+    NetMsgType::MNGOVERNANCEOBJECTVOTE,
+    NetMsgType::GETMNLISTDIFF,
+    NetMsgType::MNLISTDIFF,
+    NetMsgType::QSENDRECSIGS,
+    NetMsgType::QFCOMMITMENT,
+    NetMsgType::QCONTRIB,
+    NetMsgType::QCOMPLAINT,
+    NetMsgType::QJUSTIFICATION,
+    NetMsgType::QPCOMMITMENT,
+    NetMsgType::QWATCH,
+    NetMsgType::QSIGSESANN,
+    NetMsgType::QSIGSHARESINV,
+    NetMsgType::QGETSIGSHARES,
+    NetMsgType::QBSIGSHARES,
+    NetMsgType::QSIGREC,
+    NetMsgType::QSIGSHARE,
+    NetMsgType::QGETDATA,
+    NetMsgType::QDATA,
+    NetMsgType::CLSIG,
+    NetMsgType::ISDLOCK,
+    NetMsgType::MNAUTH,
+    NetMsgType::GETHEADERS2,
+    NetMsgType::SENDHEADERS2,
+    NetMsgType::HEADERS2,
+    NetMsgType::GETQUORUMROTATIONINFO,
+    NetMsgType::QUORUMROTATIONINFO,
+    NetMsgType::PLATFORMBAN,
+})};
 
 /* Whether the message type violates blocks-relay-only policy */
 bool NetMessageViolatesBlocksOnly(const std::string& msg_type);
