@@ -1021,7 +1021,10 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         // No individual transactions are allowed below the mempool min feerate except from disconnected
         // blocks and transactions in a package. Package transactions will be checked using package
         // feerate later.
-        if (!bypass_limits && !args.m_package_feerates && !CheckFeeRate(ws.m_vsize, ws.m_modified_fees, state)) return false;
+        // Neither does the mempool min feerate apply to a transaction holding an InstantSend lock:
+        // the mempool keeps it however full it is.
+        const bool has_islock{m_isman && (m_isman->IsLocked(hash) || m_isman->IsWaitingForTx(hash))};
+        if (!bypass_limits && !args.m_package_feerates && !has_islock && !CheckFeeRate(ws.m_vsize, ws.m_modified_fees, state)) return false;
     }
 
     // Calculate in-mempool ancestors, up to a limit.

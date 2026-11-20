@@ -5,10 +5,17 @@
 
 from decimal import Decimal
 
-from test_framework.messages import msg_qsendrecsigs
+from test_framework.messages import COIN, msg_qsendrecsigs
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import (
+    assert_equal,
+    assert_greater_than,
+    assert_raises_rpc_error,
+    create_lots_of_big_transactions,
+    gen_return_txouts,
+)
+from test_framework.wallet import MiniWallet
 
 '''
 p2p_instantsend.py
@@ -47,6 +54,11 @@ class InstantSendTest(DashTestFramework):
         self.isolated_idx = 1
         self.receiver_idx = 2
         self.sender_idx = 3
+        # The isolated node runs the smallest mempool allowed, and relays the large transactions
+        # test_full_mempool_keeps_locked_txs fills it with
+        self.extra_args[self.isolated_idx] += ["-maxmempool=5", "-datacarriersize=100000"]
+        # The masternode's small mempool makes it stop locking transactions sooner
+        self.extra_args[-1] += ["-maxmempool=5"]
 
     def run_test(self):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
@@ -58,6 +70,7 @@ class InstantSendTest(DashTestFramework):
         self.test_block_doublespend()
         self.test_isdlock_relayed_to_recsigs_observer()
         self.test_provider_tx_not_locked()
+        self.test_full_mempool_keeps_locked_txs()
 
     def test_block_doublespend(self):
         sender = self.nodes[self.sender_idx]
@@ -240,6 +253,110 @@ class InstantSendTest(DashTestFramework):
         self.wait_for_chainlocked_block_all_nodes(block_hash)
         self.wait_until(lambda: all(n.getrawtransaction(child_id, True)["instantlock_internal"] for n in self.nodes))
         assert_equal(node.getbestblockhash(), block_hash)
+
+    def test_full_mempool_keeps_locked_txs(self):
+        self.log.info("A full mempool keeps locked transactions and their locks")
+        sender = self.nodes[self.sender_idx]
+        receiver = self.nodes[self.receiver_idx]
+        small = self.nodes[self.isolated_idx]
+        others = [n for n in self.nodes if n is not small]
+        relayfee = small.getnetworkinfo()["relayfee"]
+
+        # Large transactions only the small node accepts: nobody else relays or locks them
+        num_big_txs = 80
+        num_locked_txs = 40
+        wallet = MiniWallet(small)
+        fund_id = self.nodes[0].sendtoaddress(wallet.get_address(), 100)
+        self.wait_for_instantlock(fund_id)
+        self.generate(self.nodes[0], 1)
+        wallet.rescan_utxos()
+        split_id = wallet.send_self_transfer_multi(from_node=small, num_outputs=num_big_txs + num_locked_txs)["txid"]
+        self.wait_for_instantlock(split_id)
+
+        sender_addr = sender.getnewaddress()
+        is_id = self.nodes[0].sendtoaddress(sender_addr, 1)
+        self.wait_for_instantlock(is_id)
+        self.generate(self.nodes[0], 2)
+
+        dblspnd_tx = self.create_raw_tx(sender, sender, 0.5, 1, 100)
+        locked_id = sender.sendtoaddress(receiver.getnewaddress(), 0.9, fee_rate=1)
+        self.wait_for_instantlock(locked_id)
+
+        self.log.info("Fill the small mempool with transactions paying more than the locked one")
+        txouts = gen_return_txouts()
+        for i in range(num_big_txs):
+            # each is about 65 kB, so this starts at twice the minimum relay feerate
+            create_lots_of_big_transactions(wallet, small, (i + 1) * 130 * relayfee, 1, txouts)
+        assert_greater_than(small.getmempoolinfo()["mempoolminfee"], relayfee)
+
+        assert locked_id in small.getrawmempool()
+        assert small.getrawtransaction(locked_id, True)["instantlock_internal"]
+        assert_raises_rpc_error(-26, "tx-txlock-conflict", small.sendrawtransaction, dblspnd_tx["hex"])
+
+        self.log.info("A locked transaction is accepted below the fee floor of a full mempool")
+        late_id = sender.sendtoaddress(receiver.getnewaddress(), 0.05, fee_rate=1)
+        self.wait_for_instantlock(late_id, nodes=others)
+
+        def late_tx_arrived():
+            self.bump_mocktime(1)
+            return late_id in small.getrawmempool()
+        self.wait_until(late_tx_arrived, sleep=0.5)
+        self.wait_until(lambda: small.getrawtransaction(late_id, True)["instantlock_internal"])
+        assert_greater_than(small.getmempoolinfo()["mempoolminfee"], relayfee)
+
+        self.log.info("Both are mined, and the small node mines away what only it holds")
+        tip = self.generate(self.nodes[0], 1, sync_fun=self.sync_blocks)[0]
+        block_txs = self.nodes[0].getblock(tip)["tx"]
+        assert locked_id in block_txs and late_id in block_txs
+        self.bump_mocktime(10 * 60 + 1)
+        while small.getrawmempool():
+            self.generate(small, 1, sync_fun=self.sync_blocks)
+        self.sync_mempools()
+
+        self.log.info("Once locked transactions take up half of a masternode's mempool, it leaves the rest to be mined")
+        mn = self.mninfo[0].get_node(self)
+        log_start = mn.debug_log_path.stat().st_size
+
+        def not_signed(txid):
+            with open(mn.debug_log_path, encoding="utf-8", errors="replace") as log:
+                log.seek(log_start)
+                return f"txid={txid}: not signing, locked transactions take up half of the mempool" in log.read()
+
+        locked_ids = []
+        while True:
+            # about 100 kB each, the largest transaction relayed by default
+            txid = wallet.send_self_transfer_multi(from_node=mn, num_outputs=2700)["txid"]
+            self.wait_until(lambda: mn.getrawtransaction(txid, True)["instantlock_internal"] or not_signed(txid))
+            if not_signed(txid):
+                break
+            locked_ids.append(txid)
+        assert_greater_than(len(locked_ids), 0)
+        self.bump_mocktime(30)
+        self.sync_mempools()
+        for node in self.nodes:
+            assert not node.getrawtransaction(txid, True)["instantlock_internal"]
+
+        self.log.info("It is locked once it is mined, and transactions are locked in the mempool again")
+        # Without ChainLocks, or its block could be ChainLocked before the masternode gets to lock it
+        self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 4000000000)
+        self.wait_for_sporks_same()
+        # Mined on its own: the locked transactions stay in the masternode's mempool meanwhile
+        for locked_id in locked_ids:
+            self.nodes[0].prioritisetransaction(locked_id, -COIN)
+        self.bump_mocktime(10 * 60 + 1)
+        self.generate(self.nodes[0], 1)
+        self.wait_until(lambda: all(node.getrawtransaction(txid, True)["instantlock_internal"] for node in self.nodes))
+        assert_equal(sorted(mn.getrawmempool()), sorted(locked_ids))
+        for locked_id in locked_ids:
+            self.nodes[0].prioritisetransaction(locked_id, COIN)
+        self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 0)
+        self.wait_for_sporks_same()
+        while self.nodes[0].getrawmempool():
+            tip = self.generate(self.nodes[0], 1)[0]
+        self.wait_for_chainlocked_block_all_nodes(tip)
+        resumed_id = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
+        self.wait_for_instantlock(resumed_id)
+
 
 if __name__ == '__main__':
     InstantSendTest().main()
