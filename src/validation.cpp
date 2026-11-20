@@ -371,6 +371,30 @@ static bool IsCurrentForFeeEstimation(Chainstate& active_chainstate) EXCLUSIVE_L
     return true;
 }
 
+void Chainstate::RemoveProviderTxsInvalidAtTip()
+{
+    AssertLockHeld(cs_main);
+    AssertLockHeld(m_mempool->cs);
+    const CBlockIndex* tip{m_chain.Tip()};
+    if (!tip) return;
+
+    const SpecialTxRules rules{GetSpecialTxRules(tip, m_chainman)};
+    std::vector<CTransactionRef> invalid;
+    for (const CTxMemPoolEntry& entry : m_mempool->entryAll()) {
+        const CTransaction& tx{entry.GetTx()};
+        if (!IsProviderTx(tx)) continue;
+        TxValidationState state;
+        if (!m_special_tx.CheckSpecialTx(tx, tip, rules, CoinsTip(), /*check_sigs=*/true, state)) {
+            LogPrint(BCLog::MEMPOOL, "%s: removing %s, invalid after the reorg: %s\n", __func__,
+                     tx.GetHash().ToString(), state.ToString());
+            invalid.push_back(entry.GetSharedTx());
+        }
+    }
+    for (const auto& tx : invalid) {
+        m_mempool->removeRecursive(*tx, MemPoolRemovalReason::REORG);
+    }
+}
+
 void Chainstate::MaybeUpdateMempoolForReorg(
     DisconnectedBlockTransactions& disconnectpool,
     bool fAddToMempool)
@@ -3444,6 +3468,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     }
 
     m_chain.SetTip(*pindexDelete->pprev);
+    m_provider_txs_need_recheck = true;
 
     UpdateTip(pindexDelete->pprev);
     // Let wallets know transactions went from 1-confirmed to
@@ -3935,6 +3960,10 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                     break;
                 }
             } while (!m_chain.Tip() || (starting_tip && CBlockIndexWorkComparator()(m_chain.Tip(), starting_tip)));
+            if (m_mempool && m_provider_txs_need_recheck && FindMostWorkChain() == m_chain.Tip()) {
+                m_provider_txs_need_recheck = false;
+                RemoveProviderTxsInvalidAtTip();
+            }
             if (!blocks_connected) return true;
 
             const CBlockIndex* pindexFork = m_chain.FindFork(starting_tip);
