@@ -461,10 +461,10 @@ void ep2_map_legacy(blst_p2* p, const uint8_t* msg, size_t len)
         input[32 + 0] = 0x47;  // G
         input[32 + 1] = 0x32;  // 2
         input[32 + 2] = 0x5f;  // _
-        input[32 + 3] = (uint8_t)i;
+        input[32 + 3] = static_cast<uint8_t>(i);
         input[32 + 4] = 0x5f;  // _
         input[32 + 5] = 0x63;  // c
-        input[32 + 6] = (uint8_t)j;
+        input[32 + 6] = static_cast<uint8_t>(j);
         input[32 + 7] = 0;
         blst_sha256(out, input, 32 + 8);
         input[32 + 7] = 1;
