@@ -24,3 +24,20 @@ uint256 CalcTxOutputsHash(const CTransaction& tx)
     }
     return hw.GetHash();
 }
+
+bool IsProviderTx(const CTransaction& tx)
+{
+    if (!tx.IsSpecialTxVersion()) return false;
+    switch (tx.nType) {
+    case TRANSACTION_PROVIDER_REGISTER:
+    case TRANSACTION_PROVIDER_UPDATE_SERVICE:
+    case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
+    case TRANSACTION_PROVIDER_UPDATE_REVOKE:
+    case TRANSACTION_PROVIDER_DISSOLVE:
+    case TRANSACTION_PROVIDER_UPDATE_SHARE:
+    case TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR:
+        return true;
+    default:
+        return false;
+    }
+}

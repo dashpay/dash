@@ -809,6 +809,15 @@ private:
         DisconnectedBlockTransactions& disconnectpool,
         bool fAddToMempool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
 
+    /** Remove the provider transactions, and their descendants, that CheckSpecialTx() rejects at
+     *  the current tip, as a reorg can change the masternode list under those in the mempool. */
+    void RemoveProviderTxsInvalidAtTip() EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+
+    /** Set when a block is disconnected, until ActivateBestChain() has reached its best chain and
+     *  rechecked the provider transactions in the mempool. Checking them on the way there would
+     *  remove the updates of a masternode whose registration the new branch has yet to connect. */
+    bool m_provider_txs_need_recheck GUARDED_BY(::cs_main){false};
+
     /** Check warning conditions and do some notifications on new chain tip set. */
     void UpdateTip(const CBlockIndex* pindexNew)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
