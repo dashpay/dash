@@ -863,100 +863,157 @@ BOOST_AUTO_TEST_CASE(SelectCoins_test)
 
 BOOST_AUTO_TEST_CASE(waste_test)
 {
-    CoinSet selection;
     const CAmount fee{100};
+    const CAmount min_viable_change{300};
     const CAmount change_cost{125};
+    const CAmount change_fee{30};
     const CAmount fee_diff{40};
     const CAmount in_amt{3 * COIN};
     const CAmount target{2 * COIN};
-    const CAmount excess{in_amt - fee * 2 - target};
+    const CAmount excess{80};
+    const CAmount exact_target{in_amt - fee * 2}; // Maximum spendable amount after fees: no change, no excess
 
-    // Waste with change is the change cost and difference between fee and long term fee
-    add_coin(1 * COIN, 1, selection, fee, fee - fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee - fee_diff);
-    const CAmount waste1 = GetSelectionWaste(selection, change_cost, target);
-    BOOST_CHECK_EQUAL(fee_diff * 2 + change_cost, waste1);
-    selection.clear();
+    // In the following, we test that the waste is calculated correctly in various scenarios.
+    // Usually, RecalculateWaste would compute change_fee and change_cost on basis of the
+    // change output type, current feerate, and discard_feerate, but we use fixed values
+    // across this test to make the test easier to understand.
+    {
+        // Waste with change is the change cost and difference between fee and long term fee
+        CoinSet coins1;
+        SelectionResult selection1{target, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins1, /*fee=*/fee, /*long_term_fee=*/fee - fee_diff);
+        add_coin(2 * COIN, 2, coins1, fee, fee - fee_diff);
+        selection1.AddInputs(coins1, /*subtract_fee_outputs=*/false);
+        selection1.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(fee_diff * 2 + change_cost, selection1.GetWaste());
 
-    // Waste without change is the excess and difference between fee and long term fee
-    add_coin(1 * COIN, 1, selection, fee, fee - fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee - fee_diff);
-    const CAmount waste_nochange1 = GetSelectionWaste(selection, 0, target);
-    BOOST_CHECK_EQUAL(fee_diff * 2 + excess, waste_nochange1);
-    selection.clear();
+        // Waste will be greater when fee is greater, but long term fee is the same
+        CoinSet coins2;
+        SelectionResult selection2{target, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins2, fee * 2, fee - fee_diff);
+        add_coin(2 * COIN, 2, coins2, fee * 2, fee - fee_diff);
+        selection2.AddInputs(coins2, /*subtract_fee_outputs=*/false);
+        selection2.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_GT(selection2.GetWaste(), selection1.GetWaste());
 
-    // Waste with change and fee == long term fee is just cost of change
-    add_coin(1 * COIN, 1, selection, fee, fee);
-    add_coin(2 * COIN, 2, selection, fee, fee);
-    BOOST_CHECK_EQUAL(change_cost, GetSelectionWaste(selection, change_cost, target));
-    selection.clear();
+        // Waste with change is the change cost and difference between fee and long term fee
+        // With long term fee greater than fee, waste should be less than when long term fee is less than fee
+        CoinSet coins3;
+        SelectionResult selection3{target, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins3, fee, fee + fee_diff);
+        add_coin(2 * COIN, 2, coins3, fee, fee + fee_diff);
+        selection3.AddInputs(coins3, /*subtract_fee_outputs=*/false);
+        selection3.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(fee_diff * -2 + change_cost, selection3.GetWaste());
+        BOOST_CHECK_LT(selection3.GetWaste(), selection1.GetWaste());
+    }
 
-    // Waste without change and fee == long term fee is just the excess
-    add_coin(1 * COIN, 1, selection, fee, fee);
-    add_coin(2 * COIN, 2, selection, fee, fee);
-    BOOST_CHECK_EQUAL(excess, GetSelectionWaste(selection, 0, target));
-    selection.clear();
+    {
+        // Waste without change is the excess and difference between fee and long term fee
+        CoinSet coins_nochange1;
+        SelectionResult selection_nochange1{exact_target - excess, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins_nochange1, fee, fee - fee_diff);
+        add_coin(2 * COIN, 2, coins_nochange1, fee, fee - fee_diff);
+        selection_nochange1.AddInputs(coins_nochange1, /*subtract_fee_outputs=*/false);
+        selection_nochange1.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(fee_diff * 2 + excess, selection_nochange1.GetWaste());
 
-    // Waste will be greater when fee is greater, but long term fee is the same
-    add_coin(1 * COIN, 1, selection, fee * 2, fee - fee_diff);
-    add_coin(2 * COIN, 2, selection, fee * 2, fee - fee_diff);
-    const CAmount waste2 = GetSelectionWaste(selection, change_cost, target);
-    BOOST_CHECK_GT(waste2, waste1);
-    selection.clear();
+        // Waste without change is the excess and difference between fee and long term fee
+        // With long term fee greater than fee, waste should be less than when long term fee is less than fee
+        CoinSet coins_nochange2;
+        SelectionResult selection_nochange2{exact_target - excess, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins_nochange2, fee, fee + fee_diff);
+        add_coin(2 * COIN, 2, coins_nochange2, fee, fee + fee_diff);
+        selection_nochange2.AddInputs(coins_nochange2, /*subtract_fee_outputs=*/false);
+        selection_nochange2.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(fee_diff * -2 + excess, selection_nochange2.GetWaste());
+        BOOST_CHECK_LT(selection_nochange2.GetWaste(), selection_nochange1.GetWaste());
+    }
 
-    // Waste with change is the change cost and difference between fee and long term fee
-    // With long term fee greater than fee, waste should be less than when long term fee is less than fee
-    add_coin(1 * COIN, 1, selection, fee, fee + fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee + fee_diff);
-    const CAmount waste3 = GetSelectionWaste(selection, change_cost, target);
-    BOOST_CHECK_EQUAL(fee_diff * -2 + change_cost, waste3);
-    BOOST_CHECK_LT(waste3, waste1);
-    selection.clear();
+    {
+        // Waste with change and fee == long term fee is just cost of change
+        CoinSet coins;
+        SelectionResult selection{target, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins, fee, fee);
+        add_coin(2 * COIN, 2, coins, fee, fee);
+        selection.AddInputs(coins, /*subtract_fee_outputs=*/false);
+        selection.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(change_cost, selection.GetWaste());
+    }
 
-    // Waste without change is the excess and difference between fee and long term fee
-    // With long term fee greater than fee, waste should be less than when long term fee is less than fee
-    add_coin(1 * COIN, 1, selection, fee, fee + fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee + fee_diff);
-    const CAmount waste_nochange2 = GetSelectionWaste(selection, 0, target);
-    BOOST_CHECK_EQUAL(fee_diff * -2 + excess, waste_nochange2);
-    BOOST_CHECK_LT(waste_nochange2, waste_nochange1);
-    selection.clear();
+    {
+        // Waste without change and fee == long term fee is just the excess
+        CoinSet coins;
+        SelectionResult selection{exact_target - excess, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins, fee, fee);
+        add_coin(2 * COIN, 2, coins, fee, fee);
+        selection.AddInputs(coins, /*subtract_fee_outputs=*/false);
+        selection.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(excess, selection.GetWaste());
+    }
 
-    // No Waste when fee == long_term_fee, no change, and no excess
-    add_coin(1 * COIN, 1, selection, fee, fee);
-    add_coin(2 * COIN, 2, selection, fee, fee);
-    const CAmount exact_target{in_amt - fee * 2};
-    BOOST_CHECK_EQUAL(0, GetSelectionWaste(selection, /*change_cost=*/0, exact_target));
-    selection.clear();
+    {
+        // Waste is 0 when fee == long_term_fee, no change, and no excess
+        CoinSet coins;
+        SelectionResult selection{exact_target, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins, fee, fee);
+        add_coin(2 * COIN, 2, coins, fee, fee);
+        selection.AddInputs(coins, /*subtract_fee_outputs=*/false);
+        selection.RecalculateWaste(min_viable_change, change_cost , change_fee);
+        BOOST_CHECK_EQUAL(0, selection.GetWaste());
+    }
 
-    // No Waste when (fee - long_term_fee) == (-cost_of_change), and no excess
-    const CAmount new_change_cost{fee_diff * 2};
-    add_coin(1 * COIN, 1, selection, fee, fee + fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee + fee_diff);
-    BOOST_CHECK_EQUAL(0, GetSelectionWaste(selection, new_change_cost, target));
-    selection.clear();
+    {
+        // Waste is 0 when (fee - long_term_fee) == (-cost_of_change), and no excess
+        CoinSet coins;
+        SelectionResult selection{target, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins, fee, fee + fee_diff);
+        add_coin(2 * COIN, 2, coins, fee, fee + fee_diff);
+        selection.AddInputs(coins, /*subtract_fee_outputs=*/false);
+        selection.RecalculateWaste(min_viable_change, /*change_cost=*/fee_diff * 2, change_fee);
+        BOOST_CHECK_EQUAL(0, selection.GetWaste());
+    }
 
-    // No Waste when (fee - long_term_fee) == (-excess), no change cost
-    const CAmount new_target{in_amt - fee * 2 - fee_diff * 2};
-    add_coin(1 * COIN, 1, selection, fee, fee + fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee + fee_diff);
-    BOOST_CHECK_EQUAL(0, GetSelectionWaste(selection, /*change_cost=*/ 0, new_target));
-    selection.clear();
+    {
+        // Waste is 0 when (fee - long_term_fee) == (-excess), no change cost
+        const CAmount new_target{exact_target - /*excess=*/fee_diff * 2};
+        CoinSet coins;
+        SelectionResult selection{new_target, SelectionAlgorithm::MANUAL};
+        add_coin(1 * COIN, 1, coins, fee, fee + fee_diff);
+        add_coin(2 * COIN, 2, coins, fee, fee + fee_diff);
+        selection.AddInputs(coins, /*subtract_fee_outputs=*/false);
+        selection.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(0, selection.GetWaste());
+    }
 
-    // Negative waste when the long term fee is greater than the current fee and the selected value == target
-    const CAmount exact_target1{3 * COIN - 2 * fee};
-    const CAmount target_waste1{-2 * fee_diff}; // = (2 * fee) - (2 * (fee + fee_diff))
-    add_coin(1 * COIN, 1, selection, fee, fee + fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee + fee_diff);
-    BOOST_CHECK_EQUAL(target_waste1, GetSelectionWaste(selection, /*change_cost=*/ 0, exact_target1));
-    selection.clear();
+    {
+        // Negative waste when the long term fee is greater than the current fee and the selected value == target
+        CoinSet coins;
+        SelectionResult selection{exact_target, SelectionAlgorithm::MANUAL};
+        const CAmount target_waste1{-2 * fee_diff}; // = (2 * fee) - (2 * (fee + fee_diff))
+        add_coin(1 * COIN, 1, coins, fee, fee + fee_diff);
+        add_coin(2 * COIN, 2, coins, fee, fee + fee_diff);
+        selection.AddInputs(coins, /*subtract_fee_outputs=*/false);
+        selection.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(target_waste1, selection.GetWaste());
+    }
 
-    // Negative waste when the long term fee is greater than the current fee and change_cost < - (inputs * (fee - long_term_fee))
-    const CAmount large_fee_diff{90};
-    const CAmount target_waste2{-2 * large_fee_diff + change_cost}; // = (2 * fee) - (2 * (fee + large_fee_diff)) + change_cost
-    add_coin(1 * COIN, 1, selection, fee, fee + large_fee_diff);
-    add_coin(2 * COIN, 2, selection, fee, fee + large_fee_diff);
-    BOOST_CHECK_EQUAL(target_waste2, GetSelectionWaste(selection, change_cost, target));
+    {
+        // Negative waste when the long term fee is greater than the current fee and change_cost < - (inputs * (fee - long_term_fee))
+        CoinSet coins;
+        SelectionResult selection{target, SelectionAlgorithm::MANUAL};
+        const CAmount large_fee_diff{90};
+        const CAmount target_waste2{-2 * large_fee_diff + change_cost};
+        // = (2 * fee) - (2 * (fee + large_fee_diff)) + change_cost
+        // = (2 * 100) - (2 * (100 + 90)) + 125
+        // = 200 - 380 + 125 = -55
+        assert(target_waste2 == -55);
+        add_coin(1 * COIN, 1, coins, fee, fee + large_fee_diff);
+        add_coin(2 * COIN, 2, coins, fee, fee + large_fee_diff);
+        selection.AddInputs(coins, /*subtract_fee_outputs=*/false);
+        selection.RecalculateWaste(min_viable_change, change_cost, change_fee);
+        BOOST_CHECK_EQUAL(target_waste2, selection.GetWaste());
+    }
 }
 
 BOOST_AUTO_TEST_CASE(effective_value_test)
@@ -1414,6 +1471,7 @@ BOOST_AUTO_TEST_CASE(check_max_weight)
         /*avoid_partial=*/false,
     };
 
+    int max_weight = MAX_STANDARD_TX_SIZE - (cs_params.tx_noinputs_size + cs_params.change_output_size);
     {
         const auto result = select_coins(target, cs_params, cc, [&](CWallet& wallet) {
             CoinsResult available_coins;
@@ -1425,8 +1483,9 @@ BOOST_AUTO_TEST_CASE(check_max_weight)
         }, m_node);
 
         BOOST_CHECK(result);
-        BOOST_CHECK_EQUAL(result->GetInputSet().size(), 1U);
-        BOOST_CHECK_EQUAL((*result->GetInputSet().begin())->GetEffectiveValue(), 50 * COIN);
+        // Verify that the 50 DASH UTXO was selected, and result is below max_weight
+        BOOST_CHECK(has_coin(result->GetInputSet(), CAmount(50 * COIN)));
+        BOOST_CHECK_LE(result->GetWeight(), max_weight);
     }
 
     {
@@ -1444,6 +1503,7 @@ BOOST_AUTO_TEST_CASE(check_max_weight)
         BOOST_REQUIRE(result);
         BOOST_CHECK(has_coin(result->GetInputSet(), CAmount(0.0625 * COIN)));
         BOOST_CHECK(has_coin(result->GetInputSet(), CAmount(0.025 * COIN)));
+        BOOST_CHECK_LE(result->GetWeight(), max_weight);
     }
 
     {
