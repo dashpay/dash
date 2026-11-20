@@ -409,7 +409,7 @@ void BlockAssembler::onlyUnconfirmed(CTxMemPool::setEntries& testSet)
 {
     for (CTxMemPool::setEntries::iterator iit = testSet.begin(); iit != testSet.end(); ) {
         // Only test txs not already in the block
-        if (inBlock.count(*iit)) {
+        if (inBlock.count((*iit)->GetSharedTx()->GetHash())) {
             testSet.erase(iit++);
         } else {
             iit++;
@@ -490,7 +490,7 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
     ++nBlockTx;
     nBlockSigOps += iter->GetSigOpCount();
     nFees += iter->GetFee();
-    inBlock.insert(iter);
+    inBlock.insert(iter->GetSharedTx()->GetHash());
 
     bool fPrintPriority = gArgs.GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
     if (fPrintPriority) {
@@ -582,7 +582,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     // because some of their txs are already in the block
     indexed_modified_transaction_set mapModifiedTx;
     // Keep track of entries that failed inclusion, to avoid duplicate work
-    CTxMemPool::setEntries failedTx;
+    std::set<uint256> failedTx;
 
     CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator mi = mempool.mapTx.get<ancestor_score>().begin();
     CTxMemPool::txiter iter;
@@ -610,7 +610,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         if (mi != mempool.mapTx.get<ancestor_score>().end()) {
             auto it = mempool.mapTx.project<0>(mi);
             assert(it != mempool.mapTx.end());
-            if (mapModifiedTx.count(it) || inBlock.count(it) || failedTx.count(it)) {
+            if (mapModifiedTx.count(it) || inBlock.count(it->GetSharedTx()->GetHash()) || failedTx.count(it->GetSharedTx()->GetHash())) {
                 ++mi;
                 continue;
             }
@@ -644,7 +644,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
 
         // We skip mapTx entries that are inBlock, and mapModifiedTx shouldn't
         // contain anything that is inBlock.
-        assert(!inBlock.count(iter));
+        assert(!inBlock.count(iter->GetSharedTx()->GetHash()));
 
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
@@ -666,7 +666,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 // we must erase failed entries so that we can consider the
                 // next best entry on the next loop iteration
                 mapModifiedTx.get<ancestor_score>().erase(modit);
-                failedTx.insert(iter);
+                failedTx.insert(iter->GetSharedTx()->GetHash());
             }
 
             ++nConsecutiveFailed;
@@ -694,7 +694,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         CTxMemPool::setEntries serviceUpdates;
         for (const auto& entry : ancestors) {
             for (const auto& update : mempool.GetServiceUpdatesBeforeKeyChange(entry)) {
-                if (inBlock.count(update) || serviceUpdates.count(update)) {
+                if (inBlock.count(update->GetSharedTx()->GetHash()) || serviceUpdates.count(update)) {
                     continue;
                 }
                 auto updatePackage{mempool.AssumeCalculateMemPoolAncestors(__func__, *update,
@@ -731,7 +731,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         if (!TestPackageTransactions(ancestors)) {
             if (fUsingModified) {
                 mapModifiedTx.get<ancestor_score>().erase(modit);
-                failedTx.insert(iter);
+                failedTx.insert(iter->GetSharedTx()->GetHash());
             }
             continue;
         }
@@ -834,7 +834,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         if (!validPackage) {
             if (fUsingModified) {
                 mapModifiedTx.get<ancestor_score>().erase(modit);
-                failedTx.insert(iter);
+                failedTx.insert(iter->GetSharedTx()->GetHash());
             }
             continue;
         }
