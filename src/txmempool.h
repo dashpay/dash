@@ -379,7 +379,7 @@ public:
     indexed_transaction_set mapTx GUARDED_BY(cs);
 
     using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
-    std::vector<std::pair<uint256, txiter> > vTxHashes GUARDED_BY(cs); //!< All tx instance hashes (see CTransaction::GetInstanceHash)/entries in mapTx, in random order
+    std::vector<std::pair<uint256, txiter>> txns_randomized GUARDED_BY(cs); //!< All transactions in mapTx with their instance hashes, in arbitrary order
 
     typedef std::set<txiter, CompareIteratorByHash> setEntries;
 
@@ -715,12 +715,15 @@ public:
         return (mapTx.count(hash) != 0);
     }
 
+    const CTxMemPoolEntry* GetEntry(const uint256& txid) const LIFETIMEBOUND EXCLUSIVE_LOCKS_REQUIRED(cs);
+
     CTransactionRef get(const uint256& hash) const;
     TxMempoolInfo info(const uint256& hash) const;
 
     /** Returns info for a transaction if its entry_sequence < last_sequence */
     TxMempoolInfo info_for_relay(const uint256& hash, uint64_t last_sequence) const;
 
+    std::vector<CTxMemPoolEntryRef> entryAll() const EXCLUSIVE_LOCKS_REQUIRED(cs);
     std::vector<TxMempoolInfo> infoAll() const;
 
     /** Get the transaction holding this version 2 asset unlock instance hash, if any. */

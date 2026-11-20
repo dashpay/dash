@@ -53,6 +53,13 @@ uint64_t CBlockHeaderAndShortTxIDs::GetShortID(const uint256& txhash) const {
 
 
 
+/* Reconstructing a compact block is in the hot-path for block relay,
+ * so we want to do it as quickly as possible. Because this often
+ * involves iterating over the entire mempool, we put all the data we
+ * need (ie the instance hash and a reference to the actual transaction data)
+ * in a vector and iterate over the vector directly. This allows optimal
+ * CPU caching behaviour, at a cost of only 40 bytes per transaction.
+ */
 ReadStatus PartiallyDownloadedBlock::InitData(const CBlockHeaderAndShortTxIDs& cmpctblock, const std::vector<std::pair<uint256, CTransactionRef>>& extra_txn) {
     if (cmpctblock.header.IsNull() || (cmpctblock.shorttxids.empty() && cmpctblock.prefilledtxn.empty()))
         return READ_STATUS_INVALID;
@@ -113,12 +120,12 @@ ReadStatus PartiallyDownloadedBlock::InitData(const CBlockHeaderAndShortTxIDs& c
     std::vector<bool> have_txn(txn_available.size());
     {
     LOCK(pool->cs);
-    for (size_t i = 0; i < pool->vTxHashes.size(); i++) {
-        uint64_t shortid = cmpctblock.GetShortID(pool->vTxHashes[i].first);
+    for (const auto& [hash, txit] : pool->txns_randomized) {
+        uint64_t shortid = cmpctblock.GetShortID(hash);
         std::unordered_map<uint64_t, uint16_t>::iterator idit = shorttxids.find(shortid);
         if (idit != shorttxids.end()) {
             if (!have_txn[idit->second]) {
-                txn_available[idit->second] = pool->vTxHashes[i].second->GetSharedTx();
+                txn_available[idit->second] = txit->GetSharedTx();
                 have_txn[idit->second]  = true;
                 mempool_count++;
             } else {

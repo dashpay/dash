@@ -15,6 +15,7 @@ add_executable(bench_bitcoin
   bls_dkg.cpp
   bls_pubkey_agg.cpp
   block_assemble.cpp
+  blockencodings.cpp
   blockfilter_index.cpp
   ccoins_caching.cpp
   chacha20.cpp

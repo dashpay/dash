@@ -20,6 +20,8 @@ happened previously.
 """
 
 from test_framework.test_framework import BitcoinTestFramework
+from test_framework.address import ADDRESS_BCRT1_UNSPENDABLE
+from test_framework.messages import COIN
 from test_framework.util import (
     assert_equal,
     set_node_times,
@@ -98,7 +100,7 @@ class Variant(collections.namedtuple("Variant", "call data rescan prune")):
 
             address, = [ad for ad in addresses if txid in ad["txids"]]
             assert_equal(address["address"], self.address["address"])
-            assert_equal(address["amount"], self.expected_balance)
+            assert_equal(address["amount"], self.amount_received)
             assert_equal(address["confirmations"], confirmations)
             # Verify the transaction is correctly marked watchonly depending on
             # whether the transaction pays to an imported public key or
@@ -130,8 +132,10 @@ TIMESTAMP_WINDOW = 2 * 60 * 60
 AMOUNT_DUST = 0.00000546
 
 
-def get_rand_amount():
-    r = random.uniform(AMOUNT_DUST, 1)
+def get_rand_amount(min_amount=AMOUNT_DUST):
+    assert min_amount <= 1
+    r = random.uniform(min_amount, 1)
+    # note: min_amount can get rounded down here
     return Decimal(str(round(r, 8)))
 
 
@@ -198,10 +202,8 @@ class ImportRescanTest(BitcoinTestFramework):
 
         # Generate a block further in the future (past the rescan window).
         assert_equal(self.nodes[0].getrawmempool(), [])
-        set_node_times(
-            self.nodes,
-            self.nodes[0].getblockheader(self.nodes[0].getbestblockhash())["time"] + TIMESTAMP_WINDOW + 1,
-        )
+        self.mocktime = self.nodes[0].getblockheader(self.nodes[0].getbestblockhash())["time"] + TIMESTAMP_WINDOW + 1
+        set_node_times(self.nodes, self.mocktime)
         self.generate(self.nodes[0], 1)
 
         # For each variation of wallet key import, invoke the import RPC and
@@ -212,11 +214,11 @@ class ImportRescanTest(BitcoinTestFramework):
             variant.node = self.nodes[2 + IMPORT_NODES.index(ImportNode(variant.prune, expect_rescan))]
             variant.do_import(variant.timestamp)
             if expect_rescan:
-                variant.expected_balance = variant.initial_amount
+                variant.amount_received = variant.initial_amount
                 variant.expected_txs = 1
                 variant.check(variant.initial_txid, variant.initial_amount, variant.confirmation_height)
             else:
-                variant.expected_balance = 0
+                variant.amount_received = 0
                 variant.expected_txs = 0
                 variant.check()
 
@@ -236,7 +238,7 @@ class ImportRescanTest(BitcoinTestFramework):
         # Check the latest results from getbalance and listtransactions.
         for variant in IMPORT_VARIANTS:
             self.log.info('Run check for variant {}'.format(variant))
-            variant.expected_balance += variant.sent_amount
+            variant.amount_received += variant.sent_amount
             variant.expected_txs += 1
             variant.check(variant.sent_txid, variant.sent_amount, variant.confirmation_height)
 
@@ -255,13 +257,46 @@ class ImportRescanTest(BitcoinTestFramework):
                 label=variant.label,
             ))
             variant.key = self.nodes[1].dumpprivkey(variant.address["address"])
-            variant.initial_amount = get_rand_amount()
+            # Ensure output is large enough to pay for fees: conservatively assuming txsize of
+            # 500 vbytes and feerate of 20 sats/vbytes
+            variant.initial_amount = get_rand_amount(min_amount=((500 * 20 / COIN) + AMOUNT_DUST))
             variant.initial_txid = self.nodes[0].sendtoaddress(variant.address["address"], variant.initial_amount)
             variant.confirmation_height = 0
             variant.timestamp = timestamp
 
+        # Mine a block so these parents are confirmed
         assert_equal(len(self.nodes[0].getrawmempool()), len(mempool_variants))
         self.sync_mempools()
+        block_to_disconnect = self.generate(self.nodes[0], 1)[0]
+        assert_equal(len(self.nodes[0].getrawmempool()), 0)
+
+        # For each variant, create an unconfirmed child transaction from initial_txid, sending all
+        # the funds to an unspendable address. Importantly, no change output is created so the
+        # transaction can't be recognized using its outputs. The wallet rescan needs to know the
+        # inputs of the transaction to detect it, so the parent must be processed before the child.
+        # An equivalent test for descriptors exists in wallet_rescan_unconfirmed.py.
+        unspent_txid_map = {txin["txid"] : txin for txin in self.nodes[1].listunspent()}
+        for variant in mempool_variants:
+            # Send full amount, subtracting fee from outputs, to ensure no change is created.
+            child = self.nodes[1].send(
+                add_to_wallet=False,
+                inputs=[unspent_txid_map[variant.initial_txid]],
+                outputs=[{ADDRESS_BCRT1_UNSPENDABLE : variant.initial_amount}],
+                subtract_fee_from_outputs=[0]
+            )
+            variant.child_txid = child["txid"]
+            variant.amount_received = 0
+            self.nodes[0].sendrawtransaction(child["hex"])
+
+        # Mempools should contain the child transactions for each variant.
+        assert_equal(len(self.nodes[0].getrawmempool()), len(mempool_variants))
+        self.sync_mempools()
+
+        # Mock a reorg so the parent transactions are added back to the mempool
+        for node in self.nodes:
+            node.invalidateblock(block_to_disconnect)
+            # Mempools should now contain the parent and child for each variant.
+            assert_equal(len(node.getrawmempool()), 2 * len(mempool_variants))
 
         # For each variation of wallet key import, invoke the import RPC and
         # check the results from getbalance and listtransactions.
@@ -271,11 +306,15 @@ class ImportRescanTest(BitcoinTestFramework):
             variant.node = self.nodes[2 + IMPORT_NODES.index(ImportNode(variant.prune, expect_rescan))]
             variant.do_import(variant.timestamp)
             if expect_rescan:
-                variant.expected_balance = variant.initial_amount
+                # Ensure both transactions were rescanned. This would raise a JSONRPCError if the
+                # transactions were not identified as belonging to the wallet.
+                assert_equal(variant.node.gettransaction(variant.initial_txid)['confirmations'], 0)
+                assert_equal(variant.node.gettransaction(variant.child_txid)['confirmations'], 0)
+                variant.amount_received = variant.initial_amount
                 variant.expected_txs = 1
-                variant.check(variant.initial_txid, variant.initial_amount)
+                variant.check(variant.initial_txid, variant.initial_amount, 0)
             else:
-                variant.expected_balance = 0
+                variant.amount_received = 0
                 variant.expected_txs = 0
                 variant.check()
 

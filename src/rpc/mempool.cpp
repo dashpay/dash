@@ -319,9 +319,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     info.pushKV("depends", depends);
 
     UniValue spent(UniValue::VARR);
-    const CTxMemPool::txiter& it = pool.mapTx.find(tx.GetHash());
-    const CTxMemPoolEntry::Children& children = it->GetMemPoolChildrenConst();
-    for (const CTxMemPoolEntry& child : children) {
+    for (const CTxMemPoolEntry& child : e.GetMemPoolChildrenConst()) {
         spent.push_back(child.GetTx().GetHash().ToString());
     }
 
@@ -338,14 +336,13 @@ UniValue MempoolToJSON(const CTxMemPool& pool, const llmq::CInstantSendManager* 
         }
         LOCK(pool.cs);
         UniValue o(UniValue::VOBJ);
-        for (const CTxMemPoolEntry& e : pool.mapTx) {
-            const uint256& hash = e.GetTx().GetHash();
+        for (const CTxMemPoolEntry& e : pool.entryAll()) {
             UniValue info(UniValue::VOBJ);
             entryToJSON(pool, info, e, isman);
             // Mempool has unique entries so there is no advantage in using
             // UniValue::pushKV, which checks if the key already exists in O(N).
             // UniValue::pushKVEnd is used instead which currently is O(1).
-            o.pushKVEnd(hash.ToString(), info);
+            o.pushKVEnd(e.GetTx().GetHash().ToString(), info);
         }
         return o;
     } else {
@@ -353,7 +350,7 @@ UniValue MempoolToJSON(const CTxMemPool& pool, const llmq::CInstantSendManager* 
         uint64_t mempool_sequence;
         {
             LOCK(pool.cs);
-            for (const CTxMemPoolEntry& e : pool.mapTx) {
+            for (const CTxMemPoolEntry& e : pool.entryAll()) {
                 a.push_back(e.GetTx().GetHash().ToString());
             }
             mempool_sequence = pool.GetSequence();
@@ -458,12 +455,12 @@ static RPCHelpMan getmempoolancestors()
     const CTxMemPool& mempool = EnsureMemPool(node);
     LOCK(mempool.cs);
 
-    CTxMemPool::txiter it = mempool.mapTx.find(hash);
-    if (it == mempool.mapTx.end()) {
+    const auto entry{mempool.GetEntry(hash)};
+    if (entry == nullptr) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
-    auto ancestors{mempool.AssumeCalculateMemPoolAncestors(self.m_name, *it, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
+    auto ancestors{mempool.AssumeCalculateMemPoolAncestors(self.m_name, *entry, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
 
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
@@ -522,15 +519,15 @@ static RPCHelpMan getmempooldescendants()
     const CTxMemPool& mempool = EnsureMemPool(node);
     LOCK(mempool.cs);
 
-    CTxMemPool::txiter it = mempool.mapTx.find(hash);
-    if (it == mempool.mapTx.end()) {
+    const auto it{mempool.GetIter(hash)};
+    if (!it) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
     CTxMemPool::setEntries setDescendants;
-    mempool.CalculateDescendants(it, setDescendants);
+    mempool.CalculateDescendants(*it, setDescendants);
     // CTxMemPool::CalculateDescendants will include the given tx
-    setDescendants.erase(it);
+    setDescendants.erase(*it);
 
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
@@ -578,15 +575,14 @@ static RPCHelpMan getmempoolentry()
     const CTxMemPool& mempool = EnsureMemPool(node);
     LOCK(mempool.cs);
 
-    CTxMemPool::txiter it = mempool.mapTx.find(hash);
-    if (it == mempool.mapTx.end()) {
+    const auto entry{mempool.GetEntry(hash)};
+    if (entry == nullptr) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
-    const CTxMemPoolEntry &e = *it;
     UniValue info(UniValue::VOBJ);
     const llmq::CInstantSendManager& isman = EnsureInstantSendManager(node);
-    entryToJSON(mempool, info, e, &isman);
+    entryToJSON(mempool, info, *entry, &isman);
     return info;
 },
     };

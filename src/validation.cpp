@@ -443,7 +443,7 @@ void Chainstate::MaybeUpdateMempoolForReorg(
             const std::optional<LockPoints> new_lock_points{CalculateLockPointsAtTip(m_chain.Tip(), view_mempool, tx)};
             if (new_lock_points.has_value() && CheckSequenceLocksAtTip(m_chain.Tip(), *new_lock_points)) {
                 // Now update the mempool entry lockpoints as well.
-                m_mempool->mapTx.modify(it, [&new_lock_points](CTxMemPoolEntry& e) { e.UpdateLockPoints(*new_lock_points); });
+                it->UpdateLockPoints(*new_lock_points);
             } else {
                 return true;
             }
@@ -452,9 +452,7 @@ void Chainstate::MaybeUpdateMempoolForReorg(
         // If the transaction spends any coinbase outputs, it must be mature.
         if (it->GetSpendsCoinbase()) {
             for (const CTxIn& txin : tx.vin) {
-                auto it2 = m_mempool->mapTx.find(txin.prevout.hash);
-                if (it2 != m_mempool->mapTx.end())
-                    continue;
+                if (m_mempool->exists(txin.prevout.hash)) continue;
                 const Coin& coin{CoinsTip().AccessCoin(txin.prevout)};
                 assert(!coin.IsSpent());
                 const auto mempool_spend_height{m_chain.Tip()->nHeight + 1};
@@ -1623,9 +1621,8 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptPackage(const Package& package, 
                 }
             }
             // Exact transaction already exists in the mempool.
-            auto iter = m_pool.GetIter(txid);
-            assert(iter != std::nullopt);
-            results_final.emplace(txid, MempoolAcceptResult::MempoolTx(iter.value()->GetTxSize(), iter.value()->GetFee()));
+            const auto& entry{*Assert(m_pool.GetEntry(txid))};
+            results_final.emplace(txid, MempoolAcceptResult::MempoolTx(entry.GetTxSize(), entry.GetFee()));
         } else {
             // Transaction does not already exist in the mempool.
             // Try submitting the transaction on its own.

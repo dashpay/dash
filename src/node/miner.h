@@ -157,7 +157,7 @@ private:
     uint64_t nBlockTx;
     unsigned int nBlockSigOps;
     CAmount nFees;
-    CTxMemPool::setEntries inBlock;
+    std::unordered_set<uint256, SaltedTxidHasher> inBlock;
 
     // Chain context for the block
     int nHeight;

@@ -1604,8 +1604,9 @@ public:
     {
         if (!m_node.mempool) return false;
         LOCK(m_node.mempool->cs);
-        auto it = m_node.mempool->GetIter(txid);
-        return it && (*it)->GetCountWithDescendants() > 1;
+        const auto entry{m_node.mempool->GetEntry(txid)};
+        if (entry == nullptr) return false;
+        return entry->GetCountWithDescendants() > 1;
     }
     TransactionError broadcastTransaction(const CTransactionRef& tx, const CAmount& max_tx_fee, bool relay, bilingual_str& err_string) override
     {
@@ -1631,11 +1632,8 @@ public:
         if (!m_node.mempool) return {};
         LockPoints lp;
         CTxMemPoolEntry entry(tx, 0, 0, 0, 0, false, 0, lp);
-        const CTxMemPool::Limits& limits{m_node.mempool->m_limits};
         LOCK(m_node.mempool->cs);
-        auto ancestors{m_node.mempool->CalculateMemPoolAncestors(entry, limits)};
-        if (!ancestors) return util::Error{util::ErrorString(ancestors)};
-        return {};
+        return m_node.mempool->CheckPackageLimits({tx}, entry.GetTxSize());
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {
@@ -1746,7 +1744,7 @@ public:
     {
         if (!m_node.mempool) return;
         LOCK2(::cs_main, m_node.mempool->cs);
-        for (const CTxMemPoolEntry& entry : m_node.mempool->mapTx) {
+        for (const CTxMemPoolEntry& entry : m_node.mempool->entryAll()) {
             notifications.transactionAddedToMempool(entry.GetSharedTx(), /*nAcceptTime=*/0);
         }
     }

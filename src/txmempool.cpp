@@ -485,8 +485,8 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, setEntries &setAnces
         minerPolicyEstimator->processTransaction(entry, validFeeEstimate);
     }
 
-    vTxHashes.emplace_back(entry.GetTx().GetInstanceHash(), newit);
-    newit->vTxHashesIdx = vTxHashes.size() - 1;
+    txns_randomized.emplace_back(entry.GetTx().GetInstanceHash(), newit);
+    newit->idx_randomized = txns_randomized.size() - 1;
 
     // Invalid ProTxes should never get this far because transactions should be
     // fully checked by AcceptToMemoryPool() at this point, so we just assume that
@@ -749,14 +749,17 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 
     RemoveUnbroadcastTx(hash, true /* add logging because unchecked */ );
 
-    if (vTxHashes.size() > 1) {
-        vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
-        vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
-        vTxHashes.pop_back();
-        if (vTxHashes.size() * 2 < vTxHashes.capacity())
-            vTxHashes.shrink_to_fit();
-    } else
-        vTxHashes.clear();
+    if (txns_randomized.size() > 1) {
+        // Remove entry from txns_randomized by replacing it with the back and deleting the back.
+        txns_randomized[it->idx_randomized] = std::move(txns_randomized.back());
+        txns_randomized[it->idx_randomized].second->idx_randomized = it->idx_randomized;
+        txns_randomized.pop_back();
+        if (txns_randomized.size() * 2 < txns_randomized.capacity()) {
+            txns_randomized.shrink_to_fit();
+        }
+    } else {
+        txns_randomized.clear();
+    }
 
     removeUncheckedProTx(it->GetTx());
 
@@ -894,7 +897,7 @@ void CTxMemPool::ReplaceAssetUnlockInstance(const CTransactionRef& tx)
     Assume(it->GetTx().GetTotalSize() == tx->GetTotalSize());
     const bool modified{mapTx.modify(it, [&tx](CTxMemPoolEntry& e) { e.ReplaceAssetUnlockTx(tx); })};
     assert(modified);
-    vTxHashes[it->vTxHashesIdx].first = tx->GetInstanceHash();
+    txns_randomized[it->idx_randomized].first = tx->GetInstanceHash();
     m_asset_unlock_instances.erase(old_instance_hash);
     m_asset_unlock_instances.emplace(tx->GetInstanceHash(), tx->GetHash());
     nTransactionsUpdated++;
@@ -1574,6 +1577,18 @@ static TxMempoolInfo GetInfo(CTxMemPool::indexed_transaction_set::const_iterator
     return TxMempoolInfo{it->GetSharedTx(), it->GetTime(), it->GetFee(), it->GetTxSize(), it->GetModifiedFee() - it->GetFee()};
 }
 
+std::vector<CTxMemPoolEntryRef> CTxMemPool::entryAll() const
+{
+    AssertLockHeld(cs);
+
+    std::vector<CTxMemPoolEntryRef> ret;
+    ret.reserve(mapTx.size());
+    for (const auto& it : GetSortedDepthAndScore()) {
+        ret.emplace_back(*it);
+    }
+    return ret;
+}
+
 std::vector<TxMempoolInfo> CTxMemPool::infoAll() const
 {
     LOCK(cs);
@@ -1586,6 +1601,13 @@ std::vector<TxMempoolInfo> CTxMemPool::infoAll() const
     }
 
     return ret;
+}
+
+const CTxMemPoolEntry* CTxMemPool::GetEntry(const uint256& txid) const
+{
+    AssertLockHeld(cs);
+    const auto i = mapTx.find(txid);
+    return i == mapTx.end() ? nullptr : &(*i);
 }
 
 CTransactionRef CTxMemPool::get(const uint256& hash) const
@@ -2049,7 +2071,7 @@ void CCoinsViewMemPool::PackageAddTransaction(const CTransactionRef& tx)
 size_t CTxMemPool::DynamicMemoryUsage() const {
     LOCK(cs);
     // Estimate the overhead of mapTx to be 12 pointers + an allocation, as no exact formula for boost::multi_index_contained is implemented.
-    return memusage::MallocUsage(sizeof(CTxMemPoolEntry) + 12 * sizeof(void*)) * mapTx.size() + memusage::DynamicUsage(mapNextTx) + memusage::DynamicUsage(mapDeltas) + memusage::DynamicUsage(vTxHashes) + cachedInnerUsage;
+    return memusage::MallocUsage(sizeof(CTxMemPoolEntry) + 12 * sizeof(void*)) * mapTx.size() + memusage::DynamicUsage(mapNextTx) + memusage::DynamicUsage(mapDeltas) + memusage::DynamicUsage(txns_randomized) + cachedInnerUsage;
 }
 
 void CTxMemPool::RemoveUnbroadcastTx(const uint256& txid, const bool unchecked) {
