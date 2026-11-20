@@ -6,6 +6,7 @@
 #define BITCOIN_LLMQ_SNAPSHOT_H
 
 #include <evo/smldiff.h>
+#include <evo/viewcache.h>
 #include <llmq/commitment.h>
 #include <llmq/params.h>
 #include <unordered_lru_cache.h>
@@ -237,7 +238,8 @@ private:
 
     CEvoDB& m_evoDb;
 
-    Uint256LruHashMap<CQuorumSnapshot> quorumSnapshotCache GUARDED_BY(snapshotCacheCs);
+    EvoViewCache<Uint256LruHashMap<CQuorumSnapshot>> quorumSnapshotCache GUARDED_BY(snapshotCacheCs){
+        [] { return Uint256LruHashMap<CQuorumSnapshot>{32}; }};
 
 public:
     CQuorumSnapshotManager() = delete;
@@ -245,6 +247,10 @@ public:
     CQuorumSnapshotManager& operator=(const CQuorumSnapshotManager&) = delete;
     explicit CQuorumSnapshotManager(CEvoDB& evoDb);
     ~CQuorumSnapshotManager();
+
+    //! The Evo view the calling operation reads, for callers that partition
+    //! their own caches of state derived from quorum snapshots.
+    EvoViewToken CurrentView() const { return m_evoDb.CurrentView(); }
 
     std::optional<CQuorumSnapshot> GetSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
     void StoreSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot);
